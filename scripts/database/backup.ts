@@ -1,0 +1,6 @@
+import 'dotenv/config';import fs from 'node:fs/promises';import path from 'node:path';import crypto from 'node:crypto';import {spawn} from 'node:child_process';
+if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL required');
+const url=new URL(process.env.DATABASE_URL);const output=process.argv[2];if(!output)throw new Error('Provide an absolute backup destination outside git');
+await fs.mkdir(path.dirname(path.resolve(output)),{recursive:true,mode:0o700});const file=await fs.open(output,'wx',0o600);
+try{await new Promise<void>((resolve,reject)=>{const child=spawn('pg_dump',['--format=custom','--no-owner','--no-acl'],{env:{...process.env,PGHOST:url.hostname,PGPORT:url.port||'5432',PGUSER:decodeURIComponent(url.username),PGPASSWORD:decodeURIComponent(url.password),PGDATABASE:url.pathname.slice(1)},stdio:['ignore',file.fd,'pipe']});let failure='';child.stderr?.on('data',chunk=>failure+=chunk);child.on('error',reject);child.on('close',code=>code===0?resolve():reject(new Error('pg_dump failed; backup is incomplete. Check connectivity and pg_dump version.')));});}finally{await file.close();}
+const stat=await fs.stat(output);if(!stat.size)throw new Error('Empty backup');console.log(JSON.stringify({path:path.resolve(output),bytes:stat.size,sha256:crypto.createHash('sha256').update(await fs.readFile(output)).digest('hex'),restoreTestRequired:true}));

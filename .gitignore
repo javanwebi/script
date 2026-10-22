@@ -1,0 +1,20 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+.cache/
+imagemoshtari/
+imageai/
+.aistudio/
+.data/
+
+
+# Customer data belongs in the runtime database, never in source control.
+src/data/usersDb.json
+src/data/smsLogsDb.json
+
+!.env.database.example

@@ -1,0 +1,611 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-17T11:40:00.440Z",
+  "deletedCodes": [],
+  "families": {
+    "FAM-34265": {
+      "code": "FAM-34265",
+      "name": "چرخ دنده",
+      "brand": "ATLAS GEAR",
+      "categorySlug": "چرخ-و-رولر",
+      "categoryName": "چرخ و رولر",
+      "submenu": "چرخ صنعتی",
+      "subcategory": "چرخ صنعتی",
+      "unit": "عدد",
+      "active": true,
+      "imageScope": "mixed",
+      "description": "خانواده چرخ‌دنده‌های صنعتی خطوط تولید و انتقال قدرت؛ شامل انواع چرخ‌دنده هلیکال (مارپیچ)، ساده و دوبل در سایزها و تعداد دندانه (Z) متنوع. با انتخاب هر کد کالا یا کلیک روی تصویر اختصاصی آن، قیمت، سایز، مشخصات فنی و وضعیت موجودی همان کد به صورت هم‌زمان نمایش داده می‌شود.",
+      "technicalSpecs": [
+        {
+          "key": "نوع فنی خانواده",
+          "value": "چرخ‌دنده صنعتی انتقال نیرو و حرکت"
+        },
+        {
+          "key": "استاندارد پروفیل دندانه",
+          "value": "DIN 867 / ISO 53 (زاویه فشار ۲۰ درجه)"
+        },
+        {
+          "key": "واحد فروش",
+          "value": "عدد"
+        },
+        {
+          "key": "حوزه کاربرد مشترک",
+          "value": "خطوط سورتینگ، پالت‌آیزر، نوار نقاله و گیربکس‌های صنعتی"
+        }
+      ],
+      "galleryImages": [
+        {
+          "id": "img-34265-1",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(549).png",
+          "fileName": "e(549).png",
+          "scope": "variant",
+          "variantCode": "34265",
+          "title": "نمای اصلی چرخ‌دنده هلیکال Z14 — کد 34265",
+          "order": 1
+        },
+        {
+          "id": "img-34265-2",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(551).png",
+          "fileName": "e(551).png",
+          "scope": "variant",
+          "variantCode": "34265",
+          "title": "نمای زاویه دندانه و توپی چرخ‌دنده Z14 — کد 34265 (تصویر دوم همین کد)",
+          "order": 2
+        },
+        {
+          "id": "img-34265-3",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(558).png",
+          "fileName": "e(558).png",
+          "scope": "variant",
+          "variantCode": "34265-Z18",
+          "title": "تصویر اختصاصی چرخ‌دنده ساده Z18 — کد 34265-Z18",
+          "order": 3
+        },
+        {
+          "id": "img-34265-4",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(559).png",
+          "fileName": "e(559).png",
+          "scope": "variant",
+          "variantCode": "34265-Z22",
+          "title": "تصویر اختصاصی چرخ‌دنده سنگین Z22 — کد 34265-Z22",
+          "order": 4
+        },
+        {
+          "id": "img-34265-5",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(562).png",
+          "fileName": "e(562).png",
+          "scope": "family",
+          "title": "تصویر عمومی خانواده چرخ‌دنده (نمای مرجع خانواده بدون تغییر کد انتخابی)",
+          "order": 5
+        }
+      ],
+      "variants": [
+        {
+          "code": "34265",
+          "name": "چرخ دنده هلیکال فولادی Z14 شفت ۲۰ میلی‌متر",
+          "size": "Z14 — قطر ۶۵ × شفت ۲۰ میلی‌متر",
+          "model": "HG-Z14-M4",
+          "brand": "ATLAS GEAR",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(549).png",
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(551).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه (Z)",
+              "value": "۱۴ دندانه هلیکال (مارپیچ)"
+            },
+            {
+              "key": "مدول دندانه (M)",
+              "value": "مدول ۴ میلی‌متر"
+            },
+            {
+              "key": "جنس و سخت‌کاری",
+              "value": "فولاد آلیاژی MO40 سمانتاسیون ۵۸ HRC"
+            },
+            {
+              "key": "قطر شفت و جاخار",
+              "value": "شفت ۲۰ میلی‌متر + جاخار استاندارد ۶ میلی‌متر"
+            }
+          ]
+        },
+        {
+          "code": "34265-Z18",
+          "name": "چرخ دنده صنعتی ساده Z18 شفت ۲۵ میلی‌متر",
+          "size": "Z18 — قطر ۸۰ × شفت ۲۵ میلی‌متر",
+          "model": "SG-Z18-M4",
+          "brand": "ATLAS GEAR",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(558).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه (Z)",
+              "value": "۱۸ دندانه ساده مستقیم"
+            },
+            {
+              "key": "مدول دندانه (M)",
+              "value": "مدول ۴ میلی‌متر"
+            },
+            {
+              "key": "جنس قطعه",
+              "value": "فولاد CK45 سنگ‌زنی‌شده"
+            },
+            {
+              "key": "عرض دندانه",
+              "value": "۳۵ میلی‌متر"
+            }
+          ]
+        },
+        {
+          "code": "34265-Z22",
+          "name": "چرخ دنده صنعتی توپی‌دار سنگین Z22 شفت ۳۰ میلی‌متر",
+          "size": "Z22 — قطر ۱۱۰ × شفت ۳۰ میلی‌متر",
+          "model": "DG-Z22-M4.5",
+          "brand": "SWR",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(559).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه (Z)",
+              "value": "۲۲ دندانه تقویت‌شده"
+            },
+            {
+              "key": "مدول دندانه (M)",
+              "value": "مدول ۴.۵ میلی‌متر"
+            },
+            {
+              "key": "جنس قطعه",
+              "value": "فولاد نسوز مقاوم به سایش خط کوره"
+            },
+            {
+              "key": "نوع مهار روی شفت",
+              "value": "توپی یک‌طرفه با دو پیچ آلن قفل‌کن"
+            }
+          ]
+        },
+        {
+          "code": "34265-Z28",
+          "name": "چرخ دنده سفارشی خط پالت‌آیزر Z28 (تولید طبق نقشه)",
+          "size": "Z28 — قطر ۱۴۰ × شفت ۳۵ میلی‌متر",
+          "model": "CUSTOM-Z28",
+          "brand": "FORZA",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه (Z)",
+              "value": "۲۸ دندانه سفارشی"
+            },
+            {
+              "key": "نحوه تأمین",
+              "value": "تراشکاری و دنده‌زنی CNC طبق نقشه یا نمونه"
+            },
+            {
+              "key": "پوشش سطحی",
+              "value": "فسفاته یا گالوانیزه گرم بر اساس درخواست"
+            }
+          ]
+        }
+      ]
+    },
+    "FAM-80301": {
+      "code": "FAM-80301",
+      "name": "چرخ دنده پلاستیکی سفید",
+      "brand": "ATLAS POLYMER",
+      "categorySlug": "آب-بندی-و-قطعات-لاستیکی",
+      "categoryName": "آب‌بندی و قطعات لاستیکی",
+      "submenu": "لاستیک صنعتی",
+      "subcategory": "لاستیک صنعتی",
+      "unit": "عدد",
+      "active": true,
+      "imageScope": "mixed",
+      "description": "خانواده چرخ‌دنده‌های پلیمری و پلی‌آمیدی (تفلون/زلامید سفید) ویژه خطوط لعاب، چاپ و بسته‌بندی کاشی و سرامیک؛ مقاوم در برابر رطوبت، مواد شیمیایی و کارکرد بی‌صدا بدون نیاز به روغن‌کاری مداوم.",
+      "technicalSpecs": [
+        {
+          "key": "نوع فنی خانواده",
+          "value": "چرخ‌دنده پلیمری مهندسی (پلی‌آمید / تفلون صنعتی)"
+        },
+        {
+          "key": "واحد فروش",
+          "value": "عدد"
+        },
+        {
+          "key": "مقاومت شیمیایی",
+          "value": "مقاوم به آب، دوغاب سرامیک و محیط‌های مرطوب خط لعاب"
+        },
+        {
+          "key": "مزیت عملکردی",
+          "value": "وزن سبک، استهلاک پایین و جذب ارتعاش"
+        }
+      ],
+      "galleryImages": [
+        {
+          "id": "img-80301-1",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(51).png",
+          "fileName": "e(51).png",
+          "scope": "variant",
+          "variantCode": "80301",
+          "title": "نمای اول چرخ‌دنده پلاستیکی سفید Z12*25*8 — کد 80301",
+          "order": 1
+        },
+        {
+          "id": "img-80301-2",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(52).png",
+          "fileName": "e(52).png",
+          "scope": "variant",
+          "variantCode": "80301",
+          "title": "نمای دوم چرخ‌دنده پلاستیکی سفید Z12*25*8 — کد 80301",
+          "order": 2
+        },
+        {
+          "id": "img-80301-3",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(53).png",
+          "fileName": "e(53).png",
+          "scope": "variant",
+          "variantCode": "40521",
+          "title": "تصویر اختصاصی چرخ‌دنده پلاستیکی Z12*100*40 — کد 40521",
+          "order": 3
+        },
+        {
+          "id": "img-80301-4",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(55).png",
+          "fileName": "e(55).png",
+          "scope": "variant",
+          "variantCode": "41069",
+          "title": "تصویر اختصاصی چرخ‌دنده پلاستیکی Z16*122*40 — کد 41069",
+          "order": 4
+        },
+        {
+          "id": "img-80301-5",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(176).png",
+          "fileName": "e(176).png",
+          "scope": "variant",
+          "variantCode": "41068",
+          "title": "تصویر اختصاصی چرخ‌دنده پلاستیکی Z16*130*25 — کد 41068",
+          "order": 5
+        },
+        {
+          "id": "img-80301-6",
+          "url": "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(177).png",
+          "fileName": "e(177).png",
+          "scope": "family",
+          "title": "تصویر عمومی خانواده چرخ‌دنده‌های پلاستیکی سفید",
+          "order": 6
+        }
+      ],
+      "variants": [
+        {
+          "code": "80301",
+          "size": "Z12، 12*25*8",
+          "name": "چرخ دنده پلاستيكي سفيد Z12 * 25 * 8",
+          "model": "PA6-Z12-25x8",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(51).png",
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(52).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۲ دندانه (Z12)"
+            },
+            {
+              "key": "ابعاد (قطر × عرض × شفت)",
+              "value": "۲۵ × ۸ میلی‌متر"
+            },
+            {
+              "key": "جنس",
+              "value": "پلی‌آمید سفید ضدسایش (PA6)"
+            }
+          ]
+        },
+        {
+          "code": "40521",
+          "size": "Z12، 12*100*40",
+          "name": "چرخ دنده پلاستيكي سفيد Z12*100*40",
+          "model": "PA6-Z12-100x40",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(53).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۲ دندانه (Z12)"
+            },
+            {
+              "key": "ابعاد",
+              "value": "قطر ۱۰۰ × ضخامت ۴۰ میلی‌متر"
+            },
+            {
+              "key": "جنس",
+              "value": "پلی‌آمید مهندسی تقویت‌شده"
+            }
+          ]
+        },
+        {
+          "code": "41069",
+          "size": "Z16، 16*122*40",
+          "name": "چرخ دنده پلاستيكي سفيد Z16 * 122 * 40",
+          "model": "PA6-Z16-122x40",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(55).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۶ دندانه (Z16)"
+            },
+            {
+              "key": "ابعاد",
+              "value": "قطر ۱۲۲ × ضخامت ۴۰ میلی‌متر"
+            },
+            {
+              "key": "جنس",
+              "value": "پلی‌آمید تراش CNC"
+            }
+          ]
+        },
+        {
+          "code": "41068",
+          "size": "Z16، 16*130*25",
+          "name": "چرخ دنده پلاستيكي سفيد Z16 * 130 * 25",
+          "model": "PA6-Z16-130x25",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [
+            "https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(176).png"
+          ],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۶ دندانه (Z16)"
+            },
+            {
+              "key": "ابعاد",
+              "value": "قطر ۱۳۰ × ضخامت ۲۵ میلی‌متر"
+            }
+          ]
+        },
+        {
+          "code": "41083",
+          "size": "Z16، 16*25*7",
+          "name": "چرخ دنده پلاستيكي سفيد Z16 * 25 * 7",
+          "model": "PA6-Z16-25x7",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۶ دندانه ظریف (Z16)"
+            },
+            {
+              "key": "ابعاد",
+              "value": "۲۵ × ۷ میلی‌متر"
+            }
+          ]
+        },
+        {
+          "code": "40725",
+          "size": "Z18، 18*140*40",
+          "name": "چرخ دنده پلاستيكي سفيد Z18 * 140 * 40",
+          "model": "PA6-Z18-140x40",
+          "brand": "ATLAS POLYMER",
+          "unit": "عدد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "stock": 0,
+          "stockKnown": false,
+          "active": true,
+          "images": [],
+          "technicalSpecs": [
+            {
+              "key": "تعداد دندانه",
+              "value": "۱۸ دندانه (Z18)"
+            },
+            {
+              "key": "ابعاد",
+              "value": "قطر ۱۴۰ × ضخامت ۴۰ میلی‌متر"
+            }
+          ]
+        }
+      ]
+    },
+    "FAM-32496": {
+      "code": "FAM-32496",
+      "name": "پکینگ / کاسه‌نمد",
+      "brand": "ثبت نشده",
+      "categorySlug": "آب-بندی-و-درزگیری",
+      "categoryName": "آب‌بندی و درزگیری",
+      "submenu": "آب‌بند و پکینگ",
+      "subcategory": "پکینگ / کاسه‌نمد",
+      "variants": [
+        {
+          "code": "32496",
+          "size": "15*15",
+          "name": "پكينگ نسوز سفيد 15 * 15",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "images": [],
+          "active": true
+        },
+        {
+          "code": "39379",
+          "size": "نامشخص",
+          "name": "كاسه نمد",
+          "price": 0,
+          "prices": {
+            "base": 0,
+            "retail": 0,
+            "wholesale": 0,
+            "dealer": 0
+          },
+          "inquiryOnly": true,
+          "images": [],
+          "active": true
+        }
+      ],
+      "sourceRow": 2,
+      "technicalSpecs": [
+        {
+          "key": "نوع فنی",
+          "value": "پکینگ / کاسه‌نمد"
+        },
+        {
+          "key": "واحدهای فروش",
+          "value": "كيلوگرم, عدد"
+        },
+        {
+          "key": "تعداد کد کالا",
+          "value": "2"
+        },
+        {
+          "key": "جنس‌های ثبت‌شده",
+          "value": "نمد"
+        }
+      ],
+      "prices": {
+        "base": 0,
+        "retail": 0,
+        "wholesale": 0,
+        "dealer": 0
+      },
+      "stock": 0,
+      "stockKnown": false,
+      "inquiryOnly": true,
+      "images": [],
+      "hasCatalogueImage": false,
+      "unit": "كيلوگرم, عدد",
+      "tags": [
+        "آب‌بند و پکینگ",
+        "پکینگ / کاسه‌نمد",
+        ""
+      ],
+      "description": "پکینگ / کاسه‌نمد؛ ۲ کد کالا در این خانواده ثبت شده است. سایز و کد مورد نیاز را از فهرست زیر انتخاب کنید. قیمت و موجودی پس از استعلام اعلام می‌شود.",
+      "galleryImages": [],
+      "active": true,
+      "updatedAt": "2026-10-17T11:40:00.440Z"
+    }
+  }
+}

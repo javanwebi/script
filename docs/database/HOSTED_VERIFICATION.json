@@ -1,0 +1,37 @@
+{
+  "repository": "javanwebi/atlassanatpish1",
+  "supabaseProject": "spkszfbeeufdcpcltqal",
+  "railwayProject": "4e79172e-f7d3-4570-a9aa-634b26bd0e7a",
+  "railwayService": "a6022873-b0df-4c06-8daf-6e9a1209d2fb",
+  "verifiedDeployment": "00ea3514-94c7-469d-85f4-6198cbfa04db",
+  "deploymentStatus": "SUCCESS",
+  "date": "2026-10-20",
+  "database": {
+    "publicTables": 63,
+    "sourceTables": 49,
+    "sourceRows": 28958,
+    "originalColumnDigestsMatch": true,
+    "foreignKeysValidated": true,
+    "transactionReadWriteRollback": true,
+    "anonymousIsolation": true
+  },
+  "applicationHttp": {
+    "health": 200,
+    "databaseHealth": "ok",
+    "runtime": 200,
+    "databaseMode": true,
+    "families": 1383,
+    "variants": 10435,
+    "guestPricesExposed": false,
+    "portal": 200
+  },
+  "supabaseHttp": {
+    "publicCatalog": 200,
+    "anonymousCommercialData": 401,
+    "anonymousPrivateDocumentsRows": 0,
+    "authHealth": 200,
+    "phoneAuthEnabled": false
+  },
+  "browser": {"homeRendered": true, "productsRouteOpened": true},
+  "notVerified": ["real SMS delivery", "real owner Auth account", "payment provider settlement", "AI provider credentials", "old live volume and browser-only data reconciliation"]
+}

@@ -1,0 +1,240 @@
+@font-face{font-family:"VazirmatnPortal";src:url("../../assets/fonts/Vazirmatn-variable.woff2") format("woff2");font-weight:100 900;font-display:swap;}
+.customer-portal,.customer-portal *{font-family:"VazirmatnPortal","Vazirmatn",sans-serif}.customer-portal .lucide{stroke-width:1.65}
+
+.customer-portal .store-btn-primary,
+.customer-portal .store-btn-secondary {
+  min-height: 44px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 18px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.8;
+}
+.customer-portal .store-btn-primary {
+  background: #e06518;
+  color: #fff;
+  border: 1px solid #e06518;
+}
+.customer-portal .store-btn-primary:hover {
+  background: #c85b18;
+}
+.customer-portal .store-btn-secondary {
+  background: #fff;
+  color: #55565a;
+  border: 1px solid #e5e7eb;
+}
+.customer-portal .store-btn-secondary:hover {
+  background: #f6f7f9;
+}
+.customer-portal .store-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a96231;
+  display: block;
+  letter-spacing: 0;
+}
+.customer-portal .store-search-dialog > .store-btn-secondary {
+  margin-top: 16px;
+}
+.customer-portal .store-product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.customer-portal .store-product-card {
+  background: #fff;
+  border: 1px solid #e7e8ec;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.customer-portal .store-product-card:hover {
+  border-color: #e6c4aa;
+  box-shadow: 0 6px 23px #55565a08;
+}
+.customer-portal .store-product-media {
+  position: relative;
+  background: linear-gradient(140deg, #f7f8fa, #fff);
+  aspect-ratio: 1.25;
+}
+.customer-portal .store-product-media > a {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.customer-portal .store-product-media img {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  padding: 23px;
+}
+.customer-portal .store-product-media > button {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: #ffffffd9;
+  border: 1px solid #e7e8ec;
+  border-radius: 10px;
+  color: #929399;
+}
+.customer-portal .store-product-copy {
+  padding: 17px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.customer-portal .store-product-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: #929399;
+}
+.customer-portal .store-product-meta > span:first-child {
+  color: #9e6843;
+}
+.customer-portal .store-product-title {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.9;
+  color: #55565a;
+  margin: 10px 0;
+  min-height: 50px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.customer-portal .store-product-copy > p {
+  font-size: 10px;
+  color: #7d7e84;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+.customer-portal .store-product-bottom {
+  border-top: 1px solid #eff0f3;
+  padding-top: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+.customer-portal .store-product-bottom > span {
+  font-size: 10px;
+  color: #777880;
+}
+.customer-portal .store-product-bottom > a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #c2672d;
+  min-height: 30px;
+}
+.customer-portal .store-product-list {
+  display: grid;
+  gap: 14px;
+}
+.customer-portal .store-product-list .store-product-card {
+  flex-direction: row;
+}
+.customer-portal .store-product-list .store-product-media {
+  width: 180px;
+  flex-shrink: 0;
+}
+.customer-portal .store-product-list .store-product-title {
+  min-height: auto;
+  font-size: 15px;
+}
+.customer-portal .store-product-list .store-product-bottom {
+  justify-content: flex-start;
+  gap: 35px;
+}
+.customer-portal .store-product-list .store-product-copy {
+  padding: 22px;
+}
+@media (max-width: 1023px) {
+  .customer-portal .store-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+@media (max-width: 639px) {
+  .customer-portal .store-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+  }
+  .customer-portal .store-product-copy {
+    padding: 12px;
+  }
+  .customer-portal .store-product-media img {
+    padding: 15px;
+  }
+  .customer-portal .store-product-title {
+    font-size: 12px;
+    line-height: 1.95;
+    margin: 8px 0;
+    min-height: 48px;
+  }
+  .customer-portal .store-product-meta {
+    font-size: 9px;
+    gap: 4px;
+  }
+  .customer-portal .store-product-copy > p {
+    font-size: 9px;
+    margin-bottom: 12px;
+  }
+  .customer-portal .store-product-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 9px;
+  }
+  .customer-portal .store-product-bottom > span {
+    font-size: 9px;
+  }
+  .customer-portal .store-product-bottom > a {
+    font-size: 10px;
+    min-height: 35px;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .customer-portal .store-product-media > button {
+    width: 32px;
+    height: 32px;
+    top: 8px;
+    left: 8px;
+  }
+  .customer-portal .store-product-list .store-product-media {
+    width: 110px;
+    aspect-ratio: auto;
+  }
+  .customer-portal .store-product-list .store-product-copy {
+    padding: 14px;
+  }
+  .customer-portal .store-product-list .store-product-title {
+    font-size: 12px;
+  }
+  .customer-portal .store-product-list .store-product-bottom {
+    gap: 10px;
+  }
+  .customer-portal .store-product-list .store-product-meta > span:first-child {
+    display: none;
+  }
+}

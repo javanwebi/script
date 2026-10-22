@@ -1,0 +1,3797 @@
+-- Sanat Pish: reviewed owner-supplied catalog_* / user_profiles schema.
+-- Production: backup + owner approval required. No data deletion.
+-- FRESH Supabase database only; not the populated sanatpish database.
+BEGIN;
+do $$begin if to_regclass('public.user_profiles') is not null or to_regclass('public.catalog_families') is not null then raise exception 'Existing adopted database: use Upgrade_Existing_Database.sql';end if;end$$;
+-- =============================================================================
+-- MASTER SUPABASE SQL SCHEMA FOR SANAT PISH (صنعت پیش)
+-- Complete, single-file executable PostgreSQL / Supabase migration schema
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- SECTION 1: EXTENSIONS & ENUM TYPES
+-- -----------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "vector";
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role_type') THEN
+        CREATE TYPE public.app_role_type AS ENUM (
+            'guest',
+            'client',
+            'club',
+            'agency',
+            'warehouse_operator',
+            'sales_manager',
+            'super_admin'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'account_status_type') THEN
+        CREATE TYPE public.account_status_type AS ENUM (
+            'pending',
+            'active',
+            'suspended',
+            'rejected'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'customer_grade_code') THEN
+        CREATE TYPE public.customer_grade_code AS ENUM (
+            'bronze',
+            'silver',
+            'gold',
+            'platinum',
+            'diamond',
+            'vip_partner'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'image_scope_type') THEN
+        CREATE TYPE public.image_scope_type AS ENUM (
+            'family',
+            'family-example',
+            'variant',
+            'unassigned'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'technical_review_status_type') THEN
+        CREATE TYPE public.technical_review_status_type AS ENUM (
+            'reference-enriched',
+            'catalog-extracted',
+            'needs-identification'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'inquiry_status_type') THEN
+        CREATE TYPE public.inquiry_status_type AS ENUM (
+            'pending',
+            'reviewing',
+            'quoted',
+            'approved',
+            'rejected',
+            'expired',
+            'converted_to_order'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status_type') THEN
+        CREATE TYPE public.order_status_type AS ENUM (
+            'pending',
+            'confirmed',
+            'packing',
+            'shipped',
+            'delivered',
+            'cancelled'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method_type') THEN
+        CREATE TYPE public.payment_method_type AS ENUM (
+            'online',
+            'receipt',
+            'credit',
+            'check',
+            'wallet'
+        );
+    END IF;
+END$$;
+
+CREATE OR REPLACE FUNCTION public.trigger_set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- SECTION 2: AUTH USERS INTEGRATION, PROFILES, CRM & AGENCIES
+-- -----------------------------------------------------------------------------
+
+-- 1. تنظیمات گرید مشتریان (atlas_customer_grades_v2)
+CREATE TABLE IF NOT EXISTS public.customer_grade_configs (
+    grade_code TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
+    credit_limit NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    settlement_days INTEGER NOT NULL DEFAULT 0,
+    min_points INTEGER NOT NULL DEFAULT 0,
+    min_purchase_volume NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    can_view_prices BOOLEAN NOT NULL DEFAULT TRUE,
+    can_view_stock BOOLEAN NOT NULL DEFAULT TRUE,
+    can_buy_on_credit BOOLEAN NOT NULL DEFAULT FALSE,
+    benefits JSONB NOT NULL DEFAULT '[]'::jsonb,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2. پروفایل کاربران متصل به Supabase Auth (بدون ذخیره رمز عبور موازی)
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    legacy_user_id TEXT UNIQUE,
+    phone TEXT UNIQUE,
+    email TEXT UNIQUE,
+    username TEXT UNIQUE,
+    full_name TEXT NOT NULL DEFAULT '',
+    company_name TEXT,
+    national_id TEXT,
+    economic_code TEXT,
+    registration_number TEXT,
+    role public.app_role_type NOT NULL DEFAULT 'client',
+    status public.account_status_type NOT NULL DEFAULT 'active',
+    grade_code TEXT REFERENCES public.customer_grade_configs(grade_code) ON DELETE SET NULL,
+    approved_b2b BOOLEAN NOT NULL DEFAULT FALSE,
+    can_view_prices BOOLEAN NOT NULL DEFAULT FALSE,
+    can_view_stock BOOLEAN NOT NULL DEFAULT FALSE,
+    province TEXT,
+    city TEXT,
+    address TEXT,
+    postal_code TEXT,
+    wallet_balance NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    credit_limit NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    credit_used NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    current_debt NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    custom_discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    club_points INTEGER NOT NULL DEFAULT 0,
+    lifetime_points INTEGER NOT NULL DEFAULT 0,
+    viewed_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
+    preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_phone ON public.user_profiles(phone);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON public.user_profiles(role, status);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_approved_b2b ON public.user_profiles(approved_b2b);
+
+-- 3. جدول مشتریان CRM و مشتریان قدیمی (atlas_admin_customers_v1, atlas_legacy_customers_v1)
+CREATE TABLE IF NOT EXISTS public.crm_customers (
+    id TEXT PRIMARY KEY,
+    auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
+    is_legacy BOOLEAN NOT NULL DEFAULT FALSE,
+    name TEXT NOT NULL,
+    company TEXT,
+    phone TEXT NOT NULL,
+    email TEXT,
+    national_id TEXT,
+    economic_code TEXT,
+    province TEXT,
+    city TEXT,
+    address TEXT,
+    postal_code TEXT,
+    grade_code TEXT REFERENCES public.customer_grade_configs(grade_code) ON DELETE SET NULL,
+    approved_b2b BOOLEAN NOT NULL DEFAULT FALSE,
+    approval_status TEXT NOT NULL DEFAULT 'pending',
+    credit_limit NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    used_credit NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    wallet_balance NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    points INTEGER NOT NULL DEFAULT 0,
+    total_orders INTEGER NOT NULL DEFAULT 0,
+    total_spent NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    assigned_price_list_id TEXT,
+    price_overrides JSONB NOT NULL DEFAULT '{}'::jsonb,
+    credit_info JSONB NOT NULL DEFAULT '{}'::jsonb,
+    portal_overrides JSONB NOT NULL DEFAULT '{}'::jsonb,
+    notes TEXT,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_crm_customers_phone ON public.crm_customers(phone);
+CREATE INDEX IF NOT EXISTS idx_crm_customers_auth_user ON public.crm_customers(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_crm_customers_approved_b2b ON public.crm_customers(approved_b2b);
+
+-- تریگر همگام‌سازی خودکار auth.users با user_profiles و crm_customers
+CREATE OR REPLACE FUNCTION public.handle_auth_user_sync()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    matched_crm public.crm_customers%ROWTYPE;
+    normalized_phone TEXT;
+BEGIN
+    normalized_phone := COALESCE(NEW.phone, NEW.raw_user_meta_data ->> 'phone', NEW.raw_user_meta_data ->> 'mobile');
+
+    SELECT * INTO matched_crm
+    FROM public.crm_customers
+    WHERE (normalized_phone IS NOT NULL AND phone = normalized_phone)
+       OR (NEW.email IS NOT NULL AND LOWER(email) = LOWER(NEW.email))
+    ORDER BY is_legacy ASC, updated_at DESC
+    LIMIT 1;
+
+    INSERT INTO public.user_profiles (
+        id,
+        legacy_user_id,
+        phone,
+        email,
+        full_name,
+        company_name,
+        role,
+        status,
+        grade_code,
+        approved_b2b,
+        can_view_prices,
+        can_view_stock,
+        credit_limit,
+        credit_used,
+        wallet_balance,
+        club_points
+    )
+    VALUES (
+        NEW.id,
+        matched_crm.id,
+        normalized_phone,
+        NEW.email,
+        COALESCE(matched_crm.name, NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'name', ''),
+        COALESCE(matched_crm.company, NEW.raw_user_meta_data ->> 'company'),
+        COALESCE((NEW.raw_user_meta_data ->> 'role')::public.app_role_type, 'client'),
+        'active',
+        matched_crm.grade_code,
+        COALESCE(matched_crm.approved_b2b, FALSE),
+        COALESCE(matched_crm.approved_b2b, FALSE),
+        COALESCE(matched_crm.approved_b2b, FALSE),
+        COALESCE(matched_crm.credit_limit, 0),
+        COALESCE(matched_crm.used_credit, 0),
+        COALESCE(matched_crm.wallet_balance, 0),
+        COALESCE(matched_crm.points, 0)
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET phone = COALESCE(EXCLUDED.phone, public.user_profiles.phone),
+        email = COALESCE(EXCLUDED.email, public.user_profiles.email),
+        updated_at = NOW();
+
+    IF matched_crm.id IS NOT NULL THEN
+        UPDATE public.crm_customers
+        SET auth_user_id = NEW.id,
+            updated_at = NOW()
+        WHERE id = matched_crm.id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_sync ON auth.users;
+CREATE TRIGGER on_auth_user_created_sync
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_auth_user_sync();
+
+-- 4. درخواست‌های اخذ نمایندگی (hyper_sanat_agency_applications_v1)
+CREATE TABLE IF NOT EXISTS public.agency_applications (
+    id TEXT PRIMARY KEY,
+    applicant_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    full_name TEXT NOT NULL,
+    company_name TEXT,
+    phone TEXT NOT NULL,
+    email TEXT,
+    province TEXT NOT NULL,
+    city TEXT NOT NULL,
+    address TEXT,
+    store_area_sqm INTEGER,
+    ownership_type TEXT,
+    experience_years INTEGER,
+    active_brands TEXT,
+    requested_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
+    documents JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_note TEXT,
+    reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5. نمایندگان فعال و تاییدشده (atlas_admin_active_agencies_v1)
+CREATE TABLE IF NOT EXISTS public.agencies (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    company_name TEXT,
+    phone TEXT NOT NULL,
+    province TEXT NOT NULL,
+    city TEXT NOT NULL,
+    address TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    credit_limit NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    current_balance NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    next_check_date TEXT,
+    contract_status TEXT NOT NULL DEFAULT 'valid',
+    discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 15,
+    sub_users JSONB NOT NULL DEFAULT '[]'::jsonb,
+    territories JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_public_representative BOOLEAN NOT NULL DEFAULT TRUE,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agencies_code ON public.agencies(code);
+CREATE INDEX IF NOT EXISTS idx_agencies_province_city ON public.agencies(province, city);
+
+-- 6. فیش‌های واریزی نمایندگان (hyper_sanat_deposit_receipts_v1)
+CREATE TABLE IF NOT EXISTS public.agency_deposit_receipts (
+    id TEXT PRIMARY KEY,
+    agency_id TEXT REFERENCES public.agencies(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    dealer_name TEXT NOT NULL,
+    amount NUMERIC(18, 2) NOT NULL,
+    tracking_code TEXT NOT NULL,
+    deposit_date TEXT,
+    bank_name TEXT,
+    receipt_image_url TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 7. درخواست‌های تامین قطعه نمایندگان (hyper_sanat_supply_requests_v1)
+CREATE TABLE IF NOT EXISTS public.agency_supply_requests (
+    id TEXT PRIMARY KEY,
+    agency_id TEXT REFERENCES public.agencies(id) ON DELETE SET NULL,
+    agency_name TEXT NOT NULL,
+    product_code TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    urgency TEXT NOT NULL DEFAULT 'normal',
+    status TEXT NOT NULL DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 8. پیام‌های پنل نمایندگان (hyper_sanat_dealer_messages_v1)
+CREATE TABLE IF NOT EXISTS public.agency_messages (
+    id TEXT PRIMARY KEY,
+    agency_id TEXT REFERENCES public.agencies(id) ON DELETE CASCADE,
+    sender TEXT NOT NULL,
+    subject TEXT,
+    body TEXT NOT NULL,
+    attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- SECTION 3: CATALOG FAMILIES, VARIANTS, REFERENCES & COMMERCIAL ISOLATION
+-- -----------------------------------------------------------------------------
+
+-- 1. برندها (atlas_admin_brands_v1)
+CREATE TABLE IF NOT EXISTS public.catalog_brands (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    slug TEXT NOT NULL UNIQUE,
+    logo_url TEXT,
+    country TEXT,
+    description TEXT,
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2. دسته‌بندی‌ها (atlas_admin_categories_v1)
+CREATE TABLE IF NOT EXISTS public.catalog_categories (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    parent_id TEXT REFERENCES public.catalog_categories(id) ON DELETE SET NULL,
+    submenu TEXT,
+    technical_type TEXT,
+    icon TEXT,
+    image_url TEXT,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. مانیفست ایمپورت کاتالوگ مرجع
+CREATE TABLE IF NOT EXISTS public.catalog_import_manifests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_file TEXT NOT NULL,
+    source_sha256 TEXT NOT NULL UNIQUE,
+    sheet_name TEXT NOT NULL,
+    families_count INTEGER NOT NULL,
+    skus_count INTEGER NOT NULL,
+    categories_summary JSONB NOT NULL DEFAULT '[]'::jsonb,
+    submenus_summary JSONB NOT NULL DEFAULT '[]'::jsonb,
+    technical_types_summary JSONB NOT NULL DEFAULT '[]'::jsonb,
+    imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4. خانواده‌های محصولات کاتالوگ (۱۳۸۳ خانواده در catalogueSource.json - کاملاً غیرتجاری)
+CREATE TABLE IF NOT EXISTS public.catalog_families (
+    code TEXT PRIMARY KEY,
+    canonical_family_code TEXT,
+    source_row INTEGER,
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL DEFAULT 'ثبت نشده',
+    category_slug TEXT NOT NULL,
+    category_name TEXT NOT NULL,
+    submenu TEXT,
+    subcategory TEXT,
+    profiles TEXT,
+    sizes_summary TEXT,
+    unit TEXT NOT NULL DEFAULT 'عدد',
+    item_count INTEGER NOT NULL DEFAULT 0,
+    materials TEXT,
+    filters_hint TEXT,
+    source_status TEXT,
+    description TEXT,
+    has_catalogue_image BOOLEAN NOT NULL DEFAULT FALSE,
+    image_scope public.image_scope_type,
+    images JSONB NOT NULL DEFAULT '[]'::jsonb,
+    technical_specs JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    correction_pages TEXT,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    override_version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_families_category_slug ON public.catalog_families(category_slug);
+CREATE INDEX IF NOT EXISTS idx_catalog_families_canonical ON public.catalog_families(canonical_family_code);
+CREATE INDEX IF NOT EXISTS idx_catalog_families_name_trgm ON public.catalog_families USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_catalog_families_specs_gin ON public.catalog_families USING gin (technical_specs);
+
+-- 5. کدهای کالا / واریانت‌های انبار (۲۶۴۲+ کد کالا در variants - کاملاً غیرتجاری)
+CREATE TABLE IF NOT EXISTS public.catalog_variants (
+    code TEXT PRIMARY KEY,
+    family_code TEXT NOT NULL REFERENCES public.catalog_families(code) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    size TEXT,
+    model TEXT,
+    brand TEXT,
+    unit TEXT NOT NULL DEFAULT 'عدد',
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    images JSONB NOT NULL DEFAULT '[]'::jsonb,
+    technical_specs JSONB NOT NULL DEFAULT '[]'::jsonb,
+    technical_review JSONB NOT NULL DEFAULT '{}'::jsonb,
+    in_research_cohort BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_family_code ON public.catalog_variants(family_code);
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_name_trgm ON public.catalog_variants USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_size_trgm ON public.catalog_variants USING gin (size gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_specs_gin ON public.catalog_variants USING gin (technical_specs);
+
+-- 6. جدول محافظت‌شده اطلاعات تجاری، قیمت و موجودی (حریم خصوصی کامل)
+CREATE TABLE IF NOT EXISTS public.variant_commercial_specs (
+    variant_code TEXT PRIMARY KEY REFERENCES public.catalog_variants(code) ON DELETE CASCADE,
+    family_code TEXT NOT NULL REFERENCES public.catalog_families(code) ON DELETE CASCADE,
+    price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    base_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    retail_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    wholesale_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    dealer_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    stock INTEGER NOT NULL DEFAULT 0,
+    stock_known BOOLEAN NOT NULL DEFAULT FALSE,
+    inquiry_only BOOLEAN NOT NULL DEFAULT TRUE,
+    currency TEXT NOT NULL DEFAULT 'IRR',
+    updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_variant_commercial_family ON public.variant_commercial_specs(family_code);
+
+-- 7. جدول خلاصه کاتالوگ (۸۶۴ رکورد در catalogSummary.json)
+CREATE TABLE IF NOT EXISTS public.catalog_summary_entries (
+    code TEXT PRIMARY KEY,
+    forza_code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category_slug TEXT NOT NULL,
+    category_name TEXT NOT NULL,
+    subcategory TEXT,
+    page INTEGER,
+    image_url TEXT,
+    specs JSONB NOT NULL DEFAULT '[]'::jsonb,
+    linked_family_code TEXT REFERENCES public.catalog_families(code) ON DELETE SET NULL,
+    linked_variant_code TEXT REFERENCES public.catalog_variants(code) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_summary_forza_code ON public.catalog_summary_entries(forza_code);
+
+-- 8. ابعاد پین سر رولر کاتالوگ صاحب کالا (ownerCataloguePinTable.json)
+CREATE TABLE IF NOT EXISTS public.owner_catalogue_pin_rows (
+    sku TEXT PRIMARY KEY,
+    dim_2r_outer TEXT,
+    dim_w TEXT,
+    dim_h TEXT,
+    dim_2r_inner TEXT,
+    units TEXT NOT NULL DEFAULT 'mm',
+    pdf_page INTEGER NOT NULL DEFAULT 106,
+    printed_page INTEGER NOT NULL DEFAULT 88,
+    drawing_pdf_page INTEGER NOT NULL DEFAULT 105,
+    is_conflict BOOLEAN NOT NULL DEFAULT FALSE,
+    conflict_details JSONB,
+    not_in_inventory BOOLEAN NOT NULL DEFAULT FALSE,
+    source_sha256 TEXT NOT NULL
+);
+
+-- 9. مراجع طول استاندارد تسمه‌های تایمینگ (imperialTimingReference.json)
+CREATE TABLE IF NOT EXISTS public.timing_belt_reference_lengths (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reference_source TEXT NOT NULL,
+    designation TEXT NOT NULL,
+    profile_code TEXT,
+    length_mm NUMERIC(12, 3),
+    teeth_count INTEGER,
+    pdf_page INTEGER,
+    source_page INTEGER,
+    is_conflict BOOLEAN NOT NULL DEFAULT FALSE,
+    conflict_note TEXT,
+    source_url TEXT,
+    source_sha256 TEXT,
+    checked_on DATE,
+    raw_entry JSONB NOT NULL DEFAULT '{}'::jsonb,
+    UNIQUE (reference_source, designation)
+);
+
+-- 10. نتایج بررسی فنی ۲۶۴۲ کد کالا (docs/technical-research-2642.json)
+CREATE TABLE IF NOT EXISTS public.technical_research_records (
+    sku TEXT PRIMARY KEY,
+    original_name TEXT NOT NULL,
+    original_size TEXT,
+    original_identity_preserved BOOLEAN NOT NULL DEFAULT TRUE,
+    part_type TEXT,
+    model TEXT,
+    catalog_marking TEXT,
+    reference_length_check JSONB,
+    owner_catalogue JSONB,
+    outcome TEXT NOT NULL,
+    reference_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+    warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+    checked_on DATE
+);
+
+-- -----------------------------------------------------------------------------
+-- SECTION 4: GALLERY IMAGES, AUDITS, DUAL HASHES & 1024-DIM EMBEDDINGS
+-- -----------------------------------------------------------------------------
+
+-- 1. تصاویر گالری کاتالوگ
+CREATE TABLE IF NOT EXISTS public.catalog_gallery_images (
+    id TEXT PRIMARY KEY,
+    family_code TEXT NOT NULL REFERENCES public.catalog_families(code) ON DELETE CASCADE,
+    variant_code TEXT REFERENCES public.catalog_variants(code) ON DELETE SET NULL,
+    file_name TEXT,
+    url TEXT NOT NULL,
+    scope public.image_scope_type NOT NULL DEFAULT 'family',
+    title TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gallery_images_family ON public.catalog_gallery_images(family_code, sort_order);
+CREATE INDEX IF NOT EXISTS idx_gallery_images_variant ON public.catalog_gallery_images(variant_code);
+CREATE INDEX IF NOT EXISTS idx_gallery_images_file_name ON public.catalog_gallery_images(file_name);
+
+-- 2. تصاویر استخراج‌شده از کاتالوگ ۱۰۷ صفحه‌ای صاحب کالا
+CREATE TABLE IF NOT EXISTS public.owner_catalogue_photos (
+    file_name TEXT PRIMARY KEY,
+    pdf_page INTEGER NOT NULL,
+    printed_page INTEGER,
+    inliers INTEGER,
+    match_ratio DOUBLE PRECISION,
+    bbox JSONB NOT NULL DEFAULT '[]'::jsonb,
+    catalogue_group TEXT,
+    review_status TEXT,
+    exact_warehouse_sku TEXT,
+    scope TEXT,
+    image_sha256 TEXT,
+    document_sha256 TEXT NOT NULL,
+    reviewed_on DATE
+);
+
+-- 3. ممیزی و بررسی بصری تصاویر مخزن (docs/product-image-review.json)
+CREATE TABLE IF NOT EXISTS public.catalog_image_audits (
+    file_name TEXT PRIMARY KEY,
+    normalized_file_key TEXT UNIQUE,
+    image_url TEXT NOT NULL,
+    sha256 TEXT,
+    review_status TEXT NOT NULL,
+    family_code TEXT REFERENCES public.catalog_families(code) ON DELETE SET NULL,
+    family_name TEXT,
+    source_row INTEGER,
+    observed_description TEXT,
+    reason TEXT,
+    sku_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    visual_type TEXT,
+    visible_features JSONB NOT NULL DEFAULT '[]'::jsonb,
+    required_checks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    identity_status TEXT,
+    standard_status TEXT,
+    exact_sku TEXT,
+    review_date DATE
+);
+
+CREATE INDEX IF NOT EXISTS idx_image_audits_family_code ON public.catalog_image_audits(family_code);
+CREATE INDEX IF NOT EXISTS idx_image_audits_status ON public.catalog_image_audits(review_status);
+
+-- 4. هش‌های ادراکی دوگانه (raw/clean) و بردارهای ۱۰۲۴ بُعدی (imageHashes + imageEmbeddings)
+CREATE TABLE IF NOT EXISTS public.catalog_image_features (
+    file_name TEXT PRIMARY KEY,
+    padded_file_key TEXT UNIQUE,
+    image_url TEXT NOT NULL UNIQUE,
+    family_code TEXT REFERENCES public.catalog_families(code) ON DELETE SET NULL,
+    variant_code TEXT REFERENCES public.catalog_variants(code) ON DELETE SET NULL,
+    raw_dh TEXT,
+    raw_ph TEXT,
+    raw_ah TEXT,
+    raw_eh TEXT,
+    raw_aspect DOUBLE PRECISION,
+    raw_col JSONB,
+    raw_radial JSONB,
+    raw_hog JSONB,
+    raw_hu JSONB,
+    raw_grid JSONB,
+    clean_dh TEXT,
+    clean_ph TEXT,
+    clean_ah TEXT,
+    clean_eh TEXT,
+    clean_aspect DOUBLE PRECISION,
+    clean_col JSONB,
+    clean_radial JSONB,
+    clean_hog JSONB,
+    clean_hu JSONB,
+    clean_grid JSONB,
+    embedding_model TEXT NOT NULL DEFAULT 'jina-embeddings-v5-omni-small',
+    embedding vector(1024),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_image_features_family_code ON public.catalog_image_features(family_code);
+CREATE INDEX IF NOT EXISTS idx_image_features_variant_code ON public.catalog_image_features(variant_code);
+CREATE INDEX IF NOT EXISTS idx_image_features_clean_ah ON public.catalog_image_features(clean_ah);
+CREATE INDEX IF NOT EXISTS idx_image_features_raw_ah ON public.catalog_image_features(raw_ah);
+CREATE INDEX IF NOT EXISTS idx_image_features_embedding_hnsw
+    ON public.catalog_image_features
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+-- 5. تابع جست‌وجوی تصویری برداری محدود به خانواده (Family-First Search)
+CREATE OR REPLACE FUNCTION public.match_catalog_images_by_family(
+    query_embedding vector(1024),
+    target_family_code TEXT DEFAULT NULL,
+    match_threshold DOUBLE PRECISION DEFAULT 0.60,
+    match_count INTEGER DEFAULT 24
+)
+RETURNS TABLE (
+    file_name TEXT,
+    image_url TEXT,
+    family_code TEXT,
+    variant_code TEXT,
+    clean_ah TEXT,
+    clean_dh TEXT,
+    clean_ph TEXT,
+    similarity DOUBLE PRECISION
+)
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        cif.file_name,
+        cif.image_url,
+        cif.family_code,
+        cif.variant_code,
+        cif.clean_ah,
+        cif.clean_dh,
+        cif.clean_ph,
+        1 - (cif.embedding <=> query_embedding) AS similarity
+    FROM public.catalog_image_features cif
+    WHERE cif.embedding IS NOT NULL
+      AND (target_family_code IS NULL OR cif.family_code = target_family_code)
+      AND (1 - (cif.embedding <=> query_embedding)) >= match_threshold
+    ORDER BY cif.embedding <=> query_embedding ASC
+    LIMIT match_count;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- SECTION 5: PRICE LISTS, ORDERS, INQUIRIES, INVOICES & PLANT PASSPORTS
+-- -----------------------------------------------------------------------------
+
+-- 1. لیست‌های قیمت (atlas_price_lists_v2)
+CREATE TABLE IF NOT EXISTS public.price_lists (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    currency TEXT NOT NULL DEFAULT 'IRR',
+    target_grades JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    valid_from TIMESTAMPTZ,
+    valid_until TIMESTAMPTZ,
+    items JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2. تاریخچه تغییرات قیمت (atlas_price_list_history_v2)
+CREATE TABLE IF NOT EXISTS public.price_change_history (
+    id TEXT PRIMARY KEY,
+    price_list_id TEXT REFERENCES public.price_lists(id) ON DELETE SET NULL,
+    product_code TEXT NOT NULL,
+    product_name TEXT,
+    old_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    new_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    changed_by TEXT NOT NULL,
+    reason TEXT,
+    date_label TEXT,
+    snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_history_product_code ON public.price_change_history(product_code, created_at DESC);
+
+-- 3. استعلام‌های قیمت (atlas_admin_inquiries_v1)
+CREATE TABLE IF NOT EXISTS public.price_inquiries (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    crm_customer_id TEXT REFERENCES public.crm_customers(id) ON DELETE SET NULL,
+    customer_name TEXT NOT NULL,
+    company_name TEXT,
+    phone TEXT NOT NULL,
+    product_code TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit TEXT DEFAULT 'عدد',
+    urgency TEXT DEFAULT 'normal',
+    status public.inquiry_status_type NOT NULL DEFAULT 'pending',
+    quoted_unit_price NUMERIC(18, 2),
+    quoted_total_price NUMERIC(18, 2),
+    validity_date TEXT,
+    customer_note TEXT,
+    admin_reply TEXT,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_inquiries_user ON public.price_inquiries(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_price_inquiries_phone ON public.price_inquiries(phone);
+
+-- 4. کدهای تخفیف (atlas_admin_discounts_v1)
+CREATE TABLE IF NOT EXISTS public.discount_codes (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    title TEXT,
+    discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    max_discount_amount NUMERIC(18, 2),
+    min_order_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    usage_limit INTEGER,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    valid_until TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    target_tier TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5. سفارش‌ها (atlas_admin_orders_v1)
+CREATE TABLE IF NOT EXISTS public.orders (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    crm_customer_id TEXT REFERENCES public.crm_customers(id) ON DELETE SET NULL,
+    customer_name TEXT NOT NULL,
+    company TEXT,
+    phone TEXT NOT NULL,
+    total_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    discount_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    tax_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    payment_method public.payment_method_type NOT NULL DEFAULT 'online',
+    status public.order_status_type NOT NULL DEFAULT 'pending',
+    receipt_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    receipt_image_url TEXT,
+    receipt_tracking_code TEXT,
+    carrier TEXT,
+    tracking_number TEXT,
+    shipping_address TEXT,
+    items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_phone ON public.orders(phone);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+
+-- 6. اقلام سفارش
+CREATE TABLE IF NOT EXISTS public.order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    product_code TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    total_price NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+
+-- 7. فاکتورهای رسمی مالیاتی (atlas_admin_official_invoices_v1)
+CREATE TABLE IF NOT EXISTS public.official_invoices (
+    id TEXT PRIMARY KEY,
+    invoice_number TEXT NOT NULL UNIQUE,
+    order_id TEXT REFERENCES public.orders(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    buyer_name TEXT NOT NULL,
+    buyer_economic_code TEXT,
+    buyer_national_id TEXT,
+    buyer_postal_code TEXT,
+    buyer_address TEXT,
+    buyer_phone TEXT,
+    seller_info JSONB NOT NULL DEFAULT '{}'::jsonb,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    subtotal_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    discount_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    tax_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    total_payable NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'issued',
+    issued_date TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 8. مجموعه‌های ذخیره‌شده کاربر (سبد خرید، ذخیره‌شده‌ها، علاقه‌مندی‌ها)
+CREATE TABLE IF NOT EXISTS public.user_saved_collections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    collection_type TEXT NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, collection_type)
+);
+
+-- 9. شناسنامه ماشین‌آلات و خطوط تولید کارخانه مشتری (atlas_plant_machinery_passport_v1)
+CREATE TABLE IF NOT EXISTS public.plant_machinery_passports (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    crm_customer_id TEXT REFERENCES public.crm_customers(id) ON DELETE SET NULL,
+    machine_name TEXT NOT NULL,
+    line_name TEXT,
+    manufacturer TEXT,
+    model_year TEXT,
+    serial_number TEXT,
+    criticality_level TEXT DEFAULT 'high',
+    installed_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
+    maintenance_schedule JSONB NOT NULL DEFAULT '[]'::jsonb,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_machinery_passports_user ON public.plant_machinery_passports(user_id);
+
+-- -----------------------------------------------------------------------------
+-- SECTION 6: LOYALTY CLUB, CRM, LIVE CHAT & PORTAL CMS
+-- -----------------------------------------------------------------------------
+
+-- 1. تنظیمات باشگاه مشتریان (atlas_admin_club_config_v1)
+CREATE TABLE IF NOT EXISTS public.club_configs (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    points_per_100k_tomans INTEGER NOT NULL DEFAULT 1,
+    toman_per_point_redeem NUMERIC(18, 2) NOT NULL DEFAULT 5000,
+    bronze_threshold INTEGER NOT NULL DEFAULT 0,
+    silver_threshold INTEGER NOT NULL DEFAULT 500,
+    gold_threshold INTEGER NOT NULL DEFAULT 1200,
+    welcome_gift_points INTEGER NOT NULL DEFAULT 50,
+    extra_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2. پله‌های باشگاه مشتریان (atlas_portal_club_milestones_v1)
+CREATE TABLE IF NOT EXISTS public.club_milestones (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    target_points INTEGER NOT NULL,
+    reward_title TEXT NOT NULL,
+    reward_type TEXT NOT NULL DEFAULT 'discount',
+    reward_value TEXT,
+    icon TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. جوایز باشگاه مشتریان (atlas_club_rewards_v2)
+CREATE TABLE IF NOT EXISTS public.club_rewards (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    points_cost INTEGER NOT NULL CHECK (points_cost >= 0),
+    reward_type TEXT NOT NULL DEFAULT 'discount_code',
+    discount_percent NUMERIC(5, 2),
+    max_amount NUMERIC(18, 2),
+    min_grade TEXT DEFAULT 'bronze',
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    image_url TEXT,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4. تخصیص جوایز به مشتریان (atlas_customer_reward_assignments_v1)
+CREATE TABLE IF NOT EXISTS public.customer_reward_assignments (
+    id TEXT PRIMARY KEY,
+    customer_id TEXT REFERENCES public.crm_customers(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reward_id TEXT REFERENCES public.club_rewards(id) ON DELETE SET NULL,
+    reward_title TEXT NOT NULL,
+    code TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    assigned_by TEXT,
+    expires_at TIMESTAMPTZ,
+    used_at TIMESTAMPTZ,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5. کمپین‌های بازاریابی (atlas_admin_campaigns_v1)
+CREATE TABLE IF NOT EXISTS public.marketing_campaigns (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    multiplier NUMERIC(5, 2) DEFAULT 1.0,
+    reward_type TEXT,
+    reward_value TEXT,
+    target_tier TEXT DEFAULT 'all',
+    start_date TEXT,
+    end_date TEXT,
+    valid_until TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    participants_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 6. تیکت‌های پشتیبانی (atlas_admin_tickets_v1)
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    customer_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 7. چت آنلاین صنعتی (forza_industrial_chat_sessions_v2)
+CREATE TABLE IF NOT EXISTS public.industrial_chat_sessions (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    customer_name TEXT,
+    customer_phone TEXT,
+    department TEXT DEFAULT 'technical_sales',
+    status TEXT NOT NULL DEFAULT 'active',
+    messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+    unread_count INTEGER NOT NULL DEFAULT 0,
+    last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 8. بنرهای ویترین و پرتال (atlas_portal_content_banners_v1)
+CREATE TABLE IF NOT EXISTS public.portal_banners (
+    id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL DEFAULT 'storefront',
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    image_url TEXT NOT NULL,
+    link_url TEXT,
+    cta_text TEXT,
+    position TEXT NOT NULL DEFAULT 'hero_slider',
+    target_roles JSONB NOT NULL DEFAULT '[]'::jsonb,
+    sort_order INTEGER NOT NULL DEFAULT 1,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    valid_until TEXT,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 9. اطلاعیه‌های پرتال (atlas_portal_content_announcements_v1)
+CREATE TABLE IF NOT EXISTS public.portal_announcements (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'normal',
+    target_roles JSONB NOT NULL DEFAULT '[]'::jsonb,
+    target_grades JSONB NOT NULL DEFAULT '[]'::jsonb,
+    pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    expires_at TEXT,
+    raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 10. تنظیمات چیدمان پرتال (atlas_portal_layout_configs_v1)
+CREATE TABLE IF NOT EXISTS public.portal_layout_configs (
+    portal_key TEXT PRIMARY KEY,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 11. لوگوهای مشتریان ویترین (atlas_clients_logos_v3_moshtari)
+CREATE TABLE IF NOT EXISTS public.client_logos (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    logo_url TEXT NOT NULL,
+    industry TEXT,
+    city TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 12. وبلاگ فنی (atlas_admin_blog_v1)
+CREATE TABLE IF NOT EXISTS public.blog_posts (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    author TEXT,
+    excerpt TEXT,
+    content TEXT NOT NULL,
+    image_url TEXT,
+    published BOOLEAN NOT NULL DEFAULT TRUE,
+    published_at TEXT,
+    views INTEGER NOT NULL DEFAULT 0,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 13. صفحات ثابت (atlas_admin_pages_v1)
+CREATE TABLE IF NOT EXISTS public.static_pages (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    last_updated TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 14. قالب‌ها و لاگ‌های پیامک (atlas_admin_sms_templates_v1, atlas_admin_sms_logs_v1)
+CREATE TABLE IF NOT EXISTS public.sms_templates (
+    id TEXT PRIMARY KEY,
+    event_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    text TEXT NOT NULL,
+    variables JSONB NOT NULL DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.sms_logs (
+    id TEXT PRIMARY KEY,
+    recipient_phone TEXT NOT NULL,
+    recipient_name TEXT,
+    event_key TEXT,
+    message_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'sent',
+    sent_at TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 15. تنظیمات سراسری سیستم (atlas_admin_settings_v1)
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    id TEXT PRIMARY KEY DEFAULT 'global',
+    payment_gateway JSONB NOT NULL DEFAULT '{}'::jsonb,
+    sms_provider JSONB NOT NULL DEFAULT '{}'::jsonb,
+    shipping_methods JSONB NOT NULL DEFAULT '{}'::jsonb,
+    currency TEXT NOT NULL DEFAULT 'toman',
+    seo JSONB NOT NULL DEFAULT '{}'::jsonb,
+    raw_settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 16. لاگ ممیزی عملیات مدیران (atlas_admin_audit_logs_v1)
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    user_name TEXT,
+    user_role TEXT,
+    action TEXT NOT NULL,
+    entity TEXT,
+    target TEXT,
+    details TEXT,
+    extra_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    timestamp_label TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 17. کلید/مقدار پرتال (سازگاری کامل با api/portal.ts و portalRepository.ts)
+CREATE TABLE IF NOT EXISTS public.portal_kv_store (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- SECTION 7: TRIGGERS & SECURITY HELPER FUNCTIONS
+-- -----------------------------------------------------------------------------
+
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY ARRAY[
+        'customer_grade_configs',
+        'user_profiles',
+        'crm_customers',
+        'agency_applications',
+        'agencies',
+        'agency_deposit_receipts',
+        'agency_supply_requests',
+        'catalog_brands',
+        'catalog_categories',
+        'catalog_families',
+        'catalog_variants',
+        'variant_commercial_specs',
+        'catalog_gallery_images',
+        'catalog_image_features',
+        'price_lists',
+        'price_inquiries',
+        'discount_codes',
+        'orders',
+        'official_invoices',
+        'user_saved_collections',
+        'plant_machinery_passports',
+        'club_configs',
+        'club_milestones',
+        'club_rewards',
+        'marketing_campaigns',
+        'support_tickets',
+        'portal_banners',
+        'portal_announcements',
+        'portal_layout_configs',
+        'blog_posts',
+        'static_pages',
+        'sms_templates',
+        'system_settings',
+        'portal_kv_store'
+    ]
+    LOOP
+        EXECUTE format('DROP TRIGGER IF EXISTS trg_%I_updated_at ON public.%I;', tbl, tbl);
+        EXECUTE format(
+            'CREATE TRIGGER trg_%I_updated_at BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.trigger_set_updated_at();',
+            tbl, tbl
+        );
+    END LOOP;
+END$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin_user()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+          AND status = 'active'
+          AND role IN ('super_admin', 'sales_manager', 'warehouse_operator')
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_current_user_view_commercial()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.user_profiles up
+        WHERE up.id = auth.uid()
+          AND up.status = 'active'
+          AND (
+              up.role IN ('super_admin', 'sales_manager', 'warehouse_operator', 'agency')
+              OR up.approved_b2b = TRUE
+              OR up.can_view_prices = TRUE
+          )
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_family_variants_for_current_user(target_family_code TEXT)
+RETURNS TABLE (
+    code TEXT,
+    family_code TEXT,
+    name TEXT,
+    size TEXT,
+    model TEXT,
+    brand TEXT,
+    unit TEXT,
+    active BOOLEAN,
+    images JSONB,
+    technical_specs JSONB,
+    technical_review JSONB,
+    price NUMERIC(18, 2),
+    retail_price NUMERIC(18, 2),
+    wholesale_price NUMERIC(18, 2),
+    dealer_price NUMERIC(18, 2),
+    stock INTEGER,
+    stock_known BOOLEAN,
+    inquiry_only BOOLEAN
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        v.code,
+        v.family_code,
+        v.name,
+        v.size,
+        v.model,
+        v.brand,
+        v.unit,
+        v.active,
+        v.images,
+        v.technical_specs,
+        v.technical_review,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.price ELSE NULL END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.retail_price ELSE NULL END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.wholesale_price ELSE NULL END,
+        CASE WHEN public.is_admin_user() OR EXISTS (SELECT 1 FROM public.user_profiles WHERE id = auth.uid() AND role = 'agency') THEN c.dealer_price ELSE NULL END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.stock ELSE NULL END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.stock_known ELSE FALSE END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.inquiry_only ELSE TRUE END
+    FROM public.catalog_variants v
+    LEFT JOIN public.variant_commercial_specs c ON c.variant_code = v.code
+    WHERE v.family_code = target_family_code
+      AND (v.active = TRUE OR public.is_admin_user())
+    ORDER BY v.sort_order ASC, v.code ASC;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- SECTION 8: ROW LEVEL SECURITY (RLS) POLICIES
+-- -----------------------------------------------------------------------------
+
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY ARRAY[
+        'customer_grade_configs',
+        'user_profiles',
+        'crm_customers',
+        'agency_applications',
+        'agencies',
+        'agency_deposit_receipts',
+        'agency_supply_requests',
+        'agency_messages',
+        'catalog_brands',
+        'catalog_categories',
+        'catalog_import_manifests',
+        'catalog_families',
+        'catalog_variants',
+        'variant_commercial_specs',
+        'catalog_summary_entries',
+        'owner_catalogue_pin_rows',
+        'timing_belt_reference_lengths',
+        'technical_research_records',
+        'catalog_gallery_images',
+        'owner_catalogue_photos',
+        'catalog_image_audits',
+        'catalog_image_features',
+        'price_lists',
+        'price_change_history',
+        'price_inquiries',
+        'discount_codes',
+        'orders',
+        'order_items',
+        'official_invoices',
+        'user_saved_collections',
+        'plant_machinery_passports',
+        'club_configs',
+        'club_milestones',
+        'club_rewards',
+        'customer_reward_assignments',
+        'marketing_campaigns',
+        'support_tickets',
+        'industrial_chat_sessions',
+        'portal_banners',
+        'portal_announcements',
+        'portal_layout_configs',
+        'client_logos',
+        'blog_posts',
+        'static_pages',
+        'sms_templates',
+        'sms_logs',
+        'system_settings',
+        'audit_logs',
+        'portal_kv_store'
+    ]
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl);
+    END LOOP;
+END$$;
+
+-- A. دسترسی عمومی (مهمانان) فقط به اطلاعات غیرتجاری
+CREATE POLICY "Public read catalog_brands" ON public.catalog_brands FOR SELECT USING (true);
+CREATE POLICY "Public read catalog_categories" ON public.catalog_categories FOR SELECT USING (is_active = true OR public.is_admin_user());
+CREATE POLICY "Public read catalog_families" ON public.catalog_families FOR SELECT USING ((is_active = true AND is_deleted = false) OR public.is_admin_user());
+CREATE POLICY "Public read catalog_variants" ON public.catalog_variants FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read catalog_summary_entries" ON public.catalog_summary_entries FOR SELECT USING (true);
+CREATE POLICY "Public read owner_catalogue_pin_rows" ON public.owner_catalogue_pin_rows FOR SELECT USING (true);
+CREATE POLICY "Public read timing_belt_reference_lengths" ON public.timing_belt_reference_lengths FOR SELECT USING (true);
+CREATE POLICY "Public read catalog_gallery_images" ON public.catalog_gallery_images FOR SELECT USING (true);
+CREATE POLICY "Public read catalog_image_features" ON public.catalog_image_features FOR SELECT USING (true);
+CREATE POLICY "Public read active banners" ON public.portal_banners FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read active announcements" ON public.portal_announcements FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read client_logos" ON public.client_logos FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read published blog_posts" ON public.blog_posts FOR SELECT USING (published = true OR public.is_admin_user());
+CREATE POLICY "Public read static_pages" ON public.static_pages FOR SELECT USING (true);
+CREATE POLICY "Public read club_configs" ON public.club_configs FOR SELECT USING (true);
+CREATE POLICY "Public read club_milestones" ON public.club_milestones FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read club_rewards" ON public.club_rewards FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read active campaigns" ON public.marketing_campaigns FOR SELECT USING (active = true OR public.is_admin_user());
+CREATE POLICY "Public read public agencies" ON public.agencies FOR SELECT USING (is_public_representative = true OR auth_user_id = auth.uid() OR public.is_admin_user());
+
+-- B. قفل محکم قیمت و موجودی فقط برای کاربران مجاز B2B، نمایندگان و مدیران
+CREATE POLICY "Authorized users only read variant_commercial_specs"
+    ON public.variant_commercial_specs
+    FOR SELECT
+    TO authenticated
+    USING (public.can_current_user_view_commercial());
+
+CREATE POLICY "Admins manage variant_commercial_specs"
+    ON public.variant_commercial_specs
+    FOR ALL
+    TO authenticated
+    USING (public.is_admin_user())
+    WITH CHECK (public.is_admin_user());
+
+CREATE POLICY "Authorized users read price_lists"
+    ON public.price_lists
+    FOR SELECT
+    TO authenticated
+    USING (public.can_current_user_view_commercial());
+
+CREATE POLICY "Admins manage price_lists"
+    ON public.price_lists
+    FOR ALL
+    TO authenticated
+    USING (public.is_admin_user())
+    WITH CHECK (public.is_admin_user());
+
+CREATE POLICY "Admins only read price_change_history"
+    ON public.price_change_history
+    FOR ALL
+    TO authenticated
+    USING (public.is_admin_user())
+    WITH CHECK (public.is_admin_user());
+
+-- C. دسترسی کاربران احراز هویت‌شده به داده‌های خود
+CREATE POLICY "Users read own profile or admin"
+    ON public.user_profiles
+    FOR SELECT
+    TO authenticated
+    USING (id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users update own profile or admin"
+    ON public.user_profiles
+    FOR UPDATE
+    TO authenticated
+    USING (id = auth.uid() OR public.is_admin_user())
+    WITH CHECK (id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users read own crm_customer record or admin"
+    ON public.crm_customers
+    FOR SELECT
+    TO authenticated
+    USING (auth_user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users manage own saved collections"
+    ON public.user_saved_collections
+    FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user())
+    WITH CHECK (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users manage own machinery passports"
+    ON public.plant_machinery_passports
+    FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user())
+    WITH CHECK (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users read & create own orders"
+    ON public.orders
+    FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users insert own orders"
+    ON public.orders
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users read own order_items"
+    ON public.order_items
+    FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.orders o
+            WHERE o.id = order_items.order_id
+              AND (o.user_id = auth.uid() OR public.is_admin_user())
+        )
+    );
+
+CREATE POLICY "Users read & create own inquiries"
+    ON public.price_inquiries
+    FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Anyone can submit price inquiry"
+    ON public.price_inquiries
+    FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Anyone can submit agency application"
+    ON public.agency_applications
+    FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Users read own official_invoices"
+    ON public.official_invoices
+    FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users read own reward assignments"
+    ON public.customer_reward_assignments
+    FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user());
+
+CREATE POLICY "Users access own support_tickets"
+    ON public.support_tickets
+    FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid() OR public.is_admin_user())
+    WITH CHECK (user_id = auth.uid() OR public.is_admin_user());
+
+-- D. اختیارات کامل مدیران روی جداول مدیریتی
+DO $$
+DECLARE
+    admin_tbl TEXT;
+BEGIN
+    FOREACH admin_tbl IN ARRAY ARRAY[
+        'customer_grade_configs',
+        'crm_customers',
+        'agency_applications',
+        'agencies',
+        'agency_deposit_receipts',
+        'agency_supply_requests',
+        'agency_messages',
+        'catalog_brands',
+        'catalog_categories',
+        'catalog_import_manifests',
+        'catalog_families',
+        'catalog_variants',
+        'catalog_summary_entries',
+        'owner_catalogue_pin_rows',
+        'timing_belt_reference_lengths',
+        'technical_research_records',
+        'catalog_gallery_images',
+        'owner_catalogue_photos',
+        'catalog_image_audits',
+        'catalog_image_features',
+        'price_inquiries',
+        'discount_codes',
+        'orders',
+        'order_items',
+        'official_invoices',
+        'club_configs',
+        'club_milestones',
+        'club_rewards',
+        'customer_reward_assignments',
+        'marketing_campaigns',
+        'industrial_chat_sessions',
+        'portal_banners',
+        'portal_announcements',
+        'portal_layout_configs',
+        'client_logos',
+        'blog_posts',
+        'static_pages',
+        'sms_templates',
+        'sms_logs',
+        'system_settings',
+        'audit_logs',
+        'portal_kv_store'
+    ]
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "Admins full access on %I" ON public.%I;', admin_tbl, admin_tbl);
+        EXECUTE format(
+            'CREATE POLICY "Admins full access on %I" ON public.%I FOR ALL TO authenticated USING (public.is_admin_user()) WITH CHECK (public.is_admin_user());',
+            admin_tbl, admin_tbl
+        );
+    END LOOP;
+END$$;
+
+
+
+-- 20261020083418_adopt_existing_schema_security.sql
+-- Compatible ONLY with the user-supplied 49-table catalog_* / user_profiles schema.
+-- No product/customer record is deleted, renamed or overwritten.
+create schema if not exists app_private;
+revoke all on schema app_private from public;
+alter table public.user_profiles add column if not exists assigned_price_list_id text references public.price_lists(id);
+alter table public.price_lists add column if not exists discount_percent numeric(5,2) not null default 0 check(discount_percent between 0 and 100);
+
+create or replace function public.is_admin_user() returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.user_profiles where id=(select auth.uid()) and status='active' and role='super_admin');
+$$;
+create or replace function public.can_current_user_view_commercial() returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.user_profiles where id=(select auth.uid()) and status='active' and (role='super_admin' or can_view_prices));
+$$;
+create function app_private.normalize_iran_phone(p_phone text) returns text language plpgsql immutable security invoker set search_path='' as $$
+declare n text;begin
+ n=regexp_replace(translate(coalesce(p_phone,''),'۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩','01234567890123456789'),'[^0-9]','','g');
+ if n like '0098%' then n=substring(n from 3);end if;
+ if n ~ '^09[0-9]{9}$' then return '+98'||substring(n from 2);end if;
+ if n ~ '^989[0-9]{9}$' then return '+'||n;end if;
+ if n ~ '^9[0-9]{9}$' then return '+98'||n;end if;
+ return null;
+end$$;
+-- Trigger remains on auth.users. Authorization never comes from raw_user_meta_data.
+create or replace function public.handle_auth_user_sync() returns trigger language plpgsql security definer set search_path='' as $$
+declare matched public.crm_customers;verified_phone text;verified_email text;matches integer;approved boolean=false;begin
+ if new.phone_confirmed_at is not null then verified_phone=app_private.normalize_iran_phone(new.phone);end if;
+ if new.email_confirmed_at is not null then verified_email=lower(new.email);end if;
+ select count(*) into matches from public.crm_customers c where (c.auth_user_id is null or c.auth_user_id=new.id) and ((verified_phone is not null and app_private.normalize_iran_phone(c.phone)=verified_phone) or (verified_email is not null and lower(c.email)=verified_email));
+ if matches=1 then select * into matched from public.crm_customers c where (c.auth_user_id is null or c.auth_user_id=new.id) and ((verified_phone is not null and app_private.normalize_iran_phone(c.phone)=verified_phone) or (verified_email is not null and lower(c.email)=verified_email)) for update;end if;
+ approved=matched.id is not null and matched.approved_b2b and matched.approval_status='approved';
+ insert into public.user_profiles(id,legacy_user_id,phone,email,full_name,company_name,role,status,grade_code,approved_b2b,can_view_prices,can_view_stock,credit_limit,credit_used,wallet_balance,club_points)
+ values(new.id,matched.id,verified_phone,verified_email,left(coalesce(matched.name,new.raw_user_meta_data->>'full_name',new.raw_user_meta_data->>'name',''),512),left(coalesce(matched.company,new.raw_user_meta_data->>'company',''),512),case when approved then 'club'::public.app_role_type else 'client'::public.app_role_type end,'active',case when approved then matched.grade_code else null end,coalesce(approved,false),true,true,case when approved then matched.credit_limit else 0 end,case when approved then matched.used_credit else 0 end,case when approved then matched.wallet_balance else 0 end,case when approved then matched.points else 0 end)
+ on conflict(id) do update set phone=coalesce(excluded.phone,user_profiles.phone),email=coalesce(excluded.email,user_profiles.email),legacy_user_id=coalesce(user_profiles.legacy_user_id,excluded.legacy_user_id),approved_b2b=case when approved then true else user_profiles.approved_b2b end,role=case when approved and user_profiles.role='client' then 'club'::public.app_role_type else user_profiles.role end,updated_at=now();
+ if matched.id is not null then update public.crm_customers set auth_user_id=new.id,updated_at=now() where id=matched.id and (auth_user_id is null or auth_user_id=new.id);end if;
+ return new;
+end$$;
+create trigger on_auth_verified_identity_sync after update of phone,phone_confirmed_at,email,email_confirmed_at on auth.users for each row execute function public.handle_auth_user_sync();
+revoke execute on function public.handle_auth_user_sync() from public,anon,authenticated;
+revoke execute on function public.is_admin_user(),public.can_current_user_view_commercial() from public;
+grant execute on function public.is_admin_user(),public.can_current_user_view_commercial() to anon,authenticated;
+
+-- RLS restricts ROWS, not columns. Explicit grants protect role, grade and financial fields.
+revoke all on public.user_profiles from public,anon,authenticated;
+grant select(id,phone,email,username,full_name,company_name,national_id,economic_code,registration_number,role,status,approved_b2b,can_view_prices,can_view_stock,province,city,address,postal_code,wallet_balance,credit_limit,credit_used,current_debt,club_points,lifetime_points,viewed_categories,preferences,last_login_at,created_at,updated_at) on public.user_profiles to authenticated;
+grant update(full_name,company_name,province,city,address,postal_code,viewed_categories,preferences) on public.user_profiles to authenticated;
+revoke select on public.crm_customers from public,anon,authenticated;
+grant select(id,auth_user_id,name,company,phone,email,province,city,address,postal_code) on public.crm_customers to authenticated;
+-- Internal base/wholesale/dealer prices are accessed by trusted backend or the filtered RPC.
+revoke select on public.variant_commercial_specs,public.price_lists from public,anon,authenticated;
+-- The BFF verifies ownership, final totals and payment; browsers cannot fabricate orders or quotes.
+revoke insert,update,delete on public.orders,public.order_items,public.official_invoices,public.price_inquiries,public.agency_applications from public,anon,authenticated;
+do $$declare t record;begin for t in select tablename from pg_tables where schemaname='public' loop execute format('revoke truncate,references,trigger on public.%I from public,anon,authenticated',t.tablename);end loop;end$$;
+
+create function app_private.current_variant_price(p_sku text) returns numeric language plpgsql stable security invoker set search_path='' as $$
+declare u public.user_profiles;list_id text;sheet public.price_lists;commercial public.variant_commercial_specs;price numeric;begin
+ select * into u from public.user_profiles where id=(select auth.uid()) and status='active';if not found then return null;end if;
+ select * into commercial from public.variant_commercial_specs where variant_code=p_sku;if not found then return null;end if;
+ price=coalesce(nullif(commercial.retail_price,0),nullif(commercial.price,0),nullif(commercial.base_price,0),0);
+ list_id=u.assigned_price_list_id;
+ if list_id is null then select c.assigned_price_list_id into list_id from public.crm_customers c where c.auth_user_id=u.id and c.approval_status='approved' limit 1;end if;
+ select * into sheet from public.price_lists p where p.id=list_id and p.is_active and (p.valid_from is null or p.valid_from<=now()) and (p.valid_until is null or p.valid_until>now());
+ if found then
+ if jsonb_typeof(sheet.items->p_sku)='number' then price=(sheet.items->>p_sku)::numeric;
+ elsif jsonb_typeof(sheet.items->p_sku)='object' and jsonb_typeof(sheet.items->p_sku->'price')='number' then price=(sheet.items->p_sku->>'price')::numeric;
+ else price=round(price*(1-sheet.discount_percent/100));end if;
+ end if;
+ if price<0 then raise exception 'Invalid SKU price';end if;return price;
+end$$;
+
+-- Private content helper only answers whether the CURRENT identity matches a row's target.
+create function app_private.content_visible(p_portal text,p_payload jsonb,p_roles jsonb default '[]',p_grades jsonb default '[]') returns boolean language plpgsql stable security definer set search_path='' as $$
+declare u public.user_profiles;begin
+ if public.is_admin_user() then return true;end if;
+ if p_portal='storefront' and coalesce(p_payload->>'scope','collective')<>'individual' and coalesce(p_payload->>'targetCustomerId','')='' and coalesce(p_roles,'[]')='[]' and coalesce(p_grades,'[]')='[]' then return true;end if;
+ select * into u from public.user_profiles where id=(select auth.uid()) and status='active';if not found then return false;end if;
+ if p_portal not in ('consumer','high_volume','storefront') or p_portal is null then return false;end if;
+ if p_portal='high_volume' and not u.approved_b2b then return false;end if;
+ if p_portal='consumer' and u.approved_b2b then return false;end if;
+ if coalesce(p_payload->>'scope','collective')='individual' and p_payload->>'targetCustomerId' is distinct from coalesce(u.legacy_user_id,u.id::text) and p_payload->>'targetCustomerId' is distinct from u.id::text then return false;end if;
+ if coalesce(p_roles,'[]')<>'[]' and not p_roles @> jsonb_build_array(u.role::text) then return false;end if;
+ if coalesce(p_grades,'[]')<>'[]' and not p_grades @> jsonb_build_array(u.grade_code) then return false;end if;
+ if nullif(p_payload->>'targetTierCode','') is not null and p_payload->>'targetTierCode'<>'ALL' and p_payload->>'targetTierCode' is distinct from u.grade_code then return false;end if;
+ return true;
+end$$;
+grant usage on schema app_private to anon,authenticated;
+revoke execute on all functions in schema app_private from public,anon,authenticated;
+grant execute on function app_private.content_visible(text,jsonb,jsonb,jsonb) to anon,authenticated;
+alter policy "Public read active banners" on public.portal_banners using(public.is_admin_user() or (active and app_private.content_visible(scope,raw_payload,target_roles)));
+alter policy "Public read active announcements" on public.portal_announcements using(public.is_admin_user() or (active and app_private.content_visible(coalesce(raw_payload->>'portal','consumer'),raw_payload,target_roles,target_grades)));
+alter policy "Public read catalog_variants" on public.catalog_variants using(public.is_admin_user() or (active and exists(select 1 from public.catalog_families f where f.code=family_code and f.is_active and not f.is_deleted)));
+
+CREATE OR REPLACE FUNCTION public.get_family_variants_for_current_user(target_family_code TEXT)
+RETURNS TABLE (
+    code TEXT,
+    family_code TEXT,
+    name TEXT,
+    size TEXT,
+    model TEXT,
+    brand TEXT,
+    unit TEXT,
+    active BOOLEAN,
+    images JSONB,
+    technical_specs JSONB,
+    technical_review JSONB,
+    price NUMERIC(18, 2),
+    retail_price NUMERIC(18, 2),
+    wholesale_price NUMERIC(18, 2),
+    dealer_price NUMERIC(18, 2),
+    stock INTEGER,
+    stock_known BOOLEAN,
+    inquiry_only BOOLEAN
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT
+        v.code,
+        v.family_code,
+        v.name,
+        v.size,
+        v.model,
+        v.brand,
+        v.unit,
+        v.active,
+        v.images,
+        v.technical_specs,
+        v.technical_review,
+        CASE WHEN public.can_current_user_view_commercial() THEN app_private.current_variant_price(v.code) ELSE NULL END,
+        CASE WHEN public.is_admin_user() THEN c.retail_price ELSE NULL END,
+        CASE WHEN public.is_admin_user() THEN c.wholesale_price ELSE NULL END,
+        CASE WHEN public.is_admin_user() THEN c.dealer_price ELSE NULL END,
+        CASE WHEN EXISTS(SELECT 1 FROM public.user_profiles up WHERE up.id=(SELECT auth.uid()) AND up.status='active' AND (up.can_view_stock OR up.role='super_admin')) THEN c.stock ELSE NULL END,
+        CASE WHEN EXISTS(SELECT 1 FROM public.user_profiles up WHERE up.id=(SELECT auth.uid()) AND up.status='active' AND (up.can_view_stock OR up.role='super_admin')) THEN c.stock_known ELSE FALSE END,
+        CASE WHEN public.can_current_user_view_commercial() THEN c.inquiry_only ELSE TRUE END
+    FROM public.catalog_variants v
+    LEFT JOIN public.variant_commercial_specs c ON c.variant_code = v.code
+    JOIN public.catalog_families f ON f.code=v.family_code
+    WHERE v.family_code = target_family_code
+      AND ((v.active AND f.is_active AND NOT f.is_deleted) OR public.is_admin_user())
+    ORDER BY v.sort_order ASC, v.code ASC;
+$$;
+revoke execute on function public.get_family_variants_for_current_user(text) from public;
+grant execute on function public.get_family_variants_for_current_user(text) to anon,authenticated;
+-- Public representatives expose contact details, never credit balances, sub-users or raw CRM.
+revoke select on public.agencies from public,anon,authenticated;
+grant select(id,code,name,company_name,phone,province,city,address,latitude,longitude,is_public_representative) on public.agencies to anon,authenticated;
+
+
+-- 20261020083459_adopted_financial_and_storage.sql
+-- Additive, compatible with the adopted user_profiles/catalog_* schema.
+-- Existing amounts/currencies are preserved; NO IRR/IRT conversion is performed.
+alter table public.variant_commercial_specs add column if not exists stock_reserved integer not null default 0 check(stock_reserved>=0);
+alter table public.variant_commercial_specs add column if not exists stock_version bigint not null default 0;
+alter table public.orders add column if not exists final_amount numeric(18,2) check(final_amount>=0);
+alter table public.orders add column if not exists payment_status text not null default 'unpaid' check(payment_status in ('unpaid','pending_review','paid','refunded'));
+alter table public.orders add column if not exists currency text not null default 'IRR' check(currency in ('IRR','IRT'));
+alter table public.orders add column if not exists shipping_amount numeric(18,2) not null default 0 check(shipping_amount>=0);
+alter table public.club_milestones add column if not exists portal text check(portal in ('consumer','high_volume'));
+alter table public.club_milestones add column if not exists min_purchase_volume numeric(18,2) check(min_purchase_volume>=0);
+create table public.customer_finance_accounts(user_id uuid primary key references public.user_profiles(id),opening_debt numeric(18,2) not null default 0,opening_wallet numeric(18,2) not null default 0 check(opening_wallet>=0),opening_points bigint not null default 0 check(opening_points>=0),currency text not null check(currency in ('IRR','IRT')),source_reference text not null,created_at timestamptz not null default now());
+create table public.financial_entries(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.customer_finance_accounts(user_id),debt_delta numeric(18,2) not null default 0,wallet_delta numeric(18,2) not null default 0,points_delta bigint not null default 0,kind text not null check(kind in ('invoice','payment','refund','earn','redeem','adjustment')),reference text not null,order_id text references public.orders(id),description text not null default '',created_at timestamptz not null default now(),check(debt_delta<>0 or wallet_delta<>0 or points_delta<>0),unique(user_id,reference));
+create index financial_entries_user on public.financial_entries(user_id,created_at);
+create table public.inventory_events(id uuid primary key default gen_random_uuid(),variant_code text not null references public.catalog_variants(code),quantity_delta integer not null check(quantity_delta<>0),reference text not null,reason text not null,created_at timestamptz not null default now(),unique(variant_code,reference));
+create index inventory_events_sku on public.inventory_events(variant_code,created_at);
+create table public.stock_reservations(id uuid primary key default gen_random_uuid(),order_id text not null references public.orders(id),variant_code text not null references public.catalog_variants(code),quantity integer not null check(quantity>0),state text not null default 'active' check(state in ('active','released','consumed')),expires_at timestamptz not null,created_at timestamptz not null default now(),unique(order_id,variant_code));
+create index stock_reservations_expiry on public.stock_reservations(expires_at) where state='active';
+create table public.credit_reservations(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.customer_finance_accounts(user_id),order_id text not null unique references public.orders(id),amount numeric(18,2) not null check(amount>0),state text not null default 'active' check(state in ('active','released','captured')),expires_at timestamptz not null,created_at timestamptz not null default now());
+create index credit_reservations_user on public.credit_reservations(user_id,state,expires_at);
+create table public.payment_attempts(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.user_profiles(id),order_id text not null references public.orders(id),provider text not null,amount numeric(18,2) not null check(amount>0),currency text not null check(currency in ('IRR','IRT')),state text not null default 'pending' check(state in ('pending','verified','failed','cancelled')),request_key uuid not null unique,provider_reference text,evidence jsonb,created_at timestamptz not null default now(),verified_at timestamptz);
+create unique index payment_attempt_provider_reference on public.payment_attempts(provider,provider_reference) where provider_reference is not null;
+create unique index payment_attempt_one_verified_order on public.payment_attempts(order_id) where state='verified';
+create index payment_attempt_user on public.payment_attempts(user_id,created_at);
+create table public.payment_refunds(id uuid primary key default gen_random_uuid(),payment_id uuid not null references public.payment_attempts(id),amount numeric(18,2) not null check(amount>0),state text not null default 'pending' check(state in ('pending','verified','rejected')),request_key uuid not null unique,provider_reference text,evidence jsonb,created_at timestamptz not null default now());
+create table public.order_shipments(id uuid primary key default gen_random_uuid(),order_id text not null references public.orders(id),carrier text not null,tracking_code text,state text not null default 'pending' check(state in ('pending','shipped','delivered','returned')),payload jsonb not null default '{}',created_at timestamptz not null default now());
+create index order_shipments_order on public.order_shipments(order_id);
+create table public.order_status_events(id uuid primary key default gen_random_uuid(),order_id text not null references public.orders(id),actor_id uuid references auth.users(id),from_status public.order_status_type,to_status public.order_status_type not null,note text not null default '',created_at timestamptz not null default now());
+create index order_status_events_order on public.order_status_events(order_id,created_at);
+create table public.user_addresses(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.user_profiles(id),title text not null,province text not null,city text not null,full_address text not null,postal_code text,recipient_name text,recipient_phone text,active boolean not null default true,created_at timestamptz not null default now());
+create index user_addresses_user on public.user_addresses(user_id) where active;
+create table public.document_assets(id uuid primary key default gen_random_uuid(),user_id uuid references public.user_profiles(id),bucket_id text not null check(bucket_id in ('catalogue','customer-documents')),object_path text not null,sha256 text check(sha256 ~ '^[a-f0-9]{64}$'),mime_type text not null,byte_size bigint not null check(byte_size>=0),purpose text not null,created_at timestamptz not null default now(),unique(bucket_id,object_path));
+create index document_assets_user on public.document_assets(user_id);
+create table public.ticket_messages(id uuid primary key default gen_random_uuid(),ticket_id text not null references public.support_tickets(id),author_id uuid not null references public.user_profiles(id),body text not null check(length(body) between 1 and 20000),internal boolean not null default false,file_id uuid references public.document_assets(id),created_at timestamptz not null default now());
+create index ticket_messages_ticket on public.ticket_messages(ticket_id,created_at);
+create table public.reward_redemptions(id uuid primary key default gen_random_uuid(),user_id uuid not null references public.user_profiles(id),reward_id text not null references public.club_rewards(id),points_spent bigint not null check(points_spent>=0),state text not null default 'requested' check(state in ('requested','approved','fulfilled','rejected','cancelled')),request_key uuid not null unique,created_at timestamptz not null default now());
+create table public.checkout_requests(user_id uuid not null references public.user_profiles(id),request_key uuid not null,order_id text not null references public.orders(id),request_sha256 text not null check(request_sha256 ~ '^[a-f0-9]{64}$'),created_at timestamptz not null default now(),primary key(user_id,request_key));
+create table app_private.notification_outbox(id uuid primary key default gen_random_uuid(),user_id uuid references public.user_profiles(id),channel text not null check(channel in ('sms','email','in_app')),destination text not null,template text not null,payload jsonb not null default '{}',state text not null default 'pending' check(state in ('pending','sending','sent','failed')),attempts integer not null default 0 check(attempts>=0),request_key text not null unique,provider_reference text,last_error text,available_at timestamptz not null default now(),created_at timestamptz not null default now(),sent_at timestamptz);
+create index notification_outbox_pending on app_private.notification_outbox(available_at) where state in ('pending','failed');
+create table app_private.schema_change_log(version text primary key,description text not null,applied_at timestamptz not null default now());
+do $$declare t text;begin foreach t in array array['customer_finance_accounts','financial_entries','inventory_events','stock_reservations','credit_reservations','payment_attempts','payment_refunds','order_shipments','order_status_events','user_addresses','document_assets','ticket_messages','reward_redemptions','checkout_requests'] loop execute format('alter table public.%I enable row level security',t);execute format('revoke all on public.%I from public,anon,authenticated',t);end loop;end$$;
+alter table app_private.notification_outbox enable row level security;
+alter table app_private.schema_change_log enable row level security;
+revoke all on app_private.notification_outbox,app_private.schema_change_log from public,anon,authenticated;
+grant select,insert,update on public.user_addresses to authenticated;
+create policy own_address_read on public.user_addresses for select to authenticated using(user_id=(select auth.uid()));
+create policy own_address_insert on public.user_addresses for insert to authenticated with check(user_id=(select auth.uid()));
+create policy own_address_update on public.user_addresses for update to authenticated using(user_id=(select auth.uid())) with check(user_id=(select auth.uid()));
+
+-- Financial accounts must be explicitly reconciled before first posting; no guessed opening balances.
+create function app_private.post_financial_entry(p_user uuid,p_reference text,p_kind text,p_debt numeric default 0,p_wallet numeric default 0,p_points bigint default 0,p_order text default null) returns uuid language plpgsql security invoker set search_path='' as $$
+declare account public.customer_finance_accounts;old public.financial_entries;wallet numeric;points bigint;result uuid;begin
+ select * into account from public.customer_finance_accounts where user_id=p_user for update;if not found then raise exception 'Reconciled opening account required';end if;
+ if nullif(p_reference,'') is null or p_debt is null or p_wallet is null or p_points is null then raise exception 'Invalid financial entry';end if;
+ select * into old from public.financial_entries where user_id=p_user and reference=p_reference;
+ if found then if old.debt_delta<>p_debt or old.wallet_delta<>p_wallet or old.points_delta<>p_points or old.kind<>p_kind or old.order_id is distinct from p_order then raise exception 'Idempotency conflict';end if;return old.id;end if;
+ if p_order is not null and not exists(select 1 from public.orders where id=p_order and user_id=p_user) then raise exception 'Order ownership mismatch';end if;
+ select account.opening_wallet+coalesce(sum(wallet_delta),0),account.opening_points+coalesce(sum(points_delta),0) into wallet,points from public.financial_entries where user_id=p_user;
+ if wallet+p_wallet<0 or points+p_points<0 then raise exception 'Insufficient wallet or points';end if;
+ insert into public.financial_entries(user_id,reference,kind,debt_delta,wallet_delta,points_delta,order_id) values(p_user,p_reference,p_kind,p_debt,p_wallet,p_points,p_order) returning id into result;return result;
+end$$;
+create function app_private.adjust_stock(p_sku text,p_delta integer,p_reference text,p_reason text) returns integer language plpgsql security invoker set search_path='' as $$
+declare old public.inventory_events;result integer;begin
+ if p_delta is null or p_delta=0 or nullif(p_reference,'') is null or nullif(p_reason,'') is null then raise exception 'Invalid inventory adjustment';end if;
+ perform 1 from public.variant_commercial_specs where variant_code=p_sku for update;if not found then raise exception 'Unknown SKU';end if;
+ select * into old from public.inventory_events where variant_code=p_sku and reference=p_reference;if found then if old.quantity_delta<>p_delta or old.reason<>p_reason then raise exception 'Idempotency conflict';end if;select stock into result from public.variant_commercial_specs where variant_code=p_sku;return result;end if;
+ update public.variant_commercial_specs set stock=stock+p_delta,stock_known=true,stock_version=stock_version+1,updated_at=now() where variant_code=p_sku and stock+p_delta>=stock_reserved returning stock into result;if not found then raise exception 'Insufficient unreserved stock';end if;
+ insert into public.inventory_events(variant_code,quantity_delta,reference,reason) values(p_sku,p_delta,p_reference,p_reason);return result;
+end$$;
+create function app_private.reserve_order_stock(p_order text,p_expiry timestamptz) returns void language plpgsql security invoker set search_path='' as $$
+declare item record;old public.stock_reservations;begin
+ if p_expiry is null or p_expiry<=now() then raise exception 'Invalid reservation expiry';end if;
+ perform 1 from public.orders where id=p_order and status not in ('cancelled','delivered') for update;if not found then raise exception 'Order not reservable';end if;
+ if not exists(select 1 from public.order_items where order_id=p_order) then raise exception 'Empty order';end if;
+ for item in select product_code,sum(quantity)::integer as quantity from public.order_items where order_id=p_order group by product_code order by product_code loop
+ select * into old from public.stock_reservations where order_id=p_order and variant_code=item.product_code;
+ if found then if old.quantity<>item.quantity or old.state<>'active' or old.expires_at<=now() then raise exception 'Reservation conflict';end if;continue;end if;
+ update public.variant_commercial_specs set stock_reserved=stock_reserved+item.quantity,stock_version=stock_version+1 where variant_code=item.product_code and stock_known and stock-stock_reserved>=item.quantity;if not found then raise exception 'Insufficient known stock';end if;
+ insert into public.stock_reservations(order_id,variant_code,quantity,expires_at) values(p_order,item.product_code,item.quantity,p_expiry);end loop;
+end$$;
+create function app_private.finish_order_stock(p_order text,p_consume boolean) returns void language plpgsql security invoker set search_path='' as $$
+declare item record;begin
+ if p_consume is null then raise exception 'Action required';end if;perform 1 from public.orders where id=p_order for update;
+ for item in select * from public.stock_reservations where order_id=p_order and state='active' order by variant_code for update loop
+ if p_consume and item.expires_at<=now() then raise exception 'Reservation expired';end if;
+ update public.variant_commercial_specs set stock_reserved=stock_reserved-item.quantity,stock=stock-case when p_consume then item.quantity else 0 end,stock_version=stock_version+1 where variant_code=item.variant_code and stock_reserved>=item.quantity and (not p_consume or stock>=item.quantity);if not found then raise exception 'Reservation inconsistency';end if;
+ update public.stock_reservations set state=case when p_consume then 'consumed' else 'released' end where id=item.id;
+ if p_consume then insert into public.inventory_events(variant_code,quantity_delta,reference,reason) values(item.variant_code,-item.quantity,'reservation:'||item.id,'order fulfilment');end if;end loop;
+end$$;
+create function app_private.record_verified_payment(p_id uuid,p_reference text,p_amount numeric,p_currency text,p_evidence jsonb) returns void language plpgsql security invoker set search_path='' as $$
+declare payment public.payment_attempts;target public.orders;begin
+ select * into payment from public.payment_attempts where id=p_id for update;if not found then raise exception 'Unknown payment';end if;
+ if nullif(p_reference,'') is null or p_amount is distinct from payment.amount or p_currency is distinct from payment.currency or p_evidence is null or jsonb_typeof(p_evidence)<>'object' or p_evidence='{}'::jsonb then raise exception 'Payment verification mismatch';end if;
+ if payment.state='verified' then if payment.provider_reference<>p_reference then raise exception 'Payment replay conflict';end if;return;end if;
+ if payment.state<>'pending' then raise exception 'Payment not pending';end if;
+ select * into target from public.orders where id=payment.order_id for update;
+ if not found or target.user_id is distinct from payment.user_id or target.final_amount is distinct from payment.amount or target.currency is distinct from payment.currency or target.status='cancelled' then raise exception 'Order/payment mismatch';end if;
+ update public.payment_attempts set state='verified',provider_reference=p_reference,evidence=p_evidence,verified_at=now() where id=p_id;
+ update public.orders set payment_status='paid',receipt_verified=true,updated_at=now() where id=target.id;
+end$$;
+create function app_private.claim_notifications(p_limit integer default 20) returns setof app_private.notification_outbox language sql security invoker set search_path='' as $$
+ update app_private.notification_outbox set state='sending',attempts=attempts+1 where id in(select id from app_private.notification_outbox where state in ('pending','failed') and available_at<=now() and attempts<5 order by available_at for update skip locked limit greatest(0,least(p_limit,100))) returning *;
+$$;
+create function app_private.reject_journal_edit() returns trigger language plpgsql security invoker set search_path='' as $$begin raise exception 'Append-only journal: use a compensating entry';end$$;
+create trigger immutable_financial_entries before update or delete on public.financial_entries for each row execute function app_private.reject_journal_edit();
+create trigger immutable_inventory_events before update or delete on public.inventory_events for each row execute function app_private.reject_journal_edit();
+revoke execute on all functions in schema app_private from public,anon,authenticated;
+grant execute on function app_private.content_visible(text,jsonb,jsonb,jsonb) to anon,authenticated;
+
+create function app_private.hold_order_credit(p_user uuid,p_order text,p_expiry timestamptz) returns uuid language plpgsql security invoker set search_path='' as $$
+declare account public.customer_finance_accounts;target public.orders;old public.credit_reservations;debt numeric;held numeric;limit_amount numeric;result uuid;begin
+ select * into account from public.customer_finance_accounts where user_id=p_user for update;if not found then raise exception 'Reconciled opening account required';end if;
+ select * into target from public.orders where id=p_order and user_id=p_user;if not found or target.final_amount is null or target.final_amount<=0 or target.currency<>account.currency or target.status='cancelled' or p_expiry is null or p_expiry<=now() then raise exception 'Invalid credit order';end if;
+ select * into old from public.credit_reservations where order_id=p_order;if found then if old.user_id<>p_user or old.amount<>target.final_amount or old.state<>'active' or old.expires_at<=now() then raise exception 'Credit hold conflict';end if;return old.id;end if;
+ select credit_limit into limit_amount from public.user_profiles where id=p_user and status='active';if limit_amount is null or limit_amount<=0 then raise exception 'Credit not authorized';end if;
+ select account.opening_debt+coalesce(sum(debt_delta),0) into debt from public.financial_entries where user_id=p_user;
+ select coalesce(sum(amount),0) into held from public.credit_reservations where user_id=p_user and state='active' and expires_at>now();
+ if greatest(debt,0)+held+target.final_amount>limit_amount then raise exception 'Credit limit exceeded';end if;
+ insert into public.credit_reservations(user_id,order_id,amount,expires_at) values(p_user,p_order,target.final_amount,p_expiry) returning id into result;return result;
+end$$;
+create function app_private.finish_order_credit(p_id uuid,p_capture boolean) returns void language plpgsql security invoker set search_path='' as $$
+declare hold public.credit_reservations;begin
+ if p_capture is null then raise exception 'Action required';end if;select * into hold from public.credit_reservations where id=p_id;if not found then raise exception 'Unknown credit hold';end if;
+ perform 1 from public.customer_finance_accounts where user_id=hold.user_id for update;select * into hold from public.credit_reservations where id=p_id for update;
+ if hold.state=(case when p_capture then 'captured' else 'released' end) then return;end if;
+ if hold.state<>'active' then raise exception 'Credit hold finalized';end if;
+ if p_capture then if hold.expires_at<=now() then raise exception 'Credit hold expired';end if;perform app_private.post_financial_entry(hold.user_id,'credit-hold:'||hold.id,'invoice',hold.amount,0,0,hold.order_id);end if;
+ update public.credit_reservations set state=case when p_capture then 'captured' else 'released' end where id=p_id;
+end$$;
+create function app_private.record_verified_refund(p_id uuid,p_reference text,p_evidence jsonb) returns void language plpgsql security invoker set search_path='' as $$
+declare refund public.payment_refunds;payment public.payment_attempts;refunded numeric;begin
+ select * into refund from public.payment_refunds where id=p_id;if not found then raise exception 'Unknown refund';end if;
+ select * into payment from public.payment_attempts where id=refund.payment_id for update;
+ select * into refund from public.payment_refunds where id=p_id for update;
+ if payment.state<>'verified' or nullif(p_reference,'') is null or p_evidence is null or jsonb_typeof(p_evidence)<>'object' or p_evidence='{}'::jsonb then raise exception 'Refund verification mismatch';end if;
+ if refund.state='verified' then if refund.provider_reference<>p_reference then raise exception 'Refund replay conflict';end if;return;end if;
+ if refund.state<>'pending' then raise exception 'Refund not pending';end if;
+ select coalesce(sum(amount),0) into refunded from public.payment_refunds where payment_id=payment.id and state='verified';
+ if refunded+refund.amount>payment.amount then raise exception 'Refund exceeds payment';end if;
+ update public.payment_refunds set state='verified',provider_reference=p_reference,evidence=p_evidence where id=p_id;
+ if refunded+refund.amount=payment.amount then update public.orders set payment_status='refunded',updated_at=now() where id=payment.order_id;end if;
+end$$;
+create function app_private.release_expired_stock(p_limit integer default 100) returns integer language plpgsql security invoker set search_path='' as $$
+declare item record;released integer=0;begin
+ for item in select distinct order_id from public.stock_reservations where state='active' and expires_at<=now() order by order_id limit greatest(0,least(p_limit,1000)) loop perform app_private.finish_order_stock(item.order_id,false);released=released+1;end loop;return released;
+end$$;
+revoke execute on all functions in schema app_private from public,anon,authenticated;
+grant execute on function app_private.content_visible(text,jsonb,jsonb,jsonb) to anon,authenticated;
+
+-- Real Supabase Storage owns its catalogs. No custom auth.users/storage.objects replacements.
+do $$begin
+ if to_regclass('storage.buckets') is null or to_regclass('storage.objects') is null then raise exception 'Supabase Storage schema required';end if;
+ if exists(select 1 from storage.buckets where id='catalogue' and public is not true) or exists(select 1 from storage.buckets where id='customer-documents' and public is true) then raise exception 'Existing bucket visibility mismatch: review before changing';end if;
+end$$;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('catalogue','catalogue',true,20971520,array['image/jpeg','image/png','image/webp','application/pdf']),('customer-documents','customer-documents',false,20971520,array['image/jpeg','image/png','image/webp','application/pdf']) on conflict(id) do nothing;
+create policy sanat_private_document_read on storage.objects for select to authenticated using(bucket_id='customer-documents' and split_part(name,'/',1)=(select auth.uid())::text);
+create policy sanat_private_document_insert on storage.objects for insert to authenticated with check(bucket_id='customer-documents' and split_part(name,'/',1)=(select auth.uid())::text);
+-- Uploads are append-only: no customer replacement/delete policy is added.
+insert into app_private.schema_change_log(version,description) values('20261020083418','Adopt existing schema and harden authorization'),('20261020083459','Add financial journals, stock reservations, payment audit and private storage');
+
+
+-- 20261020091555_adopted_runtime_bridge.sql
+-- Private compatibility documents: legacy identifiers and unknown fields are retained.
+-- Authentication and authorization remain in auth.users / public.user_profiles.
+create table app_private.portal_version(singleton boolean primary key default true check(singleton),revision bigint not null default 0);
+insert into app_private.portal_version(singleton,revision)
+select true,coalesce((select (value->>'revision')::bigint from public.portal_kv_store where key='sanatpish:portal:db:v1'),0);
+create table app_private.portal_users(id text primary key,auth_user_id uuid unique references auth.users(id),payload jsonb not null,active boolean not null default true);
+create table app_private.auth_provisioning(id uuid primary key,phone text not null,payload jsonb not null,status text not null default 'pending' check(status in ('pending','linked')),created_at timestamptz not null default now());
+create index auth_provisioning_phone_idx on app_private.auth_provisioning(phone,created_at desc) where status='pending';
+create table app_private.document_versions(namespace text not null,scope_id text not null,version bigint not null default 0,content_sha256 text,value_kind text not null check(value_kind in ('array','object','scalar')),updated_at timestamptz not null default now(),primary key(namespace,scope_id));
+create table app_private.scoped_documents(namespace text not null,scope_id text not null,value jsonb not null,primary key(namespace,scope_id));
+create table app_private.source_archives(source_path text not null,sha256 text not null,payload jsonb not null,imported_at timestamptz not null default now(),primary key(source_path,sha256));
+insert into app_private.document_versions(namespace,scope_id,version,value_kind)
+select key,'global',1,case jsonb_typeof(value) when 'array' then 'array' when 'object' then 'object' else 'scalar' end from public.portal_kv_store;
+insert into app_private.document_versions(namespace,scope_id,version,value_kind)
+select key,'global',0,'array' from unnest(array['atlas_admin_orders_v1','atlas_admin_categories_v1','atlas_admin_brands_v1','atlas_admin_blog_v1','atlas_admin_pages_v1','atlas_clients_logos_v3_moshtari','atlas_admin_sms_templates_v1','atlas_admin_campaigns_v1','atlas_admin_tickets_v1','atlas_admin_audit_logs_v1','atlas_admin_discounts_v1','atlas_portal_layout_configs_v1']) key on conflict do nothing;
+insert into app_private.portal_users(id,payload)
+select u->>'id',u-'password'-'passwordHash'-'passwordSalt' from public.portal_kv_store k cross join lateral jsonb_array_elements(coalesce(k.value->'users','[]')) u where k.key='sanatpish:portal:db:v1';
+alter table public.catalog_gallery_images add column identity_verified boolean not null default false;
+alter table public.user_addresses add column legacy_id text;
+create unique index user_addresses_legacy_idx on public.user_addresses(user_id,legacy_id);
+do $$declare t text;begin foreach t in array array['portal_version','portal_users','auth_provisioning','document_versions','scoped_documents','source_archives'] loop execute format('alter table app_private.%I enable row level security',t);execute format('revoke all on app_private.%I from public,anon,authenticated',t);end loop;end$$;
+alter function public.trigger_set_updated_at() set search_path='';
+do $$declare f record;begin for f in select oid::regprocedure as signature from pg_proc where pronamespace='public'::regnamespace and proname='match_catalog_images_by_family' loop execute format('alter function %s set search_path=pg_catalog,public',f.signature);end loop;end$$;
+insert into app_private.schema_change_log(version,description) values('20261020091555','Adopted runtime document bridge and catalog DTO compatibility');
+
+
+-- 20261020093117_adopted_auth_rate_limits.sql
+-- The existing Auth BFF rate-limit query needs this private runtime table.
+create table app_private.rate_limits(bucket text primary key,attempts integer not null default 0 check(attempts>=0),expires_at timestamptz not null);
+create index rate_limits_expiry on app_private.rate_limits(expires_at);
+alter table app_private.rate_limits enable row level security;
+revoke all on app_private.rate_limits from public,anon,authenticated;
+insert into app_private.schema_change_log(version,description) values('20261020093117','Private durable Auth request throttling');
+
+
+-- 20261021111500_adopted_announcements_lifecycle.sql
+-- Enhance portal_announcements with 3-tier audience targeting (storefront, consumer, high_volume),
+-- multi-customer selection, optional start/end timestamps, customer end-time visibility toggle,
+-- and automatic expiration into archive.
+
+alter table public.portal_announcements
+  add column if not exists portal text not null default 'storefront',
+  add column if not exists scope text not null default 'collective',
+  add column if not exists target_customer_id text,
+  add column if not exists target_customer_ids jsonb not null default '[]'::jsonb,
+  add column if not exists tag text not null default 'اطلاعیه',
+  add column if not exists highlight_value text,
+  add column if not exists action_label text,
+  add column if not exists action_tab text,
+  add column if not exists action_link text,
+  add column if not exists starts_at text,
+  add column if not exists ends_at text,
+  add column if not exists show_end_time_to_customer boolean not null default false,
+  add column if not exists archived boolean not null default false,
+  add column if not exists archived_at text;
+
+create index if not exists idx_portal_announcements_lifecycle
+  on public.portal_announcements(portal, active, archived);
+
+create or replace function app_private.safe_timestamptz(p_value text)
+returns timestamptz
+language plpgsql
+immutable
+set search_path = ''
+as $$
+begin
+  if p_value is null or btrim(p_value) = '' then
+    return null;
+  end if;
+  return p_value::timestamptz;
+exception
+  when others then
+    return null;
+end;
+$$;
+
+create or replace function app_private.content_visible(
+  p_portal text,
+  p_payload jsonb,
+  p_roles jsonb default '[]',
+  p_grades jsonb default '[]'
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  u public.user_profiles;
+  v_scope text;
+  v_starts timestamptz;
+  v_ends timestamptz;
+  v_archived boolean;
+  v_ids jsonb;
+begin
+  if public.is_admin_user() then
+    return true;
+  end if;
+
+  v_archived := coalesce((p_payload->>'archived')::boolean, false);
+  if v_archived then
+    return false;
+  end if;
+
+  v_starts := app_private.safe_timestamptz(p_payload->>'startsAt');
+  if v_starts is not null and v_starts > now() then
+    return false;
+  end if;
+
+  v_ends := coalesce(
+    app_private.safe_timestamptz(p_payload->>'endsAt'),
+    app_private.safe_timestamptz(p_payload->>'expiresAt')
+  );
+  if v_ends is not null and v_ends <= now() then
+    return false;
+  end if;
+
+  v_scope := coalesce(nullif(p_payload->>'scope', ''), 'collective');
+
+  if p_portal = 'storefront'
+     and v_scope = 'collective'
+     and coalesce(p_payload->>'targetCustomerId', '') = ''
+     and coalesce(p_roles, '[]') = '[]'
+     and coalesce(p_grades, '[]') = '[]' then
+    return true;
+  end if;
+
+  select * into u
+  from public.user_profiles
+  where id = (select auth.uid()) and status = 'active';
+
+  if not found then
+    return false;
+  end if;
+
+  if p_portal not in ('consumer', 'high_volume', 'storefront') or p_portal is null then
+    return false;
+  end if;
+
+  if p_portal = 'high_volume' and not u.approved_b2b then
+    return false;
+  end if;
+
+  if p_portal = 'consumer' and u.approved_b2b then
+    return false;
+  end if;
+
+  if v_scope in ('individual', 'selected') then
+    v_ids := case
+      when jsonb_typeof(p_payload->'targetCustomerIds') = 'array' then p_payload->'targetCustomerIds'
+      else '[]'::jsonb
+    end;
+    if p_payload->>'targetCustomerId' is distinct from coalesce(u.legacy_user_id, u.id::text)
+       and p_payload->>'targetCustomerId' is distinct from u.id::text
+       and not (v_ids @> jsonb_build_array(u.id::text))
+       and not (u.legacy_user_id is not null and v_ids @> jsonb_build_array(u.legacy_user_id)) then
+      return false;
+    end if;
+  end if;
+
+  if coalesce(p_roles, '[]') <> '[]' and not p_roles @> jsonb_build_array(u.role::text) then
+    return false;
+  end if;
+
+  if coalesce(p_grades, '[]') <> '[]' and not p_grades @> jsonb_build_array(u.grade_code) then
+    return false;
+  end if;
+
+  if nullif(p_payload->>'targetTierCode', '') is not null
+     and p_payload->>'targetTierCode' <> 'ALL'
+     and p_payload->>'targetTierCode' is distinct from u.grade_code then
+    return false;
+  end if;
+
+  return true;
+end;
+$$;
+
+grant execute on function app_private.safe_timestamptz(text) to anon, authenticated;
+grant execute on function app_private.content_visible(text, jsonb, jsonb, jsonb) to anon, authenticated;
+
+alter policy "Public read active announcements" on public.portal_announcements
+  using (
+    public.is_admin_user() or (
+      active
+      and not coalesce(archived, false)
+      and (app_private.safe_timestamptz(starts_at) is null or app_private.safe_timestamptz(starts_at) <= now())
+      and (app_private.safe_timestamptz(coalesce(ends_at, expires_at)) is null or app_private.safe_timestamptz(coalesce(ends_at, expires_at)) > now())
+      and app_private.content_visible(
+        coalesce(nullif(raw_payload->>'portal', ''), nullif(portal, ''), 'consumer'),
+        raw_payload,
+        target_roles,
+        target_grades
+      )
+    )
+  );
+
+insert into app_private.schema_change_log(version, description)
+values ('20261021111500', 'Add 3-tier portal announcements scheduling, customer targeting, and auto-archive');
+
+
+-- 20261022120000_adopted_complete_projections_and_backfill.sql
+-- 20261022120000_adopted_complete_projections_and_backfill.sql
+-- Complete relational projections for all adopted domains and fault-tolerant KV-to-table backfill function.
+-- Additive only: preserves all original rows, identifiers, currencies, and column digests.
+
+-- Ensure prerequisite columns from 20261020 / 20261021 exist before backfill
+alter table public.price_lists
+  add column if not exists discount_percent numeric(5,2) not null default 0 check (discount_percent between 0 and 100);
+
+alter table public.club_milestones
+  add column if not exists portal text check (portal in ('consumer', 'high_volume')),
+  add column if not exists min_purchase_volume numeric(18,2) check (min_purchase_volume >= 0);
+
+alter table public.portal_announcements
+  add column if not exists portal text not null default 'storefront',
+  add column if not exists scope text not null default 'collective',
+  add column if not exists target_customer_id text,
+  add column if not exists target_customer_ids jsonb not null default '[]'::jsonb,
+  add column if not exists tag text not null default 'اطلاعیه',
+  add column if not exists highlight_value text,
+  add column if not exists action_label text,
+  add column if not exists action_tab text,
+  add column if not exists action_link text,
+  add column if not exists starts_at text,
+  add column if not exists ends_at text,
+  add column if not exists show_end_time_to_customer boolean not null default false,
+  add column if not exists archived boolean not null default false,
+  add column if not exists archived_at text;
+
+create index if not exists idx_portal_announcements_lifecycle
+  on public.portal_announcements(portal, active, archived);
+
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array[
+    'agency_applications',
+    'agency_deposit_receipts',
+    'agency_supply_requests',
+    'agency_messages',
+    'catalog_brands',
+    'catalog_categories',
+    'price_lists',
+    'price_change_history',
+    'price_inquiries',
+    'discount_codes',
+    'official_invoices',
+    'plant_machinery_passports',
+    'marketing_campaigns',
+    'support_tickets',
+    'industrial_chat_sessions',
+    'client_logos',
+    'blog_posts',
+    'static_pages',
+    'sms_templates',
+    'sms_logs',
+    'audit_logs'
+  ]
+  loop
+    execute format(
+      'alter table public.%I add column if not exists raw_payload jsonb not null default ''{}''::jsonb',
+      tbl
+    );
+  end loop;
+end$$;
+
+insert into app_private.document_versions(namespace, scope_id, version, value_kind)
+select
+  k.key,
+  'global',
+  1,
+  case jsonb_typeof(k.value)
+    when 'array' then 'array'
+    when 'object' then 'object'
+    else 'scalar'
+  end
+from public.portal_kv_store k
+on conflict (namespace, scope_id) do nothing;
+
+insert into app_private.document_versions(namespace, scope_id, version, value_kind)
+select
+  s.namespace,
+  s.scope_id,
+  1,
+  case jsonb_typeof(s.value)
+    when 'array' then 'array'
+    when 'object' then 'object'
+    else 'scalar'
+  end
+from app_private.scoped_documents s
+on conflict (namespace, scope_id) do nothing;
+
+insert into app_private.document_versions(namespace, scope_id, version, value_kind)
+select key, 'global', 0, 'array'
+from unnest(array[
+  'atlas_admin_customers_v1',
+  'atlas_legacy_customers_v1',
+  'atlas_customers_approval_v2',
+  'atlas_admin_inquiries_v1',
+  'hyper_sanat_inquiries_v2',
+  'atlas_price_lists_v2',
+  'atlas_price_list_history_v2',
+  'atlas_admin_price_logs_v1',
+  'atlas_customer_grades_v2',
+  'atlas_club_rewards_v2',
+  'atlas_customer_reward_assignments_v1',
+  'atlas_portal_content_banners_v1',
+  'atlas_admin_banners_v1',
+  'atlas_portal_content_announcements_v1',
+  'atlas_portal_club_milestones_v1',
+  'atlas_portal_customer_overrides_v1',
+  'atlas_admin_dealers_v1',
+  'atlas_admin_active_agencies_v1',
+  'hyper_sanat_approved_dealers_v1',
+  'hyper_sanat_agency_applications_v1',
+  'hyper_sanat_deposit_receipts_v1',
+  'hyper_sanat_supply_requests_v1',
+  'atlas_admin_supply_reqs_v1',
+  'hyper_sanat_dealer_messages_v1',
+  'atlas_admin_official_invoices_v1',
+  'atlas_admin_sms_logs_v1',
+  'hyper_sanat_sms_logs_v1',
+  'hyper_sanat_sms_v2'
+]) as key
+on conflict (namespace, scope_id) do nothing;
+
+insert into app_private.document_versions(namespace, scope_id, version, value_kind)
+select key, 'global', 0, 'object'
+from unnest(array[
+  'atlas_portal_layout_configs_v1',
+  'atlas_admin_club_config_v1',
+  'atlas_admin_settings_v1',
+  'catalog_overrides_db_v1',
+  'sanatpish:portal:db:v1'
+]) as key
+on conflict (namespace, scope_id) do nothing;
+
+-- Safe type-conversion helpers for legacy/Persian JSON strings
+create or replace function app_private.safe_numeric(val text, fallback numeric default 0)
+returns numeric
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  cleaned text;
+  matched text;
+begin
+  if val is null then
+    return fallback;
+  end if;
+  cleaned := translate(val, '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩,٬_ ', '01234567890123456789');
+  matched := (regexp_match(cleaned, '[-+]?[0-9]+(?:\.[0-9]+)?'))[1];
+  if matched is null or matched = '' then
+    return fallback;
+  end if;
+  begin
+    return matched::numeric;
+  exception when others then
+    return fallback;
+  end;
+end;
+$$;
+
+create or replace function app_private.safe_int(val text, fallback integer default 0)
+returns integer
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  num numeric;
+begin
+  num := app_private.safe_numeric(val, null);
+  if num is null then
+    return fallback;
+  end if;
+  begin
+    return round(num)::integer;
+  exception when others then
+    return fallback;
+  end;
+end;
+$$;
+
+create or replace function app_private.safe_bool(val text, fallback boolean default false)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  norm text;
+begin
+  if val is null then
+    return fallback;
+  end if;
+  norm := lower(btrim(translate(val, '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')));
+  if norm in ('true', 't', '1', 'yes', 'y', 'on', 'active', 'فعال') then
+    return true;
+  elsif norm in ('false', 'f', '0', 'no', 'n', 'off', 'inactive', 'غیرفعال') then
+    return false;
+  end if;
+  return fallback;
+end;
+$$;
+
+create or replace function app_private.safe_timestamptz(p_value text)
+returns timestamptz
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  norm text;
+begin
+  if p_value is null then
+    return null;
+  end if;
+  norm := btrim(translate(p_value, '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789'));
+  if norm = '' or norm ~ '^(13|14)[0-9]{2}[/-]' then
+    return null;
+  end if;
+  begin
+    return norm::timestamptz;
+  exception when others then
+    return null;
+  end;
+end;
+$$;
+
+create or replace function app_private.safe_jsonb_array(val jsonb)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when val is not null and jsonb_typeof(val) = 'array' then val else '[]'::jsonb end;
+$$;
+
+create or replace function app_private.safe_jsonb_object(val jsonb)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when val is not null and jsonb_typeof(val) = 'object' then val else '{}'::jsonb end;
+$$;
+
+revoke execute on function app_private.safe_numeric(text, numeric) from public, anon, authenticated;
+revoke execute on function app_private.safe_int(text, integer) from public, anon, authenticated;
+revoke execute on function app_private.safe_bool(text, boolean) from public, anon, authenticated;
+grant execute on function app_private.safe_timestamptz(text) to anon, authenticated;
+revoke execute on function app_private.safe_jsonb_array(jsonb) from public, anon, authenticated;
+revoke execute on function app_private.safe_jsonb_object(jsonb) from public, anon, authenticated;
+
+create or replace function app_private.backfill_relational_projections_from_kv()
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  rec record;
+  ms record;
+  item jsonb;
+  v_id text;
+  v_code text;
+  v_slug text;
+  v_name text;
+  v_agency_id text;
+  v_order_id text;
+  v_price_list_id text;
+  v_crm_id text;
+  v_grade_code text;
+  v_reward_id text;
+  v_user_id uuid;
+  v_counts jsonb := '{}'::jsonb;
+  v_n integer;
+  v_skipped_errors integer := 0;
+  v_error_details jsonb := '[]'::jsonb;
+begin
+  -- 0. Envelope & Object Keys in portal_kv_store (sanatpish:portal:db:v1, catalog_overrides_db_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'sanatpish:portal:db:v1'
+      and jsonb_typeof(value) = 'object'
+  loop
+    begin
+      insert into app_private.portal_version(singleton, revision)
+      values (true, greatest(0, coalesce(app_private.safe_int(rec.value->>'revision', 0), 0)))
+      on conflict (singleton) do update
+        set revision = greatest(app_private.portal_version.revision, excluded.revision);
+
+      if jsonb_typeof(rec.value->'values') = 'object' then
+        insert into public.portal_kv_store(key, value)
+        select e.key, e.value
+        from jsonb_each(rec.value->'values') as e(key, value)
+        where nullif(btrim(e.key), '') is not null
+        on conflict (key) do nothing;
+      end if;
+
+      if jsonb_typeof(rec.value->'users') = 'array' then
+        for item in select * from jsonb_array_elements(rec.value->'users')
+        loop
+          begin
+            v_id := nullif(btrim(item->>'id'), '');
+            if v_id is not null then
+              insert into app_private.portal_users(id, payload)
+              values (v_id, item - 'password' - 'passwordHash' - 'passwordSalt')
+              on conflict (id) do update
+                set payload = app_private.portal_users.payload || excluded.payload
+                where app_private.portal_users.payload is distinct from (app_private.portal_users.payload || excluded.payload);
+              v_n := v_n + 1;
+            end if;
+          exception when others then
+            v_skipped_errors := v_skipped_errors + 1;
+            v_error_details := v_error_details || jsonb_build_array(
+              jsonb_build_object('section', 'portal_users', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+            );
+          end;
+        end loop;
+      end if;
+    exception when others then
+      v_skipped_errors := v_skipped_errors + 1;
+      v_error_details := v_error_details || jsonb_build_array(
+        jsonb_build_object('section', 'sanatpish:portal:db:v1', 'record_id', 'envelope', 'sqlstate', SQLSTATE, 'message', SQLERRM)
+      );
+    end;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('portal_users_synced', v_n);
+
+  -- 0b. Price Lists (atlas_price_lists_v2 -> public.price_lists)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'atlas_price_lists_v2'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := null;
+        select p.id into v_id
+        from public.price_lists p
+        where p.id = nullif(btrim(item->>'id'), '')
+           or (nullif(btrim(item->>'code'), '') is not null and (
+                 p.id = btrim(item->>'code')
+                 or lower(p.id) = lower('pl-grade-' || btrim(item->>'code'))
+                 or p.raw_payload->>'code' = btrim(item->>'code')
+               ))
+        order by case when p.id = nullif(btrim(item->>'id'), '') then 0 else 1 end
+        limit 1;
+
+        v_id := coalesce(v_id, nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''));
+        if v_id is not null then
+          insert into public.price_lists(
+            id, name, description, currency, target_grades, is_default, is_active,
+            valid_from, valid_until, items, discount_percent, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'name'), ''), nullif(btrim(item->>'adminTitle'), ''), nullif(btrim(item->>'code'), ''), v_id),
+            item->>'description',
+            case when (item->>'currency') in ('IRR', 'IRT') then item->>'currency' else 'IRR' end,
+            case
+              when jsonb_typeof(item->'targetGrades') = 'array' then item->'targetGrades'
+              when nullif(btrim(item->>'clubTier'), '') is not null then jsonb_build_array(btrim(item->>'clubTier'))
+              else '[]'::jsonb
+            end,
+            app_private.safe_bool(coalesce(item->>'isDefault', item->>'isRetailCash'), false),
+            app_private.safe_bool(coalesce(item->>'isActive', item->>'active'), true),
+            app_private.safe_timestamptz(item->>'validFrom'),
+            app_private.safe_timestamptz(item->>'validUntil'),
+            app_private.safe_jsonb_object(coalesce(item->'items', item->'customProductPrices', item->'skuPrices')),
+            least(100, greatest(0, coalesce(app_private.safe_numeric(coalesce(item->>'discountPercent', item->>'defaultDiscountPercent'), 0), 0))),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.price_lists.raw_payload || excluded.raw_payload,
+                discount_percent = case
+                  when public.price_lists.discount_percent = 0 and excluded.discount_percent <> 0
+                    then excluded.discount_percent
+                  else public.price_lists.discount_percent
+                end,
+                items = case
+                  when public.price_lists.items = '{}'::jsonb and excluded.items <> '{}'::jsonb
+                    then excluded.items
+                  else public.price_lists.items
+                end
+            where public.price_lists.raw_payload is distinct from (public.price_lists.raw_payload || excluded.raw_payload)
+               or (public.price_lists.discount_percent = 0 and excluded.discount_percent <> 0)
+               or (public.price_lists.items = '{}'::jsonb and excluded.items <> '{}'::jsonb);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'price_lists', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('price_lists', v_n);
+
+  -- 0c. Portal Announcements (atlas_portal_content_announcements_v1 -> public.portal_announcements)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'atlas_portal_content_announcements_v1'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := null;
+        select a.id into v_id
+        from public.portal_announcements a
+        where a.id = nullif(btrim(item->>'id'), '')
+           or (nullif(btrim(item->>'title'), '') is not null and a.title = btrim(item->>'title'))
+        order by case when a.id = nullif(btrim(item->>'id'), '') then 0 else 1 end
+        limit 1;
+
+        v_id := coalesce(v_id, nullif(btrim(item->>'id'), ''));
+        if v_id is not null then
+          insert into public.portal_announcements(
+            id, title, body, priority, target_roles, target_grades, pinned, active, expires_at,
+            portal, scope, target_customer_id, target_customer_ids, tag, highlight_value,
+            action_label, action_tab, action_link, starts_at, ends_at,
+            show_end_time_to_customer, archived, archived_at, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'title'), ''), 'اطلاعیه'),
+            coalesce(nullif(btrim(item->>'body'), ''), nullif(btrim(item->>'content'), ''), '-'),
+            coalesce(nullif(btrim(item->>'priority'), ''), 'normal'),
+            app_private.safe_jsonb_array(item->'targetRoles'),
+            app_private.safe_jsonb_array(item->'targetGrades'),
+            app_private.safe_bool(item->>'pinned', false),
+            app_private.safe_bool(item->>'active', true),
+            coalesce(item->>'expiresAt', item->>'endsAt'),
+            case
+              when (item->>'portal') in ('storefront', 'consumer', 'high_volume') then item->>'portal'
+              else 'consumer'
+            end,
+            coalesce(nullif(btrim(item->>'scope'), ''), 'collective'),
+            nullif(btrim(item->>'targetCustomerId'), ''),
+            app_private.safe_jsonb_array(item->'targetCustomerIds'),
+            coalesce(nullif(btrim(item->>'tag'), ''), 'اطلاعیه'),
+            item->>'highlightValue',
+            item->>'actionLabel',
+            item->>'actionTab',
+            item->>'actionLink',
+            item->>'startsAt',
+            coalesce(item->>'endsAt', item->>'expiresAt'),
+            app_private.safe_bool(item->>'showEndTimeToCustomer', false),
+            app_private.safe_bool(item->>'archived', false),
+            item->>'archivedAt',
+            item
+          )
+          on conflict (id) do update
+            set portal = case
+                  when (excluded.raw_payload->>'portal') in ('storefront', 'consumer', 'high_volume')
+                    then excluded.raw_payload->>'portal'
+                  else public.portal_announcements.portal
+                end,
+                scope = coalesce(nullif(btrim(excluded.raw_payload->>'scope'), ''), public.portal_announcements.scope),
+                target_customer_id = coalesce(public.portal_announcements.target_customer_id, excluded.target_customer_id),
+                target_customer_ids = case
+                  when public.portal_announcements.target_customer_ids = '[]'::jsonb and excluded.target_customer_ids <> '[]'::jsonb
+                    then excluded.target_customer_ids
+                  else public.portal_announcements.target_customer_ids
+                end,
+                tag = case
+                  when public.portal_announcements.tag = 'اطلاعیه' and excluded.tag <> 'اطلاعیه'
+                    then excluded.tag
+                  else public.portal_announcements.tag
+                end,
+                highlight_value = coalesce(public.portal_announcements.highlight_value, excluded.highlight_value),
+                action_label = coalesce(public.portal_announcements.action_label, excluded.action_label),
+                action_tab = coalesce(public.portal_announcements.action_tab, excluded.action_tab),
+                action_link = coalesce(public.portal_announcements.action_link, excluded.action_link),
+                starts_at = coalesce(public.portal_announcements.starts_at, excluded.starts_at),
+                ends_at = coalesce(public.portal_announcements.ends_at, excluded.ends_at, public.portal_announcements.expires_at),
+                show_end_time_to_customer = coalesce(app_private.safe_bool(excluded.raw_payload->>'showEndTimeToCustomer', null), public.portal_announcements.show_end_time_to_customer),
+                archived = coalesce(app_private.safe_bool(excluded.raw_payload->>'archived', null), public.portal_announcements.archived),
+                archived_at = coalesce(public.portal_announcements.archived_at, excluded.archived_at),
+                raw_payload = public.portal_announcements.raw_payload || excluded.raw_payload
+            where public.portal_announcements.raw_payload is distinct from (public.portal_announcements.raw_payload || excluded.raw_payload)
+               or (
+                 (excluded.raw_payload->>'portal') in ('storefront', 'consumer', 'high_volume')
+                 and public.portal_announcements.portal is distinct from (excluded.raw_payload->>'portal')
+               )
+               or (public.portal_announcements.tag = 'اطلاعیه' and excluded.tag <> 'اطلاعیه')
+               or (public.portal_announcements.highlight_value is null and excluded.highlight_value is not null)
+               or (public.portal_announcements.action_label is null and excluded.action_label is not null)
+               or (public.portal_announcements.action_tab is null and excluded.action_tab is not null)
+               or (public.portal_announcements.action_link is null and excluded.action_link is not null);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'portal_announcements', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('portal_announcements', v_n);
+
+  -- 0d. Portal Banners (atlas_portal_content_banners_v1, atlas_admin_banners_v1 -> public.portal_banners)
+  v_n := 0;
+  for rec in
+    select key, value
+    from public.portal_kv_store
+    where key in ('atlas_portal_content_banners_v1', 'atlas_admin_banners_v1')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := null;
+        select b.id into v_id
+        from public.portal_banners b
+        where b.id = nullif(btrim(item->>'id'), '')
+           or (
+             nullif(btrim(item->>'title'), '') is not null
+             and b.title = btrim(item->>'title')
+             and b.scope = case
+               when rec.key = 'atlas_admin_banners_v1' then 'storefront'
+               when (item->>'portal') in ('consumer', 'high_volume', 'storefront') then item->>'portal'
+               when (item->>'scope') in ('consumer', 'high_volume', 'storefront') then item->>'scope'
+               else 'consumer'
+             end
+           )
+        order by case when b.id = nullif(btrim(item->>'id'), '') then 0 else 1 end
+        limit 1;
+
+        v_id := coalesce(v_id, nullif(btrim(item->>'id'), ''));
+        if v_id is not null then
+          insert into public.portal_banners(
+            id, scope, title, subtitle, image_url, link_url, cta_text,
+            position, target_roles, sort_order, active, valid_until, raw_payload
+          )
+          values (
+            v_id,
+            case
+              when rec.key = 'atlas_admin_banners_v1' then 'storefront'
+              when (item->>'portal') in ('consumer', 'high_volume', 'storefront') then item->>'portal'
+              when (item->>'scope') in ('consumer', 'high_volume', 'storefront') then item->>'scope'
+              else 'consumer'
+            end,
+            coalesce(nullif(btrim(item->>'title'), ''), nullif(btrim(item->>'badgeText'), ''), v_id),
+            item->>'subtitle',
+            coalesce(item->>'imageUrl', item->>'backgroundImage', item->>'image', ''),
+            coalesce(item->>'linkUrl', item->>'link', item->>'ctaLinkOrTab'),
+            item->>'ctaText',
+            coalesce(nullif(btrim(item->>'position'), ''), 'hero_slider'),
+            app_private.safe_jsonb_array(item->'targetRoles'),
+            coalesce(app_private.safe_int(coalesce(item->>'sortOrder', item->>'order'), 1), 1),
+            app_private.safe_bool(item->>'active', true),
+            item->>'validUntil',
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.portal_banners.raw_payload || excluded.raw_payload
+            where public.portal_banners.raw_payload is distinct from (public.portal_banners.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'portal_banners', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('portal_banners', v_n);
+
+  -- 0e. Club Milestones (atlas_portal_club_milestones_v1 -> public.club_milestones, supports array and object formats)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'atlas_portal_club_milestones_v1'
+      and jsonb_typeof(value) in ('array', 'object')
+  loop
+    for ms in
+      select null::text as portal_key, elem as item, ord::integer as ord
+      from jsonb_array_elements(
+        case when jsonb_typeof(rec.value) = 'array' then rec.value else '[]'::jsonb end
+      ) with ordinality as a(elem, ord)
+      union all
+      select p.key as portal_key, elem as item, ord::integer as ord
+      from jsonb_each(
+        case when jsonb_typeof(rec.value) = 'object' then rec.value else '{}'::jsonb end
+      ) as p(key, arr)
+      cross join lateral jsonb_array_elements(app_private.safe_jsonb_array(arr)) with ordinality as o(elem, ord)
+      where p.key in ('consumer', 'high_volume')
+    loop
+      item := ms.item;
+      begin
+        v_id := null;
+        if ms.portal_key is null then
+          select m.id into v_id
+          from public.club_milestones m
+          where m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))
+             or (nullif(btrim(item->>'code'), '') is not null and (m.id = btrim(item->>'code') or m.raw_payload->>'code' = btrim(item->>'code')))
+             or (nullif(btrim(item->>'tierKey'), '') is not null and (m.id = btrim(item->>'tierKey') or m.raw_payload->>'tierKey' = btrim(item->>'tierKey')))
+             or (nullif(btrim(coalesce(item->>'title', item->>'publicTitle')), '') is not null and m.title = btrim(coalesce(item->>'title', item->>'publicTitle')))
+          order by case
+            when m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), '')) then 0
+            else 1
+          end
+          limit 1;
+        else
+          select m.id into v_id
+          from public.club_milestones m
+          where m.id = ms.portal_key || ':' || coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))
+             or (m.portal = ms.portal_key and m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), '')))
+          limit 1;
+        end if;
+
+        if v_id is null then
+          v_id := coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''), 'ms-' || ms.ord::text);
+          if ms.portal_key is not null and v_id not like (ms.portal_key || ':%') then
+            v_id := ms.portal_key || ':' || v_id;
+          end if;
+        end if;
+
+        if v_id is not null then
+          insert into public.club_milestones(
+            id, title, target_points, reward_title, reward_type, reward_value,
+            icon, sort_order, active, portal, min_purchase_volume, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'title'), ''), nullif(btrim(item->>'publicTitle'), ''), v_id),
+            coalesce(app_private.safe_int(coalesce(item->>'targetPoints', item->>'target_points', item->>'minPurchaseVolume', item->>'discountPercent'), 0), 0),
+            coalesce(
+              nullif(btrim(item->>'rewardTitle'), ''),
+              nullif(btrim(item->>'reward_title'), ''),
+              nullif(btrim(item->>'summaryBenefit'), ''),
+              coalesce(nullif(btrim(item->>'title'), ''), nullif(btrim(item->>'publicTitle'), ''), v_id)
+            ),
+            coalesce(nullif(btrim(coalesce(item->>'rewardType', item->>'reward_type')), ''), 'discount'),
+            coalesce(item->>'rewardValue', item->>'reward_value', case when item->>'discountPercent' is not null then (item->>'discountPercent') || '%' else null end),
+            item->>'icon',
+            coalesce(app_private.safe_int(coalesce(item->>'sortOrder', item->>'sort_order'), ms.ord), ms.ord),
+            app_private.safe_bool(item->>'active', true),
+            case
+              when coalesce(ms.portal_key, item->>'portal') in ('consumer', 'high_volume')
+                then coalesce(ms.portal_key, item->>'portal')
+              else null
+            end,
+            app_private.safe_numeric(coalesce(item->>'minPurchaseVolume', item->>'min_purchase_volume'), null),
+            item
+          )
+          on conflict (id) do update
+            set min_purchase_volume = coalesce(public.club_milestones.min_purchase_volume, excluded.min_purchase_volume),
+                portal = coalesce(public.club_milestones.portal, excluded.portal),
+                raw_payload = public.club_milestones.raw_payload || excluded.raw_payload
+            where public.club_milestones.raw_payload is distinct from (public.club_milestones.raw_payload || excluded.raw_payload)
+               or (public.club_milestones.min_purchase_volume is null and excluded.min_purchase_volume is not null)
+               or (public.club_milestones.portal is null and excluded.portal is not null);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'club_milestones', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('club_milestones', v_n);
+
+  -- 1. Agencies (atlas_admin_dealers_v1, atlas_admin_active_agencies_v1, hyper_sanat_approved_dealers_v1)
+  v_n := 0;
+  for rec in
+    select key, value
+    from public.portal_kv_store
+    where key in ('atlas_admin_dealers_v1', 'atlas_admin_active_agencies_v1', 'hyper_sanat_approved_dealers_v1')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'agencyCode'), ''));
+        v_code := coalesce(nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'agencyCode'), ''), v_id);
+        if v_id is not null and v_code is not null then
+          if exists (select 1 from public.agencies a where a.code = v_code and a.id <> v_id) then
+            v_code := v_code || '-' || v_id;
+          end if;
+          insert into public.agencies(
+            id, code, name, company_name, phone, province, city, address,
+            latitude, longitude, credit_limit, current_balance, next_check_date,
+            contract_status, discount_percent, sub_users, territories,
+            is_public_representative, raw_payload
+          )
+          values (
+            v_id,
+            v_code,
+            coalesce(nullif(btrim(item->>'name'), ''), nullif(btrim(item->>'companyName'), ''), nullif(btrim(item->>'managerName'), ''), v_id),
+            coalesce(nullif(btrim(item->>'companyName'), ''), nullif(btrim(item->>'name'), '')),
+            coalesce(item->>'phone', ''),
+            coalesce(item->>'province', ''),
+            coalesce(item->>'city', ''),
+            item->>'address',
+            app_private.safe_numeric(item->>'latitude', null)::double precision,
+            app_private.safe_numeric(item->>'longitude', null)::double precision,
+            coalesce(app_private.safe_numeric(item->>'creditLimit', 0), 0),
+            coalesce(app_private.safe_numeric(coalesce(item->>'currentBalance', item->>'currentDebt'), 0), 0),
+            item->>'nextCheckDate',
+            coalesce(nullif(btrim(item->>'contractStatus'), ''), 'valid'),
+            least(100, greatest(0, coalesce(app_private.safe_numeric(item->>'discountPercent', 15), 15))),
+            app_private.safe_jsonb_array(item->'subUsers'),
+            app_private.safe_jsonb_array(item->'territories'),
+            app_private.safe_bool(item->>'isPublicRepresentative', true),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.agencies.raw_payload || excluded.raw_payload
+            where public.agencies.raw_payload is distinct from (public.agencies.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'agencies', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('agencies', v_n);
+
+  -- 2. Agency Applications (hyper_sanat_agency_applications_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'hyper_sanat_agency_applications_v1'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.agency_applications(
+            id, full_name, company_name, phone, email, province, city, address,
+            store_area_sqm, ownership_type, experience_years, active_brands,
+            requested_categories, documents, status, admin_note, reviewed_at, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'fullName'), ''), nullif(btrim(item->>'managerName'), ''), nullif(btrim(item->>'companyName'), ''), 'متقاضی نمایندگی'),
+            item->>'companyName',
+            coalesce(nullif(btrim(item->>'phone'), ''), nullif(btrim(item->>'tel'), ''), ''),
+            item->>'email',
+            coalesce(item->>'province', ''),
+            coalesce(item->>'city', ''),
+            coalesce(item->>'address', item->>'fullAddress'),
+            app_private.safe_int(item->>'storeAreaSqm', null),
+            item->>'ownershipType',
+            coalesce(app_private.safe_int(coalesce(item->>'experienceYears', item->>'activityYears'), 0), 0),
+            case
+              when jsonb_typeof(item->'activeBrands') = 'array' then (select string_agg(x, ', ') from jsonb_array_elements_text(item->'activeBrands') as x)
+              else item->>'activeBrands'
+            end,
+            case
+              when jsonb_typeof(item->'requestedCategories') = 'array' then item->'requestedCategories'
+              when jsonb_typeof(item->'activityFields') = 'array' then item->'activityFields'
+              else '[]'::jsonb
+            end,
+            app_private.safe_jsonb_array(item->'documents'),
+            coalesce(nullif(btrim(item->>'status'), ''), 'pending'),
+            coalesce(item->>'adminNote', item->>'notes'),
+            app_private.safe_timestamptz(item->>'reviewedAt'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.agency_applications.raw_payload || excluded.raw_payload
+            where public.agency_applications.raw_payload is distinct from (public.agency_applications.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'agency_applications', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('agency_applications', v_n);
+
+  -- 3. Agency Deposit Receipts (hyper_sanat_deposit_receipts_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'hyper_sanat_deposit_receipts_v1'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_agency_id := null;
+          select a.id into v_agency_id
+          from public.agencies a
+          where a.id = (item->>'agencyId') or a.code = coalesce(item->>'agencyCode', item->>'dealerCode')
+          limit 1;
+          insert into public.agency_deposit_receipts(
+            id, agency_id, dealer_name, amount, tracking_code, deposit_date,
+            bank_name, receipt_image_url, status, admin_note, raw_payload
+          )
+          values (
+            v_id,
+            v_agency_id,
+            coalesce(nullif(btrim(item->>'dealerName'), ''), 'نماینده'),
+            coalesce(app_private.safe_numeric(item->>'amount', 0), 0),
+            coalesce(nullif(btrim(item->>'trackingCode'), ''), nullif(btrim(item->>'trackingNumber'), ''), v_id),
+            coalesce(item->>'depositDate', item->>'paymentDate'),
+            item->>'bankName',
+            coalesce(item->>'receiptImageUrl', item->>'receiptImage'),
+            coalesce(nullif(btrim(item->>'status'), ''), 'pending'),
+            coalesce(item->>'adminNote', item->>'notes'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.agency_deposit_receipts.raw_payload || excluded.raw_payload
+            where public.agency_deposit_receipts.raw_payload is distinct from (public.agency_deposit_receipts.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'agency_deposit_receipts', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('agency_deposit_receipts', v_n);
+
+  -- 4. Agency Supply Requests (hyper_sanat_supply_requests_v1, atlas_admin_supply_reqs_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key in ('hyper_sanat_supply_requests_v1', 'atlas_admin_supply_reqs_v1')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_agency_id := null;
+          select a.id into v_agency_id
+          from public.agencies a
+          where a.id = (item->>'agencyId') or a.code = coalesce(item->>'agencyCode', item->>'dealerCode')
+          limit 1;
+          insert into public.agency_supply_requests(
+            id, agency_id, agency_name, product_code, product_name,
+            quantity, urgency, status, notes, raw_payload
+          )
+          values (
+            v_id,
+            v_agency_id,
+            coalesce(nullif(btrim(item->>'agencyName'), ''), nullif(btrim(item->>'dealerName'), ''), 'نماینده'),
+            coalesce(nullif(btrim(item->>'productCode'), ''), nullif(btrim(item->>'partCode'), ''), nullif(btrim(item->>'requestNumber'), ''), v_id),
+            coalesce(nullif(btrim(item->>'productName'), ''), nullif(btrim(item->>'partName'), ''), 'قطعه صنعتی'),
+            greatest(1, coalesce(app_private.safe_int(item->>'quantity', 1), 1)),
+            coalesce(nullif(btrim(item->>'urgency'), ''), 'normal'),
+            coalesce(nullif(btrim(item->>'status'), ''), 'pending'),
+            coalesce(item->>'notes', item->>'adminResponse'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.agency_supply_requests.raw_payload || excluded.raw_payload
+            where public.agency_supply_requests.raw_payload is distinct from (public.agency_supply_requests.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'agency_supply_requests', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('agency_supply_requests', v_n);
+
+  -- 5. Agency Messages (hyper_sanat_dealer_messages_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'hyper_sanat_dealer_messages_v1'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_agency_id := null;
+          select a.id into v_agency_id
+          from public.agencies a
+          where a.id = (item->>'agencyId') or a.code = coalesce(item->>'agencyCode', item->>'dealerCode')
+          limit 1;
+          insert into public.agency_messages(
+            id, agency_id, sender, subject, body, attachments, is_read, raw_payload
+          )
+          values (
+            v_id,
+            v_agency_id,
+            coalesce(nullif(btrim(item->>'sender'), ''), nullif(btrim(item->>'senderRole'), ''), 'user'),
+            item->>'subject',
+            coalesce(nullif(btrim(item->>'body'), ''), nullif(btrim(item->>'message'), ''), '-'),
+            app_private.safe_jsonb_array(item->'attachments'),
+            app_private.safe_bool(item->>'isRead', false),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.agency_messages.raw_payload || excluded.raw_payload
+            where public.agency_messages.raw_payload is distinct from (public.agency_messages.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'agency_messages', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('agency_messages', v_n);
+
+  -- 6. Official Invoices (atlas_admin_official_invoices_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'atlas_admin_official_invoices_v1'
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_order_id := null;
+          select o.id into v_order_id from public.orders o where o.id = (item->>'orderId') limit 1;
+          v_code := coalesce(nullif(btrim(item->>'invoiceNumber'), ''), v_id);
+          if exists (select 1 from public.official_invoices i where i.invoice_number = v_code and i.id <> v_id) then
+            v_code := v_code || '-' || v_id;
+          end if;
+          insert into public.official_invoices(
+            id, invoice_number, order_id, buyer_name, buyer_economic_code,
+            buyer_national_id, buyer_postal_code, buyer_address, buyer_phone,
+            seller_info, items, subtotal_amount, discount_amount, tax_amount,
+            total_payable, status, issued_date, raw_payload
+          )
+          values (
+            v_id,
+            v_code,
+            v_order_id,
+            coalesce(nullif(btrim(item->>'buyerName'), ''), nullif(btrim(item#>>'{buyer,companyName}'), ''), nullif(btrim(item#>>'{buyer,name}'), ''), 'خریدار'),
+            coalesce(item->>'buyerEconomicCode', item->>'economicCode', item#>>'{buyer,economicCode}'),
+            coalesce(item->>'buyerNationalId', item->>'nationalId', item#>>'{buyer,nationalId}'),
+            coalesce(item->>'buyerPostalCode', item->>'postalCode', item#>>'{buyer,postalCode}'),
+            coalesce(item->>'buyerAddress', item->>'address', item#>>'{buyer,address}'),
+            coalesce(item->>'buyerPhone', item->>'phone', item#>>'{buyer,phone}'),
+            app_private.safe_jsonb_object(coalesce(item->'sellerInfo', item->'seller')),
+            app_private.safe_jsonb_array(item->'items'),
+            coalesce(app_private.safe_numeric(coalesce(item->>'subtotalAmount', item->>'subtotal', item->>'totalAmount'), 0), 0),
+            coalesce(app_private.safe_numeric(coalesce(item->>'discountAmount', item->>'totalDiscount', item->>'discount'), 0), 0),
+            coalesce(app_private.safe_numeric(coalesce(item->>'taxAmount', item->>'totalTax', item->>'tax'), 0), 0),
+            coalesce(app_private.safe_numeric(coalesce(item->>'totalPayable', item->>'grandTotal', item->>'finalAmount', item->>'totalAmount', item->>'total'), 0), 0),
+            coalesce(nullif(btrim(item->>'status'), ''), 'issued'),
+            coalesce(item->>'issuedDate', item->>'issueDate', item->>'date'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.official_invoices.raw_payload || excluded.raw_payload
+            where public.official_invoices.raw_payload is distinct from (public.official_invoices.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'official_invoices', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('official_invoices', v_n);
+
+  -- 7. SMS Logs (atlas_admin_sms_logs_v1, hyper_sanat_sms_logs_v1, hyper_sanat_sms_v2)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key in ('atlas_admin_sms_logs_v1', 'hyper_sanat_sms_logs_v1', 'hyper_sanat_sms_v2')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.sms_logs(
+            id, recipient_phone, recipient_name, event_key, message_text, status, sent_at, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'recipientPhone'), ''), nullif(btrim(item->>'phone'), ''), nullif(btrim(item->>'to'), ''), ''),
+            coalesce(item->>'recipientName', item->>'customerName'),
+            coalesce(item->>'eventKey', item->>'template', item->>'type'),
+            coalesce(nullif(btrim(item->>'messageText'), ''), nullif(btrim(item->>'message'), ''), nullif(btrim(item->>'text'), ''), ''),
+            coalesce(nullif(btrim(item->>'status'), ''), 'sent'),
+            coalesce(item->>'sentAt', item->>'timestamp', item->>'date'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.sms_logs.raw_payload || excluded.raw_payload
+            where public.sms_logs.raw_payload is distinct from (public.sms_logs.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'sms_logs', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('sms_logs', v_n);
+
+  -- 8. Price Change History (atlas_price_list_history_v2, atlas_admin_price_logs_v1)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key in ('atlas_price_list_history_v2', 'atlas_admin_price_logs_v1')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_price_list_id := null;
+          select p.id into v_price_list_id from public.price_lists p where p.id = (item->>'priceListId') limit 1;
+          insert into public.price_change_history(
+            id, price_list_id, product_code, product_name, old_price, new_price,
+            changed_by, reason, date_label, snapshot, raw_payload
+          )
+          values (
+            v_id,
+            v_price_list_id,
+            coalesce(nullif(btrim(item->>'productCode'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'priceListCode'), ''), v_id),
+            coalesce(item->>'productName', item->>'name', item->>'priceListName'),
+            coalesce(app_private.safe_numeric(item->>'oldPrice', 0), 0),
+            coalesce(app_private.safe_numeric(item->>'newPrice', 0), 0),
+            coalesce(nullif(btrim(item->>'changedBy'), ''), nullif(btrim(item->>'actor'), ''), nullif(btrim(item->>'editorName'), ''), 'مدیر سیستم'),
+            coalesce(item->>'reason', item->>'note', item->>'notes'),
+            coalesce(item->>'dateLabel', item->>'date', item->>'createdAt', item->>'timestamp'),
+            app_private.safe_jsonb_object(item->'snapshot'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.price_change_history.raw_payload || excluded.raw_payload
+            where public.price_change_history.raw_payload is distinct from (public.price_change_history.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'price_change_history', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('price_change_history', v_n);
+
+  -- 8b. Price Inquiries (atlas_admin_inquiries_v1, hyper_sanat_inquiries_v2)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key in ('atlas_admin_inquiries_v1', 'hyper_sanat_inquiries_v2')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_crm_id := null;
+          select c.id into v_crm_id from public.crm_customers c where c.id = coalesce(item->>'customerId', item->>'crmCustomerId') limit 1;
+          insert into public.price_inquiries(
+            id, crm_customer_id, customer_name, company_name, phone, product_code, product_name,
+            quantity, unit, urgency, status, quoted_unit_price, quoted_total_price,
+            validity_date, customer_note, admin_reply, items, attachments, raw_payload
+          )
+          values (
+            v_id,
+            v_crm_id,
+            coalesce(nullif(btrim(item->>'customerName'), ''), 'مشتری'),
+            coalesce(item->>'companyName', item->>'company'),
+            coalesce(nullif(btrim(item->>'phone'), ''), nullif(btrim(item->>'customerPhone'), ''), ''),
+            coalesce(nullif(btrim(item->>'productCode'), ''), nullif(btrim(item->>'partCode'), ''), ''),
+            coalesce(nullif(btrim(item->>'productName'), ''), nullif(btrim(item->>'partName'), ''), ''),
+            greatest(1, coalesce(app_private.safe_int(coalesce(item->>'quantity', item->>'requestedQty'), 1), 1)),
+            coalesce(nullif(btrim(item->>'unit'), ''), 'عدد'),
+            coalesce(nullif(btrim(item->>'urgency'), ''), 'normal'),
+            case
+              when (item->>'status') in ('pending', 'reviewing', 'quoted', 'approved', 'rejected', 'expired', 'converted_to_order')
+                then (item->>'status')::public.inquiry_status_type
+              when (item->>'status') = 'answered'
+                then 'quoted'::public.inquiry_status_type
+              else 'pending'::public.inquiry_status_type
+            end,
+            app_private.safe_numeric(coalesce(item->>'quotedUnitPrice', item->>'quotedPrice'), null),
+            app_private.safe_numeric(item->>'quotedTotalPrice', null),
+            item->>'validityDate',
+            coalesce(item->>'customerNote', item->>'note'),
+            coalesce(item->>'adminReply', item->>'adminNote'),
+            app_private.safe_jsonb_array(item->'items'),
+            app_private.safe_jsonb_array(item->'attachments'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.price_inquiries.raw_payload || excluded.raw_payload
+            where public.price_inquiries.raw_payload is distinct from (public.price_inquiries.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'price_inquiries', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('price_inquiries', v_n);
+
+  -- 8c. Customer Grades, Club Rewards, Reward Assignments & Marketing Campaigns
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_customer_grades_v2' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_grade_code := coalesce(nullif(btrim(item->>'gradeCode'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'id'), ''));
+        if v_grade_code is not null then
+          insert into public.customer_grade_configs(
+            grade_code, title, discount_percent, credit_limit, settlement_days,
+            min_points, min_purchase_volume, can_view_prices, can_view_stock,
+            can_buy_on_credit, benefits, metadata
+          )
+          values (
+            v_grade_code,
+            coalesce(nullif(btrim(item->>'title'), ''), nullif(btrim(item->>'name'), ''), v_grade_code),
+            least(100, greatest(0, coalesce(app_private.safe_numeric(item->>'discountPercent', 0), 0))),
+            coalesce(app_private.safe_numeric(item->>'creditLimit', 0), 0),
+            coalesce(app_private.safe_int(item->>'settlementDays', 0), 0),
+            coalesce(app_private.safe_int(item->>'minPoints', 0), 0),
+            coalesce(app_private.safe_numeric(coalesce(item->>'minPurchaseVolume', item->>'minPurchase'), 0), 0),
+            app_private.safe_bool(item->>'canViewPrices', true),
+            app_private.safe_bool(item->>'canViewStock', true),
+            app_private.safe_bool(item->>'canBuyOnCredit', false),
+            app_private.safe_jsonb_array(item->'benefits'),
+            item
+          )
+          on conflict (grade_code) do update
+            set metadata = public.customer_grade_configs.metadata || excluded.metadata
+            where public.customer_grade_configs.metadata is distinct from (public.customer_grade_configs.metadata || excluded.metadata);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'customer_grade_configs', 'record_id', coalesce(v_grade_code, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('customer_grade_configs', v_n);
+
+  -- Club Rewards (atlas_club_rewards_v2)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_club_rewards_v2' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.club_rewards(
+            id, title, description, points_cost, reward_type, discount_percent,
+            max_amount, min_grade, active, image_url, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'title'), ''), v_id),
+            item->>'description',
+            greatest(0, coalesce(app_private.safe_int(coalesce(item->>'pointsCost', item->>'minPurchaseRequired'), 0), 0)),
+            coalesce(nullif(btrim(item->>'rewardType'), ''), 'discount_code'),
+            case when item->>'discountPercent' is not null then least(100, greatest(0, app_private.safe_numeric(item->>'discountPercent', 0))) else null end,
+            app_private.safe_numeric(coalesce(item->>'maxAmount', item->>'numericValue'), null),
+            coalesce(nullif(btrim(coalesce(item->>'minGrade', item->>'targetClubTier')), ''), 'bronze'),
+            app_private.safe_bool(item->>'active', true),
+            item->>'imageUrl',
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.club_rewards.raw_payload || excluded.raw_payload
+            where public.club_rewards.raw_payload is distinct from (public.club_rewards.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'club_rewards', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('club_rewards', v_n);
+
+  -- Customer Reward Assignments (atlas_customer_reward_assignments_v1)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_customer_reward_assignments_v1' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_crm_id := null;
+          select c.id into v_crm_id from public.crm_customers c where c.id = (item->>'customerId') limit 1;
+          v_reward_id := null;
+          select r.id into v_reward_id from public.club_rewards r where r.id = (item->>'rewardId') limit 1;
+          insert into public.customer_reward_assignments(
+            id, customer_id, reward_id, reward_title, code, status, assigned_by, expires_at, used_at, raw_payload
+          )
+          values (
+            v_id,
+            v_crm_id,
+            v_reward_id,
+            coalesce(nullif(btrim(item->>'rewardTitle'), ''), nullif(btrim(item->>'title'), ''), 'جایزه باشگاه'),
+            item->>'code',
+            coalesce(nullif(btrim(item->>'status'), ''), 'active'),
+            item->>'assignedBy',
+            app_private.safe_timestamptz(item->>'expiresAt'),
+            app_private.safe_timestamptz(item->>'usedAt'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.customer_reward_assignments.raw_payload || excluded.raw_payload
+            where public.customer_reward_assignments.raw_payload is distinct from (public.customer_reward_assignments.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'customer_reward_assignments', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('customer_reward_assignments', v_n);
+
+  -- Marketing Campaigns (atlas_admin_campaigns_v1)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_admin_campaigns_v1' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.marketing_campaigns(
+            id, title, description, multiplier, reward_type, reward_value,
+            target_tier, start_date, end_date, valid_until, active, participants_count, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'title'), ''), v_id),
+            item->>'description',
+            least(999.99, greatest(0, coalesce(app_private.safe_numeric(item->>'multiplier', 1.0), 1.0))),
+            item->>'rewardType',
+            item->>'rewardValue',
+            coalesce(nullif(btrim(item->>'targetTier'), ''), 'all'),
+            item->>'startDate',
+            item->>'endDate',
+            item->>'validUntil',
+            app_private.safe_bool(item->>'active', true),
+            coalesce(app_private.safe_int(item->>'participantsCount', 0), 0),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.marketing_campaigns.raw_payload || excluded.raw_payload
+            where public.marketing_campaigns.raw_payload is distinct from (public.marketing_campaigns.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'marketing_campaigns', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('marketing_campaigns', v_n);
+
+  -- 8d. CRM Customers, Discount Codes, Support Tickets, Audit Logs, Client Logos
+  v_n := 0;
+  for rec in
+    select key, value
+    from public.portal_kv_store
+    where key in ('atlas_admin_customers_v1', 'atlas_legacy_customers_v1')
+      and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          v_grade_code := null;
+          select g.grade_code into v_grade_code from public.customer_grade_configs g where g.grade_code = coalesce(item->>'gradeCode', item->>'tierCode') limit 1;
+          v_price_list_id := null;
+          select p.id into v_price_list_id from public.price_lists p where p.id = (item->>'assignedPriceListId') limit 1;
+          insert into public.crm_customers(
+            id, is_legacy, name, company, phone, email, national_id, economic_code,
+            province, city, address, postal_code, grade_code, approved_b2b,
+            approval_status, credit_limit, used_credit, wallet_balance, points,
+            total_orders, total_spent, assigned_price_list_id, notes, raw_payload
+          )
+          values (
+            v_id,
+            case when rec.key = 'atlas_legacy_customers_v1' then true else app_private.safe_bool(item->>'isLegacy', false) end,
+            coalesce(nullif(btrim(item->>'name'), ''), nullif(btrim(item->>'fullName'), ''), 'مشتری'),
+            coalesce(item->>'company', item->>'companyName'),
+            coalesce(nullif(btrim(item->>'phone'), ''), ''),
+            item->>'email',
+            item->>'nationalId',
+            item->>'economicCode',
+            item->>'province',
+            item->>'city',
+            item->>'address',
+            item->>'postalCode',
+            v_grade_code,
+            app_private.safe_bool(item->>'approvedB2b', false),
+            coalesce(nullif(btrim(item->>'approvalStatus'), ''), 'pending'),
+            coalesce(app_private.safe_numeric(item->>'creditLimit', 0), 0),
+            coalesce(app_private.safe_numeric(item->>'usedCredit', 0), 0),
+            coalesce(app_private.safe_numeric(item->>'walletBalance', 0), 0),
+            coalesce(app_private.safe_int(item->>'points', 0), 0),
+            coalesce(app_private.safe_int(item->>'totalOrders', 0), 0),
+            coalesce(app_private.safe_numeric(item->>'totalSpent', 0), 0),
+            v_price_list_id,
+            item->>'notes',
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.crm_customers.raw_payload || excluded.raw_payload
+            where public.crm_customers.raw_payload is distinct from (public.crm_customers.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'crm_customers', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('crm_customers', v_n);
+
+  -- Discount Codes (atlas_admin_discounts_v1)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_admin_discounts_v1' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        v_code := coalesce(nullif(btrim(item->>'code'), ''), v_id);
+        if v_id is not null and v_code is not null then
+          if exists (select 1 from public.discount_codes d where d.code = v_code and d.id <> v_id) then
+            v_code := v_code || '-' || v_id;
+          end if;
+          insert into public.discount_codes(
+            id, code, title, discount_percent, max_discount_amount, min_order_amount,
+            usage_limit, used_count, valid_until, active, target_tier, raw_payload
+          )
+          values (
+            v_id, v_code, item->>'title',
+            least(100, greatest(0, coalesce(app_private.safe_numeric(item->>'discountPercent', 0), 0))),
+            app_private.safe_numeric(item->>'maxDiscountAmount', null),
+            coalesce(app_private.safe_numeric(item->>'minOrderAmount', 0), 0),
+            app_private.safe_int(item->>'usageLimit', null),
+            coalesce(app_private.safe_int(item->>'usedCount', 0), 0),
+            item->>'validUntil',
+            app_private.safe_bool(item->>'active', true),
+            item->>'targetTier',
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.discount_codes.raw_payload || excluded.raw_payload
+            where public.discount_codes.raw_payload is distinct from (public.discount_codes.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'discount_codes', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('discount_codes', v_n);
+
+  -- Support Tickets (atlas_admin_tickets_v1)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_admin_tickets_v1' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.support_tickets(
+            id, customer_name, phone, subject, status, messages, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'customerName'), ''), 'مشتری'),
+            coalesce(nullif(btrim(item->>'phone'), ''), ''),
+            coalesce(nullif(btrim(item->>'subject'), ''), 'تیکت پشتیبانی'),
+            coalesce(nullif(btrim(item->>'status'), ''), 'open'),
+            app_private.safe_jsonb_array(item->'messages'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.support_tickets.raw_payload || excluded.raw_payload
+            where public.support_tickets.raw_payload is distinct from (public.support_tickets.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'support_tickets', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('support_tickets', v_n);
+
+  -- Audit Logs (atlas_admin_audit_logs_v1)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_admin_audit_logs_v1' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.audit_logs(
+            id, user_id, user_name, user_role, action, entity, target, details,
+            extra_payload, timestamp_label, raw_payload
+          )
+          values (
+            v_id,
+            item->>'userId',
+            item->>'userName',
+            item->>'userRole',
+            coalesce(nullif(btrim(item->>'action'), ''), 'system_action'),
+            item->>'entity',
+            item->>'target',
+            item->>'details',
+            app_private.safe_jsonb_object(item->'extraPayload'),
+            coalesce(item->>'timestampLabel', item->>'timestamp', item->>'date'),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.audit_logs.raw_payload || excluded.raw_payload
+            where public.audit_logs.raw_payload is distinct from (public.audit_logs.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'audit_logs', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('audit_logs', v_n);
+
+  -- Client Logos (atlas_clients_logos_v3_moshtari)
+  v_n := 0;
+  for rec in
+    select value from public.portal_kv_store where key = 'atlas_clients_logos_v3_moshtari' and jsonb_typeof(value) = 'array'
+  loop
+    for item in select * from jsonb_array_elements(rec.value)
+    loop
+      begin
+        v_id := nullif(btrim(item->>'id'), '');
+        if v_id is not null then
+          insert into public.client_logos(
+            id, name, logo_url, industry, city, sort_order, active, raw_payload
+          )
+          values (
+            v_id,
+            coalesce(nullif(btrim(item->>'name'), ''), v_id),
+            coalesce(nullif(btrim(item->>'logoUrl'), ''), nullif(btrim(item->>'logo'), ''), ''),
+            item->>'industry',
+            item->>'city',
+            coalesce(app_private.safe_int(item->>'sortOrder', 0), 0),
+            app_private.safe_bool(item->>'active', true),
+            item
+          )
+          on conflict (id) do update
+            set raw_payload = public.client_logos.raw_payload || excluded.raw_payload
+            where public.client_logos.raw_payload is distinct from (public.client_logos.raw_payload || excluded.raw_payload);
+          v_n := v_n + 1;
+        end if;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'client_logos', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end loop;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('client_logos', v_n);
+
+  -- 9. Scoped User Documents -> Plant Machinery Passports, Industrial Chat Sessions & Saved Collections
+  v_n := 0;
+  for rec in
+    select namespace, scope_id, value
+    from app_private.scoped_documents
+    union all
+    select key as namespace, 'global' as scope_id, value
+    from public.portal_kv_store
+    where key in ('atlas_plant_machinery_passport_v1', 'forza_industrial_chat_sessions_v2')
+  loop
+    v_user_id := null;
+    if rec.scope_id like 'user:%' then
+      begin
+        v_user_id := substring(rec.scope_id from 6)::uuid;
+        if not exists (select 1 from auth.users u where u.id = v_user_id) then
+          select p.auth_user_id into v_user_id
+          from app_private.portal_users p
+          where p.id = substring(rec.scope_id from 6)
+          limit 1;
+        end if;
+      exception when others then
+        select p.auth_user_id into v_user_id
+        from app_private.portal_users p
+        where p.id = substring(rec.scope_id from 6)
+        limit 1;
+      end;
+    end if;
+
+    if rec.namespace = 'atlas_plant_machinery_passport_v1' and jsonb_typeof(rec.value) = 'array' then
+      for item in select * from jsonb_array_elements(rec.value)
+      loop
+        begin
+          v_id := nullif(btrim(item->>'id'), '');
+          if v_id is not null then
+            insert into public.plant_machinery_passports(
+              id, user_id, machine_name, line_name, manufacturer, model_year,
+              serial_number, installed_parts, notes, raw_payload
+            )
+            values (
+              v_id,
+              v_user_id,
+              coalesce(nullif(btrim(item->>'machineName'), ''), nullif(btrim(item->>'name'), ''), 'دستگاه صنعتی'),
+              coalesce(item->>'lineName', item->>'section', item->>'plantSection'),
+              item->>'manufacturer',
+              coalesce(item->>'modelYear', item->>'installedYear'),
+              coalesce(item->>'serialNumber', item->>'modelNumber'),
+              case
+                when jsonb_typeof(item->'installedParts') = 'array' then item->'installedParts'
+                when jsonb_typeof(item->'parts') = 'array' then item->'parts'
+                else '[]'::jsonb
+              end,
+              item->>'notes',
+              item
+            )
+            on conflict (id) do update
+              set machine_name = excluded.machine_name,
+                  line_name = excluded.line_name,
+                  manufacturer = excluded.manufacturer,
+                  model_year = excluded.model_year,
+                  serial_number = excluded.serial_number,
+                  installed_parts = excluded.installed_parts,
+                  raw_payload = excluded.raw_payload,
+                  updated_at = now()
+              where public.plant_machinery_passports.raw_payload is distinct from excluded.raw_payload;
+            v_n := v_n + 1;
+          end if;
+        exception when others then
+          v_skipped_errors := v_skipped_errors + 1;
+          v_error_details := v_error_details || jsonb_build_array(
+            jsonb_build_object('section', 'plant_machinery_passports', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+          );
+        end;
+      end loop;
+    elsif rec.namespace = 'forza_industrial_chat_sessions_v2' and jsonb_typeof(rec.value) = 'array' then
+      for item in select * from jsonb_array_elements(rec.value)
+      loop
+        begin
+          v_id := nullif(btrim(item->>'id'), '');
+          if v_id is not null then
+            insert into public.industrial_chat_sessions(
+              id, user_id, customer_name, status, messages, raw_payload
+            )
+            values (
+              v_id,
+              v_user_id,
+              coalesce(item->>'customerName', item->>'title'),
+              coalesce(nullif(btrim(item->>'status'), ''), 'active'),
+              app_private.safe_jsonb_array(item->'messages'),
+              item
+            )
+            on conflict (id) do update
+              set customer_name = excluded.customer_name,
+                  messages = excluded.messages,
+                  raw_payload = excluded.raw_payload,
+                  last_updated = now()
+              where public.industrial_chat_sessions.raw_payload is distinct from excluded.raw_payload;
+            v_n := v_n + 1;
+          end if;
+        exception when others then
+          v_skipped_errors := v_skipped_errors + 1;
+          v_error_details := v_error_details || jsonb_build_array(
+            jsonb_build_object('section', 'industrial_chat_sessions', 'record_id', coalesce(v_id, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+          );
+        end;
+      end loop;
+    elsif v_user_id is not null and (
+      rec.namespace in ('hyper_sanat_cart_v2', 'hyper_sanat_saved_v2')
+      or rec.namespace like 'hyper_sanat_wishlist_v1:%'
+    ) and jsonb_typeof(rec.value) = 'array' then
+      begin
+        insert into public.user_saved_collections(user_id, collection_type, items)
+        values (
+          v_user_id,
+          case
+            when rec.namespace = 'hyper_sanat_cart_v2' then 'cart'
+            when rec.namespace = 'hyper_sanat_saved_v2' then 'saved'
+            else 'wishlist'
+          end,
+          rec.value
+        )
+        on conflict (user_id, collection_type) do update
+          set items = excluded.items,
+              updated_at = now()
+          where public.user_saved_collections.items is distinct from excluded.items;
+        v_n := v_n + 1;
+      exception when others then
+        v_skipped_errors := v_skipped_errors + 1;
+        v_error_details := v_error_details || jsonb_build_array(
+          jsonb_build_object('section', 'user_saved_collections', 'record_id', coalesce(v_user_id::text, 'unknown'), 'sqlstate', SQLSTATE, 'message', SQLERRM)
+        );
+      end;
+    end if;
+  end loop;
+  v_counts := v_counts || jsonb_build_object(
+    'scoped_user_records', v_n,
+    'skipped_errors', v_skipped_errors,
+    'error_details', v_error_details
+  );
+
+  return v_counts;
+end;
+$$;
+
+revoke execute on function app_private.backfill_relational_projections_from_kv() from public, anon, authenticated;
+
+do $$
+begin
+  perform app_private.backfill_relational_projections_from_kv();
+end$$;
+
+insert into app_private.schema_change_log(version, description)
+values ('20261022120000', 'Complete relational table projections, raw_payload preservation, and KV-to-relational backfill function')
+on conflict (version) do nothing;
+
+
+COMMIT;

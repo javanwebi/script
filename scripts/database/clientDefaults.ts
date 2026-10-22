@@ -1,0 +1,3 @@
+import {build} from 'esbuild';
+/** Bundle the existing asset imports into data URLs so the import retains the exact current logos. */
+export async function clientDefaults(){const bundled=await build({stdin:{contents:"export {DEFAULT_CLIENTS} from './src/services/clientService.ts'",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm',loader:{'.png':'dataurl','.jpg':'dataurl','.jpeg':'dataurl','.webp':'dataurl','.svg':'dataurl'}});const module=await import('data:text/javascript;base64,'+Buffer.from(bundled.outputFiles[0].text).toString('base64'));return module.DEFAULT_CLIENTS.map((client:any)=>({...client,createdAt:'2026-10-19T00:00:00.000Z'}));}

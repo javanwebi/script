@@ -1,0 +1,30 @@
+{
+  "schema": "owner-supplied-49-table-schema",
+  "migrations": [
+    {
+      "file": "20261020083418_adopt_existing_schema_security.sql",
+      "sha256": "7539f1ea6b1b32e3e9db89098d72bdadb47714573fabe0336ec7b1a09f1cc287"
+    },
+    {
+      "file": "20261020083459_adopted_financial_and_storage.sql",
+      "sha256": "f7629d59af67894cf6b7444fe94313ff847c63f8bbd093b144d2bb389d943cd1"
+    },
+    {
+      "file": "20261020091555_adopted_runtime_bridge.sql",
+      "sha256": "ec0b68cca498b84d8e79ba985443e859f9cd47db512c4582c0730a3faa52f15c"
+    },
+    {
+      "file": "20261020093117_adopted_auth_rate_limits.sql",
+      "sha256": "e2e63824f9367eeb4a395d46f13dd606dedec2f13c39a8c2b94e72030e27fd3e"
+    },
+    {
+      "file": "20261021111500_adopted_announcements_lifecycle.sql",
+      "sha256": "ccca03b629fd999e9fe445e9ca8f800eb116bc8c1105200d3b02758dec61b33f"
+    },
+    {
+      "file": "20261022120000_adopted_complete_projections_and_backfill.sql",
+      "sha256": "0d6eac44b6b5046666190227fb54d37690645406f76ee44888772fb7644dbe03"
+    }
+  ],
+  "baselineSha256": "37d3cb13a519ba7b17d87829a796d64953f55c820f12e08e665d0f27daddd322"
+}

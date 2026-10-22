@@ -1,0 +1,1159 @@
+{
+  "sourceProject": "zuloxkilvdilrercwifa",
+  "targetProject": "spkszfbeeufdcpcltqal",
+  "verifiedAt": "2026-10-20",
+  "algorithm": "md5(concatenated md5(jsonb_build_array(original_columns)::text) ordered by original primary key)",
+  "tables": [
+    {
+      "name": "customer_grade_configs",
+      "n": 8,
+      "digest": "42054d6ba36b370e1d80c4afdeff9241",
+      "columns": [
+        "grade_code",
+        "title",
+        "discount_percent",
+        "credit_limit",
+        "settlement_days",
+        "min_points",
+        "min_purchase_volume",
+        "can_view_prices",
+        "can_view_stock",
+        "can_buy_on_credit",
+        "benefits",
+        "metadata",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "grade_code"
+      ]
+    },
+    {
+      "name": "user_profiles",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "legacy_user_id",
+        "phone",
+        "email",
+        "username",
+        "full_name",
+        "company_name",
+        "national_id",
+        "economic_code",
+        "registration_number",
+        "role",
+        "status",
+        "grade_code",
+        "approved_b2b",
+        "can_view_prices",
+        "can_view_stock",
+        "province",
+        "city",
+        "address",
+        "postal_code",
+        "wallet_balance",
+        "credit_limit",
+        "credit_used",
+        "current_debt",
+        "custom_discount_percent",
+        "club_points",
+        "lifetime_points",
+        "viewed_categories",
+        "preferences",
+        "last_login_at",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "crm_customers",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "auth_user_id",
+        "is_legacy",
+        "name",
+        "company",
+        "phone",
+        "email",
+        "national_id",
+        "economic_code",
+        "province",
+        "city",
+        "address",
+        "postal_code",
+        "grade_code",
+        "approved_b2b",
+        "approval_status",
+        "credit_limit",
+        "used_credit",
+        "wallet_balance",
+        "points",
+        "total_orders",
+        "total_spent",
+        "assigned_price_list_id",
+        "price_overrides",
+        "credit_info",
+        "portal_overrides",
+        "notes",
+        "raw_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "agency_applications",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "applicant_user_id",
+        "full_name",
+        "company_name",
+        "phone",
+        "email",
+        "province",
+        "city",
+        "address",
+        "store_area_sqm",
+        "ownership_type",
+        "experience_years",
+        "active_brands",
+        "requested_categories",
+        "documents",
+        "status",
+        "admin_note",
+        "reviewed_by",
+        "reviewed_at",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "agencies",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "code",
+        "auth_user_id",
+        "name",
+        "company_name",
+        "phone",
+        "province",
+        "city",
+        "address",
+        "latitude",
+        "longitude",
+        "credit_limit",
+        "current_balance",
+        "next_check_date",
+        "contract_status",
+        "discount_percent",
+        "sub_users",
+        "territories",
+        "is_public_representative",
+        "raw_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "agency_deposit_receipts",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "agency_id",
+        "user_id",
+        "dealer_name",
+        "amount",
+        "tracking_code",
+        "deposit_date",
+        "bank_name",
+        "receipt_image_url",
+        "status",
+        "admin_note",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "agency_supply_requests",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "agency_id",
+        "agency_name",
+        "product_code",
+        "product_name",
+        "quantity",
+        "urgency",
+        "status",
+        "notes",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "agency_messages",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "agency_id",
+        "sender",
+        "subject",
+        "body",
+        "attachments",
+        "is_read",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "catalog_brands",
+      "n": 10,
+      "digest": "493db61b6c9f28980d3ae7ef65293156",
+      "columns": [
+        "id",
+        "name",
+        "slug",
+        "logo_url",
+        "country",
+        "description",
+        "is_featured",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "catalog_categories",
+      "n": 29,
+      "digest": "a892004e1b1674e1356bd7732542f3fe",
+      "columns": [
+        "id",
+        "slug",
+        "name",
+        "parent_id",
+        "submenu",
+        "technical_type",
+        "icon",
+        "image_url",
+        "description",
+        "sort_order",
+        "is_active",
+        "metadata",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "catalog_import_manifests",
+      "n": 1,
+      "digest": "5a1356921e15bd1d7e87f3c63d19a592",
+      "columns": [
+        "id",
+        "source_file",
+        "source_sha256",
+        "sheet_name",
+        "families_count",
+        "skus_count",
+        "categories_summary",
+        "submenus_summary",
+        "technical_types_summary",
+        "imported_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "catalog_families",
+      "n": 1383,
+      "digest": "bd85404f494fca903e9fe82f1ffb1b25",
+      "columns": [
+        "code",
+        "canonical_family_code",
+        "source_row",
+        "name",
+        "brand",
+        "category_slug",
+        "category_name",
+        "submenu",
+        "subcategory",
+        "profiles",
+        "sizes_summary",
+        "unit",
+        "item_count",
+        "materials",
+        "filters_hint",
+        "source_status",
+        "description",
+        "has_catalogue_image",
+        "image_scope",
+        "images",
+        "technical_specs",
+        "tags",
+        "correction_pages",
+        "is_deleted",
+        "is_active",
+        "override_version",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "code"
+      ]
+    },
+    {
+      "name": "catalog_variants",
+      "n": 10435,
+      "digest": "393c58c101ffed6465741393b3241e96",
+      "columns": [
+        "code",
+        "family_code",
+        "name",
+        "size",
+        "model",
+        "brand",
+        "unit",
+        "active",
+        "images",
+        "technical_specs",
+        "technical_review",
+        "in_research_cohort",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "code"
+      ]
+    },
+    {
+      "name": "variant_commercial_specs",
+      "n": 10435,
+      "digest": "f0cb6aac9a94b5aaf210242b4469d778",
+      "columns": [
+        "variant_code",
+        "family_code",
+        "price",
+        "base_price",
+        "retail_price",
+        "wholesale_price",
+        "dealer_price",
+        "stock",
+        "stock_known",
+        "inquiry_only",
+        "currency",
+        "updated_by",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "variant_code"
+      ]
+    },
+    {
+      "name": "catalog_summary_entries",
+      "n": 864,
+      "digest": "5c48cb5d9457a12c3b8462ce36b397da",
+      "columns": [
+        "code",
+        "forza_code",
+        "name",
+        "category_slug",
+        "category_name",
+        "subcategory",
+        "page",
+        "image_url",
+        "specs",
+        "linked_family_code",
+        "linked_variant_code",
+        "created_at"
+      ],
+      "primaryKey": [
+        "code"
+      ]
+    },
+    {
+      "name": "owner_catalogue_pin_rows",
+      "n": 34,
+      "digest": "aa29f0e6b6de9e1ca57a0b93a0034226",
+      "columns": [
+        "sku",
+        "dim_2r_outer",
+        "dim_w",
+        "dim_h",
+        "dim_2r_inner",
+        "units",
+        "pdf_page",
+        "printed_page",
+        "drawing_pdf_page",
+        "is_conflict",
+        "conflict_details",
+        "not_in_inventory",
+        "source_sha256"
+      ],
+      "primaryKey": [
+        "sku"
+      ]
+    },
+    {
+      "name": "timing_belt_reference_lengths",
+      "n": 733,
+      "digest": "27463b5fc2b9388354b2fec26155e6cb",
+      "columns": [
+        "id",
+        "reference_source",
+        "designation",
+        "profile_code",
+        "length_mm",
+        "teeth_count",
+        "pdf_page",
+        "source_page",
+        "is_conflict",
+        "conflict_note",
+        "source_url",
+        "source_sha256",
+        "checked_on",
+        "raw_entry"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "technical_research_records",
+      "n": 2642,
+      "digest": "e1f18c2699628a70324b9768fd851bee",
+      "columns": [
+        "sku",
+        "original_name",
+        "original_size",
+        "original_identity_preserved",
+        "part_type",
+        "model",
+        "catalog_marking",
+        "reference_length_check",
+        "owner_catalogue",
+        "outcome",
+        "reference_urls",
+        "warnings",
+        "checked_on"
+      ],
+      "primaryKey": [
+        "sku"
+      ]
+    },
+    {
+      "name": "catalog_gallery_images",
+      "n": 457,
+      "digest": "68fd2a6b3becb029e5889b7f3f7c95d2",
+      "columns": [
+        "id",
+        "family_code",
+        "variant_code",
+        "file_name",
+        "url",
+        "scope",
+        "title",
+        "sort_order",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "owner_catalogue_photos",
+      "n": 143,
+      "digest": "213c84616ac40bea23677aa73aaf217c",
+      "columns": [
+        "file_name",
+        "pdf_page",
+        "printed_page",
+        "inliers",
+        "match_ratio",
+        "bbox",
+        "catalogue_group",
+        "review_status",
+        "exact_warehouse_sku",
+        "scope",
+        "image_sha256",
+        "document_sha256",
+        "reviewed_on"
+      ],
+      "primaryKey": [
+        "file_name"
+      ]
+    },
+    {
+      "name": "catalog_image_audits",
+      "n": 869,
+      "digest": "c7acdd9f8be8e6a48133c79a3142a35a",
+      "columns": [
+        "file_name",
+        "normalized_file_key",
+        "image_url",
+        "sha256",
+        "review_status",
+        "family_code",
+        "family_name",
+        "source_row",
+        "observed_description",
+        "reason",
+        "sku_verified",
+        "visual_type",
+        "visible_features",
+        "required_checks",
+        "identity_status",
+        "standard_status",
+        "exact_sku",
+        "review_date"
+      ],
+      "primaryKey": [
+        "file_name"
+      ]
+    },
+    {
+      "name": "catalog_image_features",
+      "n": 864,
+      "digest": "9b30e8c1916f9389b8f99009814c1168",
+      "columns": [
+        "file_name",
+        "padded_file_key",
+        "image_url",
+        "family_code",
+        "variant_code",
+        "raw_dh",
+        "raw_ph",
+        "raw_ah",
+        "raw_eh",
+        "raw_aspect",
+        "raw_col",
+        "raw_radial",
+        "raw_hog",
+        "raw_hu",
+        "raw_grid",
+        "clean_dh",
+        "clean_ph",
+        "clean_ah",
+        "clean_eh",
+        "clean_aspect",
+        "clean_col",
+        "clean_radial",
+        "clean_hog",
+        "clean_hu",
+        "clean_grid",
+        "embedding_model",
+        "embedding",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "file_name"
+      ]
+    },
+    {
+      "name": "price_lists",
+      "n": 5,
+      "digest": "c4e9a6843327efec0eeccccc95f5ffb7",
+      "columns": [
+        "id",
+        "name",
+        "description",
+        "currency",
+        "target_grades",
+        "is_default",
+        "is_active",
+        "valid_from",
+        "valid_until",
+        "items",
+        "created_by",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "price_change_history",
+      "n": 2,
+      "digest": "8790f1c8f4500212fd828b2f8393fa0c",
+      "columns": [
+        "id",
+        "price_list_id",
+        "product_code",
+        "product_name",
+        "old_price",
+        "new_price",
+        "changed_by",
+        "reason",
+        "date_label",
+        "snapshot",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "price_inquiries",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "crm_customer_id",
+        "customer_name",
+        "company_name",
+        "phone",
+        "product_code",
+        "product_name",
+        "quantity",
+        "unit",
+        "urgency",
+        "status",
+        "quoted_unit_price",
+        "quoted_total_price",
+        "validity_date",
+        "customer_note",
+        "admin_reply",
+        "items",
+        "attachments",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "discount_codes",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "code",
+        "title",
+        "discount_percent",
+        "max_discount_amount",
+        "min_order_amount",
+        "usage_limit",
+        "used_count",
+        "valid_until",
+        "active",
+        "target_tier",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "orders",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "crm_customer_id",
+        "customer_name",
+        "company",
+        "phone",
+        "total_amount",
+        "discount_amount",
+        "tax_amount",
+        "payment_method",
+        "status",
+        "receipt_verified",
+        "receipt_image_url",
+        "receipt_tracking_code",
+        "carrier",
+        "tracking_number",
+        "shipping_address",
+        "items_json",
+        "metadata",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "order_items",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "order_id",
+        "product_code",
+        "product_name",
+        "quantity",
+        "unit_price",
+        "total_price",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "official_invoices",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "invoice_number",
+        "order_id",
+        "user_id",
+        "buyer_name",
+        "buyer_economic_code",
+        "buyer_national_id",
+        "buyer_postal_code",
+        "buyer_address",
+        "buyer_phone",
+        "seller_info",
+        "items",
+        "subtotal_amount",
+        "discount_amount",
+        "tax_amount",
+        "total_payable",
+        "status",
+        "issued_date",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "user_saved_collections",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "collection_type",
+        "items",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "plant_machinery_passports",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "crm_customer_id",
+        "machine_name",
+        "line_name",
+        "manufacturer",
+        "model_year",
+        "serial_number",
+        "criticality_level",
+        "installed_parts",
+        "maintenance_schedule",
+        "notes",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "club_configs",
+      "n": 1,
+      "digest": "32f887d309b6ceb068d910d011ed8319",
+      "columns": [
+        "id",
+        "points_per_100k_tomans",
+        "toman_per_point_redeem",
+        "bronze_threshold",
+        "silver_threshold",
+        "gold_threshold",
+        "welcome_gift_points",
+        "extra_rules",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "club_milestones",
+      "n": 4,
+      "digest": "15e14a82cf2b6aa095204b1e3ef24162",
+      "columns": [
+        "id",
+        "title",
+        "target_points",
+        "reward_title",
+        "reward_type",
+        "reward_value",
+        "icon",
+        "sort_order",
+        "active",
+        "raw_payload",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "club_rewards",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "title",
+        "description",
+        "points_cost",
+        "reward_type",
+        "discount_percent",
+        "max_amount",
+        "min_grade",
+        "active",
+        "image_url",
+        "raw_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "customer_reward_assignments",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "customer_id",
+        "user_id",
+        "reward_id",
+        "reward_title",
+        "code",
+        "status",
+        "assigned_by",
+        "expires_at",
+        "used_at",
+        "raw_payload",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "marketing_campaigns",
+      "n": 2,
+      "digest": "f5f22e4f30226c583e8b29193227eb70",
+      "columns": [
+        "id",
+        "title",
+        "description",
+        "multiplier",
+        "reward_type",
+        "reward_value",
+        "target_tier",
+        "start_date",
+        "end_date",
+        "valid_until",
+        "active",
+        "participants_count",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "support_tickets",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "customer_name",
+        "phone",
+        "subject",
+        "status",
+        "messages",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "industrial_chat_sessions",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "customer_name",
+        "customer_phone",
+        "department",
+        "status",
+        "messages",
+        "unread_count",
+        "last_updated",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "portal_banners",
+      "n": 4,
+      "digest": "aaca03a28b0457206170a977b8c3c491",
+      "columns": [
+        "id",
+        "scope",
+        "title",
+        "subtitle",
+        "image_url",
+        "link_url",
+        "cta_text",
+        "position",
+        "target_roles",
+        "sort_order",
+        "active",
+        "valid_until",
+        "raw_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "portal_announcements",
+      "n": 2,
+      "digest": "e6b05b71c771bf7a5218f78d010a9f47",
+      "columns": [
+        "id",
+        "title",
+        "body",
+        "priority",
+        "target_roles",
+        "target_grades",
+        "pinned",
+        "active",
+        "expires_at",
+        "raw_payload",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "portal_layout_configs",
+      "n": 2,
+      "digest": "85a868d3e7a5a5c9ad5fa50e81187231",
+      "columns": [
+        "portal_key",
+        "config",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "portal_key"
+      ]
+    },
+    {
+      "name": "client_logos",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "name",
+        "logo_url",
+        "industry",
+        "city",
+        "sort_order",
+        "active",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "blog_posts",
+      "n": 6,
+      "digest": "048fbdf23eb9b10de673d7a8f1e9db4f",
+      "columns": [
+        "id",
+        "slug",
+        "title",
+        "category",
+        "author",
+        "excerpt",
+        "content",
+        "image_url",
+        "published",
+        "published_at",
+        "views",
+        "tags",
+        "created_at",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "static_pages",
+      "n": 3,
+      "digest": "c2b7b435ded4f9acbce4052608715a56",
+      "columns": [
+        "id",
+        "slug",
+        "title",
+        "content",
+        "last_updated",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "sms_templates",
+      "n": 4,
+      "digest": "f9eb85a8b04e6de5660ebfde4fdbae14",
+      "columns": [
+        "id",
+        "event_key",
+        "title",
+        "text",
+        "variables",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "sms_logs",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "recipient_phone",
+        "recipient_name",
+        "event_key",
+        "message_text",
+        "status",
+        "sent_at",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "system_settings",
+      "n": 1,
+      "digest": "9902aea2210d7c4b19b6734684f530d0",
+      "columns": [
+        "id",
+        "payment_gateway",
+        "sms_provider",
+        "shipping_methods",
+        "currency",
+        "seo",
+        "raw_settings",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "n": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e",
+      "columns": [
+        "id",
+        "user_id",
+        "user_name",
+        "user_role",
+        "action",
+        "entity",
+        "target",
+        "details",
+        "extra_payload",
+        "timestamp_label",
+        "created_at"
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "portal_kv_store",
+      "n": 15,
+      "digest": "d3bed1b73b71827a91b74ade79e318ac",
+      "columns": [
+        "key",
+        "value",
+        "updated_at"
+      ],
+      "primaryKey": [
+        "key"
+      ]
+    }
+  ],
+  "verifiedOriginalRows": 28958,
+  "mismatches": 0
+}

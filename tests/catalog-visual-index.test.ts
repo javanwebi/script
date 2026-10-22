@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
+import {CatalogVisualIndex} from '../src/services/catalogVisualIndex';
+const row=(id:string,revision='1')=>({id,url:'https://example.org/'+id,label:id,revision,bindings:[]});
+const vector=(index:number)=>Array.from({length:768},(_,i)=>i===index?1:0);
+test('persistent visual index ranks every indexed image, reuses vectors and requires new images to be indexed',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-'));const file=path.join(dir,'index.json');
+ const image=await sharp({create:{width:24,height:24,channels:3,background:'white'}}).jpeg().toBuffer();
+ const images=[row('a'),row('b')];let builds=0;
+ const index=new CatalogVisualIndex(file);
+ assert.equal(await index.retrieve(image,images,async()=>[vector(1)]),null);
+ await index.update(images,async()=>image,async buffers=>{builds+=buffers.length;return [vector(0),vector(1)];});
+ assert.equal(builds,2);assert.equal(index.coverage(images).ready,true);
+ const loaded=new CatalogVisualIndex(file);
+ assert.equal((await loaded.retrieve(image,images,async()=>[vector(1)],1))![0].id,'b');
+ await loaded.update(images,async()=>{throw new Error('unchanged files must not reload');},async()=>{throw new Error('unchanged images must not re-embed');});
+ assert.equal(await loaded.retrieve(image,[...images,row('new')],async()=>[vector(1)]),null);
+ assert.equal(loaded.coverage([row('a','changed'),row('b')]).indexed,1);
+ await assert.rejects(()=>loaded.retrieve(image,images,async()=>[[NaN]]));
+ await fs.rm(dir,{recursive:true});
+});
+test('a partial embedding batch cannot be reported as a complete catalogue index',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-failure-'));
+ const index=new CatalogVisualIndex(path.join(dir,'index.json'));const rows=[row('missing')];
+ await assert.rejects(()=>index.update(rows,async()=>null,async()=>[]));
+ assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
+ await fs.rm(dir,{recursive:true});
+});

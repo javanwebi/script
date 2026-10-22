@@ -1,0 +1,456 @@
+:root {
+  --bg-dark: #dee2e5;
+  --orange-primary: #e06518;
+  --orange-glow: rgba(224, 101, 24, 0.45);
+  --silver-secondary: #dee2e5;
+  --silver-glow: rgba(222, 226, 229, 0.3);
+  --pure-white: #ffffff;
+}
+
+/* Master stage container */
+.forza-stage {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 320px;
+  overflow: hidden;
+  background: #080402;
+  isolation: isolate;
+  user-select: none;
+  font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #dee2e5;
+}
+
+.avatar-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.avatar-surface canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* HUD Overlay: pure CSS, virtually zero overhead */
+.forza-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #dee2e5;
+  text-shadow: 0 0 8px rgba(224, 101, 24, 0.35);
+  z-index: 10;
+}
+
+.forza-hud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.forza-hud b {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Glowing Corner Brackets */
+.hud-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(224, 101, 24, 0.4);
+  pointer-events: none;
+}
+
+.hud-corner.tl {
+  top: 16px;
+  left: 16px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.hud-corner.tr {
+  top: 16px;
+  right: 16px;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.hud-corner.bl {
+  bottom: 16px;
+  left: 16px;
+  border-right: 0;
+  border-top: 0;
+}
+
+.hud-corner.br {
+  bottom: 16px;
+  right: 16px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* HUD Information Blocks */
+.hud-block {
+  position: absolute;
+  display: grid;
+  gap: 6px;
+}
+
+.hud-top-right {
+  top: 22px;
+  right: 28px;
+  text-align: right;
+  z-index: 20;
+}
+
+.hud-top-left {
+  top: 64px;
+  left: 24px;
+  text-align: left;
+  z-index: 20;
+}
+
+.hud-bottom-left {
+  bottom: 24px;
+  left: 28px;
+  text-align: left;
+  z-index: 20;
+}
+
+.hud-bottom-right {
+  bottom: 20px;
+  right: 28px;
+  text-align: right;
+  z-index: 20;
+}
+
+.hud-title {
+  color: #ffffff;
+  font-size: 15px;
+  letter-spacing: 0.28em;
+  font-weight: 800;
+}
+
+.hud-dim {
+  opacity: 0.65;
+  font-size: 10px;
+  color: #dee2e5;
+}
+
+/* Left Brand Label */
+.procedural-label {
+  position: absolute;
+  left: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 15;
+}
+
+.procedural-label span {
+  font: 10px ui-monospace, monospace;
+  letter-spacing: 0.16em;
+  color: #51a5c6;
+  opacity: 0.8;
+  display: block;
+}
+
+.procedural-label strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: #e2f4f8;
+  max-width: 8ch;
+}
+
+/* Signal Indicator Toggle */
+.signal-toggle {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 32px;
+  padding: 6px 10px;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(12, 163, 211, 0.25);
+  border-radius: 6px;
+  color: #168bbc;
+  background: rgba(8, 48, 68, 0.35);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+  z-index: 30;
+}
+
+.signal-toggle:hover {
+  opacity: 1;
+  background: rgba(14, 76, 107, 0.5);
+  border-color: rgba(60, 200, 255, 0.6);
+}
+
+.signal-toggle span {
+  width: 2.5px;
+  height: 8px;
+  background: #00bbff;
+  box-shadow: 0 0 7px rgba(0, 170, 255, 0.5);
+  border-radius: 1px;
+}
+
+.signal-toggle span:nth-child(2) {
+  height: 14px;
+}
+
+.signal-toggle span:nth-child(3) {
+  height: 10px;
+}
+
+.signal-toggle span:nth-child(4) {
+  height: 5px;
+}
+
+/* Equalizer Bars & Meter */
+.meter {
+  width: 140px;
+  height: 2px;
+  background: #1a4a66;
+  overflow: hidden;
+}
+
+.meter span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #7ae9ff, #e06518);
+  animation: meter 1.8s linear infinite;
+}
+
+.bars {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+  align-items: flex-end;
+  height: 14px;
+}
+
+.bars span {
+  width: 3px;
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+  animation: bar 1s ease-in-out infinite alternate;
+  transform-origin: bottom;
+  height: 100%;
+}
+
+.bars span:nth-child(odd) {
+  animation-duration: 0.7s;
+}
+
+.bars span:nth-child(even) {
+  animation-duration: 1.2s;
+}
+
+.hud-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 8px;
+  border-radius: 50%;
+  background: #3dffb0;
+  box-shadow: 0 0 10px #3dffb0;
+  animation: blink 1.6s steps(2) infinite;
+}
+
+.hud-dot.amber {
+  background: #e06518;
+  box-shadow: 0 0 10px #e06518;
+}
+
+/* Scan line sweep */
+.scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  top: -120px;
+  background: linear-gradient(180deg, transparent, rgba(52, 200, 255, 0.04) 70%, rgba(124, 233, 255, 0.12) 100%);
+  animation: scan 5.5s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Bottom Floating Transport Controls Toolbar */
+.transport-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid rgba(87, 188, 220, 0.25);
+  border-radius: 14px;
+  background: rgba(10, 25, 37, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 187, 255, 0.1);
+  z-index: 35;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.transport-toolbar button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #8bb3c4;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-size: 13px;
+}
+
+.transport-toolbar button:hover {
+  background: rgba(81, 212, 242, 0.15);
+  color: #a9ecfa;
+}
+
+.transport-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: rgba(87, 188, 220, 0.2);
+}
+
+.quality-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  color: #8bb3c4;
+}
+
+.quality-select-wrapper select {
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #a9ecfa;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px;
+  outline: none;
+}
+
+.quality-select-wrapper select option {
+  background: #0a1925;
+  color: #e2f4f8;
+}
+
+/* Animations */
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes meter {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes bar {
+  from {
+    transform: scaleY(0.25);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes scan {
+  to {
+    transform: translateY(calc(100dvh + 120px));
+  }
+}
+
+@keyframes fadeInCard {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInCard {
+  animation: fadeInCard 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 800px) {
+  .procedural-label {
+    display: none;
+  }
+  .hud-bottom-left {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .hud-top-right {
+    right: 20px;
+    top: 20px;
+    font-size: 9px;
+  }
+  .hud-top-left {
+    left: 20px;
+    top: 20px;
+    font-size: 9px;
+  }
+  .hud-bottom-right {
+    display: none;
+  }
+  .transport-toolbar {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 4px 6px;
+    gap: 2px;
+  }
+  .transport-toolbar button {
+    height: 34px;
+    min-width: 32px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forza-hud *,
+  .scan {
+    animation: none !important;
+  }
+}

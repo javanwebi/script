@@ -1,0 +1,922 @@
+{
+  "checkedOn": "2026-10-19",
+  "scope": "Nominal H-profile length references, not stocked-item identity or availability.",
+  "sources": [
+    {
+      "url": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sha256": "f24c9dcb27ac954b8c8a965edf55d81a56c0eb3c2ee38506dee15f70f1e44e5d"
+    },
+    {
+      "url": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sha256": "612700b2253483fade1a460d98980688d1f5c44fb82b6aaeb9af573dd3ba14f0"
+    }
+  ],
+  "lengths": {
+    "120H": {
+      "lengthMm": 304.8,
+      "teeth": 24,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "270H": {
+      "lengthMm": 685.8,
+      "teeth": 54,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "145H": {
+      "lengthMm": 368.3,
+      "teeth": 29,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "275H": {
+      "lengthMm": 698.5,
+      "teeth": 55,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "170H": {
+      "lengthMm": 431.8,
+      "teeth": 34,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "280H": {
+      "lengthMm": 711.2,
+      "teeth": 56,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "185H": {
+      "lengthMm": 469.9,
+      "teeth": 37,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "285H": {
+      "lengthMm": 723.9,
+      "teeth": 57,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "200H": {
+      "lengthMm": 508.0,
+      "teeth": 40,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "290H": {
+      "lengthMm": 736.6,
+      "teeth": 58,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "210H": {
+      "lengthMm": 533.4,
+      "teeth": 42,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "300H": {
+      "lengthMm": 762.0,
+      "teeth": 60,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "220H": {
+      "lengthMm": 558.8,
+      "teeth": 44,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "310H": {
+      "lengthMm": 787.4,
+      "teeth": 62,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "225H": {
+      "lengthMm": 571.5,
+      "teeth": 45,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "315H": {
+      "lengthMm": 800.1,
+      "teeth": 63,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "230H": {
+      "lengthMm": 584.2,
+      "teeth": 46,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "320H": {
+      "lengthMm": 812.8,
+      "teeth": 64,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "235H": {
+      "lengthMm": 596.9,
+      "teeth": 47,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "325H": {
+      "lengthMm": 825.5,
+      "teeth": 65,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "240H": {
+      "lengthMm": 609.6,
+      "teeth": 48,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "330H": {
+      "lengthMm": 838.2,
+      "teeth": 66,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "245H": {
+      "lengthMm": 622.3,
+      "teeth": 49,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "335H": {
+      "lengthMm": 850.9,
+      "teeth": 67,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "250H": {
+      "lengthMm": 635.0,
+      "teeth": 50,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "340H": {
+      "lengthMm": 863.6,
+      "teeth": 68,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "255H": {
+      "lengthMm": 647.7,
+      "teeth": 51,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "345H": {
+      "lengthMm": 876.3,
+      "teeth": 69,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "260H": {
+      "lengthMm": 660.4,
+      "teeth": 52,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "350H": {
+      "lengthMm": 889.0,
+      "teeth": 70,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page604.html",
+      "sourcePage": 599
+    },
+    "355H": {
+      "lengthMm": 901.7,
+      "teeth": 71,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "740H": {
+      "lengthMm": 1879.6,
+      "teeth": 148,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "360H": {
+      "lengthMm": 914.4,
+      "teeth": 72,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "750H": {
+      "lengthMm": 1905.0,
+      "teeth": 150,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "365H": {
+      "lengthMm": 927.1,
+      "teeth": 73,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "760H": {
+      "lengthMm": 1930.4,
+      "teeth": 152,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "370H": {
+      "lengthMm": 939.8,
+      "teeth": 74,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "770H": {
+      "lengthMm": 1955.8,
+      "teeth": 154,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "375H": {
+      "lengthMm": 952.5,
+      "teeth": 75,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "780H": {
+      "lengthMm": 1981.2,
+      "teeth": 156,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "380H": {
+      "lengthMm": 965.2,
+      "teeth": 76,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "790H": {
+      "lengthMm": 2006.6,
+      "teeth": 158,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "385H": {
+      "lengthMm": 977.9,
+      "teeth": 77,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "800H": {
+      "lengthMm": 2032.0,
+      "teeth": 160,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "390H": {
+      "lengthMm": 990.6,
+      "teeth": 78,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "810H": {
+      "lengthMm": 2057.4,
+      "teeth": 162,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "395H": {
+      "lengthMm": 1003.3,
+      "teeth": 79,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "820H": {
+      "lengthMm": 2082.8,
+      "teeth": 164,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "400H": {
+      "lengthMm": 1016.0,
+      "teeth": 80,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "830H": {
+      "lengthMm": 2108.2,
+      "teeth": 166,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "405H": {
+      "lengthMm": 1028.7,
+      "teeth": 81,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "840H": {
+      "lengthMm": 2133.6,
+      "teeth": 168,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "410H": {
+      "lengthMm": 1041.4,
+      "teeth": 82,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "850H": {
+      "lengthMm": 2159.0,
+      "teeth": 170,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "415H": {
+      "lengthMm": 1054.1,
+      "teeth": 83,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "860H": {
+      "lengthMm": 2184.4,
+      "teeth": 172,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "420H": {
+      "lengthMm": 1066.8,
+      "teeth": 84,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "870H": {
+      "lengthMm": 2209.8,
+      "teeth": 174,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "425H": {
+      "lengthMm": 1079.5,
+      "teeth": 85,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "880H": {
+      "lengthMm": 2235.2,
+      "teeth": 176,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "430H": {
+      "lengthMm": 1092.2,
+      "teeth": 86,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "900H": {
+      "lengthMm": 2286.0,
+      "teeth": 180,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "435H": {
+      "lengthMm": 1104.9,
+      "teeth": 87,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "910H": {
+      "lengthMm": 2311.4,
+      "teeth": 182,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "440H": {
+      "lengthMm": 1117.6,
+      "teeth": 88,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "920H": {
+      "lengthMm": 2336.8,
+      "teeth": 184,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "445H": {
+      "lengthMm": 1130.3,
+      "teeth": 89,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "930H": {
+      "lengthMm": 2362.2,
+      "teeth": 186,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "450H": {
+      "lengthMm": 1143.0,
+      "teeth": 90,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "940H": {
+      "lengthMm": 2387.6,
+      "teeth": 188,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "460H": {
+      "lengthMm": 1168.4,
+      "teeth": 92,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "950H": {
+      "lengthMm": 2413.0,
+      "teeth": 190,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "465H": {
+      "lengthMm": 1181.1,
+      "teeth": 93,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "960H": {
+      "lengthMm": 2438.4,
+      "teeth": 192,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "470H": {
+      "lengthMm": 1193.8,
+      "teeth": 94,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "980H": {
+      "lengthMm": 2489.2,
+      "teeth": 196,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "475H": {
+      "lengthMm": 1206.5,
+      "teeth": 95,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "985H": {
+      "lengthMm": 2501.9,
+      "teeth": 197,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "480H": {
+      "lengthMm": 1219.2,
+      "teeth": 96,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1000H": {
+      "lengthMm": 2540.0,
+      "teeth": 200,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "485H": {
+      "lengthMm": 1231.9,
+      "teeth": 97,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1020H": {
+      "lengthMm": 2590.8,
+      "teeth": 204,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "490H": {
+      "lengthMm": 1244.6,
+      "teeth": 98,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1050H": {
+      "lengthMm": 2667.0,
+      "teeth": 210,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "495H": {
+      "lengthMm": 1257.3,
+      "teeth": 99,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1080H": {
+      "lengthMm": 2743.2,
+      "teeth": 216,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "500H": {
+      "lengthMm": 1270.0,
+      "teeth": 100,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1100H": {
+      "lengthMm": 2794.0,
+      "teeth": 220,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "510H": {
+      "lengthMm": 1295.4,
+      "teeth": 102,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1120H": {
+      "lengthMm": 2844.8,
+      "teeth": 224,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "515H": {
+      "lengthMm": 1308.1,
+      "teeth": 103,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1130H": {
+      "lengthMm": 2870.2,
+      "teeth": 226,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "525H": {
+      "lengthMm": 1333.5,
+      "teeth": 105,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1140H": {
+      "lengthMm": 2895.6,
+      "teeth": 228,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "530H": {
+      "lengthMm": 1346.2,
+      "teeth": 106,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1150H": {
+      "lengthMm": 2921.0,
+      "teeth": 230,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "540H": {
+      "lengthMm": 1371.6,
+      "teeth": 108,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1160H": {
+      "lengthMm": 2946.4,
+      "teeth": 232,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "545H": {
+      "lengthMm": 1384.3,
+      "teeth": 109,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1180H": {
+      "lengthMm": 2997.2,
+      "teeth": 236,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "550H": {
+      "lengthMm": 1397.0,
+      "teeth": 110,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1200H": {
+      "lengthMm": 3048.0,
+      "teeth": 240,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "560H": {
+      "lengthMm": 1422.4,
+      "teeth": 112,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1240H": {
+      "lengthMm": 3149.6,
+      "teeth": 248,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "565H": {
+      "lengthMm": 1435.1,
+      "teeth": 113,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1250H": {
+      "lengthMm": 3175.0,
+      "teeth": 250,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "570H": {
+      "lengthMm": 1447.8,
+      "teeth": 114,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1260H": {
+      "lengthMm": 3200.4,
+      "teeth": 252,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "580H": {
+      "lengthMm": 1473.2,
+      "teeth": 116,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1270H": {
+      "lengthMm": 3225.8,
+      "teeth": 254,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "585H": {
+      "lengthMm": 1485.9,
+      "teeth": 117,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1300H": {
+      "lengthMm": 3302.0,
+      "teeth": 260,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "590H": {
+      "lengthMm": 1498.6,
+      "teeth": 118,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1325H": {
+      "lengthMm": 3365.5,
+      "teeth": 265,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "600H": {
+      "lengthMm": 1524.0,
+      "teeth": 120,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1350H": {
+      "lengthMm": 3429.0,
+      "teeth": 270,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "605H": {
+      "lengthMm": 1536.7,
+      "teeth": 121,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1400H": {
+      "lengthMm": 3556.0,
+      "teeth": 280,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "610H": {
+      "lengthMm": 1549.4,
+      "teeth": 122,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1440H": {
+      "lengthMm": 3657.6,
+      "teeth": 288,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "615H": {
+      "lengthMm": 1562.1,
+      "teeth": 123,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1450H": {
+      "lengthMm": 3683.0,
+      "teeth": 290,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "620H": {
+      "lengthMm": 1574.8,
+      "teeth": 124,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1500H": {
+      "lengthMm": 3810.0,
+      "teeth": 300,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "625H": {
+      "lengthMm": 1587.5,
+      "teeth": 125,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1510H": {
+      "lengthMm": 3835.4,
+      "teeth": 302,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "630H": {
+      "lengthMm": 1600.2,
+      "teeth": 126,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1550H": {
+      "lengthMm": 3937.0,
+      "teeth": 310,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "640H": {
+      "lengthMm": 1625.6,
+      "teeth": 128,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1560H": {
+      "lengthMm": 3962.4,
+      "teeth": 312,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "645H": {
+      "lengthMm": 1638.3,
+      "teeth": 129,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1600H": {
+      "lengthMm": 4064.0,
+      "teeth": 320,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "650H": {
+      "lengthMm": 1651.0,
+      "teeth": 130,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1650H": {
+      "lengthMm": 4191.0,
+      "teeth": 330,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "660H": {
+      "lengthMm": 1676.4,
+      "teeth": 132,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1680H": {
+      "lengthMm": 4267.2,
+      "teeth": 336,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "670H": {
+      "lengthMm": 1701.8,
+      "teeth": 134,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1700H": {
+      "lengthMm": 4318.0,
+      "teeth": 340,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "680H": {
+      "lengthMm": 1727.2,
+      "teeth": 136,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1750H": {
+      "lengthMm": 4445.0,
+      "teeth": 350,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "690H": {
+      "lengthMm": 1752.6,
+      "teeth": 138,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1800H": {
+      "lengthMm": 4572.0,
+      "teeth": 360,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "700H": {
+      "lengthMm": 1778.0,
+      "teeth": 140,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1850H": {
+      "lengthMm": 4699.0,
+      "teeth": 370,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "710H": {
+      "lengthMm": 1803.4,
+      "teeth": 142,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "1900H": {
+      "lengthMm": 4826.0,
+      "teeth": 380,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "720H": {
+      "lengthMm": 1828.8,
+      "teeth": 144,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "2100H": {
+      "lengthMm": 5334.0,
+      "teeth": 420,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "725H": {
+      "lengthMm": 1841.5,
+      "teeth": 145,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "2160H": {
+      "lengthMm": 5486.4,
+      "teeth": 432,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    },
+    "730H": {
+      "lengthMm": 1854.2,
+      "teeth": 146,
+      "sourceUrl": "https://th.c.misumi-ec.com/book/THA_EconomySeries_e-catalog2023_2nd/files/basic-html/page605.html",
+      "sourcePage": 600
+    }
+  }
+}

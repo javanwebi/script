@@ -1,0 +1,62 @@
+name: Import current Sanat Pish source
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/import-sanatpish.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: import-sanatpish
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out destination
+        uses: actions/checkout@v5
+        with:
+          path: destination
+          ref: main
+      - name: Check out exact published source
+        uses: actions/checkout@v5
+        with:
+          repository: javanwebi/asliatlas
+          ref: d593338eb52f7d3fa83445b6b9d0e1a78b5c9caf
+          path: upstream
+          persist-credentials: false
+      - name: Copy source and remove private records before staging
+        run: python destination/.github/scripts/import-sanatpish.py upstream destination
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify imported application
+        working-directory: destination
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+      - name: Record source provenance
+        working-directory: destination
+        run: |
+          mkdir -p docs
+          cat > docs/atlas2-transfer.md <<'DOC'
+          # ATLAS2 source transfer
+
+          Source: javanwebi/asliatlas, published commit d593338eb52f7d3fa83445b6b9d0e1a78b5c9caf.
+
+          Application code, public catalog metadata, design and assets are copied from that snapshot. Legacy user/SMS databases and sample customer/order/financial records are excluded. Seed catalog prices, inventory and per-customer rates are cleared. Public business contact details and form examples remain part of the interface. Runtime accounts, secrets, database contents and deployment variables are not copied.
+
+          The import verifies TypeScript and the production build before pushing. Configure runtime settings and restore authorized business data through the administration panel when deploying this repository.
+          DOC
+      - name: Push verified clean application to main
+        working-directory: destination
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Import published Sanat Pish application without private runtime or commercial seed records'
+          git push origin HEAD:main

@@ -1,0 +1,777 @@
+{
+  "FAM-41625": {
+    "familyName": "پولی پلاستیکی",
+    "scope": "family-example",
+    "files": [
+      "e(5).png",
+      "e(6).png",
+      "e(7).png",
+      "e(8).png",
+      "e(40).png",
+      "e(41).png",
+      "e(431).png",
+      "e(434).png",
+      "e(454).png"
+    ]
+  },
+  "FAM-90266": {
+    "familyName": "پیچ دسته مشکی",
+    "scope": "family-example",
+    "files": [
+      "e(14).png",
+      "e(15).png",
+      "e(75).png"
+    ]
+  },
+  "FAM-31377": {
+    "familyName": "پیچ فلکه ای مشکی",
+    "scope": "family-example",
+    "files": [
+      "e(16).png",
+      "e(17).png",
+      "e(18).png",
+      "e(19).png",
+      "e(20).png",
+      "e(21).png",
+      "e(22).png",
+      "e(23).png",
+      "e(24).png",
+      "e(25).png",
+      "e(26).png",
+      "e(27).png"
+    ]
+  },
+  "FAM-33173": {
+    "familyName": "تیغه پلی یورتان",
+    "scope": "family-example",
+    "files": [
+      "e(30).png",
+      "e(123).png",
+      "e(125).png",
+      "e(126).png",
+      "e(127).png"
+    ]
+  },
+  "FAM-39698": {
+    "familyName": "کوپلینگ صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(38).png",
+      "e(39).png",
+      "e(72).png",
+      "e(73).png"
+    ]
+  },
+  "FAM-34621": {
+    "familyName": "قطعه تفلونی",
+    "scope": "family-example",
+    "files": [
+      "e(49).png",
+      "e(50).png",
+      "e(68).png",
+      "e(69).png",
+      "e(70).png",
+      "e(71).png",
+      "e(77).png"
+    ]
+  },
+  "FAM-80301": {
+    "familyName": "چرخ دنده پلاستیکی سفید",
+    "scope": "family-example",
+    "files": [
+      "e(51).png",
+      "e(53).png",
+      "e(55).png",
+      "e(176).png",
+      "e(177).png"
+    ]
+  },
+  "FAM-36814": {
+    "familyName": "چرخ تفلونی هرزگرد با بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(59).png",
+      "e(60).png",
+      "e(61).png",
+      "e(358).png",
+      "e(366).png",
+      "e(371).png",
+      "e(476).png",
+      "e(477).png"
+    ]
+  },
+  "FAM-35526": {
+    "familyName": "چرخ تفلونی هرزگرد",
+    "scope": "family-example",
+    "files": [
+      "e(62).png",
+      "e(63).png",
+      "e(64).png",
+      "e(65).png",
+      "e(66).png",
+      "e(67).png",
+      "e(348).png",
+      "e(364).png",
+      "e(365).png",
+      "e(369).png",
+      "e(473).png"
+    ]
+  },
+  "FAM-34666": {
+    "familyName": "بوش فلزی",
+    "scope": "family-example",
+    "files": [
+      "e(74).png",
+      "e(80).png",
+      "e(117).png",
+      "e(118).png"
+    ]
+  },
+  "FAM-35530": {
+    "familyName": "پیچ",
+    "scope": "family-example",
+    "files": [
+      "e(99).png",
+      "e(100).png",
+      "e(101).png",
+      "e(102).png",
+      "e(107).png",
+      "e(108).png",
+      "e(109).png",
+      "e(113).png",
+      "e(114).png"
+    ]
+  },
+  "FAM-34074": {
+    "familyName": "شفت صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(149).png",
+      "e(413).png"
+    ]
+  },
+  "FAM-41680": {
+    "familyName": "پولی",
+    "scope": "family-example",
+    "files": [
+      "e(165).png",
+      "e(166).png",
+      "e(367).png",
+      "e(475).png",
+      "e(507).png",
+      "e(508).png",
+      "e(509).png",
+      "e(510).png",
+      "e(511).png",
+      "e(516).png",
+      "e(519).png",
+      "e(538).png",
+      "e(539).png"
+    ]
+  },
+  "FAM-40932": {
+    "familyName": "بوش داخل رولر",
+    "scope": "family-example",
+    "files": [
+      "e(168).png",
+      "e(178).png",
+      "e(179).png",
+      "e(180).png",
+      "e(181).png",
+      "e(182).png",
+      "e(183).png",
+      "e(184).png",
+      "e(187).png",
+      "e(188).png",
+      "e(189).png",
+      "e(190).png",
+      "e(194).png",
+      "e(195).png",
+      "e(196).png",
+      "e(197).png"
+    ]
+  },
+  "FAM-34360": {
+    "familyName": "بوش داخل رولر با بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(185).png",
+      "e(186).png",
+      "e(191).png"
+    ]
+  },
+  "FAM-31755": {
+    "familyName": "انگشتی رولر",
+    "scope": "family-example",
+    "files": [
+      "e(198).png",
+      "e(199).png",
+      "e(200).png",
+      "e(201).png",
+      "e(202).png",
+      "e(209).png",
+      "e(210).png",
+      "e(211).png",
+      "e(212).png",
+      "e(213).png",
+      "e(214).png",
+      "e(215).png",
+      "e(216).png"
+    ]
+  },
+  "FAM-40526": {
+    "familyName": "سیلندر انگشتی",
+    "scope": "family-example",
+    "files": [
+      "e(203).png",
+      "e(204).png",
+      "e(205).png",
+      "e(206).png"
+    ]
+  },
+  "FAM-34667": {
+    "familyName": "بوش تفلونی",
+    "scope": "family-example",
+    "files": [
+      "e(219).png",
+      "e(220).png",
+      "e(221).png",
+      "e(222).png",
+      "e(223).png",
+      "e(224).png",
+      "e(225).png",
+      "e(227).png",
+      "e(228).png",
+      "e(229).png",
+      "e(231).png",
+      "e(232).png",
+      "e(233).png",
+      "e(234).png",
+      "e(235).png",
+      "e(347).png",
+      "e(349).png"
+    ]
+  },
+  "FAM-34885": {
+    "familyName": "بوش تفلونی آجدار",
+    "scope": "family-example",
+    "files": [
+      "e(230).png"
+    ]
+  },
+  "FAM-40150": {
+    "familyName": "بوش پلاستیکی",
+    "scope": "family-example",
+    "files": [
+      "e(239).png",
+      "e(240).png",
+      "e(241).png",
+      "e(242).png",
+      "e(243).png",
+      "e(244).png",
+      "e(245).png",
+      "e(246).png",
+      "e(247).png",
+      "e(248).png",
+      "e(249).png",
+      "e(250).png",
+      "e(258).png"
+    ]
+  },
+  "FAM-33117": {
+    "familyName": "ریل صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(251).png",
+      "e(252).png",
+      "e(253).png",
+      "e(254).png",
+      "e(255).png",
+      "e(256).png",
+      "e(257).png",
+      "e(259).png",
+      "e(260).png",
+      "e(261).png",
+      "e(262).png",
+      "e(263).png",
+      "e(264).png",
+      "e(265).png",
+      "e(266).png",
+      "e(268).png",
+      "e(270).png",
+      "e(271).png",
+      "e(272).png",
+      "e(273).png",
+      "e(275).png",
+      "e(276).png",
+      "e(278).png",
+      "e(279).png",
+      "e(280).png",
+      "e(281).png",
+      "e(282).png",
+      "e(283).png",
+      "e(284).png",
+      "e(285).png",
+      "e(287).png",
+      "e(288).png",
+      "e(289).png",
+      "e(290).png",
+      "e(291).png",
+      "e(292).png",
+      "e(293).png",
+      "e(294).png",
+      "e(295).png",
+      "e(296).png",
+      "e(297).png",
+      "e(298).png",
+      "e(299).png",
+      "e(300).png",
+      "e(301).png",
+      "e(302).png",
+      "e(303).png",
+      "e(304).png",
+      "e(305).png",
+      "e(306).png",
+      "e(307).png",
+      "e(308).png",
+      "e(309).png",
+      "e(310).png",
+      "e(311).png",
+      "e(312).png",
+      "e(313).png",
+      "e(314).png",
+      "e(315).png",
+      "e(316).png",
+      "e(317).png",
+      "e(318).png",
+      "e(319).png",
+      "e(320).png",
+      "e(321).png",
+      "e(322).png",
+      "e(323).png",
+      "e(326).png",
+      "e(327).png",
+      "e(328).png",
+      "e(329).png",
+      "e(330).png",
+      "e(805).png"
+    ]
+  },
+  "FAM-41409": {
+    "familyName": "توری صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(337).png",
+      "e(338).png"
+    ]
+  },
+  "FAM-41148": {
+    "familyName": "بوش فلزی با روکش پلی یورتان",
+    "scope": "family-example",
+    "files": [
+      "e(342).png",
+      "e(343).png",
+      "e(345).png",
+      "e(390).png",
+      "e(402).png",
+      "e(406).png"
+    ]
+  },
+  "FAM-35245": {
+    "familyName": "چرخ با روکش پلی یورتان",
+    "scope": "family-example",
+    "files": [
+      "e(378).png",
+      "e(381).png",
+      "e(399).png",
+      "e(407).png",
+      "e(410).png",
+      "e(414).png",
+      "e(418).png",
+      "e(439).png",
+      "e(441).png",
+      "e(443).png",
+      "e(444).png",
+      "e(448).png",
+      "e(452).png",
+      "e(465).png",
+      "e(468).png",
+      "e(471).png"
+    ]
+  },
+  "FAM-32679": {
+    "familyName": "بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(383).png",
+      "e(435).png"
+    ]
+  },
+  "FAM-41309": {
+    "familyName": "حفاظ یاتاقان",
+    "scope": "family-example",
+    "files": [
+      "e(386).png",
+      "e(387).png",
+      "e(389).png",
+      "e(391).png",
+      "e(392).png",
+      "e(393).png",
+      "e(396).png",
+      "e(397).png",
+      "e(401).png"
+    ]
+  },
+  "FAM-36698": {
+    "familyName": "چرخ روکش پلی یورتان با توپی فلزی و بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(394).png",
+      "e(395).png",
+      "e(400).png",
+      "e(403).png",
+      "e(412).png",
+      "e(415).png",
+      "e(416).png",
+      "e(417).png",
+      "e(419).png",
+      "e(424).png",
+      "e(425).png",
+      "e(426).png",
+      "e(440).png",
+      "e(442).png",
+      "e(445).png",
+      "e(447).png"
+    ]
+  },
+  "FAM-13962": {
+    "familyName": "چرخ با روکش پلی یورتان هرزگرد شافت",
+    "scope": "family-example",
+    "files": [
+      "e(404).png",
+      "e(405).png"
+    ]
+  },
+  "FAM-32158": {
+    "familyName": "پولی هرزگرد با بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(409).png",
+      "e(438).png",
+      "e(446).png",
+      "e(450).png",
+      "e(457).png",
+      "e(458).png",
+      "e(460).png",
+      "e(474).png"
+    ]
+  },
+  "FAM-33984": {
+    "familyName": "پولی هرزگرد بدون بلبرینگ",
+    "scope": "family-example",
+    "files": [
+      "e(411).png",
+      "e(427).png",
+      "e(428).png",
+      "e(429).png",
+      "e(449).png",
+      "e(462).png"
+    ]
+  },
+  "FAM-90094": {
+    "familyName": "پولی تفلونی روکش دار",
+    "scope": "family-example",
+    "files": [
+      "e(422).png",
+      "e(433).png",
+      "e(466).png"
+    ]
+  },
+  "FAM-10157": {
+    "familyName": "پولی تفلونی روکش دار با بلبرینگ و خار",
+    "scope": "family-example",
+    "files": [
+      "e(432).png",
+      "e(467).png"
+    ]
+  },
+  "FAM-34265": {
+    "familyName": "چرخ دنده",
+    "scope": "family-example",
+    "files": [
+      "e(549).png",
+      "e(551).png",
+      "e(558).png",
+      "e(559).png",
+      "e(562).png"
+    ]
+  },
+  "FAM-33419": {
+    "familyName": "قطعات پمپ",
+    "scope": "family-example",
+    "files": [
+      "e(570).png",
+      "e(571).png",
+      "e(572).png",
+      "e(573).png",
+      "e(574).png",
+      "e(575).png",
+      "e(576).png",
+      "e(577).png",
+      "e(578).png",
+      "e(579).png",
+      "e(580).png",
+      "e(581).png",
+      "e(582).png",
+      "e(586).png",
+      "e(587).png",
+      "e(588).png",
+      "e(589).png",
+      "e(590).png",
+      "e(591).png",
+      "e(592).png",
+      "e(593).png",
+      "e(594).png",
+      "e(595).png",
+      "e(596).png",
+      "e(597).png",
+      "e(598).png",
+      "e(599).png",
+      "e(600).png",
+      "e(601).png",
+      "e(602).png",
+      "e(604).png",
+      "e(605).png",
+      "e(606).png",
+      "e(607).png",
+      "e(608).png",
+      "e(609).png",
+      "e(610).png",
+      "e(611).png",
+      "e(612).png",
+      "e(613).png",
+      "e(614).png",
+      "e(615).png",
+      "e(617).png",
+      "e(618).png",
+      "e(619).png",
+      "e(620).png"
+    ]
+  },
+  "FAM-39895": {
+    "familyName": "لاستیک مکنده",
+    "scope": "family-example",
+    "files": [
+      "e(639).png",
+      "e(646).png",
+      "e(647).png",
+      "e(649).png",
+      "e(654).png",
+      "e(655).png",
+      "e(656).png",
+      "e(657).png",
+      "e(663).png",
+      "e(672).png",
+      "e(685).png"
+    ]
+  },
+  "FAM-39823": {
+    "familyName": "مکنده سیلیکونی فلز دار",
+    "scope": "family-example",
+    "files": [
+      "e(640).png",
+      "e(682).png"
+    ]
+  },
+  "FAM-38301": {
+    "familyName": "لاستیک مکنده طبقه",
+    "scope": "family-example",
+    "files": [
+      "e(641).png",
+      "e(645).png",
+      "e(661).png",
+      "e(667).png",
+      "e(668).png",
+      "e(671).png",
+      "e(679).png",
+      "e(684).png",
+      "e(687).png"
+    ]
+  },
+  "FAM-80180": {
+    "familyName": "لاستیک مکنده دوطبقه",
+    "scope": "family-example",
+    "files": [
+      "e(643).png",
+      "e(644).png"
+    ]
+  },
+  "FAM-32893": {
+    "familyName": "اورینگ لاستیکی",
+    "scope": "family-example",
+    "files": [
+      "e(648).png",
+      "e(653).png",
+      "e(662).png",
+      "e(665).png",
+      "e(666).png",
+      "e(709).png",
+      "e(717).png",
+      "e(720).png",
+      "e(737).png",
+      "e(767).png"
+    ]
+  },
+  "FAM-90131": {
+    "familyName": "برس ساب",
+    "scope": "family-example",
+    "files": [
+      "e(710).png",
+      "e(715).png",
+      "e(718).png",
+      "e(721).png",
+      "e(722).png",
+      "e(725).png",
+      "e(727).png",
+      "e(728).png",
+      "e(733).png",
+      "e(736).png",
+      "e(750).png",
+      "e(752).png",
+      "e(753).png"
+    ]
+  },
+  "FAM-34435": {
+    "familyName": "لاستیک کوپلینگ",
+    "scope": "family-example",
+    "files": [
+      "e(711).png",
+      "e(723).png",
+      "e(726).png",
+      "e(740).png"
+    ]
+  },
+  "FAM-10045": {
+    "familyName": "برس نواری",
+    "scope": "family-example",
+    "files": [
+      "e(712).png",
+      "e(713).png",
+      "e(729).png",
+      "e(730).png",
+      "e(731).png",
+      "e(732).png",
+      "e(739).png",
+      "e(757).png",
+      "e(758).png"
+    ]
+  },
+  "FAM-41179": {
+    "familyName": "برس صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(714).png",
+      "e(716).png",
+      "e(734).png",
+      "e(735).png",
+      "e(746).png",
+      "e(747).png",
+      "e(751).png",
+      "e(756).png"
+    ]
+  },
+  "FAM-39280": {
+    "familyName": "واشر صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(719).png",
+      "e(738).png",
+      "e(786).png",
+      "e(787).png",
+      "e(788).png",
+      "e(789).png",
+      "e(790).png",
+      "e(791).png",
+      "e(792).png",
+      "e(793).png"
+    ]
+  },
+  "FAM-80208": {
+    "familyName": "ضربه گیر بوشن",
+    "scope": "family-example",
+    "files": [
+      "e(806).png",
+      "e(812).png",
+      "e(813).png",
+      "e(825).png",
+      "e(829).png",
+      "e(835).png",
+      "e(837).png",
+      "e(838).png"
+    ]
+  },
+  "FAM-34537": {
+    "familyName": "ضربه گیر یک طرف پیچ",
+    "scope": "family-example",
+    "files": [
+      "e(814).png",
+      "e(816).png",
+      "e(818).png",
+      "e(819).png",
+      "e(831).png",
+      "e(832).png",
+      "e(834).png"
+    ]
+  },
+  "FAM-80274": {
+    "familyName": "ضربه‌گیر صنعتی",
+    "scope": "family-example",
+    "files": [
+      "e(817).png",
+      "e(827).png",
+      "e(833).png",
+      "e(836).png"
+    ]
+  },
+  "FAM-34684": {
+    "familyName": "ضربه گیر دو سر پیچ",
+    "scope": "family-example",
+    "files": [
+      "e(820).png",
+      "e(824).png"
+    ]
+  },
+  "FAM-35431": {
+    "familyName": "ضربه گیر با پیچ و مهره",
+    "scope": "family-example",
+    "files": [
+      "e(821).png",
+      "e(822).png"
+    ]
+  },
+  "FAM-80131": {
+    "familyName": "ضربه گیر استوانه یک طرف پیچ",
+    "scope": "family-example",
+    "files": [
+      "e(823).png"
+    ]
+  },
+  "FAM-32083": {
+    "familyName": "لاستیک فلنج",
+    "scope": "family-example",
+    "files": [
+      "e(830).png"
+    ]
+  },
+  "FAM-52858": {
+    "familyName": "نوار نقاله",
+    "scope": "family-example",
+    "files": [
+      "e(859).png",
+      "e(860).png",
+      "e(862).png",
+      "e(863).png",
+      "e(864).png"
+    ]
+  }
+}

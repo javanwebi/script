@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {PGlite} from '@electric-sql/pglite';import {readdir,readFile} from 'node:fs/promises';import {persistUsers,saveProducts} from '../../server/db/repository';import {createOrder} from '../../server/db/checkout';import type {SqlClient} from '../../server/db/connection';
+test('checkout uses database prices, isolates address, rejects unknown inventory and is idempotent',async()=>{const db=new PGlite();const sql=db as unknown as SqlClient;try{
+ await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select null::uuid$$;`);for(const file of (await readdir('supabase/migrations')).sort())if(file.endsWith('.sql'))await db.exec(await readFile('supabase/migrations/'+file,'utf8'));
+ const profile={id:'buyer',fullName:'Buyer',role:'retail',addresses:[{id:'address',province:'Yazd',city:'Yazd',fullAddress:'Factory'}]};await persistUsers(sql,[profile]);await saveProducts(sql,[{code:'family',name:'Part',variants:[{code:'part',stock:10,stockKnown:true,prices:{retail:100}}]}]);
+ const input={requestKey:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',items:[{code:'part',quantity:2,unitPrice:1}],addressId:'address',shippingId:'freight',paymentMethod:'online',paymentStatus:'paid'};
+ await db.exec('begin');const order=await createOrder(sql,profile,input);await db.exec('commit');assert.equal(order.finalAmount,200);assert.equal(order.paymentStatus,'awaiting_payment');assert.equal((await createOrder(sql,profile,input)).id,order.id);assert.equal((await db.query('select * from public.orders')).rows.length,1);
+ await assert.rejects(createOrder(sql,profile,{...input,items:[{code:'part',quantity:3}]}),/قبلاً/);
+ await assert.rejects(createOrder(sql,profile,{...input,requestKey:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',addressId:'another-person'}),/نشانی/);
+ await assert.rejects(createOrder(sql,profile,{...input,requestKey:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',items:[{code:'part',quantity:11}]}),/استعلام/);
+ assert.equal((await db.query<{n:number}>('select count(*)::int as n from public.order_items')).rows[0].n,1);
+ }finally{await db.close();}});

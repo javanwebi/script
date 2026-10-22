@@ -1,0 +1,2583 @@
+{
+  "sourceName": "کاتالوگ ۱۰۷ صفحه‌ای اطلس — ارسالی صاحب کالا",
+  "documentSha256": "2064bb6a4763c0e41f41bd4adc005bcf8f43591174a8e71850cab15741720a3a",
+  "pageCount": 107,
+  "reviewedOn": "2026-10-19",
+  "note": "Each included source photo/page pair was visually checked. Catalog grouping is not an exact warehouse-code binding. Printed FORZACODE photo labels have not been turned into inventory codes.",
+  "items": [
+    {
+      "file": "e(2).png",
+      "page": 46,
+      "inliers": 24,
+      "ratio": 0.96,
+      "bbox": [
+        0.07067,
+        0.08983,
+        0.274,
+        0.18298
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "af879a43ba9824069703b868af8c20e67f99432c778d4cf4957b77220fd4761c"
+    },
+    {
+      "file": "e(3).png",
+      "page": 86,
+      "inliers": 82,
+      "ratio": 1.0,
+      "bbox": [
+        0.14733,
+        0.05248,
+        0.39067,
+        0.2766
+      ],
+      "catalogueGroup": "کوپلینگ و لاستیک کوپلینگ",
+      "printedPage": 68,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "844552e4b0757caed314eb687e692200d04f963e813ef8d79a129afd39821a26"
+    },
+    {
+      "file": "e(10).png",
+      "page": 42,
+      "inliers": 52,
+      "ratio": 0.963,
+      "bbox": [
+        0.05467,
+        0.09057,
+        0.298,
+        0.20929
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f0226a30fd3e07ff00fd9571d03dc41ba587b9dfc08fd6da6abfbbc28ae6936d"
+    },
+    {
+      "file": "e(11).png",
+      "page": 42,
+      "inliers": 28,
+      "ratio": 1.0,
+      "bbox": [
+        0.30733,
+        0.06898,
+        0.376,
+        0.25997
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f7cce9a7569b901f3687af6ff824f4d3a961c85666eb01648101208dec76b8bf"
+    },
+    {
+      "file": "e(34).png",
+      "page": 46,
+      "inliers": 31,
+      "ratio": 1.0,
+      "bbox": [
+        0.34133,
+        0.06998,
+        0.32933,
+        0.23168
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "559ad972e5423fb26e5de4af00925b1014a4cee0209ef0f7625a77ed1e745229"
+    },
+    {
+      "file": "e(36).png",
+      "page": 46,
+      "inliers": 13,
+      "ratio": 1.0,
+      "bbox": [
+        0.65667,
+        0.09504,
+        0.27667,
+        0.19291
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "61d22993a0a0fbd4e8c6e7f3045992cf69c9e78aee814992d03846dd504d6ddd"
+    },
+    {
+      "file": "e(37).png",
+      "page": 46,
+      "inliers": 13,
+      "ratio": 1.0,
+      "bbox": [
+        0.06067,
+        0.28227,
+        0.282,
+        0.19953
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "ed0bd1fe3ee94781811d263261ecfcbf5d1ecbd0ddba3e8de73e22fb6c90c85a"
+    },
+    {
+      "file": "e(52).png",
+      "page": 73,
+      "inliers": 32,
+      "ratio": 0.97,
+      "bbox": [
+        0.336,
+        0.10793,
+        0.322,
+        0.22712
+      ],
+      "catalogueGroup": "چرخ‌دنده مدولار",
+      "printedPage": 55,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a9e0fe3a73d2ce5e3ffe7f97f0264df445d91843ac01398a59df38695526b358"
+    },
+    {
+      "file": "e(58).png",
+      "page": 35,
+      "inliers": 42,
+      "ratio": 0.977,
+      "bbox": [
+        0.65933,
+        0.2747,
+        0.30067,
+        0.22459
+      ],
+      "catalogueGroup": "پولی تفلون",
+      "printedPage": 17,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "b28b7a4713a6e0203fb36750f7c4cda5984d77f9d532c78ec5653fcab717dd70"
+    },
+    {
+      "file": "e(90).png",
+      "page": 31,
+      "inliers": 21,
+      "ratio": 1.0,
+      "bbox": [
+        0.06733,
+        0.09976,
+        0.262,
+        0.18109
+      ],
+      "catalogueGroup": "ریل زیر تسمه‌ای",
+      "printedPage": 13,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "464666a3cb3cdf43c5e65698f1db8876e2605bd76eb06a14d65fd3a37d28eb10"
+    },
+    {
+      "file": "e(97).png",
+      "page": 62,
+      "inliers": 53,
+      "ratio": 1.0,
+      "bbox": [
+        0.05467,
+        0.09645,
+        0.27733,
+        0.19716
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6d13834934115879162841d81b3229c9eddd71afed542c6df3fdc6c262d9c881"
+    },
+    {
+      "file": "e(115).png",
+      "page": 46,
+      "inliers": 35,
+      "ratio": 0.946,
+      "bbox": [
+        0.03667,
+        0.46761,
+        0.32133,
+        0.22742
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "ee81d826a209f20be57b1e3df43d7b74097a5424b0cfadd2bad7c93148a5a12f"
+    },
+    {
+      "file": "e(116).png",
+      "page": 46,
+      "inliers": 15,
+      "ratio": 1.0,
+      "bbox": [
+        0.342,
+        0.46667,
+        0.322,
+        0.23121
+      ],
+      "catalogueGroup": "اهرم نگهدارنده",
+      "printedPage": 28,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "c8dae1ce02e5f49f8741c4cebddb945d4d272cc138d86e8e4d887c21520db4b3"
+    },
+    {
+      "file": "e(129).png",
+      "page": 68,
+      "inliers": 91,
+      "ratio": 0.91,
+      "bbox": [
+        0.14067,
+        0.32802,
+        0.77533,
+        0.55045
+      ],
+      "catalogueGroup": "نازل شعله‌پخش‌کن",
+      "printedPage": 50,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6c0fc969fa7ca8991b7c4d9037c9974ca2568868c8409886a03ee2d4565ec502"
+    },
+    {
+      "file": "e(140).png",
+      "page": 45,
+      "inliers": 30,
+      "ratio": 1.0,
+      "bbox": [
+        0.03,
+        0.07849,
+        0.33667,
+        0.23877
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "d41cc16fa9381e2525835f1feb92a4a04a31b3f1298e490a71bbe2ff591927a4"
+    },
+    {
+      "file": "e(162).png",
+      "page": 45,
+      "inliers": 23,
+      "ratio": 0.92,
+      "bbox": [
+        0.35533,
+        0.09504,
+        0.306,
+        0.21229
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "24b28a2e17ab1b0587e6466cd1fce882c52c4e5a5093b400a531c3a89385f9d4"
+    },
+    {
+      "file": "e(163).png",
+      "page": 45,
+      "inliers": 16,
+      "ratio": 1.0,
+      "bbox": [
+        0.64867,
+        0.09409,
+        0.28467,
+        0.20095
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "e134c498154ef51ba3d99106a6883e3d245c2d360e5e82338af957845b3a6434"
+    },
+    {
+      "file": "e(164).png",
+      "page": 45,
+      "inliers": 35,
+      "ratio": 1.0,
+      "bbox": [
+        0.03733,
+        0.27187,
+        0.32867,
+        0.23215
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "61a6d05ed87e394858a97f53c2af75bcb8bd0177dfc281244fc68726b1b1f010"
+    },
+    {
+      "file": "e(169).png",
+      "page": 72,
+      "inliers": 19,
+      "ratio": 1.0,
+      "bbox": [
+        0.11267,
+        0.10827,
+        0.34067,
+        0.24066
+      ],
+      "catalogueGroup": "چرخ‌دنده حالت آژیر",
+      "printedPage": 54,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "2fc47ac25e91f1b1d4840258c7c4961433fc1b0217abd245cdf4125ea32c7e1a"
+    },
+    {
+      "file": "e(173).png",
+      "page": 72,
+      "inliers": 11,
+      "ratio": 1.0,
+      "bbox": [
+        0.48,
+        0.09314,
+        0.37667,
+        0.26714
+      ],
+      "catalogueGroup": "چرخ‌دنده حالت آژیر",
+      "printedPage": 54,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "00724ec124146bbed78baec02eb300f9b722b5c1722cdc6206c3e1ef5687c925"
+    },
+    {
+      "file": "e(174).png",
+      "page": 72,
+      "inliers": 24,
+      "ratio": 1.0,
+      "bbox": [
+        0.12533,
+        0.38061,
+        0.34267,
+        0.24303
+      ],
+      "catalogueGroup": "چرخ‌دنده حالت آژیر",
+      "printedPage": 54,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0af377c2f812a5217fa9e9d258b5d428e8ca5e0f4ed2c34b4a9dd045bf732d25"
+    },
+    {
+      "file": "e(267).png",
+      "page": 26,
+      "inliers": 25,
+      "ratio": 1.0,
+      "bbox": [
+        0.66067,
+        0.68511,
+        0.25867,
+        0.18298
+      ],
+      "catalogueGroup": "پروفیل‌های آلومینیوم",
+      "printedPage": 8,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8b50efe7d99c1b06f86cec7d07c4aea8158162f4a3905aa59a2b419ce82cf162"
+    },
+    {
+      "file": "e(269).png",
+      "page": 27,
+      "inliers": 12,
+      "ratio": 0.923,
+      "bbox": [
+        0.37733,
+        0.11537,
+        0.254,
+        0.18109
+      ],
+      "catalogueGroup": "پروفیل‌های آلومینیوم",
+      "printedPage": 9,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "03e5fa82e5bb778858910d63b7fa832cbce26cb7139b2f8312a8dffc745f4a45"
+    },
+    {
+      "file": "e(286).png",
+      "page": 27,
+      "inliers": 15,
+      "ratio": 0.938,
+      "bbox": [
+        0.62867,
+        0.6591,
+        0.34067,
+        0.24161
+      ],
+      "catalogueGroup": "پروفیل‌های آلومینیوم",
+      "printedPage": 9,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "d6d5c9e22f76ff33e12e4af0b755c579ae8a6d9ad3fd37d3dbeb2f4bbc98c12f"
+    },
+    {
+      "file": "e(324).png",
+      "page": 30,
+      "inliers": 10,
+      "ratio": 1.0,
+      "bbox": [
+        0.63533,
+        0.47302,
+        0.29733,
+        0.20882
+      ],
+      "catalogueGroup": "پروفیل‌های آلومینیوم",
+      "printedPage": 12,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "b999679032521033f62fc5227ff7938c78b5a33127da832aae17aa0a406a941e"
+    },
+    {
+      "file": "e(325).png",
+      "page": 30,
+      "inliers": 48,
+      "ratio": 1.0,
+      "bbox": [
+        0.03133,
+        0.68043,
+        0.28533,
+        0.20225
+      ],
+      "catalogueGroup": "پروفیل‌های آلومینیوم",
+      "printedPage": 12,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "df87cd9fdded3532a4c52c793da948f1a5617353c0a9fb8fd9634e4b50e89c53"
+    },
+    {
+      "file": "e(331).png",
+      "page": 83,
+      "inliers": 10,
+      "ratio": 1.0,
+      "bbox": [
+        0.11467,
+        0.13617,
+        0.36267,
+        0.25626
+      ],
+      "catalogueGroup": "لاستیک اینکوب",
+      "printedPage": 65,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "72f08807304d98f1ceaa57c6e71d46d355edcaae8b7d039841192e42c023f5f2"
+    },
+    {
+      "file": "e(333).png",
+      "page": 62,
+      "inliers": 20,
+      "ratio": 1.0,
+      "bbox": [
+        0.64667,
+        0.1026,
+        0.27667,
+        0.19574
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a281174e94f175eaab4547ce973f09d4ee5f9f1aee4074b145df2ca524bdcb3b"
+    },
+    {
+      "file": "e(334).png",
+      "page": 69,
+      "inliers": 40,
+      "ratio": 0.889,
+      "bbox": [
+        0.20333,
+        0.10307,
+        0.268,
+        0.19007
+      ],
+      "catalogueGroup": "پارچه‌های نسوز",
+      "printedPage": 51,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "92a6c48dea50d9efa0d8056d082db1ae40c430813f30ebcf7e582fe5033f00b2"
+    },
+    {
+      "file": "e(339).png",
+      "page": 69,
+      "inliers": 137,
+      "ratio": 0.986,
+      "bbox": [
+        0.518,
+        0.50071,
+        0.284,
+        0.20189
+      ],
+      "catalogueGroup": "پارچه‌های نسوز",
+      "printedPage": 51,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "077a3e51fc015a55bd876be8ddfcc8f58a830cb0f031abf4c33d2881159dd4d1"
+    },
+    {
+      "file": "e(340).png",
+      "page": 69,
+      "inliers": 8,
+      "ratio": 0.727,
+      "bbox": [
+        0.184,
+        0.71868,
+        0.314,
+        0.21844
+      ],
+      "catalogueGroup": "پارچه‌های نسوز",
+      "printedPage": 51,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "caaaddb018b981b374f62042acbe2c7a5967115b836f278e9583548910101c13"
+    },
+    {
+      "file": "e(344).png",
+      "page": 42,
+      "inliers": 31,
+      "ratio": 0.969,
+      "bbox": [
+        0.65867,
+        0.10089,
+        0.28133,
+        0.20038
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "54cd6d7bd4d56c3085c86c0f37639daf9eca76ed296bb147a8be4a4572d7677b"
+    },
+    {
+      "file": "e(346).png",
+      "page": 42,
+      "inliers": 35,
+      "ratio": 0.972,
+      "bbox": [
+        0.01467,
+        0.25528,
+        0.378,
+        0.26701
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "508fdb77d2a1c1442f389d60f0cbdf6be11f18fb9c552a6dcca078956a7b41a1"
+    },
+    {
+      "file": "e(350).png",
+      "page": 42,
+      "inliers": 26,
+      "ratio": 0.963,
+      "bbox": [
+        0.336,
+        0.2717,
+        0.31333,
+        0.22243
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "010b0a7420f8c2d04f8fd4cdd2034229730c22e015449a68bd052d9c7f6c3a38"
+    },
+    {
+      "file": "e(351).png",
+      "page": 42,
+      "inliers": 21,
+      "ratio": 0.955,
+      "bbox": [
+        0.61467,
+        0.26795,
+        0.32733,
+        0.23135
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a9b93b80e767d7d7b67633b48461ad6b61da81b8ed206ce97019c6aa9e9c4401"
+    },
+    {
+      "file": "e(355).png",
+      "page": 53,
+      "inliers": 51,
+      "ratio": 1.0,
+      "bbox": [
+        0.25467,
+        0.0901,
+        0.51067,
+        0.36509
+      ],
+      "catalogueGroup": "پایه تنظیم‌کننده",
+      "printedPage": 35,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9d6a35ec5b96769873728fe4317e9202b11f67b38fd03cf6c9c424938a305d75"
+    },
+    {
+      "file": "e(356).png",
+      "page": 55,
+      "inliers": 151,
+      "ratio": 0.968,
+      "bbox": [
+        0.036,
+        0.06992,
+        0.32333,
+        0.22853
+      ],
+      "catalogueGroup": "چرخ‌دنده و رول گردان کوره",
+      "printedPage": 37,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "ee95297fef59a59f028510a4417a66c2a41dd995bfcff79540fd8ce65620eb0a"
+    },
+    {
+      "file": "e(357).png",
+      "page": 50,
+      "inliers": 17,
+      "ratio": 0.895,
+      "bbox": [
+        0.04933,
+        0.458,
+        0.318,
+        0.23369
+      ],
+      "catalogueGroup": "ضربه‌گیر",
+      "printedPage": 32,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "4385dce290308b2b0452113f4f4c4bf1025ea875751dcb90280552d9b17b7dcb"
+    },
+    {
+      "file": "e(361).png",
+      "page": 62,
+      "inliers": 58,
+      "ratio": 0.951,
+      "bbox": [
+        0.05733,
+        0.2766,
+        0.31467,
+        0.22317
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "bd5c79fd1e7d19a03e5df6139c87edde36144e4dbdbd1a583cca3027d664e369"
+    },
+    {
+      "file": "e(363).png",
+      "page": 36,
+      "inliers": 6,
+      "ratio": 0.857,
+      "bbox": [
+        -0.01467,
+        0.10544,
+        0.32867,
+        0.22128
+      ],
+      "catalogueGroup": "پولی تفلون",
+      "printedPage": 18,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9678efb9dcc7ba75b3421b70d4bb011f462b78cdc6a1220a93f5209ee6e2dc8d"
+    },
+    {
+      "file": "e(372).png",
+      "page": 42,
+      "inliers": 101,
+      "ratio": 0.856,
+      "bbox": [
+        0.064,
+        0.48053,
+        0.296,
+        0.20976
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "5131ca344aac90239e3508cc439ab0c234ca8408de44c2a19ef7307b4ac7887d"
+    },
+    {
+      "file": "e(376).png",
+      "page": 62,
+      "inliers": 92,
+      "ratio": 0.979,
+      "bbox": [
+        0.36,
+        0.28511,
+        0.27667,
+        0.1948
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "875f7167c0840f8cee19448757d8524d1d670906bc3f2547ebfc316c4474309f"
+    },
+    {
+      "file": "e(382).png",
+      "page": 42,
+      "inliers": 27,
+      "ratio": 1.0,
+      "bbox": [
+        0.364,
+        0.47349,
+        0.294,
+        0.20835
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "ab5c52ea77aa28b8802acc19d4b0d02f47376fd6780c1da6c6dddb2b843d0861"
+    },
+    {
+      "file": "e(388).png",
+      "page": 36,
+      "inliers": 36,
+      "ratio": 1.0,
+      "bbox": [
+        0.04867,
+        0.48794,
+        0.288,
+        0.20047
+      ],
+      "catalogueGroup": "پولی تفلون",
+      "printedPage": 18,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "c8af4d8232ec7bc18e53dd8dd225dd9e7fccfe1fec76eeed9791126dade65fe2"
+    },
+    {
+      "file": "e(437).png",
+      "page": 37,
+      "inliers": 21,
+      "ratio": 0.955,
+      "bbox": [
+        0.02733,
+        0.4643,
+        0.34733,
+        0.22364
+      ],
+      "catalogueGroup": "پولی تفلون",
+      "printedPage": 19,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "12fd74ec21cdab717c0210d401701d507447a08bf7ad678541dd51ea69375280"
+    },
+    {
+      "file": "e(461).png",
+      "page": 38,
+      "inliers": 22,
+      "ratio": 1.0,
+      "bbox": [
+        0.35733,
+        0.10071,
+        0.26867,
+        0.18723
+      ],
+      "catalogueGroup": "پولی تفلون",
+      "printedPage": 20,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "c110e6e810db9e02c0b213a1feed38a99cc6c6d1a3e5ffe6157aded6b5127a6b"
+    },
+    {
+      "file": "e(479).png",
+      "page": 70,
+      "inliers": 29,
+      "ratio": 0.744,
+      "bbox": [
+        0.18667,
+        0.09362,
+        0.30867,
+        0.21608
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "203e971ec81a70a1991911b9b9824cfbee3b5f8b599b3eea3bb2a8e55d845f26"
+    },
+    {
+      "file": "e(483).png",
+      "page": 42,
+      "inliers": 26,
+      "ratio": 1.0,
+      "bbox": [
+        0.64933,
+        0.47489,
+        0.29867,
+        0.20601
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "b44638e4ecb25266523bcac06489d46c4bc50b67c11b17d62f76d3a4c59a9c72"
+    },
+    {
+      "file": "e(484).png",
+      "page": 42,
+      "inliers": 41,
+      "ratio": 0.976,
+      "bbox": [
+        0.04933,
+        0.66354,
+        0.32667,
+        0.23135
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "81cebdd40b878e8ef92a877313f0c16b2db2a53a32f40d02fa441a65cd82a36b"
+    },
+    {
+      "file": "e(485).png",
+      "page": 42,
+      "inliers": 69,
+      "ratio": 0.958,
+      "bbox": [
+        0.35467,
+        0.66542,
+        0.29533,
+        0.20835
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "afe3d5aac1ca20c10939ec3c18a5d59511821ae71c2cb631529ab3f1cbeb69c9"
+    },
+    {
+      "file": "e(487).png",
+      "page": 62,
+      "inliers": 24,
+      "ratio": 1.0,
+      "bbox": [
+        0.36,
+        0.44681,
+        0.322,
+        0.2279
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "4ffc09ec632f0d286ef8e2c03cdfa795456d11639e9e96bbc7b955d119fb65dd"
+    },
+    {
+      "file": "e(488).png",
+      "page": 43,
+      "inliers": 14,
+      "ratio": 1.0,
+      "bbox": [
+        0.072,
+        0.09645,
+        0.276,
+        0.19622
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9c28bc900f4055ca55652b211b8c4fc7083f3ebd314c30baac899f247a21eb2b"
+    },
+    {
+      "file": "e(490).png",
+      "page": 43,
+      "inliers": 9,
+      "ratio": 1.0,
+      "bbox": [
+        0.37533,
+        0.10355,
+        0.24667,
+        0.18345
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1d2ae4078fa04d23edd53e15de23479817bbeb8b02be51f12a2530622b1570af"
+    },
+    {
+      "file": "e(491).png",
+      "page": 43,
+      "inliers": 6,
+      "ratio": 0.857,
+      "bbox": [
+        0.63267,
+        0.09976,
+        0.28533,
+        0.2
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "bf4677bf8f85684c6c06dde650e9ac2cc8bba009df5b84f7b18f00c168ee84e6"
+    },
+    {
+      "file": "e(493).png",
+      "page": 43,
+      "inliers": 9,
+      "ratio": 1.0,
+      "bbox": [
+        0.068,
+        0.29976,
+        0.262,
+        0.18487
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "848b7e995270261c1f151d937c7e576a3d04aeeafc1e7269b0a4e3b05b21cadc"
+    },
+    {
+      "file": "e(494).png",
+      "page": 43,
+      "inliers": 27,
+      "ratio": 0.9,
+      "bbox": [
+        0.324,
+        0.29031,
+        0.326,
+        0.21797
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a0bdc10a140744ac096cb5724ecda403d434b5b3f9c4178397092f423436098c"
+    },
+    {
+      "file": "e(495).png",
+      "page": 43,
+      "inliers": 12,
+      "ratio": 0.923,
+      "bbox": [
+        0.66333,
+        0.28983,
+        0.28733,
+        0.20047
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1ba9ca7de753519ace7be88a95ee23c64870d93c0715efcc623b52cc6ed426b1"
+    },
+    {
+      "file": "e(496).png",
+      "page": 43,
+      "inliers": 11,
+      "ratio": 0.786,
+      "bbox": [
+        0.032,
+        0.4818,
+        0.29467,
+        0.19905
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "7e41588d10b2802f81ee848554a609060fc56e74bb5fc06797805e875fa0f31a"
+    },
+    {
+      "file": "e(497).png",
+      "page": 62,
+      "inliers": 31,
+      "ratio": 0.816,
+      "bbox": [
+        0.64133,
+        0.46809,
+        0.31333,
+        0.22128
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "d2798213882951e6ffbdd40a8717a6e20758783576cedc7490e370765cede4ec"
+    },
+    {
+      "file": "e(498).png",
+      "page": 43,
+      "inliers": 9,
+      "ratio": 1.0,
+      "bbox": [
+        0.34333,
+        0.49173,
+        0.25267,
+        0.20898
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "3a221e5364baff486eb74899ff430a1bdab8e7d402ecc6b6135b242c3b8da850"
+    },
+    {
+      "file": "e(499).png",
+      "page": 43,
+      "inliers": 6,
+      "ratio": 0.857,
+      "bbox": [
+        0.65733,
+        0.49173,
+        0.26067,
+        0.17589
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "31a342e07f605c0c9d7f39fb61e1603d218cd0e2b59acf7bb88590da9fd64c2e"
+    },
+    {
+      "file": "e(502).png",
+      "page": 43,
+      "inliers": 20,
+      "ratio": 1.0,
+      "bbox": [
+        0.35067,
+        0.66998,
+        0.298,
+        0.20047
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f34911baad498d38cff5f1620de941d2cda5bfbd2c5b914f88cdb9c259458aec"
+    },
+    {
+      "file": "e(503).png",
+      "page": 43,
+      "inliers": 17,
+      "ratio": 1.0,
+      "bbox": [
+        0.61867,
+        0.66194,
+        0.36733,
+        0.26099
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 25,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f9cb705506aadf5d25caf80e1df7c16796d8060cfe0540f525c9af6c8fb6336b"
+    },
+    {
+      "file": "e(504).png",
+      "page": 44,
+      "inliers": 39,
+      "ratio": 0.975,
+      "bbox": [
+        0.10267,
+        0.07754,
+        0.42,
+        0.29598
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 26,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9f14a7541c9c72ac7cc2b0ae5cd960132da10860653ebcd8d06afe372fac2925"
+    },
+    {
+      "file": "e(505).png",
+      "page": 44,
+      "inliers": 63,
+      "ratio": 0.969,
+      "bbox": [
+        0.51,
+        0.09835,
+        0.33933,
+        0.23972
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 26,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "2ac7a47729be0a622a82e6e3e211be5ab94b0a5c7911f30ec88498913f5fb79f"
+    },
+    {
+      "file": "e(506).png",
+      "page": 44,
+      "inliers": 48,
+      "ratio": 0.96,
+      "bbox": [
+        0.124,
+        0.34988,
+        0.36533,
+        0.25863
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 26,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "403ae25e920ec42355fe3fc1eb6071dc45da42be736cce826e86e240497afa53"
+    },
+    {
+      "file": "e(512).png",
+      "page": 55,
+      "inliers": 54,
+      "ratio": 0.982,
+      "bbox": [
+        0.37467,
+        0.09714,
+        0.24667,
+        0.17504
+      ],
+      "catalogueGroup": "چرخ‌دنده و رول گردان کوره",
+      "printedPage": 37,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "d23c596a141028e23538a282367c8f07d76835a1ab41ee37ba8cbeae0c83bd7e"
+    },
+    {
+      "file": "e(517).png",
+      "page": 62,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.34067,
+        0.67092,
+        0.27933,
+        0.19905
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 44,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9fcf63c98d4b714acfdb063ed0ae2ce2410439d9bc0b5cab6bb6611552b3f1a0"
+    },
+    {
+      "file": "e(522).png",
+      "page": 59,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.02867,
+        0.06998,
+        0.31333,
+        0.2331
+      ],
+      "catalogueGroup": "تسمه پاک‌کن",
+      "printedPage": 41,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "840dd1b6eb979aab4d07875833a9dfe11e170fda56e9f90fa1cd842c5cd3d6c1"
+    },
+    {
+      "file": "e(525).png",
+      "page": 59,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.31867,
+        0.08416,
+        0.31933,
+        0.22553
+      ],
+      "catalogueGroup": "تسمه پاک‌کن",
+      "printedPage": 41,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0849a68537f0bc1ab02881fdbcadba8b87e36059e90af3ecfa790cb18e34c466"
+    },
+    {
+      "file": "e(536).png",
+      "page": 55,
+      "inliers": 40,
+      "ratio": 0.548,
+      "bbox": [
+        0.64333,
+        0.09761,
+        0.296,
+        0.21023
+      ],
+      "catalogueGroup": "چرخ‌دنده و رول گردان کوره",
+      "printedPage": 37,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f8165a715f0482c3bdc9e9b12993dd64f40dbac571665fc80bc9277dd074a73f"
+    },
+    {
+      "file": "e(537).png",
+      "page": 44,
+      "inliers": 23,
+      "ratio": 1.0,
+      "bbox": [
+        0.48933,
+        0.34137,
+        0.40133,
+        0.27754
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 26,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9cbc2846be9c5687571265893d9916117d9f2262b4215e60b74f3ea31755198e"
+    },
+    {
+      "file": "e(544).png",
+      "page": 44,
+      "inliers": 17,
+      "ratio": 0.895,
+      "bbox": [
+        0.04,
+        0.56785,
+        0.536,
+        0.37778
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 26,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0ae5b78b8cac06e1e7016479e22bb371e6d811c529bebdf176d4509b7253370c"
+    },
+    {
+      "file": "e(545).png",
+      "page": 59,
+      "inliers": 11,
+      "ratio": 0.917,
+      "bbox": [
+        0.37467,
+        0.48983,
+        0.252,
+        0.17825
+      ],
+      "catalogueGroup": "تسمه پاک‌کن",
+      "printedPage": 41,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1277475720a65519fdf0f3cffebcc527cfa5da68d1bef805d6ee7e90cebfb5b1"
+    },
+    {
+      "file": "e(554).png",
+      "page": 42,
+      "inliers": 50,
+      "ratio": 0.98,
+      "bbox": [
+        0.64,
+        0.66166,
+        0.32467,
+        0.229
+      ],
+      "catalogueGroup": "ساپورت‌های نگهدارندهٔ خط لعاب",
+      "printedPage": 24,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "133c4a75c1f9ea9b6013a7ed46511bea3b9b69de09e8b4c4470b59b699e31e0a"
+    },
+    {
+      "file": "e(555).png",
+      "page": 78,
+      "inliers": 58,
+      "ratio": 1.0,
+      "bbox": [
+        0.49467,
+        0.40169,
+        0.378,
+        0.26701
+      ],
+      "catalogueGroup": "ضربه‌زن",
+      "printedPage": 60,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "267143f6e6753f26a53ad7354512d2d8a2e189cf4400f93fb3156bc01316bbd0"
+    },
+    {
+      "file": "e(556).png",
+      "page": 55,
+      "inliers": 61,
+      "ratio": 0.701,
+      "bbox": [
+        0.62867,
+        0.36368,
+        0.312,
+        0.22008
+      ],
+      "catalogueGroup": "چرخ‌دنده و رول گردان کوره",
+      "printedPage": 37,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "81ed32c67e82ca71f8f999a67c7f0220daaa49b2b531f370a0489d398f622ded"
+    },
+    {
+      "file": "e(566).png",
+      "page": 59,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.64667,
+        0.66667,
+        0.29867,
+        0.21135
+      ],
+      "catalogueGroup": "تسمه پاک‌کن",
+      "printedPage": 41,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0ef82c3e7a807624ebfc3158c77d960811d05f1eae35c3d845c6e807f5c4b092"
+    },
+    {
+      "file": "e(583).png",
+      "page": 47,
+      "inliers": 23,
+      "ratio": 1.0,
+      "bbox": [
+        0.64733,
+        0.47943,
+        0.29933,
+        0.20993
+      ],
+      "catalogueGroup": "پروانه‌های همزن",
+      "printedPage": 29,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "fde126f7d344a7cf41e1e96b93b13e49b56aff5cdb70dbc0c55f66935a70f15e"
+    },
+    {
+      "file": "e(584).png",
+      "page": 47,
+      "inliers": 14,
+      "ratio": 1.0,
+      "bbox": [
+        0.026,
+        0.66856,
+        0.35067,
+        0.24444
+      ],
+      "catalogueGroup": "پروانه‌های همزن",
+      "printedPage": 29,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "2487d0fe079f42eac97c46e515d2e6534ab4eb6db3109e8dfa5d0d9623ff5d75"
+    },
+    {
+      "file": "e(585).png",
+      "page": 47,
+      "inliers": 12,
+      "ratio": 0.923,
+      "bbox": [
+        0.32933,
+        0.66241,
+        0.32133,
+        0.22459
+      ],
+      "catalogueGroup": "پروانه‌های همزن",
+      "printedPage": 29,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "e248cd43849f10fa5e8e3792b4b5b5e5c2ad5b63bbda051806e9ae976defb498"
+    },
+    {
+      "file": "e(603).png",
+      "page": 49,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.042,
+        0.48747,
+        0.34867,
+        0.20757
+      ],
+      "catalogueGroup": "پروانه‌های همزن",
+      "printedPage": 31,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "b26a7c681ddbfc871b5215808d185a8ef8e447c3c35f326f85d810e3e8979f41"
+    },
+    {
+      "file": "e(616).png",
+      "page": 48,
+      "inliers": 18,
+      "ratio": 0.947,
+      "bbox": [
+        0.30667,
+        0.64195,
+        0.38333,
+        0.26466
+      ],
+      "catalogueGroup": "پروانه‌های همزن",
+      "printedPage": 30,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "ae3a33a5068b2bc704e1b1f52af03800e9a67c78a72f7e78e9514f118826b0a6"
+    },
+    {
+      "file": "e(622).png",
+      "page": 74,
+      "inliers": 11,
+      "ratio": 0.917,
+      "bbox": [
+        0.14267,
+        0.12813,
+        0.29533,
+        0.21986
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "106468799f039f4a869aee016adbb90a44b2381cd2bb84fa61a63db3cd1d6863"
+    },
+    {
+      "file": "e(623).png",
+      "page": 74,
+      "inliers": 35,
+      "ratio": 0.921,
+      "bbox": [
+        0.568,
+        0.13286,
+        0.26933,
+        0.18913
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "3bdfccb17624c85717b1053559d64022757b3f0aef8488b1d5a9ffd5bd1d6b5a"
+    },
+    {
+      "file": "e(624).png",
+      "page": 74,
+      "inliers": 17,
+      "ratio": 0.895,
+      "bbox": [
+        0.08533,
+        0.34184,
+        0.43867,
+        0.31395
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "4cce38974fe262b8864ec6c394396c073228662152cbb13239a134dc387bfdbf"
+    },
+    {
+      "file": "e(625).png",
+      "page": 70,
+      "inliers": 20,
+      "ratio": 1.0,
+      "bbox": [
+        0.17333,
+        0.28794,
+        0.33133,
+        0.21891
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "634debea165e48b5df4f98036fe02f1dd798ea9fba7561b27c97184299426603"
+    },
+    {
+      "file": "e(626).png",
+      "page": 70,
+      "inliers": 12,
+      "ratio": 0.923,
+      "bbox": [
+        0.48067,
+        0.27896,
+        0.372,
+        0.25863
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "e3e433056e20d9f4a76b6ac9f88c46d14da1491ca4460f978f7cc0bf8eea8868"
+    },
+    {
+      "file": "e(627).png",
+      "page": 74,
+      "inliers": 49,
+      "ratio": 0.907,
+      "bbox": [
+        0.504,
+        0.38487,
+        0.338,
+        0.23924
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f29fd77d8365382bad39c45f67d8cb52b6343c81585921cd1d0c501935cc9c2f"
+    },
+    {
+      "file": "e(628).png",
+      "page": 74,
+      "inliers": 34,
+      "ratio": 0.944,
+      "bbox": [
+        0.118,
+        0.63972,
+        0.34867,
+        0.24634
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8743e3d8855eb254090eb91b25c05a3fb9831c855b197a8672a27c3dacbe5e6e"
+    },
+    {
+      "file": "e(630).png",
+      "page": 75,
+      "inliers": 46,
+      "ratio": 0.958,
+      "bbox": [
+        0.14067,
+        0.45143,
+        0.72067,
+        0.50727
+      ],
+      "catalogueGroup": "دریچه ساکشن",
+      "printedPage": 57,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "bdb69e6e2a5399b5029b82423fa8d30a0d0e74806694c47e6891f247e4f41a50"
+    },
+    {
+      "file": "e(631).png",
+      "page": 70,
+      "inliers": 25,
+      "ratio": 0.962,
+      "bbox": [
+        0.168,
+        0.48889,
+        0.33067,
+        0.22979
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "5ad4d23803bf505df61999af3934f0ea246885514550d27043f358f0a78a30bf"
+    },
+    {
+      "file": "e(632).png",
+      "page": 70,
+      "inliers": 23,
+      "ratio": 0.958,
+      "bbox": [
+        0.50333,
+        0.47329,
+        0.35333,
+        0.25343
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0d146cb85ea4da3db5aeeb97586a9bc2c4c6414a56cb3048bf5745b33ac63af3"
+    },
+    {
+      "file": "e(636).png",
+      "page": 79,
+      "inliers": 48,
+      "ratio": 0.941,
+      "bbox": [
+        0.41067,
+        0.05201,
+        0.556,
+        0.39149
+      ],
+      "catalogueGroup": "قاشقک‌های الواتر",
+      "printedPage": 61,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "c3386b8c93289066b93e7ca7c001c93570a58ff54d1fcf29a3bae602c749ac6e"
+    },
+    {
+      "file": "e(650).png",
+      "page": 63,
+      "inliers": 18,
+      "ratio": 1.0,
+      "bbox": [
+        0.328,
+        0.65248,
+        0.374,
+        0.26052
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 45,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1f26bef1d5dccfbc29a4930705c11a4e2eadade90b589380c9ad342a6437db94"
+    },
+    {
+      "file": "e(651).png",
+      "page": 63,
+      "inliers": 23,
+      "ratio": 0.958,
+      "bbox": [
+        0.626,
+        0.67943,
+        0.31067,
+        0.21513
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 45,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "54ac1cf20b888f640499de93a2d6bf0704dd328c212c500ca5afff6676725d5e"
+    },
+    {
+      "file": "e(652).png",
+      "page": 64,
+      "inliers": 26,
+      "ratio": 0.929,
+      "bbox": [
+        0.04467,
+        0.06998,
+        0.32867,
+        0.23026
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 46,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "804633f13e442f231e998212055887272b0b409559a2091bd6d1042e271c8f2e"
+    },
+    {
+      "file": "e(658).png",
+      "page": 50,
+      "inliers": 43,
+      "ratio": 0.977,
+      "bbox": [
+        0.616,
+        0.26748,
+        0.354,
+        0.25012
+      ],
+      "catalogueGroup": "ضربه‌گیر",
+      "printedPage": 32,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9d7443988a4e4726082799a3c31574fd0de4f860858a3e45928779a35a4a9588"
+    },
+    {
+      "file": "e(659).png",
+      "page": 64,
+      "inliers": 32,
+      "ratio": 0.97,
+      "bbox": [
+        0.65533,
+        0.28416,
+        0.27267,
+        0.19243
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 46,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "275ece7d734207229a5a977f3baf66a55acc97574b8c824569b0bc39c282c6be"
+    },
+    {
+      "file": "e(660).png",
+      "page": 64,
+      "inliers": 34,
+      "ratio": 1.0,
+      "bbox": [
+        0.04667,
+        0.44303,
+        0.31933,
+        0.22506
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 46,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "faa59a3cdeaada96cd2dcacff9955bd0ceb7dc22d577f9c8118b589d91ecd924"
+    },
+    {
+      "file": "e(669).png",
+      "page": 65,
+      "inliers": 26,
+      "ratio": 1.0,
+      "bbox": [
+        0.03867,
+        0.07602,
+        0.33533,
+        0.23604
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "0c5de1b17eab8e1c395dfeac310af69e8cf4247c7ad2c1b086c7a4ee57e879a6"
+    },
+    {
+      "file": "e(670).png",
+      "page": 65,
+      "inliers": 18,
+      "ratio": 1.0,
+      "bbox": [
+        0.34333,
+        0.09151,
+        0.31,
+        0.22337
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "5d6b6eacc917dcebd04a51a818ce693ae8ba8fc5aa47e9fddecb86bb848cb968"
+    },
+    {
+      "file": "e(673).png",
+      "page": 65,
+      "inliers": 15,
+      "ratio": 0.833,
+      "bbox": [
+        0.274,
+        0.16002,
+        0.56133,
+        0.33834
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6528d88e53e21771db266943754cb2d167039cac96c027821b366bdccfb4a2a8"
+    },
+    {
+      "file": "e(674).png",
+      "page": 75,
+      "inliers": 37,
+      "ratio": 0.881,
+      "bbox": [
+        0.26267,
+        0.12107,
+        0.478,
+        0.34491
+      ],
+      "catalogueGroup": "دریچه ساکشن",
+      "printedPage": 57,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "4b18eb771fef19e0ede9072823139e3c1faf392c2524a14da06b40b7cc641e0d"
+    },
+    {
+      "file": "e(675).png",
+      "page": 74,
+      "inliers": 19,
+      "ratio": 0.905,
+      "bbox": [
+        0.51733,
+        0.64303,
+        0.33333,
+        0.23404
+      ],
+      "catalogueGroup": "حفاظ دست",
+      "printedPage": 56,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8a53424bde2641a0e16d34a2eb9ee5004ca9fc545979abc36f839f0c45695f94"
+    },
+    {
+      "file": "e(676).png",
+      "page": 65,
+      "inliers": 8,
+      "ratio": 1.0,
+      "bbox": [
+        0.618,
+        0.26091,
+        0.326,
+        0.22947
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6c09a358af1fad51203dd8ec9410dbd089021103dd549faa40dfba786a3bc597"
+    },
+    {
+      "file": "e(677).png",
+      "page": 78,
+      "inliers": 14,
+      "ratio": 0.875,
+      "bbox": [
+        0.316,
+        0.66964,
+        0.36733,
+        0.25997
+      ],
+      "catalogueGroup": "ضربه‌زن",
+      "printedPage": 60,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "7badafd45daa303e7414f0080b91a67429736e741a316e8e9a017810f5a4ba77"
+    },
+    {
+      "file": "e(678).png",
+      "page": 65,
+      "inliers": 12,
+      "ratio": 0.923,
+      "bbox": [
+        0.03067,
+        0.45612,
+        0.33533,
+        0.23604
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a82bcb5df302ae790f7d9a750bd6d1cb92d4b5f38acbe0dd71914e8bfbb511e2"
+    },
+    {
+      "file": "e(683).png",
+      "page": 65,
+      "inliers": 23,
+      "ratio": 1.0,
+      "bbox": [
+        0.29533,
+        0.65275,
+        0.36733,
+        0.25856
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 47,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "f8e868579015c5400388919cf6403f2caa294b45f8013cb95d3c11286987417f"
+    },
+    {
+      "file": "e(689).png",
+      "page": 41,
+      "inliers": 10,
+      "ratio": 0.833,
+      "bbox": [
+        0.318,
+        0.10922,
+        0.344,
+        0.24161
+      ],
+      "catalogueGroup": "برس خشک",
+      "printedPage": 23,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "bcb9447c2074647392b407c0d9d2141ae925932f70966e6a432290bd84ce9169"
+    },
+    {
+      "file": "e(690).png",
+      "page": 41,
+      "inliers": 102,
+      "ratio": 0.99,
+      "bbox": [
+        0.32,
+        0.66147,
+        0.346,
+        0.24444
+      ],
+      "catalogueGroup": "برس خشک",
+      "printedPage": 23,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8a1bbb190bd29b00acad84e678825aab3ab66e9bf71b6aa9563026d4f47d8187"
+    },
+    {
+      "file": "e(691).png",
+      "page": 41,
+      "inliers": 20,
+      "ratio": 0.952,
+      "bbox": [
+        0.33267,
+        0.39574,
+        0.30467,
+        0.2156
+      ],
+      "catalogueGroup": "برس خشک",
+      "printedPage": 23,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1f69daf35fb2705781c636203137ea76e099f29cde9aef8f9b19b0c10b83a782"
+    },
+    {
+      "file": "e(692).png",
+      "page": 70,
+      "inliers": 18,
+      "ratio": 1.0,
+      "bbox": [
+        0.13,
+        0.67045,
+        0.39,
+        0.28085
+      ],
+      "catalogueGroup": "تیغ و پارویی استکر",
+      "printedPage": 52,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "663f215f10148990a6f27649301ce78f2d234dcb3800a2d5e45fa39631c861c1"
+    },
+    {
+      "file": "e(695).png",
+      "page": 45,
+      "inliers": 14,
+      "ratio": 0.933,
+      "bbox": [
+        0.332,
+        0.29078,
+        0.32,
+        0.21702
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "a47355418ddac34908fd2b72913b9717fbdd6677b27b04c9d1ab54dd2d647cb0"
+    },
+    {
+      "file": "e(699).png",
+      "page": 45,
+      "inliers": 12,
+      "ratio": 1.0,
+      "bbox": [
+        0.63267,
+        0.4747,
+        0.334,
+        0.23783
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6b21d921c2f813972acf7725eb633abe321bcca02804ead232b672f3e352d594"
+    },
+    {
+      "file": "e(700).png",
+      "page": 45,
+      "inliers": 6,
+      "ratio": 1.0,
+      "bbox": [
+        0.04467,
+        0.68416,
+        0.31267,
+        0.20567
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "b04e22899db9ce23f9f3d8a0462b1d3d0ebd11c5f7cda370079332630976fb2f"
+    },
+    {
+      "file": "e(701).png",
+      "page": 45,
+      "inliers": 6,
+      "ratio": 0.857,
+      "bbox": [
+        0.338,
+        0.65248,
+        0.334,
+        0.24161
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "92265ba1e1bc132fb53919051859e0f8581b910a6cf197134f131ce699bd9c37"
+    },
+    {
+      "file": "e(702).png",
+      "page": 45,
+      "inliers": 8,
+      "ratio": 1.0,
+      "bbox": [
+        0.646,
+        0.66714,
+        0.29733,
+        0.21939
+      ],
+      "catalogueGroup": "حفاظ و پایه یاتاقان",
+      "printedPage": 27,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "d6774ef5edbbf43cc715ba34d9a2df88e9d883d3268c3b49952e11a42554cc51"
+    },
+    {
+      "file": "e(707).png",
+      "page": 66,
+      "inliers": 9,
+      "ratio": 0.818,
+      "bbox": [
+        0.21,
+        0.50969,
+        0.504,
+        0.34988
+      ],
+      "catalogueGroup": "لاستیک‌های مکنده",
+      "printedPage": 48,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "239690d5ed2eae0931a2373596a51f72baff288f68301a4333422cf8537b448f"
+    },
+    {
+      "file": "e(724).png",
+      "page": 39,
+      "inliers": 53,
+      "ratio": 0.93,
+      "bbox": [
+        0.052,
+        0.6747,
+        0.30333,
+        0.21418
+      ],
+      "catalogueGroup": "برس مویی",
+      "printedPage": 21,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1d49fb0cec7ee8fee734f6c0f2798e4a2d91805c51897c2d29b718a3c4d04254"
+    },
+    {
+      "file": "e(748).png",
+      "page": 76,
+      "inliers": 39,
+      "ratio": 0.709,
+      "bbox": [
+        0.16267,
+        0.07707,
+        0.332,
+        0.23215
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "943c524d0bcd3dc86cc59b8d31b1bc34090934e54a4c0af6f01d09ac0ec4089e"
+    },
+    {
+      "file": "e(749).png",
+      "page": 76,
+      "inliers": 19,
+      "ratio": 0.905,
+      "bbox": [
+        0.48933,
+        0.09031,
+        0.30933,
+        0.21655
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8329bc6106030b74e3c07c4e91e46b4f2ba815bb6b7da75adc09305583b4af6a"
+    },
+    {
+      "file": "e(755).png",
+      "page": 76,
+      "inliers": 70,
+      "ratio": 0.824,
+      "bbox": [
+        0.50467,
+        0.28936,
+        0.30733,
+        0.21749
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "41f5335fb5897d63a7c6b8c49807b49376e4aaf629f27928f206abce7bd2aee4"
+    },
+    {
+      "file": "e(763).png",
+      "page": 76,
+      "inliers": 33,
+      "ratio": 0.971,
+      "bbox": [
+        0.18,
+        0.49976,
+        0.29667,
+        0.21418
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "6477a133daff20762039067d1f53d870d3206acebea360fad30e7a98d2d59a7a"
+    },
+    {
+      "file": "e(765).png",
+      "page": 76,
+      "inliers": 13,
+      "ratio": 1.0,
+      "bbox": [
+        0.50533,
+        0.71489,
+        0.34133,
+        0.22648
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "603834950ad26ef2fe6f3988572d6d1c6bc8afce15ff24f847878d17abc3935d"
+    },
+    {
+      "file": "e(766).png",
+      "page": 76,
+      "inliers": 18,
+      "ratio": 0.947,
+      "bbox": [
+        0.19,
+        0.70686,
+        0.30733,
+        0.22128
+      ],
+      "catalogueGroup": "لعاب‌پاش",
+      "printedPage": 58,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "70be64ebe6302f5261f8572f79d4331c317e74d207d0a346a83673216763f9e4"
+    },
+    {
+      "file": "e(768).png",
+      "page": 40,
+      "inliers": 27,
+      "ratio": 0.844,
+      "bbox": [
+        -0.00333,
+        0.04823,
+        0.428,
+        0.30213
+      ],
+      "catalogueGroup": "برس مویی",
+      "printedPage": 22,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "8e0b11dc2a734742dc328dc6fb77e14eba95305f73daa8b1575805442baa1ac2"
+    },
+    {
+      "file": "e(797).png",
+      "page": 88,
+      "inliers": 8,
+      "ratio": 1.0,
+      "bbox": [
+        0.25,
+        0.2717,
+        0.40533,
+        0.30174
+      ],
+      "catalogueGroup": "نوارهای درزگیر",
+      "printedPage": 70,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "dd5d33df93590fea7cbc72abedad2fbd223bb9006f33120890a646127efbe0bf"
+    },
+    {
+      "file": "e(799).png",
+      "page": 67,
+      "inliers": 13,
+      "ratio": 0.929,
+      "bbox": [
+        0.65,
+        0.2818,
+        0.304,
+        0.21418
+      ],
+      "catalogueGroup": "لاستیک پمپ دیافراگم",
+      "printedPage": 49,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "654a21e682b7d966dadd6c2d9f5e5d97146a804e1bc2900ad48acec94b1a2023"
+    },
+    {
+      "file": "e(800).png",
+      "page": 67,
+      "inliers": 7,
+      "ratio": 1.0,
+      "bbox": [
+        0.05267,
+        0.47281,
+        0.30667,
+        0.226
+      ],
+      "catalogueGroup": "لاستیک پمپ دیافراگم",
+      "printedPage": 49,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "62387be68f093f285781a2b83ae43a12ac3b9747627635ea49f428b66aeefb4e"
+    },
+    {
+      "file": "e(803).png",
+      "page": 67,
+      "inliers": 15,
+      "ratio": 0.882,
+      "bbox": [
+        0.06333,
+        0.69125,
+        0.27,
+        0.19054
+      ],
+      "catalogueGroup": "لاستیک پمپ دیافراگم",
+      "printedPage": 49,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "cd6b886da3eb3b8e31d26c3c9b4a06b45a1ab9a6195076e536087c39a33f9876"
+    },
+    {
+      "file": "e(804).png",
+      "page": 88,
+      "inliers": 111,
+      "ratio": 0.949,
+      "bbox": [
+        0.12467,
+        0.43501,
+        0.67133,
+        0.47489
+      ],
+      "catalogueGroup": "نوارهای درزگیر",
+      "printedPage": 70,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "3e4db966c18903fc8ebd513d86f756b174caa6c6ec5ddd21b560e74683600db9"
+    },
+    {
+      "file": "e(811).png",
+      "page": 51,
+      "inliers": 30,
+      "ratio": 1.0,
+      "bbox": [
+        0.37867,
+        0.10024,
+        0.252,
+        0.17825
+      ],
+      "catalogueGroup": "ضربه‌گیر",
+      "printedPage": 33,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "af3e069cdb18329910a655d0ef6c0f1c69236a07feb2de7c7abd25c6629fe5a1"
+    },
+    {
+      "file": "e(828).png",
+      "page": 52,
+      "inliers": 36,
+      "ratio": 1.0,
+      "bbox": [
+        0.04,
+        0.28672,
+        0.30267,
+        0.21305
+      ],
+      "catalogueGroup": "ضربه‌گیر",
+      "printedPage": 34,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "1d0b8071bca5bc4ec9cb260cd46d2a144a216b55b746ee0500ddfe3e61077ae4"
+    },
+    {
+      "file": "e(843).png",
+      "page": 83,
+      "inliers": 81,
+      "ratio": 0.92,
+      "bbox": [
+        0.52,
+        0.15556,
+        0.32133,
+        0.22742
+      ],
+      "catalogueGroup": "لاستیک اینکوب",
+      "printedPage": 65,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "981b10ae7d067f667ab969cd6278a116b1fa14cf519c8e694d2a314acbebe24b"
+    },
+    {
+      "file": "e(845).png",
+      "page": 83,
+      "inliers": 8,
+      "ratio": 0.727,
+      "bbox": [
+        0.498,
+        0.39054,
+        0.388,
+        0.2747
+      ],
+      "catalogueGroup": "لاستیک اینکوب",
+      "printedPage": 65,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "29882c675163a2d0a6becedb3e5a652e4cdfe2a1c7cdeafc45d91ef4c565b71c"
+    },
+    {
+      "file": "e(846).png",
+      "page": 52,
+      "inliers": 10,
+      "ratio": 0.909,
+      "bbox": [
+        0.31733,
+        0.64148,
+        0.35733,
+        0.2473
+      ],
+      "catalogueGroup": "ضربه‌گیر",
+      "printedPage": 34,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "3811017bb410ce9e985f140cd694322871e42261c72666702a93b1af795fc106"
+    },
+    {
+      "file": "e(847).png",
+      "page": 83,
+      "inliers": 26,
+      "ratio": 0.963,
+      "bbox": [
+        0.33067,
+        0.66998,
+        0.356,
+        0.25532
+      ],
+      "catalogueGroup": "لاستیک اینکوب",
+      "printedPage": 65,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "da4e8047847def406e105a3bf77062706c6e79ad3e6ce7d06bb8c7a7f9d9d621"
+    },
+    {
+      "file": "e(848).png",
+      "page": 61,
+      "inliers": 8,
+      "ratio": 1.0,
+      "bbox": [
+        0.506,
+        0.12529,
+        0.37267,
+        0.25293
+      ],
+      "catalogueGroup": "لاستیک استکر",
+      "printedPage": 43,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "90a5cf9b8c2389500852a4fa2f0ed92961aec6d6c4c4b1c9208c56a3ba9dad1f"
+    },
+    {
+      "file": "e(849).png",
+      "page": 61,
+      "inliers": 10,
+      "ratio": 0.909,
+      "bbox": [
+        0.10667,
+        0.32661,
+        0.41867,
+        0.33975
+      ],
+      "catalogueGroup": "لاستیک استکر",
+      "printedPage": 43,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9667a3ed5728827da42cf4429ae22aff5a4364275a907753ab2258ebaeb46cc6"
+    },
+    {
+      "file": "e(852).png",
+      "page": 61,
+      "inliers": 17,
+      "ratio": 0.895,
+      "bbox": [
+        0.51667,
+        0.40122,
+        0.352,
+        0.24496
+      ],
+      "catalogueGroup": "لاستیک استکر",
+      "printedPage": 43,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "17ee823f556d9687eb9bc40b3be33660b9fa8b6ede254ff12250c42a201d0c16"
+    },
+    {
+      "file": "e(853).png",
+      "page": 61,
+      "inliers": 21,
+      "ratio": 1.0,
+      "bbox": [
+        0.33867,
+        0.66166,
+        0.32933,
+        0.22384
+      ],
+      "catalogueGroup": "لاستیک استکر",
+      "printedPage": 43,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "aadff4af031b132a03a41c4837b363a0c6a126055239e01935870b8867804bbd"
+    },
+    {
+      "file": "e(857).png",
+      "page": 93,
+      "inliers": 193,
+      "ratio": 0.825,
+      "bbox": [
+        0.21067,
+        0.06241,
+        0.58467,
+        0.41295
+      ],
+      "catalogueGroup": "تسمه‌های روکش‌دار APL",
+      "printedPage": 75,
+      "reviewStatus": "same-photograph-and-heading-visually-reviewed",
+      "exactWarehouseSku": null,
+      "scope": "catalogue-photo-and-group-only; dimensions/material grade and warehouse SKU not established",
+      "imageSha256": "9ee26c9666f27e278e2dc2fd6ea1d851eedf29eb3c1c3e4d549212f2195decae"
+    }
+  ]
+}
