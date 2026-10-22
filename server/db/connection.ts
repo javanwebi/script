@@ -2,6 +2,16 @@ import pg from 'pg';
 export const databaseEnabled=()=>process.env.DATA_BACKEND==='postgres';
 export const adoptedSchema=()=>process.env.DATABASE_SCHEMA==='adopted';
 export const databaseEnvironment=()=>process.env.DATABASE_ENV || 'development';
+/** Deployment gate: keep the React/Vite interface bundled from source, while all mutable data is PostgreSQL-only. */
+export function assertProductionDatabaseConfig(env:NodeJS.ProcessEnv=process.env){
+ if(env.NODE_ENV!=='production')return;
+ if(env.DATA_BACKEND!=='postgres')throw new Error('Production requires DATA_BACKEND=postgres; local-file mode is disabled.');
+ if(env.DATABASE_SCHEMA!=='adopted')throw new Error('Production requires DATABASE_SCHEMA=adopted for the existing Supabase schema.');
+ if(env.DATABASE_ENV!=='production')throw new Error('Production requires DATABASE_ENV=production.');
+ if(!env.DATABASE_URL)throw new Error('Production requires a server-only DATABASE_URL.');
+ if(env.DATABASE_SSL!=='require')throw new Error('Production requires DATABASE_SSL=require.');
+}
+
 let pool:pg.Pool|undefined;
 export function database(){
  if(!databaseEnabled())throw new Error('PostgreSQL data backend is not enabled');
