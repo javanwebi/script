@@ -1,4 +1,6 @@
 import pg from 'pg';
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
 export const databaseEnabled=()=>process.env.DATA_BACKEND==='postgres';
 export const adoptedSchema=()=>process.env.DATABASE_SCHEMA==='adopted';
 export const databaseEnvironment=()=>process.env.DATABASE_ENV || 'development';
@@ -16,7 +18,7 @@ let pool:pg.Pool|undefined;
 export function database(){
  if(!databaseEnabled())throw new Error('PostgreSQL data backend is not enabled');
  if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL is required; local-file fallback is disabled in PostgreSQL mode');
- pool ||= new pg.Pool({connectionString:process.env.DATABASE_URL,max:8,idleTimeoutMillis:30000,connectionTimeoutMillis:10000,...(process.env.DATABASE_SSL==='require' ? {ssl:{rejectUnauthorized:true,...(process.env.DATABASE_CA_CERT ? {ca:process.env.DATABASE_CA_CERT} : {})}} : {})});
+ pool ||= new pg.Pool({connectionString:process.env.DATABASE_URL,max:8,idleTimeoutMillis:30000,connectionTimeoutMillis:10000,...(process.env.DATABASE_SSL==='require' ? {ssl:{rejectUnauthorized:true,ca:process.env.DATABASE_CA_CERT || readFileSync(join(process.cwd(),'certs','supabase-root-2021-ca.crt'),'utf8')}} : {})});
  return pool;
 }
 export type SqlClient=Pick<pg.PoolClient,'query'>;
