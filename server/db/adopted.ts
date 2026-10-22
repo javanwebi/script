@@ -228,6 +228,16 @@ async function projectScopedDocument(client:SqlClient,key:string,value:unknown,s
  }
 }
 export async function writeAdoptedDocument(client:SqlClient,key:string,value:unknown,scope:string){
+ // CRM documents are also mirrored and archived. Remove credentials before
+ // any hash, archive, raw_payload or compatibility KV write.
+ if(scope==='global' && (key==='atlas_admin_customers_v1' || key==='atlas_legacy_customers_v1')){
+  if(!Array.isArray(value))throw new Error('Invalid CRM document');
+  value=value.map((entry:Row)=>{
+   if(!entry || typeof entry!=='object' || Array.isArray(entry))throw new Error('Invalid CRM customer');
+   const {password,passwordHash,passwordSalt,sessionVersion,accessToken,refreshToken,...record}=entry;
+   return record;
+  });
+ }
  await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[scope+':'+key]);
  const digest=sha(value),old=(await client.query('select content_sha256 from app_private.document_versions where namespace=$1 and scope_id=$2 for update',[key,scope])).rows[0];if(old?.content_sha256===digest)return;
  const previous=await readAdoptedDocument(client,key,scope);
