@@ -1,4 +1,11 @@
 -- Checkout idempotency and relational ownership; existing records remain intact.
+do $$
+begin
+  if to_regclass('public.user_profiles') is not null or to_regclass('public.catalog_families') is not null then
+    raise exception 'CRITICAL SAFETY GUARD: Target database uses the adopted 49-table master schema (user_profiles, catalog_families). Prototype migrations under supabase/migrations must NEVER be applied to this database. Use supabase/adopted/migrations or "npm run db:migrate:adopted".';
+  end if;
+end$$;
+
 create table app_private.checkout_requests(profile_id text not null references public.profiles(id),request_key uuid not null,order_id text not null,request_hash text not null,created_at timestamptz not null default now(),primary key(profile_id,request_key));
 alter table public.order_items add column order_namespace text;
 alter table public.order_items add column order_scope text;

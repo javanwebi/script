@@ -150,6 +150,14 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
    ('ms-highvol-B', 'سطح نقره‌ای', 1000, 'تخفیف ۵ درصدی', 'discount', 2, true),
    ('ms-highvol-C', 'سطح طلایی', 5000, 'تخفیف ۸ درصدی', 'discount', 3, true),
    ('ms-highvol-D', 'سطح الماس', 15000, 'تخفیف ۱۲ درصدی ویژه', 'discount', 4, true);
+
+  -- Seed initial catalog_families for the 3 live families to verify non-destructive enrichment
+  insert into public.catalog_families(code, name, category_slug, category_name, brand, unit, description)
+  values
+   ('FAM-34265', 'چرخ‌دنده فولادی صنعتی', 'gear-wheels', 'چرخ و رولر', 'ATLAS GEAR', 'عدد', 'توضیحات اولیه کارخانه'),
+   ('FAM-80301', 'چرخ‌دنده پلیمر تفلون', 'polymers', 'آب‌بندی و قطعات لاستیکی', 'ATLAS POLYMER', 'عدد', 'توضیحات اولیه پلیمر'),
+   ('FAM-32496', 'پکینگ نسوز تفلونی', 'packings', 'آب‌بندی و درزگیری', 'ثبت نشده', 'كيلوگرم, عدد', 'توضیحات اولیه پکینگ')
+  on conflict (code) do nothing;
  `);
 
  // Seed portal_kv_store with the exact 4 non-empty arrays + 2 objects from live pre-flight
@@ -186,7 +194,98 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
    {id:'tier-d', code:'D', tierKey:'D', publicTitle:'سطح الماس', minPurchaseVolume:500000000, discountPercent:12, summaryBenefit:'تخفیف ۱۲ درصدی ویژه', benefits:['مدیر حساب اختصاصی'], sortOrder:4}
   ]),
   JSON.stringify({
-   '6202ZZ': {featured: true, customBadge: 'پرفروش'}
+   version: 1,
+   updatedAt: '2026-10-17T11:40:00.440Z',
+   deletedCodes: [],
+   families: {
+    'FAM-34265': {
+     code: 'FAM-34265',
+     name: 'چرخ دنده',
+     brand: 'ATLAS GEAR',
+     categorySlug: 'wheels-rollers',
+     categoryName: 'چرخ و رولر',
+     submenu: 'چرخ صنعتی',
+     subcategory: 'چرخ صنعتی',
+     unit: 'عدد',
+     active: true,
+     description: 'خانواده چرخ‌دنده‌های صنعتی خطوط تولید',
+     technicalSpecs: [{key: 'استاندارد', value: 'DIN 867'}],
+     galleryImages: [
+      {id: 'img-34265-1', url: 'https://img.test/34265-1.png', fileName: 'e549.png', scope: 'variant', variantCode: '34265', title: 'چرخ‌دنده هلیکال Z14', order: 1}
+     ],
+     variants: [
+      {
+       code: '34265',
+       name: 'چرخ دنده هلیکال فولادی Z14 شفت ۲۰ میلی‌متر',
+       size: 'Z14 — قطر ۶۵ × شفت ۲۰ میلی‌متر',
+       model: 'HG-Z14-M4',
+       brand: 'ATLAS GEAR',
+       unit: 'عدد',
+       price: 450000,
+       prices: {base: 400000, retail: 450000, wholesale: 420000, dealer: 390000},
+       inquiryOnly: false,
+       stock: 12,
+       stockKnown: true,
+       active: true,
+       images: ['https://img.test/34265-1.png'],
+       technicalSpecs: [{key: 'تعداد دندانه (Z)', value: '14'}]
+      }
+     ]
+    },
+    'FAM-80301': {
+     code: 'FAM-80301',
+     name: 'چرخ دنده پلاستیکی سفید',
+     brand: 'ATLAS POLYMER',
+     categorySlug: 'rubber-polymers',
+     categoryName: 'آب‌بندی و قطعات لاستیکی',
+     unit: 'عدد',
+     active: true,
+     description: 'خانواده چرخ‌دنده پلیمری سفید',
+     technicalSpecs: [{key: 'جنس', value: 'پلی‌آمید'}],
+     variants: [
+      {
+       code: '41069',
+       name: 'چرخ دنده پلاستيكي سفيد Z16 * 122 * 40',
+       size: 'Z16، 16*122*40',
+       model: 'PA6-Z16-122x40',
+       brand: 'ATLAS POLYMER',
+       unit: 'عدد',
+       price: 0,
+       prices: {base: 0, retail: 0, wholesale: 0, dealer: 0},
+       inquiryOnly: true,
+       stock: 0,
+       stockKnown: false,
+       active: true,
+       images: [],
+       technicalSpecs: [{key: 'تعداد دندانه', value: '16'}]
+      }
+     ]
+    },
+    'FAM-32496': {
+     code: 'FAM-32496',
+     name: 'پکینگ / کاسه‌نمد',
+     brand: 'ثبت نشده',
+     categorySlug: 'packings',
+     categoryName: 'آب‌بندی و درزگیری',
+     unit: 'كيلوگرم, عدد',
+     active: true,
+     variants: [
+      {
+       code: '32496',
+       name: 'پكينگ نسوز سفيد 15 * 15',
+       size: '15*15',
+       unit: 'عدد',
+       price: 0,
+       prices: {base: 0, retail: 0, wholesale: 0, dealer: 0},
+       inquiryOnly: true,
+       stock: 0,
+       stockKnown: false,
+       active: true,
+       images: []
+      }
+     ]
+    }
+   }
   }),
   JSON.stringify({
    revision: 42,
@@ -207,12 +306,43 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  assert.equal(run1.portal_announcements,2);
  assert.equal(run1.portal_banners,2);
  assert.equal(run1.club_milestones,4);
+ assert.equal(run1.catalog_overrides_synced,3);
 
  // Verify no duplicate rows were created and all 4 storefront + portal banners remain intact
  assert.equal((await db.query<any>('select count(*)::int as n from public.price_lists')).rows[0].n,5);
  assert.equal((await db.query<any>('select count(*)::int as n from public.portal_announcements')).rows[0].n,2);
  assert.equal((await db.query<any>('select count(*)::int as n from public.portal_banners')).rows[0].n,4);
  assert.equal((await db.query<any>('select count(*)::int as n from public.club_milestones')).rows[0].n,4);
+
+ // Verify the 3 catalog families were enriched non-destructively
+ const fam1=(await db.query<any>("select name, category_slug, brand from public.catalog_families where code='FAM-34265'")).rows[0];
+ assert.equal(fam1.name,'چرخ دنده');
+ assert.equal(fam1.category_slug,'wheels-rollers');
+ assert.equal(fam1.brand,'ATLAS GEAR');
+
+ const fam2=(await db.query<any>("select name, brand from public.catalog_families where code='FAM-80301'")).rows[0];
+ assert.equal(fam2.name,'چرخ دنده پلاستیکی سفید');
+ assert.equal(fam2.brand,'ATLAS POLYMER');
+
+ const fam3=(await db.query<any>("select name, category_slug from public.catalog_families where code='FAM-32496'")).rows[0];
+ assert.equal(fam3.name,'پکینگ / کاسه‌نمد');
+ assert.equal(fam3.category_slug,'packings');
+
+ // Verify variants synced into catalog_variants
+ const var1=(await db.query<any>("select name, model from public.catalog_variants where code='34265'")).rows[0];
+ assert.equal(var1.name,'چرخ دنده هلیکال فولادی Z14 شفت ۲۰ میلی‌متر');
+ assert.equal(var1.model,'HG-Z14-M4');
+
+ // Verify commercial specs synced into variant_commercial_specs
+ const comm1=(await db.query<any>("select retail_price::numeric as price, stock, stock_known, inquiry_only from public.variant_commercial_specs where variant_code='34265'")).rows[0];
+ assert.equal(Number(comm1.price),450000);
+ assert.equal(comm1.stock,12);
+ assert.equal(comm1.stock_known,true);
+ assert.equal(comm1.inquiry_only,false);
+
+ // Verify gallery images synced into catalog_gallery_images
+ const img1=(await db.query<any>("select url from public.catalog_gallery_images where id='img-34265-1'")).rows[0];
+ assert.equal(img1.url,'https://img.test/34265-1.png');
 
  // Verify enriched columns were populated without losing existing data
  const pl1=(await db.query<any>("select items, raw_payload from public.price_lists where id='pl-1'")).rows[0];
@@ -224,7 +354,6 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  assert.equal(ann1.priority,'high');
  assert.equal(ann1.portal,'storefront');
 
-
  const msGold=(await db.query<any>("select min_purchase_volume::numeric as vol from public.club_milestones where id='ms-highvol-C'")).rows[0];
  assert.equal(Number(msGold.vol),200000000);
 
@@ -234,7 +363,6 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  assert.equal(legacyUser.payload.fullName,'Legacy User');
  assert.equal(legacyUser.payload.password,undefined);
  assert.equal(legacyUser.payload.passwordHash,undefined);
-
 
  // Verify readAdoptedDocument returns consistent data for price_lists, banners, announcements, and club_milestones
  const readPl=await readAdoptedDocument(sql,'atlas_price_lists_v2','global');
@@ -249,13 +377,15 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  const readStoreBanners=await readAdoptedDocument(sql,'atlas_admin_banners_v1','global');
  assert.equal(readStoreBanners.length,2);
 
-
  // Second run of backfill to verify 100% idempotency
  const run2=(await db.query<any>('select app_private.backfill_relational_projections_from_kv() as res')).rows[0].res;
  assert.equal(run2.skipped_errors,0);
+ assert.equal(run2.catalog_overrides_synced,3);
  assert.equal((await db.query<any>('select count(*)::int as n from public.price_lists')).rows[0].n,5);
  assert.equal((await db.query<any>('select count(*)::int as n from public.portal_announcements')).rows[0].n,2);
  assert.equal((await db.query<any>('select count(*)::int as n from public.portal_banners')).rows[0].n,4);
  assert.equal((await db.query<any>('select count(*)::int as n from public.club_milestones')).rows[0].n,4);
+ assert.equal((await db.query<any>("select count(*)::int as n from public.catalog_families where code in ('FAM-34265', 'FAM-80301', 'FAM-32496')")).rows[0].n,3);
+ assert.equal((await db.query<any>("select count(*)::int as n from public.catalog_variants where code in ('34265', '41069', '32496')")).rows[0].n,3);
 }finally{await db.close();}});
 

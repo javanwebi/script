@@ -1,4 +1,11 @@
 -- Additive foundation. This migration never removes pre-existing tables or records.
+do $$
+begin
+  if to_regclass('public.user_profiles') is not null or to_regclass('public.catalog_families') is not null then
+    raise exception 'CRITICAL SAFETY GUARD: Target database uses the adopted 49-table master schema (user_profiles, catalog_families). Prototype migrations under supabase/migrations must NEVER be applied to this database. Use supabase/adopted/migrations or "npm run db:migrate:adopted".';
+  end if;
+end$$;
+
 create schema if not exists app_private;
 revoke all on schema app_private from public;
 create table public.organizations (id text primary key, name text not null, payload jsonb not null default '{}', created_at timestamptz not null default now());

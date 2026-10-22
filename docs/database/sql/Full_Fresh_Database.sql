@@ -2097,6 +2097,7 @@ alter table public.club_milestones
   add column if not exists min_purchase_volume numeric(18,2) check (min_purchase_volume >= 0);
 
 alter table public.portal_announcements
+  add column if not exists summary text,
   add column if not exists portal text not null default 'storefront',
   add column if not exists scope text not null default 'collective',
   add column if not exists target_customer_id text,
@@ -2120,6 +2121,7 @@ declare
   tbl text;
 begin
   foreach tbl in array array[
+    'agencies',
     'agency_applications',
     'agency_deposit_receipts',
     'agency_supply_requests',
@@ -2140,7 +2142,10 @@ begin
     'static_pages',
     'sms_templates',
     'sms_logs',
-    'audit_logs'
+    'audit_logs',
+    'portal_announcements',
+    'portal_banners',
+    'club_milestones'
   ]
   loop
     execute format(
@@ -2349,11 +2354,17 @@ as $$
 declare
   rec record;
   ms record;
+  rec_fam record;
+  rec_var record;
+  rec_img record;
   item jsonb;
   v_id text;
   v_code text;
   v_slug text;
   v_name text;
+  v_var_code text;
+  v_img_id text;
+  v_img_url text;
   v_agency_id text;
   v_order_id text;
   v_price_list_id text;
@@ -2417,6 +2428,220 @@ begin
     end;
   end loop;
   v_counts := v_counts || jsonb_build_object('portal_users_synced', v_n);
+
+  -- 0a-2. Catalog Overrides (catalog_overrides_db_v1 -> catalog_families, catalog_variants, variant_commercial_specs, catalog_gallery_images non-destructive enrichment)
+  v_n := 0;
+  for rec in
+    select value
+    from public.portal_kv_store
+    where key = 'catalog_overrides_db_v1'
+      and jsonb_typeof(value) = 'object'
+  loop
+    begin
+      if jsonb_typeof(rec.value->'families') = 'object' then
+        for rec_fam in
+          select e.key as fam_code, e.value as fam_val
+          from jsonb_each(rec.value->'families') e
+        loop
+          begin
+            -- Non-destructive update or insert into catalog_families using real columns (PK is code; NO id, slug, or raw_payload)
+            insert into public.catalog_families(
+              code,
+              name,
+              brand,
+              category_slug,
+              category_name,
+              submenu,
+              subcategory,
+              unit,
+              description,
+              technical_specs,
+              is_active,
+              override_version
+            )
+            values (
+              rec_fam.fam_code,
+              coalesce(nullif(btrim(rec_fam.fam_val->>'name'), ''), rec_fam.fam_code),
+              coalesce(nullif(btrim(rec_fam.fam_val->>'brand'), ''), 'ثبت نشده'),
+              coalesce(nullif(btrim(rec_fam.fam_val->>'categorySlug'), ''), 'uncategorized'),
+              coalesce(nullif(btrim(rec_fam.fam_val->>'categoryName'), ''), 'دسته‌بندی نشده'),
+              nullif(btrim(rec_fam.fam_val->>'submenu'), ''),
+              nullif(btrim(rec_fam.fam_val->>'subcategory'), ''),
+              coalesce(nullif(btrim(rec_fam.fam_val->>'unit'), ''), 'عدد'),
+              nullif(btrim(rec_fam.fam_val->>'description'), ''),
+              case when jsonb_typeof(rec_fam.fam_val->'technicalSpecs') = 'array' then rec_fam.fam_val->'technicalSpecs' else '[]'::jsonb end,
+              coalesce(app_private.safe_bool(rec_fam.fam_val->>'active', true), true),
+              coalesce(app_private.safe_int(rec_fam.fam_val->>'overrideVersion', 1), 1)
+            )
+            on conflict (code) do update
+              set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_families.name),
+                  brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_families.brand end,
+                  category_slug = case when excluded.category_slug <> 'uncategorized' then excluded.category_slug else public.catalog_families.category_slug end,
+                  category_name = case when excluded.category_name <> 'دسته‌بندی نشده' then excluded.category_name else public.catalog_families.category_name end,
+                  submenu = coalesce(excluded.submenu, public.catalog_families.submenu),
+                  subcategory = coalesce(excluded.subcategory, public.catalog_families.subcategory),
+                  unit = coalesce(nullif(btrim(excluded.unit), ''), public.catalog_families.unit),
+                  description = coalesce(excluded.description, public.catalog_families.description),
+                  technical_specs = case
+                    when jsonb_typeof(excluded.technical_specs) = 'array' and jsonb_array_length(excluded.technical_specs) > 0
+                    then excluded.technical_specs
+                    else public.catalog_families.technical_specs
+                  end,
+                  is_active = coalesce(excluded.is_active, public.catalog_families.is_active),
+                  override_version = greatest(public.catalog_families.override_version, excluded.override_version),
+                  updated_at = now();
+
+            -- Non-destructive synchronization of variants into catalog_variants and variant_commercial_specs
+            if jsonb_typeof(rec_fam.fam_val->'variants') = 'array' then
+              for rec_var in
+                select value as v_val from jsonb_array_elements(rec_fam.fam_val->'variants')
+              loop
+                v_var_code := nullif(btrim(rec_var.v_val->>'code'), '');
+                if v_var_code is not null then
+                  insert into public.catalog_variants(
+                    code,
+                    family_code,
+                    name,
+                    size,
+                    model,
+                    brand,
+                    unit,
+                    active,
+                    images,
+                    technical_specs
+                  )
+                  values (
+                    v_var_code,
+                    rec_fam.fam_code,
+                    coalesce(nullif(btrim(rec_var.v_val->>'name'), ''), v_var_code),
+                    nullif(btrim(rec_var.v_val->>'size'), ''),
+                    nullif(btrim(rec_var.v_val->>'model'), ''),
+                    coalesce(nullif(btrim(rec_var.v_val->>'brand'), ''), nullif(btrim(rec_fam.fam_val->>'brand'), ''), 'ثبت نشده'),
+                    coalesce(nullif(btrim(rec_var.v_val->>'unit'), ''), nullif(btrim(rec_fam.fam_val->>'unit'), ''), 'عدد'),
+                    coalesce(app_private.safe_bool(rec_var.v_val->>'active', true), true),
+                    case when jsonb_typeof(rec_var.v_val->'images') = 'array' then rec_var.v_val->'images' else '[]'::jsonb end,
+                    case when jsonb_typeof(rec_var.v_val->'technicalSpecs') = 'array' then rec_var.v_val->'technicalSpecs' else '[]'::jsonb end
+                  )
+                  on conflict (code) do update
+                    set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_variants.name),
+                        size = coalesce(excluded.size, public.catalog_variants.size),
+                        model = coalesce(excluded.model, public.catalog_variants.model),
+                        brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_variants.brand end,
+                        unit = coalesce(nullif(btrim(excluded.unit), ''), public.catalog_variants.unit),
+                        active = coalesce(excluded.active, public.catalog_variants.active),
+                        images = case
+                          when jsonb_typeof(excluded.images) = 'array' and jsonb_array_length(excluded.images) > 0
+                          then excluded.images
+                          else public.catalog_variants.images
+                        end,
+                        technical_specs = case
+                          when jsonb_typeof(excluded.technical_specs) = 'array' and jsonb_array_length(excluded.technical_specs) > 0
+                          then excluded.technical_specs
+                          else public.catalog_variants.technical_specs
+                        end,
+                        updated_at = now();
+
+                  -- Commercial specifications (price, stock, inquiry_only) in variant_commercial_specs
+                  insert into public.variant_commercial_specs(
+                    variant_code,
+                    family_code,
+                    price,
+                    base_price,
+                    retail_price,
+                    wholesale_price,
+                    dealer_price,
+                    stock,
+                    stock_known,
+                    inquiry_only,
+                    currency
+                  )
+                  values (
+                    v_var_code,
+                    rec_fam.fam_code,
+                    coalesce(app_private.safe_numeric(rec_var.v_val->>'price', 0), 0),
+                    coalesce(app_private.safe_numeric(rec_var.v_val->'prices'->>'base', 0), 0),
+                    coalesce(app_private.safe_numeric(rec_var.v_val->'prices'->>'retail', coalesce(app_private.safe_numeric(rec_var.v_val->>'price', 0), 0)), 0),
+                    coalesce(app_private.safe_numeric(rec_var.v_val->'prices'->>'wholesale', 0), 0),
+                    coalesce(app_private.safe_numeric(rec_var.v_val->'prices'->>'dealer', 0), 0),
+                    coalesce(app_private.safe_int(rec_var.v_val->>'stock', 0), 0),
+                    coalesce(app_private.safe_bool(rec_var.v_val->>'stockKnown', false), false),
+                    coalesce(app_private.safe_bool(rec_var.v_val->>'inquiryOnly', true), true),
+                    coalesce(nullif(btrim(rec_var.v_val->>'currency'), ''), 'IRR')
+                  )
+                  on conflict (variant_code) do update
+                    set price = case when excluded.price > 0 then excluded.price else public.variant_commercial_specs.price end,
+                        base_price = case when excluded.base_price > 0 then excluded.base_price else public.variant_commercial_specs.base_price end,
+                        retail_price = case when excluded.retail_price > 0 then excluded.retail_price else public.variant_commercial_specs.retail_price end,
+                        wholesale_price = case when excluded.wholesale_price > 0 then excluded.wholesale_price else public.variant_commercial_specs.wholesale_price end,
+                        dealer_price = case when excluded.dealer_price > 0 then excluded.dealer_price else public.variant_commercial_specs.dealer_price end,
+                        stock = case when excluded.stock_known then excluded.stock else public.variant_commercial_specs.stock end,
+                        stock_known = public.variant_commercial_specs.stock_known or excluded.stock_known,
+                        inquiry_only = case when excluded.retail_price > 0 or public.variant_commercial_specs.retail_price > 0 then false else public.variant_commercial_specs.inquiry_only end,
+                        updated_at = now();
+                end if;
+              end loop;
+            end if;
+
+            -- Non-destructive synchronization of gallery images if present
+            if jsonb_typeof(rec_fam.fam_val->'galleryImages') = 'array' then
+              for rec_img in
+                select value as i_val from jsonb_array_elements(rec_fam.fam_val->'galleryImages')
+              loop
+                v_img_id := nullif(btrim(rec_img.i_val->>'id'), '');
+                v_img_url := nullif(btrim(rec_img.i_val->>'url'), '');
+                if v_img_id is not null and v_img_url is not null then
+                  insert into public.catalog_gallery_images(
+                    id,
+                    family_code,
+                    variant_code,
+                    file_name,
+                    url,
+                    scope,
+                    title,
+                    sort_order
+                  )
+                  values (
+                    v_img_id,
+                    rec_fam.fam_code,
+                    nullif(btrim(rec_img.i_val->>'variantCode'), ''),
+                    nullif(btrim(rec_img.i_val->>'fileName'), ''),
+                    v_img_url,
+                    case
+                      when rec_img.i_val->>'scope' in ('family', 'family-example', 'variant', 'unassigned')
+                      then (rec_img.i_val->>'scope')::public.image_scope_type
+                      else 'family'::public.image_scope_type
+                    end,
+                    nullif(btrim(rec_img.i_val->>'title'), ''),
+                    coalesce(app_private.safe_int(rec_img.i_val->>'order', 1), 1)
+                  )
+                  on conflict (id) do update
+                    set url = excluded.url,
+                        variant_code = coalesce(excluded.variant_code, public.catalog_gallery_images.variant_code),
+                        file_name = coalesce(excluded.file_name, public.catalog_gallery_images.file_name),
+                        title = coalesce(excluded.title, public.catalog_gallery_images.title),
+                        sort_order = excluded.sort_order,
+                        updated_at = now();
+                end if;
+              end loop;
+            end if;
+
+            v_n := v_n + 1;
+          exception when others then
+            v_skipped_errors := v_skipped_errors + 1;
+            v_error_details := v_error_details || jsonb_build_array(
+              jsonb_build_object('section', 'catalog_overrides_family', 'record_id', rec_fam.fam_code, 'sqlstate', SQLSTATE, 'message', SQLERRM)
+            );
+          end;
+        end loop;
+      end if;
+    exception when others then
+      v_skipped_errors := v_skipped_errors + 1;
+      v_error_details := v_error_details || jsonb_build_array(
+        jsonb_build_object('section', 'catalog_overrides', 'record_id', 'families', 'sqlstate', SQLSTATE, 'message', SQLERRM)
+      );
+    end;
+  end loop;
+  v_counts := v_counts || jsonb_build_object('catalog_overrides_synced', v_n);
 
   -- 0b. Price Lists (atlas_price_lists_v2 -> public.price_lists)
   v_n := 0;
@@ -2695,26 +2920,34 @@ begin
           select m.id into v_id
           from public.club_milestones m
           where m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))
+             or m.id = 'ms-highvol-' || coalesce(nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))
+             or m.id = 'ms-highvol-' || upper(coalesce(nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))::text)
              or (nullif(btrim(item->>'code'), '') is not null and (m.id = btrim(item->>'code') or m.raw_payload->>'code' = btrim(item->>'code')))
              or (nullif(btrim(item->>'tierKey'), '') is not null and (m.id = btrim(item->>'tierKey') or m.raw_payload->>'tierKey' = btrim(item->>'tierKey')))
              or (nullif(btrim(coalesce(item->>'title', item->>'publicTitle')), '') is not null and m.title = btrim(coalesce(item->>'title', item->>'publicTitle')))
           order by case
             when m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), '')) then 0
-            else 1
+            when m.id = 'ms-highvol-' || upper(coalesce(nullif(btrim(item->>'tierKey'), ''), nullif(btrim(item->>'code'), ''))::text) then 1
+            else 2
           end
           limit 1;
         else
           select m.id into v_id
           from public.club_milestones m
           where m.id = ms.portal_key || ':' || coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''))
-             or (m.portal = ms.portal_key and m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), '')))
+             or m.id = 'ms-highvol-' || upper(coalesce(nullif(btrim(item->>'tierKey'), ''), nullif(btrim(item->>'code'), ''))::text)
+             or (m.portal = ms.portal_key and (m.id = coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), '')) or m.id = 'ms-highvol-' || upper(coalesce(nullif(btrim(item->>'tierKey'), ''), nullif(btrim(item->>'code'), ''))::text)))
           limit 1;
         end if;
 
         if v_id is null then
-          v_id := coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''), 'ms-' || ms.ord::text);
-          if ms.portal_key is not null and v_id not like (ms.portal_key || ':%') then
-            v_id := ms.portal_key || ':' || v_id;
+          if upper(coalesce(item->>'tierKey', item->>'code', '')) in ('A', 'B', 'C', 'D') then
+            v_id := 'ms-highvol-' || upper(coalesce(item->>'tierKey', item->>'code'));
+          else
+            v_id := coalesce(nullif(btrim(item->>'id'), ''), nullif(btrim(item->>'code'), ''), nullif(btrim(item->>'tierKey'), ''), 'ms-' || ms.ord::text);
+            if ms.portal_key is not null and v_id not like (ms.portal_key || ':%') and v_id not like 'ms-highvol-%' then
+              v_id := ms.portal_key || ':' || v_id;
+            end if;
           end if;
         end if;
 
@@ -3785,13 +4018,21 @@ $$;
 revoke execute on function app_private.backfill_relational_projections_from_kv() from public, anon, authenticated;
 
 do $$
+declare
+  v_res jsonb;
+  v_err_count int;
 begin
-  perform app_private.backfill_relational_projections_from_kv();
+  v_res := app_private.backfill_relational_projections_from_kv();
+  v_err_count := coalesce((v_res->>'skipped_errors')::int, 0);
+  if v_err_count > 0 then
+    raise exception 'Migration 20261022120000 backfill failed with % skipped error(s): %',
+      v_err_count,
+      v_res->'error_details';
+  end if;
 end$$;
 
 insert into app_private.schema_change_log(version, description)
 values ('20261022120000', 'Complete relational table projections, raw_payload preservation, and KV-to-relational backfill function')
 on conflict (version) do nothing;
-
 
 COMMIT;
