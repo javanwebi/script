@@ -26,6 +26,7 @@
     "test:database": "node --import tsx --test tests/database/*.test.ts",
     "db:bundle:adopted": "node --import tsx scripts/database/bundleAdopted.ts",
     "db:verify:adopted": "node --import tsx scripts/database/verifyAdopted.ts",
+    "db:smoke:online": "node --import tsx scripts/database/smokeAdopted.ts",
     "db:plan:adopted": "node --import tsx scripts/database/migrateAdopted.ts plan",
     "db:migrate:adopted": "node --import tsx scripts/database/migrateAdopted.ts apply"
   },

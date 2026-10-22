@@ -1,6 +1,6 @@
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi} from './server/db/runtimeApi';
-import {databaseEnabled,database,adoptedSchema} from './server/db/connection';
+import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
 import {installDatabaseProducts,normalizeMergedProduct} from './src/data/mockGenerator';
@@ -362,8 +362,10 @@ app.use(
 // Health Check
 app.get('/api/health', async (req, res) => {
   res.setHeader('Cache-Control','no-store');
-  try{if(databaseEnabled())await database().query('select 1');
-  res.json({ status: 'ok', database:databaseEnabled()?'ok':'legacy', time: new Date().toISOString() });
+  try{
+  if(process.env.NODE_ENV==='production' && !databaseEnabled())return res.status(503).json({status:'unavailable',database:'not-configured'});
+  if(databaseEnabled())await database().query('select 1');
+  res.json({ status: 'ok', database:databaseEnabled()?'ok':'development-only', time: new Date().toISOString() });
   }catch{return res.status(503).json({status:'unavailable',database:'unavailable'});}
 });
 
@@ -6456,6 +6458,9 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 
 // Vite middleware setup
 async function start() {
+  // The UI and static assets are bundled from src/. Customer, order, inventory
+  // and price state must never silently fall back to local files in production.
+  assertProductionDatabaseConfig();
   if(databaseEnabled()){
     await database().query('select revision from app_private.portal_version');
     const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
