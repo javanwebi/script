@@ -1,6 +1,6 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
-import {databaseEnabled} from "../server/db/connection";
+import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal} from "../server/db/repository";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -856,17 +856,28 @@ export default async function handler(
               approvedB2B: row.approvedB2B === true,
               onboardingCompleted: previous?.onboardingCompleted === true,
             };
-            if (!previous || row.password)
-              setPassword(user, String(row.password || phone));
-            else {
-              user.passwordHash = previous.passwordHash;
-              user.passwordSalt = previous.passwordSalt;
-              user.sessionVersion = previous.sessionVersion;
+            // Adopted Supabase accounts can only be provisioned by a verified
+            // Supabase Auth identity, never by supplying a CRM password or phone.
+            if (!(databaseEnabled() && adoptedSchema())) {
+              if (!previous || row.password)
+                setPassword(user, String(row.password || phone));
+              else {
+                user.passwordHash = previous.passwordHash;
+                user.passwordSalt = previous.passwordSalt;
+                user.sessionVersion = previous.sessionVersion;
+              }
             }
             delete user.password;
             users.push(user);
           }
-          db.users = users;
+          if (databaseEnabled() && adoptedSchema()) {
+            // CRM entries are authoritative in public.crm_customers, not
+            // app_private.portal_users. Do not rewrite auth profiles while
+            // saving this administrative list.
+            db.values[CUSTOMER_KEY] = users.map(safeUser);
+          } else {
+            db.users = users;
+          }
         } else {
           if (
             key === "atlas_portal_club_milestones_v1" &&
