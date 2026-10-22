@@ -12,6 +12,7 @@ export function PhoneLogin({
     [code, setCode] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [devOtp, setDevOtp] = useState<{code:string;requestId:string}|null>(null);
   const [sent, setSent] = useState(initialSent),
     [busy, setBusy] = useState(false),
     [seconds, setSeconds] = useState(initialSent?60:0);
@@ -24,7 +25,13 @@ export function PhoneLogin({
     setBusy(true);
     setError("");
     try {
-      const r = await portalRequest({ action: "otp_request", phone });
+      let r;
+      try { r = await portalRequest({ action: "otp_request", phone }); }
+      catch (error) {
+        if (!import.meta.env.DEV) throw error;
+        r = await portalRequest({ action: "dev_otp_request", phone });
+      }
+      setDevOtp(r.preview === true ? {code:r.devCode,requestId:r.requestId} : null);
       setSent(true);
       setSeconds(r.retryAfter || 60);
       setNotice(r.message);
@@ -40,6 +47,11 @@ export function PhoneLogin({
     setBusy(true);
     setError("");
     try {
+      if(devOtp){
+        const r = await portalRequest({ action: "dev_otp_verify", phone, code, requestId:devOtp.requestId });
+        if(r.previewVerified){setNotice(r.message);setDevOtp(null);setSent(false);setCode("");}
+        return;
+      }
       const r = await portalRequest({ action: "otp_verify", phone, code });
       await hydratePortal();
       onSuccess(r.user,r.requiresCredentials);
@@ -70,6 +82,7 @@ export function PhoneLogin({
           <p role="status" className="account-help">
             {notice || "کد ارسال‌شده به شماره موبایل خود را وارد کنید."}
           </p>
+          {devOtp && <p role="status" className="account-help">کد آزمایشی محیط توسعه: <strong dir="ltr">{devOtp.code}</strong> — ورود واقعی ایجاد نمی‌شود.</p>}
           <label>
             کد شش‌رقمی
             <input
@@ -93,6 +106,7 @@ export function PhoneLogin({
                 setSent(false);
                 setCode("");
                 setError("");
+                setDevOtp(null);
               }}
             >
               اصلاح شماره
