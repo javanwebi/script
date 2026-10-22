@@ -1,0 +1,28 @@
+name: Verify online Supabase integration changes
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [fix/online-supabase-audit-and-dev-otp-20261022]
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run lint
+      - name: Isolated database and auth tests
+        run: npm run test:database
+      - name: Portal tests
+        run: npm run test:portal
+      - name: Production frontend build
+        run: npm run build

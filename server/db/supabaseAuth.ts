@@ -2,6 +2,7 @@ import {createClient,type Session} from '@supabase/supabase-js';
 import type {IncomingMessage,ServerResponse} from 'node:http';
 import crypto from 'node:crypto';
 import {database} from './connection';
+import {handleDevelopmentOtp} from './devOtpPreview';
 import {readPortal} from './repository';
 const error=(status:number,message:string)=>Object.assign(new Error(message),{status});
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
@@ -15,6 +16,7 @@ export async function supabaseIdentity(req:IncomingMessage,db:{users:any[]}){
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
+ if(handleDevelopmentOtp(req,res,body))return true;
  if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
