@@ -1,6 +1,6 @@
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi} from './server/db/runtimeApi';
-import {databaseEnabled,database,adoptedSchema} from './server/db/connection';
+import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
 import {installDatabaseProducts,normalizeMergedProduct} from './src/data/mockGenerator';
@@ -6460,13 +6460,7 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 async function start() {
   // The UI and static assets are bundled from src/. Customer, order, inventory
   // and price state must never silently fall back to local files in production.
-  if (process.env.NODE_ENV === 'production') {
-    if (!databaseEnabled()) throw new Error('Production requires DATA_BACKEND=postgres; local-file mode is disabled.');
-    if (!adoptedSchema()) throw new Error('Production requires DATABASE_SCHEMA=adopted for the existing Supabase schema.');
-    if (process.env.DATABASE_ENV !== 'production') throw new Error('Production requires DATABASE_ENV=production.');
-    if (!process.env.DATABASE_URL) throw new Error('Production requires a server-only DATABASE_URL.');
-    if (process.env.DATABASE_SSL !== 'require') throw new Error('Production requires DATABASE_SSL=require.');
-  }
+  assertProductionDatabaseConfig();
   if(databaseEnabled()){
     await database().query('select revision from app_private.portal_version');
     const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
