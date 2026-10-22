@@ -6499,7 +6499,36 @@ async function start() {
   });
 }
 
-start().catch(error=>{console.error("[Startup failed]",error?.name || "DatabaseError",error?.code || "UNCLASSIFIED");process.exitCode=1;});
+start().catch(error=>{
+  // Do not output credentials or SQL in deployment logs; record only a safe
+  // connectivity error category for operators diagnosing Supabase startup.
+  const code=String(error?.code || 'UNCLASSIFIED').slice(0,48);
+  const type=String(error?.name || 'DatabaseError').slice(0,64);
+  const safeMessages:Record<string,string>={
+    'ENOTFOUND':'DNS resolution failed',
+    'ECONNREFUSED':'Connection refused',
+    'ETIMEDOUT':'Connection timed out',
+    '28P01':'PostgreSQL authentication rejected',
+    '3D000':'PostgreSQL database not found',
+    '42P01':'Required PostgreSQL table missing',
+    '28000':'PostgreSQL authorization rejected',
+    'SELF_SIGNED_CERT_IN_CHAIN':'PostgreSQL TLS certificate validation failed',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE':'PostgreSQL TLS certificate validation failed',
+    'ERR_TLS_CERT_ALTNAME_INVALID':'PostgreSQL TLS certificate hostname mismatch',
+  };
+  let reason=safeMessages[code];
+  if(!reason){
+    const message=String(error?.message||'').toLowerCase();
+    reason=message.includes('certificate')?'PostgreSQL TLS verification failed':
+      message.includes('password')?'PostgreSQL credentials invalid':
+      message.includes('connect')?'Database connection failed':
+      message.includes('catalogue is empty')?'Database catalogue has no rows':
+      message.includes('DATABASE_')?'Database configuration invalid':
+      'Database startup preflight failed';
+  }
+  console.error('[Startup failed]',type,code,reason);
+  process.exitCode=1;
+});
 
 setTimeout(()=>{
  const origin=String(process.env.VISION_IMAGE_PUBLIC_ORIGIN || process.env.APP_URL || '').replace(/\/$/,'');
