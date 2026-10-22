@@ -144,7 +144,24 @@ async function projectDocument(client:SqlClient,key:string,value:unknown){
   if(source.table==='price_change_history'){row.product_code=String(row.product_code || entry.code || '');row.changed_by=row.changed_by || entry.actor || 'مدیر سیستم';delete row.price_list_id;}
   if(source.table==='price_inquiries'){row.customer_name=row.customer_name || 'مشتری';row.phone=String(row.phone || entry.customerPhone || '');row.product_code=String(row.product_code || entry.partCode || '');row.product_name=row.product_name || entry.partName || '';row.quantity=Math.max(1,safeInt(row.quantity ?? entry.requestedQty,1) || 1);if(row.status==='answered')row.status='quoted';else if(!['pending','reviewing','quoted','approved','rejected','expired','converted_to_order'].includes(String(row.status || '')))row.status='pending';row.admin_reply=row.admin_reply ?? entry.adminNote ?? null;delete row.crm_customer_id;}
   if(source.table==='customer_reward_assignments'){row.reward_title=row.reward_title || 'جایزه باشگاه';delete row.customer_id;delete row.reward_id;}
-  if(source.table==='crm_customers'){delete row.grade_code;delete row.assigned_price_list_id;}
+  if(source.table==='crm_customers'){
+   // CRM rows are created and edited by the authenticated admin API. Their
+   // business identity and commercial assignment must reach the SQL table,
+   // but they must NEVER create an Auth account or accept a password.
+   const name=String(entry.name ?? entry.fullName ?? entry.companyName ?? '').trim();
+   const phone=String(entry.phone ?? entry.mobile ?? '').trim();
+   if(!name || !/^09\\d{9}$/.test(phone))throw new Error('CRM customer requires a valid name and Iranian mobile');
+   row.name=name;row.phone=phone;
+   if(entry.companyName!==undefined)row.company=String(entry.companyName || '').trim();
+   if(entry.tierCode!==undefined || entry.gradeCode!==undefined)row.grade_code=String(entry.tierCode ?? entry.gradeCode ?? '').trim() || null;
+   if(entry.assignedPriceListId!==undefined || entry.priceListId!==undefined)row.assigned_price_list_id=String(entry.assignedPriceListId ?? entry.priceListId ?? '').trim() || null;
+   if(entry.approvedB2B!==undefined){
+    row.approved_b2b=entry.approvedB2B===true;
+    row.approval_status=row.approved_b2b?'approved':'pending';
+   }
+   delete row.auth_user_id;
+   delete row.password;delete row.password_hash;delete row.password_salt;
+  }
   for(const col of columns){
    const n=col.column_name,dt=col.data_type;
    if(!Object.hasOwn(row,n) || row[n]===undefined)continue;
@@ -159,6 +176,23 @@ async function projectDocument(client:SqlClient,key:string,value:unknown){
   const names=Object.keys(row);const assignments=names.filter(n=>n!==pk).map(n=>`"${n}"=excluded."${n}"`).join(',');
   // Identifiers originate exclusively in the fixed projection map and database metadata.
   await client.query(`insert into public.${source.table}(${names.map(n=>`"${n}"`).join(',')}) select ${names.map(n=>`"${n}"`).join(',')} from jsonb_populate_record(null::public.${source.table},$1::jsonb) on conflict("${pk}") do ${assignments?'update set '+assignments:'nothing'}`,[JSON.stringify(row)]);
+  if(source.table==='crm_customers'){
+   // A CRM record is not an authenticated account. Only an already-linked,
+   // phone/email verified Supabase identity receives its admin-approved B2B
+   // permissions. Never escalate or demote an agency/super-admin role.
+   const linked=(await client.query('select auth_user_id,approved_b2b,grade_code,assigned_price_list_id from public.crm_customers where id=$1',[row.id])).rows[0];
+   if(linked?.auth_user_id){
+    await client.query(`update public.user_profiles set
+      approved_b2b=$2,grade_code=$3,assigned_price_list_id=$4,
+      role=case when role in ('client','club') then
+        (case when $2 then 'club'::public.app_role_type else 'client'::public.app_role_type end)
+        else role end,
+      updated_at=now()
+      where id=$1 and status='active'`,[
+      linked.auth_user_id,linked.approved_b2b,linked.grade_code,linked.assigned_price_list_id
+    ]);
+   }
+  }
  }
 }
 async function projectScopedDocument(client:SqlClient,key:string,value:unknown,scope:string){
