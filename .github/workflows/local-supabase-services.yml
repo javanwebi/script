@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI_SUPABASE_LOCAL_ONLY: 'true'
-      CI_SUPABASE_STATUS_FILE: "${{ runner.temp }}/sanatpish-supabase-status.json"
+      CI_SUPABASE_STATUS_FILE: /tmp/sanatpish-supabase-status.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
