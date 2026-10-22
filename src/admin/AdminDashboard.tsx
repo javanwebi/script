@@ -130,13 +130,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <span>فروش امروز</span>
             <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 font-bold text-[10px] flex items-center gap-0.5">
               <ArrowUpRight className="w-3 h-3" />
-              ٪۱۲+
+              —
             </span>
           </div>
           <div className="text-2xl font-black text-[#55565A]">
-            {formatPrice(48500000)} <span className="text-xs text-slate-500 font-normal">ت</span>
+            {'—'} <span className="text-xs text-slate-500 font-normal">ت</span>
           </div>
-          <div className="text-[11px] text-slate-400">۸ فاکتور نقدی و اعتباری</div>
+          <div className="text-[11px] text-slate-400">پس از اتصال گزارش فروش واقعی نمایش داده می‌شود</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
@@ -145,9 +145,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <TrendingUp className="w-4 h-4 text-[#E06518]" />
           </div>
           <div className="text-2xl font-black text-[#55565A]">
-            {formatPrice(842000000)} <span className="text-xs text-slate-500 font-normal">ت</span>
+            {'—'} <span className="text-xs text-slate-500 font-normal">ت</span>
           </div>
-          <div className="text-[11px] text-emerald-600 font-bold">٪۸۴ تحقق تارگت ماهانه</div>
+          <div className="text-[11px] text-emerald-600 font-bold">گزارش ماهانه به داده‌های واقعی مالی نیاز دارد</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
@@ -156,9 +156,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <ShoppingBag className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-[#55565A]">
-            {toPersianDigits(148)} <span className="text-xs text-slate-500 font-normal">سفارش</span>
+            {toPersianDigits(orders.length)} <span className="text-xs text-slate-500 font-normal">سفارش</span>
           </div>
-          <div className="text-[11px] text-slate-400">۳۲ سفارش عمده کارخانجات</div>
+          <div className="text-[11px] text-slate-400">بر اساس سفارش‌های ثبت‌شده و قابل دسترسی</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
@@ -167,9 +167,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <Eye className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-black text-[#55565A]">
-            {toPersianDigits(3840)} <span className="text-xs text-slate-500 font-normal">نفر</span>
+            {'—'} <span className="text-xs text-slate-500 font-normal">نفر</span>
           </div>
-          <div className="text-[11px] text-purple-600 font-bold">۷۱٪ بازدید رسته صنعتی</div>
+          <div className="text-[11px] text-purple-600 font-bold">آمار بازدید هنوز به سامانه تحلیل متصل نیست</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
@@ -178,9 +178,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <Users className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-black text-[#55565A]">
-            {toPersianDigits(customers.length + 185)} <span className="text-xs text-slate-500 font-normal">شرکت</span>
+            {toPersianDigits(customers.length)} <span className="text-xs text-slate-500 font-normal">شرکت</span>
           </div>
-          <div className="text-[11px] text-emerald-600 font-bold">۱۲ ثبت‌نام B2B در این هفته</div>
+          <div className="text-[11px] text-emerald-600 font-bold">تعداد مشتریان در داده‌های بارگذاری‌شده</div>
         </div>
       </div>
 
@@ -191,7 +191,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
           <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
             <div>
               <h3 className="font-black text-sm text-[#55565A]">
-                {chartView === 'trend' ? 'روند فروش ۳۰ روز اخیر (میلیون تومان)' : 'مقایسه فروش ماهانه (۱۴۰۳ در برابر ۱۴۰۲)'}
+                {chartView === 'trend' ? 'روند نمودار نمونه فروش (بدون اتصال به گزارش مالی)' : 'نمودار نمونه مقایسه فروش (بدون اتصال به گزارش مالی)'}
               </h3>
               <p className="text-xs text-[#777A7D] mt-0.5">
                 {chartView === 'trend'
