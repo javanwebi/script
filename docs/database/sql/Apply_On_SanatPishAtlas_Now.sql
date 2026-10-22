@@ -1936,7 +1936,7 @@ revoke execute on function app_private.backfill_relational_projections_from_kv()
 drop table if exists pg_temp._adopted_backfill_summary;
 create temporary table _adopted_backfill_summary(result jsonb);
 
-do $
+do $backfill_gate$
 declare
   v_res jsonb;
   v_err_count int;
@@ -1949,7 +1949,7 @@ begin
       v_res->'error_details';
   end if;
   insert into pg_temp._adopted_backfill_summary(result) values (v_res);
-end$;
+end$backfill_gate$;
 
 insert into app_private.schema_change_log(version, description)
 values ('20261022120000', 'Complete relational table projections, raw_payload preservation, and KV-to-relational backfill function')
