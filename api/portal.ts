@@ -1,6 +1,6 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
-import {databaseEnabled} from "../server/db/connection";
+import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal} from "../server/db/repository";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -88,8 +88,8 @@ async function readDb(): Promise<Database> {
     throw error;
   }
 }
-async function writeDb(db: Database, expected: number) {
-  if(databaseEnabled())return writePortal(db,expected);
+async function writeDb(db: Database, expected: number, persistAccounts = true) {
+  if(databaseEnabled())return writePortal(db,expected,persistAccounts);
   db.revision = expected + 1;
   if (redisUrl() && redisToken()) {
     const script =
@@ -487,7 +487,7 @@ export default async function handler(
     }
     csrf(req);
     const body = await readBody(req);
-    if(databaseEnabled() && ["register","login","admin_login","otp_request","otp_verify","registration_credentials","logout"].includes(body.action)){await rateLimit(req);if(await supabaseAuthAction(req,res,body,safeUser))return;}
+    if(databaseEnabled() && ["register","login","admin_login","otp_request","otp_verify","registration_credentials","logout","dev_otp_request","dev_otp_verify"].includes(body.action)){await rateLimit(req);if(await supabaseAuthAction(req,res,body,safeUser))return;}
     const revision = db.revision;
     if (body.action === "logout") {
       res.setHeader(
@@ -856,17 +856,28 @@ export default async function handler(
               approvedB2B: row.approvedB2B === true,
               onboardingCompleted: previous?.onboardingCompleted === true,
             };
-            if (!previous || row.password)
-              setPassword(user, String(row.password || phone));
-            else {
-              user.passwordHash = previous.passwordHash;
-              user.passwordSalt = previous.passwordSalt;
-              user.sessionVersion = previous.sessionVersion;
+            // Adopted Supabase accounts can only be provisioned by a verified
+            // Supabase Auth identity, never by supplying a CRM password or phone.
+            if (!(databaseEnabled() && adoptedSchema())) {
+              if (!previous || row.password)
+                setPassword(user, String(row.password || phone));
+              else {
+                user.passwordHash = previous.passwordHash;
+                user.passwordSalt = previous.passwordSalt;
+                user.sessionVersion = previous.sessionVersion;
+              }
             }
             delete user.password;
             users.push(user);
           }
-          db.users = users;
+          if (databaseEnabled() && adoptedSchema()) {
+            // CRM entries are authoritative in public.crm_customers, not
+            // app_private.portal_users. Do not rewrite auth profiles while
+            // saving this administrative list.
+            db.values[CUSTOMER_KEY] = users.map(safeUser);
+          } else {
+            db.users = users;
+          }
         } else {
           if (
             key === "atlas_portal_club_milestones_v1" &&
@@ -890,7 +901,8 @@ export default async function handler(
           db.values[key] = value;
         }
       }
-      await writeDb(db, revision);
+      // The adopted admin form edits domain projections, not every user profile.
+      await writeDb(db, revision, !(databaseEnabled() && adoptedSchema()));
       return send(200, { success: true, revision: db.revision });
     }
     fail(400, "عملیات نامعتبر است.");
