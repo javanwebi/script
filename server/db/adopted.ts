@@ -171,7 +171,12 @@ async function projectDocument(client:SqlClient,key:string,value:unknown){
    else if(dt.startsWith('timestamp')){const v=safeTs(row[n]);if(v===null)delete row[n];else row[n]=v;}
    else if(dt==='uuid'){if(typeof row[n]!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row[n]))delete row[n];}
   }
-  if(columns.some(c=>c.column_name==='raw_payload'))row.raw_payload=entry;
+  if(columns.some(c=>c.column_name==='raw_payload')){
+   if(source.table==='crm_customers'){
+    const {password,passwordHash,passwordSalt,sessionVersion,...safe}=entry;
+    row.raw_payload=safe;
+   }else row.raw_payload=entry;
+  }
   if(row[pk]==null)throw new Error(`Missing ${pk} for ${key}`);
   const names=Object.keys(row);const assignments=names.filter(n=>n!==pk).map(n=>`"${n}"=excluded."${n}"`).join(',');
   // Identifiers originate exclusively in the fixed projection map and database metadata.
