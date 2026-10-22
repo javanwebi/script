@@ -7,8 +7,8 @@ test('manual Supabase SQL is executable and idempotent in an isolated PostgreSQL
  const script=await readFile('docs/database/sql/Apply_On_SanatPishAtlas_Now.sql','utf8');
  assert.match(script,/\bBEGIN;/);
  assert.match(script,/\bCOMMIT;\s*$/);
- assert.match(script,/do \$\$\s*declare\s*v_res jsonb;/i);
- assert.match(script,/end\$\$;/i);
+ assert.match(script,/do \$backfill_gate\$\s*declare\s*v_res jsonb;/i);
+ assert.match(script,/end\$backfill_gate\$;/i);
  assert.doesNotMatch(script,/do \$\s*declare\s*v_res jsonb;/i);
  const db=await adoptedDatabase();
  try{
