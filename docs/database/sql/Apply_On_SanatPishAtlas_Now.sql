@@ -2,6 +2,8 @@
 -- Complete relational projections for all adopted domains and fault-tolerant KV-to-table backfill function.
 -- Additive only: preserves all original rows, identifiers, currencies, and column digests.
 
+BEGIN;
+
 -- Ensure prerequisite columns from 20261020 / 20261021 exist before backfill
 alter table public.price_lists
   add column if not exists discount_percent numeric(5,2) not null default 0 check (discount_percent between 0 and 100);
@@ -388,7 +390,7 @@ begin
               coalesce(app_private.safe_int(rec_fam.fam_val->>'overrideVersion', 1), 1)
             )
             on conflict (code) do update
-              set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_families.name),
+              set name = case when nullif(btrim(rec_fam.fam_val->>'name'), '') is not null then excluded.name else public.catalog_families.name end,
                   brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_families.brand end,
                   category_slug = case when excluded.category_slug <> 'uncategorized' then excluded.category_slug else public.catalog_families.category_slug end,
                   category_name = case when excluded.category_name <> 'دسته‌بندی نشده' then excluded.category_name else public.catalog_families.category_name end,
@@ -401,7 +403,7 @@ begin
                     then excluded.technical_specs
                     else public.catalog_families.technical_specs
                   end,
-                  is_active = coalesce(excluded.is_active, public.catalog_families.is_active),
+                  is_active = case when jsonb_typeof(rec_fam.fam_val->'active') = 'boolean' then excluded.is_active else public.catalog_families.is_active end,
                   override_version = greatest(public.catalog_families.override_version, excluded.override_version),
                   updated_at = now();
 
@@ -437,12 +439,12 @@ begin
                     case when jsonb_typeof(rec_var.v_val->'technicalSpecs') = 'array' then rec_var.v_val->'technicalSpecs' else '[]'::jsonb end
                   )
                   on conflict (code) do update
-                    set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_variants.name),
+                    set name = case when nullif(btrim(rec_var.v_val->>'name'), '') is not null then excluded.name else public.catalog_variants.name end,
                         size = coalesce(excluded.size, public.catalog_variants.size),
                         model = coalesce(excluded.model, public.catalog_variants.model),
                         brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_variants.brand end,
                         unit = coalesce(nullif(btrim(excluded.unit), ''), public.catalog_variants.unit),
-                        active = coalesce(excluded.active, public.catalog_variants.active),
+                        active = case when jsonb_typeof(rec_var.v_val->'active') = 'boolean' then excluded.active else public.catalog_variants.active end,
                         images = case
                           when jsonb_typeof(excluded.images) = 'array' and jsonb_array_length(excluded.images) > 0
                           then excluded.images
@@ -1931,7 +1933,10 @@ $$;
 
 revoke execute on function app_private.backfill_relational_projections_from_kv() from public, anon, authenticated;
 
-do $$
+drop table if exists pg_temp._adopted_backfill_summary;
+create temporary table _adopted_backfill_summary(result jsonb);
+
+do $
 declare
   v_res jsonb;
   v_err_count int;
@@ -1943,10 +1948,13 @@ begin
       v_err_count,
       v_res->'error_details';
   end if;
-end$$;
+  insert into pg_temp._adopted_backfill_summary(result) values (v_res);
+end$;
 
 insert into app_private.schema_change_log(version, description)
 values ('20261022120000', 'Complete relational table projections, raw_payload preservation, and KV-to-relational backfill function')
 on conflict (version) do nothing;
 
-select app_private.backfill_relational_projections_from_kv() as backfill_summary;
+select result as backfill_summary from pg_temp._adopted_backfill_summary;
+
+COMMIT;
