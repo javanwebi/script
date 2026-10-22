@@ -88,8 +88,8 @@ async function readDb(): Promise<Database> {
     throw error;
   }
 }
-async function writeDb(db: Database, expected: number) {
-  if(databaseEnabled())return writePortal(db,expected);
+async function writeDb(db: Database, expected: number, persistAccounts = true) {
+  if(databaseEnabled())return writePortal(db,expected,persistAccounts);
   db.revision = expected + 1;
   if (redisUrl() && redisToken()) {
     const script =
@@ -901,7 +901,8 @@ export default async function handler(
           db.values[key] = value;
         }
       }
-      await writeDb(db, revision);
+      // The adopted admin form edits domain projections, not every user profile.
+      await writeDb(db, revision, !(databaseEnabled() && adoptedSchema()));
       return send(200, { success: true, revision: db.revision });
     }
     fail(400, "عملیات نامعتبر است.");
