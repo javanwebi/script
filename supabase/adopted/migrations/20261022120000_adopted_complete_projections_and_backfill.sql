@@ -388,7 +388,7 @@ begin
               coalesce(app_private.safe_int(rec_fam.fam_val->>'overrideVersion', 1), 1)
             )
             on conflict (code) do update
-              set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_families.name),
+              set name = case when nullif(btrim(rec_fam.fam_val->>'name'), '') is not null then excluded.name else public.catalog_families.name end,
                   brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_families.brand end,
                   category_slug = case when excluded.category_slug <> 'uncategorized' then excluded.category_slug else public.catalog_families.category_slug end,
                   category_name = case when excluded.category_name <> 'دسته‌بندی نشده' then excluded.category_name else public.catalog_families.category_name end,
@@ -401,7 +401,7 @@ begin
                     then excluded.technical_specs
                     else public.catalog_families.technical_specs
                   end,
-                  is_active = coalesce(excluded.is_active, public.catalog_families.is_active),
+                  is_active = case when jsonb_typeof(rec_fam.fam_val->'active') = 'boolean' then excluded.is_active else public.catalog_families.is_active end,
                   override_version = greatest(public.catalog_families.override_version, excluded.override_version),
                   updated_at = now();
 
@@ -437,12 +437,12 @@ begin
                     case when jsonb_typeof(rec_var.v_val->'technicalSpecs') = 'array' then rec_var.v_val->'technicalSpecs' else '[]'::jsonb end
                   )
                   on conflict (code) do update
-                    set name = coalesce(nullif(btrim(excluded.name), ''), public.catalog_variants.name),
+                    set name = case when nullif(btrim(rec_var.v_val->>'name'), '') is not null then excluded.name else public.catalog_variants.name end,
                         size = coalesce(excluded.size, public.catalog_variants.size),
                         model = coalesce(excluded.model, public.catalog_variants.model),
                         brand = case when excluded.brand <> 'ثبت نشده' then excluded.brand else public.catalog_variants.brand end,
                         unit = coalesce(nullif(btrim(excluded.unit), ''), public.catalog_variants.unit),
-                        active = coalesce(excluded.active, public.catalog_variants.active),
+                        active = case when jsonb_typeof(rec_var.v_val->'active') = 'boolean' then excluded.active else public.catalog_variants.active end,
                         images = case
                           when jsonb_typeof(excluded.images) = 'array' and jsonb_array_length(excluded.images) > 0
                           then excluded.images
