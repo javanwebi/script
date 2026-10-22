@@ -6462,12 +6462,21 @@ async function start() {
   // and price state must never silently fall back to local files in production.
   assertProductionDatabaseConfig();
   if(databaseEnabled()){
-    await database().query('select revision from app_private.portal_version');
-    const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
-    installDatabaseProducts(products);
-    const saved=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
-    CATALOG_OVERRIDES_CACHE=saved || {version:1,updatedAt:'',deletedCodes:[],families:{}};
-    inventoryCodes.clear();for(const product of products)for(const variant of product.variants || [])inventoryCodes.add(variant.code);
+    try{
+      await database().query('select revision from app_private.portal_version');
+      const products=await readProducts();
+      if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
+      installDatabaseProducts(products);
+      const saved=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
+      CATALOG_OVERRIDES_CACHE=saved || {version:1,updatedAt:'',deletedCodes:[],families:{}};
+      inventoryCodes.clear();for(const product of products)for(const variant of product.variants || [])inventoryCodes.add(variant.code);
+    }catch(error:any){
+      // Serve source-built public pages during a transient database outage.
+      // All customer and business endpoints remain PostgreSQL-only; no local
+      // persistence fallback or simulated authenticated session is enabled.
+      const code=String(error?.code || 'UNCLASSIFIED').slice(0,48);
+      console.error('[Database unavailable at startup]',code);
+    }
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
