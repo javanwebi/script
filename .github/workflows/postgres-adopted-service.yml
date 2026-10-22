@@ -1,0 +1,77 @@
+name: Isolated real PostgreSQL and adopted migration verification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [fix/adopted-backfill-safety-20261022]
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-adopted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: sanatpish_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-not-production
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d sanatpish_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sanatpish_ci
+      PGUSER: postgres
+      PGPASSWORD: ci-only-not-production
+      INTEGRATION_TEST_DATABASE_URL: postgresql://postgres:ci-only-not-production@127.0.0.1:5432/sanatpish_ci
+      CI_POSTGRES_ISOLATED: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Prepare minimal database-level Supabase Auth and Storage shims
+        run: psql -v ON_ERROR_STOP=1 -f tests/postgres/ci-bootstrap.sql
+      - name: Apply full owner-supplied master schema with real pgvector
+        run: psql -v ON_ERROR_STOP=1 -f supabase/adopted/baseline/user_supplied_master.sql
+      - name: Apply every adopted migration in version order
+        shell: bash
+        run: |
+          set -euo pipefail
+          for migration in supabase/adopted/migrations/[0-9]*.sql; do
+            echo "::group::Applying ${migration}"
+            psql -v ON_ERROR_STOP=1 -f "${migration}" >/dev/null
+            echo "::endgroup::"
+          done
+      - name: PostgreSQL constraints, permissions and rollback
+        run: psql -v ON_ERROR_STOP=1 -f tests/postgres/ci-verification.sql
+      - name: Validate SQL Editor migration is executable and idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            psql -v ON_ERROR_STOP=1 -f docs/database/sql/Apply_On_SanatPishAtlas_Now.sql > /dev/null
+          done
+          psql -v ON_ERROR_STOP=1 -Atqc "select count(*) from app_private.schema_change_log where version='20261022120000'" | grep -qx '1'
+      - name: Verify TypeScript and PGlite domain tests
+        run: |
+          npm run lint
+          npm run test:database
+      - name: Verify portal and frontend build
+        run: |
+          npm run test:portal
+          npm run build
