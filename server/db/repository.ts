@@ -51,9 +51,9 @@ export async function persistUsers(client:SqlClient,users:Row[]){
   for(const [index,address] of (user.addresses || []).entries())await client.query('insert into public.addresses(id,profile_id,payload) values($1,$2,$3) on conflict(id) do update set payload=excluded.payload',[`${user.id}:${address.id || index}`,user.id,JSON.stringify(address)]);
  }
 }
-export async function writePortal(db:PortalDatabase,expected:number){await transaction(async client=>{
+export async function writePortal(db:PortalDatabase,expected:number,persistAccounts=true){await transaction(async client=>{
  const row=(await client.query('update app_private.portal_version set revision=revision+1 where singleton=true and revision=$1 returning revision',[expected])).rows[0];if(!row)throw conflict();
- await persistUsers(client,db.users);
+ if(persistAccounts)await persistUsers(client,db.users);
  for(const [key,value] of Object.entries(db.values))if(domainFor(key))await writeDocument(client,key,value);
  if(!adoptedSchema())for(const [key,value] of Object.entries(db.otp || {}))await client.query('insert into app_private.legacy_otp(id,payload) values($1,$2) on conflict(id) do update set payload=excluded.payload',[key,JSON.stringify(value)]);
  db.revision=Number(row.revision);
