@@ -389,3 +389,34 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  assert.equal((await db.query<any>("select count(*)::int as n from public.catalog_variants where code in ('34265', '41069', '32496')")).rows[0].n,3);
 }finally{await db.close();}});
 
+
+test('adopted CRM changes persist as SQL rows across fresh reads without creating Auth users or default passwords', async()=>{
+ const db=await adoptedDatabase();
+ try{
+  const sql=db as any;
+  const first=[{id:'CRM-INTEGRATION-01',fullName:'Test Industrial Buyer',mobile:'09123334455',companyName:'Sample Parts',approvedB2B:true,assignedPriceListId:'TEST-PRICE-01',password:'must-not-be-stored'}];
+  await db.exec('begin');
+  await writeAdoptedDocument(sql,'atlas_admin_customers_v1',first,'global');
+  await db.exec('commit');
+  const stored=(await db.query<any>("select id,name,phone,company,approved_b2b,approval_status,assigned_price_list_id,raw_payload from public.crm_customers where id='CRM-INTEGRATION-01'")).rows[0];
+  assert.equal(stored.name,'Test Industrial Buyer');
+  assert.equal(stored.phone,'09123334455');
+  assert.equal(stored.company,'Sample Parts');
+  assert.equal(stored.approved_b2b,true);
+  assert.equal(stored.approval_status,'approved');
+  assert.equal(stored.assigned_price_list_id,'TEST-PRICE-01');
+  assert.equal(stored.raw_payload.password,undefined);
+  // The compatibility document must not leak a supplied CRM password.
+  const reloaded=await readAdoptedDocument(sql,'atlas_admin_customers_v1','global') as any[];
+  assert.equal(reloaded.find(c=>c.id==='CRM-INTEGRATION-01')?.name,'Test Industrial Buyer');
+  await db.exec('begin');
+  await writeAdoptedDocument(sql,'atlas_admin_customers_v1',[{id:'CRM-INTEGRATION-01',fullName:'Updated Buyer',mobile:'09123334455',companyName:'Sample Parts',approvedB2B:false,assignedPriceListId:'TEST-PRICE-02'}],'global');
+  await db.exec('commit');
+  const changed=(await db.query<any>("select name,approved_b2b,assigned_price_list_id from public.crm_customers where id='CRM-INTEGRATION-01'")).rows[0];
+  assert.equal(changed.name,'Updated Buyer');
+  assert.equal(changed.approved_b2b,false);
+  assert.equal(changed.assigned_price_list_id,'TEST-PRICE-02');
+  assert.equal((await db.query<any>("select count(*)::int as n from public.crm_customers where id='CRM-INTEGRATION-01'")).rows[0].n,1);
+  assert.equal((await db.query<any>("select count(*)::int as n from app_private.portal_users where id='CRM-INTEGRATION-01'")).rows[0].n,0);
+ }finally{await db.close();}
+});
