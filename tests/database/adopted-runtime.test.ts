@@ -389,3 +389,36 @@ test('backfill_relational_projections_from_kv safely merges live sanatpishatlas 
  assert.equal((await db.query<any>("select count(*)::int as n from public.catalog_variants where code in ('34265', '41069', '32496')")).rows[0].n,3);
 }finally{await db.close();}});
 
+
+
+test('catalog override backfill preserves existing inactive state and names when fields are omitted', async()=>{
+ const db=await adoptedDatabase();
+ try{
+  await db.query(`insert into public.catalog_families(code,name,category_slug,category_name,brand,unit,description,is_active,technical_specs)
+   values('FAM-ACTIVE-TEST','Original family name','parts','Parts','Test brand','عدد','Keep this description',false,'[]'::jsonb)
+   on conflict(code) do nothing`);
+  await db.query(`insert into public.catalog_variants(code,family_code,name,active,images,technical_specs)
+   values('VAR-ACTIVE-TEST','FAM-ACTIVE-TEST','Original variant name',false,'[]'::jsonb,'[]'::jsonb)
+   on conflict(code) do nothing`);
+  await db.query(`insert into public.portal_kv_store(key,value) values('catalog_overrides_db_v1',$1::jsonb)
+   on conflict(key) do update set value=excluded.value,updated_at=now()`,[JSON.stringify({families:{'FAM-ACTIVE-TEST':{code:'FAM-ACTIVE-TEST',brand:'Test brand',categorySlug:'parts',categoryName:'Parts',variants:[{code:'VAR-ACTIVE-TEST',prices:{retail:100},price:100,stock:2,stockKnown:true,inquiryOnly:false}]}}})]);
+  const result=(await db.query<any>('select app_private.backfill_relational_projections_from_kv() as res')).rows[0].res;
+  assert.equal(result.skipped_errors,0);
+  const family=(await db.query<any>("select name,is_active from public.catalog_families where code='FAM-ACTIVE-TEST'")).rows[0];
+  assert.equal(family.name,'Original family name');assert.equal(family.is_active,false);
+  const variant=(await db.query<any>("select name,active from public.catalog_variants where code='VAR-ACTIVE-TEST'")).rows[0];
+  assert.equal(variant.name,'Original variant name');assert.equal(variant.active,false);
+ }finally{await db.close();}
+});
+
+test('adopted migration fails fast and rolls back when catalog projection errors are skipped', async()=>{
+ const target='20261022120000_adopted_complete_projections_and_backfill.sql';
+ const db=await adoptedDatabase(async db=>{
+  await db.query(`insert into public.portal_kv_store(key,value) values('catalog_overrides_db_v1',$1::jsonb)
+   on conflict(key) do update set value=excluded.value,updated_at=now()`,[JSON.stringify({families:{'FAM-FAILFAST-TEST':{code:'FAM-FAILFAST-TEST',name:'Must roll back',brand:'Test',categorySlug:'parts',categoryName:'Parts',variants:[],galleryImages:[{id:'IMG-FAILFAST-TEST',url:'https://img.test/failfast.png',scope:'variant',variantCode:'MISSING-FAILFAST-VARIANT'}]}}})]);
+ },{expectMigrationFailure:{file:target,messageIncludes:'backfill failed with 1 skipped error(s)'}});
+ try{
+  assert.equal((await db.query<any>("select count(*)::int as n from public.catalog_families where code='FAM-FAILFAST-TEST'")).rows[0].n,0);
+  assert.equal((await db.query<any>("select count(*)::int as n from app_private.schema_change_log where version='20261022120000'")).rows[0].n,0);
+ }finally{await db.close();}
+});
