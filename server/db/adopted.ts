@@ -150,7 +150,7 @@ async function projectDocument(client:SqlClient,key:string,value:unknown){
    // but they must NEVER create an Auth account or accept a password.
    const name=String(entry.name ?? entry.fullName ?? entry.companyName ?? '').trim();
    const phone=String(entry.phone ?? entry.mobile ?? '').trim();
-   if(!name || !/^09\\d{9}$/.test(phone))throw new Error('CRM customer requires a valid name and Iranian mobile');
+   if(!name || !/^09\d{9}$/.test(phone))throw new Error('CRM customer requires a valid name and Iranian mobile');
    row.name=name;row.phone=phone;
    if(entry.companyName!==undefined)row.company=String(entry.companyName || '').trim();
    if(entry.tierCode!==undefined || entry.gradeCode!==undefined)row.grade_code=String(entry.tierCode ?? entry.gradeCode ?? '').trim() || null;
