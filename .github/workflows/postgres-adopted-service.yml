@@ -73,6 +73,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -Atqc "select count(*) from app_private.schema_change_log where version='20261022120000'" | grep -qx '1'
       - name: Exercise Express HTTP API against isolated PostgreSQL
         run: node --import tsx scripts/database/testRuntimeHttpPostgres.ts
+      - name: Test domain projections on real PostgreSQL
+        run: node --import tsx scripts/database/testProjectionsPostgres.ts
       - name: Verify TypeScript and PGlite domain tests
         run: |
           npm run lint
