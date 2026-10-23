@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import {Link} from "react-router-dom";
 import { ArrowLeft, RotateCcw, Smartphone } from "lucide-react";
 import { portalRequest, hydratePortal } from "../../services/portalRepository";
 import { Customer } from "../../types";
@@ -24,6 +25,7 @@ export function PhoneLogin({
   const request = async () => {
     setBusy(true);
     setError("");
+    setMustRegister(false);
     try {
       let r;
       try { r = await portalRequest({ action: "otp_request", phone }); }
@@ -36,7 +38,9 @@ export function PhoneLogin({
       setSeconds(r.retryAfter || 60);
       setNotice(r.message);
     } catch (e: any) {
-      setError(e.message || "ارسال پیامک انجام نشد.");
+      const message=e.message || "ارسال پیامک انجام نشد.";
+      setMustRegister(message.includes("ابتدا ثبت‌نام کنید"));
+      setError(message);
     } finally {
       setBusy(false);
     }
@@ -129,6 +133,7 @@ export function PhoneLogin({
           {error}
         </p>
       )}
+      {mustRegister && <Link to="/register" className="store-btn-primary account-submit">انتقال به صفحه ثبت‌نام <ArrowLeft size={17}/></Link>}
       <button className="store-btn-primary account-submit" disabled={busy}>
         {busy ? "در حال بررسی…" : sent ? "تأیید کد و ورود" : "دریافت کد پیامکی"}
         {sent ? <ArrowLeft size={17} /> : <Smartphone size={17} />}
