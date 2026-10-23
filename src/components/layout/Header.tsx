@@ -80,7 +80,7 @@ export const Header: React.FC = () => {
   // Navigation states
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<NavMenuType>(null);
-  const [activeMegaCategory, setActiveMegaCategory] = useState(CATEGORIES[0].slug);
+  const [activeMegaCategory, setActiveMegaCategory] = useState(CATEGORIES[0]?.slug || '');
   const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
 
   // Modals
