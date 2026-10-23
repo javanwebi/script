@@ -90,6 +90,6 @@ export async function runtimeApi(req:Request,res:Response){
     if(Number(req.body?.version)!==current)throw conflict();
     await writeDocument(client,key,req.body.value,target,identity.user?.id);
     return Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || current);
-  });return res.json({success:true,version});
+  });if(target==='global'){sharedDocumentCache.delete(key);publicCatalogCache=undefined;}return res.json({success:true,version});
  }catch(error:any){return res.status(error.status || 503).json({success:false,message:error.status?error.message:'ارتباط با دیتابیس برقرار نشد؛ هیچ ذخیره‌سازی محلی جایگزین نشد.'});}
 }
