@@ -70,6 +70,7 @@ export const AdminLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [showModuleGuide,setShowModuleGuide]=useState(false);
 
   // Sync tab with URL if needed
   useEffect(() => {
@@ -126,35 +127,35 @@ export const AdminLayout: React.FC = () => {
     },
     {
       id: 'announcements',
-      label: 'اطلاعیه‌ها (وب‌سایت و ۲ پنل)',
+      label: 'اطلاعیه‌ها',
       icon: Megaphone,
       badge: activeAnnouncementsCount > 0 ? toPersianDigits(activeAnnouncementsCount) : '۳ سطح',
       badgeColor: 'bg-[#E06518] text-white',
     },
     {
       id: 'content_studio',
-      label: 'تولید محتوا (پنل مشتری و خرید بالا)',
+      label: 'مدیریت محتوا',
       icon: Sparkles,
       badge: '۲ پنل',
       badgeColor: 'bg-[#E06518] text-white',
     },
     {
       id: 'crm',
-      label: 'مشتریان و CRM (پنل خرید بالا)',
+      label: 'مشتریان و CRM',
       icon: Users,
       badge: openTickets.length > 0 ? toPersianDigits(openTickets.length) : null,
       badgeColor: 'bg-purple-500 text-white',
     },
     {
       id: 'customer_grading',
-      label: 'کریدبندی و لیست‌های قیمت',
+      label: 'اعتبار و قیمت‌ها',
       icon: Award,
       badge: pendingGrading.length > 0 ? toPersianDigits(pendingGrading.length) : null,
       badgeColor: 'bg-[#E06518] text-white',
     },
     {
       id: 'agencies',
-      label: 'درخواست‌های نمایندگی و عاملیت',
+      label: 'نمایندگی‌ها',
       icon: ShieldCheck,
       badge: pendingAgencies.length > 0 ? toPersianDigits(pendingAgencies.length) : null,
       badgeColor: 'bg-emerald-500 text-white',
@@ -167,13 +168,13 @@ export const AdminLayout: React.FC = () => {
     },
     {
       id: 'bulk_import',
-      label: 'ورود گروهی اکسل',
+      label: 'ورود گروهی کالا',
       icon: FileSpreadsheet,
       badge: null,
     },
     {
       id: 'inquiries',
-      label: 'استعلام‌ها و پیش‌فاکتور',
+      label: 'استعلام و پیش‌فاکتور',
       icon: FileText,
       badge: pendingInquiries.length > 0 ? toPersianDigits(pendingInquiries.length) : null,
       badgeColor: 'bg-amber-500 text-white',
@@ -187,18 +188,34 @@ export const AdminLayout: React.FC = () => {
     },
     {
       id: 'clients',
-      label: 'لوگوی مشتریان ما',
+      label: 'مشتریان ما',
       icon: Building2,
       badge: null,
     },
     {
       id: 'settings',
-      label: 'تنظیمات و سیستم',
+      label: 'تنظیمات و امنیت',
       icon: Settings,
       badge: null,
     },
   ];
 
+  // Grouping and navigation are UI only. Never substitute menu visibility for server-side permissions.
+  const groups=[
+    {title:'نمای کلی',ids:['dashboard']},
+    {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
+    {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
+    {title:'سامانه',ids:['settings']},
+  ];
+  const descriptions:Record<string,string>={
+    dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
+    crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
+    products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
+    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات، کاربران و امنیت',reports:'رتبه‌بندی فروش'
+  };
+  const currentModule=navItems.find(item=>item.id===activeTab);
+  const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
+  const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
   const renderModuleContent = () => {
     switch (activeTab) {
       case 'reports': {
@@ -251,7 +268,7 @@ export const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row text-slate-900 font-sans" dir="rtl">
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col md:flex-row text-slate-900 font-sans" dir="rtl">
       {saveStatus.state && <div role={saveStatus.state === 'error' ? 'alert' : 'status'} className={`fixed bottom-4 left-4 right-4 sm:right-auto z-[100] max-w-xl rounded-xl border bg-white px-4 py-3 text-sm shadow-lg ${saveStatus.state === 'error' ? 'text-red-700 border-red-300' : 'text-emerald-700 border-emerald-200'}`}>{saveStatus.state === 'error' ? saveStatus.message : saveStatus.state === 'saving' ? 'در حال ذخیره تغییرات…' : 'تغییرات در سرور ذخیره شد.'}</div>}
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
@@ -263,19 +280,19 @@ export const AdminLayout: React.FC = () => {
 
       {/* --- SIDEBAR (سایدبار راست سرمه‌ای تیره با آیکون) --- */}
       <aside
-        className={`fixed md:sticky top-0 right-0 z-50 h-screen w-72 bg-[#55565A] text-white flex flex-col justify-between transition-transform duration-300 ease-in-out border-l border-slate-800 shrink-0 ${
+        className={`fixed md:sticky top-0 right-0 z-50 h-screen w-64 bg-white text-[#55565A] flex flex-col justify-between transition-transform duration-300 ease-in-out border-l border-[#E9EAEC] shrink-0 ${
           isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
         }`}
       >
         {/* Top Branding */}
         <div>
-          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-4 border-b border-[#ECEDEF] flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E06518] to-amber-600 flex items-center justify-center font-black text-white shadow-md">
                 AT
               </div>
               <div>
-                <h1 className="font-black text-sm tracking-tight text-white">
+                <h1 className="font-black text-sm tracking-tight text-[#55565A]">
                   صنعت پیش (پیش به صنعت)
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
@@ -296,53 +313,29 @@ export const AdminLayout: React.FC = () => {
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-190px)]">
-            {navItems.map(item => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setIsMobileSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-[#E06518] to-[#C95210] text-white shadow-md shadow-orange-950/40'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                    <span>{item.label}</span>
-                  </div>
-
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full ${
-                        item.badgeColor || 'bg-slate-700 text-white'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Every existing module remains reachable, organized by task. */}
+          <nav aria-label="بخش‌های پنل مدیریت" className="p-3 space-y-4 overflow-y-auto max-h-[calc(100vh-205px)]">
+            {visibleGroups.map(group=><div key={group.title} className="space-y-1">
+              <p className="px-3 pt-2 pb-1 text-[11px] text-[#85868A] font-bold">{group.title}</p>
+              {group.items.map(item=>{const Icon=item.icon;const active=activeTab===item.id;return <button type="button" key={item.id} title={descriptions[item.id]} aria-current={active?'page':undefined}
+                onClick={()=>selectModule(item.id)} className={`w-full flex justify-between items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] text-right font-semibold transition-colors ${active?'bg-[#FFF0E5] text-[#A8450B] border border-[#F9D0B0]':'text-[#55565A] hover:bg-[#F3F4F6]'}`}>
+                <span className="flex min-w-0 items-center gap-3"><Icon className={`w-[18px] h-[18px] shrink-0 ${active?'text-[#E06518]':'text-[#85868A]'}`}/><span className="truncate">{item.label}</span></span>
+                {item.badge&&<span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-[#F0F1F2] text-[#55565A]">{item.badge}</span>}
+              </button>})}
+            </div>)}
+            {!visibleGroups.length&&<p className="p-4 text-xs text-center">بخشی پیدا نشد.</p>}
           </nav>
         </div>
 
-        {/* Bottom User Profile & External Store Link */}
-        <div className="p-4 border-t border-slate-800 bg-[#071124]/70 space-y-3">
+                {/* Bottom User Profile & External Store Link */}
+        <div className="p-4 border-t border-[#E9EAEC] bg-[#FAFAFB] space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-orange-500/20 text-[#E06518] border border-orange-500/30 flex items-center justify-center font-bold text-xs">
                 {currentUser.name.slice(0, 1)}
               </div>
               <div className="text-right">
-                <div className="text-xs font-bold text-white line-clamp-1">{currentUser.name}</div>
+                <div className="text-xs font-bold text-[#55565A] line-clamp-1">{currentUser.name}</div>
                 <div className="text-[10px] text-slate-400">{currentUser.role}</div>
               </div>
             </div>
@@ -358,7 +351,7 @@ export const AdminLayout: React.FC = () => {
 
           <button
             onClick={() => navigate('/')}
-            className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl bg-white border border-[#E9EAEC] hover:border-[#E06518] text-[#55565A] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
           >
             <ExternalLink className="w-3.5 h-3.5 text-[#E06518]" />
             <span>مشاهده فروشگاه عمومی</span>
@@ -380,12 +373,12 @@ export const AdminLayout: React.FC = () => {
             </button>
 
             {/* Global Search Bar */}
-            <div className="relative w-64 sm:w-80 md:w-96">
+            <div className="relative w-48 sm:w-64 md:w-80">
               <input
                 type="text"
                 value={globalSearchQuery}
                 onChange={e => setGlobalSearchQuery(e.target.value)}
-                placeholder="جستجوی سراسری کالا، سفارش، مشتری..."
+                placeholder="جستجو در بخش‌های مدیریت..."
                 className="w-full h-10 pr-10 pl-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-[#E06518] focus:bg-white transition-all"
               />
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
@@ -508,7 +501,14 @@ export const AdminLayout: React.FC = () => {
         </header>
 
         {/* Content Area (محتوای روی زمینه روشن) */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-screen-2xl w-full mx-auto space-y-5">
+          <section aria-label="عنوان و مسیر بخش" className="rounded-2xl border border-[#ECEDEF] bg-white px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div><p className="text-[11px] text-[#85868A] mb-1">پنل مدیریت / {currentModule?.label||'گزارش‌ها'}</p><h2 className="font-black text-lg text-[#55565A]">{currentModule?.label||'گزارش‌ها'}</h2><p className="text-xs text-[#85868A] mt-1">{descriptions[activeTab]}</p></div>
+            <button type="button" onClick={()=>setShowModuleGuide(v=>!v)} className="rounded-xl border border-[#F4C5A3] px-3 py-2 text-xs font-bold text-[#B34D10] hover:bg-[#FFF3EA]">{showModuleGuide?'بستن راهنمای بخش‌ها':'راهنمای بخش‌ها'}</button>
+          </section>
+          {showModuleGuide&&<section className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-label="راهنمای ماژول‌ها">
+            {navItems.map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
+          </section>}
           {renderModuleContent()}
         </main>
       </div>
