@@ -1,3 +1,4 @@
+import './catalogFixtures';
 import sharp from 'sharp';
 import test from 'node:test';
 import assert from 'node:assert/strict';
