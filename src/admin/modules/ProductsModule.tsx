@@ -243,6 +243,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [draftFamily, setDraftFamily] = useState<Product | null>(null);
   // Active variant code being edited inside Tab 2 ("variants")
   const [editingVariantCode, setEditingVariantCode] = useState<string>('');
+  const [showSkuTechnicalSpecs, setShowSkuTechnicalSpecs] = useState(false);
   const [variantSearchQuery, setVariantSearchQuery] = useState('');
 
   // Image addition state in Tab 3 ("images")
@@ -832,6 +833,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         onCreateSku={(code,file,imageUrl,imageTitle)=>{
           const product=products.find(p=>p.code===code);if(!product)return;
           handleOpenEditFamily(product,'variants');
+          setShowSkuTechnicalSpecs(true);
           setDraftFamily(previous=>{
             if(!previous)return previous;
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
@@ -845,7 +847,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
           const product=products.find(p=>p.code===code);if(!product)return;
           handleOpenEditFamily(product,skuCode?'variants':'images');
-          if(skuCode)setEditingVariantCode(skuCode);
+          if(skuCode){
+            setEditingVariantCode(skuCode);
+            setShowSkuTechnicalSpecs(true);
+            setNewImgScope('variant');
+            setNewImgVariantCode(skuCode);
+          }else{
+            setShowSkuTechnicalSpecs(false);
+            setNewImgScope('family');
+            setNewImgVariantCode('');
+          }
           setDraftFamily(previous=>{
             if(!previous)return previous;
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
@@ -2843,8 +2854,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         </div>
 
                         {/* Variant-Specific Technical Specs */}
-                        <details className="rounded-xl border border-slate-200 bg-white">
-                          <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">مشخصات فنی این کد (اختیاری) — فقط برای همین سایز یا مدل</summary>
+                        <details open={showSkuTechnicalSpecs} onToggle={event=>setShowSkuTechnicalSpecs(event.currentTarget.open)}
+                          className="rounded-xl border border-slate-200 bg-white">
+                          <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">
+                            مشخصات فنی کد {currentEditingVariant.code} — {toPersianDigits((currentEditingVariant.technicalSpecs||[]).filter(s=>s.key.trim()).length)} مشخصه
+                          </summary>
                           <div className="px-3 pb-3 space-y-3">
 <div className="space-y-3">
                           <div className="flex items-center justify-between">
