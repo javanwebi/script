@@ -115,7 +115,7 @@ export const SettingsSystemModule: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
         <button
           onClick={() => setActiveTab('roles')}
           className={`py-2 px-4 rounded-xl font-bold text-xs transition-colors cursor-pointer flex items-center gap-2 ${
@@ -171,9 +171,9 @@ export const SettingsSystemModule: React.FC = () => {
           {/* RBAC Matrix */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
             <div>
-              <h3 className="font-black text-sm text-[#55565A]">ماتریس دسترسی نقش‌های سازمانی اطلس</h3>
+              <h3 className="font-black text-sm text-[#55565A]">الگوی نقش‌ها و دسترسی‌ها</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                توزیع مجوزهای کاربری بین مدیران بر اساس وظایف سازمانی
+                الگوی نمایشی سطح دسترسی هر واحد؛ مجوز واقعی کاربران باید در سرور اعمال شود.
               </p>
             </div>
 
@@ -220,12 +220,19 @@ export const SettingsSystemModule: React.FC = () => {
             </div>
           </div>
 
-          {/* Admin Users List */}
+          <div className="rounded-2xl border border-[#F4C5A3] bg-[#FFF9F5] px-5 py-4 text-xs leading-7 text-[#8A480D]">
+            <strong className="block text-sm">دسترسی کارکنان باید واقعی و امن باشد</strong>
+            این ماتریس در نسخه فعلی صرفاً جهت آشنایی با نقش‌ها است و امکان ساخت حساب کاربری فراهم نمی‌کند.
+            برای افزودن کارمند، نام کاربری، رمز عبور و تعیین دسترسی هر بخش، ابتدا باید ثبت امن کاربران در Supabase Auth
+            و بررسی مجوز هر عملیات در API پیاده‌سازی شود. رمز عبور در مرورگر یا حافظه موقت ذخیره نخواهد شد.
+          </div>
+                    {/* Admin Users List */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-sm text-[#55565A]">کاربران مجاز به ورود به پنل مدیریت</h3>
             </div>
 
+            {!adminUsers.length&&<p className="rounded-xl border border-dashed border-[#DDDEE2] px-4 py-6 text-sm text-[#77787C]">هنوز حساب کارمند مجزایی به سیستم متصل نشده است.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {adminUsers.map(user => (
                 <div key={user.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">

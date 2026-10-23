@@ -1,0 +1,35 @@
+name: Visual smoke admin responsive
+on:
+  pull_request:
+    paths:
+      - 'src/admin/**'
+      - '.github/workflows/admin-responsive-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - run: npx playwright install chromium
+      - run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/sanat-admin-preview.log 2>&1 &
+          for i in $(seq 1 40); do if curl -sf http://127.0.0.1:4173/admin > /dev/null; then exit 0; fi; sleep 1; done
+          cat /tmp/sanat-admin-preview.log
+          exit 1
+      - run: node scripts/tests/admin-responsive-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-responsive-screenshots
+          path: /tmp/admin-*.png
+          if-no-files-found: ignore
