@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {database} from './connection';
 import {handleDevelopmentOtp} from './devOtpPreview';
 import {readPortal} from './repository';
+import {verifiedStaffPermissions} from './adminGrantSigner';
 const error=(status:number,message:string)=>Object.assign(new Error(message),{status});
 function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;if(!url || !key)throw error(503,'اتصال Supabase Auth هنوز کامل نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
@@ -35,7 +36,7 @@ async function identityProfile(authUserId:string){
   approvedB2B:row.approved_b2b,canViewPrices:row.can_view_prices,canViewStock:row.can_view_stock,
   creditLimit:Number(row.credit_limit),creditUsed:Number(row.credit_used),
   walletBalance:Number(row.wallet_balance),clubPoints:row.club_points,
-  adminPermissions:Array.isArray(row.preferences?.adminPermissions)?row.preferences.adminPermissions:[]};
+  adminPermissions:verifiedStaffPermissions(row.id,row.preferences)};
 }
 export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const token=cookie(req,'sp_access');if(!token)return {admin:false};
@@ -125,8 +126,8 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  }
  const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
- const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':p.role==='sales_manager'?'sales_manager':p.role==='warehouse_operator'?'warehouse_operator':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {})}:null;
- if(!profile || !profile.active || (body.action==='admin_login' && !['admin','sales_manager','warehouse_operator'].includes(profile.role))){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
- send(200,{success:true,user:safe(profile),admin:['admin','sales_manager','warehouse_operator'].includes(profile.role),requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':p.role==='sales_manager'?'sales_manager':p.role==='warehouse_operator'?'warehouse_operator':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),adminPermissions:verifiedStaffPermissions(p.id,p.preferences)}:null;
+ if(!profile || !profile.active || (body.action==='admin_login' && !(profile.role==='admin'||(['sales_manager','warehouse_operator'].includes(profile.role)&&profile.adminPermissions.length>0)))){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
+ send(200,{success:true,user:safe(profile),admin:profile.role==='admin'||(['sales_manager','warehouse_operator'].includes(profile.role)&&profile.adminPermissions.length>0),requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }
