@@ -67,7 +67,23 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  let session:Session|null=null;
  if(body.action==='otp_verify'){if(!/^[0-9۰-۹]{6}$/.test(String(body.code || '')))throw error(400,'کد تأیید شش‌رقمی وارد کنید.');const result=await auth.auth.verifyOtp({phone:phone(body.phone).e164,token:String(body.code || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))),type:'sms'});if(result.error)throw error(401,'کد واردشده معتبر نیست.');session=result.data.session;}
- else{const db=await readPortal();const identifier=String(body.identifier || body.username || '').trim().toLowerCase();const profile=db.users.find(user=>user.username?.toLowerCase()===identifier || user.phone===identifier || (body.action==='admin_login' && user.email?.toLowerCase()===identifier));if(!profile?.authUserId || profile.active===false || (body.action==='admin_login' && profile.role!=='admin'))throw error(401,'ورود معتبر نیست یا انتقال حساب به Supabase Auth باید تکمیل شود.');const credentials=body.action==='admin_login' && profile.email ? {email:String(profile.email),password:String(body.password || '')} : {phone:phone(profile.phone).e164,password:String(body.password || '')};const result=await auth.auth.signInWithPassword(credentials);if(result.error)throw error(401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');session=result.data.session;}
+ else{
+  const identifier=String(body.identifier || body.username || '').trim().toLowerCase();
+  if(!identifier || !String(body.password || ''))throw error(400,'نام کاربری و رمز عبور را وارد کنید.');
+  const row=(await database().query(
+    "select id,email,phone,role,status from public.user_profiles where lower(username)=$1 or lower(email)=$1 or phone=$1 limit 1",
+    [identifier]
+  )).rows[0];
+  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin'))
+    throw error(401,'نام کاربری یا رمز عبور معتبر نیست.');
+  const credentials=body.action==='admin_login' && row.email
+    ? {email:String(row.email),password:String(body.password)}
+    : {phone:phone(row.phone).e164,password:String(body.password)};
+  const result=await auth.auth.signInWithPassword(credentials);
+  if(result.error)throw error(result.error.status===429?429:401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');
+  if(result.data.user?.id!==row.id)throw error(403,'حساب تأییدشده با پروفایل مطابقت ندارد.');
+  session=result.data.session;
+ }
  if(!session)throw error(401,'نشست ورود ایجاد نشد.');cookies(req,res,session);
  // Consume only the draft bound to the verified browser and matching verified phone.
  const draftId=cookie(req,'sp_registration');
@@ -80,8 +96,9 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
    await database().query("update app_private.auth_provisioning set status='linked' where id=$1",[pending.id]);
   }
  }
- let db=await readPortal();let profile=db.users.find(user=>user.authUserId===session!.user.id);
- if(!profile || (body.action==='admin_login' && profile.role!=='admin')){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
+ const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {})}:null;
+ if(!profile || !profile.active || (body.action==='admin_login' && profile.role!=='admin')){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
  send(200,{success:true,user:safe(profile),admin:profile.role==='admin',requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }
