@@ -157,6 +157,8 @@ export const BRANDS: Brand[] = [
 
 export function getManagedBrands(): Brand[] {
   if (typeof window !== 'undefined') {
+    // Do not silently display hardcoded brands if PostgreSQL hydration failed.
+    if (!databaseStorageEnabled()) return [];
     try {
       const stored = durableStorage.getItem('atlas_admin_brands_v1');
       if (stored) {
@@ -178,5 +180,5 @@ export function getManagedBrands(): Brand[] {
       // ignore
     }
   }
-  return databaseStorageEnabled()?[]:BRANDS;
+  return typeof window === 'undefined' ? BRANDS : [];
 }
