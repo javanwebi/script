@@ -1,3 +1,4 @@
+import {adminReportsApi} from './server/db/adminReports';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -300,6 +301,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
 app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
