@@ -109,6 +109,7 @@ export interface AdminUser {
   role: 'super_admin' | 'sales_manager' | 'warehouse_operator';
   email: string;
   lastLogin: string;
+  permissions?: string[];
 }
 
 export interface AuditLog {
@@ -399,9 +400,11 @@ export const adminService = {
   },
 
   async login(username: string, pass: string): Promise<AdminUser | null> {
-    await portalRequest({ action: 'admin_login', username, password: pass });
+    const identity=await portalRequest({ action: 'admin_login', username, password: pass });
     await hydratePortal();
-    const user: AdminUser = { id: 'admin', username, name: 'مدیریت صنعت پیش', role: 'super_admin', email: '', lastLogin: new Date().toISOString() };
+    const profile=identity.user || {};
+    const role:AdminUser['role']=profile.role==='sales_manager'?'sales_manager':profile.role==='warehouse_operator'?'warehouse_operator':'super_admin';
+    const user: AdminUser = { id:profile.authUserId||profile.id||'admin', username:profile.username||username, name:profile.fullName||'مدیریت صنعت پیش', role, email:profile.email||'', lastLogin:new Date().toISOString(), permissions:role==='super_admin'?undefined:(Array.isArray(profile.adminPermissions)?profile.adminPermissions:[]) };
     durableStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, JSON.stringify(user));
     return user;
   },

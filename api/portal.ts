@@ -1,5 +1,6 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
+import {allowedPortalKeys} from "../server/db/adminPermissions";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal,readDocument} from "../server/db/repository";
 import crypto from "node:crypto";
@@ -198,8 +199,8 @@ async function issueSession(
 async function session(
   req: IncomingMessage,
   db: Database,
-): Promise<{ admin: boolean; user?: Row }> {
-  if(databaseEnabled())return supabaseIdentity(req,db);
+): Promise<{ admin: boolean; staff?: boolean; user?: Row }> {
+  if(databaseEnabled())return supabaseIdentity(req);
   const cookie = (req.headers.cookie || "")
     .split(";")
     .map((s) => s.trim())
@@ -474,6 +475,18 @@ export default async function handler(
     }
     if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
       const auth = await supabaseIdentity(req);
+      // Employees receive only the documents granted by super-admin.
+      // Never send unrelated CRM, pricing or security documents.
+      if(auth.user && ['sales_manager','warehouse_operator'].includes(auth.user.role)){
+        const permissions=Array.isArray(auth.user.adminPermissions)?auth.user.adminPermissions:[];
+        const permitted=[...allowedPortalKeys(permissions)];
+        const [version,documents]=await Promise.all([
+          postgresDatabase().query("select revision from app_private.portal_version where singleton=true"),
+          Promise.all(permitted.map(async key=>[key,await readDocument(postgresDatabase(),key,'global')] as const))
+        ]);
+        return send(200,{success:true,admin:auth.staff===true,user:safeUser(auth.user),
+          revision:Number(version.rows[0]?.revision||0),values:Object.fromEntries(documents.filter(([,value])=>value!==undefined))});
+      }
       // Administrators require the full editable portal. Customer sessions do not.
       if (!auth.admin) {
         const wanted = auth.user
@@ -543,6 +556,9 @@ export default async function handler(
     }
     csrf(req);
     const body = await readBody(req);
+    if(databaseEnabled() && adoptedSchema() && auth.user &&
+      ['sales_manager','warehouse_operator'].includes(auth.user.role) && body.action!=='save')
+      fail(403,'کارمند اجازه انجام این عملیات را ندارد.');
     if(databaseEnabled() && ["register","login","admin_login","otp_request","otp_verify","registration_credentials","logout","dev_otp_request","dev_otp_verify"].includes(body.action)){await rateLimit(req);if(await supabaseAuthAction(req,res,body,safeUser))return;}
     const revision = db.revision;
     if (body.action === "logout") {
@@ -858,7 +874,13 @@ export default async function handler(
       return send(200, { success: true, user: safeUser(auth.user!) });
     }
     if (body.action === "save") {
-      if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
+      if (!auth.admin && !auth.staff) fail(403, "فقط مدیر مجاز اجازه ویرایش دارد.");
+      // Server-enforced per-document RBAC. Employees cannot edit unassigned modules.
+      if(auth.user && ['sales_manager','warehouse_operator'].includes(auth.user.role)){
+        const permissionKeys=allowedPortalKeys(Array.isArray(auth.user.adminPermissions)?auth.user.adminPermissions:[]);
+        for(const key of Object.keys(body.values||{}))
+          if(!permissionKeys.has(key))fail(403,'دسترسی ویرایش این بخش برای کارمند فعال نیست.');
+      }
       if (body.revision !== revision)
         fail(409, "اطلاعات توسط نشست دیگری تغییر کرده است؛ صفحه را تازه کنید.");
       for (const [key, value] of Object.entries(body.values || {})) {
@@ -984,7 +1006,9 @@ export async function requirePortalAdmin(
     const auth = databaseEnabled() && adoptedSchema()
       ? await supabaseIdentity(req)
       : await session(req, await readDb());
-    if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
+    if (!auth.admin && !auth.staff) fail(403, "فقط مدیر مجاز اجازه ویرایش دارد.");
+    if((auth as any).user?.role!=='admin' && !((auth as any).user?.adminPermissions||[]).some((module:string)=>module==='products'||module==='bulk_import'))
+      fail(403,'کارمند به ویرایش کاتالوگ دسترسی ندارد.');
     if (
       req.headers.origin &&
       new URL(req.headers.origin).host !== req.headers.host

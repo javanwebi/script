@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { database } from './connection';
 import { refreshAuth } from './supabaseAuth';
+import { verifiedStaffPermissions } from './adminGrantSigner';
 
 const periodDays: Record<string, number | null> = {'30':30,'90':90,'365':365,all:null};
 type ReportRow = Record<string, unknown>;
@@ -27,8 +28,10 @@ export async function adminReportsApi(req:Request,res:Response){
   const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const identity=await client.auth.getUser(token);
   if(identity.error || !identity.data.user)return errorResponse(res,401,'نشست مدیریت منقضی شده است.');
-  const p=await database().query("select role::text as role from public.user_profiles where id=$1 and status='active'",[identity.data.user.id]);
-  if(p.rows[0]?.role!=='super_admin')return errorResponse(res,403,'این گزارش فقط برای مدیر سامانه است.');
+  const p=await database().query("select role::text as role,preferences as preferences from public.user_profiles where id=$1 and status='active'",[identity.data.user.id]);
+  const profile=p.rows[0];
+  if(profile?.role!=='super_admin' && !(['sales_manager','warehouse_operator'].includes(profile?.role)&&verifiedStaffPermissions(identity.data.user.id,profile?.preferences).includes('dashboard')))
+    return errorResponse(res,403,'دسترسی گزارش فروش برای این حساب تعریف نشده است.');
   const period=typeof req.query.period==='string' && req.query.period in periodDays?req.query.period:'30';
   const days=periodDays[period];
   const db=database();

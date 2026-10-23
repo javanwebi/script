@@ -41,6 +41,7 @@ import { CustomerGradingModule } from './modules/CustomerGradingModule';
 import { ContentStudioModule } from './modules/ContentStudioModule';
 import { AnnouncementsAdminModule } from './modules/AnnouncementsAdminModule';
 import { SettingsSystemModule } from './modules/SettingsSystemModule';
+import { AdminStaffModule } from './modules/AdminStaffModule';
 import { ClientsAdminModule } from './modules/ClientsAdminModule';
 import { pricingCreditService } from '../services/pricingCreditService';
 import { toPersianDigits } from '../utils/formatters';
@@ -57,7 +58,11 @@ export const AdminLayout: React.FC = () => {
     let mounted = true;
     const sync = (event: Event) => {
       const data = (event as CustomEvent).detail;
-      if (mounted) setCurrentUser(data.admin ? { id: 'admin', username: 'admin', name: 'مدیریت صنعت پیش', role: 'super_admin', email: '', lastLogin: '' } : null);
+      if(mounted){
+        const profile=data?.user;
+        const role:AdminUser['role']=profile?.role==='sales_manager'?'sales_manager':profile?.role==='warehouse_operator'?'warehouse_operator':'super_admin';
+        setCurrentUser(data.admin?{id:profile?.authUserId||profile?.id||'admin',username:profile?.username||'admin',name:profile?.fullName||'مدیریت صنعت پیش',role,email:profile?.email||'',lastLogin:'',permissions:role==='super_admin'?undefined:(Array.isArray(profile?.adminPermissions)?profile.adminPermissions:[])}:null);
+      }
     };
     const status = (event: Event) => { if (mounted) setSaveStatus((event as CustomEvent).detail); };
     window.addEventListener('atlas-session-updated', sync);
@@ -195,6 +200,12 @@ export const AdminLayout: React.FC = () => {
       badge: null,
     },
     {
+      id: 'staff',
+      label: 'کاربران و دسترسی‌ها',
+      icon: Users,
+      badge: null,
+    },
+    {
       id: 'settings',
       label: 'تنظیمات و امنیت',
       icon: Settings,
@@ -207,17 +218,19 @@ export const AdminLayout: React.FC = () => {
     {title:'نمای کلی',ids:['dashboard']},
     {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
     {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
-    {title:'سامانه',ids:['settings']},
+    {title:'سامانه',ids:['staff','settings']},
   ];
   const descriptions:Record<string,string>={
     dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
     crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
     products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
-    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات، کاربران و امنیت',reports:'رتبه‌بندی فروش'
+    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات و امنیت',staff:'تعریف کارکنان و مجوزهای هر بخش',reports:'رتبه‌بندی فروش'
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
-  const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
-  const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
+  const allowedModules=currentUser?.role==='super_admin'?undefined:new Set(currentUser?.permissions||[]);
+  const visibleItems=navItems.filter(item=>!allowedModules||allowedModules.has(item.id));
+  const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>visibleItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
+  const selectModule=(id:string)=>{if(currentUser?.role!=='super_admin' && !currentUser?.permissions?.includes(id))return;setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     switch (activeTab) {
@@ -263,8 +276,10 @@ export const AdminLayout: React.FC = () => {
         return <ClientsAdminModule />;
       case 'agencies':
         return <AgenciesAdminModule />;
+      case 'staff':
+        return currentUser?.role==='super_admin'?<AdminStaffModule />:<p role="alert">دسترسی مدیریت کارکنان فقط برای مدیر اصلی است.</p>;
       case 'settings':
-        return <SettingsSystemModule />;
+        return currentUser?.role==='super_admin'?<SettingsSystemModule />:<p role="alert">دسترسی تنظیمات امنیتی فقط برای مدیر اصلی است.</p>;
       default:
         return <AdminDashboard onNavigateTab={t => setActiveTab(t)} />;
     }
@@ -513,9 +528,11 @@ export const AdminLayout: React.FC = () => {
             <button type="button" onClick={()=>setShowModuleGuide(v=>!v)} className="rounded-xl border border-[#F4C5A3] px-3 py-2 text-xs font-bold text-[#B34D10] hover:bg-[#FFF3EA]">{showModuleGuide?'بستن راهنمای بخش‌ها':'راهنمای بخش‌ها'}</button>
           </section>
           {showModuleGuide&&<section className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-label="راهنمای ماژول‌ها">
-            {navItems.map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
+            {visibleItems.map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
           </section>}
-          {renderModuleContent()}
+          {currentUser?.role!=='super_admin' && activeTab!=='reports' && !currentUser?.permissions?.includes(activeTab)
+            ? <div role="alert" className="bg-white border rounded-xl p-8 text-center text-amber-800">به این بخش دسترسی ندارید. از فهرست سمت راست بخش مجاز را انتخاب کنید.</div>
+            : renderModuleContent()}
           <div className="h-16 md:hidden" aria-hidden="true" />
           <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
             {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
