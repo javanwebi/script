@@ -252,6 +252,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [newImgScope, setNewImgScope] = useState<'family' | 'variant'>('variant');
   const [newImgVariantCode, setNewImgVariantCode] = useState('');
   const [newImgTitle, setNewImgTitle] = useState('');
+  const [imageFormFeedback, setImageFormFeedback] = useState<string | null>(null);
 
   // Image replacement / move to another family state
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
@@ -650,10 +651,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const handleAddImageToDraft = (urlToAdd: string, fileName?: string) => {
     if (!draftFamily || !urlToAdd.trim()) return;
     const resolvedUrl = getProductImageUrl(urlToAdd) || urlToAdd.trim();
-    const targetVarCode =
-      newImgScope === 'variant'
-        ? newImgVariantCode || draftFamily.variants?.[0]?.code || ''
-        : undefined;
+    const targetVarCode = newImgScope === 'variant' ? newImgVariantCode : undefined;
+    if (newImgScope === 'variant' && !draftFamily.variants?.some(v => v.code === targetVarCode)) {
+      setImageFormFeedback('برای تصویر اختصاصی، ابتدا یک کد کالای معتبر انتخاب کنید؛ تصویر به کد دیگری متصل نمی‌شود.');
+      return;
+    }
 
     const newImg: ProductGalleryImage = {
       id: `img-${draftFamily.code}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -680,6 +682,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     });
     setNewImgTitle('');
     setCustomImgUrl('');
+    setImageFormFeedback('تصویر به پیش‌نویس اضافه شد. برای ثبت نهایی، دکمه «ذخیره در پایگاه داده سایت» را بزنید.');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, replaceId?: string) => {
@@ -2057,10 +2060,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           TWO-LEVEL FAMILY & SKU EDITOR MODAL
          ===================================================================== */}
       {isEditorOpen && draftFamily && (
-        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-6xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[94vh] rounded-none sm:rounded-3xl border-0 sm:border sm:border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             {/* Modal Top Header */}
-            <div className="px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="px-3 sm:px-5 py-3 sm:py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs bg-white/15 px-2.5 py-0.5 rounded-lg" dir="ltr">
@@ -2155,7 +2158,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-5 overflow-y-auto flex-1 space-y-6">
+            <div className="p-3 sm:p-5 overflow-y-auto flex-1 space-y-4 sm:space-y-6">
               {/* ===============================================================
                   TAB 1: FAMILY LEVEL (نام، دسته‌بندی، توضیحات، مشخصات مشترک)
                  =============================================================== */}
@@ -2901,489 +2904,176 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   TAB 3: IMAGE MANAGER & SKU BINDING (اتصال هر تصویر به کد کالا / اصلاح ارتباط‌ها)
                  =============================================================== */}
               {editorTab === 'images' && (
-                <div className="space-y-6">
-                  {/* Add New Image Panel */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="rounded-2xl border border-[#E8EAEE] bg-white p-3 sm:p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                       <div>
-                        <h4 className="text-sm font-black text-slate-800">
-                          افزودن تصویر جدید و تعیین ارتباط با کد کالا
-                        </h4>
-                        <p className="text-[11px] text-slate-500">
-                          هنگام افزودن تصویر مشخص کنید عکس متعلق به کدام کد کالاست یا تصویر عمومی خانواده است.
-                        </p>
+                        <h4 className="text-sm font-black text-[#55565A]">افزودن تصویر</h4>
+                        <p className="text-xs text-slate-500 mt-1">۱. منبع تصویر را انتخاب کنید، ۲. نوع اتصال را تعیین کنید، ۳. تصویر را اضافه کنید.</p>
                       </div>
-
-                      <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => setNewImgSourceType('catalogue')}
-                          className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer ${
-                            newImgSourceType === 'catalogue'
-                              ? 'bg-[#E06518] text-white'
-                              : 'text-slate-600'
-                          }`}
-                        >
-                          بانک تصاویر کاتالوگ (۱ تا ۸۶۹)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewImgSourceType('upload')}
-                          className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer ${
-                            newImgSourceType === 'upload'
-                              ? 'bg-[#E06518] text-white'
-                              : 'text-slate-600'
-                          }`}
-                        >
-                          بارگذاری فایل از سیستم
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewImgSourceType('url')}
-                          className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer ${
-                            newImgSourceType === 'url'
-                              ? 'bg-[#E06518] text-white'
-                              : 'text-slate-600'
-                          }`}
-                        >
-                          لینک مستقیم تصویر
-                        </button>
-                      </div>
+                      <span className="rounded-full bg-[#FFF2E8] text-[#B94D0A] px-3 py-1 text-xs font-bold">{toPersianDigits(draftFamily.galleryImages?.length || 0)} تصویر ثبت‌شده</span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                      {/* Scope & Variant Selector */}
-                      <div className="md:col-span-4 space-y-2">
-                        <label className="block text-xs font-bold text-slate-700">
-                          ۱. این تصویر متعلق به چیست؟
-                        </label>
-                        <select
-                          value={
-                            newImgScope === 'family' ? '__FAMILY__' : newImgVariantCode
-                          }
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === '__FAMILY__') {
-                              setNewImgScope('family');
-                            } else {
-                              setNewImgScope('variant');
-                              setNewImgVariantCode(val);
-                            }
-                          }}
-                          className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-bold"
-                        >
-                          <option value="__FAMILY__">
-                            تصویر عمومی خانواده (بدون تغییر کد انتخاب‌شده)
-                          </option>
-                          <optgroup label="اتصال مستقیم به کد کالای زیرمجموعه (SKU):">
-                            {(draftFamily.variants || []).map(v => (
-                              <option key={v.code} value={v.code}>
-                                کد {v.code} — {v.name} ({v.size})
-                              </option>
-                            ))}
-                          </optgroup>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4" role="group" aria-label="انتخاب منبع تصویر">
+                      {[
+                        {id:'catalogue' as const,title:'بانک کاتالوگ',desc:'انتخاب از ۸۶۹ تصویر'},
+                        {id:'upload' as const,title:'بارگذاری فایل',desc:'از دستگاه شما'},
+                        {id:'url' as const,title:'لینک مستقیم',desc:'آدرس تصویر آنلاین'},
+                      ].map(source => (
+                        <button key={source.id} type="button" aria-pressed={newImgSourceType===source.id}
+                          onClick={() => setNewImgSourceType(source.id)}
+                          className={`rounded-xl border p-3 text-right transition-colors ${newImgSourceType===source.id?'border-[#E06518] bg-[#FFF6EF] ring-1 ring-[#E06518]/20':'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'}`}>
+                          <span className="block text-xs font-black text-[#55565A]">{source.title}</span>
+                          <span className="block text-[11px] text-slate-500 mt-1">{source.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
+                      <div>
+                        <h5 className="text-xs font-black text-[#55565A]">ارتباط تصویر</h5>
+                        <p className="text-[11px] text-slate-500 mt-1">مشخص کنید تصویر عمومی خانواده است یا فقط به یک کد کالا تعلق دارد.</p>
+                      </div>
+                      <label className="block text-xs font-bold text-slate-700">نوع اتصال
+                        <select value={newImgScope === 'family' ? '__FAMILY__' : newImgVariantCode || '__SELECT_SKU__'}
+                          onChange={e => {const val=e.target.value;if(val==='__FAMILY__'){setNewImgScope('family');setNewImgVariantCode('')}else if(val==='__SELECT_SKU__'){setNewImgScope('variant');setNewImgVariantCode('')}else{setNewImgScope('variant');setNewImgVariantCode(val)}setImageFormFeedback(null)}}
+                          className="mt-2 w-full px-3 py-3 rounded-xl border border-slate-300 bg-white text-xs">
+                          <option value="__FAMILY__">تصویر عمومی خانواده — کد انتخاب‌شده مشتری تغییر نمی‌کند</option>
+                          <option value="__SELECT_SKU__" disabled>انتخاب کد کالا…</option>
+                          {(draftFamily.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}{v.size? ` (${v.size})`:''}</option>)}
                         </select>
-                      </div>
-
-                      {/* Image Title */}
-                      <div className="md:col-span-3 space-y-2">
-                        <label className="block text-xs font-bold text-slate-700">
-                          ۲. عنوان یا توضیح تصویر (اختیاری)
-                        </label>
-                        <input
-                          type="text"
-                          value={newImgTitle}
-                          onChange={e => setNewImgTitle(e.target.value)}
-                          placeholder="مثلاً نمای روبه‌رو کد 34265"
-                          className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs"
-                        />
-                      </div>
-
-                      {/* Source Input */}
-                      <div className="md:col-span-5">
-                        {newImgSourceType === 'catalogue' && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-12 h-12 rounded-xl border border-slate-200 bg-white overflow-hidden shrink-0">
-                              <ProductImage
-                                src={getProductImageUrl(`e(${catalogueImgNum}).png`)}
-                                alt={`e(${catalogueImgNum}).png`}
-                                className="w-full h-full object-contain p-1"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                شماره تصویر کاتالوگ (1 تا {TOTAL_OFFICIAL_IMAGES_COUNT}):
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={TOTAL_OFFICIAL_IMAGES_COUNT}
-                                value={catalogueImgNum}
-                                onChange={e =>
-                                  setCatalogueImgNum(
-                                    Math.min(
-                                      TOTAL_OFFICIAL_IMAGES_COUNT,
-                                      Math.max(1, parseInt(e.target.value) || 1)
-                                    )
-                                  )
-                                }
-                                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-mono"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleAddImageToDraft(
-                                  getProductImageUrl(`e(${catalogueImgNum}).png`),
-                                  `e(${catalogueImgNum}).png`
-                                )
-                              }
-                              className="h-10 px-4 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold cursor-pointer shrink-0 mt-5"
-                            >
-                              + افزودن تصویر
-                            </button>
-                          </div>
-                        )}
-
-                        {newImgSourceType === 'upload' && (
-                          <label className="h-11 px-4 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer">
-                            <Upload className="w-4 h-4" />
-                            <span>انتخاب فایل تصویر از دستگاه و افزودن</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={e => handleFileUpload(e)}
-                              className="hidden"
-                            />
-                          </label>
-                        )}
-
-                        {newImgSourceType === 'url' && (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="url"
-                              dir="ltr"
-                              value={customImgUrl}
-                              onChange={e => setCustomImgUrl(e.target.value)}
-                              placeholder="https://..."
-                              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleAddImageToDraft(customImgUrl)}
-                              className="h-10 px-4 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold cursor-pointer shrink-0"
-                            >
-                              + افزودن
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      </label>
+                      {newImgScope==='variant'&&newImgVariantCode&&<div className="rounded-lg bg-[#FFF6EF] border border-[#F4D4BE] p-3 text-xs text-[#88400F]">تصویر برای کد <b dir="ltr">{newImgVariantCode}</b> ثبت می‌شود. فقط پس از تطبیق شکل، اندازه و مشخصات فنی، تأیید هویت را انجام دهید.</div>}
+                      <details>
+                        <summary className="cursor-pointer select-none text-xs font-bold text-slate-600 py-1">عنوان یا توضیح تصویر (اختیاری)</summary>
+                        <input type="text" value={newImgTitle} onChange={e=>setNewImgTitle(e.target.value)} placeholder="مثلاً نمای روبه‌رو قطعه"
+                          className="mt-2 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs"/>
+                      </details>
                     </div>
+
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 sm:p-4">
+                      {newImgSourceType === 'catalogue' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_84px_auto] gap-3 items-end">
+                          <label className="block text-xs font-bold text-slate-700">شماره تصویر کاتالوگ
+                            <span className="block text-[11px] font-normal text-slate-500 mt-1">عدد بین ۱ تا {toPersianDigits(TOTAL_OFFICIAL_IMAGES_COUNT)}</span>
+                            <input type="number" min={1} max={TOTAL_OFFICIAL_IMAGES_COUNT} value={catalogueImgNum}
+                              onChange={e => setCatalogueImgNum(Math.min(TOTAL_OFFICIAL_IMAGES_COUNT,Math.max(1,parseInt(e.target.value)||1)))}
+                              className="mt-2 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-mono" />
+                          </label>
+                          <div className="h-[84px] w-full sm:w-[84px] rounded-xl border border-slate-200 bg-white overflow-hidden">
+                            <ProductImage src={getProductImageUrl(`e(${catalogueImgNum}).png`)} alt={`e(${catalogueImgNum}).png`} className="w-full h-full object-contain p-2"/>
+                          </div>
+                          <button type="button" onClick={() => handleAddImageToDraft(getProductImageUrl(`e(${catalogueImgNum}).png`),`e(${catalogueImgNum}).png`)}
+                            className="w-full sm:w-auto h-11 px-5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-black">افزودن تصویر</button>
+                        </div>
+                      )}
+                      {newImgSourceType === 'upload' && (
+                        <label className="min-h-24 px-4 py-5 rounded-xl border-2 border-dashed border-slate-300 hover:border-[#E06518] bg-white text-[#55565A] flex flex-col items-center justify-center gap-2 cursor-pointer">
+                          <Upload className="w-5 h-5 text-[#E06518]"/>
+                          <span className="text-sm font-bold">انتخاب تصویر از دستگاه</span>
+                          <span className="text-[11px] text-slate-500">فرمت‌های رایج تصویر</span>
+                          <input type="file" accept="image/*" onChange={e => handleFileUpload(e)} className="hidden"/>
+                        </label>
+                      )}
+                      {newImgSourceType === 'url' && (
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-slate-700">آدرس مستقیم تصویر</label>
+                          <input type="url" dir="ltr" value={customImgUrl} onChange={e => setCustomImgUrl(e.target.value)}
+                            placeholder="https://example.com/image.png" className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-mono"/>
+                          <button type="button" onClick={() => handleAddImageToDraft(customImgUrl)}
+                            disabled={!/^https?:\/\//i.test(customImgUrl.trim())}
+                            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-black disabled:opacity-40">افزودن تصویر از لینک</button>
+                        </div>
+                      )}
+                    </div>
+                                        {imageFormFeedback&&<div role="status" className={`mt-3 rounded-xl border px-3 py-2.5 text-xs leading-5 ${imageFormFeedback.startsWith('تصویر به پیش‌نویس')?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-amber-50 border-amber-200 text-amber-900'}`}>{imageFormFeedback}</div>}
                   </div>
 
-                  {/* Current Gallery Images List & SKU Binding Controls */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-slate-800">
-                        تصاویر فعلی خانواده و ارتباط هر تصویر با کدهای کالا ({toPersianDigits(
-                          draftFamily.galleryImages?.length || 0
-                        )}{' '}
-                        تصویر)
-                      </h4>
-                      <span className="text-xs text-slate-500">
-                        می‌توانید کد کالای متصل به هر عکس را تغییر دهید، ترتیب را جابه‌جا کنید، عکس را جایگزین کنید یا به خانواده دیگری منتقل نمایید.
-                      </span>
+                  <div className="rounded-2xl border border-[#E8EAEE] bg-white overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 border-b border-slate-200 bg-slate-50">
+                      <div>
+                        <h4 className="text-sm font-black text-[#55565A]">تصاویر فعلی خانواده</h4>
+                        <p className="text-[11px] text-slate-500 mt-1">ارتباط و عنوان را همین‌جا ویرایش کنید؛ عملیات کم‌استفاده در منوی هر تصویر قرار دارد.</p>
+                      </div>
+                      <span className="text-xs font-bold text-[#55565A]">{toPersianDigits(draftFamily.galleryImages?.length || 0)} تصویر</span>
                     </div>
 
-                    {(draftFamily.galleryImages || []).length === 0 ? (
-                      <div className="p-8 rounded-2xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
-                        هیچ تصویری برای این خانواده ثبت نشده است. از بخش بالا تصویر عمومی یا تصویر اختصاصی کدهای کالا را اضافه کنید.
-                      </div>
+                    {(draftFamily.galleryImages||[]).length===0 ? (
+                      <div className="p-8 text-center text-xs text-slate-500">هنوز تصویری ثبت نشده است. از بخش «افزودن تصویر» در بالا شروع کنید.</div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {(draftFamily.galleryImages || []).map((img, idx) => (
-                          <div
-                            key={img.id}
-                            className={`p-4 rounded-2xl border transition-all space-y-3 ${
-                              img.scope === 'variant' && img.variantCode
-                                ? 'bg-orange-50/30 border-orange-200'
-                                : 'bg-white border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3.5">
-                              {/* Thumbnail */}
-                              <div className="w-24 h-24 rounded-xl border border-slate-200 bg-white overflow-hidden shrink-0 relative">
-                                <ProductImage
-                                  src={img.url}
-                                  alt={img.title || draftFamily.name}
-                                  className="w-full h-full object-contain p-1.5"
-                                />
-                                <span className="absolute top-1 right-1 bg-slate-900/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                  #{toPersianDigits(idx + 1)}
-                                </span>
+                      <div className="divide-y divide-slate-100">
+                        {(draftFamily.galleryImages||[]).map((img,idx)=>(
+                          <article key={img.id} className="p-3 sm:p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-[92px_minmax(0,1fr)] gap-3">
+                              <div className="w-full h-36 sm:w-[92px] sm:h-[92px] rounded-xl border border-slate-200 bg-slate-50 overflow-hidden relative">
+                                <ProductImage src={img.url} alt={img.title||draftFamily.name} className="w-full h-full object-contain p-2"/>
+                                <span className="absolute top-1 right-1 bg-slate-800/80 text-white text-[10px] px-1.5 py-0.5 rounded">#{toPersianDigits(idx+1)}</span>
                               </div>
-
-                              {/* Binding & Title Controls */}
-                              <div className="flex-1 min-w-0 space-y-2.5">
-                                <div>
-                                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                    ارتباط تصویر (عمومی خانواده یا متصل به کد کالا):
-                                  </label>
-                                  <select
-                                    value={
-                                      img.scope === 'variant' && img.variantCode
-                                        ? img.variantCode
-                                        : '__FAMILY__'
-                                    }
-                                    onChange={e => {
-                                      const val = e.target.value;
-                                      if (val === '__FAMILY__') {
-                                        handleUpdateGalleryImage(img.id, g => ({
-                                          ...g,
-                                          scope: 'family',
-                                          variantCode: undefined,
-                                        }));
-                                      } else {
-                                        handleUpdateGalleryImage(img.id, g => ({
-                                          ...g,
-                                          scope: 'variant',
-                                          variantCode: val,
-                                        }));
-                                      }
-                                    }}
-                                    className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-bold ${
-                                      img.scope === 'variant' && img.variantCode
-                                        ? 'border-[#E06518] bg-white text-[#E06518]'
-                                        : 'border-slate-300 bg-slate-50 text-slate-700'
-                                    }`}
-                                  >
-                                    <option value="__FAMILY__">
-                                      تصویر عمومی خانواده (انتخاب آن کد کالا را تغییر نمی‌دهد)
-                                    </option>
-                                    <optgroup label="تصویر اختصاصی متصل به کد کالا:">
-                                      {(draftFamily.variants || []).map(v => (
-                                        <option key={v.code} value={v.code}>
-                                          متصل به کد {v.code} — {v.name} ({v.size})
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                  </select>
+                              <div className="min-w-0 space-y-3">
+                                <div className="flex flex-wrap items-center gap-2 justify-between">
+                                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${img.scope==='variant'&&img.variantCode?'bg-[#FFF0E5] text-[#B94D0A]':'bg-slate-100 text-slate-600'}`}>
+                                    {img.scope==='variant'&&img.variantCode?`متصل به کد ${img.variantCode}`:'تصویر عمومی خانواده'}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 truncate max-w-full" dir="ltr">{img.title||img.url}</span>
                                 </div>
-
-                                {img.scope === 'variant' && img.variantCode && (
-                                  <label className="flex items-start gap-2 text-xs text-slate-700 leading-6">
-                                    <input type="checkbox" checked={img.identityVerified === true}
-                                      onChange={e => handleUpdateGalleryImage(img.id, g => ({...g,identityVerified:e.target.checked}))}
-                                      className="mt-1 accent-orange-600" />
-                                    تعلق این عکس به کد {img.variantCode} را با مشخصات و اندازهٔ قطعه بررسی و تأیید کرده‌ام.
+                                <label className="block text-xs font-bold text-slate-700">ارتباط تصویر
+                                  <select value={img.scope==='variant'&&img.variantCode?img.variantCode:'__FAMILY__'}
+                                    onChange={e=>{const val=e.target.value;if(val==='__FAMILY__')handleUpdateGalleryImage(img.id,g=>({...g,scope:'family',variantCode:undefined,identityVerified:false}));else handleUpdateGalleryImage(img.id,g=>({...g,scope:'variant',variantCode:val,identityVerified:false}))}}
+                                    className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs">
+                                    <option value="__FAMILY__">تصویر عمومی خانواده</option>
+                                    {(draftFamily.variants||[]).map(v=><option key={v.code} value={v.code}>کد {v.code} — {v.name}{v.size? ` (${v.size})`:''}</option>)}
+                                  </select>
+                                </label>
+                                <label className="block text-xs font-bold text-slate-700">عنوان تصویر
+                                  <input type="text" value={img.title||''} onChange={e=>handleUpdateGalleryImage(img.id,g=>({...g,title:e.target.value}))}
+                                    placeholder="عنوان کوتاه تصویر (اختیاری)" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs"/>
+                                </label>
+                                {img.scope==='variant'&&img.variantCode&&(
+                                  <label className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs leading-5 text-amber-900">
+                                    <input type="checkbox" checked={img.identityVerified===true} onChange={e=>handleUpdateGalleryImage(img.id,g=>({...g,identityVerified:e.target.checked}))} className="mt-1 accent-orange-600"/>
+                                    <span>تطبیق این تصویر با کد <b dir="ltr">{img.variantCode}</b> و مشخصات فنی را بررسی کرده‌ام.</span>
                                   </label>
                                 )}
-                                <div>
-                                  <input
-                                    type="text"
-                                    value={img.title || ''}
-                                    onChange={e =>
-                                      handleUpdateGalleryImage(img.id, g => ({
-                                        ...g,
-                                        title: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="عنوان یا توضیح تصویر..."
-                                    className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Action Toolbar for this Image */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-[11px]">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  disabled={idx === 0}
-                                  onClick={() => handleReorderGalleryImage(idx, 'first')}
-                                  className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 font-semibold cursor-pointer"
-                                >
-                                  تصویر اول
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={idx === 0}
-                                  onClick={() => handleReorderGalleryImage(idx, 'up')}
-                                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
-                                  title="انتقال به جلو"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={
-                                    idx === (draftFamily.galleryImages?.length || 1) - 1
-                                  }
-                                  onClick={() => handleReorderGalleryImage(idx, 'down')}
-                                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
-                                  title="انتقال به عقب"
-                                >
-                                  <ArrowDown className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setReplacingImageId(
-                                      replacingImageId === img.id ? null : img.id
-                                    )
-                                  }
-                                  className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-semibold text-slate-700 cursor-pointer"
-                                >
-                                  جایگزینی عکس
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setMovingImageId(
-                                      movingImageId === img.id ? null : img.id
-                                    )
-                                  }
-                                  className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 font-semibold text-amber-900 cursor-pointer flex items-center gap-1"
-                                >
-                                  <ArrowLeftRight className="w-3 h-3" />
-                                  <span>انتقال به محصول دیگر</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteGalleryImage(img.id)}
-                                  className="p-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                                  title="حذف تصویر"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Inline Replace Drawer */}
-                            {replacingImageId === img.id && (
-                              <div className="p-3 rounded-xl bg-slate-100 border border-slate-300 space-y-2 text-xs">
-                                <div className="font-bold text-slate-700">
-                                  جایگزینی این تصویر (با حفظ ارتباط کد کالا):
-                                </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={TOTAL_OFFICIAL_IMAGES_COUNT}
-                                    value={replaceCatalogueNum}
-                                    onChange={e =>
-                                      setReplaceCatalogueNum(
-                                        Math.max(1, parseInt(e.target.value) || 1)
-                                      )
-                                    }
-                                    className="w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono"
-                                    placeholder="شماره e(N)"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleReplaceImageInDraft(
-                                        img.id,
-                                        getProductImageUrl(`e(${replaceCatalogueNum}).png`),
-                                        `e(${replaceCatalogueNum}).png`
-                                      )
-                                    }
-                                    className="px-3 py-1.5 rounded-lg bg-[#E06518] text-white font-bold cursor-pointer"
-                                  >
-                                    جایگزینی با e({replaceCatalogueNum}).png
-                                  </button>
+                                  <button type="button" disabled={idx===0} onClick={()=>handleReorderGalleryImage(idx,'up')} className="px-3 py-2 rounded-lg border border-slate-200 text-xs disabled:opacity-40">↑ جابه‌جایی به بالا</button>
+                                  <button type="button" disabled={idx===(draftFamily.galleryImages?.length||1)-1} onClick={()=>handleReorderGalleryImage(idx,'down')} className="px-3 py-2 rounded-lg border border-slate-200 text-xs disabled:opacity-40">↓ جابه‌جایی به پایین</button>
+                                  {idx!==0&&<button type="button" onClick={()=>handleReorderGalleryImage(idx,'first')} className="px-3 py-2 rounded-lg border border-slate-200 text-xs">تصویر اصلی</button>}
+                                  <details className="relative">
+                                    <summary className="list-none cursor-pointer px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-[#55565A]">عملیات بیشتر ▾</summary>
+                                    <div className="mt-2 p-3 rounded-xl border border-slate-200 bg-white flex flex-wrap gap-2">
+                                      <button type="button" onClick={()=>setReplacingImageId(replacingImageId===img.id?null:img.id)} className="px-3 py-2 rounded-lg border border-slate-300 text-xs">جایگزینی تصویر</button>
+                                      <button type="button" onClick={()=>setMovingImageId(movingImageId===img.id?null:img.id)} className="px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs">انتقال به خانواده دیگر</button>
+                                      <button type="button" onClick={()=>handleDeleteGalleryImage(img.id)} className="px-3 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-xs">حذف تصویر</button>
+                                    </div>
+                                  </details>
+                                </div>
+                              </div>
+                            </div>
 
-                                  <label className="px-3 py-1.5 rounded-lg bg-slate-800 text-white font-bold cursor-pointer">
-                                    <span>بارگذاری فایل جدید</span>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={e => handleFileUpload(e, img.id)}
-                                      className="hidden"
-                                    />
-                                  </label>
+                            {replacingImageId===img.id&&(
+                              <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+                                <strong className="block text-[#55565A]">جایگزینی تصویر (ارتباط فعلی حفظ می‌شود)</strong>
+                                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-end">
+                                  <label className="block text-xs">شماره تصویر جدید کاتالوگ<input type="number" min={1} max={TOTAL_OFFICIAL_IMAGES_COUNT} value={replaceCatalogueNum} onChange={e=>setReplaceCatalogueNum(Math.max(1,parseInt(e.target.value)||1))} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"/></label>
+                                  <button type="button" onClick={()=>handleReplaceImageInDraft(img.id,getProductImageUrl(`e(${replaceCatalogueNum}).png`),`e(${replaceCatalogueNum}).png`)} className="px-3 py-2 rounded-lg bg-[#E06518] text-white font-bold">جایگزینی از کاتالوگ</button>
+                                  <label className="px-3 py-2 rounded-lg bg-slate-800 text-white font-bold cursor-pointer text-center">بارگذاری فایل<input type="file" accept="image/*" onChange={e=>handleFileUpload(e,img.id)} className="hidden"/></label>
                                 </div>
                               </div>
                             )}
 
-                            {/* Inline Move Image to Another Product Family Drawer */}
-                            {movingImageId === img.id && (
-                              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 space-y-2.5 text-xs">
-                                <div className="font-bold text-amber-950">
-                                  انتقال این تصویر به یک خانوادهٔ محصول دیگر (اصلاح ارتباط اشتباه):
-                                </div>
-                                <input
-                                  type="search"
-                                  value={moveTargetFamilyQuery}
-                                  onChange={e => setMoveTargetFamilyQuery(e.target.value)}
-                                  placeholder="جستجوی نام یا کد خانواده مقصد..."
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-amber-300 bg-white"
-                                />
-                                <select
-                                  value={moveTargetFamilyCode}
-                                  onChange={e => {
-                                    setMoveTargetFamilyCode(e.target.value);
-                                    setMoveTargetVariantCode('');
-                                  }}
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-amber-300 bg-white font-bold"
-                                >
-                                  <option value="">-- انتخاب خانواده مقصد --</option>
-                                  {products
-                                    .filter(p => {
-                                      if (p.code === draftFamily.code) return false;
-                                      if (!moveTargetFamilyQuery.trim()) return true;
-                                      const q = normalizeCatalogueText(moveTargetFamilyQuery);
-                                      return normalizeCatalogueText(
-                                        `${p.code} ${p.name}`
-                                      ).includes(q);
-                                    })
-                                    .slice(0, 40)
-                                    .map(p => (
-                                      <option key={p.code} value={p.code}>
-                                        {p.name} ({p.code})
-                                      </option>
-                                    ))}
+                            {movingImageId===img.id&&(
+                              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-3 text-xs">
+                                <strong className="block text-amber-950">انتقال تصویر به خانواده دیگر</strong>
+                                <input type="search" value={moveTargetFamilyQuery} onChange={e=>setMoveTargetFamilyQuery(e.target.value)} placeholder="جستجوی نام یا کد خانواده مقصد" className="w-full px-3 py-2.5 rounded-lg border border-amber-300 bg-white"/>
+                                <select value={moveTargetFamilyCode} onChange={e=>{setMoveTargetFamilyCode(e.target.value);setMoveTargetVariantCode('')}} className="w-full px-3 py-2.5 rounded-lg border border-amber-300 bg-white">
+                                  <option value="">انتخاب خانواده مقصد</option>
+                                  {products.filter(p=>p.code!==draftFamily.code&&(!moveTargetFamilyQuery.trim()||normalizeCatalogueText(`${p.code} ${p.name}`).includes(normalizeCatalogueText(moveTargetFamilyQuery)))).slice(0,40).map(p=><option key={p.code} value={p.code}>{p.name} ({p.code})</option>)}
                                 </select>
-
-                                {moveTargetFamilyCode && (
-                                  <select
-                                    value={moveTargetVariantCode}
-                                    onChange={e => setMoveTargetVariantCode(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-amber-300 bg-white"
-                                  >
-                                    <option value="">
-                                      به عنوان تصویر عمومی خانواده مقصد
-                                    </option>
-                                    {(
-                                      products.find(p => p.code === moveTargetFamilyCode)
-                                        ?.variants || []
-                                    ).map(tv => (
-                                      <option key={tv.code} value={tv.code}>
-                                        اتصال به کد {tv.code} — {tv.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={!moveTargetFamilyCode}
-                                    onClick={() =>
-                                      handleExecuteMoveImageToAnotherFamily(img.id)
-                                    }
-                                    className="px-3 py-1.5 rounded-lg bg-amber-800 text-white font-bold disabled:opacity-40 cursor-pointer"
-                                  >
-                                    تأیید و انتقال تصویر
-                                  </button>
-                                </div>
+                                {moveTargetFamilyCode&&<select value={moveTargetVariantCode} onChange={e=>setMoveTargetVariantCode(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-amber-300 bg-white"><option value="">تصویر عمومی خانواده مقصد</option>{(products.find(p=>p.code===moveTargetFamilyCode)?.variants||[]).map(v=><option key={v.code} value={v.code}>کد {v.code} — {v.name}</option>)}</select>}
+                                <div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={()=>{setMovingImageId(null);setMoveTargetFamilyCode('');setMoveTargetVariantCode('')}} className="px-3 py-2 rounded-lg border border-amber-300">انصراف</button><button type="button" disabled={!moveTargetFamilyCode} onClick={()=>handleExecuteMoveImageToAnotherFamily(img.id)} className="px-3 py-2 rounded-lg bg-amber-800 text-white font-bold disabled:opacity-40">تأیید و انتقال</button></div>
                               </div>
                             )}
-                          </div>
+                          </article>
                         ))}
                       </div>
                     )}
