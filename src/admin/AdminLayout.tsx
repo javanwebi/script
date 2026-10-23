@@ -72,6 +72,7 @@ export const AdminLayout: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [showModuleGuide,setShowModuleGuide]=useState(false);
+  const [collapsedGroups,setCollapsedGroups]=useState<string[]>([]);
 
   // Sync tab with URL if needed
   useEffect(() => {
@@ -217,6 +218,7 @@ export const AdminLayout: React.FC = () => {
   const currentModule=navItems.find(item=>item.id===activeTab);
   const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
   const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
+  const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     switch (activeTab) {
       case 'reports': {
@@ -317,8 +319,11 @@ export const AdminLayout: React.FC = () => {
           {/* Every existing module remains reachable, organized by task. */}
           <nav aria-label="بخش‌های پنل مدیریت" className="p-3 space-y-4 overflow-y-auto max-h-[calc(100vh-205px)]">
             {visibleGroups.map(group=><div key={group.title} className="space-y-1">
-              <p className="px-3 pt-2 pb-1 text-[11px] text-[#85868A] font-bold">{group.title}</p>
-              {group.items.map(item=>{const Icon=item.icon;const active=activeTab===item.id;return <button type="button" key={item.id} title={descriptions[item.id]} aria-current={active?'page':undefined}
+              <button type="button" onClick={()=>toggleGroup(group.title)} aria-expanded={!!globalSearchQuery.trim()||!collapsedGroups.includes(group.title)} className="flex w-full items-center justify-between rounded-lg px-3 pt-2 pb-1 text-[11px] text-[#85868A] font-bold hover:bg-[#F7F8FA]">
+                <span>{group.title} <span className="mr-1 text-[#ADADB0]">({toPersianDigits(group.items.length)})</span></span>
+                <ChevronDown size={14} className={`transition-transform ${collapsedGroups.includes(group.title)&&!globalSearchQuery.trim()?'rotate-90':''}`}/>
+              </button>
+              {(!collapsedGroups.includes(group.title)||!!globalSearchQuery.trim())&&group.items.map(item=>{const Icon=item.icon;const active=activeTab===item.id;return <button type="button" key={item.id} title={descriptions[item.id]} aria-current={active?'page':undefined}
                 onClick={()=>selectModule(item.id)} className={`w-full flex justify-between items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] text-right font-semibold transition-colors ${active?'bg-[#FFF0E5] text-[#A8450B] border border-[#F9D0B0]':'text-[#55565A] hover:bg-[#F3F4F6]'}`}>
                 <span className="flex min-w-0 items-center gap-3"><Icon className={`w-[18px] h-[18px] shrink-0 ${active?'text-[#E06518]':'text-[#85868A]'}`}/><span className="truncate">{item.label}</span></span>
                 {item.badge&&<span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-[#F0F1F2] text-[#55565A]">{item.badge}</span>}
@@ -511,6 +516,11 @@ export const AdminLayout: React.FC = () => {
             {navItems.map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
           </section>}
           {renderModuleContent()}
+          <div className="h-16 md:hidden" aria-hidden="true" />
+          <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+            {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
+            <button type="button" onClick={()=>setIsMobileSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] text-[#55565A]"><Menu size={18}/>همه بخش‌ها</button>
+          </nav>
         </main>
       </div>
     </div>

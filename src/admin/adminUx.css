@@ -32,3 +32,19 @@
 @media (prefers-reduced-motion:reduce) {
  .sanat-admin *, .sanat-admin *::before,.sanat-admin *::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
 }
+
+/* Dense admin modules: readable actions without pushing the viewport on phones. */
+.sanat-admin main :is(header,section,article,form,fieldset) { max-width:100%; }
+.sanat-admin main :is(button,a) { touch-action:manipulation; }
+.sanat-admin main :is(label,th,td) { overflow-wrap:anywhere; }
+.sanat-admin main :is(input,select,textarea) { background-clip:padding-box; }
+.sanat-admin main :is(input,select,textarea):focus-visible { border-color:#E06518; }
+.sanat-admin main :is(.overflow-x-auto,.overflow-auto) { max-width:100%; }
+@media(max-width:767px) {
+  .sanat-admin main :is(section,article) { border-radius:14px; }
+  .sanat-admin main :is(.flex.flex-wrap,.grid) { row-gap:12px; }
+  .sanat-admin main :is(input,select,textarea) { font-size:16px; }
+  .sanat-admin main table { min-width:560px; }
+  .sanat-admin main :is(.overflow-x-auto,.overflow-auto) { overflow-x:auto; }
+  .sanat-admin main .sticky { top:60px; }
+}
