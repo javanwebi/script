@@ -126,17 +126,17 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
   return (
     <div className="space-y-6 text-right" dir="rtl">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[#C95210] text-xs font-bold mb-1">
             <Sparkles className="w-4 h-4 text-[#E06518]" />
             <span>موتور هوشمند ایمپورت و همگام‌سازی اکسل کاتالوگ</span>
           </div>
-          <h2 className="text-xl font-black text-[#55565A]">
+          <h2 className="text-lg sm:text-xl font-black text-[#55565A]">
             ورود گروهی کالاها و لیست قیمت ماهانه (Bulk Import)
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            به‌روزرسانی سریع صدها قلم کالا، اعمال خودکار ضرایب قیمت‌گذاری ۴ لایه، ثبت خودکار تغییرات در تاریخچه قیمت و پیشگیری از خطای رکوردهای تکراری.
+            فایل قیمت را وارد کنید، ستون‌ها و قیمت‌ها را بررسی کنید و فقط بعد از تأیید پیش‌نمایش، تغییرات را ثبت کنید. ردیف‌های خطادار پیش از ثبت قابل بررسی‌اند.
           </p>
         </div>
 
@@ -154,8 +154,8 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
       </div>
 
       {/* Stepper Progress Bar (۳ مرحله + گزارش) */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="grid grid-cols-3 gap-2">
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {/* Step 1 */}
           <div
             className={`p-3 rounded-xl flex items-center gap-3 transition-colors ${
@@ -174,7 +174,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               {currentStep > 1 ? <Check className="w-4 h-4" /> : '۱'}
             </div>
             <div className="text-xs">
-              <div className="font-bold">مرحله ۱: ورود فایل و متن</div>
+              <div className="font-bold">۱. ورود فایل</div>
               <div className="text-[10px] opacity-75">آپلود CSV یا اکسل</div>
             </div>
           </div>
@@ -197,7 +197,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               {currentStep > 2 ? <Check className="w-4 h-4" /> : '۲'}
             </div>
             <div className="text-xs">
-              <div className="font-bold">مرحله ۲: نگاشت و ضرایب</div>
+              <div className="font-bold">۲. بررسی ستون‌ها</div>
               <div className="text-[10px] opacity-75">تطبیق ستون‌ها و حاشیه سود</div>
             </div>
           </div>
@@ -220,7 +220,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               {currentStep > 3 ? <Check className="w-4 h-4" /> : '۳'}
             </div>
             <div className="text-xs">
-              <div className="font-bold">مرحله ۳: پیش‌نمایش و اعمال</div>
+              <div className="font-bold">۳. بررسی و ثبت</div>
               <div className="text-[10px] opacity-75">بررسی تفکیکی جدید/به‌روزرسانی</div>
             </div>
           </div>
@@ -231,7 +231,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
       {currentStep === 1 && (
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-base font-black text-[#55565A]">مرحله ۱: انتخاب فایل یا چسباندن متن کاتالوگ</h3>
+            <h3 className="text-base font-black text-[#55565A]">مرحله ۱ از ۳: انتخاب فایل قیمت</h3>
             <p className="text-xs text-slate-500 mt-1">
               می‌توانید فایل با پسوند CSV یا Excel اکسپورت‌شده را آپلود کرده یا محتوای آن را مستقیماً در کادر زیر جای‌گذاری نمایید.
             </p>
@@ -302,7 +302,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               onClick={handleProceedToMapping}
               className="py-3 px-6 rounded-2xl bg-[#55565A] hover:bg-[#1B293E] text-white font-black text-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
-              <span>رفتن به مرحله ۲: نگاشت و تنظیم ضرایب</span>
+              <span>ادامه: بررسی اطلاعات و قیمت‌ها</span>
               <ArrowLeft className="w-4 h-4 text-[#E06518]" />
             </button>
           </div>
@@ -313,7 +313,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
       {currentStep === 2 && (
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-base font-black text-[#55565A]">مرحله ۲: تطبیق ستون‌ها و تنظیم ضرایب لایه‌های قیمت</h3>
+            <h3 className="text-base font-black text-[#55565A]">مرحله ۲ از ۳: بررسی اطلاعات و قیمت‌ها</h3>
             <p className="text-xs text-slate-500 mt-1">
               تعیین نحوه محاسبه قیمت مصرف‌کننده، عمده‌فروشی کارخانجات و عاملیت رسمی بر پایه قیمت خرید فایل اکسل.
             </p>
@@ -321,7 +321,8 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
 
           {/* Column Mapping Table */}
           <div className="space-y-3">
-            <div className="font-bold text-xs text-[#55565A]">تطبیق فیلدهای سیستم با ستون‌های فایل اکسل:</div>
+            <div className="font-bold text-xs text-[#55565A]">اطلاعاتی که از هر ردیف فایل خوانده می‌شود</div>
+            <p className="text-[11px] text-slate-500">این نگاشت پیش‌فرض است. اگر ترتیب ستون‌های فایل شما متفاوت است، قبل از ثبت نهایی حتماً پیش‌نمایش را بررسی کنید.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                 <div>
@@ -386,7 +387,11 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
           </div>
 
           {/* Pricing Multipliers Configuration */}
-          <div className="p-5 rounded-2xl bg-orange-50/60 border border-orange-200 space-y-4">
+          <details className="rounded-2xl bg-orange-50/60 border border-orange-200">
+            <summary className="cursor-pointer select-none p-4 text-xs font-black text-[#55565A]">تنظیمات پیشرفته قیمت‌گذاری (اختیاری)
+              <span className="block font-normal text-[11px] text-slate-600 mt-1">پیش‌فرض فعلی: مصرف‌کننده +{toPersianDigits(multipliers.retailPercent)}٪، عمده +{toPersianDigits(multipliers.wholesalePercent)}٪، نمایندگی +{toPersianDigits(multipliers.agencyPercent)}٪ — برای تغییر درصدها باز کنید.</span>
+            </summary>
+            <div className="p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Percent className="w-5 h-5 text-[#E06518]" />
@@ -438,7 +443,8 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
                 <p className="text-[10px] text-slate-400">نرخ خرید پرتال پخش نمایندگان دارای قرارداد</p>
               </div>
             </div>
-          </div>
+            </div>
+          </details>
 
           {/* Rules Checkbox */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
@@ -472,7 +478,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               onClick={handleGeneratePreview}
               className="py-3 px-6 rounded-2xl bg-[#55565A] hover:bg-[#1B293E] text-white font-black text-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
-              <span>تأیید و مشاهده پیش‌نمایش تفکیکی (مرحله ۳)</span>
+              <span>محاسبه و مشاهده پیش‌نمایش</span>
               <ArrowLeft className="w-4 h-4 text-[#E06518]" />
             </button>
           </div>
@@ -485,7 +491,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-base font-black text-[#55565A]">
-                مرحله ۳: پیش‌نمایش رکوردهای پردازش‌شده قبل از ثبت نهایی
+                مرحله ۳ از ۳: بررسی نهایی قبل از ثبت
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 وضعیت هر سطر با برچسب‌های رنگی مشخص شده است: سبز (کالای جدید)، آبی (به‌روزرسانی کالای موجود)، قرمز (خطادار).
@@ -506,7 +512,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
                 className="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
-                <span>تأیید نهایی و اعمال در کاتالوگ کالاها</span>
+                <span>ثبت کالاهای تأییدشده</span>
               </button>
             </div>
           </div>
@@ -578,9 +584,9 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
                     <th className="py-3 px-3">نام محصول</th>
                     <th className="py-3 px-3">برند / دسته</th>
                     <th className="py-3 px-3">قیمت پایه</th>
-                    <th className="py-3 px-3">مصرف‌کننده (+۳۵٪)</th>
-                    <th className="py-3 px-3">پخش / همکار (+۱۸٪)</th>
-                    <th className="py-3 px-3">نمایندگی (+۸٪)</th>
+                    <th className="py-3 px-3">مصرف‌کننده (+{toPersianDigits(multipliers.retailPercent)}٪)</th>
+                    <th className="py-3 px-3">پخش / همکار (+{toPersianDigits(multipliers.wholesalePercent)}٪)</th>
+                    <th className="py-3 px-3">نمایندگی (+{toPersianDigits(multipliers.agencyPercent)}٪)</th>
                     <th className="py-3 px-3">موجودی</th>
                     <th className="py-3 px-3">توضیحات / تطابق</th>
                   </tr>

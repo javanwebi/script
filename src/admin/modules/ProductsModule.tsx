@@ -829,15 +829,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           <div>
             <h2 className="text-lg font-black text-[#37383b] flex items-center gap-2">
               <Package className="w-5 h-5 text-[#E06518]" />
-              <span>مدیریت دو سطحی خانواده‌های محصول، کدهای کالا، تصاویر و قیمت‌ها</span>
+              <span>کاتالوگ و کالاها</span>
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              کنترل کامل {toPersianDigits(catalogStats.totalFamilies)} خانواده محصول و{' '}
-              {toPersianDigits(catalogStats.totalSkus)} کد کالا؛ اتصال دوطرفهٔ هر تصویر به کد کالا و قیمت‌گذاری مستقل هر کد.
+              خانواده‌های محصول را پیدا کنید، کدها و قیمت‌هایشان را مدیریت کنید و تصاویر را به مورد درست وصل کنید. هیچ اطلاعاتی از کالاها حذف نمی‌شود.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveSubTab('products')}
@@ -847,7 +846,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              خانواده‌ها و کدهای کالا ({toPersianDigits(catalogStats.totalFamilies)})
+              کالاها ({toPersianDigits(catalogStats.totalFamilies)})
             </button>
             <button
               type="button"
@@ -909,7 +908,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         </div>
 
         {/* Flagship Sample Quick Bar: چرخ دنده (FAM-34265 & FAM-80301) */}
-        <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/90 flex flex-wrap items-center justify-between gap-3">
+        <details className="rounded-xl border border-orange-200/90 bg-orange-50/40">
+          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-[#55565A]">نمونهٔ راهنما برای یادگیری کار با خانواده و کد کالا (اختیاری)</summary>
+          <div className="p-3.5 rounded-xl bg-orange-50/70 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="text-xs font-black text-[#37383b] flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-[#E06518]" />
@@ -949,7 +950,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <span>مشاهده صفحهٔ «چرخ دنده» در سایت</span>
             </Link>
           </div>
-        </div>
+            </div>
+        </details>
       </div>
 
       {/* 2. PRODUCTS & SKU FAMILIES TAB */}
@@ -957,8 +959,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         <div className="space-y-4">
           {/* Search & Filters Toolbar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className="md:col-span-5 relative">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="search"
@@ -967,57 +969,61 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     setSearchQuery(e.target.value);
                     setCurrentPage(1);
                   }}
-                  placeholder="جستجو در نام خانواده، کد خانواده (FAM-34265)، کد کالا (34265)، سایز یا برند..."
-                  className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-[#E06518] focus:outline-none"
+                  placeholder="جستجو با نام کالا، کد، سایز یا برند..."
+                  aria-label="جستجو در کاتالوگ کالاها"
+                  className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 text-xs focus:border-[#E06518] focus:outline-none"
                 />
               </div>
-
-              <div className="md:col-span-3">
-                <select
-                  value={selectedCategory}
-                  onChange={e => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
-                >
-                  <option value="all">همه دسته‌بندی‌ها ({toPersianDigits(catalogCategoryNames.length)})</option>
-                  {catalogCategoryNames.map(catName => (
-                    <option key={catName} value={catName}>
-                      {catName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <select
-                  value={imageFilter}
-                  onChange={e => {
-                    setImageFilter(e.target.value as any);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
-                >
-                  <option value="all">همه وضعیت‌های تصویر</option>
-                  <option value="sku_bound">دارای تصویر متصل به کد کالا</option>
-                  <option value="has_images">دارای تصویر (عمومی یا کد)</option>
-                  <option value="no_images">بدون تصویر ثبت‌شده</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={handleOpenNewFamily}
-                  className="w-full h-10 px-4 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>افزودن خانواده جدید</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleOpenNewFamily}
+                className="w-full sm:w-auto min-h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>افزودن کالا</span>
+              </button>
             </div>
 
+            <details className="rounded-xl border border-slate-200 bg-slate-50">
+              <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">
+                فیلترهای بیشتر: دسته‌بندی و وضعیت تصویر
+                {(selectedCategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 pt-0">
+                <label className="block text-xs font-bold text-slate-600">
+                  دسته‌بندی
+                  <select
+                    value={selectedCategory}
+                    onChange={e => {
+                      setSelectedCategory(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
+                  >
+                    <option value="all">همه دسته‌بندی‌ها ({toPersianDigits(catalogCategoryNames.length)})</option>
+                    {catalogCategoryNames.map(catName => (
+                      <option key={catName} value={catName}>{catName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold text-slate-600">
+                  وضعیت تصویر
+                  <select
+                    value={imageFilter}
+                    onChange={e => {
+                      setImageFilter(e.target.value as any);
+                      setCurrentPage(1);
+                    }}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
+                  >
+                    <option value="all">همه وضعیت‌های تصویر</option>
+                    <option value="sku_bound">دارای تصویر متصل به کد کالا</option>
+                    <option value="has_images">دارای تصویر (عمومی یا کد)</option>
+                    <option value="no_images">بدون تصویر ثبت‌شده</option>
+                  </select>
+                </label>
+              </div>
+            </details>
             {/* Secondary Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1568,9 +1574,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           CATEGORY ADD / EDIT MODAL
          ===================================================================== */}
       {isCategoryModalOpen && editingCategory && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-xl max-h-[100dvh] sm:max-h-[92vh] rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-white text-[#55565A] border-b border-slate-200 flex items-center justify-between shrink-0">
               <h3 className="text-sm font-black flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#E06518]" />
                 <span>
@@ -1582,66 +1588,39 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <button
                 type="button"
                 onClick={() => setIsCategoryModalOpen(false)}
-                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
               >
                 بستن
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-xs">
+            <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto max-h-[78vh]">
+              <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 leading-6 text-[#55565A]">
+                <strong className="block text-sm mb-1">دسته‌بندی برای مرتب‌کردن کالاهاست</strong>
+                نام فارسی و توضیح کوتاه را وارد کنید؛ زیرگروه‌ها را پایین همین فرم اضافه کنید. شناسه مسیر و تنظیمات تکمیلی در بخش بازشونده‌اند.
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">نام فارسی دسته‌بندی *</label>
-                  <input
-                    type="text"
-                    value={editingCategory.name}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, name: e.target.value })
-                    }
-                    placeholder="مثلاً: تسمه‌های صنعتی یا چرخ‌دنده‌ها"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
-                  />
+                  <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} placeholder="مثلاً: تسمه‌های صنعتی یا چرخ‌دنده‌ها" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold" />
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">نام انگلیسی</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={editingCategory.nameEn}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, nameEn: e.target.value })
-                    }
-                    placeholder="Industrial Belts"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">شناسه مسیر (Slug)</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={editingCategory.slug}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, slug: e.target.value })
-                    }
-                    placeholder="industrial-belts"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">تعداد خانواده محصول</label>
-                  <input
-                    type="number"
-                    value={editingCategory.count || 0}
-                    onChange={e =>
-                      setEditingCategory({
-                        ...editingCategory,
-                        count: Number(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
+                <details className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <summary className="cursor-pointer select-none font-bold text-slate-700">تنظیمات تکمیلی (اختیاری): نام انگلیسی، شناسه مسیر و تعداد</summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">نام انگلیسی</label>
+                      <input type="text" dir="ltr" value={editingCategory.nameEn} onChange={e => setEditingCategory({ ...editingCategory, nameEn: e.target.value })} placeholder="Industrial Belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">شناسه مسیر (Slug)</label>
+                      <input type="text" dir="ltr" value={editingCategory.slug} onChange={e => setEditingCategory({ ...editingCategory, slug: e.target.value })} placeholder="industrial-belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">تعداد خانواده محصول</label>
+                      <input type="number" value={editingCategory.count || 0} onChange={e => setEditingCategory({ ...editingCategory, count: Number(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <div>
@@ -1728,7 +1707,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="sticky bottom-0 bg-white flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(false)}
@@ -1753,9 +1732,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           VISUAL BRAND ADD / EDIT MODAL (IMAGE-FIRST FOR CUSTOMER RECOGNITION)
          ===================================================================== */}
       {isBrandModalOpen && editingBrand && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-3xl rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden max-h-[100dvh] sm:max-h-[92vh] flex flex-col">
+            <div className="px-5 py-4 bg-white text-[#55565A] border-b border-slate-200 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-sm font-black flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-[#E06518]" />
@@ -1765,24 +1744,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       : 'افزودن برند تصویری جدید به سایت'}
                   </span>
                 </h3>
-                <p className="text-[11px] text-slate-300 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   تصویر و نشان تجاری برند برای شناخت سریع مشتری در صفحه اصلی و کاتالوگ نمایش داده می‌شود
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsBrandModalOpen(false)}
-                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
               >
                 بستن
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-5 text-xs">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-5 text-xs">
               {/* Top Section: Live Visual Brand Preview + Image Upload Controls */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <div className="md:col-span-5 flex flex-col items-center justify-center bg-slate-900 rounded-2xl p-4 text-white relative overflow-hidden">
-                  <span className="text-[10px] text-amber-400 font-bold mb-2">
+                <div className="md:col-span-5 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 p-4 text-[#55565A] relative overflow-hidden">
+                  <span className="text-[10px] text-[#E06518] font-bold mb-2">
                     پیش‌نمایش کارت تصویری برند برای مشتری
                   </span>
                   <div className="w-44 h-28 bg-white rounded-xl p-2.5 flex items-center justify-center shadow-lg mb-2.5">
@@ -1799,7 +1778,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   <div className="font-black text-sm text-center">
                     {editingBrand.name || 'نام فارسی برند'}
                   </div>
-                  <div className="text-[11px] text-slate-300 font-mono">
+                  <div className="text-[11px] text-slate-500 font-mono">
                     {editingBrand.nameEn || 'BRAND NAME'} • {editingBrand.country}
                   </div>
                 </div>
@@ -1845,6 +1824,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     />
                   </div>
 
+                  <details className="rounded-xl border border-slate-200 bg-white p-3">
+                    <summary className="cursor-pointer select-none font-bold text-slate-700">روش‌های دیگر انتخاب تصویر (لینک و نشان‌های آماده)</summary>
                   <div>
                     <label className="block font-bold text-slate-600 mb-1">
                       یا لینک مستقیم تصویر برند (URL / Data URI):
@@ -1894,6 +1875,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       ))}
                     </div>
                   </div>
+                  </details>
                 </div>
               </div>
 
@@ -1936,6 +1918,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </div>
               </div>
 
+              <details className="rounded-xl border border-slate-200 bg-white">
+                <summary className="cursor-pointer select-none px-4 py-3 font-bold text-slate-700">اطلاعات تکمیلی برند (اختیاری): معرفی و حوزه‌های تخصصی</summary>
+                <div className="p-4 space-y-4">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   معرفی و توضیحات برند برای شناخت مشتری
@@ -2008,6 +1993,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </div>
               </div>
 
+                </div>
+              </details>
+
               {/* Toggles */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
@@ -2035,7 +2023,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="sticky bottom-0 bg-white flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsBrandModalOpen(false)}
@@ -2063,10 +2051,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[94vh] rounded-none sm:rounded-3xl border-0 sm:border sm:border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             {/* Modal Top Header */}
-            <div className="px-3 sm:px-5 py-3 sm:py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="px-3 sm:px-5 py-3 sm:py-4 bg-white text-[#55565A] border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs bg-white/15 px-2.5 py-0.5 rounded-lg" dir="ltr">
+                  <span className="font-mono text-xs bg-[#FFF2E8] text-[#B94D0A] px-2.5 py-1 rounded-lg" dir="ltr">
                     {draftFamily.code}
                   </span>
                   <h3 className="text-base font-black">
@@ -2092,12 +2080,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   className="px-4 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Check className="w-4 h-4" />
-                  <span>ذخیره در پایگاه داده سایت</span>
+                  <span>ذخیره تغییرات</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditorOpen(false)}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer transition-colors"
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-white text-xs font-bold cursor-pointer transition-colors"
                 >
                   بستن
                 </button>
@@ -2119,40 +2107,42 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             )}
 
             {/* 4 Step Tabs inside Editor */}
-            <div className="flex items-center border-b border-slate-200 bg-slate-50 px-4 overflow-x-auto no-scrollbar shrink-0">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 border-b border-slate-200 bg-slate-50 p-3 shrink-0">
               {[
                 {
                   id: 'family',
-                  label: '۱. سطح اول: خانواده محصول و مشخصات مشترک',
+                  label: 'اطلاعات خانواده',
+                  description: 'نام، دسته و مشخصات مشترک',
                 },
                 {
                   id: 'variants',
-                  label: `۲. سطح دوم: کدهای کالا، مشخصات و قیمت‌ها (${toPersianDigits(
-                    draftFamily.variants?.length || 0
-                  )} کد)`,
+                  label: 'کدهای کالا و قیمت',
+                  description: `${toPersianDigits(draftFamily.variants?.length || 0)} کد کالا`,
                 },
                 {
                   id: 'images',
-                  label: `۳. مدیریت تصاویر و اتصال به کد کالا (${toPersianDigits(
-                    draftFamily.galleryImages?.length || 0
-                  )} تصویر)`,
+                  label: 'تصاویر کالا',
+                  description: `${toPersianDigits(draftFamily.galleryImages?.length || 0)} تصویر`,
                 },
                 {
                   id: 'preview',
-                  label: '۴. پیش‌نمایش زنده صفحه مشتری (بررسی دوطرفه)',
+                  label: 'پیش‌نمایش سایت',
+                  description: 'بررسی قبل از انتشار',
                 },
               ].map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setEditorTab(tab.id as any)}
-                  className={`px-4 py-3.5 text-xs font-bold border-b-2 whitespace-nowrap cursor-pointer transition-colors ${
+                  aria-current={editorTab === tab.id ? 'step' : undefined}
+                  className={`min-w-0 rounded-xl border p-3 text-right cursor-pointer transition-colors ${
                     editorTab === tab.id
-                      ? 'border-[#E06518] text-[#E06518] bg-white'
-                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                      ? 'border-[#E06518] bg-[#FFF4EB] text-[#B94D0A] shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  {tab.label}
+                  <span className="block text-xs font-black">{tab.label}</span>
+                  <span className="block text-[10px] font-medium mt-1 opacity-80">{tab.description}</span>
                 </button>
               ))}
             </div>
@@ -2164,10 +2154,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                  =============================================================== */}
               {editorTab === 'family' && (
                 <div className="space-y-6">
+                  <div className="rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-3 text-xs leading-6 text-[#55565A]">
+                    <strong className="block text-sm mb-1">اطلاعات کلی این محصول</strong>
+                    نام، دسته، برند و توضیحاتی را وارد کنید که بین همه سایزها و مدل‌های این خانواده مشترک‌اند. برای کد و قیمت هر سایز، بخش «کدهای کالا و قیمت» را باز کنید.
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        کد خانواده محصول (شناسه سطح اول)
+                        شناسه داخلی خانواده
                       </label>
                       <input
                         type="text"
@@ -2219,6 +2213,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       </datalist>
                     </div>
 
+                    <details className="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <summary className="cursor-pointer select-none text-xs font-bold text-slate-700">دسته‌بندی تکمیلی (اختیاری)</summary>
+                      <p className="text-[11px] text-slate-500 mt-1">اگر کالا زیرمنو یا نوع فنی مشخصی دارد، اینجا وارد کنید؛ در غیر این صورت خالی بماند.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         زیرمنو (Submenu)
@@ -2246,6 +2244,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                       />
                     </div>
+
+                      </div>
+                    </details>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -2324,6 +2325,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   </div>
 
                   {/* Shared Family Technical Specs */}
+                  <details className="rounded-2xl border border-slate-200 bg-white">
+                    <summary className="cursor-pointer select-none px-4 py-3 text-xs font-black text-slate-800">مشخصات فنی مشترک (اختیاری) — برای همه کدهای این خانواده</summary>
+                    <div className="px-4 pb-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -2392,6 +2396,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       ))}
                     </div>
                   </div>
+                    </div>
+                    </details>
                 </div>
               )}
 
@@ -2400,6 +2406,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                  =============================================================== */}
               {editorTab === 'variants' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                  <div className="lg:col-span-12 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-3 text-xs leading-6 text-[#55565A]">
+                    <strong>هر کد کالا نماینده یک سایز یا مدل مشخص است.</strong> ابتدا کد را از فهرست انتخاب کنید؛ سپس نام دقیق، مشخصات، قیمت و موجودی همان کد را ویرایش کنید. مشخصات فنی تکمیلی در بخش بازشونده قرار دارد.
+                  </div>
                   {/* Left Column: List of SKU Variants in this Family */}
                   <div className="lg:col-span-4 bg-slate-50 rounded-2xl border border-slate-200 p-3.5 space-y-3">
                     <div className="flex items-center justify-between">
@@ -2493,7 +2502,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-5">
                     {currentEditingVariant ? (
                       <>
-                        {technicalReview && <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3 space-y-2 text-xs leading-6">
+                        {technicalReview && <details className="rounded-xl border border-orange-200 bg-orange-50/40"><summary className="cursor-pointer select-none px-3 py-2 text-xs font-bold text-[#55565A]">جزئیات بررسی فنی و منابع (اختیاری)</summary><div className="p-3 space-y-2 text-xs leading-6">
                           <strong>بررسی فنی کد کالا</strong>
                           <p>{technicalReview.categoryPath.join(' ← ')}</p>
                           <p>وضعیت: {technicalReview.status === 'reference-enriched' ? 'دارای اطلاعات مرجع پروفیل' : technicalReview.status === 'catalog-extracted' ? 'استخراج از شرح کاتالوگ' : 'نیازمند شناسایی مدل'}</p>
@@ -2505,7 +2514,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                           {technicalReview.originalTechnicalType && technicalReview.originalTechnicalType !== technicalReview.categoryPath[2] && <p>نوع فنی اولیهٔ خانواده: {technicalReview.originalTechnicalType}؛ نوع دقیق این کد را پیش از تغییر کل خانواده بررسی کنید.</p>}
                           {technicalReview.comparisonReferences?.map(ref=><p key={ref.url}><a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a> — فقط مرجع مقایسه: {ref.condition}</p>)}
                           <div className="flex flex-wrap gap-3">{technicalReview.references.map(ref => <a key={ref.url} href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a>)}</div>
-                        </div>}
+                        </div></details>}
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
                           <div>
                             <h4 className="text-sm font-black text-slate-800">
@@ -2759,7 +2768,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         </div>
 
                         {/* Variant-Specific Technical Specs */}
-                        <div className="space-y-3">
+                        <details className="rounded-xl border border-slate-200 bg-white">
+                          <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">مشخصات فنی این کد (اختیاری) — فقط برای همین سایز یا مدل</summary>
+                          <div className="px-3 pb-3 space-y-3">
+<div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
                               <h5 className="text-xs font-black text-slate-800">
@@ -2839,8 +2851,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                             )}
                           </div>
                         </div>
+                          </div>
+                        </details>
 
-                        {/* Images Linked to this SKU Variant */}
+{/* Images Linked to this SKU Variant */}
                         <div className="p-4 rounded-2xl bg-orange-50/40 border border-orange-200/80 space-y-3">
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
