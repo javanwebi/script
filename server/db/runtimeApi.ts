@@ -10,9 +10,25 @@ import {publicCatalog} from '../../src/utils/catalogPrivacy';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
-const PUBLIC_CATALOG_TTL_MS=30000;
+const PUBLIC_CATALOG_TTL_MS=120000;
 let publicCatalogCache:{expires:number,value:unknown}|undefined;
 let publicCatalogInFlight:Promise<unknown>|undefined;
+const PUBLIC_DOCUMENT_TTL_MS=60000;
+const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
+const sharedDocumentInFlight=new Map<string,Promise<unknown>>();
+async function cachedPublicDocument(key:string):Promise<unknown>{
+ const entry=sharedDocumentCache.get(key);
+ if(entry && Date.now()<entry.expires)return entry.value;
+ const pending=sharedDocumentInFlight.get(key);
+ if(pending)return pending;
+ const task=readDocument(database(),key,'global').then(value=>{
+   sharedDocumentCache.set(key,{expires:Date.now()+PUBLIC_DOCUMENT_TTL_MS,value});
+   return value;
+ }).finally(()=>sharedDocumentInFlight.delete(key));
+ sharedDocumentInFlight.set(key,task);
+ return task;
+}
+
 async function publicProductsCached():Promise<unknown>{
  if(publicCatalogCache && Date.now()<publicCatalogCache.expires)return publicCatalogCache.value;
  if(!publicCatalogInFlight)publicCatalogInFlight=readProducts().then(products=>{
@@ -30,14 +46,27 @@ export async function runtimeApi(req:Request,res:Response){
   if(req.method==='GET'){
    const metadata=(await database().query('select namespace,scope_id,version from app_private.document_versions where scope_id=$1 or scope_id=$2',[scope,'global'])).rows;
    const values:Record<string,unknown>={},versions:Record<string,number>={};
-   for(const row of metadata){if(!domainFor(row.namespace))continue;
-    if(row.scope_id==='global' && !(identity.admin || publicReadable.has(row.namespace)))continue;
-    values[row.namespace]=await readDocument(database(),row.namespace,row.scope_id);versions[row.namespace]=Number(row.version);
-   }
-   if(adoptedSchema())for(const key of adoptedNamespaces()){
-    if(Object.hasOwn(values,key) || !(identity.admin || publicReadable.has(key)))continue;
-    const value=await readDocument(database(),key,'global');if(value!==undefined){values[key]=value;versions[key]=0;}
-   }
+   const permitted=metadata.filter(row=>domainFor(row.namespace) && (row.scope_id!== 'global' || identity.admin || publicReadable.has(row.namespace)));
+   const seen=new Set(permitted.map(row=>row.namespace));
+   const supplemental=adoptedSchema()?adoptedNamespaces().filter(key=>!seen.has(key) && (identity.admin || publicReadable.has(key))):[];
+   // Parallel reads eliminate sequential cross-region round trips. Cache only
+   // public global documents, never private user or admin datasets.
+   await Promise.all([
+     ...permitted.map(async row=>{
+       const key=row.namespace;
+       const value=row.scope_id==='global' && !identity.admin && publicReadable.has(key)
+         ? await cachedPublicDocument(key)
+         : await readDocument(database(),key,row.scope_id);
+       values[key]=value;
+       versions[key]=Number(row.version);
+     }),
+     ...supplemental.map(async key=>{
+       const value=!identity.admin && publicReadable.has(key)
+         ? await cachedPublicDocument(key)
+         : await readDocument(database(),key,'global');
+       if(value!==undefined){values[key]=value;versions[key]=0;}
+     })
+   ]);
    if(identity.user)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
    const products=!identity.user && !identity.admin ? await publicProductsCached() : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
     const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
@@ -61,6 +90,6 @@ export async function runtimeApi(req:Request,res:Response){
     if(Number(req.body?.version)!==current)throw conflict();
     await writeDocument(client,key,req.body.value,target,identity.user?.id);
     return Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || current);
-  });return res.json({success:true,version});
+  });if(target==='global'){sharedDocumentCache.delete(key);publicCatalogCache=undefined;}return res.json({success:true,version});
  }catch(error:any){return res.status(error.status || 503).json({success:false,message:error.status?error.message:'ارتباط با دیتابیس برقرار نشد؛ هیچ ذخیره‌سازی محلی جایگزین نشد.'});}
 }
