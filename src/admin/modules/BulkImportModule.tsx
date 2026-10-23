@@ -302,7 +302,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               onClick={handleProceedToMapping}
               className="py-3 px-6 rounded-2xl bg-[#55565A] hover:bg-[#1B293E] text-white font-black text-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
-              <span>رفتن به مرحله ۲: نگاشت و تنظیم ضرایب</span>
+              <span>ادامه: بررسی اطلاعات و قیمت‌ها</span>
               <ArrowLeft className="w-4 h-4 text-[#E06518]" />
             </button>
           </div>
@@ -478,7 +478,7 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
               onClick={handleGeneratePreview}
               className="py-3 px-6 rounded-2xl bg-[#55565A] hover:bg-[#1B293E] text-white font-black text-xs shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
-              <span>تأیید و مشاهده پیش‌نمایش تفکیکی (مرحله ۳)</span>
+              <span>محاسبه و مشاهده پیش‌نمایش</span>
               <ArrowLeft className="w-4 h-4 text-[#E06518]" />
             </button>
           </div>
@@ -584,9 +584,9 @@ export const BulkImportModule: React.FC<BulkImportModuleProps> = ({
                     <th className="py-3 px-3">نام محصول</th>
                     <th className="py-3 px-3">برند / دسته</th>
                     <th className="py-3 px-3">قیمت پایه</th>
-                    <th className="py-3 px-3">مصرف‌کننده (+۳۵٪)</th>
-                    <th className="py-3 px-3">پخش / همکار (+۱۸٪)</th>
-                    <th className="py-3 px-3">نمایندگی (+۸٪)</th>
+                    <th className="py-3 px-3">مصرف‌کننده (+{toPersianDigits(multipliers.retailPercent)}٪)</th>
+                    <th className="py-3 px-3">پخش / همکار (+{toPersianDigits(multipliers.wholesalePercent)}٪)</th>
+                    <th className="py-3 px-3">نمایندگی (+{toPersianDigits(multipliers.agencyPercent)}٪)</th>
                     <th className="py-3 px-3">موجودی</th>
                     <th className="py-3 px-3">توضیحات / تطابق</th>
                   </tr>
