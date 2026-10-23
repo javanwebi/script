@@ -48,9 +48,7 @@ interface ProductsModuleProps {
 }
 
 export const ProductsModule: React.FC<ProductsModuleProps> = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'products' | 'categories' | 'brands'>('products');
-  const [expandedFamilyCode, setExpandedFamilyCode] = useState<string | null>(null);
-  const [showImageLibrary, setShowImageLibrary] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'products' | 'images' | 'categories' | 'brands'>('products');
 
   // Full catalog state (all 1,383+ families & 10,435+ SKUs)
   const [products, setProducts] = useState<Product[]>(() => adminService.getProducts());
@@ -812,41 +810,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     }
   };
 
-  const renderFamilyDetails=(product:Product)=>(
-    <div className="space-y-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFC] p-3 sm:p-4" aria-label="جزئیات خانواده و کدهای کالا">
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <div>
-          <h4 className="text-sm font-black text-[#55565A]">کدهای زیرمجموعه {product.name}</h4>
-          <p className="mt-1 text-[11px] text-slate-500">هر کد، مشخصات فنی، قیمت و تصویر مستقل دارد. از «ویرایش مشخصات» برای تکمیل همان کد استفاده کنید.</p>
-        </div>
-        <button type="button" onClick={()=>handleOpenEditFamily(product,'family')} className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs font-bold text-[#C65A16]">ویرایش نام، دسته، زیردسته و زیرمنو</button>
-      </div>
-      <div className="space-y-2">
-        {(product.variants||[]).map(v=>{
-          const images=(product.galleryImages||[]).filter(img=>img.scope==='variant'&&img.variantCode===v.code);
-          return <div key={v.code} className="rounded-xl bg-white border border-slate-200 p-3">
-            <div className="flex flex-wrap justify-between gap-2 items-start">
-              <div className="min-w-0">
-                <div className="font-black text-xs text-[#55565A]">{v.name||'بدون نام'} <span className="font-mono text-[#E06518]" dir="ltr">{v.code}</span></div>
-                <p className="text-[11px] text-slate-500 mt-1">سایز: {v.size||'ثبت نشده'} · قیمت: {(v.price??v.prices?.retail??0)>0?toPersianDigits(v.price??v.prices?.retail??0):'استعلامی'}</p>
-              </div>
-              <button type="button" onClick={()=>{handleOpenEditFamily(product,'variants');setEditingVariantCode(v.code)}} className="rounded-xl bg-[#FFF2E8] px-3 py-2 text-xs font-bold text-[#B94D0A]">ویرایش مشخصات و قیمت</button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {(v.technicalSpecs||[]).filter(spec=>spec.key.trim()).slice(0,8).map((spec,i)=><span key={i} className="rounded-lg bg-slate-50 border border-slate-100 px-2 py-1 text-[11px] text-slate-600">{spec.key}: {spec.value||'—'}</span>)}
-              {!(v.technicalSpecs||[]).some(spec=>spec.key.trim())&&<span className="text-[11px] text-amber-700">مشخصات فنی این کد هنوز تکمیل نشده است.</span>}
-            </div>
-            <div className="mt-2 flex flex-wrap justify-between items-center gap-2 border-t border-slate-100 pt-2">
-              <span className="text-[11px] text-slate-500">{toPersianDigits(images.length)} تصویر اختصاصی این کد</span>
-              <button type="button" onClick={()=>{handleOpenEditFamily(product,'images');setNewImgScope('variant');setNewImgVariantCode(v.code)}} className="text-[11px] font-bold text-[#C65A16]">مدیریت و اتصال تصویر این کد</button>
-            </div>
-          </div>;
-        })}
-      </div>
-      <button type="button" onClick={()=>handleOpenEditFamily(product,'variants')} className="w-full rounded-xl border border-dashed border-[#E06518] py-3 text-xs font-bold text-[#B94D0A]">+ افزودن کد محصول و مشخصات فنی جدید</button>
-      {!!(product.technicalSpecs||[]).length&&<div className="text-[11px] text-slate-500">مشخصات مشترک خانواده: {(product.technicalSpecs||[]).map(s=>s.key+': '+s.value).join(' · ')}</div>}
-    </div>
-  );
   return (
     <div className="space-y-6 text-right" dir="rtl">
       {/* 1. HEADER & GLOBAL STATS */}
@@ -873,6 +836,13 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               }`}
             >
               کالاها ({toPersianDigits(catalogStats.totalFamilies)})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('images')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeSubTab === 'images' ? 'bg-white text-[#E06518] shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              تصاویر و اتصال ({toPersianDigits(TOTAL_OFFICIAL_IMAGES_COUNT)})
             </button>
             <button
               type="button"
@@ -981,6 +951,57 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         </details>
         </>}
       </div>
+
+      {/* Image management lives in its own workspace; keep the global page header/navigation visible. */}
+      {activeSubTab === 'images' && (
+        <ProductImageAudit products={products} categories={categories}
+        onCreateCategory={()=>handleOpenCategoryModal()}
+        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
+          handleOpenNewFamily();
+          const url=imageUrl||getProductImageUrl(file);
+          setDraftFamily(previous=>previous?{
+            ...previous,
+            categoryName:category||previous.categoryName,
+            subcategory:subcategory||previous.subcategory,
+            images:[...(previous.images||[]),url],
+            galleryImages:[...(previous.galleryImages||[]),{
+              id:`review-new-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
+            }]
+          }:previous);
+          setEditorTab('family');
+        }}
+        onCreateSku={(code,file,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,'variants');
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-draft-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
+            }],images:[...(previous.images||[]),url]};
+          });
+        }}
+        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,skuCode?'variants':'images');
+          if(skuCode)setEditingVariantCode(skuCode);
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-${file}`,url,fileName:file,
+              scope:skuCode?'variant':'family',variantCode:skuCode,
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
+            }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
+          });
+        }}
+      />
+
+      )}
 
       {/* 2. PRODUCTS & SKU FAMILIES TAB */}
       {activeSubTab === 'products' && (
@@ -1113,62 +1134,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-            <button type="button" aria-expanded={showImageLibrary} onClick={()=>setShowImageLibrary(v=>!v)}
-              className="w-full flex flex-wrap justify-between items-center gap-3 px-4 py-4 text-right hover:bg-slate-50">
-              <span className="flex gap-2 items-center font-bold text-[#55565A] text-sm"><ImageIcon size={18} className="text-[#E06518]"/> کتابخانه تصاویر و اتصال به کالا</span>
-              <span className="flex gap-2 items-center text-xs text-[#C65A16]">{showImageLibrary?'بستن کتابخانه':'بازکردن و اتصال تصویر'} <ArrowDown size={14}/></span>
-            </button>
-            {showImageLibrary&&<div className="border-t border-slate-100 p-2 sm:p-3">
-        <ProductImageAudit products={products} categories={categories}
-        onCreateCategory={()=>handleOpenCategoryModal()}
-        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
-          handleOpenNewFamily();
-          const url=imageUrl||getProductImageUrl(file);
-          setDraftFamily(previous=>previous?{
-            ...previous,
-            categoryName:category||previous.categoryName,
-            subcategory:subcategory||previous.subcategory,
-            images:[...(previous.images||[]),url],
-            galleryImages:[...(previous.galleryImages||[]),{
-              id:`review-new-${file}`,url,fileName:file,scope:'family',
-              identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
-            }]
-          }:previous);
-          setEditorTab('family');
-        }}
-        onCreateSku={(code,file,imageUrl,imageTitle)=>{
-          const product=products.find(p=>p.code===code);if(!product)return;
-          handleOpenEditFamily(product,'variants');
-          setDraftFamily(previous=>{
-            if(!previous)return previous;
-            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url))return previous;
-            return {...previous,galleryImages:[...gallery,{
-              id:`review-draft-${file}`,url,fileName:file,scope:'family',
-              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
-            }],images:[...(previous.images||[]),url]};
-          });
-        }}
-        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
-          const product=products.find(p=>p.code===code);if(!product)return;
-          handleOpenEditFamily(product,skuCode?'variants':'images');
-          if(skuCode)setEditingVariantCode(skuCode);
-          setDraftFamily(previous=>{
-            if(!previous)return previous;
-            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url))return previous;
-            return {...previous,galleryImages:[...gallery,{
-              id:`review-${file}`,url,fileName:file,
-              scope:skuCode?'variant':'family',variantCode:skuCode,
-              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
-            }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
-          });
-        }}
-      />
-
-            </div>}
-          </div>
           {/* Mobile-first family cards: same actions as the desktop table without horizontal scrolling */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:hidden">
             {paginatedProducts.map(product => {
@@ -1198,12 +1163,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   <button type="button" onClick={()=>handleOpenEditFamily(product,"images")} className="rounded-xl border border-slate-200 text-[#55565A] py-2.5 text-xs font-bold flex justify-center items-center gap-1.5"><ImageIcon size={14}/> تصاویر</button>
                   <button type="button" onClick={()=>handleToggleFamilyActive(product)} className={product.active===false ? "rounded-xl border border-emerald-200 text-emerald-700 py-2.5 text-xs font-bold flex justify-center items-center gap-1.5" : "rounded-xl border border-rose-200 text-rose-700 py-2.5 text-xs font-bold flex justify-center items-center gap-1.5"}>{product.active===false?<Eye size={14}/>:<EyeOff size={14}/>} {product.active===false?"فعال‌سازی":"غیرفعال‌سازی"}</button>
                 </div>
-                <button type="button" aria-expanded={expandedFamilyCode===product.code}
-                  onClick={()=>setExpandedFamilyCode(expandedFamilyCode===product.code?null:product.code)}
-                  className="w-full rounded-xl bg-[#FFF2E8] text-[#B94D0A] p-3 text-xs font-black">
-                  {expandedFamilyCode===product.code?'بستن جزئیات':'مشاهده ریز کدها و مشخصات فنی ('+toPersianDigits(variants.length)+')'}
-                </button>
-                {expandedFamilyCode===product.code&&renderFamilyDetails(product)}
                 <div className="flex items-center justify-between border-t border-slate-100 pt-2">
                   <Link to={"/product/"+encodeURIComponent(product.code)+"?preview=1"} className="text-xs text-[#C65A16] font-bold flex items-center gap-1"><ExternalLink size={13}/> پیش‌نمایش سایت</Link>
                   <button type="button" onClick={()=>handleResetFamily(product.code)} className="text-[11px] text-slate-500 flex items-center gap-1"><RotateCcw size={13}/> بازنشانی اطلاعات</button>
@@ -1241,7 +1200,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     });
 
                     return (
-                      <React.Fragment key={product.code}><tr
+                      <tr
+                        key={product.code}
                         className={`hover:bg-slate-50/80 transition-colors ${
                           product.active === false ? 'bg-rose-50/30 opacity-75' : ''
                         }`}
@@ -1264,10 +1224,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                                 <span className="font-mono font-bold text-slate-700" dir="ltr">
                                   {product.code}
                                 </span>
-                                <button type="button" onClick={()=>setExpandedFamilyCode(expandedFamilyCode===product.code?null:product.code)}
-                                  className="text-[11px] font-bold text-[#B94D0A] underline" aria-expanded={expandedFamilyCode===product.code}>
-                                  {expandedFamilyCode===product.code?'بستن جزئیات':'ریز کدها و مشخصات'}
-                                </button>
                                 <span>·</span>
                                 <span>برند: {product.brand || 'ثبت نشده'}</span>
                               </div>
@@ -1393,7 +1349,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                               title="ویرایش خانواده، کدها، تصاویر و قیمت‌ها"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
-                              <span>ویرایش</span>
+                              <span>مدیریت کامل</span>
                             </button>
 
                             <button
@@ -1424,8 +1380,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                           </div>
                         </td>
                       </tr>
-                      {expandedFamilyCode===product.code&&<tr key={product.code+'-details'}><td colSpan={7} className="p-4 bg-slate-50">{renderFamilyDetails(product)}</td></tr>}
-                    </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -1818,9 +1772,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       key={i}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-700"
                     >
-                      <input aria-label={`ویرایش نام زیردسته ${sub}`} value={sub}
-                         onChange={e => setEditingCategory({...editingCategory,subcategories:editingCategory.subcategories.map((name,idx)=>idx===i?e.target.value:name)})}
-                         className="min-w-0 w-32 sm:w-44 p-1 rounded-md border border-transparent focus:border-[#E06518] bg-transparent outline-none" />
+                      <span>{sub}</span>
                       <button
                         type="button"
                         onClick={() =>
