@@ -1,3 +1,4 @@
+import './catalogFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, PRODUCT_FAMILY_ALIASES } from '../src/data/userProducts';
