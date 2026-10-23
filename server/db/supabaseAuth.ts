@@ -26,7 +26,7 @@ async function identityProfile(authUserId:string){
  ) d on true
  where p.id=$1 limit 1`,[authUserId])).rows[0];
  if(!row)return undefined;
- const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin'};
+ const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin',sales_manager:'sales_manager',warehouse_operator:'warehouse_operator'};
  return {...(row.draft_payload || {}),...(row.preferences || {}),
   addresses:row.profile_addresses || [],id:row.draft_id || row.legacy_user_id || row.id,
   authUserId:row.id,phone:row.phone?.replace(/^\+98/,'0'),
@@ -34,12 +34,13 @@ async function identityProfile(authUserId:string){
   role:role[row.role] || 'guest',active:row.status==='active' && row.draft_active!==false,
   approvedB2B:row.approved_b2b,canViewPrices:row.can_view_prices,canViewStock:row.can_view_stock,
   creditLimit:Number(row.credit_limit),creditUsed:Number(row.credit_used),
-  walletBalance:Number(row.wallet_balance),clubPoints:row.club_points};
+  walletBalance:Number(row.wallet_balance),clubPoints:row.club_points,
+  adminPermissions:Array.isArray(row.preferences?.adminPermissions)?row.preferences.adminPermissions:[]};
 }
 export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const token=cookie(req,'sp_access');if(!token)return {admin:false};
  const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false};}
- const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.active!==false && user?.role==='admin',user:user?.active===false?undefined:user};
+ const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.active!==false && (user?.role==='admin'||(['sales_manager','warehouse_operator'].includes(user?.role)&&Array.isArray(user?.adminPermissions)&&user.adminPermissions.length>0)),user:user?.active===false?undefined:user};
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
@@ -101,7 +102,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
     "select id,email,phone,role,status from public.user_profiles where lower(username)=$1 or lower(email)=$1 or phone=$1 limit 1",
     [identifier]
   )).rows[0];
-  if(!row || row.status!=='active' || (body.action==='admin_login' && row.role!=='super_admin'))
+  if(!row || row.status!=='active' || (body.action==='admin_login' && !['super_admin','sales_manager','warehouse_operator'].includes(row.role)))
     throw error(401,'نام کاربری یا رمز عبور معتبر نیست.');
   const credentials=body.action==='admin_login' && row.email
     ? {email:String(row.email),password:String(body.password)}
@@ -124,8 +125,8 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  }
  const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
- const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {})}:null;
- if(!profile || !profile.active || (body.action==='admin_login' && profile.role!=='admin')){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
- send(200,{success:true,user:safe(profile),admin:profile.role==='admin',requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':p.role==='sales_manager'?'sales_manager':p.role==='warehouse_operator'?'warehouse_operator':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {})}:null;
+ if(!profile || !profile.active || (body.action==='admin_login' && !['admin','sales_manager','warehouse_operator'].includes(profile.role))){cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');}
+ send(200,{success:true,user:safe(profile),admin:['admin','sales_manager','warehouse_operator'].includes(profile.role),requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }
