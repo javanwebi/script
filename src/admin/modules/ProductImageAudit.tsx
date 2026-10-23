@@ -132,6 +132,8 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
     const priceTiers={...(selectedFamily?.prices||{base:0,retail:0,wholesale:0,dealer:0}),base:selectedFamily?.prices?.base??((Number(retail)>0)?Math.round(Number(retail)*0.8):0),retail:Number(retail)||0,wholesale:Number(wholesale)||0,dealer:Number(dealer)||0};
     const nowId=`image-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
     const gallery:ProductGalleryImage={id:nowId,url,fileName:file,scope:placement==='family'?'family':'variant',variantCode:placement==='sku'?(createNewSku?skuCodeInput.trim():sku):undefined,identityVerified:false,title:title.trim()||file,order:(selectedFamily?.galleryImages?.length||0)+1};
+    const alreadyLinked=(selectedFamily?.galleryImages||[]).some(img=>img.url===url&&img.scope===gallery.scope&&(img.variantCode||'')===(gallery.variantCode||''));
+    const nextGallery=alreadyLinked?[...(selectedFamily?.galleryImages||[])]:[...(selectedFamily?.galleryImages||[]),gallery];
     let variants:ProductVariant[]=[...(selectedFamily?.variants||[])];
     if(createNewFamily){
       variants=[{code:skuCodeInput.trim(),name:skuName.trim(),size:skuSize.trim(),model:skuModel.trim(),brand,unit,price:Number(retail)||0,prices:priceTiers,inquiryOnly,stock:Number(stock)||0,stockKnown:true,active:true,images:placement==='sku'?[url]:[],description,technicalSpecs:cleanSpecs}];
@@ -147,8 +149,8 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
       technicalSpecs:placement==='family'?cleanSpecs:(selectedFamily?.technicalSpecs||[]),
       prices:priceTiers,stock:Number(stock)||0,inquiryOnly,description,
       tags:selectedFamily?.tags||['قطعه صنعتی'],active:selectedFamily?.active??true,
-      images:[...new Set([...(selectedFamily?.galleryImages||[]).map(img=>img.url),...(selectedFamily?.images||[]),url])],
-      galleryImages:[...(selectedFamily?.galleryImages||[]),gallery],variants
+      images:[...new Set([...nextGallery.map(img=>img.url),...(selectedFamily?.images||[]),url])],
+      galleryImages:nextGallery,variants
     };
     onSaveProduct(next);
     setSaveMessage('اطلاعات کالا و اتصال تصویر ذخیره شد. مشخصات فنی به همان خانواده/کد متصل شد.');
