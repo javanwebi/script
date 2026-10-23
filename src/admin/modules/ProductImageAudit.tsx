@@ -89,107 +89,141 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     el.href=href;el.download='sanatpish-image-assignments.json';el.click();
     window.setTimeout(()=>URL.revokeObjectURL(href),1000);
   };
-  const filterItem=(value:Filter,label:string,count:number)=><button type="button" aria-pressed={filter===value} onClick={()=>{setFilter(value);setPage(0)}} className={`min-w-0 rounded-xl border px-3 py-3 text-right transition-colors ${filter===value?'border-[#E06518] bg-[#FFF2E8]':'border-[#E7E8EA] bg-white hover:bg-slate-50'}`}><span className="text-[11px] text-slate-500 block">{label}</span><strong className="text-lg text-[#55565A]">{fa(count)}</strong></button>;
-
-  return <section dir="rtl" aria-label="میزکار بررسی تصاویر" className="rounded-2xl border border-[#E7E8EA] bg-[#F8F9FA] overflow-hidden">
-    <header className="bg-white px-4 py-4 sm:px-5 border-b border-[#E7E8EA] flex flex-wrap justify-between items-center gap-3">
-      <div className="min-w-0">
-        <h2 className="text-base sm:text-lg font-black text-[#55565A]">میزکار تصاویر کالا <span className="text-[#E06518]">({fa(audit.length)})</span></h2>
-        <p className="text-xs text-slate-500 mt-1">یک تصویر انتخاب کنید؛ محل نمایش و اطلاعات محصول را تعیین کنید. هیچ کدی خودکار تأیید نمی‌شود.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={create} className="rounded-xl bg-[#E06518] px-4 py-2.5 text-white text-xs font-bold flex items-center gap-2"><ImagePlus size={16}/> تصویر جدید</button>
-        <button type="button" onClick={exportAudit} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#55565A] flex items-center gap-2"><Download size={15}/> خروجی</button>
-      </div>
-    </header>
-
-    <div className="p-3 sm:p-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-      {filterItem('all','همه تصاویر',audit.length)}
-      {filterItem('unassigned','بدون اتصال',totals.unassigned)}
-      {filterItem('family-example','تصویر خانواده',totals.family)}
-      {filterItem('sku-linked','متصل به کد کالا',totals.sku)}
-    </div>
-    <div className="px-3 sm:px-4 pb-4">
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] gap-4 items-start">
-        <div className={`${card} p-3 sm:p-4 min-w-0 ${mobileEditor?'hidden xl:block':''}`}>
-          <div className="flex flex-wrap gap-2 items-center mb-3">
-            <div className="relative flex-1 min-w-[190px]"><Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><input type="search" aria-label="جستجوی تصویر" value={search} onChange={e=>{setSearch(e.target.value);setPage(0)}} placeholder="شماره تصویر، نام محصول یا کد…" className="w-full rounded-xl border border-slate-200 py-3 pr-10 pl-3 text-sm outline-none focus:border-[#E06518]"/></div>
-            <button type="button" aria-expanded={moreFilters} onClick={()=>setMoreFilters(v=>!v)} className="rounded-xl border border-slate-200 px-3 py-3 text-xs flex items-center gap-2"><SlidersHorizontal size={15}/> فیلترها</button>
+  return (
+    <section dir="rtl" aria-label="بررسی تصاویر خانواده و کد کالا" className="overflow-hidden rounded-2xl border border-[#E7E8EA] bg-[#F5F7FA]">
+      <header className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-black text-[#55565A] sm:text-lg">بررسی تصاویر خانواده و کد کالا</h2>
+            <span className="rounded-full bg-[#FFF0E5] px-2.5 py-1 text-xs font-black text-[#C65A16]">{fa(audit.length)} تصویر</span>
           </div>
-          {moreFilters&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3 p-3 bg-slate-50 rounded-xl">
-            <label className="text-xs text-slate-600">وضعیت<select value={filter} onChange={e=>{setFilter(e.target.value as Filter);setPage(0)}} className="mt-1 block w-full bg-white border rounded-lg p-2"><option value="all">همه</option><option value="unassigned">بدون اتصال</option><option value="family-example">فقط خانواده</option><option value="sku-linked">متصل به SKU</option><option value="catalogue-photo">دارای شاهد کاتالوگ</option></select></label>
-            <label className="text-xs text-slate-600">خانواده<select value={familyFilter} onChange={e=>{setFamilyFilter(e.target.value);setPage(0)}} className="mt-1 block w-full bg-white border rounded-lg p-2"><option value="all">همه خانواده‌ها</option><option value="none">بدون خانواده</option>{allFamilies.map(([code,name])=><option key={code} value={code}>{name}</option>)}</select></label>
-            <button type="button" className="text-xs text-[#C65A16] text-right" onClick={()=>{setSearch('');setFilter('all');setFamilyFilter('all');setPage(0)}}>پاک‌کردن همه فیلترها</button>
-          </div>}
-          <p className="text-xs text-slate-500 mb-3">{fa(filtered.length)} تصویر پیدا شد — تصویر را برای ویرایش انتخاب کنید.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2">
-            {visible.map(row=><button type="button" key={row.file} aria-pressed={file===row.file&&source==='existing'} onClick={()=>choose(row.file)} className={`min-w-0 rounded-xl border overflow-hidden text-right transition-all ${file===row.file&&source==='existing'?'border-[#E06518] ring-2 ring-[#FBE0CF]':'border-slate-200 hover:border-[#E06518]'}`}>
-              <div className="aspect-[4/3] bg-[#F8F9FA] p-2"><ProductImage src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="w-full h-full object-contain"/></div>
-              <div className="p-2 space-y-1"><span dir="ltr" className="block text-[11px] font-mono font-bold text-[#55565A] truncate">{row.file}</span><span className={`block w-fit rounded-md px-1.5 py-0.5 text-[10px] ${statusColor(row)}`}>{statusLabel(row)}</span></div>
-            </button>)}
+          <p className="mt-1.5 text-xs leading-6 text-slate-500">تصویر را بررسی کنید و خانواده، کد کالا و مشخصات درست را به آن متصل کنید. هیچ کدی خودکار تأیید نمی‌شود.</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button type="button" onClick={create} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#c95814]"><ImagePlus size={16}/> افزودن تصویر</button>
+          <button type="button" onClick={exportAudit} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#55565A] hover:bg-slate-50"><Download size={15}/> خروجی بررسی</button>
+        </div>
+      </header>
+
+      <div className="space-y-3 border-b border-slate-200 bg-white p-3 sm:p-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(220px,1fr)_190px_auto]">
+          <div className="relative min-w-0">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/>
+            <input type="search" aria-label="جستجوی تصویر" value={search} onChange={e=>{setSearch(e.target.value);setPage(0)}} placeholder="جستجو با نام فایل، نام محصول یا کد کالا…" className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-10 pl-3 text-sm outline-none focus:border-[#E06518]"/>
           </div>
-          {!visible.length&&<p role="status" className="text-sm text-slate-500 py-12 text-center">تصویری پیدا نشد. فیلترها را تغییر دهید.</p>}
-          <div className="flex justify-center items-center gap-3 pt-5 text-xs">
-            <button type="button" disabled={!currentPage} onClick={()=>setPage(currentPage-1)} className="flex items-center gap-1 border rounded-lg p-2 disabled:opacity-40"><ChevronRight size={15}/> قبلی</button>
-            <span>{fa(currentPage+1)} از {fa(pages)}</span>
-            <button type="button" disabled={currentPage>=pages-1} onClick={()=>setPage(currentPage+1)} className="flex items-center gap-1 border rounded-lg p-2 disabled:opacity-40">بعدی <ChevronLeft size={15}/></button>
+          <select aria-label="فیلتر وضعیت اتصال" value={filter} onChange={e=>{setFilter(e.target.value as Filter);setPage(0)}} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-[#55565A] outline-none focus:border-[#E06518]">
+            <option value="all">همه تصاویر</option><option value="unassigned">بدون اتصال</option><option value="family-example">متصل به خانواده</option><option value="sku-linked">متصل به کد کالا</option><option value="catalogue-photo">دارای شاهد کاتالوگ</option>
+          </select>
+          <button type="button" aria-expanded={moreFilters} onClick={()=>setMoreFilters(v=>!v)} className={moreFilters?"inline-flex items-center justify-center gap-2 rounded-xl border border-[#E06518] bg-[#FFF2E8] px-4 py-3 text-xs font-bold text-[#C65A16]":"inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A] hover:bg-slate-50"}><SlidersHorizontal size={15}/> فیلترهای بیشتر</button>
+        </div>
+        {moreFilters&&<div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
+          <label className="text-xs font-bold text-slate-600">خانواده محصول
+            <select value={familyFilter} onChange={e=>{setFamilyFilter(e.target.value);setPage(0)}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-2.5 font-normal"><option value="all">همه خانواده‌ها</option><option value="none">بدون خانواده</option>{allFamilies.map(([code,name])=><option key={code} value={code}>{name} — {code}</option>)}</select>
+          </label>
+          <div className="flex items-end justify-start"><button type="button" className="rounded-lg px-3 py-2 text-xs font-bold text-[#C65A16] hover:bg-white" onClick={()=>{setSearch('');setFilter('all');setFamilyFilter('all');setPage(0)}}>پاک‌کردن همه فیلترها</button></div>
+        </div>}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+          <p>{fa(filtered.length)} تصویر پیدا شد</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span><span className="ml-1 inline-block h-2 w-2 rounded-full bg-rose-400"/>بدون اتصال: {fa(totals.unassigned)}</span>
+            <span><span className="ml-1 inline-block h-2 w-2 rounded-full bg-amber-400"/>خانواده: {fa(totals.family)}</span>
+            <span><span className="ml-1 inline-block h-2 w-2 rounded-full bg-emerald-500"/>کد کالا: {fa(totals.sku)}</span>
           </div>
         </div>
-
-        <aside aria-label="ویرایش اتصال و اطلاعات تصویر" className={`${card} min-w-0 overflow-hidden xl:sticky xl:top-4 ${!mobileEditor?'hidden xl:block':''}`}>
-          <div className="px-4 py-3 flex items-center justify-between border-b border-slate-100 bg-white">
-            <div><h3 className="text-sm font-black text-[#55565A]">اطلاعات و محل تصویر</h3><p className="text-[11px] text-slate-500 mt-1">فقط موارد مرتبط با تصویر انتخاب‌شده</p></div>
-            {mobileEditor&&<button type="button" onClick={()=>setMobileEditor(false)} className="xl:hidden border p-2 rounded-lg" aria-label="بازگشت به تصاویر"><ArrowLeft size={17}/></button>}
-          </div>
-          {!url&&source==='existing'?<div className="px-5 py-14 text-center space-y-3"><FileImage size={38} className="mx-auto text-slate-300"/><strong className="block text-sm text-[#55565A]">هنوز تصویری انتخاب نشده است</strong><p className="text-xs text-slate-500 leading-6">روی یکی از تصاویر فهرست بزنید یا با «تصویر جدید» یک فایل وارد کنید.</p><button type="button" onClick={create} className="rounded-xl border border-[#E06518] text-[#C65A16] px-4 py-2 text-xs">افزودن تصویر</button></div>:
-          <div className="space-y-4 p-3 sm:p-4 max-h-[78vh] overflow-y-auto">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="منبع تصویر">
-              {([['existing','بانک تصاویر'],['upload','بارگذاری فایل'],['url','لینک تصویر']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{setSource(key);setUrl('');setFile('');setSourceError('')}} className={`flex-1 rounded-lg px-2 py-2 text-[11px] border font-bold ${source===key?'border-[#E06518] bg-[#FFF2E8] text-[#C65A16]':'border-slate-200 text-slate-600'}`}>{label}</button>)}
-            </div>
-            {source==='existing'&&!url&&<p className="text-xs text-slate-500">تصویر را از فهرست سمت راست انتخاب کنید.</p>}
-            {source==='upload'&&<label className="block border border-dashed border-[#E7B995] rounded-xl p-3 text-xs font-bold text-[#55565A]">انتخاب تصویر از دستگاه
-              <input type="file" accept="image/*" onChange={e=>chooseFile(e.target.files?.[0])} className="mt-2 w-full text-xs"/>
-            </label>}
-            {source==='url'&&<div className="flex gap-2"><input type="url" value={urlInput} onChange={e=>setUrlInput(e.target.value)} dir="ltr" placeholder="https://..." className="min-w-0 flex-1 border rounded-lg p-2 text-xs"/><button type="button" onClick={chooseUrl} className="rounded-lg bg-[#55565A] text-white px-3 text-xs">انتخاب</button></div>}
-            {sourceError&&<p role="alert" className="text-xs text-rose-600">{sourceError}</p>}
-            {url&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex gap-3 items-center">
-              <div className="w-24 h-24 bg-white rounded-lg shrink-0"><ProductImage src={url} alt={file} className="w-full h-full object-contain"/></div>
-              <div className="min-w-0"><p dir="ltr" className="text-xs font-mono truncate">{file}</p><p className="text-[11px] text-slate-500 mt-2">این تصویر هنوز تأیید فنی نشده است.</p></div>
-            </div>}
-            {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="w-full mt-2 rounded-lg border border-slate-200 p-2.5" placeholder="مثلاً نمای روبه‌روی قطعه"/></label>}
-            {url&&<div className="space-y-3">
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">دسته‌بندی محصول</h4><button type="button" onClick={onCreateCategory} className="text-[#C65A16] text-[11px] font-bold flex items-center gap-1"><FolderPlus size={14}/> دسته/زیردسته جدید</button></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label className="text-[11px] text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5"><option value="">همه دسته‌ها</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-                <label className="text-[11px] text-slate-600">زیردسته<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5 disabled:opacity-50"><option value="">همه زیردسته‌ها</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-              </div>
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="text-[#C65A16] text-[11px] font-bold disabled:opacity-50">+ ساخت خانواده جدید</button></div>
-              <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full border rounded-lg p-2.5 text-xs"/>
-              <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full border rounded-lg bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
-            </div>}
-            {url&&family&&<div className="space-y-3 border-t border-slate-100 pt-3">
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">محل نمایش تصویر</h4><button type="button" onClick={()=>{onCreateSku(family.code,file,url,title);closeSelection()}} className="text-[11px] font-bold text-[#C65A16]">+ ساخت کد جدید</button></div>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" aria-pressed={placement==='family'} onClick={()=>{setPlacement('family');setSku('')}} className={`p-3 rounded-xl border text-xs text-right ${placement==='family'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200'}`}><strong className="block">خانواده</strong><span className="block text-[10px] text-slate-500 mt-1">برای همه مدل‌ها</span></button>
-                <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={`p-3 rounded-xl border text-xs text-right ${placement==='sku'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200'}`}><strong className="block">کد کالا</strong><span className="block text-[10px] text-slate-500 mt-1">فقط یک مدل مشخص</span></button>
-              </div>
-              {placement==='sku'&&<label className="block text-xs text-[#55565A]">کد دقیق SKU<select value={sku} onChange={e=>setSku(e.target.value)} className="mt-1 w-full border rounded-lg p-3 bg-white"><option value="">کد کالا را انتخاب کنید</option>{(family.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}</option>)}</select></label>}
-            </div>}
-            {url&&selectedRow&&<details open={showEvidence} onToggle={e=>setShowEvidence(e.currentTarget.open)} className="rounded-xl border border-slate-200 text-xs">
-              <summary className="cursor-pointer p-3 font-bold text-[#55565A] flex gap-2 items-center"><Info size={15}/> اطلاعات فنی و شاهد کاتالوگ</summary>
-              <div className="border-t p-3 space-y-2 text-slate-600 leading-6">
-                <p>{selectedRow.observed}</p>
-                {selectedRow.research&&<><p><b>نوع ظاهری:</b> {selectedRow.research.visualType}</p><p>{selectedRow.research.visibleFeatures}</p><p><b>بررسی لازم:</b> {selectedRow.research.requiredChecks.join('، ')}</p></>}
-                {selectedRow.ownerCatalogue&&<p>کاتالوگ: {selectedRow.ownerCatalogue.catalogueGroup}، صفحه PDF {selectedRow.ownerCatalogue.page}</p>}
-                {selectedRow.families.map(f=><div key={f.code} className="border-t pt-2"><b>{f.name}</b> ({f.code})<p>{f.skus.map(s=>s.code).join('، ')||'کد تأیید نشده'}</p></div>)}
-                {!!selectedRow.duplicateFiles.length&&<p>تصاویر مشابه ثبت‌شده: {selectedRow.duplicateFiles.join('، ')}</p>}
-              </div>
-            </details>}
-            {url&&<p className="text-[11px] leading-5 text-amber-700">اتصال یا انتخاب کد، تأیید هویت قطعه نیست. مشخصات فنی را در ویرایشگر محصول تکمیل کنید. فایل جدید تا زمانی که در فضای ذخیره دائمی بارگذاری نشود، نباید منتشر شود.</p>}
-            {url&&<button type="button" disabled={!familyCode||(placement==='sku'&&!sku)} onClick={apply} className="w-full rounded-xl bg-[#E06518] text-white py-3.5 font-bold text-xs disabled:opacity-40 flex justify-center items-center gap-2"><Check size={17}/> ادامه برای تکمیل مشخصات و ذخیره</button>}
-          </div>}
-        </aside>
       </div>
-    </div>
-  </section>;
+
+      <div className="p-3 sm:p-4 lg:p-5">
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
+          {visible.map(row=><article key={row.file} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-[#E8B995] hover:shadow-sm">
+            <div className="flex h-40 items-center justify-center bg-white p-4 sm:h-44">
+              <ProductImage src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="h-full w-full object-contain"/>
+            </div>
+            <div className="flex flex-1 flex-col gap-3 border-t border-slate-100 p-3.5 sm:p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p dir="ltr" className="truncate text-xs font-black text-[#55565A]">{row.file}</p>
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{row.observed||row.research?.visualType||'توضیح فنی تصویر هنوز ثبت نشده است.'}</p>
+                </div>
+                <span className={"shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold "+statusColor(row)}>{statusLabel(row)}</span>
+              </div>
+              <div className="min-h-[82px] rounded-xl bg-slate-50 p-3">
+                {row.families.length>0?<div className="space-y-2">
+                  {row.families.slice(0,2).map(f=><div key={f.code}>
+                    <p className="text-[11px] font-bold leading-5 text-[#55565A]">خانواده: {f.name}</p>
+                    <p dir="ltr" className="text-[10px] text-slate-500">{f.code}{f.skus.length?" · "+f.skus.length.toLocaleString('fa-IR')+" کد کالا":""}</p>
+                  </div>)}
+                  {row.families.length>2&&<p className="text-[10px] text-slate-500">و {fa(row.families.length-2)} خانواده دیگر</p>}
+                </div>:<p className="text-[11px] leading-6 text-slate-500">خانواده و کد کالا هنوز تأیید نشده است.</p>}
+                {row.ownerCatalogue&&<p className="mt-2 border-t border-slate-200 pt-2 text-[10px] leading-5 text-slate-500">شاهد کاتالوگ: {row.ownerCatalogue.catalogueGroup} · صفحه {fa(row.ownerCatalogue.page)}</p>}
+              </div>
+              <button type="button" onClick={()=>choose(row.file)} className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E06518] bg-white px-3 py-2.5 text-xs font-bold text-[#C65A16] transition hover:bg-[#FFF2E8]"><FileImage size={15}/> بررسی و اتصال به خانواده / کد</button>
+            </div>
+          </article>)}
+        </div>
+        {!visible.length&&<div role="status" className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-16 text-center"><FileImage size={34} className="mx-auto text-slate-300"/><p className="mt-3 text-sm font-bold text-[#55565A]">تصویری پیدا نشد</p><p className="mt-1 text-xs text-slate-500">عبارت جستجو یا فیلترها را تغییر دهید.</p></div>}
+        <div className="flex items-center justify-center gap-4 pt-5 text-xs">
+          <button type="button" disabled={!currentPage} onClick={()=>setPage(currentPage-1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-2.5 disabled:opacity-40"><ChevronRight size={15}/> قبلی</button>
+          <span className="text-slate-600">{fa(currentPage+1)} از {fa(pages)}</span>
+          <button type="button" disabled={currentPage>=pages-1} onClick={()=>setPage(currentPage+1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-2.5 disabled:opacity-40">بعدی <ChevronLeft size={15}/></button>
+        </div>
+      </div>
+
+      {mobileEditor&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:p-5" onClick={e=>{if(e.target===e.currentTarget)closeSelection()}}>
+        <div role="dialog" aria-modal="true" aria-label="بررسی و اتصال تصویر به محصول" className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <header className="flex items-center justify-between gap-3 bg-[#55565A] px-4 py-3 text-white sm:px-5">
+            <div className="min-w-0"><h3 className="text-sm font-black sm:text-base">بررسی و اتصال تصویر</h3><p dir="ltr" className="mt-1 truncate text-[10px] text-slate-200">{file||'تصویر جدید'} · انتخاب دسته، خانواده و کد دقیق</p></div>
+            <button type="button" onClick={closeSelection} aria-label="بستن فرم تصویر" className="shrink-0 rounded-lg border border-white/25 p-2 hover:bg-white/10"><X size={18}/></button>
+          </header>
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(230px,0.75fr)_minmax(0,1.5fr)] lg:overflow-hidden">
+            <div className="border-b border-slate-100 bg-slate-50 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-l">
+              <div className="flex min-h-48 items-center justify-center rounded-xl border border-slate-200 bg-white p-3 sm:min-h-56">
+                {url?<ProductImage src={url} alt={file} className="max-h-64 w-full object-contain"/>:<div className="py-8 text-center"><FileImage size={34} className="mx-auto text-slate-300"/><p className="mt-2 text-xs text-slate-500">تصویری انتخاب نشده است</p></div>}
+              </div>
+              <p dir="ltr" className="mt-2 break-all text-center text-xs font-bold text-[#55565A]">{file||'تصویر جدید'}</p>
+              {selectedRow&&<div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-6 text-slate-600">
+                <p className="font-bold text-[#55565A]">اطلاعات فعلی تصویر</p><p>{selectedRow.observed}</p>
+                {selectedRow.research&&<><p><b>نوع ظاهری:</b> {selectedRow.research.visualType}</p><p>{selectedRow.research.visibleFeatures}</p><p><b>بررسی لازم:</b> {selectedRow.research.requiredChecks.join('، ')}</p></>}
+                {selectedRow.ownerCatalogue&&<p className="border-t border-slate-100 pt-2">کاتالوگ: {selectedRow.ownerCatalogue.catalogueGroup}، صفحه PDF {fa(selectedRow.ownerCatalogue.page)}</p>}
+                {!!selectedRow.duplicateFiles.length&&<p className="border-t border-slate-100 pt-2">تصاویر مشابه: {selectedRow.duplicateFiles.join('، ')}</p>}
+              </div>}
+            </div>
+            <div className="min-h-0 space-y-4 p-3 sm:p-5 lg:overflow-y-auto">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="منبع تصویر">
+                {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','استفاده از لینک']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
+              </div>
+              {source==='upload'&&<label className="block rounded-xl border border-dashed border-[#E7B995] bg-[#FFFAF6] p-4 text-xs font-bold text-[#55565A]">انتخاب تصویر از دستگاه<input type="file" accept="image/*" onChange={e=>chooseFile(e.target.files?.[0])} className="mt-2 block w-full text-xs"/></label>}
+              {source==='url'&&<div className="flex flex-col gap-2 sm:flex-row"><input type="url" value={urlInput} onChange={e=>setUrlInput(e.target.value)} dir="ltr" placeholder="https://example.com/image.png" className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-xs"/><button type="button" onClick={chooseUrl} className="rounded-lg bg-[#55565A] px-4 py-3 text-xs font-bold text-white">بارگذاری لینک</button></div>}
+              {sourceError&&<p role="alert" className="text-xs text-rose-600">{sourceError}</p>}
+              {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 p-3 font-normal" placeholder="نام قطعه یا توضیحی که در تصویر دیده می‌شود"/></label>}
+              {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۱. دسته‌بندی محصول</h4><button type="button" onClick={onCreateCategory} className="inline-flex items-center gap-1 rounded-lg border border-orange-200 px-2.5 py-2 text-[11px] font-bold text-[#C65A16]"><FolderPlus size={14}/> افزودن دسته / زیردسته</button></div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="text-xs text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">انتخاب دسته</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">زیردسته<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">انتخاب زیردسته</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                </div>
+              </div>}
+              {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button></div>
+                <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full rounded-lg border border-slate-200 p-3 text-xs"/>
+                <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
+              </div>}
+              {url&&family&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۳. محل اتصال تصویر</h4><button type="button" onClick={()=>{onCreateSku(family.code,file,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16]">+ افزودن کد کالا</button></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" aria-pressed={placement==='family'} onClick={()=>{setPlacement('family');setSku('')}} className={placement==='family'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">تصویر خانواده</strong><span className="mt-1 block text-[10px] text-slate-500">برای همه مدل‌های خانواده</span></button>
+                  <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={placement==='sku'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">کد دقیق کالا</strong><span className="mt-1 block text-[10px] text-slate-500">فقط یک SKU مشخص</span></button>
+                </div>
+                {placement==='sku'&&<label className="block text-xs text-slate-600">کد دقیق SKU<select value={sku} onChange={e=>setSku(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">انتخاب کد کالا</option>{(family.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}</option>)}</select></label>}
+              </div>}
+              {url&&<p className="rounded-xl bg-amber-50 p-3 text-[11px] leading-6 text-amber-800">اتصال تصویر به‌تنهایی هویت فنی قطعه را تأیید نمی‌کند. مشخصات فنی کد کالا باید در فرم ویرایش همان محصول بررسی شود. فایل جدید تا ذخیره در فضای دائمی، آماده انتشار نیست.</p>}
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
+                <button type="button" onClick={closeSelection} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A]">انصراف</button>
+                {url&&<button type="button" disabled={!familyCode||(placement==='sku'&&!sku)} onClick={apply} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> ذخیره اتصال و ادامه تکمیل مشخصات</button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>}
+    </section>
+  );
 }
