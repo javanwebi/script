@@ -62,6 +62,8 @@ export const CATEGORIES_STORAGE_KEY = 'atlas_admin_categories_v1';
 
 export function getManagedCategories(): EnhancedCategory[] {
   if (typeof window === 'undefined') return CATEGORIES;
+  // A client with no hydrated database must not show stale checked-in catalogue menus.
+  if (!databaseStorageEnabled()) return [];
   try {
     const raw = durableStorage.getItem(CATEGORIES_STORAGE_KEY);
     if (raw) {
@@ -78,9 +80,8 @@ export function getManagedCategories(): EnhancedCategory[] {
   } catch {
     // ignore
   }
-  return databaseStorageEnabled()?[]:CATEGORIES;
+  return [];
 }
 
 export const findCatalogCategory = (slug: string) =>
-  getManagedCategories().find(category => category.slug === resolveCategorySlug(slug) || category.slug === slug) ||
-  CATEGORIES.find(category => category.slug === resolveCategorySlug(slug));
+  getManagedCategories().find(category => category.slug === resolveCategorySlug(slug) || category.slug === slug);

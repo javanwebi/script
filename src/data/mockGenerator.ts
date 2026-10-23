@@ -35,7 +35,9 @@ export function installDatabaseProducts(products:Product[]){databaseProducts=pro
 // when the API is unavailable. Dev/CLI fixtures remain for isolated tests.
 const baselineProducts=():Product[]=>{
   if (databaseProducts) return databaseProducts;
-  if (typeof window !== 'undefined' && import.meta.env.PROD) return [];
+  // A browser in any environment must never treat bundled product JSON as live inventory.
+  // Isolated Node tests may still use the legacy fixtures until the retirement gate passes.
+  if (typeof window !== 'undefined') return [];
   return USER_PRODUCTS_RAW;
 };
 let sessionOverrides: CatalogOverridesState | null = null;
@@ -69,7 +71,7 @@ export function getOverridesState(): CatalogOverridesState {
     return sessionOverrides;
   const empty:CatalogOverridesState={version:1,updatedAt:"",deletedCodes:[],families:{}};
   // Production never seeds product corrections from a stale checked-in snapshot.
-  const seed:CatalogOverridesState=(databaseProducts || (typeof window !== 'undefined' && import.meta.env.PROD))
+  const seed:CatalogOverridesState=(typeof window !== 'undefined' || databaseProducts)
     ? empty : initialOverridesDb as unknown as CatalogOverridesState;
   if (typeof window === "undefined") {
     return {
