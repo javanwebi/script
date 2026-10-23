@@ -3,9 +3,22 @@ import assert from 'node:assert/strict';
 import { USER_PRODUCTS } from '../src/data/userProducts';
 import { getImageAssignmentAudit, imageFileName } from '../src/data/imageAssignments';
 import { INDUSTRIAL_PRESET_SAMPLES } from '../src/data/recognitionSamples';
+import review from '../docs/product-image-review.json';
+import research from '../src/data/imageResearch.json';
+import owner from '../src/data/ownerCataloguePhotos.json';
 
+// Historical fixtures validate parity. Production UI fetches source records from PostgreSQL.
+const byResearch=new Map(research.items.map(item=>[item.file,item]));
+const byOwner=new Map(owner.items.map(item=>[item.file,item]));
+const fixtures=review.items.map(item=>{
+ const r=byResearch.get(item.file),p=byOwner.get(item.file);
+ return {file:item.file,sha256:item.sha256,observed:item.observed,reason:item.reason,
+  research:r?{visualType:p?.catalogueGroup||r.visualType,visibleFeatures:String(r.visibleFeatures||''),requiredChecks:r.requiredChecks||[],sourceSha256:r.sourceSha256,exactSku:r.exactSku,standardStatus:r.standardStatus}:undefined,
+  ownerCatalogue:p?{catalogueGroup:p.catalogueGroup,page:p.page,pdfPage:p.page,matchRatio:0}:undefined
+ };
+});
 test('all image assets have review status without turning sequential filenames into warehouse SKUs',()=>{
- const audit=getImageAssignmentAudit(USER_PRODUCTS);
+ const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures);
  assert.equal(audit.length,869);
  assert.equal(audit.filter(x=>x.status==='family-example').length,464);
  assert.equal(audit.filter(x=>x.status==='unassigned').length,405);
@@ -13,7 +26,7 @@ test('all image assets have review status without turning sequential filenames i
  assert.ok(audit.every(x=>x.families.every(f=>f.skus.length===0)));
 });
 test('visually incompatible associations are removed, even when a family has a single SKU',()=>{
- const audit=getImageAssignmentAudit(USER_PRODUCTS);
+ const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures);
  for(const file of ['e(54).png','e(52).png'])assert.equal(audit.find(x=>x.file===file)?.status,'unassigned');
  const single=audit.find(x=>x.families.some(f=>f.candidateSkuCount===1));
  assert.ok(single);assert.equal(single.status,'family-example');assert.equal(single.requiresCodeEvidence,true);
@@ -21,8 +34,8 @@ test('visually incompatible associations are removed, even when a family has a s
 test('actual valid SKU bindings are reported and unknown SKU references are rejected',()=>{
  const base=USER_PRODUCTS.find(p=>p.variants?.length)!;const code=base.variants![0].code;
  const product={...base,images:[],variants:base.variants!.map(v=>({...v,images:[]})),galleryImages:[{id:'x',url:'https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png',scope:'variant' as const,variantCode:code}]};
- const row=getImageAssignmentAudit([product])[0];assert.equal(row.status,'sku-linked');assert.equal(row.families[0].skus[0].code,code);
- const invalid={...product,galleryImages:[{...product.galleryImages[0],variantCode:'NOT-IN-FAMILY'}]};assert.equal(getImageAssignmentAudit([invalid])[0].status,'family-example');
+ const row=getImageAssignmentAudit([product],fixtures)[0];assert.equal(row.status,'sku-linked');assert.equal(row.families[0].skus[0].code,code);
+ const invalid={...product,galleryImages:[{...product.galleryImages[0],variantCode:'NOT-IN-FAMILY'}]};assert.equal(getImageAssignmentAudit([invalid],fixtures)[0].status,'family-example');
 });
 test('filename parsing handles encoded URLs but does not accept legacy product IDs',()=>{
  assert.equal(imageFileName('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e%28383%29.png'),'e(383).png');
@@ -35,7 +48,7 @@ test('recognition examples never populate fabricated technical dimensions',()=>{
 });
 
 test('all unresolved images have detailed visual research without fabricated SKU or standard',()=>{
- const audit=getImageAssignmentAudit(USER_PRODUCTS).filter(row=>row.status==='unassigned');
+ const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures).filter(row=>row.status==='unassigned');
  assert.equal(audit.length,405);
  for(const row of audit){assert.ok(row.research);assert.equal(row.research.sourceSha256,row.sha256);assert.equal(row.research.exactSku,null);assert.equal(row.research.standardStatus,'not-established');assert.ok(row.research.requiredChecks.length>=3);}
 });
