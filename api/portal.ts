@@ -950,7 +950,9 @@ export async function requirePortalAdmin(
   next: () => void,
 ) {
   try {
-    const auth = await session(req, await readDb());
+    const auth = databaseEnabled() && adoptedSchema()
+      ? await supabaseIdentity(req)
+      : await session(req, await readDb());
     if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
     if (
       req.headers.origin &&
