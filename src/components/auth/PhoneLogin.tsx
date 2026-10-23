@@ -4,9 +4,9 @@ import { ArrowLeft, RotateCcw, Smartphone } from "lucide-react";
 import { portalRequest, hydratePortal } from "../../services/portalRepository";
 import { Customer } from "../../types";
 export function PhoneLogin({
-  onSuccess,initialPhone="",initialSent=false,
+  onSuccess,initialPhone="",initialSent=false,demoOnly=false,
 }: {
-  initialPhone?:string;initialSent?:boolean;
+  initialPhone?:string;initialSent?:boolean;demoOnly?:boolean;
   onSuccess: (user: Customer, requiresCredentials?: boolean) => void;
 }) {
   const [phone, setPhone] = useState(initialPhone),
@@ -29,10 +29,14 @@ export function PhoneLogin({
     setMustRegister(false);
     try {
       let r;
-      try { r = await portalRequest({ action: "otp_request", phone }); }
-      catch (error) {
-        if (!import.meta.env.DEV) throw error;
+      if (demoOnly && import.meta.env.DEV) {
         r = await portalRequest({ action: "dev_otp_request", phone });
+      } else {
+        try { r = await portalRequest({ action: "otp_request", phone }); }
+        catch (error) {
+          if (!import.meta.env.DEV) throw error;
+          r = await portalRequest({ action: "dev_otp_request", phone });
+        }
       }
       setDevOtp(r.preview === true ? {code:r.devCode,requestId:r.requestId} : null);
       setSent(true);
@@ -87,7 +91,14 @@ export function PhoneLogin({
           <p role="status" className="account-help">
             {notice || "کد ارسال‌شده به شماره موبایل خود را وارد کنید."}
           </p>
-          {devOtp && <p role="status" className="account-help">کد آزمایشی محیط توسعه: <strong dir="ltr">{devOtp.code}</strong> — ورود واقعی ایجاد نمی‌شود.</p>}
+          {devOtp && (
+            <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center space-y-2">
+              <p className="text-xs font-bold text-amber-900">کد تأیید آزمایشی — فقط محیط توسعه محلی</p>
+              <strong dir="ltr" className="block text-3xl tracking-[0.3em] tabular-nums text-[#55565A] select-all">{devOtp.code}</strong>
+              <p className="text-[11px] text-amber-800 leading-5">برای آزمایش فرم، این کد را پایین وارد کنید. شماره موبایل در واقعیت تأیید نمی‌شود و حساب یا نشست ورود ساخته نمی‌شود.</p>
+              <button type="button" onClick={()=>setCode(devOtp.code)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs text-amber-900">قراردادن کد در کادر</button>
+            </div>
+          )}
           <label>
             کد شش‌رقمی
             <input
@@ -136,7 +147,7 @@ export function PhoneLogin({
       )}
       {mustRegister && <Link to="/register" className="store-btn-primary account-submit">انتقال به صفحه ثبت‌نام <ArrowLeft size={17}/></Link>}
       <button className="store-btn-primary account-submit" disabled={busy}>
-        {busy ? "در حال بررسی…" : sent ? "تأیید کد و ورود" : "دریافت کد پیامکی"}
+        {busy ? "در حال بررسی…" : sent ? (devOtp ? "بررسی کد آزمایشی" : "تأیید کد و ورود") : demoOnly ? "دریافت کد تست در همین صفحه" : "دریافت کد پیامکی"}
         {sent ? <ArrowLeft size={17} /> : <Smartphone size={17} />}
       </button>
     </form>
