@@ -40,7 +40,7 @@ async function identityProfile(authUserId:string){
 export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const token=cookie(req,'sp_access');if(!token)return {admin:false};
  const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false};}
- const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.active!==false && (user?.role==='admin'||(['sales_manager','warehouse_operator'].includes(user?.role)&&Array.isArray(user?.adminPermissions)&&user.adminPermissions.length>0)),user:user?.active===false?undefined:user};
+ const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.active!==false && user?.role==='admin',staff:user?.active!==false && ['sales_manager','warehouse_operator'].includes(user?.role)&&Array.isArray(user?.adminPermissions)&&user.adminPermissions.length>0,user:user?.active===false?undefined:user};
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
