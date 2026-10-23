@@ -13,7 +13,7 @@ for (const width of ports) {
  });
  page.on('pageerror', e=>problems.push(width+': '+e.message));
  await page.goto('http://127.0.0.1:4173/admin',{waitUntil:'domcontentloaded',timeout:20000});
- await page.getByRole('navigation',{name:'بخش‌های پنل مدیریت'}).waitFor({timeout:15000});
+ await page.getByRole('navigation',{name:'بخش‌های پنل مدیریت',includeHidden:true}).waitFor({state:'attached',timeout:15000});
  if(width<768)await page.getByRole('button',{name:/menu/i}).count().then(()=>{});
  const nav=page.getByRole('navigation',{name:'بخش‌های پنل مدیریت'});
  for(const title of ['داشبورد و گزارش‌ها','سفارش‌ها و لجستیک','استعلام و پیش‌فاکتور','مشتریان و CRM','اعتبار و قیمت‌ها','نمایندگی‌ها','کاتالوگ و کالاها','ورود گروهی کالا','مدیریت محتوا','اطلاعیه‌ها','مشتریان ما','تنظیمات و امنیت']){
