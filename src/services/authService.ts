@@ -39,7 +39,8 @@ export class AuthService {
   ): Promise<{ success: boolean; user?: Customer; message?: string }> {
     try {
       const data = await portalRequest({ action: "profile", payload });
-      await hydratePortal();
+      // The profile endpoint returns its committed user. Avoid an expensive
+      // redundant full-portal GET after each onboarding save.
       return data;
     } catch (e: any) {
       return { success: false, message: e.message };
