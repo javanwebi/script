@@ -7,7 +7,7 @@ import { ProductImage } from "../components/product/ProductImage";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
-import { getAllProducts } from "../data/mockGenerator";
+import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import {
   CATEGORIES,
   findCatalogCategory,
@@ -91,7 +91,12 @@ export const ProductsPage: React.FC = () => {
   const resultsSectionRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 24;
-  const allProducts = useMemo(() => getAllProducts(), []);
+  // A Supabase /api/runtime hydration replaces the initial catalogue snapshot.
+  // Keep the listing reactive; otherwise the first JSON-derived snapshot can
+  // remain visible even after fresh PostgreSQL products arrive.
+  const [catalogVersion,setCatalogVersion]=useState(0);
+  useEffect(()=>subscribeCatalogChanges(()=>setCatalogVersion(v=>v+1)),[]);
+  const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
