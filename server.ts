@@ -301,6 +301,42 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+app.get('/api/admin/catalog-image-audits',async(req,res)=>{
+  res.setHeader('Cache-Control','private, no-store');
+  try{
+    const identity=await getPortalIdentity(req);
+    if(!identity.admin)return res.status(403).json({success:false,message:'دسترسی مدیر لازم است.'});
+    if(!databaseEnabled())return res.status(503).json({success:false,message:'اطلاعات تصاویر باید از دیتابیس بارگذاری شوند.'});
+    const result=await database().query(`
+      select a.file_name,a.sha256,a.observed_description,a.reason,
+        a.visual_type,a.visible_features,a.required_checks,
+        p.catalogue_group,p.pdf_page,p.match_ratio
+      from public.catalog_image_audits a
+      left join public.owner_catalogue_photos p on p.file_name=a.file_name
+      order by a.file_name
+    `);
+    const rows=result.rows.map(row=>({
+      file:row.file_name,
+      sha256:row.sha256 || '',
+      observed:row.observed_description || '',
+      reason:row.reason || '',
+      research:{
+        visualType:row.catalogue_group || row.visual_type || '',
+        visibleFeatures:Array.isArray(row.visible_features)?row.visible_features.join('، '):String(row.visible_features||''),
+        requiredChecks:Array.isArray(row.required_checks)?row.required_checks:[]
+      },
+      ownerCatalogue:row.catalogue_group?{
+        catalogueGroup:row.catalogue_group,
+        page:row.pdf_page,
+        pdfPage:row.pdf_page,
+        matchRatio:Number(row.match_ratio||0)
+      }:undefined
+    }));
+    return res.json({success:true,rows});
+  }catch(e:any){
+    return res.status(503).json({success:false,message:'خواندن بررسی تصاویر از دیتابیس ممکن نشد.'});
+  }
+});
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
