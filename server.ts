@@ -878,6 +878,18 @@ async function jinaEmbedImages(buffers: Buffer[], task: 'retrieval.query' | 'ret
 // and a Jina key is configured.
 async function buildImageEmbeddingIndex(): Promise<void> {
   try {
+    if(databaseEnabled()){
+      const rows=(await database().query("select file_name,embedding::text as vector from public.catalog_image_features where embedding is not null")).rows;
+      for(const row of rows){
+        const values=String(row.vector || '').replace(/^\[/,'').replace(/\]$/,'').split(',').map(Number);
+        if(!values.length || values.some(v=>!Number.isFinite(v)))continue;
+        IMAGE_EMB_INDEX.set(row.file_name,values);
+        const alias=normalizeCatalogImageKey(row.file_name);
+        if(alias) IMAGE_EMB_INDEX.set(alias,values);
+      }
+      embIndexReady=IMAGE_EMB_INDEX.size>0;
+      return;
+    }
     if (fs.existsSync(IMAGE_EMB_CACHE_PATH)) {
       const cached = JSON.parse(fs.readFileSync(IMAGE_EMB_CACHE_PATH, 'utf8')) as {
         version: number;
@@ -1472,6 +1484,23 @@ function gridDistance(a: ImageFeatures, b: ImageFeatures): number {
 async function buildImageFeatureIndex(): Promise<void> {
   try {
     buildCatalogImageAliases();
+    if(databaseEnabled()){
+      const rows=(await database().query(`select file_name,raw_dh,raw_ph,raw_ah,raw_eh,raw_aspect,raw_col,raw_radial,raw_hog,raw_hu,raw_grid,clean_dh,clean_ph,clean_ah,clean_eh,clean_aspect,clean_col,clean_radial,clean_hog,clean_hu,clean_grid from public.catalog_image_features`)).rows;
+      for(const row of rows){
+        if(!row.raw_dh || !row.clean_dh)continue;
+        const feature=(prefix:string):ImageFeatures=>({
+          dh:row[prefix+'_dh'],ph:row[prefix+'_ph'],ah:row[prefix+'_ah'],eh:row[prefix+'_eh'],
+          aspect:row[prefix+'_aspect'],col:row[prefix+'_col'] || [],radial:row[prefix+'_radial'] || [],
+          hog:row[prefix+'_hog'] || [],hu:row[prefix+'_hu'] || [],grid:row[prefix+'_grid'] || []
+        });
+        const pair={raw:feature('raw'),clean:feature('clean')};
+        IMAGE_FEATURE_INDEX.set(row.file_name,pair);
+        const alias=normalizeCatalogImageKey(row.file_name);
+        if(alias)IMAGE_FEATURE_INDEX.set(alias,pair);
+      }
+      visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
+      return;
+    }
 
     // 1) Try loading cache (v2 multi-feature format)
     if (fs.existsSync(IMAGE_HASH_CACHE_PATH)) {
@@ -1542,9 +1571,7 @@ async function buildImageFeatureIndex(): Promise<void> {
   }
 }
 
-// Build in background so server startup isn't blocked on first run
-void buildImageFeatureIndex();
-void buildImageEmbeddingIndex();
+// Initialize after authoritative database catalog hydration in start().
 
 function brandForCatalogItem(item: CatalogItem): string {
   const itemName = item.name.toLowerCase();
@@ -6517,6 +6544,8 @@ async function start() {
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
+  void buildImageFeatureIndex();
+  void buildImageEmbeddingIndex();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
