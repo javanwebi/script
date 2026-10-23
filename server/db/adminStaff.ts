@@ -2,6 +2,7 @@ import {createClient} from '@supabase/supabase-js';
 import type {Request,Response} from 'express';
 import {database} from './connection';
 import {validPermissions,STAFF_ROLES} from './adminPermissions';
+import {signStaffGrant,verifiedStaffPermissions} from './adminGrantSigner';
 const httpError=(status:number,message:string)=>Object.assign(new Error(message),{status});
 const cookie=(req:Request,name:string)=>(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1);
 const authClient=()=>{const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY;if(!url||!key)throw httpError(503,'Supabase Auth تنظیم نشده است.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}})};
@@ -20,8 +21,8 @@ export async function adminStaffApi(req:Request,res:Response){
   const supervisor=(await database().query("select role::text role,status::text status from public.user_profiles where id=$1",[who.data.user.id])).rows[0];
   if(supervisor?.role!=='super_admin'||supervisor?.status!=='active')throw httpError(403,'این قسمت فقط برای مدیر اصلی است.');
   if(req.method==='GET'){
-   const result=await database().query("select id,username,full_name as name,email,role::text role,status::text status,coalesce(preferences->'adminPermissions','[]'::jsonb) as permissions from public.user_profiles where role::text in ('sales_manager','warehouse_operator') order by created_at desc limit 200");
-   return res.json({success:true,staff:result.rows,provisioningReady:!!process.env.SUPABASE_SERVICE_ROLE_KEY});
+   const result=await database().query("select id,username,full_name as name,email,role::text role,status::text status,coalesce(preferences->'adminPermissions','[]'::jsonb) as permissions,preferences->>'adminPermissionsMac' as signature from public.user_profiles where role::text in ('sales_manager','warehouse_operator') order by created_at desc limit 200");
+   return res.json({success:true,staff:result.rows.map(row=>({...row,permissions:verifiedStaffPermissions(row.id,{adminPermissions:row.permissions,adminPermissionsMac:row.signature})})),provisioningReady:!!process.env.SUPABASE_SERVICE_ROLE_KEY && (process.env.PORTAL_SESSION_SECRET||'').length>=32});
   }
   const body=req.body||{};
   if(req.method==='POST'){
@@ -43,9 +44,10 @@ export async function adminStaffApi(req:Request,res:Response){
    try{
     // The owner's auth.users trigger has already inserted a client profile.
     // Upgrade only that freshly created profile; never overwrite a linked CRM/club user.
+    const grant=signStaffGrant(created.data.user.id,permissions);
     const updated=await database().query(
       "update public.user_profiles set username=$2,full_name=$3,email=$4,role=$5::public.app_role_type,status='active',preferences=coalesce(preferences,'{}'::jsonb)||$6::jsonb,updated_at=now() where id=$1 and role='client'",
-      [created.data.user.id,username,name,email,role,JSON.stringify({adminPermissions:permissions})]);
+      [created.data.user.id,username,name,email,role,JSON.stringify(grant)]);
     if(updated.rowCount!==1)throw httpError(409,'پروفایل احراز هویت با حساب مشتری تداخل دارد؛ ایجاد کارمند متوقف شد.');
    }catch(e){
     // Undo orphan Auth account when the profile cannot be stored.
@@ -61,7 +63,8 @@ export async function adminStaffApi(req:Request,res:Response){
    const permissions=validPermissions(body.permissions);
    if(!permissions.length)throw httpError(400,'حداقل یک بخش برای کارمند لازم است.');
    if(permissions.includes('settings'))throw httpError(403,'مجوز تنظیمات امنیتی قابل واگذاری نیست.');
-   await database().query("update public.user_profiles set preferences=jsonb_set(coalesce(preferences,'{}'::jsonb),'{adminPermissions}',$2::jsonb,true),updated_at=now() where id=$1",[id,JSON.stringify(permissions)]);
+   const grant=signStaffGrant(id,permissions);
+   await database().query("update public.user_profiles set preferences=coalesce(preferences,'{}'::jsonb)||$2::jsonb,updated_at=now() where id=$1",[id,JSON.stringify(grant)]);
   }else if(body.operation==='set_active'){
    if(typeof body.active!=='boolean')throw httpError(400,'وضعیت نامعتبر است.');
    await database().query("update public.user_profiles set status=case when $2::boolean then 'active'::public.account_status_type else 'suspended'::public.account_status_type end,updated_at=now() where id=$1",[id,body.active]);
