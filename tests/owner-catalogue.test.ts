@@ -1,3 +1,4 @@
+import './catalogFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ownerPinDimensions } from '../src/data/ownerCatalogue';
