@@ -13,6 +13,7 @@ export function PhoneLogin({
     [code, setCode] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [mustRegister, setMustRegister] = useState(false);
   const [devOtp, setDevOtp] = useState<{code:string;requestId:string}|null>(null);
   const [sent, setSent] = useState(initialSent),
     [busy, setBusy] = useState(false),
