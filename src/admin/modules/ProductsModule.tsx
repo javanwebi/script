@@ -1818,7 +1818,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       key={i}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-700"
                     >
-                      <span>{sub}</span>
+                      <input aria-label={`ویرایش نام زیردسته ${sub}`} value={sub}
+                         onChange={e => setEditingCategory({...editingCategory,subcategories:editingCategory.subcategories.map((name,idx)=>idx===i?e.target.value:name)})}
+                         className="min-w-0 w-32 sm:w-44 p-1 rounded-md border border-transparent focus:border-[#E06518] bg-transparent outline-none" />
                       <button
                         type="button"
                         onClick={() =>
