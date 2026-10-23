@@ -7,6 +7,8 @@ import review from '../docs/product-image-review.json';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, USER_PRODUCTS_BY_CODE } from '../src/data/userProducts';
 import source from '../src/data/catalogueSource.json';
 import { getImageAssignmentAudit } from '../src/data/imageAssignments';
+import research from '../src/data/imageResearch.json';
+
 import { matchesCatalogCategory } from '../src/data/categories';
 import { enrichTechnicalVariant } from '../src/data/productTechnicalData';
 test('owner pin table is applied to existing matching SKU names with explicit mm and drawing axes',()=>{
@@ -43,7 +45,14 @@ test('catalog corrections repair family navigation while preserving every origin
 test('143 owner photo matches have page/hash evidence but never imply a warehouse-SKU binding',()=>{
  assert.equal(photos.items.length,143);
  const hashes=new Map(review.items.map(r=>[r.file,r.sha256]));
- const audit=getImageAssignmentAudit(USER_PRODUCTS_RAW);
+ const researchByFile=new Map(research.items.map(item=>[item.file,item]));
+ const photoByFile=new Map(photos.items.map(item=>[item.file,item]));
+ const audit=getImageAssignmentAudit(USER_PRODUCTS_RAW,review.items.map(item=>{
+   const r=researchByFile.get(item.file),p=photoByFile.get(item.file);
+   return {file:item.file,sha256:item.sha256,observed:item.observed,reason:item.reason,
+     research:r?{visualType:r.visualType,visibleFeatures:r.visibleFeatures,requiredChecks:r.requiredChecks}:undefined,
+     ownerCatalogue:p?{catalogueGroup:p.catalogueGroup,page:p.page,pdfPage:p.page,matchRatio:0}:undefined};
+ }));
  for(const row of photos.items){
   assert.equal(row.imageSha256,hashes.get(row.file));
   assert.equal(row.exactWarehouseSku,null);assert.equal(row.printedPage,row.page-18);
