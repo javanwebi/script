@@ -28,11 +28,14 @@ function statusStyle(row: AuditRow) {
   return 'text-rose-700 bg-rose-50 border-rose-200';
 }
 export function ProductImageAudit({
-  products, onEdit, onCreateFamily,
+  products, categories, onEdit, onCreateFamily, onCreateCategory, onCreateSku,
 }: {
   products: Product[];
-  onEdit: (familyCode: string, file: string) => void;
-  onCreateFamily?: () => void;
+  categories: {name:string;subcategories?:string[]}[];
+  onEdit: (familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string)=>void;
+  onCreateFamily: (file:string,category:string,subcategory:string,imageUrl?:string,imageTitle?:string)=>void;
+  onCreateCategory: ()=>void;
+  onCreateSku: (familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
 }) {
   const [opened, setOpened] = useState(true);
   const [query, setQuery] = useState('');
@@ -40,6 +43,16 @@ export function ProductImageAudit({
   const [page, setPage] = useState(0);
   const [view, setView] = useState<'grid'|'list'>('grid');
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedUrl,setSelectedUrl]=useState('');
+  const [sourceMode,setSourceMode]=useState<'existing'|'upload'|'url'>('existing');
+  const [newImageUrl,setNewImageUrl]=useState('');
+  const [sourceError,setSourceError]=useState('');
+  const [imageTitle,setImageTitle]=useState('');
+  const [selectedCategory,setSelectedCategory]=useState('');
+  const [selectedSubcategory,setSelectedSubcategory]=useState('');
+  const [selectedFamily,setSelectedFamily]=useState('');
+  const [selectedSku,setSelectedSku]=useState('');
+  const [location,setLocation]=useState<'family'|'sku'>('family');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [familyQuery, setFamilyQuery] = useState('');
   const [familyFilter, setFamilyFilter] = useState('all');
@@ -68,9 +81,43 @@ export function ProductImageAudit({
   const activePage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(activePage * perPage, (activePage + 1) * perPage);
   const selectedRow = audit.find(row => row.file === selected);
-  const families = products.filter(p =>
-    normalizeCatalogueText(p.code + ' ' + p.name + ' ' + (p.variants || []).map(v => v.code + ' ' + v.name).join(' ')).includes(normalizeCatalogueText(familyQuery))
-  ).slice(0, 30);
+  const families=products.filter(p=>
+    (!selectedCategory||p.categoryName===selectedCategory)
+    &&(!selectedSubcategory||p.subcategory===selectedSubcategory)
+    &&normalizeCatalogueText(p.code+' '+p.name+' '+(p.variants||[]).map(v=>v.code+' '+v.name).join(' ')).includes(normalizeCatalogueText(familyQuery))
+  ).slice(0,80);
+  const currentFamily=products.find(p=>p.code===selectedFamily);
+  const categoryOptions=Array.from(new Set([...categories.map(c=>c.name),...products.map(p=>p.categoryName)].filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fa'));
+  const subcategoryOptions=Array.from(new Set([
+    ...(categories.find(c=>c.name===selectedCategory)?.subcategories||[]),
+    ...products.filter(p=>p.categoryName===selectedCategory).map(p=>p.subcategory||'')
+  ].filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fa'));
+  const chooseImage=(file:string)=>{
+    setSelected(file);setSelectedUrl(getProductImageUrl(file));setSourceMode('existing');setSourceError('');setImageTitle('');setFamilyQuery('');setSelectedCategory('');setSelectedSubcategory('');
+    setSelectedFamily('');setSelectedSku('');setLocation('family');
+  };
+  const openEditor=()=>{
+    if(!selectedFamily||!selected)return;
+    if(location==='sku'&&!selectedSku)return;
+    onEdit(selectedFamily,selected,location==='sku'?selectedSku:undefined,selectedUrl,imageTitle);
+    setSelected(null);
+  };
+  const openNewImage=()=>{setSelected(null);setSelectedUrl('');setImageTitle('');setSourceMode('upload');setSourceError('');setSelectedFamily('');setSelectedCategory('');setSelectedSubcategory('');setSelectedSku('');setLocation('family')};
+  const loadFile=(file?:File)=>{
+    if(!file)return;
+    if(!file.type.startsWith('image/')){setSourceError('فقط فایل تصویر قابل انتخاب است.');return;}
+    if(file.size>5*1024*1024){setSourceError('اندازه تصویر باید کمتر از ۵ مگابایت باشد.');return;}
+    const reader=new FileReader();
+    reader.onload=()=>{setSelected(file.name);setSelectedUrl(String(reader.result||''));setSourceError('');setImageTitle(file.name)};
+    reader.onerror=()=>setSourceError('خواندن فایل انجام نشد.');
+    reader.readAsDataURL(file);
+  };
+  const setLinkImage=()=>{
+    const link=newImageUrl.trim();
+    if(!/^https?:\/\/[^\s]+$/i.test(link)){setSourceError('لینک تصویر باید با http یا https آغاز شود.');return;}
+    setSelected(link.split('/').pop()?.split('?')[0]||'تصویر جدید');
+    setSelectedUrl(link);setImageTitle('');setSourceError('');
+  };
   const download = () => {
     const blob = new Blob([JSON.stringify(audit, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -78,7 +125,7 @@ export function ProductImageAudit({
     link.href = url; link.download = 'sanatpish-image-assignments.json'; link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const openAssignment = (row: AuditRow) => { setSelected(row.file); setFamilyQuery(row.families[0]?.name || ''); };
+  const openAssignment = (row: AuditRow) => { chooseImage(row.file); setFamilyQuery(row.families[0]?.name || ''); };
   const selectFilter = (value: StatusFilter) => { setStatus(value); setPage(0); };
   const resetFilters = () => { setQuery(''); setStatus('all'); setFamilyFilter('all'); setPage(0); };
   const hasFilters = !!query || status !== 'all' || familyFilter !== 'all';
@@ -91,7 +138,7 @@ export function ProductImageAudit({
           <p className="text-xs text-slate-500 mt-1">ابتدا تصویر را پیدا کنید؛ سپس اتصال به خانواده و کد را با شاهد کاتالوگ بررسی کنید.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          {onCreateFamily && <button type="button" onClick={onCreateFamily} className="flex items-center gap-1.5 bg-[#E06518] text-white rounded-xl px-3 py-2.5 text-xs font-bold"><ImagePlus size={16}/> افزودن خانواده و تصویر</button>}
+          <button type="button" onClick={openNewImage} className="flex items-center gap-1.5 bg-[#E06518] text-white rounded-xl px-3 py-2.5 text-xs font-bold"><ImagePlus size={16}/> افزودن تصویر و تکمیل محصول</button>
           <button type="button" onClick={download} className="flex items-center gap-1.5 border border-[#E8EAEE] text-[#55565A] rounded-xl px-3 py-2.5 text-xs font-bold" title="خروجی تمام تصاویر و اتصال‌ها"><Download size={16}/> خروجی</button>
           <button type="button" onClick={() => setOpened(v => !v)} aria-expanded={opened} aria-label={opened ? 'بستن بخش تصاویر' : 'بازکردن بخش تصاویر'} className="border border-[#E8EAEE] rounded-xl p-2.5"><ChevronDown size={17} className={opened ? 'rotate-180' : ''}/></button>
         </div>
@@ -161,18 +208,75 @@ export function ProductImageAudit({
         <button type="button" disabled={activePage>=pageCount-1} onClick={()=>setPage(activePage+1)} className="flex items-center gap-1 border rounded-xl px-3 py-2 text-xs disabled:opacity-40">بعدی <ChevronLeft size={15}/></button>
       </nav>
     </div>}
-    <Modal isOpen={!!selected} onClose={() => setSelected(null)} title="اتصال تصویر به خانواده و بررسی کد">
-      <div className="space-y-4" dir="rtl">
-        {selectedRow && <div className="flex items-center gap-3 rounded-xl bg-[#FAFAFB] p-3"><div className="w-20 h-20 shrink-0"><ProductImage src={getProductImageUrl(selectedRow.file)} alt={selectedRow.observed} className="w-full h-full object-contain"/></div><div className="min-w-0 text-xs space-y-1"><strong dir="ltr" className="block">{selectedRow.file}</strong><p className="line-clamp-2">{selectedRow.observed}</p><p className="text-amber-700">انتخاب خانواده به‌تنهایی کد SKU را تأیید نمی‌کند.</p></div></div>}
-        <p className="text-xs text-slate-600 leading-6">خانواده را انتخاب کنید تا ویرایشگر واقعی محصول باز شود. در آنجا تصویر را به کد مشخص وصل کنید و پس از بررسی شاهد کاتالوگ، تغییرات را ذخیره کنید.</p>
-        <label className="block text-xs font-bold text-[#55565A]">جستجوی خانواده یا کد کالا<input aria-label="جستجوی خانواده برای تصویر" autoFocus value={familyQuery} onChange={e=>setFamilyQuery(e.target.value)} className="mt-2 w-full rounded-xl border border-[#E3E5E9] p-3" placeholder="عنوان، کد خانواده یا SKU"/></label>
-        <div className="max-h-[45vh] overflow-y-auto space-y-2" role="list">
-          {families.map(f=><button type="button" key={f.code} onClick={()=>{if(selected)onEdit(f.code,selected);setSelected(null)}} className="block w-full rounded-xl border border-[#ECEDEF] hover:border-[#E06518] p-3 text-right text-xs"><strong className="block">{f.name}</strong><span dir="ltr" className="text-slate-500">{f.code}</span><span className="block text-[11px] text-slate-500 mt-1">{fa(f.variants?.length||0)} کد در این خانواده</span></button>)}
-          {families.length===0&&<p className="text-center text-sm text-slate-500 py-5">خانواده‌ای پیدا نشد.</p>}
+    <Modal isOpen={!!selectedUrl||sourceMode!=='existing'} onClose={()=>{setSelected(null);setSelectedUrl('');setSourceMode('existing')}} title="تکمیل اطلاعات تصویر و محصول">
+      <div className="space-y-4 max-h-[78vh] overflow-y-auto p-1" dir="rtl">
+        <div className="rounded-xl border bg-white p-3 space-y-3">
+          <strong className="text-xs text-[#55565A]">۱. انتخاب تصویر</strong>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={()=>{setSourceMode('existing');setSelected(null);setSelectedUrl('')}} className={`px-3 py-2 rounded-xl border text-xs ${sourceMode==='existing'?'bg-[#FFF3EA] border-[#E06518]':'bg-white'}`}>بانک ۸۶۹ تصویر</button>
+            <button type="button" onClick={()=>{setSourceMode('upload');setSelected(null);setSelectedUrl('')}} className={`px-3 py-2 rounded-xl border text-xs ${sourceMode==='upload'?'bg-[#FFF3EA] border-[#E06518]':'bg-white'}`}>فایل جدید</button>
+            <button type="button" onClick={()=>{setSourceMode('url');setSelected(null);setSelectedUrl('')}} className={`px-3 py-2 rounded-xl border text-xs ${sourceMode==='url'?'bg-[#FFF3EA] border-[#E06518]':'bg-white'}`}>لینک تصویر</button>
+          </div>
+          {sourceMode==='existing'&&!selectedUrl&&<p className="text-xs text-slate-500">تصویر موجود را از کارت‌های این صفحه با دکمه «بررسی و اتصال» انتخاب کنید.</p>}
+          {sourceMode==='upload'&&<label className="block text-xs font-bold text-slate-700">انتخاب تصویر از دستگاه (حداکثر ۵ مگابایت)
+            <input type="file" accept="image/*" onChange={e=>loadFile(e.target.files?.[0])} className="mt-2 block w-full rounded-xl border p-3 text-xs"/>
+          </label>}
+          {sourceMode==='url'&&<div className="flex flex-col sm:flex-row gap-2">
+            <input type="url" dir="ltr" value={newImageUrl} onChange={e=>setNewImageUrl(e.target.value)} placeholder="https://example.com/photo.png" className="flex-1 min-w-0 rounded-xl border p-3 text-xs"/>
+            <button type="button" onClick={setLinkImage} className="rounded-xl bg-[#55565A] text-white px-4 py-2 text-xs">انتخاب لینک</button>
+          </div>}
+          {sourceError&&<p role="alert" className="text-xs text-rose-700">{sourceError}</p>}
         </div>
-        <div className="flex justify-between gap-2 border-t pt-3">
-          {onCreateFamily && <button type="button" onClick={()=>{setSelected(null);onCreateFamily()}} className="text-xs border border-[#F3C9AD] text-[#C15112] rounded-xl px-3 py-2 flex items-center gap-1"><ImagePlus size={15}/> تعریف خانواده جدید</button>}
-          <button type="button" onClick={()=>setSelected(null)} className="text-xs border rounded-xl px-3 py-2 flex items-center gap-1"><X size={15}/> انصراف</button>
+        {selectedUrl&&<div className="flex gap-3 items-center rounded-xl bg-[#FAFAFB] border p-3">
+          {selectedUrl&&<ProductImage src={selectedUrl} alt={selected||"تصویر محصول"} className="w-20 h-20 rounded-xl object-contain bg-white shrink-0"/>}
+          <div className="min-w-0"><b className="text-sm text-[#55565A]">این تصویر متعلق به کجاست؟</b><p className="text-xs text-slate-500 mt-1" dir="ltr">{selected}</p><p className="text-[11px] text-amber-700 mt-1">پیشنهادها تأیید هویت فنی نیستند؛ شما محل و کد نهایی را تعیین می‌کنید.</p></div>
+        </div>}
+        {selectedUrl&&<label className="block text-xs font-bold text-slate-700">نام یا توضیح تصویر
+          <input value={imageTitle} onChange={e=>setImageTitle(e.target.value)} placeholder="مثلاً تصویر نمای جلو" className="w-full mt-2 border rounded-xl p-3"/>
+          <span className="block text-[11px] text-slate-500 mt-1">نام محصول، کد و مشخصات فنی در ویرایشگر کالا تکمیل می‌شوند. برای فایل جدید، ذخیره دائمی در فضای ابری تصاویر باید در تنظیمات سرور فعال باشد؛ پیش‌نمایش فایل در مرورگر به‌تنهایی نگهداری دائمی نیست.</span>
+        </label>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="text-xs font-bold text-slate-700">۱. دسته‌بندی
+            <select value={selectedCategory} onChange={e=>{setSelectedCategory(e.target.value);setSelectedSubcategory('');setSelectedFamily('');setSelectedSku('')}} className="mt-1.5 w-full p-3 rounded-xl border bg-white">
+              <option value="">همه دسته‌بندی‌ها</option>{categoryOptions.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-700">۲. زیردسته
+            <select disabled={!selectedCategory} value={selectedSubcategory} onChange={e=>{setSelectedSubcategory(e.target.value);setSelectedFamily('');setSelectedSku('')}} className="mt-1.5 w-full p-3 rounded-xl border bg-white disabled:opacity-50">
+              <option value="">همه زیردسته‌ها</option>{subcategoryOptions.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+        </div>
+        <button type="button" className="text-xs text-[#C65A16] underline" onClick={()=>{setSelected(null);onCreateCategory()}}>+ افزودن دسته‌بندی یا زیردسته جدید</button>
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-700">۳. خانواده کالا</label>
+          <input value={familyQuery} onChange={e=>setFamilyQuery(e.target.value)} placeholder="جستجوی نام خانواده، کد خانواده یا SKU" className="w-full border rounded-xl p-3 text-sm"/>
+          <select aria-label="انتخاب خانواده" size={Math.min(5,Math.max(2,families.length+1))} value={selectedFamily} onChange={e=>{setSelectedFamily(e.target.value);setSelectedSku('')}} className="w-full p-2 border rounded-xl bg-white text-xs">
+            <option value="">خانواده را انتخاب کنید...</option>
+            {families.map(f=><option key={f.code} value={f.code}>{f.name} — {f.code}</option>)}
+          </select>
+          <button type="button" className="text-xs text-[#C65A16] underline" onClick={()=>{if(selected){onCreateFamily(selected,selectedCategory,selectedSubcategory,selectedUrl,imageTitle);setSelected(null)}}}>+ تعریف خانواده و کالای جدید برای همین تصویر</button>
+        </div>
+        {currentFamily&&<div className="rounded-xl border border-[#F4D4BE] bg-[#FFF9F5] p-3 space-y-3">
+          <button type="button" onClick={()=>{if(selected&&selectedUrl){onCreateSku(currentFamily.code,selected,selectedUrl,imageTitle);setSelected(null);setSelectedUrl('');setSourceMode('existing')}}}
+            className="rounded-xl border border-[#E06518] text-[#C65A16] bg-white px-3 py-2.5 text-xs font-bold">
+            + تعریف کد کالای جدید و مشخصات فنی در این خانواده
+          </button>
+          <strong className="text-xs text-[#55565A]">۴. محل اتصال تصویر</strong>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label className="flex gap-2 items-center rounded-xl bg-white border p-3 text-xs"><input type="radio" name="attach-place" checked={location==='family'} onChange={()=>{setLocation('family');setSelectedSku('')}}/> تصویر عمومی خانواده</label>
+            <label className="flex gap-2 items-center rounded-xl bg-white border p-3 text-xs"><input type="radio" name="attach-place" checked={location==='sku'} onChange={()=>setLocation('sku')}/> تصویر مخصوص یک کد کالا</label>
+          </div>
+          {location==='sku'&&<label className="block text-xs font-bold text-slate-700">کد کالای دقیق
+            <select value={selectedSku} onChange={e=>setSelectedSku(e.target.value)} className="mt-1.5 w-full border rounded-xl p-3 bg-white">
+              <option value="">انتخاب کد کالا الزامی است</option>{(currentFamily.variants||[]).map(v=><option value={v.code} key={v.code}>{v.code} — {v.name}</option>)}
+            </select>
+          </label>}
+          <p className="text-[11px] text-slate-600">برای افزودن کد جدید، تغییر نام، سایز، مشخصات فنی و سایر اطلاعات، وارد ویرایشگر خانواده شوید. تصویر در پیش‌نویس قرار می‌گیرد و فقط پس از ذخیره نهایی ثبت می‌شود.</p>
+        </div>}
+        <div className="sticky bottom-0 bg-white border-t pt-3 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={()=>{setSelected(null);setSelectedUrl('');setSourceMode('existing')}} className="border rounded-xl px-4 py-2.5 text-xs">انصراف</button>
+          <button type="button" onClick={openEditor} disabled={!selectedUrl||!selectedFamily||(location==='sku'&&!selectedSku)} className="bg-[#E06518] text-white rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-50">ادامه در ویرایشگر و بررسی مشخصات</button>
         </div>
       </div>
     </Modal>
