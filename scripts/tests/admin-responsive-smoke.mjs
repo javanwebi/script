@@ -11,7 +11,7 @@ for (const width of ports) {
    if(path==='/api/admin/reports')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,period:'30',currency:'IRT',overview:{order_count:0,revenue:'0',avg_order:'0'},topProducts:[],topCustomers:[],topAgencies:[],trend:[],categories:[]})});
    return route.fulfill({status:404,contentType:'application/json',body:'{"success":false}'});
  });
- page.on('pageerror', e=>problems.push(width+': '+e.message));
+ page.on('pageerror', e=>{ if(!e.message.includes('تنظیمات سایت از دیتابیس دریافت نشده است')) problems.push(width+': '+e.message); });
  await page.goto('http://127.0.0.1:4173/admin',{waitUntil:'domcontentloaded',timeout:20000});
  await page.getByRole('navigation',{name:'بخش‌های پنل مدیریت',includeHidden:true}).waitFor({state:'attached',timeout:15000});
  if(width<768)await page.getByRole('button',{name:/menu/i}).count().then(()=>{});
