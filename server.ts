@@ -14,10 +14,9 @@ import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
-import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile } from './src/services/catalogImageCorpus';
+import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile, installCatalogImageMetadata } from './src/services/catalogImageCorpus';
 import { scanEveryCatalogImage, type ScanProgress } from './src/services/exhaustiveImageScan';
 import { RecognitionJobs } from './src/services/recognitionJobs';
-import inventorySource from './src/data/catalogueSource.json';
 import { workerVision } from './src/services/partRecognitionGateway';
 import { recognitionWorkerUrl, recognitionApiKey, recognitionCatalog, finalizeRecognition } from './src/utils/recognitionPolicy';
 import {findCatalogKnowledge,catalogFallback} from './src/utils/catalogKnowledge';
@@ -614,7 +613,7 @@ interface CatalogItem {
 // Load real inventory identifiers, never the synthetic legacy summary.
 let CATALOG_ITEMS: CatalogItem[] = [];
 
-const inventoryCodes=new Set<string>(databaseEnabled()?[]:inventorySource.flatMap(family=>family.variants.map(v=>v.code)));
+const inventoryCodes=new Set<string>();
 function recognitionProducts() {
   const overrides=loadCatalogOverridesDb();
   const deleted=new Set(overrides.deletedCodes);
@@ -6506,6 +6505,12 @@ async function start() {
     await database().query('select revision from app_private.portal_version');
     const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
     installDatabaseProducts(products);
+    const [auditResult, photoResult] = await Promise.all([
+      database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
+      database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name')
+    ]);
+    if (!auditResult.rows.length) throw new Error('Image audits missing in PostgreSQL; refusing a static JSON fallback');
+    installCatalogImageMetadata(auditResult.rows,photoResult.rows);
     const saved=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
     CATALOG_OVERRIDES_CACHE=saved || {version:1,updatedAt:'',deletedCodes:[],families:{}};
     inventoryCodes.clear();for(const product of products)for(const variant of product.variants || [])inventoryCodes.add(variant.code);
