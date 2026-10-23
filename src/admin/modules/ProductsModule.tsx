@@ -2168,6 +2168,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                  =============================================================== */}
               {editorTab === 'family' && (
                 <div className="space-y-6">
+                  <div className="rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-3 text-xs leading-6 text-[#55565A]">
+                    <strong className="block text-sm mb-1">اطلاعات کلی این محصول</strong>
+                    نام، دسته، برند و توضیحاتی را وارد کنید که بین همه سایزها و مدل‌های این خانواده مشترک‌اند. برای کد و قیمت هر سایز، بخش «کدهای کالا و قیمت» را باز کنید.
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -2415,6 +2419,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                  =============================================================== */}
               {editorTab === 'variants' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                  <div className="lg:col-span-12 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-3 text-xs leading-6 text-[#55565A]">
+                    <strong>هر کد کالا نماینده یک سایز یا مدل مشخص است.</strong> ابتدا کد را از فهرست انتخاب کنید؛ سپس نام دقیق، مشخصات، قیمت و موجودی همان کد را ویرایش کنید. مشخصات فنی تکمیلی در بخش بازشونده قرار دارد.
+                  </div>
                   {/* Left Column: List of SKU Variants in this Family */}
                   <div className="lg:col-span-4 bg-slate-50 rounded-2xl border border-slate-200 p-3.5 space-y-3">
                     <div className="flex items-center justify-between">
@@ -2520,7 +2527,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                           {technicalReview.originalTechnicalType && technicalReview.originalTechnicalType !== technicalReview.categoryPath[2] && <p>نوع فنی اولیهٔ خانواده: {technicalReview.originalTechnicalType}؛ نوع دقیق این کد را پیش از تغییر کل خانواده بررسی کنید.</p>}
                           {technicalReview.comparisonReferences?.map(ref=><p key={ref.url}><a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a> — فقط مرجع مقایسه: {ref.condition}</p>)}
                           <div className="flex flex-wrap gap-3">{technicalReview.references.map(ref => <a key={ref.url} href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a>)}</div>
-                        </div></details>}}
+                        </div></details>}
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
                           <div>
                             <h4 className="text-sm font-black text-slate-800">
