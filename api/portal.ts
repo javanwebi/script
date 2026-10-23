@@ -1,7 +1,7 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
-import {readPortal,writePortal} from "../server/db/repository";
+import {readPortal,writePortal,readDocument} from "../server/db/repository";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -973,6 +973,21 @@ export async function requirePortalAdmin(
 /** Resolves a signed session against the current persisted user and revocation version. */
 export async function getPortalIdentity(req: IncomingMessage) {
   if(databaseEnabled() && !/(?:^|;)\s*sp_access=/.test(req.headers.cookie || ''))return {admin:false,user:undefined,canReadCommerce:false};
+  if (databaseEnabled() && adoptedSchema()) {
+    const identity = await supabaseIdentity(req);
+    if (identity.admin || !identity.user) return {...identity,canReadCommerce:identity.admin};
+    // Only the permission documents are required to authorize catalogue reads.
+    // Do not materialize all CRM customers, orders or admin configuration here.
+    const [layouts,overrides] = await Promise.all([
+      readDocument(postgresDatabase(),'atlas_portal_layout_configs_v1','global'),
+      readDocument(postgresDatabase(),'atlas_portal_customer_overrides_v1','global'),
+    ]);
+    const scoped = {values:{
+      atlas_portal_layout_configs_v1:layouts,
+      atlas_portal_customer_overrides_v1:overrides,
+    }} as Database;
+    return {...identity,canReadCommerce:canPurchase(scoped,identity.user)};
+  }
   const db = await readDb();
   const identity = await session(req, db);
   return {
