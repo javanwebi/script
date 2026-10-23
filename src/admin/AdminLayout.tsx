@@ -5,7 +5,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
-  Image as ImageIcon,
   FileSpreadsheet,
   FileText,
   ShoppingBag,
@@ -33,7 +32,6 @@ import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
 import { AdminRankingPage } from './AdminReports';
 import { ProductsModule } from './modules/ProductsModule';
-import { ImageConnectionModule } from './modules/ImageConnectionModule';
 import { BulkImportModule } from './modules/BulkImportModule';
 import { PricingInquiriesModule } from './modules/PricingInquiriesModule';
 import { OrdersModule } from './modules/OrdersModule';
@@ -171,12 +169,6 @@ export const AdminLayout: React.FC = () => {
       badge: null,
     },
     {
-      id: 'image_connection',
-      label: 'تصاویر و اتصال کالا',
-      icon: ImageIcon,
-      badge: null,
-    },
-    {
       id: 'bulk_import',
       label: 'ورود گروهی کالا',
       icon: FileSpreadsheet,
@@ -214,13 +206,13 @@ export const AdminLayout: React.FC = () => {
   const groups=[
     {title:'نمای کلی',ids:['dashboard']},
     {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
-    {title:'کالا و محتوا',ids:['products','image_connection','bulk_import','content_studio','announcements','clients']},
+    {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
     {title:'سامانه',ids:['settings']},
   ];
   const descriptions:Record<string,string>={
     dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
     crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
-    products:'مدیریت خانواده‌ها، کدها و قیمت کالا',image_connection:'کتابخانه تصاویر، اتصال به SKU و فرم کامل مشخصات فنی',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
+    products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
     announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات، کاربران و امنیت',reports:'رتبه‌بندی فروش'
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
@@ -259,8 +251,6 @@ export const AdminLayout: React.FC = () => {
         return <CustomerGradingModule />;
       case 'products':
         return <ProductsModule />;
-      case 'image_connection':
-        return <ImageConnectionModule />;
       case 'bulk_import':
         return <BulkImportModule />;
       case 'inquiries':
@@ -527,8 +517,8 @@ export const AdminLayout: React.FC = () => {
           </section>}
           {renderModuleContent()}
           <div className="h-16 md:hidden" aria-hidden="true" />
-          <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-5 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-            {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package},{id:'image_connection',label:'تصاویر',icon:ImageIcon}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
+          <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+            {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
             <button type="button" onClick={()=>setIsMobileSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] text-[#55565A]"><Menu size={18}/>همه بخش‌ها</button>
           </nav>
         </main>
