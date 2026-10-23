@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { database } from './connection';
+import { refreshAuth } from './supabaseAuth';
 
 const periodDays: Record<string, number | null> = {'30':30,'90':90,'365':365,all:null};
 type ReportRow = Record<string, unknown>;
@@ -13,7 +14,13 @@ const errorResponse = (res:Response,status:number,message:string)=>res.status(st
 export async function adminReportsApi(req:Request,res:Response){
  try{
   if(process.env.DATA_BACKEND!=='postgres')return errorResponse(res,503,'گزارش واقعی فقط با PostgreSQL در دسترس است.');
-  const token=(req.headers.cookie || '').split(';').map(s=>s.trim()).find(s=>s.startsWith('sp_access='))?.slice(10);
+  // Match /api/portal session renewal so report cards do not suddenly fail when an access token expires.
+  // Refresh only when a session refresh cookie exists; the resulting cookie stays HttpOnly.
+  await refreshAuth(req,res);
+  const refreshCookie = res.getHeader('Set-Cookie');
+  const accessCookie = (Array.isArray(refreshCookie)?refreshCookie:[refreshCookie]).find(value=>typeof value==='string'&&value.startsWith('sp_access='));
+  const incomingToken=(req.headers.cookie || '').split(';').map(s=>s.trim()).find(s=>s.startsWith('sp_access='))?.slice(10);
+  const token=typeof accessCookie==='string'?accessCookie.split(';',1)[0].slice('sp_access='.length):incomingToken;
   if(!token)return errorResponse(res,401,'برای مشاهده گزارش وارد حساب مدیریت شوید.');
   const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
   if(!url || !key)return errorResponse(res,503,'احراز هویت Supabase پیکربندی نشده است.');
