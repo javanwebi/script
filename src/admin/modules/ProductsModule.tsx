@@ -1602,63 +1602,27 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">نام فارسی دسته‌بندی *</label>
-                  <input
-                    type="text"
-                    value={editingCategory.name}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, name: e.target.value })
-                    }
-                    placeholder="مثلاً: تسمه‌های صنعتی یا چرخ‌دنده‌ها"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"
-                  />
+                  <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} placeholder="مثلاً: تسمه‌های صنعتی یا چرخ‌دنده‌ها" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold" />
                 </div>
                 <details className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer select-none font-bold text-slate-700">تنظیمات تکمیلی (اختیاری): نام انگلیسی، شناسه مسیر و تعداد</summary>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">نام انگلیسی</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={editingCategory.nameEn}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, nameEn: e.target.value })
-                    }
-                    placeholder="Industrial Belts"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">شناسه مسیر (Slug)</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={editingCategory.slug}
-                    onChange={e =>
-                      setEditingCategory({ ...editingCategory, slug: e.target.value })
-                    }
-                    placeholder="industrial-belts"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">تعداد خانواده محصول</label>
-                  <input
-                    type="number"
-                    value={editingCategory.count || 0}
-                    onChange={e =>
-                      setEditingCategory({
-                        ...editingCategory,
-                        count: Number(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                  />
-                </div>
-              </div>
-
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">نام انگلیسی</label>
+                      <input type="text" dir="ltr" value={editingCategory.nameEn} onChange={e => setEditingCategory({ ...editingCategory, nameEn: e.target.value })} placeholder="Industrial Belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">شناسه مسیر (Slug)</label>
+                      <input type="text" dir="ltr" value={editingCategory.slug} onChange={e => setEditingCategory({ ...editingCategory, slug: e.target.value })} placeholder="industrial-belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">تعداد خانواده محصول</label>
+                      <input type="number" value={editingCategory.count || 0} onChange={e => setEditingCategory({ ...editingCategory, count: Number(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                    </div>
                   </div>
                 </details>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">توضیحات دسته‌بندی</label>
                 <textarea
