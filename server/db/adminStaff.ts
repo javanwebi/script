@@ -32,6 +32,7 @@ export async function adminStaffApi(req:Request,res:Response){
    if(typeof password!=='string'||password.length<12||password.length>128)throw httpError(400,'رمز عبور باید حداقل ۱۲ نویسه داشته باشد.');
    if(!STAFF_ROLES.includes(role))throw httpError(400,'نقش کارمند معتبر نیست.');
    const permissions=validPermissions(body.permissions);
+   if(!permissions.length)throw httpError(400,'حداقل یک بخش برای کارمند انتخاب کنید.');
    // Employee accounts never gain the security-settings module or super-admin rights.
    if(permissions.includes('settings'))throw httpError(403,'مدیریت امنیت فقط برای مدیر اصلی است.');
    const duplicate=await database().query('select id from public.user_profiles where lower(username)=$1 or lower(email)=$2 limit 1',[username,email]);
@@ -53,6 +54,7 @@ export async function adminStaffApi(req:Request,res:Response){
   if(!existing)throw httpError(404,'کارمند یافت نشد.');
   if(body.operation==='set_permissions'){
    const permissions=validPermissions(body.permissions);
+   if(!permissions.length)throw httpError(400,'حداقل یک بخش برای کارمند لازم است.');
    if(permissions.includes('settings'))throw httpError(403,'مجوز تنظیمات امنیتی قابل واگذاری نیست.');
    await database().query("update public.user_profiles set preferences=jsonb_set(coalesce(preferences,'{}'::jsonb),'{adminPermissions}',$2::jsonb,true),updated_at=now() where id=$1",[id,JSON.stringify(permissions)]);
   }else if(body.operation==='set_active'){
