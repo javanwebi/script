@@ -106,7 +106,7 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
     setRetail(String(p?.prices?.retail??0));setWholesale(String(p?.prices?.wholesale??0));setDealer(String(p?.prices?.dealer??0));
     setStock(String(p?.stock??0));setInquiryOnly(p?.inquiryOnly??true);setDescription(p?.description||'');
     setSpecs(p?.technicalSpecs?.length?p.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
-    setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setCreateNewFamily(!p);setCreateNewSku(false);
+    setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setCreateNewFamily(false);setCreateNewSku(false);
   };
   const loadSku=(code:string)=>{
     setSku(code);setCreateNewSku(false);
