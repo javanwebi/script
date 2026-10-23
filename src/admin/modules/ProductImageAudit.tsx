@@ -149,7 +149,7 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
       ...(selectedFamily||{} as Product),code:finalFamilyCode,name:familyName.trim(),nameEn:familyNameEn.trim()||undefined,
       brand,categoryName:category,categorySlug:category.trim().replace(/[\s\u200c]+/g,'-'),subcategory,submenu,unit,
       technicalSpecs:createNewFamily?familySpecs.filter(s=>s.key.trim()).map(s=>({key:s.key.trim(),value:s.value.trim()})):placement==='family'?cleanSpecs:(selectedFamily?.technicalSpecs||[]),
-      prices:priceTiers,stock:Number(stock)||0,inquiryOnly,description:createNewFamily?familyDescription.trim():description,
+      prices:(createNewFamily||placement==='family')?priceTiers:(selectedFamily?.prices||priceTiers),stock:(createNewFamily||placement==='family')?(Number(stock)||0):(selectedFamily?.stock??0),inquiryOnly:(createNewFamily||placement==='family')?inquiryOnly:(selectedFamily?.inquiryOnly??true),description:createNewFamily?familyDescription.trim():placement==='family'?description:(selectedFamily?.description||''),
       tags:selectedFamily?.tags||['قطعه صنعتی'],active:selectedFamily?.active??true,
       images:[...new Set([...nextGallery.map(img=>img.url),...(selectedFamily?.images||[]),url])],
       galleryImages:nextGallery,variants
