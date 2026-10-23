@@ -9,10 +9,37 @@ function client(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_PU
 const cookie=(req:IncomingMessage,name:string)=>(req.headers.cookie || '').split(';').map(value=>value.trim()).find(value=>value.startsWith(name+'='))?.slice(name.length+1);
 function cookies(req:IncomingMessage,res:ServerResponse,session:Session|null){const secure=process.env.NODE_ENV==='production'?'; Secure':'';const values=[`sp_access=${session?.access_token || ''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${session?.expires_in || 0}${secure}`,`sp_refresh=${session?.refresh_token || ''}; Path=/api/portal; HttpOnly; SameSite=Lax; Max-Age=${session?2592000:0}${secure}`];res.setHeader('Set-Cookie',values);req.headers.cookie=[...(req.headers.cookie || '').split(';').filter(value=>!/^\s*sp_(access|refresh)=/.test(value)),`sp_access=${session?.access_token || ''}`,`sp_refresh=${session?.refresh_token || ''}`].join(';');}
 function phone(raw:string){const value=String(raw || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\s()-]/g,'').replace(/^(\+98|0098|98)/,'0');if(!/^09\d{9}$/.test(value))throw error(400,'شماره موبایل معتبر وارد کنید.');return {local:value,e164:'+98'+value.slice(1)};}
-export async function supabaseIdentity(req:IncomingMessage,db:{users:any[]}){
+// Resolve only the authenticated profile for API authorization; never load all CRM users.
+async function identityProfile(authUserId:string){
+ const row=(await database().query(`
+ select p.*,d.id as draft_id,d.payload as draft_payload,d.active as draft_active,
+   coalesce((select jsonb_agg(jsonb_build_object(
+     'id',coalesce(a.legacy_id,a.id::text),'title',a.title,'province',a.province,
+     'city',a.city,'fullAddress',a.full_address,'postalCode',a.postal_code,
+     'recipientName',a.recipient_name,'recipientPhone',a.recipient_phone
+   )) from public.user_addresses a where a.user_id=p.id and a.active), '[]'::jsonb) as profile_addresses
+ from public.user_profiles p
+ left join lateral (
+   select id,payload,active from app_private.portal_users
+   where auth_user_id=p.id or id=p.legacy_user_id
+   order by (auth_user_id=p.id) desc limit 1
+ ) d on true
+ where p.id=$1 limit 1`,[authUserId])).rows[0];
+ if(!row)return undefined;
+ const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin'};
+ return {...(row.draft_payload || {}),...(row.preferences || {}),
+  addresses:row.profile_addresses || [],id:row.draft_id || row.legacy_user_id || row.id,
+  authUserId:row.id,phone:row.phone?.replace(/^\\+98/,'0'),
+  email:row.email,username:row.username,fullName:row.full_name,companyName:row.company_name,
+  role:role[row.role] || 'guest',active:row.status==='active' && row.draft_active!==false,
+  approvedB2B:row.approved_b2b,canViewPrices:row.can_view_prices,canViewStock:row.can_view_stock,
+  creditLimit:Number(row.credit_limit),creditUsed:Number(row.credit_used),
+  walletBalance:Number(row.wallet_balance),clubPoints:row.club_points};
+}
+export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const token=cookie(req,'sp_access');if(!token)return {admin:false};
  const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false};}
- const user=db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false);return {admin:user?.role==='admin',user};
+ const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.role==='admin',user:user?.active===false?undefined:user};
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
