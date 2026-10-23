@@ -30,7 +30,14 @@ export interface CatalogOverridesState {
 
 let databaseProducts:Product[]|null=null;
 export function installDatabaseProducts(products:Product[]){databaseProducts=products;invalidateCatalogCache();}
-const baselineProducts=()=>databaseProducts || USER_PRODUCTS_RAW;
+// In the deployed browser, PostgreSQL is the only authoritative catalogue.
+// Do not silently reconstruct deleted/renamed products from an old bundled JSON
+// when the API is unavailable. Dev/CLI fixtures remain for isolated tests.
+const baselineProducts=():Product[]=>{
+  if (databaseProducts) return databaseProducts;
+  if (typeof window !== 'undefined' && import.meta.env.PROD) return [];
+  return USER_PRODUCTS_RAW;
+};
 let sessionOverrides: CatalogOverridesState | null = null;
 let catalogRequestVersion = 0;
 let cachedProducts: Product[] | null = null;
@@ -60,7 +67,10 @@ export function subscribeCatalogChanges(listener: () => void): () => void {
 export function getOverridesState(): CatalogOverridesState {
   if (typeof window !== "undefined" && sessionOverrides)
     return sessionOverrides;
-  const seed:CatalogOverridesState=databaseProducts ? {version:1,updatedAt:"",deletedCodes:[],families:{}} : initialOverridesDb as unknown as CatalogOverridesState;
+  const empty:CatalogOverridesState={version:1,updatedAt:"",deletedCodes:[],families:{}};
+  // Production never seeds product corrections from a stale checked-in snapshot.
+  const seed:CatalogOverridesState=(databaseProducts || (typeof window !== 'undefined' && import.meta.env.PROD))
+    ? empty : initialOverridesDb as unknown as CatalogOverridesState;
   if (typeof window === "undefined") {
     return {
       version: seed.version || 1,
