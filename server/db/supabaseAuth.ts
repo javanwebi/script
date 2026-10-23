@@ -53,7 +53,18 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   const current=await readPortal(),user=current.users.find(u=>u.authUserId===verified.id);
   send(200,{success:true,user:safe(user),credentials:{username}});return true;
  }
- if(body.action==='otp_request'){if(process.env.SUPABASE_SMS_READY!=='true')throw error(503,'سرویس پیامک هنوز فعال نشده است.');const number=phone(body.phone);const result=await auth.auth.signInWithOtp({phone:number.e164,options:{shouldCreateUser:false}});if(result.error)throw error(400,'ارسال کد انجام نشد؛ شماره و تنظیمات پیامک Supabase Auth را بررسی کنید.');send(200,{success:true,retryAfter:60,message:'اگر حساب فعال وجود داشته باشد، کد تأیید ارسال می‌شود.'});return true;}
+ if(body.action==='otp_request'){
+   const number=phone(body.phone);
+   // Only previously provisioned, active CRM/customer profiles may request a login OTP.
+   // SMS can never create a new Supabase Auth identity from the login screen.
+   const existing=(await database().query(`select id from public.user_profiles where (phone=$1 or phone=$2) and status='active' limit 1`,[number.local,number.e164])).rows[0];
+   if(!existing)throw error(404,'این شماره در مشتریان صنعت پیش ثبت نشده است؛ لطفاً ابتدا ثبت‌نام کنید.');
+   if(!(await database().query('select 1 from auth.users where id=$1',[existing.id])).rowCount)throw error(409,'حساب مشتری در CRM ثبت شده اما هنوز برای ورود فعال‌سازی نشده است؛ با پشتیبانی تماس بگیرید.');
+   if(process.env.SUPABASE_SMS_READY!=='true')throw error(503,'سامانه پیامک هنوز فعال نیست. برای ورود از رمز عبور استفاده کنید؛ کد نمایشی در سایت عمومی امنیت حساب را تضمین نمی‌کند.');
+   const result=await auth.auth.signInWithOtp({phone:number.e164,options:{shouldCreateUser:false}});
+   if(result.error)throw error(400,'ارسال کد انجام نشد؛ شماره و تنظیمات پیامک Supabase Auth را بررسی کنید.');
+   send(200,{success:true,retryAfter:60,message:'کد تأیید برای شماره ثبت‌شده ارسال شد.'});return true;
+  }
  let session:Session|null=null;
  if(body.action==='otp_verify'){if(!/^[0-9۰-۹]{6}$/.test(String(body.code || '')))throw error(400,'کد تأیید شش‌رقمی وارد کنید.');const result=await auth.auth.verifyOtp({phone:phone(body.phone).e164,token:String(body.code || '').replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))),type:'sms'});if(result.error)throw error(401,'کد واردشده معتبر نیست.');session=result.data.session;}
  else{const db=await readPortal();const identifier=String(body.identifier || body.username || '').trim().toLowerCase();const profile=db.users.find(user=>user.username?.toLowerCase()===identifier || user.phone===identifier);if(!profile?.authUserId)throw error(401,'ورود معتبر نیست یا انتقال حساب به Supabase Auth باید تکمیل شود.');const result=await auth.auth.signInWithPassword({phone:phone(profile.phone).e164,password:String(body.password || '')});if(result.error)throw error(401,'نام کاربری یا رمز عبور معتبر نیست؛ در صورت نیاز از ورود پیامکی استفاده کنید.');session=result.data.session;}
