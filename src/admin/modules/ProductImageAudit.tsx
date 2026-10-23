@@ -1,6 +1,6 @@
 import React, {useMemo,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,Info} from 'lucide-react';
-import type {Product,TechnicalSpec,ProductGalleryImage,ProductVariant,Category} from '../../types';
+import type {Product,TechnicalSpec,ProductGalleryImage,ProductVariant} from '../../types';
 import {getImageAssignmentAudit} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
@@ -165,7 +165,7 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
     <header className="bg-white px-4 py-4 sm:px-5 border-b border-[#E7E8EA] flex flex-wrap justify-between items-center gap-3">
       <div className="min-w-0">
         <h2 className="text-base sm:text-lg font-black text-[#55565A]">میزکار تصاویر کالا <span className="text-[#E06518]">({fa(audit.length)})</span></h2>
-        <p className="text-xs text-slate-500 mt-1">یک تصویر انتخاب کنید؛ محل نمایش و اطلاعات محصول را تعیین کنید. هیچ کدی خودکار تأیید نمی‌شود.</p>
+        <p className="text-xs text-slate-500 mt-1">تصویر، خانواده، کد دقیق کالا و تمام مشخصات فنی را در یک فرم کامل بررسی و ذخیره کنید.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={create} className="rounded-xl bg-[#E06518] px-4 py-2.5 text-white text-xs font-bold flex items-center gap-2"><ImagePlus size={16}/> تصویر جدید</button>
@@ -295,8 +295,10 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
                 {!!selectedRow.duplicateFiles.length&&<p>تصاویر مشابه ثبت‌شده: {selectedRow.duplicateFiles.join('، ')}</p>}
               </div>
             </details>}
-            {url&&<p className="text-[11px] leading-5 text-amber-700">اتصال یا انتخاب کد، تأیید هویت قطعه نیست. مشخصات فنی را در ویرایشگر محصول تکمیل کنید. فایل جدید تا زمانی که در فضای ذخیره دائمی بارگذاری نشود، نباید منتشر شود.</p>}
-            {url&&<button type="button" disabled={!familyCode||(placement==='sku'&&!sku)} onClick={apply} className="w-full rounded-xl bg-[#E06518] text-white py-3.5 font-bold text-xs disabled:opacity-40 flex justify-center items-center gap-2"><Check size={17}/> ادامه برای تکمیل مشخصات و ذخیره</button>}
+            {url&&<p className="text-[11px] leading-5 text-amber-700">اتصال تصویر به‌تنهایی هویت فنی قطعه را اثبات نمی‌کند. کدها و مشخصات را با کاتالوگ واقعی تطبیق دهید. فایل جدید باید در فضای ذخیره دائمی پروژه قرار گیرد.</p>}
+            {formError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{formError}</p>}
+            {saveMessage&&<p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{saveMessage}</p>}
+            {url&&<button type="button" onClick={apply} className="w-full rounded-xl bg-[#E06518] text-white py-3.5 font-bold text-xs flex justify-center items-center gap-2"><Check size={17}/> ذخیره مشخصات و اتصال تصویر</button>}
           </div>}
         </aside>
       </div>
