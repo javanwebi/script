@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useState} from 'react';
 import {ShieldCheck,UserPlus,KeyRound,RefreshCw} from 'lucide-react';
-import {ADMIN_MODULES} from '../../server/db/adminPermissions';
+import {ADMIN_MODULES} from '../../../server/db/adminPermissions';
 type Staff={id:string;username:string;name:string;email:string;role:string;status:string;permissions:string[]};
 const names:Record<string,string>={dashboard:'داشبورد',orders:'سفارش‌ها',inquiries:'استعلام‌ها',crm:'مشتریان و CRM',customer_grading:'قیمت‌گذاری',agencies:'نمایندگی‌ها',products:'کاتالوگ و کالاها',bulk_import:'ورود گروهی اکسل',content_studio:'مدیریت محتوا',announcements:'اطلاعیه‌ها',clients:'مشتریان ما',settings:'امنیت (فقط مدیر اصلی)'};
 const options=ADMIN_MODULES.filter(x=>x!=='settings');
