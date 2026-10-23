@@ -199,7 +199,7 @@ async function issueSession(
 async function session(
   req: IncomingMessage,
   db: Database,
-): Promise<{ admin: boolean; user?: Row }> {
+): Promise<{ admin: boolean; staff?: boolean; user?: Row }> {
   if(databaseEnabled())return supabaseIdentity(req);
   const cookie = (req.headers.cookie || "")
     .split(";")
@@ -484,7 +484,7 @@ export default async function handler(
           postgresDatabase().query("select revision from app_private.portal_version where singleton=true"),
           Promise.all(permitted.map(async key=>[key,await readDocument(postgresDatabase(),key,'global')] as const))
         ]);
-        return send(200,{success:true,admin:auth.admin,user:safeUser(auth.user),
+        return send(200,{success:true,admin:auth.staff===true,user:safeUser(auth.user),
           revision:Number(version.rows[0]?.revision||0),values:Object.fromEntries(documents.filter(([,value])=>value!==undefined))});
       }
       // Administrators require the full editable portal. Customer sessions do not.
@@ -874,7 +874,7 @@ export default async function handler(
       return send(200, { success: true, user: safeUser(auth.user!) });
     }
     if (body.action === "save") {
-      if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
+      if (!auth.admin && !auth.staff) fail(403, "فقط مدیر مجاز اجازه ویرایش دارد.");
       // Server-enforced per-document RBAC. Employees cannot edit unassigned modules.
       if(auth.user && ['sales_manager','warehouse_operator'].includes(auth.user.role)){
         const permissionKeys=allowedPortalKeys(Array.isArray(auth.user.adminPermissions)?auth.user.adminPermissions:[]);
@@ -1006,7 +1006,7 @@ export async function requirePortalAdmin(
     const auth = databaseEnabled() && adoptedSchema()
       ? await supabaseIdentity(req)
       : await session(req, await readDb());
-    if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
+    if (!auth.admin && !auth.staff) fail(403, "فقط مدیر مجاز اجازه ویرایش دارد.");
     if((auth as any).user?.role!=='admin' && !((auth as any).user?.adminPermissions||[]).some((module:string)=>module==='products'||module==='bulk_import'))
       fail(403,'کارمند به ویرایش کاتالوگ دسترسی ندارد.');
     if (
