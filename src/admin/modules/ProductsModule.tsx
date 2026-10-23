@@ -829,11 +829,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           <div>
             <h2 className="text-lg font-black text-[#37383b] flex items-center gap-2">
               <Package className="w-5 h-5 text-[#E06518]" />
-              <span>مدیریت دو سطحی خانواده‌های محصول، کدهای کالا، تصاویر و قیمت‌ها</span>
+              <span>کاتالوگ و کالاها</span>
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              کنترل کامل {toPersianDigits(catalogStats.totalFamilies)} خانواده محصول و{' '}
-              {toPersianDigits(catalogStats.totalSkus)} کد کالا؛ اتصال دوطرفهٔ هر تصویر به کد کالا و قیمت‌گذاری مستقل هر کد.
+              خانواده‌های محصول را پیدا کنید، کدها و قیمت‌هایشان را مدیریت کنید و تصاویر را به مورد درست وصل کنید. هیچ اطلاعاتی از کالاها حذف نمی‌شود.
             </p>
           </div>
 
@@ -909,7 +908,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         </div>
 
         {/* Flagship Sample Quick Bar: چرخ دنده (FAM-34265 & FAM-80301) */}
-        <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/90 flex flex-wrap items-center justify-between gap-3">
+        <details className="rounded-xl border border-orange-200/90 bg-orange-50/40">
+          <summary className="cursor-pointer select-none px-4 py-3 text-xs font-bold text-[#55565A]">نمونهٔ راهنما برای یادگیری کار با خانواده و کد کالا (اختیاری)</summary>
+          <div className="p-3.5 rounded-xl bg-orange-50/70 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="text-xs font-black text-[#37383b] flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-[#E06518]" />
@@ -949,7 +950,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <span>مشاهده صفحهٔ «چرخ دنده» در سایت</span>
             </Link>
           </div>
-        </div>
+            </div>
+        </details>
       </div>
 
       {/* 2. PRODUCTS & SKU FAMILIES TAB */}
@@ -2092,7 +2094,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   className="px-4 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Check className="w-4 h-4" />
-                  <span>ذخیره در پایگاه داده سایت</span>
+                  <span>ذخیره تغییرات</span>
                 </button>
                 <button
                   type="button"
@@ -2119,40 +2121,42 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             )}
 
             {/* 4 Step Tabs inside Editor */}
-            <div className="flex items-center border-b border-slate-200 bg-slate-50 px-4 overflow-x-auto no-scrollbar shrink-0">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 border-b border-slate-200 bg-slate-50 p-3 shrink-0">
               {[
                 {
                   id: 'family',
-                  label: '۱. سطح اول: خانواده محصول و مشخصات مشترک',
+                  label: 'اطلاعات خانواده',
+                  description: 'نام، دسته و مشخصات مشترک',
                 },
                 {
                   id: 'variants',
-                  label: `۲. سطح دوم: کدهای کالا، مشخصات و قیمت‌ها (${toPersianDigits(
-                    draftFamily.variants?.length || 0
-                  )} کد)`,
+                  label: 'کدهای کالا و قیمت',
+                  description: `${toPersianDigits(draftFamily.variants?.length || 0)} کد کالا`,
                 },
                 {
                   id: 'images',
-                  label: `۳. مدیریت تصاویر و اتصال به کد کالا (${toPersianDigits(
-                    draftFamily.galleryImages?.length || 0
-                  )} تصویر)`,
+                  label: 'تصاویر کالا',
+                  description: `${toPersianDigits(draftFamily.galleryImages?.length || 0)} تصویر`,
                 },
                 {
                   id: 'preview',
-                  label: '۴. پیش‌نمایش زنده صفحه مشتری (بررسی دوطرفه)',
+                  label: 'پیش‌نمایش سایت',
+                  description: 'بررسی قبل از انتشار',
                 },
               ].map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setEditorTab(tab.id as any)}
-                  className={`px-4 py-3.5 text-xs font-bold border-b-2 whitespace-nowrap cursor-pointer transition-colors ${
+                  aria-current={editorTab === tab.id ? 'step' : undefined}
+                  className={`min-w-0 rounded-xl border p-3 text-right cursor-pointer transition-colors ${
                     editorTab === tab.id
-                      ? 'border-[#E06518] text-[#E06518] bg-white'
-                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                      ? 'border-[#E06518] bg-[#FFF4EB] text-[#B94D0A] shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  {tab.label}
+                  <span className="block text-xs font-black">{tab.label}</span>
+                  <span className="block text-[10px] font-medium mt-1 opacity-80">{tab.description}</span>
                 </button>
               ))}
             </div>
