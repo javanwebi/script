@@ -984,10 +984,10 @@ export async function getPortalIdentity(req: IncomingMessage) {
       readDocument(postgresDatabase(),'atlas_portal_layout_configs_v1','global'),
       readDocument(postgresDatabase(),'atlas_portal_customer_overrides_v1','global'),
     ]);
-    const scoped = {values:{
+    const scoped:Database = {revision:0,users:[],values:{
       atlas_portal_layout_configs_v1:layouts,
       atlas_portal_customer_overrides_v1:overrides,
-    }} as Database;
+    }};
     return {...identity,canReadCommerce:canPurchase(scoped,identity.user)};
   }
   const db = await readDb();
