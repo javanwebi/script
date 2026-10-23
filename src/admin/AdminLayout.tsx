@@ -527,7 +527,7 @@ export const AdminLayout: React.FC = () => {
           </section>}
           {renderModuleContent()}
           <div className="h-16 md:hidden" aria-hidden="true" />
-          <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+          <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-5 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
             {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package},{id:'image_connection',label:'تصاویر',icon:ImageIcon}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
             <button type="button" onClick={()=>setIsMobileSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] text-[#55565A]"><Menu size={18}/>همه بخش‌ها</button>
           </nav>
