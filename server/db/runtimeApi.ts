@@ -30,9 +30,13 @@ export async function runtimeApi(req:Request,res:Response){
   if(req.method==='GET'){
    const metadata=(await database().query('select namespace,scope_id,version from app_private.document_versions where scope_id=$1 or scope_id=$2',[scope,'global'])).rows;
    const values:Record<string,unknown>={},versions:Record<string,number>={};
-   for(const row of metadata){if(!domainFor(row.namespace))continue;
-    if(row.scope_id==='global' && !(identity.admin || publicReadable.has(row.namespace)))continue;
-    values[row.namespace]=await readDocument(database(),row.namespace,row.scope_id);versions[row.namespace]=Number(row.version);
+   // Independent namespace reads can run concurrently. Keep concurrency bounded
+   // to avoid exhausting the shared PostgreSQL connection pool.
+   const visible=metadata.filter(row=>domainFor(row.namespace) && (row.scope_id!=='global' || identity.admin || publicReadable.has(row.namespace)));
+   for(let i=0;i<visible.length;i+=4){
+    const batch=visible.slice(i,i+4);
+    const documents=await Promise.all(batch.map(row=>readDocument(database(),row.namespace,row.scope_id)));
+    batch.forEach((row,index)=>{values[row.namespace]=documents[index];versions[row.namespace]=Number(row.version);});
    }
    if(adoptedSchema())for(const key of adoptedNamespaces()){
     if(Object.hasOwn(values,key) || !(identity.admin || publicReadable.has(key)))continue;
