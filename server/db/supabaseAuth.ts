@@ -57,7 +57,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
    const number=phone(body.phone);
    // Only previously provisioned, active CRM/customer profiles may request a login OTP.
    // SMS can never create a new Supabase Auth identity from the login screen.
-   const existing=(await database().query('select id from public.user_profiles where (phone=$1 or phone=$2) and status='active' limit 1',[number.local,number.e164])).rows[0];
+   const existing=(await database().query(`select id from public.user_profiles where (phone=$1 or phone=$2) and status='active' limit 1`,[number.local,number.e164])).rows[0];
    if(!existing)throw error(404,'این شماره در مشتریان صنعت پیش ثبت نشده است؛ لطفاً ابتدا ثبت‌نام کنید.');
    if(!(await database().query('select 1 from auth.users where id=$1',[existing.id])).rowCount)throw error(409,'حساب مشتری در CRM ثبت شده اما هنوز برای ورود فعال‌سازی نشده است؛ با پشتیبانی تماس بگیرید.');
    if(process.env.SUPABASE_SMS_READY!=='true')throw error(503,'سامانه پیامک هنوز فعال نیست. برای ورود از رمز عبور استفاده کنید؛ کد نمایشی در سایت عمومی امنیت حساب را تضمین نمی‌کند.');
