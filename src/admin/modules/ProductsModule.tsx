@@ -1,3 +1,4 @@
+import { ProductImageAudit } from './ProductImageAudit';
 import { enrichTechnicalVariant } from '../../data/productTechnicalData';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -49,6 +50,7 @@ interface ProductsModuleProps {
 export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [activeSubTab, setActiveSubTab] = useState<'products' | 'categories' | 'brands'>('products');
   const [expandedFamilyCode, setExpandedFamilyCode] = useState<string | null>(null);
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
 
   // Full catalog state (all 1,383+ families & 10,435+ SKUs)
   const [products, setProducts] = useState<Product[]>(() => adminService.getProducts());
@@ -1111,7 +1113,63 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             </div>
           </div>
 
-                    {/* Mobile-first family cards: same actions as the desktop table without horizontal scrolling */}
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <button type="button" aria-expanded={showImageLibrary} onClick={()=>setShowImageLibrary(v=>!v)}
+              className="w-full flex flex-wrap justify-between items-center gap-3 px-4 py-4 text-right hover:bg-slate-50">
+              <span className="flex gap-2 items-center font-bold text-[#55565A] text-sm"><ImageIcon size={18} className="text-[#E06518]"/> کتابخانه تصاویر و اتصال به کالا</span>
+              <span className="flex gap-2 items-center text-xs text-[#C65A16]">{showImageLibrary?'بستن کتابخانه':'بازکردن و اتصال تصویر'} <ArrowDown size={14}/></span>
+            </button>
+            {showImageLibrary&&<div className="border-t border-slate-100 p-2 sm:p-3">
+        <ProductImageAudit products={products} categories={categories}
+        onCreateCategory={()=>handleOpenCategoryModal()}
+        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
+          handleOpenNewFamily();
+          const url=imageUrl||getProductImageUrl(file);
+          setDraftFamily(previous=>previous?{
+            ...previous,
+            categoryName:category||previous.categoryName,
+            subcategory:subcategory||previous.subcategory,
+            images:[...(previous.images||[]),url],
+            galleryImages:[...(previous.galleryImages||[]),{
+              id:`review-new-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
+            }]
+          }:previous);
+          setEditorTab('family');
+        }}
+        onCreateSku={(code,file,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,'variants');
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-draft-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
+            }],images:[...(previous.images||[]),url]};
+          });
+        }}
+        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,skuCode?'variants':'images');
+          if(skuCode)setEditingVariantCode(skuCode);
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-${file}`,url,fileName:file,
+              scope:skuCode?'variant':'family',variantCode:skuCode,
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
+            }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
+          });
+        }}
+      />
+
+            </div>}
+          </div>
+          {/* Mobile-first family cards: same actions as the desktop table without horizontal scrolling */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:hidden">
             {paginatedProducts.map(product => {
               const variants=product.variants||[];
