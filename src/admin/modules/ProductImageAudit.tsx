@@ -1,6 +1,6 @@
 import React, {useMemo,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,Info} from 'lucide-react';
-import type {Product} from '../../types';
+import type {Product,TechnicalSpec,ProductGalleryImage,ProductVariant,Category} from '../../types';
 import {getImageAssignmentAudit} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
@@ -14,13 +14,11 @@ const fa=(n:number)=>n.toLocaleString('fa-IR');
 const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
-export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onCreateSku}:{
+export function ProductImageAudit({products,categories,onSaveProduct,onCreateCategory}:{
   products:Product[];
   categories:{name:string;subcategories?:string[]}[];
-  onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string)=>void;
-  onCreateFamily:(file:string,category:string,subcategory:string,imageUrl?:string,imageTitle?:string)=>void;
-  onCreateCategory:()=>void;
-  onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
+  onSaveProduct:(product:Product)=>void;
+  onCreateCategory:(categoryName:string,subcategoryName:string)=>void;
 }){
   const audit=useMemo(()=>getImageAssignmentAudit(products),[products]);
   const [search,setSearch]=useState('');
@@ -42,6 +40,30 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [placement,setPlacement]=useState<StorageChoice>('family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
+  const [createNewFamily,setCreateNewFamily]=useState(false);
+  const [createNewSku,setCreateNewSku]=useState(false);
+  const [familyCodeInput,setFamilyCodeInput]=useState('');
+  const [familyName,setFamilyName]=useState('');
+  const [familyNameEn,setFamilyNameEn]=useState('');
+  const [submenu,setSubmenu]=useState('');
+  const [brand,setBrand]=useState('ATLAS');
+  const [unit,setUnit]=useState('عدد');
+  const [skuCodeInput,setSkuCodeInput]=useState('');
+  const [skuName,setSkuName]=useState('');
+  const [skuSize,setSkuSize]=useState('');
+  const [skuModel,setSkuModel]=useState('');
+  const [retail,setRetail]=useState('0');
+  const [wholesale,setWholesale]=useState('0');
+  const [dealer,setDealer]=useState('0');
+  const [stock,setStock]=useState('0');
+  const [inquiryOnly,setInquiryOnly]=useState(true);
+  const [description,setDescription]=useState('');
+  const [specs,setSpecs]=useState<TechnicalSpec[]>([{key:'',value:''}]);
+  const [showTaxonomyEditor,setShowTaxonomyEditor]=useState(false);
+  const [newCategoryName,setNewCategoryName]=useState('');
+  const [newSubcategoryName,setNewSubcategoryName]=useState('');
+  const [formError,setFormError]=useState('');
+  const [saveMessage,setSaveMessage]=useState('');
   const selectedRow=audit.find(x=>x.file===file);
   const family=products.find(x=>x.code===familyCode);
   const allFamilies=useMemo(()=>[...new Map(audit.flatMap(r=>r.families.map(f=>[f.code,f.name] as const))).entries()].sort((a,b)=>a[1].localeCompare(b[1],'fa')),[audit]);
@@ -78,10 +100,58 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
   const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing')};
+  const loadFamily=(p?:Product)=>{
+    setFamilyCode(p?.code||'');setFamilyCodeInput(p?.code||'');setFamilyName(p?.name||'');setFamilyNameEn(p?.nameEn||'');
+    setCategory(p?.categoryName||category);setSubcategory(p?.subcategory||'');setSubmenu(p?.submenu||'');setBrand(p?.brand||'ATLAS');setUnit(p?.unit||'عدد');
+    setRetail(String(p?.prices?.retail??0));setWholesale(String(p?.prices?.wholesale??0));setDealer(String(p?.prices?.dealer??0));
+    setStock(String(p?.stock??0));setInquiryOnly(p?.inquiryOnly??true);setDescription(p?.description||'');
+    setSpecs(p?.technicalSpecs?.length?p.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
+    setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setCreateNewFamily(!p);setCreateNewSku(false);
+  };
+  const loadSku=(code:string)=>{
+    setSku(code);setCreateNewSku(false);
+    const v=family?.variants?.find(item=>item.code===code);
+    if(!v){setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setSpecs([{key:'',value:''}]);return;}
+    setSkuCodeInput(v.code);setSkuName(v.name||'');setSkuSize(v.size||'');setSkuModel(v.model||'');
+    setRetail(String(v.prices?.retail??v.price??family?.prices?.retail??0));setWholesale(String(v.prices?.wholesale??family?.prices?.wholesale??0));
+    setDealer(String(v.prices?.dealer??family?.prices?.dealer??0));setStock(String(v.stock??0));setInquiryOnly(v.inquiryOnly??(Number(v.price||0)<=0));
+    setDescription(v.description||family?.description||'');setSpecs(v.technicalSpecs?.length?v.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
+  };
   const apply=()=>{
-    if(!file||!url||!familyCode||(placement==='sku'&&!sku))return;
-    onEdit(familyCode,file,placement==='sku'?sku:undefined,url,title);
-    closeSelection();
+    setFormError('');setSaveMessage('');
+    const selectedFamily=createNewFamily?undefined:products.find(p=>p.code===familyCode);
+    const finalFamilyCode=createNewFamily?familyCodeInput.trim():familyCode;
+    if(!file||!url){setFormError('ابتدا یک تصویر انتخاب کنید.');return;}
+    if(!category.trim()||!subcategory.trim()){setFormError('دسته و زیردسته محصول را مشخص کنید.');return;}
+    if(!finalFamilyCode||!familyName.trim()){setFormError('کد و نام خانواده کالا الزامی است.');return;}
+    if(createNewFamily&&(!skuCodeInput.trim()||!skuName.trim())){setFormError('برای خانواده جدید، کد و نام اولین کالا را نیز وارد کنید.');return;}
+    if(placement==='sku'&&(!createNewSku&&!sku||createNewSku&&!skuCodeInput.trim()||!skuName.trim())){setFormError('کد و نام SKU را کامل کنید.');return;}
+    if(createNewFamily&&products.some(p=>p.code.toLowerCase()===finalFamilyCode.toLowerCase())){setFormError('این کد خانواده قبلاً ثبت شده است.');return;}
+    const cleanSpecs=specs.filter(s=>s.key.trim()).map(s=>({key:s.key.trim(),value:s.value.trim()}));
+    const priceTiers={...(selectedFamily?.prices||{base:0,retail:0,wholesale:0,dealer:0}),base:Number(retail)||0,retail:Number(retail)||0,wholesale:Number(wholesale)||0,dealer:Number(dealer)||0};
+    const nowId=`image-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    const gallery:ProductGalleryImage={id:nowId,url,fileName:file,scope:placement==='family'?'family':'variant',variantCode:placement==='sku'?(createNewSku?skuCodeInput.trim():sku):undefined,identityVerified:false,title:title.trim()||file,order:(selectedFamily?.galleryImages?.length||0)+1};
+    let variants:ProductVariant[]=[...(selectedFamily?.variants||[])];
+    if(createNewFamily){
+      variants=[{code:skuCodeInput.trim(),name:skuName.trim(),size:skuSize.trim(),model:skuModel.trim(),brand,unit,price:Number(retail)||0,prices:priceTiers,inquiryOnly,stock:Number(stock)||0,stockKnown:true,active:true,images:placement==='sku'?[url]:[],description,technicalSpecs:cleanSpecs}];
+    }else if(placement==='sku'){
+      const skuCode=createNewSku?skuCodeInput.trim():sku;
+      const idx=variants.findIndex(v=>v.code===skuCode);
+      const next:ProductVariant={...(idx>=0?variants[idx]:{} as ProductVariant),code:skuCode,name:skuName.trim(),size:skuSize.trim(),model:skuModel.trim(),brand,unit,price:Number(retail)||0,prices:priceTiers,inquiryOnly,stock:Number(stock)||0,stockKnown:true,active:true,images:[...new Set([...(idx>=0?variants[idx].images||[]:[]),url])],description,technicalSpecs:cleanSpecs};
+      if(idx>=0)variants[idx]=next;else variants.push(next);
+    }
+    const next:Product={
+      ...(selectedFamily||{} as Product),code:finalFamilyCode,name:familyName.trim(),nameEn:familyNameEn.trim()||undefined,
+      brand,categoryName:category,categorySlug:category.trim().replace(/[\\s\\u200c]+/g,'-'),subcategory,submenu,unit,
+      technicalSpecs:placement==='family'?cleanSpecs:(selectedFamily?.technicalSpecs||[]),
+      prices:priceTiers,stock:Number(stock)||0,inquiryOnly,description,
+      tags:selectedFamily?.tags||['قطعه صنعتی'],active:selectedFamily?.active??true,
+      images:placement==='family'?[...new Set([...(selectedFamily?.images||[]),url])]:[...(selectedFamily?.images||[])],
+      galleryImages:[...(selectedFamily?.galleryImages||[]),gallery],variants
+    };
+    onSaveProduct(next);
+    setSaveMessage('اطلاعات کالا و اتصال تصویر ذخیره شد. مشخصات فنی به همان خانواده/کد متصل شد.');
+    setCreateNewFamily(false);setCreateNewSku(false);setFamilyCode(finalFamilyCode);setFamilyCodeInput(finalFamilyCode);
   };
   const exportAudit=()=>{
     const blob=new Blob([JSON.stringify(audit,null,2)],{type:'application/json;charset=utf-8'});
