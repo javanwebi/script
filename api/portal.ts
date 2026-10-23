@@ -472,6 +472,37 @@ export default async function handler(
       const revision=Number((await postgresDatabase().query('select revision from app_private.portal_version where singleton=true')).rows[0].revision);
       return send(200,{success:true,smsAvailable:process.env.SUPABASE_SMS_READY==='true',revision,user:null,admin:false,values:{}});
     }
+    if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
+      const auth = await supabaseIdentity(req);
+      // Administrators require the full editable portal. Customer sessions do not.
+      if (!auth.admin) {
+        const wanted = auth.user
+          ? keys.filter(key => key !== CUSTOMER_KEY && key !== "atlas_legacy_customers_v1")
+          : ["atlas_portal_content_announcements_v1"];
+        const [revisionRow, documents] = await Promise.all([
+          postgresDatabase().query("select revision from app_private.portal_version where singleton=true"),
+          Promise.all(wanted.map(async key => [key,await readDocument(postgresDatabase(),key,"global")] as const)),
+        ]);
+        const values = Object.fromEntries(documents.filter(([,value]) => value !== undefined));
+        const scopedDb:Database = {revision:Number(revisionRow.rows[0]?.revision || 0),users:[],values};
+        const scopedValues = auth.user ? scopedState(scopedDb,auth.user) : {};
+        // Guest announcements remain public-only and respect time visibility.
+        if (!auth.user) {
+          const now=Date.now();
+          const announcements=Array.isArray(values.atlas_portal_content_announcements_v1)
+            ? values.atlas_portal_content_announcements_v1.filter((r:Row)=>{
+                if(!r || !r.active || r.archived===true || r.portal!=="storefront" ||
+                   (r.scope && r.scope!=="collective"))return false;
+                if(r.startsAt && Number.isFinite(Date.parse(r.startsAt)) && Date.parse(r.startsAt)>now)return false;
+                const until=r.endsAt || r.expiresAt;
+                return !until || !Number.isFinite(Date.parse(until)) || Date.parse(until)>now;
+              }) : [];
+          if(announcements.length)scopedValues.atlas_portal_content_announcements_v1=announcements;
+        }
+        return send(200,{success:true,smsAvailable:process.env.SUPABASE_SMS_READY==="true",
+          revision:scopedDb.revision,user:auth.user?safeUser(auth.user):null,admin:false,values:scopedValues});
+      }
+    }
     const db = await readDb();
     const auth = await session(req, db);
     if (req.method === "GET") {
