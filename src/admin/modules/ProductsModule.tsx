@@ -1751,7 +1751,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <button
                 type="button"
                 onClick={() => setIsBrandModalOpen(false)}
-                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
               >
                 بستن
               </button>
@@ -2023,7 +2023,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="sticky bottom-0 bg-white flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsBrandModalOpen(false)}
@@ -2085,7 +2085,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 <button
                   type="button"
                   onClick={() => setIsEditorOpen(false)}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer transition-colors"
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-white text-xs font-bold cursor-pointer transition-colors"
                 >
                   بستن
                 </button>
