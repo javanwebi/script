@@ -448,12 +448,16 @@ export default async function handler(
       return;
     }
   }
-  let release!: () => void;
-  const prior = pending;
-  pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await prior;
+  // GET requests are read-only and must not wait behind slow admin writes.
+  // Keep serialization for mutations to preserve the legacy revision contract.
+  let release: () => void = () => {};
+  if (req.method !== "GET") {
+    const prior = pending;
+    pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await prior;
+  }
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "private, no-store");
   const send = (status: number, value: Row) => {
