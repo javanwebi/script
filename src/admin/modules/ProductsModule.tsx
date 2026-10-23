@@ -812,17 +812,52 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      <ProductImageAudit products={products} onCreateFamily={handleOpenNewFamily} onEdit={(code,file)=>{
-        const product=products.find(p=>p.code===code);if(!product)return;
-        handleOpenEditFamily(product,'images');
-        setDraftFamily(previous=>{
-          if(!previous)return previous;
-          const gallery=previous.galleryImages||[];
-          const url=getProductImageUrl(file);
-          if(gallery.some(image=>image.url===url))return previous;
-          return {...previous,galleryImages:[...gallery,{id:`review-${file}`,url,fileName:file,scope:'family',title:'تصویر در انتظار بررسی کد کالا',order:gallery.length+1}],images:[...(previous.images||[]),url]};
-        });
-      }} />
+      <ProductImageAudit products={products} categories={categories}
+        onCreateCategory={()=>handleOpenCategoryModal()}
+        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
+          handleOpenNewFamily();
+          const url=imageUrl||getProductImageUrl(file);
+          setDraftFamily(previous=>previous?{
+            ...previous,
+            categoryName:category||previous.categoryName,
+            subcategory:subcategory||previous.subcategory,
+            images:[...(previous.images||[]),url],
+            galleryImages:[...(previous.galleryImages||[]),{
+              id:`review-new-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
+            }]
+          }:previous);
+          setEditorTab('family');
+        }}
+        onCreateSku={(code,file,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,'variants');
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-draft-${file}`,url,fileName:file,scope:'family',
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
+            }],images:[...(previous.images||[]),url]};
+          });
+        }}
+        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);if(!product)return;
+          handleOpenEditFamily(product,skuCode?'variants':'images');
+          if(skuCode)setEditingVariantCode(skuCode);
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===url))return previous;
+            return {...previous,galleryImages:[...gallery,{
+              id:`review-${file}`,url,fileName:file,
+              scope:skuCode?'variant':'family',variantCode:skuCode,
+              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
+            }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
+          });
+        }}
+      />
       {/* 1. HEADER & GLOBAL STATS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
