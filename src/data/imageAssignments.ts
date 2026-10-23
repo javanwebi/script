@@ -21,6 +21,9 @@ export interface DbImageAuditRow {
     visualType: string;
     visibleFeatures: string;
     requiredChecks: string[];
+    sourceSha256?: string;
+    exactSku?: string|null;
+    standardStatus?: string;
   };
   ownerCatalogue?: {
     catalogueGroup: string;
