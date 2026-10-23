@@ -2909,7 +2909,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                       <div>
                         <h4 className="text-sm font-black text-[#55565A]">افزودن تصویر</h4>
-                        <p className="text-xs text-slate-500 mt-1">۱. منبع را انتخاب کنید، ۲. تصویر را اضافه کنید، ۳. ارتباط آن را مشخص کنید.</p>
+                        <p className="text-xs text-slate-500 mt-1">۱. منبع تصویر را انتخاب کنید، ۲. نوع اتصال را تعیین کنید، ۳. تصویر را اضافه کنید.</p>
                       </div>
                       <span className="rounded-full bg-[#FFF2E8] text-[#B94D0A] px-3 py-1 text-xs font-bold">{toPersianDigits(draftFamily.galleryImages?.length || 0)} تصویر ثبت‌شده</span>
                     </div>
@@ -2929,6 +2929,28 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       ))}
                     </div>
 
+                    <div className="mt-3 rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
+                      <div>
+                        <h5 className="text-xs font-black text-[#55565A]">ارتباط تصویر</h5>
+                        <p className="text-[11px] text-slate-500 mt-1">مشخص کنید تصویر عمومی خانواده است یا فقط به یک کد کالا تعلق دارد.</p>
+                      </div>
+                      <label className="block text-xs font-bold text-slate-700">نوع اتصال
+                        <select value={newImgScope === 'family' ? '__FAMILY__' : newImgVariantCode || '__SELECT_SKU__'}
+                          onChange={e => {const val=e.target.value;if(val==='__FAMILY__'){setNewImgScope('family');setNewImgVariantCode('')}else if(val==='__SELECT_SKU__'){setNewImgScope('variant');setNewImgVariantCode('')}else{setNewImgScope('variant');setNewImgVariantCode(val)}setImageFormFeedback(null)}}
+                          className="mt-2 w-full px-3 py-3 rounded-xl border border-slate-300 bg-white text-xs">
+                          <option value="__FAMILY__">تصویر عمومی خانواده — کد انتخاب‌شده مشتری تغییر نمی‌کند</option>
+                          <option value="__SELECT_SKU__" disabled>انتخاب کد کالا…</option>
+                          {(draftFamily.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}{v.size? ` (${v.size})`:''}</option>)}
+                        </select>
+                      </label>
+                      {newImgScope==='variant'&&newImgVariantCode&&<div className="rounded-lg bg-[#FFF6EF] border border-[#F4D4BE] p-3 text-xs text-[#88400F]">تصویر برای کد <b dir="ltr">{newImgVariantCode}</b> ثبت می‌شود. فقط پس از تطبیق شکل، اندازه و مشخصات فنی، تأیید هویت را انجام دهید.</div>}
+                      <details>
+                        <summary className="cursor-pointer select-none text-xs font-bold text-slate-600 py-1">عنوان یا توضیح تصویر (اختیاری)</summary>
+                        <input type="text" value={newImgTitle} onChange={e=>setNewImgTitle(e.target.value)} placeholder="مثلاً نمای روبه‌رو قطعه"
+                          className="mt-2 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs"/>
+                      </details>
+                    </div>
+                    {imageFormFeedback&&<div role="status" className={`mt-3 rounded-xl border px-3 py-2.5 text-xs leading-5 ${imageFormFeedback.startsWith('تصویر به پیش‌نویس')?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-amber-50 border-amber-200 text-amber-900'}`}>{imageFormFeedback}</div>}          </details>
                     <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 sm:p-4">
                       {newImgSourceType === 'catalogue' && (
                         <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_84px_auto] gap-3 items-end">
@@ -2965,28 +2987,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       )}
                     </div>
 
-                    <div className="mt-3 rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
-                      <div>
-                        <h5 className="text-xs font-black text-[#55565A]">ارتباط تصویر</h5>
-                        <p className="text-[11px] text-slate-500 mt-1">مشخص کنید تصویر عمومی خانواده است یا فقط به یک کد کالا تعلق دارد.</p>
-                      </div>
-                      <label className="block text-xs font-bold text-slate-700">نوع اتصال
-                        <select value={newImgScope === 'family' ? '__FAMILY__' : newImgVariantCode || '__SELECT_SKU__'}
-                          onChange={e => {const val=e.target.value;if(val==='__FAMILY__'){setNewImgScope('family');setNewImgVariantCode('')}else if(val==='__SELECT_SKU__'){setNewImgScope('variant');setNewImgVariantCode('')}else{setNewImgScope('variant');setNewImgVariantCode(val)}setImageFormFeedback(null)}}
-                          className="mt-2 w-full px-3 py-3 rounded-xl border border-slate-300 bg-white text-xs">
-                          <option value="__FAMILY__">تصویر عمومی خانواده — کد انتخاب‌شده مشتری تغییر نمی‌کند</option>
-                          <option value="__SELECT_SKU__" disabled>انتخاب کد کالا…</option>
-                          {(draftFamily.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}{v.size? ` (${v.size})`:''}</option>)}
-                        </select>
-                      </label>
-                      {newImgScope==='variant'&&newImgVariantCode&&<div className="rounded-lg bg-[#FFF6EF] border border-[#F4D4BE] p-3 text-xs text-[#88400F]">تصویر برای کد <b dir="ltr">{newImgVariantCode}</b> ثبت می‌شود. فقط پس از تطبیق شکل، اندازه و مشخصات فنی، تأیید هویت را انجام دهید.</div>}
-                      <details>
-                        <summary className="cursor-pointer select-none text-xs font-bold text-slate-600 py-1">عنوان یا توضیح تصویر (اختیاری)</summary>
-                        <input type="text" value={newImgTitle} onChange={e=>setNewImgTitle(e.target.value)} placeholder="مثلاً نمای روبه‌رو قطعه"
-                          className="mt-2 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs"/>
-                      </details>
-                    </div>
-                    {imageFormFeedback&&<div role="status" className={`mt-3 rounded-xl border px-3 py-2.5 text-xs leading-5 ${imageFormFeedback.startsWith('تصویر به پیش‌نویس')?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-amber-50 border-amber-200 text-amber-900'}`}>{imageFormFeedback}</div>}          </details>
+
                   </div>
 
                   <div className="rounded-2xl border border-[#E8EAEE] bg-white overflow-hidden">
