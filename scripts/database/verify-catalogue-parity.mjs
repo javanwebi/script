@@ -26,8 +26,8 @@ const client=await pool.connect();
 try {
  await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
  const [families,variants,gallery,audit,features,summary]=await Promise.all([
-   client.query('select code,name,category_name,subcategory,submenu from public.catalog_families where is_active and not is_deleted order by code'),
-   client.query('select code,family_code,name,technical_specs from public.catalog_variants where active order by code'),
+   client.query('select code,name,category_name,subcategory,submenu,technical_specs from public.catalog_families where is_active and not is_deleted order by code'),
+   client.query('select code,family_code,name,size,technical_specs from public.catalog_variants where active order by code'),
    client.query('select id,family_code,variant_code,url from public.catalog_gallery_images'),
    client.query('select file_name from public.catalog_image_audits'),
    client.query('select file_name from public.catalog_image_features'),
@@ -43,6 +43,27 @@ try {
  const extraSkus=diff(databaseSkus,expectedVariantCodes);
  const orphanSkus=variants.rows.filter(x=>!databaseFamilies.has(x.family_code));
  const galleryBroken=gallery.rows.filter(x=>!databaseFamilies.has(x.family_code)||(x.variant_code&&!databaseSkus.has(x.variant_code))||!x.url);
+ const familyByCode=new Map(families.rows.map(x=>[x.code,x]));
+ const skuByCode=new Map(variants.rows.map(x=>[x.code,x]));
+ const familyDrift=[],skuDrift=[];
+ for(const family of source){
+   const stored=familyByCode.get(String(family.code));
+   if(!stored)continue;
+   for(const [field,sourceField] of [['name','name'],['category_name','categoryName'],['subcategory','technicalType'],['submenu','submenu']]){
+     const expected=String(family[sourceField]??'').trim(),actual=String(stored[field]??'').trim();
+     if(expected!==actual)familyDrift.push({code:family.code,field,source:expected,db:actual});
+   }
+   for(const variant of family.variants||[]){
+     const storedSku=skuByCode.get(String(variant.code));
+     if(!storedSku)continue;
+     for(const field of ['name','size']){
+       if(String(variant[field]??'').trim()!==String(storedSku[field]??'').trim())
+         skuDrift.push({code:variant.code,field});
+     }
+   }
+ }
+ const familyMissingSharedSpecs=families.rows.filter(x=>!Array.isArray(x.technical_specs)||x.technical_specs.length===0);
+
  const audited=new Set(audit.rows.map(x=>x.file_name));
  const indexed=new Set(features.rows.map(x=>x.file_name));
  const missingImageFeatures=diff(audited,indexed);
@@ -57,12 +78,15 @@ try {
      extraSkus:{count:extraSkus.size,sample:sample(extraSkus)},
      orphanSkus:{count:orphanSkus.length,sample:sample(orphanSkus.map(x=>x.code))},
      galleryBroken:{count:galleryBroken.length,sample:sample(galleryBroken.map(x=>x.id))},
+     familyFieldsDifferentFromSource:{count:familyDrift.length,sample:familyDrift.slice(0,25)},
+     skuNamesOrSizesDifferent:{count:skuDrift.length,sample:skuDrift.slice(0,25)},
+     familiesWithoutSharedTechnicalSpecs:{count:familyMissingSharedSpecs.length,sample:sample(familyMissingSharedSpecs.map(x=>x.code))},
      variantsWithoutTechnicalSpecs:{count:missingSpecs.length,sample:sample(missingSpecs.map(x=>x.code))},
      auditedImagesWithoutFeatures:{count:missingImageFeatures.size,sample:sample(missingImageFeatures)}
    }
  };
  console.log(JSON.stringify(report,null,2));
- const parity=missingFamilies.size===0&&missingSkus.size===0&&orphanSkus.length===0&&galleryBroken.length===0;
+ const parity=missingFamilies.size===0&&extraFamilies.size===0&&missingSkus.size===0&&extraSkus.size===0&&orphanSkus.length===0&&galleryBroken.length===0&&skuDrift.length===0&&familyDrift.length===0&&missingImageFeatures.size===0;
  // The JSON input may contain historical codes not present in the live DB;
  // never automatically import, modify, delete or deactivate those records.
  await client.query('ROLLBACK');
@@ -70,7 +94,7 @@ try {
    console.error('Catalogue parity NOT verified. Preserve all JSON source files. Investigate differences and back up before any migration.');
    process.exitCode=1;
  }else{
-   console.log('Catalogue code parity verified (READ ONLY). A backup/restore test and browser/API verification are still required before removing JSON.');
+   console.log('Catalogue field/code/image parity verified (READ ONLY). A backup/restore test, remaining static import audit and browser/API verification are still required before removing JSON.');
  }
 }finally{
  try{await client.query('ROLLBACK')}catch{}
