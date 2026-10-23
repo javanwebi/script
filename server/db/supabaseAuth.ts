@@ -29,7 +29,7 @@ async function identityProfile(authUserId:string){
  const role:{[key:string]:string}={client:'retail',club:'wholesale',agency:'dealer',super_admin:'admin'};
  return {...(row.draft_payload || {}),...(row.preferences || {}),
   addresses:row.profile_addresses || [],id:row.draft_id || row.legacy_user_id || row.id,
-  authUserId:row.id,phone:row.phone?.replace(/^\\+98/,'0'),
+  authUserId:row.id,phone:row.phone?.replace(/^\+98/,'0'),
   email:row.email,username:row.username,fullName:row.full_name,companyName:row.company_name,
   role:role[row.role] || 'guest',active:row.status==='active' && row.draft_active!==false,
   approvedB2B:row.approved_b2b,canViewPrices:row.can_view_prices,canViewStock:row.can_view_stock,
@@ -39,7 +39,7 @@ async function identityProfile(authUserId:string){
 export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
  const token=cookie(req,'sp_access');if(!token)return {admin:false};
  const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false};}
- const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.role==='admin',user:user?.active===false?undefined:user};
+ const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);return {admin:user?.active!==false && user?.role==='admin',user:user?.active===false?undefined:user};
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
