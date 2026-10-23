@@ -27,12 +27,21 @@ function status(state: "saving" | "saved" | "error", message = "") {
   );
 }
 export async function portalRequest(body?: unknown) {
-  const res = await fetch("/api/portal", {
-    method: body ? "POST" : "GET",
-    credentials: "same-origin",
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/portal", {
+      method: body ? "POST" : "GET",
+      credentials: "same-origin",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(body ? 15000 : 20000),
+    });
+  } catch (cause) {
+    if (cause instanceof Error && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
+      throw new Error("پاسخ سرور بیش از حد طول کشید. لطفاً دوباره تلاش کنید.");
+    }
+    throw new Error("ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
+  }
   const data = await res
     .json()
     .catch(() => ({ message: "پاسخ سرور معتبر نیست." }));

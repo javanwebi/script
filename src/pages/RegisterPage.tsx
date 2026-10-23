@@ -1,14 +1,16 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Layers } from "lucide-react";
-import { AccountAccess } from "../components/auth/AccountAccess";
-export const RegisterPage = () => (
-  <div className="account-page">
-    <Link to="/" className="account-page-home">
-      <Layers size={18} /> صنعت پیش{" "}
-      <span style={{ marginRight: "auto" }}>بازگشت به سایت</span>
-      <ArrowRight size={16} />
-    </Link>
-    <AccountAccess initial="register" />
-  </div>
-);
+import React, { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+/** Registration always opens the shared popup, never a separate form page. */
+export const RegisterPage = () => {
+  const opened = useRef(false);
+  const navigate = useNavigate();
+  const { openAuthModal } = useAuth();
+  useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    navigate("/", { replace: true });
+    openAuthModal(undefined, "register");
+  }, [navigate, openAuthModal]);
+  return null;
+};
