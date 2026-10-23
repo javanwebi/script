@@ -1,4 +1,5 @@
 import { hydratePortal, flushPortalChanges } from '../services/portalRepository';
+import './adminUx.css';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -268,7 +269,7 @@ export const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col md:flex-row text-slate-900 font-sans" dir="rtl">
+    <div className="sanat-admin min-h-screen bg-[#F7F8FA] flex flex-col md:flex-row text-slate-900 font-sans" dir="rtl">
       {saveStatus.state && <div role={saveStatus.state === 'error' ? 'alert' : 'status'} className={`fixed bottom-4 left-4 right-4 sm:right-auto z-[100] max-w-xl rounded-xl border bg-white px-4 py-3 text-sm shadow-lg ${saveStatus.state === 'error' ? 'text-red-700 border-red-300' : 'text-emerald-700 border-emerald-200'}`}>{saveStatus.state === 'error' ? saveStatus.message : saveStatus.state === 'saving' ? 'در حال ذخیره تغییرات…' : 'تغییرات در سرور ذخیره شد.'}</div>}
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
