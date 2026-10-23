@@ -127,8 +127,9 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
     if(createNewFamily&&(!skuCodeInput.trim()||!skuName.trim())){setFormError('برای خانواده جدید، کد و نام اولین کالا را نیز وارد کنید.');return;}
     if(placement==='sku'&&(!createNewSku&&!sku||createNewSku&&!skuCodeInput.trim()||!skuName.trim())){setFormError('کد و نام SKU را کامل کنید.');return;}
     if(createNewFamily&&products.some(p=>p.code.toLowerCase()===finalFamilyCode.toLowerCase())){setFormError('این کد خانواده قبلاً ثبت شده است.');return;}
+    if((createNewFamily||createNewSku)&&skuCodeInput.trim()&&products.some(p=>(p.variants||[]).some(v=>v.code.toLowerCase()===skuCodeInput.trim().toLowerCase()))){setFormError('این کد SKU در کاتالوگ استفاده شده است؛ کد واقعی و یکتا وارد کنید.');return;}
     const cleanSpecs=specs.filter(s=>s.key.trim()).map(s=>({key:s.key.trim(),value:s.value.trim()}));
-    const priceTiers={...(selectedFamily?.prices||{base:0,retail:0,wholesale:0,dealer:0}),base:Number(retail)||0,retail:Number(retail)||0,wholesale:Number(wholesale)||0,dealer:Number(dealer)||0};
+    const priceTiers={...(selectedFamily?.prices||{base:0,retail:0,wholesale:0,dealer:0}),base:selectedFamily?.prices?.base??((Number(retail)>0)?Math.round(Number(retail)*0.8):0),retail:Number(retail)||0,wholesale:Number(wholesale)||0,dealer:Number(dealer)||0};
     const nowId=`image-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
     const gallery:ProductGalleryImage={id:nowId,url,fileName:file,scope:placement==='family'?'family':'variant',variantCode:placement==='sku'?(createNewSku?skuCodeInput.trim():sku):undefined,identityVerified:false,title:title.trim()||file,order:(selectedFamily?.galleryImages?.length||0)+1};
     let variants:ProductVariant[]=[...(selectedFamily?.variants||[])];
@@ -142,11 +143,11 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
     }
     const next:Product={
       ...(selectedFamily||{} as Product),code:finalFamilyCode,name:familyName.trim(),nameEn:familyNameEn.trim()||undefined,
-      brand,categoryName:category,categorySlug:category.trim().replace(/[\\s\\u200c]+/g,'-'),subcategory,submenu,unit,
+      brand,categoryName:category,categorySlug:category.trim().replace(/[\s\u200c]+/g,'-'),subcategory,submenu,unit,
       technicalSpecs:placement==='family'?cleanSpecs:(selectedFamily?.technicalSpecs||[]),
       prices:priceTiers,stock:Number(stock)||0,inquiryOnly,description,
       tags:selectedFamily?.tags||['قطعه صنعتی'],active:selectedFamily?.active??true,
-      images:placement==='family'?[...new Set([...(selectedFamily?.images||[]),url])]:[...(selectedFamily?.images||[])],
+      images:[...new Set([...(selectedFamily?.galleryImages||[]).map(img=>img.url),...(selectedFamily?.images||[]),url])],
       galleryImages:[...(selectedFamily?.galleryImages||[]),gallery],variants
     };
     onSaveProduct(next);
