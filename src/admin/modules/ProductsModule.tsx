@@ -836,7 +836,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveSubTab('products')}
@@ -846,7 +846,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              خانواده‌ها و کدهای کالا ({toPersianDigits(catalogStats.totalFamilies)})
+              کالاها ({toPersianDigits(catalogStats.totalFamilies)})
             </button>
             <button
               type="button"
@@ -959,8 +959,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         <div className="space-y-4">
           {/* Search & Filters Toolbar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className="md:col-span-5 relative">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="search"
@@ -969,57 +969,61 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     setSearchQuery(e.target.value);
                     setCurrentPage(1);
                   }}
-                  placeholder="جستجو در نام خانواده، کد خانواده (FAM-34265)، کد کالا (34265)، سایز یا برند..."
-                  className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-[#E06518] focus:outline-none"
+                  placeholder="جستجو با نام کالا، کد، سایز یا برند..."
+                  aria-label="جستجو در کاتالوگ کالاها"
+                  className="w-full pr-10 pl-3 py-3 rounded-xl border border-slate-300 text-xs focus:border-[#E06518] focus:outline-none"
                 />
               </div>
-
-              <div className="md:col-span-3">
-                <select
-                  value={selectedCategory}
-                  onChange={e => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
-                >
-                  <option value="all">همه دسته‌بندی‌ها ({toPersianDigits(catalogCategoryNames.length)})</option>
-                  {catalogCategoryNames.map(catName => (
-                    <option key={catName} value={catName}>
-                      {catName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <select
-                  value={imageFilter}
-                  onChange={e => {
-                    setImageFilter(e.target.value as any);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
-                >
-                  <option value="all">همه وضعیت‌های تصویر</option>
-                  <option value="sku_bound">دارای تصویر متصل به کد کالا</option>
-                  <option value="has_images">دارای تصویر (عمومی یا کد)</option>
-                  <option value="no_images">بدون تصویر ثبت‌شده</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={handleOpenNewFamily}
-                  className="w-full h-10 px-4 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>افزودن خانواده جدید</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleOpenNewFamily}
+                className="w-full sm:w-auto min-h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>افزودن کالا</span>
+              </button>
             </div>
 
+            <details className="rounded-xl border border-slate-200 bg-slate-50">
+              <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">
+                فیلترهای بیشتر: دسته‌بندی و وضعیت تصویر
+                {(selectedCategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 pt-0">
+                <label className="block text-xs font-bold text-slate-600">
+                  دسته‌بندی
+                  <select
+                    value={selectedCategory}
+                    onChange={e => {
+                      setSelectedCategory(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
+                  >
+                    <option value="all">همه دسته‌بندی‌ها ({toPersianDigits(catalogCategoryNames.length)})</option>
+                    {catalogCategoryNames.map(catName => (
+                      <option key={catName} value={catName}>{catName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold text-slate-600">
+                  وضعیت تصویر
+                  <select
+                    value={imageFilter}
+                    onChange={e => {
+                      setImageFilter(e.target.value as any);
+                      setCurrentPage(1);
+                    }}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
+                  >
+                    <option value="all">همه وضعیت‌های تصویر</option>
+                    <option value="sku_bound">دارای تصویر متصل به کد کالا</option>
+                    <option value="has_images">دارای تصویر (عمومی یا کد)</option>
+                    <option value="no_images">بدون تصویر ثبت‌شده</option>
+                  </select>
+                </label>
+              </div>
+            </details>
             {/* Secondary Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
               <div className="flex items-center gap-1.5 flex-wrap">
