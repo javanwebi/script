@@ -448,12 +448,17 @@ export default async function handler(
       return;
     }
   }
-  let release!: () => void;
-  const prior = pending;
-  pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await prior;
+  // Only mutations need the in-process write queue. PostgreSQL reads use
+  // their own repeatable-read snapshot and must not block other GET requests.
+  // Keep local-file reads serialized with writes to preserve fallback behavior.
+  let release = () => {};
+  if (req.method !== "GET" || !databaseEnabled()) {
+    const prior = pending;
+    pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await prior;
+  }
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "private, no-store");
   const send = (status: number, value: Row) => {
