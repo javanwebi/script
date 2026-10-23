@@ -20,16 +20,8 @@ function showBackendUnavailable(){
 }
 
 async function boot(){
-  // Bootstrap the public UI even if /api/runtime returns 502. Do not install
-  // stale or private database data as a substitute for a failed API call.
-  try{
-    const state=await refreshDurableStorage();
-    if(state.database){installDatabaseProducts(state.products);installDatabaseReferences();}
-    else showBackendUnavailable();
-  }catch(error){
-    console.error('[SanatPish] Express API is unavailable; public source UI will still load.',error);
-    showBackendUnavailable();
-  }
+  // The public storefront must paint independently of the database.
+  // The API still owns authentication, pricing and all persistent writes.
   window.addEventListener('sanat-durable-hydrated',(event)=>{
     const data=(event as CustomEvent).detail;
     if(data?.database){
@@ -38,8 +30,15 @@ async function boot(){
       document.getElementById('sanat-backend-status')?.remove();
     }
   });
+  // Start React before awaiting a potentially slow cross-region database read.
   const {default:App}=await import('./App.tsx');
   createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+  void refreshDurableStorage().then(state=>{
+    if(!state.database)showBackendUnavailable();
+  }).catch(error=>{
+    console.error('[SanatPish] Express API is unavailable; public source UI will still load.',error);
+    showBackendUnavailable();
+  });
 }
 
 void boot().catch(error=>{
