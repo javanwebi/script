@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm install --no-save --ignore-scripts playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium
       - run: |
           nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/sanat-admin-preview.log 2>&1 &
           for i in $(seq 1 40); do if curl -sf http://127.0.0.1:4173/admin > /dev/null; then exit 0; fi; sleep 1; done
