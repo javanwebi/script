@@ -2950,7 +2950,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                           className="mt-2 w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs"/>
                       </details>
                     </div>
-                    {imageFormFeedback&&<div role="status" className={`mt-3 rounded-xl border px-3 py-2.5 text-xs leading-5 ${imageFormFeedback.startsWith('تصویر به پیش‌نویس')?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-amber-50 border-amber-200 text-amber-900'}`}>{imageFormFeedback}</div>}
+
                     <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 sm:p-4">
                       {newImgSourceType === 'catalogue' && (
                         <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_84px_auto] gap-3 items-end">
@@ -2986,8 +2986,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         </div>
                       )}
                     </div>
-
-
+                                        {imageFormFeedback&&<div role="status" className={`mt-3 rounded-xl border px-3 py-2.5 text-xs leading-5 ${imageFormFeedback.startsWith('تصویر به پیش‌نویس')?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-amber-50 border-amber-200 text-amber-900'}`}>{imageFormFeedback}</div>}
                   </div>
 
                   <div className="rounded-2xl border border-[#E8EAEE] bg-white overflow-hidden">
