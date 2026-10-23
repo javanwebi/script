@@ -20,7 +20,7 @@ function createBrandBadgeSvg(title: string, subtitle: string, accent: string, da
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export const BRANDS: Brand[] = [
+const INITIAL_BRANDS: Brand[] = [
   {
     id: 'swr',
     name: 'اس دبلیو آر (SWR)',
@@ -154,6 +154,9 @@ export const BRANDS: Brand[] = [
     active: true,
   },
 ];
+
+// Published brands are hydrated from PostgreSQL; the static list is Node-only test data.
+export const BRANDS: Brand[] = typeof window === 'undefined' ? INITIAL_BRANDS : [];
 
 export function getManagedBrands(): Brand[] {
   if (typeof window !== 'undefined') {

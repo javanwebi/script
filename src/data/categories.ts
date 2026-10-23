@@ -49,13 +49,16 @@ export function matchesCatalogCategory(product: Product, slug: string, selection
   return beltMatch ?? (product.submenu === selection || product.subcategory === selection);
 }
 
-export const CATEGORIES: EnhancedCategory[] = definitions.map(category => ({
+const INITIAL_CATEGORIES: EnhancedCategory[] = definitions.map(category => ({
   ...category, count: USER_PRODUCTS.filter(p => p.categorySlug === category.slug).length,
   description: category.children.map(n => n.name).join('، '),
   children: category.name === "تسمه و انتقال نیرو" ? BELT_MENU : category.children,
   subcategories: category.name === "تسمه و انتقال نیرو" ? BELT_MENU.map(n=>n.name) : category.children.map(n => n.name),
   image: USER_PRODUCTS.find(p => p.categorySlug === category.slug && p.images.length)?.images[0],
 }));
+// Browser arrays are populated only by /api/runtime after PostgreSQL hydration.
+// Keep the Node-only fixture for legacy isolated tests; never paint this snapshot to users.
+export const CATEGORIES: EnhancedCategory[] = typeof window === 'undefined' ? INITIAL_CATEGORIES : [];
 export const PRIMARY_CATALOG_CATEGORIES = CATEGORIES;
 
 export const CATEGORIES_STORAGE_KEY = 'atlas_admin_categories_v1';
