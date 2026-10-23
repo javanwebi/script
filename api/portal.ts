@@ -427,6 +427,27 @@ export default async function handler(
   req: IncomingMessage & { body?: Row },
   res: ServerResponse,
 ) {
+  // Authentication is independent of the portal document read/write queue.
+  // Avoid loading every CRM/catalog document before a login or OTP response.
+  if(databaseEnabled() && req.method==='POST'){
+    try{
+      csrf(req);
+      const body=await readBody(req);
+      if(['register','login','admin_login','otp_request','otp_verify','registration_credentials','logout','dev_otp_request','dev_otp_verify'].includes(body.action)){
+        res.setHeader('Content-Type','application/json; charset=utf-8');
+        res.setHeader('Cache-Control','private, no-store');
+        await rateLimit(req);
+        if(await supabaseAuthAction(req,res,body,safeUser))return;
+      }
+      req.body=body;
+    }catch(e:any){
+      res.statusCode=Number.isInteger(e?.status)?e.status:503;
+      res.setHeader('Content-Type','application/json; charset=utf-8');
+      res.setHeader('Cache-Control','private, no-store');
+      res.end(JSON.stringify({success:false,message:e?.status?e.message:'ارتباط با سرویس ورود موقتاً برقرار نیست.'}));
+      return;
+    }
+  }
   let release!: () => void;
   const prior = pending;
   pending = new Promise<void>((resolve) => {
