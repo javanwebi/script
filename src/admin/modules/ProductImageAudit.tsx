@@ -1,6 +1,6 @@
 import React, {useMemo,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,Info} from 'lucide-react';
-import type {Product} from '../../types';
+import type {Product,TechnicalSpec,ProductGalleryImage,ProductVariant} from '../../types';
 import {getImageAssignmentAudit} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
@@ -14,13 +14,11 @@ const fa=(n:number)=>n.toLocaleString('fa-IR');
 const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
-export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onCreateSku}:{
+export function ProductImageAudit({products,categories,onSaveProduct,onCreateCategory}:{
   products:Product[];
   categories:{name:string;subcategories?:string[]}[];
-  onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string)=>void;
-  onCreateFamily:(file:string,category:string,subcategory:string,imageUrl?:string,imageTitle?:string)=>void;
-  onCreateCategory:()=>void;
-  onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
+  onSaveProduct:(product:Product)=>void;
+  onCreateCategory:(categoryName:string,subcategoryName:string)=>void;
 }){
   const audit=useMemo(()=>getImageAssignmentAudit(products),[products]);
   const [search,setSearch]=useState('');
@@ -42,6 +40,32 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [placement,setPlacement]=useState<StorageChoice>('family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
+  const [createNewFamily,setCreateNewFamily]=useState(false);
+  const [createNewSku,setCreateNewSku]=useState(false);
+  const [familyCodeInput,setFamilyCodeInput]=useState('');
+  const [familyName,setFamilyName]=useState('');
+  const [familyNameEn,setFamilyNameEn]=useState('');
+  const [familyDescription,setFamilyDescription]=useState('');
+  const [familySpecs,setFamilySpecs]=useState<TechnicalSpec[]>([{key:'',value:''}]);
+  const [submenu,setSubmenu]=useState('');
+  const [brand,setBrand]=useState('ATLAS');
+  const [unit,setUnit]=useState('عدد');
+  const [skuCodeInput,setSkuCodeInput]=useState('');
+  const [skuName,setSkuName]=useState('');
+  const [skuSize,setSkuSize]=useState('');
+  const [skuModel,setSkuModel]=useState('');
+  const [retail,setRetail]=useState('0');
+  const [wholesale,setWholesale]=useState('0');
+  const [dealer,setDealer]=useState('0');
+  const [stock,setStock]=useState('0');
+  const [inquiryOnly,setInquiryOnly]=useState(true);
+  const [description,setDescription]=useState('');
+  const [specs,setSpecs]=useState<TechnicalSpec[]>([{key:'',value:''}]);
+  const [showTaxonomyEditor,setShowTaxonomyEditor]=useState(false);
+  const [newCategoryName,setNewCategoryName]=useState('');
+  const [newSubcategoryName,setNewSubcategoryName]=useState('');
+  const [formError,setFormError]=useState('');
+  const [saveMessage,setSaveMessage]=useState('');
   const selectedRow=audit.find(x=>x.file===file);
   const family=products.find(x=>x.code===familyCode);
   const allFamilies=useMemo(()=>[...new Map(audit.flatMap(r=>r.families.map(f=>[f.code,f.name] as const))).entries()].sort((a,b)=>a[1].localeCompare(b[1],'fa')),[audit]);
@@ -61,9 +85,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSourceError('');setTitle(found?.observed||'');
-    setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setFamilyCodeInput('');setSku('');setPlacement('family');setCreateNewFamily(false);setCreateNewSku(false);setFormError('');setSaveMessage('');setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilyCodeInput('');setFamilySearch('');setSku('');setPlacement('family');setCreateNewFamily(false);setCreateNewSku(false);setFormError('');setSaveMessage('');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!upload.type.startsWith('image/')){setSourceError('فایل انتخاب‌شده تصویر نیست.');return}
@@ -78,10 +102,61 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
   const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing')};
+  const loadFamily=(p?:Product)=>{
+    setFamilyCode(p?.code||'');setFamilyCodeInput(p?.code||'');setFamilyName(p?.name||'');setFamilyNameEn(p?.nameEn||'');setFamilyDescription(p?.description||'');setFamilySpecs(p?.technicalSpecs?.length?p.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
+    setCategory(p?.categoryName||category);setSubcategory(p?.subcategory||'');setSubmenu(p?.submenu||'');setBrand(p?.brand||'ATLAS');setUnit(p?.unit||'عدد');
+    setRetail(String(p?.prices?.retail??0));setWholesale(String(p?.prices?.wholesale??0));setDealer(String(p?.prices?.dealer??0));
+    setStock(String(p?.stock??0));setInquiryOnly(p?.inquiryOnly??true);setDescription(p?.description||'');
+    setSpecs(p?.technicalSpecs?.length?p.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
+    setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setCreateNewFamily(false);setCreateNewSku(false);
+  };
+  const loadSku=(code:string)=>{
+    setSku(code);setCreateNewSku(false);
+    const v=family?.variants?.find(item=>item.code===code);
+    if(!v){setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setSpecs([{key:'',value:''}]);return;}
+    setSkuCodeInput(v.code);setSkuName(v.name||'');setSkuSize(v.size||'');setSkuModel(v.model||'');
+    setRetail(String(v.prices?.retail??v.price??family?.prices?.retail??0));setWholesale(String(v.prices?.wholesale??family?.prices?.wholesale??0));
+    setDealer(String(v.prices?.dealer??family?.prices?.dealer??0));setStock(String(v.stock??0));setInquiryOnly(v.inquiryOnly??(Number(v.price||0)<=0));
+    setDescription(v.description||family?.description||'');setSpecs(v.technicalSpecs?.length?v.technicalSpecs.map(s=>({...s})):[{key:'',value:''}]);
+  };
   const apply=()=>{
-    if(!file||!url||!familyCode||(placement==='sku'&&!sku))return;
-    onEdit(familyCode,file,placement==='sku'?sku:undefined,url,title);
-    closeSelection();
+    setFormError('');setSaveMessage('');
+    const selectedFamily=createNewFamily?undefined:products.find(p=>p.code===familyCode);
+    const finalFamilyCode=createNewFamily?familyCodeInput.trim():familyCode;
+    if(!file||!url){setFormError('ابتدا یک تصویر انتخاب کنید.');return;}
+    if(!category.trim()||!subcategory.trim()){setFormError('دسته و زیردسته محصول را مشخص کنید.');return;}
+    if(!finalFamilyCode||!familyName.trim()){setFormError('کد و نام خانواده کالا الزامی است.');return;}
+    if(createNewFamily&&(!skuCodeInput.trim()||!skuName.trim())){setFormError('برای خانواده جدید، کد و نام اولین کالا را نیز وارد کنید.');return;}
+    if(placement==='sku'&&(!createNewSku&&!sku||createNewSku&&!skuCodeInput.trim()||!skuName.trim())){setFormError('کد و نام SKU را کامل کنید.');return;}
+    if(createNewFamily&&products.some(p=>p.code.toLowerCase()===finalFamilyCode.toLowerCase())){setFormError('این کد خانواده قبلاً ثبت شده است.');return;}
+    if((createNewFamily||createNewSku)&&skuCodeInput.trim()&&products.some(p=>(p.variants||[]).some(v=>v.code.toLowerCase()===skuCodeInput.trim().toLowerCase()))){setFormError('این کد SKU در کاتالوگ استفاده شده است؛ کد واقعی و یکتا وارد کنید.');return;}
+    const cleanSpecs=specs.filter(s=>s.key.trim()).map(s=>({key:s.key.trim(),value:s.value.trim()}));
+    const priceTiers={...(selectedFamily?.prices||{base:0,retail:0,wholesale:0,dealer:0}),base:selectedFamily?.prices?.base??((Number(retail)>0)?Math.round(Number(retail)*0.8):0),retail:Number(retail)||0,wholesale:Number(wholesale)||0,dealer:Number(dealer)||0};
+    const nowId=`image-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    const gallery:ProductGalleryImage={id:nowId,url,fileName:file,scope:placement==='family'?'family':'variant',variantCode:placement==='sku'?(createNewSku?skuCodeInput.trim():sku):undefined,identityVerified:false,title:title.trim()||file,order:(selectedFamily?.galleryImages?.length||0)+1};
+    const alreadyLinked=(selectedFamily?.galleryImages||[]).some(img=>img.url===url&&img.scope===gallery.scope&&(img.variantCode||'')===(gallery.variantCode||''));
+    const nextGallery=alreadyLinked?[...(selectedFamily?.galleryImages||[])]:[...(selectedFamily?.galleryImages||[]),gallery];
+    let variants:ProductVariant[]=[...(selectedFamily?.variants||[])];
+    if(createNewFamily){
+      variants=[{code:skuCodeInput.trim(),name:skuName.trim(),size:skuSize.trim(),model:skuModel.trim(),brand,unit,price:Number(retail)||0,prices:priceTiers,inquiryOnly,stock:Number(stock)||0,stockKnown:true,active:true,images:placement==='sku'?[url]:[],description,technicalSpecs:cleanSpecs}];
+    }else if(placement==='sku'){
+      const skuCode=createNewSku?skuCodeInput.trim():sku;
+      const idx=variants.findIndex(v=>v.code===skuCode);
+      const next:ProductVariant={...(idx>=0?variants[idx]:{} as ProductVariant),code:skuCode,name:skuName.trim(),size:skuSize.trim(),model:skuModel.trim(),brand,unit,price:Number(retail)||0,prices:priceTiers,inquiryOnly,stock:Number(stock)||0,stockKnown:true,active:true,images:[...new Set([...(idx>=0?variants[idx].images||[]:[]),url])],description,technicalSpecs:cleanSpecs};
+      if(idx>=0)variants[idx]=next;else variants.push(next);
+    }
+    const next:Product={
+      ...(selectedFamily||{} as Product),code:finalFamilyCode,name:familyName.trim(),nameEn:familyNameEn.trim()||undefined,
+      brand,categoryName:category,categorySlug:category.trim().replace(/[\s\u200c]+/g,'-'),subcategory,submenu,unit,
+      technicalSpecs:createNewFamily?familySpecs.filter(s=>s.key.trim()).map(s=>({key:s.key.trim(),value:s.value.trim()})):placement==='family'?cleanSpecs:(selectedFamily?.technicalSpecs||[]),
+      prices:(createNewFamily||placement==='family')?priceTiers:(selectedFamily?.prices||priceTiers),stock:(createNewFamily||placement==='family')?(Number(stock)||0):(selectedFamily?.stock??0),inquiryOnly:(createNewFamily||placement==='family')?inquiryOnly:(selectedFamily?.inquiryOnly??true),description:createNewFamily?familyDescription.trim():placement==='family'?description:(selectedFamily?.description||''),
+      tags:selectedFamily?.tags||['قطعه صنعتی'],active:selectedFamily?.active??true,
+      images:[...new Set([...nextGallery.map(img=>img.url),...(selectedFamily?.images||[]),url])],
+      galleryImages:nextGallery,variants
+    };
+    onSaveProduct(next);
+    setSaveMessage('اطلاعات کالا و اتصال تصویر ذخیره شد. مشخصات فنی به همان خانواده/کد متصل شد.');
+    setCreateNewFamily(false);setCreateNewSku(false);setFamilyCode(finalFamilyCode);setFamilyCodeInput(finalFamilyCode);
   };
   const exportAudit=()=>{
     const blob=new Blob([JSON.stringify(audit,null,2)],{type:'application/json;charset=utf-8'});
@@ -95,7 +170,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     <header className="bg-white px-4 py-4 sm:px-5 border-b border-[#E7E8EA] flex flex-wrap justify-between items-center gap-3">
       <div className="min-w-0">
         <h2 className="text-base sm:text-lg font-black text-[#55565A]">میزکار تصاویر کالا <span className="text-[#E06518]">({fa(audit.length)})</span></h2>
-        <p className="text-xs text-slate-500 mt-1">یک تصویر انتخاب کنید؛ محل نمایش و اطلاعات محصول را تعیین کنید. هیچ کدی خودکار تأیید نمی‌شود.</p>
+        <p className="text-xs text-slate-500 mt-1">تصویر، خانواده، کد دقیق کالا و تمام مشخصات فنی را در یک فرم کامل بررسی و ذخیره کنید.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={create} className="rounded-xl bg-[#E06518] px-4 py-2.5 text-white text-xs font-bold flex items-center gap-2"><ImagePlus size={16}/> تصویر جدید</button>
@@ -158,23 +233,68 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
             </div>}
             {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="w-full mt-2 rounded-lg border border-slate-200 p-2.5" placeholder="مثلاً نمای روبه‌روی قطعه"/></label>}
             {url&&<div className="space-y-3">
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">دسته‌بندی محصول</h4><button type="button" onClick={onCreateCategory} className="text-[#C65A16] text-[11px] font-bold flex items-center gap-1"><FolderPlus size={14}/> دسته/زیردسته جدید</button></div>
+              <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-black text-[#55565A]">دسته‌بندی کالا</h4><button type="button" onClick={()=>setShowTaxonomyEditor(v=>!v)} className="text-[#C65A16] text-[11px] font-bold"><FolderPlus size={14} className="inline"/> افزودن دسته/زیردسته</button></div>
+              {showTaxonomyEditor&&<div className="rounded-xl border border-orange-200 bg-orange-50 p-3 space-y-2">
+                <input value={newCategoryName} onChange={e=>setNewCategoryName(e.target.value)} className="w-full rounded-lg border bg-white p-2.5 text-xs" placeholder="نام دسته اصلی"/>
+                <input value={newSubcategoryName} onChange={e=>setNewSubcategoryName(e.target.value)} className="w-full rounded-lg border bg-white p-2.5 text-xs" placeholder="نام زیردسته (اختیاری)"/>
+                <button type="button" onClick={()=>{if(!newCategoryName.trim()){setFormError('نام دسته را وارد کنید.');return;}onCreateCategory(newCategoryName.trim(),newSubcategoryName.trim());setCategory(newCategoryName.trim());setSubcategory(newSubcategoryName.trim());setNewCategoryName('');setNewSubcategoryName('');setShowTaxonomyEditor(false);setFormError('');}} className="w-full rounded-lg bg-[#55565A] py-2 text-xs font-bold text-white">ثبت دسته‌بندی</button>
+              </div>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label className="text-[11px] text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5"><option value="">همه دسته‌ها</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-                <label className="text-[11px] text-slate-600">زیردسته<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5 disabled:opacity-50"><option value="">همه زیردسته‌ها</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                <label className="text-[11px] text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubcategory('');setFamilyCode('');setCreateNewFamily(false);setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5"><option value="">انتخاب دسته</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                <label className="text-[11px] text-slate-600">زیردسته<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setCreateNewFamily(false);setSku('')}} className="mt-1 w-full border rounded-lg bg-white p-2.5 disabled:opacity-50"><option value="">انتخاب زیردسته</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
               </div>
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="text-[#C65A16] text-[11px] font-bold disabled:opacity-50">+ ساخت خانواده جدید</button></div>
-              <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full border rounded-lg p-2.5 text-xs"/>
-              <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full border rounded-lg bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
+              <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-black text-[#55565A]">خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{setCreateNewFamily(true);setCreateNewSku(false);setFamilyCode('');setFamilyCodeInput('');setFamilyName('');setFamilyNameEn('');setFamilyDescription('');setFamilySpecs([{key:'',value:''}]);setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setBrand('ATLAS');setUnit('عدد');setRetail('0');setWholesale('0');setDealer('0');setStock('0');setInquiryOnly(true);setDescription('');setSpecs([{key:'',value:''}]);setPlacement('family');setFormError('');}} className="text-[#C65A16] text-[11px] font-bold disabled:opacity-50">+ خانواده جدید</button></div>
+              <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجوی نام یا کد خانواده…" className="w-full border rounded-lg p-2.5 text-xs"/>
+              {!createNewFamily&&<select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>loadFamily(products.find(p=>p.code===e.target.value))} className="w-full border rounded-lg bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>}
+              {createNewFamily&&<label className="block text-[11px] font-bold text-slate-600">کد خانواده (کد واقعی)<input value={familyCodeInput} onChange={e=>setFamilyCodeInput(e.target.value)} dir="ltr" className="mt-1 w-full rounded-lg border p-2.5" placeholder="کد خانواده"/></label>}
+              {(createNewFamily||family)&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-slate-200 p-3">
+                <label className="text-[11px] font-bold text-slate-600">نام فارسی خانواده<input value={familyName} onChange={e=>setFamilyName(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="نام دقیق محصول"/></label>
+                <label className="text-[11px] font-bold text-slate-600">نام انگلیسی<input value={familyNameEn} onChange={e=>setFamilyNameEn(e.target.value)} dir="ltr" className="mt-1 w-full rounded-lg border p-2.5" placeholder="Product name"/></label>
+                <label className="text-[11px] font-bold text-slate-600">زیرمنو / گروه<input value={submenu} onChange={e=>setSubmenu(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="نام زیرمنو"/></label>
+                <label className="text-[11px] font-bold text-slate-600">برند<input value={brand} onChange={e=>setBrand(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="برند"/></label>
+                <label className="text-[11px] font-bold text-slate-600">واحد فروش<input value={unit} onChange={e=>setUnit(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="عدد، متر، رول…"/></label>
+                {createNewFamily&&<label className="text-[11px] font-bold text-slate-600 sm:col-span-2">توضیحات خانواده<input value={familyDescription} onChange={e=>setFamilyDescription(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="کاربرد کلی، جنس یا توضیح خانواده"/></label>}
+              </div>}
+              {createNewFamily&&<div className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <div className="flex justify-between items-center gap-2"><h5 className="text-xs font-black text-[#55565A]">مشخصات فنی خانواده</h5><button type="button" onClick={()=>setFamilySpecs(v=>[...v,{key:'',value:''}])} className="text-[11px] font-bold text-[#C65A16]">+ افزودن مشخصه</button></div>
+                {familySpecs.map((sp,idx)=><div key={idx} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center"><input aria-label="عنوان مشخصه فنی خانواده جدید" value={sp.key} onChange={e=>setFamilySpecs(v=>v.map((x,i)=>i===idx?{...x,key:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs" placeholder="مشخصه خانواده"/><input aria-label="مقدار مشخصه فنی خانواده جدید" value={sp.value} onChange={e=>setFamilySpecs(v=>v.map((x,i)=>i===idx?{...x,value:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs" placeholder="مقدار"/><button type="button" aria-label="حذف مشخصه خانواده جدید" onClick={()=>setFamilySpecs(v=>v.filter((_,i)=>i!==idx))} className="rounded-lg border p-2 text-rose-600"><X size={14}/></button></div>)}
+              </div>}
             </div>}
-            {url&&family&&<div className="space-y-3 border-t border-slate-100 pt-3">
-              <div className="flex items-center justify-between"><h4 className="text-xs font-black text-[#55565A]">محل نمایش تصویر</h4><button type="button" onClick={()=>{onCreateSku(family.code,file,url,title);closeSelection()}} className="text-[11px] font-bold text-[#C65A16]">+ ساخت کد جدید</button></div>
+            {url&&(createNewFamily||family)&&<div className="space-y-3 border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-black text-[#55565A]">محل اتصال تصویر</h4><button type="button" onClick={()=>{setCreateNewSku(true);setPlacement('sku');setSku('');setSkuCodeInput('');setSkuName('');setSkuSize('');setSkuModel('');setRetail(String(family?.prices?.retail??0));setWholesale(String(family?.prices?.wholesale??0));setDealer(String(family?.prices?.dealer??0));setStock('0');setInquiryOnly(true);setDescription('');setSpecs([{key:'',value:''}]);setFormError('');}} className="text-[11px] font-bold text-[#C65A16]">+ کد کالای جدید</button></div>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" aria-pressed={placement==='family'} onClick={()=>{setPlacement('family');setSku('')}} className={`p-3 rounded-xl border text-xs text-right ${placement==='family'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200'}`}><strong className="block">خانواده</strong><span className="block text-[10px] text-slate-500 mt-1">برای همه مدل‌ها</span></button>
-                <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={`p-3 rounded-xl border text-xs text-right ${placement==='sku'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200'}`}><strong className="block">کد کالا</strong><span className="block text-[10px] text-slate-500 mt-1">فقط یک مدل مشخص</span></button>
+                <button type="button" aria-pressed={placement==='family'} onClick={()=>{setPlacement('family');setCreateNewSku(false);setSku('');setFormError('');}} className={"p-3 rounded-xl border text-xs text-right "+(placement==='family'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200')}><strong className="block">خانواده</strong><span className="block text-[10px] text-slate-500 mt-1">تصویر عمومی خانواده</span></button>
+                <button type="button" aria-pressed={placement==='sku'} onClick={()=>{setPlacement('sku');setFormError('');if(family&&!sku&&!createNewSku){const v=family.variants?.[0];if(v)loadSku(v.code);}}} className={"p-3 rounded-xl border text-xs text-right "+(placement==='sku'?'border-[#E06518] bg-[#FFF2E8]':'border-slate-200')}><strong className="block">کد کالا (SKU)</strong><span className="block text-[10px] text-slate-500 mt-1">فقط همین مدل</span></button>
               </div>
-              {placement==='sku'&&<label className="block text-xs text-[#55565A]">کد دقیق SKU<select value={sku} onChange={e=>setSku(e.target.value)} className="mt-1 w-full border rounded-lg p-3 bg-white"><option value="">کد کالا را انتخاب کنید</option>{(family.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}</option>)}</select></label>}
+              {placement==='sku'&&family&&!createNewSku&&<label className="block text-xs text-[#55565A]">انتخاب کد SKU<select value={sku} onChange={e=>loadSku(e.target.value)} className="mt-1 w-full border rounded-lg p-3 bg-white"><option value="">انتخاب کد کالا</option>{(family.variants||[]).map(v=><option key={v.code} value={v.code}>{v.code} — {v.name}</option>)}</select></label>}
+              {(placement==='sku'||createNewFamily)&&<div className="space-y-3 rounded-xl border border-orange-100 bg-orange-50/40 p-3">
+                <h5 className="text-xs font-black text-[#55565A]">فرم کامل کد کالا</h5>
+                {(createNewSku||createNewFamily)&&<label className="block text-[11px] font-bold text-slate-600">کد SKU واقعی<input value={skuCodeInput} onChange={e=>setSkuCodeInput(e.target.value)} dir="ltr" className="mt-1 w-full rounded-lg border p-2.5 bg-white" placeholder="کد درج‌شده در کاتالوگ"/></label>}
+                {!(createNewSku||createNewFamily)&&<p className="text-[11px] text-slate-500">کد انتخاب‌شده: <b dir="ltr">{sku}</b></p>}
+                <label className="block text-[11px] font-bold text-slate-600">نام دقیق کد کالا<input value={skuName} onChange={e=>setSkuName(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white" placeholder="نام همین مدل"/></label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="text-[11px] font-bold text-slate-600">سایز / ابعاد<input value={skuSize} onChange={e=>setSkuSize(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white" placeholder="سایز دقیق"/></label>
+                  <label className="text-[11px] font-bold text-slate-600">مدل / پروفیل<input value={skuModel} onChange={e=>setSkuModel(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white" placeholder="مدل"/></label>
+                  <label className="text-[11px] font-bold text-slate-600">قیمت خرده‌فروشی<input type="number" min="0" value={retail} onChange={e=>setRetail(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white"/></label>
+                  <label className="text-[11px] font-bold text-slate-600">قیمت همکار<input type="number" min="0" value={wholesale} onChange={e=>setWholesale(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white"/></label>
+                  <label className="text-[11px] font-bold text-slate-600">قیمت نمایندگی<input type="number" min="0" value={dealer} onChange={e=>setDealer(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white"/></label>
+                  <label className="text-[11px] font-bold text-slate-600">موجودی<input type="number" min="0" value={stock} onChange={e=>setStock(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white"/></label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={inquiryOnly} onChange={e=>setInquiryOnly(e.target.checked)} className="accent-[#E06518]"/> قیمت فقط با استعلام اعلام شود</label>
+                <label className="block text-[11px] font-bold text-slate-600">توضیحات فنی و کاربرد<input value={description} onChange={e=>setDescription(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 bg-white" placeholder="کاربرد، جنس، استاندارد…"/></label>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center gap-2"><h6 className="text-[11px] font-black text-[#55565A]">مشخصات فنی این کد</h6><button type="button" onClick={()=>setSpecs(v=>[...v,{key:'',value:''}])} className="text-[11px] font-bold text-[#C65A16]">+ افزودن مشخصه</button></div>
+                  {specs.map((sp,idx)=><div key={idx} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center"><input aria-label="عنوان مشخصه فنی" value={sp.key} onChange={e=>setSpecs(v=>v.map((x,i)=>i===idx?{...x,key:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs bg-white" placeholder="مشخصه"/><input aria-label="مقدار مشخصه فنی" value={sp.value} onChange={e=>setSpecs(v=>v.map((x,i)=>i===idx?{...x,value:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs bg-white" placeholder="مقدار"/><button type="button" aria-label="حذف مشخصه فنی" onClick={()=>setSpecs(v=>v.filter((_,i)=>i!==idx))} className="rounded-lg border p-2 text-rose-600"><X size={14}/></button></div>)}
+                </div>
+              </div>}
+              {placement==='family'&&!createNewFamily&&<div className="space-y-3 rounded-xl border border-slate-200 p-3">
+                <h5 className="text-xs font-black text-[#55565A]">مشخصات فنی مشترک خانواده</h5>
+                <label className="block text-[11px] font-bold text-slate-600">توضیحات خانواده<input value={description} onChange={e=>setDescription(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5" placeholder="توضیحات کلی خانواده"/></label>
+                <div className="flex justify-between items-center gap-2"><h6 className="text-[11px] font-black text-[#55565A]">مشخصات فنی خانواده</h6><button type="button" onClick={()=>setSpecs(v=>[...v,{key:'',value:''}])} className="text-[11px] font-bold text-[#C65A16]">+ افزودن مشخصه</button></div>
+                {specs.map((sp,idx)=><div key={idx} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center"><input aria-label="عنوان مشخصه فنی خانواده" value={sp.key} onChange={e=>setSpecs(v=>v.map((x,i)=>i===idx?{...x,key:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs" placeholder="مشخصه"/><input aria-label="مقدار مشخصه فنی خانواده" value={sp.value} onChange={e=>setSpecs(v=>v.map((x,i)=>i===idx?{...x,value:e.target.value}:x))} className="min-w-0 rounded-lg border p-2 text-xs" placeholder="مقدار"/><button type="button" aria-label="حذف مشخصه فنی خانواده" onClick={()=>setSpecs(v=>v.filter((_,i)=>i!==idx))} className="rounded-lg border p-2 text-rose-600"><X size={14}/></button></div>)}
+              </div>}
             </div>}
+            
             {url&&selectedRow&&<details open={showEvidence} onToggle={e=>setShowEvidence(e.currentTarget.open)} className="rounded-xl border border-slate-200 text-xs">
               <summary className="cursor-pointer p-3 font-bold text-[#55565A] flex gap-2 items-center"><Info size={15}/> اطلاعات فنی و شاهد کاتالوگ</summary>
               <div className="border-t p-3 space-y-2 text-slate-600 leading-6">
@@ -185,8 +305,10 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                 {!!selectedRow.duplicateFiles.length&&<p>تصاویر مشابه ثبت‌شده: {selectedRow.duplicateFiles.join('، ')}</p>}
               </div>
             </details>}
-            {url&&<p className="text-[11px] leading-5 text-amber-700">اتصال یا انتخاب کد، تأیید هویت قطعه نیست. مشخصات فنی را در ویرایشگر محصول تکمیل کنید. فایل جدید تا زمانی که در فضای ذخیره دائمی بارگذاری نشود، نباید منتشر شود.</p>}
-            {url&&<button type="button" disabled={!familyCode||(placement==='sku'&&!sku)} onClick={apply} className="w-full rounded-xl bg-[#E06518] text-white py-3.5 font-bold text-xs disabled:opacity-40 flex justify-center items-center gap-2"><Check size={17}/> ادامه برای تکمیل مشخصات و ذخیره</button>}
+            {url&&<p className="text-[11px] leading-5 text-amber-700">اتصال تصویر به‌تنهایی هویت فنی قطعه را اثبات نمی‌کند. کدها و مشخصات را با کاتالوگ واقعی تطبیق دهید. فایل جدید باید در فضای ذخیره دائمی پروژه قرار گیرد.</p>}
+            {formError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{formError}</p>}
+            {saveMessage&&<p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{saveMessage}</p>}
+            {url&&<button type="button" onClick={apply} className="w-full rounded-xl bg-[#E06518] text-white py-3.5 font-bold text-xs flex justify-center items-center gap-2"><Check size={17}/> ذخیره مشخصات و اتصال تصویر</button>}
           </div>}
         </aside>
       </div>
