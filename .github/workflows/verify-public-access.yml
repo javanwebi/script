@@ -1,0 +1,33 @@
+name: Verify public site access
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-public-access.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+permissions:
+  contents: read
+jobs:
+  verify-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe Railway and Cloudflare ingress from external runner
+        shell: bash
+        run: |
+          set +e
+          for base in https://sanatpish-production.up.railway.app https://sanatpish-railway-gateway.javanwebio.workers.dev; do
+            echo "::group::$base"
+            for route in / /api/health /logo.png; do
+              for trial in 1 2; do
+                echo "Request: $base$route trial=$trial"
+                curl --location --silent --show-error --output /tmp/sanat-response --max-time 18 --connect-timeout 7 --write-out 'status=%{http_code} ip=%{remote_ip} connect=%{time_connect}s tls=%{time_appconnect}s total=%{time_total}s size=%{size_download}B\n' "$base$route"
+                status=$?
+                echo "curl_exit=$status"
+                head -c 160 /tmp/sanat-response || true
+                echo
+              done
+            done
+            echo "::endgroup::"
+          done
