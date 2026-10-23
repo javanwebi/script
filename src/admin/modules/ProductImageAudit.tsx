@@ -83,9 +83,9 @@ export function ProductImageAudit({products,categories,onSaveProduct,onCreateCat
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSourceError('');setTitle(found?.observed||'');
-    setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setFamilyCodeInput('');setSku('');setPlacement('family');setCreateNewFamily(false);setCreateNewSku(false);setFormError('');setSaveMessage('');setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilyCodeInput('');setFamilySearch('');setSku('');setPlacement('family');setCreateNewFamily(false);setCreateNewSku(false);setFormError('');setSaveMessage('');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!upload.type.startsWith('image/')){setSourceError('فایل انتخاب‌شده تصویر نیست.');return}
