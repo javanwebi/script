@@ -1,7 +1,7 @@
-import React, {useMemo,useState} from 'react';
+import React, {useEffect,useMemo,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,Info} from 'lucide-react';
 import type {Product} from '../../types';
-import {getImageAssignmentAudit} from '../../data/imageAssignments';
+import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
 import {normalizeCatalogueText} from '../../data/userProducts';
@@ -22,7 +22,19 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   onCreateCategory:()=>void;
   onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
 }){
-  const audit=useMemo(()=>getImageAssignmentAudit(products),[products]);
+  const [records,setRecords]=useState<DbImageAuditRow[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState('');
+  useEffect(()=>{
+    const controller=new AbortController();
+    setLoading(true);setLoadError('');
+    fetch('/api/admin/catalog-image-audits',{credentials:'same-origin',cache:'no-store',signal:controller.signal})
+      .then(async res=>{const data=await res.json();if(!res.ok||!data.success||!Array.isArray(data.rows))throw Error(data.message||'اطلاعات تصاویر در دسترس نیست.');return data.rows as DbImageAuditRow[];})
+      .then(rows=>{setRecords(rows);setLoading(false);})
+      .catch(error=>{if(!controller.signal.aborted){setLoadError(error.message||'ارتباط با دیتابیس برقرار نشد.');setLoading(false);}});
+    return ()=>controller.abort();
+  },[]);
+  const audit=useMemo(()=>getImageAssignmentAudit(products,records),[products,records]);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState<Filter>('all');
   const [page,setPage]=useState(0);
