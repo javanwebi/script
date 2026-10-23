@@ -73,7 +73,6 @@ export const AdminLayout: React.FC = () => {
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [showModuleGuide,setShowModuleGuide]=useState(false);
   const [collapsedGroups,setCollapsedGroups]=useState<string[]>([]);
-  const [mobileQuickMenu,setMobileQuickMenu]=useState(false);
 
   // Sync tab with URL if needed
   useEffect(() => {
@@ -218,7 +217,7 @@ export const AdminLayout: React.FC = () => {
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
   const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
-  const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setMobileQuickMenu(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
+  const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     switch (activeTab) {
