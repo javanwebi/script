@@ -809,7 +809,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      <ProductImageAudit products={products} onEdit={(code,file)=>{
+      <ProductImageAudit products={products} onCreateFamily={handleOpenNewFamily} onEdit={(code,file)=>{
         const product=products.find(p=>p.code===code);if(!product)return;
         handleOpenEditFamily(product,'images');
         setDraftFamily(previous=>{
