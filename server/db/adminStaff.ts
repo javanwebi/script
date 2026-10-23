@@ -41,7 +41,12 @@ export async function adminStaffApi(req:Request,res:Response){
    const created=await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{staff:true}});
    if(created.error||!created.data.user)throw httpError(400,'ایجاد حساب Auth انجام نشد؛ ایمیل یا رمز عبور را بررسی کنید.');
    try{
-    await database().query("insert into public.user_profiles (id,username,full_name,email,role,status,preferences) values($1,$2,$3,$4,$5::public.app_role_type,'active',$6::jsonb)",[created.data.user.id,username,name,email,role,JSON.stringify({adminPermissions:permissions})]);
+    // The owner's auth.users trigger has already inserted a client profile.
+    // Upgrade only that freshly created profile; never overwrite a linked CRM/club user.
+    const updated=await database().query(
+      "update public.user_profiles set username=$2,full_name=$3,email=$4,role=$5::public.app_role_type,status='active',preferences=coalesce(preferences,'{}'::jsonb)||$6::jsonb,updated_at=now() where id=$1 and role='client'",
+      [created.data.user.id,username,name,email,role,JSON.stringify({adminPermissions:permissions})]);
+    if(updated.rowCount!==1)throw httpError(409,'پروفایل احراز هویت با حساب مشتری تداخل دارد؛ ایجاد کارمند متوقف شد.');
    }catch(e){
     // Undo orphan Auth account when the profile cannot be stored.
     await admin.auth.admin.deleteUser(created.data.user.id).catch(()=>{});
