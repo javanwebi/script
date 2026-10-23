@@ -2508,7 +2508,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-5">
                     {currentEditingVariant ? (
                       <>
-                        {technicalReview && <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3 space-y-2 text-xs leading-6">
+                        {technicalReview && <details className="rounded-xl border border-orange-200 bg-orange-50/40"><summary className="cursor-pointer select-none px-3 py-2 text-xs font-bold text-[#55565A]">جزئیات بررسی فنی و منابع (اختیاری)</summary><div className="p-3 space-y-2 text-xs leading-6">
                           <strong>بررسی فنی کد کالا</strong>
                           <p>{technicalReview.categoryPath.join(' ← ')}</p>
                           <p>وضعیت: {technicalReview.status === 'reference-enriched' ? 'دارای اطلاعات مرجع پروفیل' : technicalReview.status === 'catalog-extracted' ? 'استخراج از شرح کاتالوگ' : 'نیازمند شناسایی مدل'}</p>
@@ -2520,7 +2520,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                           {technicalReview.originalTechnicalType && technicalReview.originalTechnicalType !== technicalReview.categoryPath[2] && <p>نوع فنی اولیهٔ خانواده: {technicalReview.originalTechnicalType}؛ نوع دقیق این کد را پیش از تغییر کل خانواده بررسی کنید.</p>}
                           {technicalReview.comparisonReferences?.map(ref=><p key={ref.url}><a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a> — فقط مرجع مقایسه: {ref.condition}</p>)}
                           <div className="flex flex-wrap gap-3">{technicalReview.references.map(ref => <a key={ref.url} href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-[#E06518]">{ref.title}</a>)}</div>
-                        </div>}
+                        </div></details>}}
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
                           <div>
                             <h4 className="text-sm font-black text-slate-800">
@@ -2774,7 +2774,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         </div>
 
                         {/* Variant-Specific Technical Specs */}
-                        <div className="space-y-3">
+                        <details className="rounded-xl border border-slate-200 bg-white">
+                          <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">مشخصات فنی این کد (اختیاری) — فقط برای همین سایز یا مدل</summary>
+                          <div className="px-3 pb-3 space-y-3">
+<div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
                               <h5 className="text-xs font-black text-slate-800">
@@ -2854,8 +2857,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                             )}
                           </div>
                         </div>
+                          </div>
+                        </details>
 
-                        {/* Images Linked to this SKU Variant */}
+{/* Images Linked to this SKU Variant */}
                         <div className="p-4 rounded-2xl bg-orange-50/40 border border-orange-200/80 space-y-3">
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
