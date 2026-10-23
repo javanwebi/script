@@ -29,6 +29,7 @@ import { adminService, AdminUser } from '../services/adminService';
 import { portalContentService } from '../services/portalContentService';
 import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
+import { AdminRankingPage } from './AdminReports';
 import { ProductsModule } from './modules/ProductsModule';
 import { BulkImportModule } from './modules/BulkImportModule';
 import { PricingInquiriesModule } from './modules/PricingInquiriesModule';
@@ -73,7 +74,8 @@ export const AdminLayout: React.FC = () => {
   // Sync tab with URL if needed
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/admin/products')) setActiveTab('products');
+    if (path.includes('/admin/reports/')) setActiveTab('reports');
+    else if (path.includes('/admin/products')) setActiveTab('products');
     else if (path.includes('/admin/bulk-import')) setActiveTab('bulk_import');
     else if (path.includes('/admin/inquiries')) setActiveTab('inquiries');
     else if (path.includes('/admin/orders')) setActiveTab('orders');
@@ -199,6 +201,11 @@ export const AdminLayout: React.FC = () => {
 
   const renderModuleContent = () => {
     switch (activeTab) {
+      case 'reports': {
+        const path=location.pathname;
+        const kind=path.endsWith('/top-products')?'products':path.endsWith('/top-customers')?'customers':'agencies';
+        return <AdminRankingPage kind={kind} />;
+      }
       case 'dashboard':
         return (
           <AdminDashboard
