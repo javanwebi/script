@@ -57,7 +57,7 @@ export async function adminStaffApi(req:Request,res:Response){
    await database().query("update public.user_profiles set preferences=jsonb_set(coalesce(preferences,'{}'::jsonb),'{adminPermissions}',$2::jsonb,true),updated_at=now() where id=$1",[id,JSON.stringify(permissions)]);
   }else if(body.operation==='set_active'){
    if(typeof body.active!=='boolean')throw httpError(400,'وضعیت نامعتبر است.');
-   await database().query("update public.user_profiles set status=case when $2::boolean then 'active'::public.account_status_type else 'disabled'::public.account_status_type end,updated_at=now() where id=$1",[id,body.active]);
+   await database().query("update public.user_profiles set status=case when $2::boolean then 'active'::public.account_status_type else 'suspended'::public.account_status_type end,updated_at=now() where id=$1",[id,body.active]);
   }else if(body.operation==='reset_password'){
    if(typeof body.password!=='string'||body.password.length<12||body.password.length>128)throw httpError(400,'رمز عبور حداقل ۱۲ نویسه لازم دارد.');
    const changed=await managementClient().auth.admin.updateUserById(id,{password:body.password});
