@@ -1,14 +1,13 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Layers } from "lucide-react";
-import { AccountAccess } from "../components/auth/AccountAccess";
-export const LoginPage = () => (
-  <div className="account-page">
-    <Link to="/" className="account-page-home">
-      <Layers size={18} /> صنعت پیش{" "}
-      <span style={{ marginRight: "auto" }}>بازگشت به سایت</span>
-      <ArrowRight size={16} />
-    </Link>
-    <AccountAccess initial="login" />
-  </div>
-);
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+/** Preserve old URLs while using the same authentication popup as the header. */
+export const LoginPage = () => {
+  const navigate = useNavigate();
+  const { openAuthModal } = useAuth();
+  useEffect(() => {
+    navigate("/", { replace: true });
+    openAuthModal(undefined, "login");
+  }, [navigate, openAuthModal]);
+  return null;
+};
