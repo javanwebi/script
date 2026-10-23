@@ -1,7 +1,7 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
-import {readPortal,writePortal} from "../server/db/repository";
+import {readPortal,writePortal,readDocument} from "../server/db/repository";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -448,12 +448,16 @@ export default async function handler(
       return;
     }
   }
-  let release!: () => void;
-  const prior = pending;
-  pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await prior;
+  // GET requests are read-only and must not wait behind slow admin writes.
+  // Keep serialization for mutations to preserve the legacy revision contract.
+  let release: () => void = () => {};
+  if (req.method !== "GET") {
+    const prior = pending;
+    pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await prior;
+  }
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "private, no-store");
   const send = (status: number, value: Row) => {
@@ -467,6 +471,37 @@ export default async function handler(
     if(databaseEnabled() && req.method==="GET" && !/(?:^|;)\s*sp_access=/.test(req.headers.cookie || '')){
       const revision=Number((await postgresDatabase().query('select revision from app_private.portal_version where singleton=true')).rows[0].revision);
       return send(200,{success:true,smsAvailable:process.env.SUPABASE_SMS_READY==='true',revision,user:null,admin:false,values:{}});
+    }
+    if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
+      const auth = await supabaseIdentity(req);
+      // Administrators require the full editable portal. Customer sessions do not.
+      if (!auth.admin) {
+        const wanted = auth.user
+          ? keys.filter(key => key !== CUSTOMER_KEY && key !== "atlas_legacy_customers_v1")
+          : ["atlas_portal_content_announcements_v1"];
+        const [revisionRow, documents] = await Promise.all([
+          postgresDatabase().query("select revision from app_private.portal_version where singleton=true"),
+          Promise.all(wanted.map(async key => [key,await readDocument(postgresDatabase(),key,"global")] as const)),
+        ]);
+        const values = Object.fromEntries(documents.filter(([,value]) => value !== undefined));
+        const scopedDb:Database = {revision:Number(revisionRow.rows[0]?.revision || 0),users:[],values};
+        const scopedValues = auth.user ? scopedState(scopedDb,auth.user) : {};
+        // Guest announcements remain public-only and respect time visibility.
+        if (!auth.user) {
+          const now=Date.now();
+          const announcements=Array.isArray(values.atlas_portal_content_announcements_v1)
+            ? values.atlas_portal_content_announcements_v1.filter((r:Row)=>{
+                if(!r || !r.active || r.archived===true || r.portal!=="storefront" ||
+                   (r.scope && r.scope!=="collective"))return false;
+                if(r.startsAt && Number.isFinite(Date.parse(r.startsAt)) && Date.parse(r.startsAt)>now)return false;
+                const until=r.endsAt || r.expiresAt;
+                return !until || !Number.isFinite(Date.parse(until)) || Date.parse(until)>now;
+              }) : [];
+          if(announcements.length)scopedValues.atlas_portal_content_announcements_v1=announcements;
+        }
+        return send(200,{success:true,smsAvailable:process.env.SUPABASE_SMS_READY==="true",
+          revision:scopedDb.revision,user:auth.user?safeUser(auth.user):null,admin:false,values:scopedValues});
+      }
     }
     const db = await readDb();
     const auth = await session(req, db);
@@ -946,7 +981,9 @@ export async function requirePortalAdmin(
   next: () => void,
 ) {
   try {
-    const auth = await session(req, await readDb());
+    const auth = databaseEnabled() && adoptedSchema()
+      ? await supabaseIdentity(req)
+      : await session(req, await readDb());
     if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
     if (
       req.headers.origin &&
@@ -969,6 +1006,21 @@ export async function requirePortalAdmin(
 /** Resolves a signed session against the current persisted user and revocation version. */
 export async function getPortalIdentity(req: IncomingMessage) {
   if(databaseEnabled() && !/(?:^|;)\s*sp_access=/.test(req.headers.cookie || ''))return {admin:false,user:undefined,canReadCommerce:false};
+  if (databaseEnabled() && adoptedSchema()) {
+    const identity = await supabaseIdentity(req);
+    if (identity.admin || !identity.user) return {...identity,canReadCommerce:identity.admin};
+    // Only the permission documents are required to authorize catalogue reads.
+    // Do not materialize all CRM customers, orders or admin configuration here.
+    const [layouts,overrides] = await Promise.all([
+      readDocument(postgresDatabase(),'atlas_portal_layout_configs_v1','global'),
+      readDocument(postgresDatabase(),'atlas_portal_customer_overrides_v1','global'),
+    ]);
+    const scoped:Database = {revision:0,users:[],values:{
+      atlas_portal_layout_configs_v1:layouts,
+      atlas_portal_customer_overrides_v1:overrides,
+    }};
+    return {...identity,canReadCommerce:canPurchase(scoped,identity.user)};
+  }
   const db = await readDb();
   const identity = await session(req, db);
   return {
