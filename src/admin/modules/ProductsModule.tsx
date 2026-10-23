@@ -2223,6 +2223,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       </datalist>
                     </div>
 
+                    <details className="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <summary className="cursor-pointer select-none text-xs font-bold text-slate-700">دسته‌بندی تکمیلی (اختیاری)</summary>
+                      <p className="text-[11px] text-slate-500 mt-1">اگر کالا زیرمنو یا نوع فنی مشخصی دارد، اینجا وارد کنید؛ در غیر این صورت خالی بماند.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         زیرمنو (Submenu)
@@ -2250,6 +2254,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                       />
                     </div>
+
+                      </div>
+                    </details>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -2328,6 +2335,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   </div>
 
                   {/* Shared Family Technical Specs */}
+                  <details className="rounded-2xl border border-slate-200 bg-white">
+                    <summary className="cursor-pointer select-none px-4 py-3 text-xs font-black text-slate-800">مشخصات فنی مشترک (اختیاری) — برای همه کدهای این خانواده</summary>
+                    <div className="px-4 pb-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -2396,6 +2406,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       ))}
                     </div>
                   </div>
+                    </details>
                 </div>
               )}
 
