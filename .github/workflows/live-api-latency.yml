@@ -1,0 +1,23 @@
+name: Live production API latency smoke
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 */6 * * *'
+permissions:
+  contents: read
+jobs:
+  public-api-latency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Measure live Railway API response times
+        run: node scripts/performance/live-api-smoke.mjs
+        env:
+          PUBLIC_APP_URL: https://sanatpish-production.up.railway.app
+          API_LATENCY_TARGET_MS: '2000'
