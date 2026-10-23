@@ -18,6 +18,8 @@ function showBackendUnavailable(){
 }
 
 async function boot(){
+  let rerenderOnFirstDatabaseHydration: (()=>void)|undefined;
+  let hydratedOnce=false;
   // The public shell paints independently; product data waits for PostgreSQL.
   // The API still owns authentication, pricing and all persistent writes.
   window.addEventListener('sanat-durable-hydrated',(event)=>{
@@ -26,11 +28,17 @@ async function boot(){
       installDatabaseReferences();
       installDatabaseProducts(data.products);
       document.getElementById('sanat-backend-status')?.remove();
+      // The initial shell rendered without legacy JSON; remount once after DB hydration
+      // so category menus created on mount pick up real PostgreSQL values.
+      if (!hydratedOnce){ hydratedOnce=true; rerenderOnFirstDatabaseHydration?.(); }
     }
   });
   // Start React before awaiting a potentially slow cross-region database read.
   const {default:App}=await import('./App.tsx');
-  createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+  const root=createRoot(document.getElementById('root')!);
+  let mountRevision=0;
+  rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
+  rerenderOnFirstDatabaseHydration();
   void refreshDurableStorage().then(state=>{
     if(!state.database)showBackendUnavailable();
   }).catch(error=>{
