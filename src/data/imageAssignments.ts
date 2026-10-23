@@ -1,6 +1,3 @@
-import imageResearch from './imageResearch.json';
-import ownerPhotos from './ownerCataloguePhotos.json';
-import review from '../../docs/product-image-review.json';
 import type { Product } from '../types';
 
 export function imageFileName(url: string): string {
@@ -15,7 +12,25 @@ export function imageFileName(url: string): string {
     return match ? `e(${Number(match[1])}).png` : '';
   } catch { return ''; }
 }
-export function getImageAssignmentAudit(products: Product[]) {
+export interface DbImageAuditRow {
+  file: string;
+  sha256: string;
+  observed: string;
+  reason: string;
+  research?: {
+    visualType: string;
+    visibleFeatures: string;
+    requiredChecks: string[];
+  };
+  ownerCatalogue?: {
+    catalogueGroup: string;
+    page: number;
+    pdfPage: number;
+    matchRatio: number;
+  };
+}
+/** Source records are loaded from PostgreSQL by the authenticated admin endpoint, never from bundled JSON. */
+export function getImageAssignmentAudit(products: Product[], records: DbImageAuditRow[]) {
   const bindings=new Map<string,{family:Product; codes:string[]}[]>();
   for(const family of products) {
     const gallery=family.galleryImages?.length ? family.galleryImages : (family.images||[]).map(url=>({url,scope:'family' as const,variantCode:undefined}));
@@ -36,14 +51,12 @@ export function getImageAssignmentAudit(products: Product[]) {
     }
   }
   const duplicates=new Map<string,string[]>();
-  for(const item of review.items){const files=duplicates.get(item.sha256)||[];files.push(item.file);duplicates.set(item.sha256,files);}
-  const researchByFile=new Map(imageResearch.items.map(item=>[item.file,item]));
-  const ownerByFile=new Map(ownerPhotos.items.map(item=>[item.file,item]));
-  return review.items.map(item=>{
+  for(const item of records){if(!item.sha256)continue;const files=duplicates.get(item.sha256)||[];files.push(item.file);duplicates.set(item.sha256,files);}
+  return records.map(item=>{
     const linked=(bindings.get(item.file)||[]).map(x=>({...x,codes:[...new Set(x.codes)]}));
     const codeCount=linked.reduce((n,x)=>n+x.codes.length,0);
-    const ownerCatalogue=ownerByFile.get(item.file);
-    const research=researchByFile.get(item.file);
+    const ownerCatalogue=item.ownerCatalogue;
+    const research=item.research;
     return {file:item.file,observed:ownerCatalogue?.catalogueGroup||item.observed,reason:item.reason,sha256:item.sha256,
       research:research&&ownerCatalogue?{...research,visualType:ownerCatalogue.catalogueGroup}:research,
       ownerCatalogue,
