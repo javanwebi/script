@@ -51,7 +51,12 @@ export async function runtimeApi(req:Request,res:Response){
    const supplemental=adoptedSchema()?adoptedNamespaces().filter(key=>!seen.has(key) && (identity.admin || publicReadable.has(key))):[];
    // Parallel reads eliminate sequential cross-region round trips. Cache only
    // public global documents, never private user or admin datasets.
+   let guestProducts:unknown;
+   // Cold public catalogue reads can be expensive; overlap them with document reads.
    await Promise.all([
+     ...(!identity.user && !identity.admin ? [
+       publicProductsCached().then(value=>{guestProducts=value;})
+     ] : []),
      ...permitted.map(async row=>{
        const key=row.namespace;
        const value=row.scope_id==='global' && !identity.admin && publicReadable.has(key)
@@ -68,7 +73,7 @@ export async function runtimeApi(req:Request,res:Response){
      })
    ]);
    if(identity.user)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
-   const products=!identity.user && !identity.admin ? await publicProductsCached() : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
+   const products=!identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
     const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
     const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
     const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
