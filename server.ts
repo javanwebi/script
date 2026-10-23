@@ -309,7 +309,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
     if(!databaseEnabled())return res.status(503).json({success:false,message:'اطلاعات تصاویر باید از دیتابیس بارگذاری شوند.'});
     const result=await database().query(`
       select a.file_name,a.sha256,a.observed_description,a.reason,
-        a.visual_type,a.visible_features,a.required_checks,
+        a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
         p.catalogue_group,p.pdf_page,p.match_ratio
       from public.catalog_image_audits a
       left join public.owner_catalogue_photos p on p.file_name=a.file_name
@@ -323,7 +323,10 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
       research:{
         visualType:row.catalogue_group || row.visual_type || '',
         visibleFeatures:Array.isArray(row.visible_features)?row.visible_features.join('، '):String(row.visible_features||''),
-        requiredChecks:Array.isArray(row.required_checks)?row.required_checks:[]
+        requiredChecks:Array.isArray(row.required_checks)?row.required_checks:[],
+        sourceSha256:row.sha256,
+        exactSku:row.exact_sku,
+        standardStatus:row.standard_status || 'not-established'
       },
       ownerCatalogue:row.catalogue_group?{
         catalogueGroup:row.catalogue_group,
