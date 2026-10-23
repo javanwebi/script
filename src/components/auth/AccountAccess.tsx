@@ -33,6 +33,7 @@ export function AccountAccess({
   const [province, setProvince] = useState(""),
     [city, setCity] = useState("");
   const [requiresVerification,setRequiresVerification]=useState(false);
+  const [registrationDemoOnly,setRegistrationDemoOnly]=useState(false);
   const [details, setDetails] = useState<Partial<RegisterPayload>>({});
   useEffect(()=>{
     if((auth.currentUser as {registrationCredentialsPending?:boolean}|null)?.registrationCredentialsPending){setMode('register');setStep(2);setRequiresVerification(false);}
@@ -79,8 +80,17 @@ export function AccountAccess({
       setBusy(true);
       try {
         const result=await auth.registerUser(registrationDetails as RegisterPayload);
-        if(!result.success){setError(result.message || 'ارسال کد انجام نشد.');return;}
-        setRequiresVerification(true);setMode('login');setMethod('sms');
+        if(!result.success){
+          const localhost=typeof window!=='undefined' && ['localhost','127.0.0.1','::1'].includes(window.location.hostname);
+          const smsUnavailable=/پیامک|SMS|تأیید/i.test(result.message||'');
+          if(import.meta.env.DEV && localhost && smsUnavailable){
+            // This independent local preview only tests the OTP UI. It does not create accounts/sessions.
+            setRegistrationDemoOnly(true);setRequiresVerification(true);setMode('login');setMethod('sms');
+            return;
+          }
+          setError(result.message || 'ارسال کد انجام نشد.');return;
+        }
+        setRegistrationDemoOnly(false);setRequiresVerification(true);setMode('login');setMethod('sms');
       } finally {setBusy(false);}
       return;
     }
@@ -203,6 +213,7 @@ export function AccountAccess({
                 setMode(m);
                 setStep(1);
                 setRequiresVerification(false);
+                setRegistrationDemoOnly(false);
                 setError("");
               }}
             >
@@ -233,7 +244,7 @@ export function AccountAccess({
           </div>
         )}
         {mode === "login" && method === "sms" ? (
-          <PhoneLogin initialPhone={requiresVerification?details.mobile:undefined} initialSent={requiresVerification} onSuccess={(user,pending)=>{if(pending){setRequiresVerification(false);setMode('register');setStep(2);}else go(user);}} />
+          <PhoneLogin initialPhone={requiresVerification?details.mobile:undefined} initialSent={requiresVerification&&!registrationDemoOnly} demoOnly={registrationDemoOnly} onSuccess={(user,pending)=>{if(pending){setRequiresVerification(false);setMode('register');setStep(2);}else go(user);}} />
         ) : (
           <form onSubmit={submit} className="account-fields">
             {mode === "login" ? (
