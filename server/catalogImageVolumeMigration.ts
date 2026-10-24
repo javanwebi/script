@@ -20,7 +20,6 @@ export type ImageImportSource={
 };
 export const IMAGE_IMPORT_SOURCES:ImageImportSource[]=[
  {repo:'javanweb/imagesatlas',commit:'5bbaec971a05771939663d47803b5d5c2c624c6d',target:'catalog',count:869,pattern:/^e\([1-9]\d{0,3}\)\.png$/},
- {repo:'javanweb/IMAGE',commit:'5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6',target:'legacy-jpg',count:725,pattern:/^images\/e\([1-9]\d{0,3}\)\.jpg$/},
 ];
 const reserveBytes=48*1024*1024;
 const sourcePrefix='https://raw.githubusercontent.com/javanweb/imagesatlas/main/';
