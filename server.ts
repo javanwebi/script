@@ -1,7 +1,7 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {checkoutApi} from './server/db/checkout';
-import {runtimeApi} from './server/db/runtimeApi';
+import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -355,6 +355,7 @@ registerProductImageStorage(app,async()=>{
   installDatabaseProducts(fresh);
   const latest=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
   CATALOG_OVERRIDES_CACHE=latest || {version:1,updatedAt:'',deletedCodes:[],families:{}};
+  invalidatePublicCatalogCache();
   refreshRecognitionCatalog();
 });
 app.use('/api/ai', async (req,res,next)=>{
