@@ -353,6 +353,8 @@ app.use('/api/catalog', (req, res, next) => {
 registerProductImageStorage(app,async()=>{
   const fresh=await readProducts();
   installDatabaseProducts(fresh);
+  const latest=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
+  CATALOG_OVERRIDES_CACHE=latest || {version:1,updatedAt:'',deletedCodes:[],families:{}};
   refreshRecognitionCatalog();
 });
 app.use('/api/ai', async (req,res,next)=>{
