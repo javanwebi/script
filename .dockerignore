@@ -10,3 +10,6 @@ imageai
 imagemoshtari
 android
 *.log
+
+# Product uploads belong to the persistent Railway volume, never Git/Docker builds.
+storage/
