@@ -1,3 +1,4 @@
+import {invalidatePublicCatalogCache} from './db/runtimeApi';
 import type {Express,Request,Response} from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -85,7 +86,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  });
 
  // /api/catalog is already guarded by requirePortalAdmin in server.ts.
- app.post('/api/catalog/product-images/upload',async(req:Request,res:Response)=>{
+ app.post('/api/catalog/product-images/upload',express.raw({type:['image/png','image/jpeg','image/webp'],limit:'8mb'}),async(req:Request,res:Response)=>{
   let dest='';
   let temp='';
   let committed=false;
@@ -93,14 +94,20 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    const identity=await getPortalIdentity(req);
    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
    if(!databaseEnabled())return res.status(503).json({success:false,message:'اتصال به PostgreSQL الزامی است.'});
-   const familyCode=cleanCode(req.body?.familyCode);
-   const variantCode=req.body?.variantCode ? cleanCode(req.body.variantCode):null;
-   const replaceId=req.body?.replaceId ? String(req.body.replaceId):null;
-   const title=typeof req.body?.title==='string'?req.body.title.trim().slice(0,180):'';
-   if(!familyCode || (req.body?.variantCode && !variantCode))
+   const binaryUpload=Buffer.isBuffer(req.body);
+   const requestedFamily=binaryUpload?req.get('x-family-code'):req.body?.familyCode;
+   const requestedVariant=binaryUpload?req.get('x-variant-code'):req.body?.variantCode;
+   const requestedReplacement=binaryUpload?req.get('x-replace-id'):req.body?.replaceId;
+   const requestedTitle=binaryUpload?req.get('x-image-title'):req.body?.title;
+   const familyCode=cleanCode(requestedFamily);
+   const variantCode=requestedVariant ? cleanCode(requestedVariant):null;
+   const replaceId=requestedReplacement ? String(requestedReplacement):null;
+   const title=typeof requestedTitle==='string'?requestedTitle.trim().slice(0,180):'';
+   if(!familyCode || (requestedVariant && !variantCode))
     throw fail(400,'کد خانواده یا SKU معتبر نیست.');
    if(replaceId && !/^[\w.:-]{1,150}$/.test(replaceId))throw fail(400,'شناسه تصویر جایگزین نامعتبر است.');
-   const raw=parseUpload(req.body?.dataUrl);
+   const raw=binaryUpload ? req.body as Buffer : parseUpload(req.body?.dataUrl);
+   if(!raw.length||raw.length>MAX_UPLOAD_BYTES)throw fail(413,'حجم تصویر معتبر نیست.');
    let metadata:{width?:number;height?:number;format?:string};
    try{metadata=await sharp(raw,{limitInputPixels:MAX_PIXELS}).metadata();}
    catch{throw fail(400,'تصویر قابل خواندن نیست.');}
@@ -108,8 +115,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
       !['jpeg','png','webp'].includes(metadata.format||''))
     throw fail(400,'فرمت یا ابعاد تصویر معتبر نیست.');
    const optimized=await sharp(raw,{limitInputPixels:MAX_PIXELS})
-     .rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true})
-     .webp({quality:84,effort:4}).toBuffer();
+     .rotate().resize({width:1800,height:1800,fit:'inside',withoutEnlargement:true})
+     .webp({quality:82,effort:2}).toBuffer();
    const dir=await prepareProductStorage();
    const id=crypto.randomUUID();
    const name=id+'.webp';
@@ -174,8 +181,13 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
      return {id:galleryId,url,fileName:name,familyCode,variantCode,scope:variantCode?'variant':'family',title:title||name};
    });
    committed=true;
-   try{await onCatalogUpdated();}catch(error){console.warn('[Product storage] Persisted image; in-memory refresh failed:',(error as Error)?.name||'unknown');}
-   return res.status(201).json({success:true,image:gallery});
+   // Database data is authoritative: invalidate public cache before returning.
+   // Do not hold the upload response while rebuilding 10k+ SKU search indices.
+   invalidatePublicCatalogCache();
+   res.setHeader('Cache-Control','no-store');
+   res.status(201).json({success:true,image:gallery});
+   void onCatalogUpdated().catch(error=>console.warn('[Product storage] Image saved; async index refresh failed:',(error as Error)?.name||'unknown'));
+   return;
   }catch(error:any){
    if(!committed){
     if(temp)await fs.unlink(temp).catch(()=>{});
