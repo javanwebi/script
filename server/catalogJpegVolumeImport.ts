@@ -7,6 +7,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {databaseEnabled,transaction} from './db/connection';
+import {warmProductThumbs} from './productImageVariants';
 
 const REPO='javanweb/IMAGE';
 const REVISION='5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6';
@@ -126,6 +127,8 @@ export function beginCatalogJpegImport(storageRoot:string,onUpdated:()=>Promise<
   const changes=await switchUrls(manifest);
   console.log('[Product JPG import] All verified:',manifest.length,'database URL changes:',JSON.stringify(changes));
   await onUpdated();
+  void warmProductThumbs(manifest.map(e=>path.join(target,e.name)),storageRoot)
+    .catch(()=>console.warn('[Product thumbnails] Background warmup incomplete'));
  })().catch(e=>{
   console.warn('[Product JPG import] Incomplete; existing PNG images remain valid:',String((e as Error)?.message||e).slice(0,200));
  }).finally(()=>{current=undefined});
