@@ -613,7 +613,25 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 const IMAGE_HASH_CACHE_PATH = process.env.IMAGE_HASH_CACHE_PATH || path.join(process.cwd(), 'src', 'data', 'imageHashes.json');
 const GITHUB_CATALOG_IMAGES_REPO = 'https://raw.githubusercontent.com/javanweb/imagesatlas/main';
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
-const catalogVisualIndex=new CatalogVisualIndex(process.env.CATALOG_VISUAL_INDEX_PATH || path.join(process.cwd(),'.cache','catalog-visual-index.json'));
+const VISUAL_INDEX_NAMESPACE='catalog_visual_gemini_768';
+const catalogVisualIndex=new CatalogVisualIndex(
+ path.join(process.cwd(),'.cache','catalog-visual-index.json'),
+ databaseEnabled()?{
+  async loadEntries(){
+   const records=(await database().query('select scope_id,value from app_private.scoped_documents where namespace=$1',[VISUAL_INDEX_NAMESPACE])).rows;
+   return Object.fromEntries(records.map(row=>[row.scope_id,row.value]));
+  },
+  async saveEntries(entries){
+   await database().query(
+    `insert into app_private.scoped_documents(namespace,scope_id,value)
+      select $1,data.id,jsonb_build_object('signature',data.signature,'vector',data.vector)
+      from jsonb_to_recordset($2::jsonb) as data(id text,signature text,vector jsonb)
+      on conflict(namespace,scope_id) do update set value=excluded.value`,
+    [VISUAL_INDEX_NAMESPACE,JSON.stringify(entries)]
+   );
+  }
+ }:undefined
+);
 let nextVisualIndexBuild=0;
 let nextEmbeddingSlot=0;
 async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):Promise<number[][]>{
