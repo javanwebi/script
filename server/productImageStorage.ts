@@ -45,7 +45,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  // volume. The URL never discloses a filesystem path.
  app.get('/storage/products/catalog/:file',async(req,res)=>{
   const file=String(req.params.file||'');
-  const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
+  const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
   const persistentRoot=path.join(root,'catalog');
   // Original images are checked into the site source, so they remain available
