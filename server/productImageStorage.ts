@@ -197,4 +197,29 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    return res.status(status).json({success:false,message:status>=500?'ذخیره تصویر در Storage یا PostgreSQL انجام نشد.':error.message});
   }
  });
+ // Read-only admin queue visibility. No public access to unpublished assets.
+ app.get('/api/catalog/product-images/publications',async(req,res)=>{
+  const identity=await getPortalIdentity(req);
+  if(!identity.admin)return res.status(403).json({success:false});
+  if(process.env.PRODUCT_GITHUB_PUBLISH_ENABLED!=='1')return res.status(503).json({success:false,message:'انتشار به GitHub هنوز فعال نشده است.'});
+  try{
+   const rows=await transaction(async client=>(await client.query(
+    "select id,gallery_id,family_code,variant_code,state,attempts,pr_number,last_error,created_at,updated_at,published_at from public.catalog_image_publications order by created_at desc limit 80"
+   )).rows);
+   return res.json({success:true,jobs:rows});
+  }catch{return res.status(503).json({success:false,message:'خواندن صف انتشار ممکن نیست.'});}
+ });
+ app.post('/api/catalog/product-images/publications/:id/retry',async(req,res)=>{
+  const identity=await getPortalIdentity(req);
+  if(!identity.admin)return res.status(403).json({success:false});
+  if(!/^[a-f0-9-]{36}$/i.test(String(req.params.id||'')))return res.status(400).json({success:false});
+  try{
+   const rows=await transaction(async client=>(await client.query(
+    "update public.catalog_image_publications set state='retry',attempts=0,last_error=null,retry_after=now(),updated_at=now() where id=$1 and state in ('blocked','retry') returning id,state",
+    [req.params.id]
+   )).rows);
+   return res.status(rows.length?200:409).json({success:Boolean(rows.length),publication:rows[0]||null});
+  }catch{return res.status(503).json({success:false,message:'تلاش مجدد ثبت نشد.'});}
+ });
+
 }
