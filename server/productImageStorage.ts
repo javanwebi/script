@@ -75,6 +75,49 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   });
  });
 
+
+ const thumbnailsInFlight=new Map<string,Promise<void>>();
+ // Small WebP derivatives avoid transferring multi-hundred-KB PNGs to every
+ // catalog card. All thumbnails are derived from exact, already-bound originals.
+ app.get('/storage/products/thumbs/:file',async(req,res)=>{
+  const name=String(req.params.file||'');
+  const match=/^e\(([1-9]\d{0,3})\)\.webp$/.exec(name);
+  if(!match||Number(match[1])>869)return res.status(404).end();
+  const sourceName='e('+match[1]+').png';
+  const onVolume=path.join(root,'catalog',sourceName);
+  const vendored=path.join(process.cwd(),'storage','products','catalog',sourceName);
+  const destination=path.join(root,'thumbs',name);
+  try{
+   if(!(await fs.stat(destination).then(s=>s.isFile()&&s.size>0).catch(()=>false))){
+    let pending=thumbnailsInFlight.get(name);
+    if(!pending){
+     pending=(async()=>{
+      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||vendored;
+      if(!(await fs.stat(src).then(s=>s.isFile()).catch(()=>false)))
+       throw Object.assign(new Error('Image not found'),{status:404});
+      await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o750});
+      const temp=destination+'.'+crypto.randomUUID()+'.tmp';
+      try{
+       await sharp(src,{limitInputPixels:MAX_PIXELS}).resize({
+        width:420,height:420,fit:'inside',withoutEnlargement:true
+       }).webp({quality:74,effort:1}).toFile(temp);
+       await fs.rename(temp,destination);
+      }finally{await fs.unlink(temp).catch(()=>{});}
+     })();
+     thumbnailsInFlight.set(name,pending);
+     void pending.finally(()=>thumbnailsInFlight.delete(name)).catch(()=>{});
+    }
+    await pending;
+   }
+   return res.sendFile(name,{root:path.join(root,'thumbs'),dotfiles:'deny',headers:{
+    'Cache-Control':'public, max-age=31536000, immutable',
+    'Content-Type':'image/webp','X-Content-Type-Options':'nosniff'
+   }},error=>{if(error && !res.headersSent)res.status((error as any).status||404).end();});
+  }catch(error:any){
+   return res.status(error?.status===404?404:503).end();
+  }
+ });
+
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
