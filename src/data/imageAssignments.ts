@@ -7,7 +7,7 @@ export function imageFileName(url: string): string {
       const parsed=new URL(decoded);
       const official=(parsed.origin==='https://raw.githubusercontent.com' && parsed.pathname.startsWith('/javanweb/imagesatlas/main/')) || (parsed.origin==='https://cdn.jsdelivr.net' && parsed.pathname.startsWith('/gh/javanweb/imagesatlas@main/'));
       if(!official)return '';
-    } else if(!/^e\(\d+\)\.png$/i.test(decoded)) return '';
+    } else if(!/^e\(\d+\)\.png$/i.test(decoded) && !/^\/storage\/products\/catalog\/e\(\d+\)\.png$/i.test(decoded)) return '';
     const match=decoded.match(/e\((\d+)\)\.png(?:$|[?#])/i);
     return match ? `e(${Number(match[1])}).png` : '';
   } catch { return ''; }
