@@ -563,7 +563,7 @@ export const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {!currentGalleryImage && selectedVariant && (
+            {selectedVariant && selectedVariantImagesCount === 0 && (
               <p role="status" className="text-xs text-slate-600 leading-6 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 تصویر اختصاصی کد <strong dir="ltr">{selectedVariant.code}</strong> هنوز تأیید و ثبت نشده است. مشخصات زیر مربوط به همین کد است.
               </p>
