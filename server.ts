@@ -971,8 +971,14 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
   if(!image)return null;
   const catalogFile=officialImageFile(image);
   if(catalogFile){
-    try{return await fs.promises.readFile(path.join(productStorageDirectory(),'catalog',catalogFile));}
-    catch{ /* Original URL remains valid while one-time import runs. */ }
+    // Source bundle becomes authoritative after verified deploy; Volume is
+    // retained only as a non-destructive fallback during rollout/rollback.
+    for(const dir of [path.join(process.cwd(),'dist','products','catalog'),
+                      path.join(process.cwd(),'public','products','catalog'),
+                      path.join(productStorageDirectory(),'catalog')]){
+      try{return await fs.promises.readFile(path.join(dir,catalogFile));}
+      catch{ /* continue to next verified source */ }
+    }
   }
   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
