@@ -1,17 +1,17 @@
 /** Explicit Node-test fixture initializer. NEVER import this from runtime source. */
-import catalogue from '../src/data/catalogueSource.json';
-import images from '../src/data/catalogueImages.json';
+import catalogue from './fixtures/catalogueSource.json';
+import images from './fixtures/catalogueImages.json';
 import review from '../docs/product-image-review.json';
-import photos from '../src/data/ownerCataloguePhotos.json';
-import { applyCatalogueCorrections } from '../src/data/catalogueCorrections';
-import { categorySlugFor, installCatalogProducts } from '../src/data/userProducts';
+import photos from './fixtures/ownerCataloguePhotos.json';
+import { applyCatalogueCorrections } from './fixtures/catalogueCorrections';
+import { categorySlugFor, installCatalogProducts } from './fixtures/userProducts';
 import { getProductImageUrl } from '../src/assets/imagesproducts';
 import { installCatalogImageMetadata } from '../src/services/catalogImageCorpus';
-import pins from '../src/data/ownerCataloguePinTable.json';
-import imperial from '../src/data/imperialTimingReference.json';
-import misumi from '../src/data/misumiTimingReference.json';
-import { installOwnerPinRows } from '../src/data/ownerCatalogue';
-import { installTimingReferenceRows, type TimingReferenceRow } from '../src/data/imperialTimingReference';
+import pins from './fixtures/ownerCataloguePinTable.json';
+import imperial from './fixtures/imperialTimingReference.json';
+import misumi from './fixtures/misumiTimingReference.json';
+import { installOwnerPinRows } from './fixtures/ownerCatalogue';
+import { installTimingReferenceRows, type TimingReferenceRow } from './fixtures/imperialTimingReference';
 
 installOwnerPinRows(pins.rows.map(row=>({
  sku:row.sku,dim_2r_outer:row['2R'],dim_w:row.W,dim_h:row.h,dim_2r_inner:row['2r'],
