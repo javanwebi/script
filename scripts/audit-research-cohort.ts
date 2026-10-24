@@ -1,7 +1,7 @@
 /** Rebuild the row-by-row audit; a reference match is never stocked-item certification. */
 import { writeFileSync } from 'node:fs';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW } from '../src/data/userProducts';
-import cohort from '../src/data/technicalResearchCohort.json';
+import cohort from '../tests/fixtures/technicalResearchCohort.json';
 const skus=new Set(cohort.skus);
 const original=new Map(USER_PRODUCTS_RAW.flatMap(p=>(p.variants||[]).map(v=>[v.code,v] as const)));
 const sources: string[]=[];
