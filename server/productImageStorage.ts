@@ -61,6 +61,19 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    if(error && !res.headersSent)res.status((error as any).status||404).end();
   });
  });
+ // Legacy JPEGs from javanweb/IMAGE are stored separately; they do not
+ // silently replace original PNGs or inherit unverified SKU associations.
+ app.get('/storage/products/legacy-jpg/images/:file',async(req,res)=>{
+  const file=String(req.params.file||'');
+  if(!/^e\([1-9]\d{0,3}\)\.jpg$/.test(file))return res.status(404).end();
+  return res.sendFile(file,{root:path.join(root,'legacy-jpg','images'),dotfiles:'deny',
+   headers:{'Cache-Control':'public, max-age=2592000, immutable',
+    'Content-Type':'image/jpeg','X-Content-Type-Options':'nosniff'}
+  },error=>{
+   if(error && !res.headersSent)res.status((error as any).status||404).end();
+  });
+ });
+
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
