@@ -40,6 +40,7 @@ test('actual valid SKU bindings are reported and unknown SKU references are reje
 });
 test('filename parsing handles encoded URLs but does not accept legacy product IDs',()=>{
  assert.equal(imageFileName('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e%28383%29.png'),'e(383).png');
+ assert.equal(imageFileName('/storage/products/catalog/e(383).png'),'e(383).png');
  assert.equal(imageFileName('AT-E383'),'');
  assert.equal(imageFileName('https://unrelated.example/e(1).png'),'');
 });
