@@ -887,7 +887,14 @@ async function buildImageEmbeddingIndex(): Promise<void> {
   console.log('[AI index] Loaded Jina vectors from PostgreSQL:',saved.length);
   if(!JINA_API_KEY)return;
   const missing=(await database().query(
-   `select a.file_name,a.image_url from public.catalog_image_audits a
+   `with photos as (
+     select distinct on(file_name) file_name,image_url from (
+       select file_name,image_url,0 as priority from public.catalog_image_audits
+       union all
+       select file_name,url as image_url,1 as priority from public.catalog_gallery_images
+     ) source order by file_name,priority
+    )
+    select a.file_name,a.image_url from photos a
     left join public.catalog_image_features f on f.file_name=a.file_name
     where f.embedding is null order by a.file_name limit 10`
   )).rows;
@@ -1456,7 +1463,14 @@ async function buildImageFeatureIndex(): Promise<void> {
   visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
   console.log('[AI index] Loaded visual hashes from PostgreSQL:',records.length);
   const missing=(await database().query(
-   `select a.file_name,a.image_url from public.catalog_image_audits a
+   `with photos as (
+     select distinct on(file_name) file_name,image_url from (
+       select file_name,image_url,0 as priority from public.catalog_image_audits
+       union all
+       select file_name,url as image_url,1 as priority from public.catalog_gallery_images
+     ) source order by file_name,priority
+    )
+    select a.file_name,a.image_url from photos a
     left join public.catalog_image_features f on f.file_name=a.file_name
     where f.raw_dh is null or f.clean_dh is null order by a.file_name limit 12`
   )).rows;
