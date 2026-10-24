@@ -905,7 +905,8 @@ async function buildImageEmbeddingIndex(): Promise<void> {
        select file_name,image_url,0 as priority from public.catalog_image_audits
        union all
        select file_name,url as image_url,1 as priority from public.catalog_gallery_images
-     ) source order by file_name,priority
+     ) source where file_name is not null and btrim(file_name) <> ''
+       order by file_name,priority
     )
     select a.file_name,a.image_url from photos a
     left join public.catalog_image_features f on f.file_name=a.file_name
@@ -1498,7 +1499,8 @@ async function buildImageFeatureIndex(): Promise<void> {
        select file_name,image_url,0 as priority from public.catalog_image_audits
        union all
        select file_name,url as image_url,1 as priority from public.catalog_gallery_images
-     ) source order by file_name,priority
+     ) source where file_name is not null and btrim(file_name) <> ''
+       order by file_name,priority
     )
     select a.file_name,a.image_url from photos a
     left join public.catalog_image_features f on f.file_name=a.file_name
