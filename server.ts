@@ -1,5 +1,6 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
+import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -967,6 +968,11 @@ function resolveCatalogImagePath(image?:string):string|null {
 }
 async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|null> {
   if(!image)return null;
+  const catalogFile=officialImageFile(image);
+  if(catalogFile){
+    try{return await fs.promises.readFile(path.join(productStorageDirectory(),'catalog',catalogFile));}
+    catch{ /* Original URL remains valid while one-time import runs. */ }
+  }
   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
     try{return await fs.promises.readFile(path.join(productStorageDirectory(),stored[1]));}
@@ -6530,6 +6536,19 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
+    // Non-destructive background import: verify every source Git blob first,
+    // then atomically switch PostgreSQL image links to volume-local URLs.
+    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
+      const [images,photos,products]=await Promise.all([
+        database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
+        database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
+        readProducts()
+      ]);
+      installCatalogImageMetadata(images.rows,photos.rows);
+      installDatabaseProducts(products);
+      refreshRecognitionCatalog();
+      invalidatePublicCatalogCache();
+    });
   });
 }
 

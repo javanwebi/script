@@ -41,6 +41,16 @@ const fail=(status:number,message:string)=>Object.assign(new Error(message),{sta
 
 export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Promise<void>){
  const root=productStorageDirectory();
+ // The original 869 catalogue assets are publicly served from the mounted
+ // volume. The URL never discloses a filesystem path.
+ app.get('/storage/products/catalog/:file',(req,res)=>{
+  const file=String(req.params.file||'');
+  const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
+  if(!match||Number(match[1])>869)return res.status(404).end();
+  return res.sendFile(file,{root:path.join(root,'catalog'),dotfiles:'deny',
+   headers:{'Cache-Control':'public, max-age=86400','Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
+  },error=>{if(error&&!res.headersSent)res.status((error as any).status||404).end();});
+ });
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
