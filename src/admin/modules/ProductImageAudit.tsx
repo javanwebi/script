@@ -84,16 +84,16 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
     if(upload.size>8*1024*1024){setSourceError('حداکثر حجم هر تصویر ۸ مگابایت است.');return}
     setSelectedUpload(upload);
-    const reader=new FileReader();
-    reader.onload=()=>{setFile(upload.name);setUrl(String(reader.result||''));setTitle(upload.name);setSourceError('')};
-    reader.onerror=()=>setSourceError('فایل خوانده نشد.');
-    reader.readAsDataURL(upload);
+    // Local preview is immediate; upload sends the original bytes, not base64.
+    if(url.startsWith('blob:'))URL.revokeObjectURL(url);
+    setFile(upload.name);setUrl(URL.createObjectURL(upload));
+    setTitle(upload.name);setSourceError('');
   };
   const chooseUrl=()=>{
     try{const value=new URL(urlInput.trim());if(!['https:','http:'].includes(value.protocol))throw Error('invalid');setFile(value.pathname.split('/').pop()||'تصویر جدید');setUrl(value.href);setTitle('');setSourceError('')}
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
-  const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null)};
+  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null)};
   const apply=async()=>{
     if(!file||!url||!familyCode||(placement==='sku'&&!sku)||savingUpload)return;
     if(source==='upload'){
