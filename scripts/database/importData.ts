@@ -24,7 +24,7 @@ export async function importSourceData(client:SqlClient,options:{portalPath?:str
  await writeDocument(client,'catalogue/base',USER_PRODUCTS_RAW,'global',undefined,'reference');
  for(const [key,value] of Object.entries(defaults))await writeDocument(client,key,value);
  await writeDocument(client,'atlas_admin_brands_v1',BRANDS);await writeDocument(client,'atlas_admin_categories_v1',CATEGORIES);
- const overrides=runtimeOverrides || sources.find(source=>source.path==='src/data/catalogOverridesDb.json')?.payload;
+ const overrides=runtimeOverrides || sources.find(source=>source.path==='tests/fixtures/catalogOverridesDb.json')?.payload;
  if(overrides)await writeDocument(client,'catalog_overrides/runtime',overrides,'global',undefined,'catalog_overrides');
  let users=0;
  if(options.portalPath){const portal=JSON.parse(await fs.readFile(options.portalPath,'utf8'));const sha=crypto.createHash('sha256').update(JSON.stringify(portal)).digest('hex');await client.query('insert into app_private.source_archives(source_path,sha256,payload) values($1,$2,$3) on conflict do nothing',['runtime/portal.json',sha,JSON.stringify(portal)]);await persistUsers(client,portal.users || []);users=portal.users?.length || 0;for(const [key,value] of Object.entries(portal.values || {}))if(domainFor(key))await writeDocument(client,key,value);await client.query('update app_private.portal_version set revision=$1 where singleton=true',[portal.revision || 0]);}
