@@ -38,6 +38,9 @@ export function getProductImageUrl(imageName?:string|null):string {
  const input=imageName.trim();
  // Server-uploaded images are also on the same persistent mounted Volume.
  if(/^\/storage\/products\/[a-f0-9-]{36}\.webp$/.test(input))return input;
+ // Published, UUID-addressed admin uploads and their SHA-versioned WebP views.
+ // Keep these URLs verbatim; they are different from the numbered official PNGs.
+ if(/^\/products\/uploads\/(?:[a-f0-9-]{36}\.(?:png|jpg|webp)|optimized\/[a-f0-9-]{36}\.[a-f0-9]{12}\.w(?:320|960)\.webp)$/.test(input))return input;
  // Retain the old mounted-volume originals as rollback, but serve official photos
  // from the source bundle on staging. The DB is not rewritten by this resolver.
  const oldVolume=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
