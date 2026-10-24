@@ -1,20 +1,33 @@
-import pins from './ownerCataloguePinTable.json';
 export interface OwnerCatalogueEvidence {
-  sourceName:string;documentSha256:string;pdfPage:number;printedPage:number;
-  drawingPdfPage:number;inventoryCodeMatch:boolean;conflict?:string;
+ sourceName:string;documentSha256:string;pdfPage:number;printedPage:number;
+ drawingPdfPage:number;inventoryCodeMatch:boolean;conflict?:string;
 }
-const rows=new Map(pins.rows.map(row=>[row.sku,row]));
-/** Exact existing SKU lookup, guarded by the actual part noun. Never creates SKUs. */
-export function ownerPinDimensions(code:string,name:string) {
-  const normalized=name.replace(/ي/g,'ی').replace(/ك/g,'ک');
-  if(!rows.has(code)||!/^پین/.test(normalized))return undefined;
-  const evidence:OwnerCatalogueEvidence={sourceName:pins.sourceName,documentSha256:pins.sha256,pdfPage:pins.pdfPage,printedPage:pins.printedPage,drawingPdfPage:pins.drawingPdfPage,inventoryCodeMatch:true};
-  if(pins.conflicts.includes(code))return {evidence:{...evidence,conflict:'در جدول، کد 90155 دو بار با 2r متفاوت (13 و 14 میلی‌متر) آمده است؛ تا رفع تعارض هیچ ابعادی از این دو ردیف اعمال نمی‌شود.'},specifications:[]};
-  const row=rows.get(code)!;
-  return {evidence,specifications:[
-    {key:'2R — طبق نقشهٔ کاتالوگ اطلس',value:`${row['2R']} میلی‌متر`},
-    {key:'W — طبق نقشهٔ کاتالوگ اطلس',value:`${row.W} میلی‌متر`},
-    ...(row.h==='بیضی'?[{key:'شرح h در جدول اطلس',value:'بیضی؛ ارتفاع عددی مشخص نشده'}]:[{key:'h — طبق نقشهٔ کاتالوگ اطلس',value:`${row.h} میلی‌متر`}]),
-    {key:'2r — طبق نقشهٔ کاتالوگ اطلس',value:`${row['2r']} میلی‌متر`},
-  ]};
+export interface OwnerPinRow {
+ sku:string;dim_2r_outer:string;dim_w:string;dim_h:string;dim_2r_inner:string;
+ pdf_page:number;printed_page:number;drawing_pdf_page:number;
+ source_sha256:string;is_conflict:boolean;
+}
+const rows=new Map<string,OwnerPinRow>();
+/** Load only confirmed reference records from public.owner_catalogue_pin_rows. */
+export function installOwnerPinRows(records:OwnerPinRow[]){
+ rows.clear();
+ for(const row of records)rows.set(row.sku,row);
+}
+export function ownerPinDimensions(code:string,name:string){
+ const normalized=name.replace(/ي/g,'ی').replace(/ك/g,'ک');
+ const row=rows.get(code);
+ if(!row||!/^پین/.test(normalized))return undefined;
+ const evidence:OwnerCatalogueEvidence={
+  sourceName:'کاتالوگ رسمی اطلس — فایل ارسالی صاحب کالا',
+  documentSha256:row.source_sha256,pdfPage:row.pdf_page,
+  printedPage:row.printed_page,drawingPdfPage:row.drawing_pdf_page,
+  inventoryCodeMatch:true
+ };
+ if(row.is_conflict)return {evidence:{...evidence,conflict:'در جدول مرجع، ابعاد این کد متعارض است؛ تا بررسی مدیر، ابعاد تأیید نمی‌شوند.'},specifications:[]};
+ return {evidence,specifications:[
+  {key:'2R — طبق نقشهٔ کاتالوگ اطلس',value:`${row.dim_2r_outer} میلی‌متر`},
+  {key:'W — طبق نقشهٔ کاتالوگ اطلس',value:`${row.dim_w} میلی‌متر`},
+  ...(row.dim_h==='بیضی'?[{key:'شرح h در جدول اطلس',value:'بیضی؛ ارتفاع عددی مشخص نشده'}]:[{key:'h — طبق نقشهٔ کاتالوگ اطلس',value:`${row.dim_h} میلی‌متر`}]),
+  {key:'2r — طبق نقشهٔ کاتالوگ اطلس',value:`${row.dim_2r_inner} میلی‌متر`}
+ ]};
 }

@@ -12,11 +12,12 @@ import { BRANDS, getManagedBrands } from "./brands";
 import {
   USER_PRODUCTS,
   USER_PRODUCTS_RAW,
+  installCatalogProducts,
   PRODUCT_FAMILY_ALIASES,
   matchesProductSearch,
   normalizeCatalogueText,
 } from "./userProducts";
-import initialOverridesDb from "./catalogOverridesDb.json";
+const initialOverridesDb = {version:1,updatedAt:"",deletedCodes:[],families:{}};
 import { getProductImageUrl } from "../assets/imagesproducts";
 
 const OVERRIDES_STORAGE_KEY = "atlas_catalog_overrides_v2";
@@ -29,7 +30,7 @@ export interface CatalogOverridesState {
 }
 
 let databaseProducts:Product[]|null=null;
-export function installDatabaseProducts(products:Product[]){databaseProducts=products;invalidateCatalogCache();}
+export function installDatabaseProducts(products:Product[]){databaseProducts=products;installCatalogProducts(products);invalidateCatalogCache();}
 // In the deployed browser, PostgreSQL is the only authoritative catalogue.
 // Do not silently reconstruct deleted/renamed products from an old bundled JSON
 // when the API is unavailable. Dev/CLI fixtures remain for isolated tests.

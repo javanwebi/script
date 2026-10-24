@@ -1,10 +1,11 @@
+import './catalogFixtures';
 import sharp from 'sharp';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recognitionWorkerUrl, recognitionApiKey, recognitionCatalog, finalizeRecognition } from '../src/utils/recognitionPolicy';
 import { workerVision } from '../src/services/partRecognitionGateway';
 import { getManagedCatalogProducts } from '../src/data/mockGenerator';
-import inventorySource from '../src/data/catalogueSource.json';
+import inventorySource from './fixtures/catalogueSource.json';
 import type { Product } from '../src/types';
 
 test('worker is default, explicit empty disables it, and direct key aliases remain server-side',()=>{

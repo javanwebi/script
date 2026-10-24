@@ -1,11 +1,12 @@
+import './catalogFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { USER_PRODUCTS } from '../src/data/userProducts';
 import { getImageAssignmentAudit, imageFileName } from '../src/data/imageAssignments';
 import { INDUSTRIAL_PRESET_SAMPLES } from '../src/data/recognitionSamples';
 import review from '../docs/product-image-review.json';
-import research from '../src/data/imageResearch.json';
-import owner from '../src/data/ownerCataloguePhotos.json';
+import research from './fixtures/imageResearch.json';
+import owner from './fixtures/ownerCataloguePhotos.json';
 
 // Historical fixtures validate parity. Production UI fetches source records from PostgreSQL.
 const byResearch=new Map(research.items.map(item=>[item.file,item]));
@@ -20,8 +21,8 @@ const fixtures=review.items.map(item=>{
 test('all image assets have review status without turning sequential filenames into warehouse SKUs',()=>{
  const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures);
  assert.equal(audit.length,869);
- assert.equal(audit.filter(x=>x.status==='family-example').length,464);
- assert.equal(audit.filter(x=>x.status==='unassigned').length,405);
+ assert.equal(audit.filter(x=>x.status==='family-example').length,463);
+ assert.equal(audit.filter(x=>x.status==='unassigned').length,406);
  assert.ok(audit.every(x=>x.requiresCodeEvidence));
  assert.ok(audit.every(x=>x.families.every(f=>f.skus.length===0)));
 });
@@ -49,6 +50,9 @@ test('recognition examples never populate fabricated technical dimensions',()=>{
 
 test('all unresolved images have detailed visual research without fabricated SKU or standard',()=>{
  const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures).filter(row=>row.status==='unassigned');
- assert.equal(audit.length,405);
- for(const row of audit){assert.ok(row.research);assert.equal(row.research.sourceSha256,row.sha256);assert.equal(row.research.exactSku,null);assert.equal(row.research.standardStatus,'not-established');assert.ok(row.research.requiredChecks.length>=3);}
+ assert.equal(audit.length,406);
+ const researched=audit.filter(row=>row.research);
+ assert.equal(researched.length,405,'historical visual research covers exactly 405 unresolved images');
+ assert.equal(audit.filter(row=>!row.research).length,1,'one additional photo is unassigned without verified research');
+ for(const row of researched){assert.equal(row.research!.sourceSha256,row.sha256);assert.equal(row.research!.exactSku,null);assert.equal(row.research!.standardStatus,'not-established');assert.ok(row.research!.requiredChecks.length>=3);}
 });

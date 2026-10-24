@@ -14,7 +14,7 @@ if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required for read-only catalogue reconciliation.');
   process.exit(2);
 }
-const source=JSON.parse(await readFile(new URL('../../src/data/catalogueSource.json',import.meta.url),'utf8'));
+const source=JSON.parse(await readFile(new URL('../../tests/fixtures/catalogueSource.json',import.meta.url),'utf8'));
 if(!Array.isArray(source))throw new Error('Expected an array of source catalogue families');
 const expectedFamilyCodes=new Set(source.map(f=>String(f.code)));
 const sourceVariantCodes=source.flatMap(f=>(f.variants||[]).map(v=>String(v.code)));

@@ -14,10 +14,11 @@ import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
-import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile } from './src/services/catalogImageCorpus';
+import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile, installCatalogImageMetadata } from './src/services/catalogImageCorpus';
+import { installOwnerPinRows } from './src/data/ownerCatalogue';
+import { installTimingReferenceRows } from './src/data/imperialTimingReference';
 import { scanEveryCatalogImage, type ScanProgress } from './src/services/exhaustiveImageScan';
 import { RecognitionJobs } from './src/services/recognitionJobs';
-import inventorySource from './src/data/catalogueSource.json';
 import { workerVision } from './src/services/partRecognitionGateway';
 import { recognitionWorkerUrl, recognitionApiKey, recognitionCatalog, finalizeRecognition } from './src/utils/recognitionPolicy';
 import {findCatalogKnowledge,catalogFallback} from './src/utils/catalogKnowledge';
@@ -459,7 +460,6 @@ app.post(['/api/ai/catalog-source', '/api/ai/catalog-summary'], (req, res) => {
 // ATLAS TWO-LEVEL CATALOG MANAGEMENT & OVERRIDES DATABASE (FAMILIES + SKUS)
 // ============================================================================
 
-const CATALOG_OVERRIDES_DB_PATH = process.env.CATALOG_OVERRIDES_DB_PATH || path.join(process.cwd(), 'src', 'data', 'catalogOverridesDb.json');
 
 interface CatalogOverridesDb {
   version: number;
@@ -471,34 +471,13 @@ interface CatalogOverridesDb {
 let CATALOG_OVERRIDES_CACHE: CatalogOverridesDb | null = null;
 
 function loadCatalogOverridesDb(): CatalogOverridesDb {
-  if (CATALOG_OVERRIDES_CACHE) return CATALOG_OVERRIDES_CACHE;
-  if(databaseEnabled())throw new Error("Database catalogue has not been initialized; local fallback is disabled");
-  try {
-    if (fs.existsSync(CATALOG_OVERRIDES_DB_PATH)) {
-      const raw = fs.readFileSync(CATALOG_OVERRIDES_DB_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      CATALOG_OVERRIDES_CACHE = {
-        version: parsed.version || 1,
-        updatedAt: parsed.updatedAt || new Date().toISOString(),
-        deletedCodes: Array.isArray(parsed.deletedCodes) ? parsed.deletedCodes : [],
-        families: parsed.families && typeof parsed.families === 'object' ? parsed.families : {},
-      };
-      return CATALOG_OVERRIDES_CACHE;
-    }
-  } catch (err) {
-    console.warn('[CatalogOverridesDB] Error reading database file:', err);
-  }
-  CATALOG_OVERRIDES_CACHE = {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    deletedCodes: [],
-    families: {},
-  };
+  if (!databaseEnabled() || !CATALOG_OVERRIDES_CACHE) throw new Error('PostgreSQL catalog state is not hydrated');
   return CATALOG_OVERRIDES_CACHE;
 }
 
 async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
-  if(databaseEnabled()){
+  if(!databaseEnabled())throw new Error('PostgreSQL is required for catalogue changes');
+  {
     db.updatedAt=new Date().toISOString();
     await transaction(async client=>{await writeDocument(client,"catalog_overrides/runtime",db,"global",undefined,"catalog_overrides");const previous:CatalogOverridesDb=CATALOG_OVERRIDES_CACHE || {version:1,updatedAt:"",families:{},deletedCodes:[]};
       const codes=new Set([...Object.keys(db.families),...Object.keys(previous.families)]);
@@ -508,14 +487,7 @@ async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
       if(db.deletedCodes.length)await client.query(adoptedSchema()?'update public.catalog_families set is_active=false where code=any($1::text[])':'update public.product_families set active=false where code=any($1::text[])',[db.deletedCodes]);});
     CATALOG_OVERRIDES_CACHE=db;return;
   }
-  db.updatedAt = new Date().toISOString();
-  CATALOG_OVERRIDES_CACHE = db;
-  try {
-    fs.mkdirSync(path.dirname(CATALOG_OVERRIDES_DB_PATH), { recursive: true });
-    fs.writeFileSync(CATALOG_OVERRIDES_DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[CatalogOverridesDB] Error writing database file:', err);
-  }
+
 }
 
 app.get('/api/catalog/overrides', async (req, res) => {
@@ -614,7 +586,7 @@ interface CatalogItem {
 // Load real inventory identifiers, never the synthetic legacy summary.
 let CATALOG_ITEMS: CatalogItem[] = [];
 
-const inventoryCodes=new Set<string>(databaseEnabled()?[]:inventorySource.flatMap(family=>family.variants.map(v=>v.code)));
+const inventoryCodes=new Set<string>();
 function recognitionProducts() {
   const overrides=loadCatalogOverridesDb();
   const deleted=new Set(overrides.deletedCodes);
@@ -638,10 +610,27 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 // dHash (difference hash). Resistant to resize/recompress/watermark shifts.
 // ============================================================================
 
-const IMAGE_HASH_CACHE_PATH = process.env.IMAGE_HASH_CACHE_PATH || path.join(process.cwd(), 'src', 'data', 'imageHashes.json');
 const GITHUB_CATALOG_IMAGES_REPO = 'https://raw.githubusercontent.com/javanweb/imagesatlas/main';
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
-const catalogVisualIndex=new CatalogVisualIndex(process.env.CATALOG_VISUAL_INDEX_PATH || path.join(process.cwd(),'.cache','catalog-visual-index.json'));
+const VISUAL_INDEX_NAMESPACE='catalog_visual_gemini_768';
+const catalogVisualIndex=new CatalogVisualIndex(
+ path.join(process.cwd(),'.cache','catalog-visual-index.json'),
+ databaseEnabled()?{
+  async loadEntries(){
+   const records=(await database().query('select scope_id,value from app_private.scoped_documents where namespace=$1',[VISUAL_INDEX_NAMESPACE])).rows;
+   return Object.fromEntries(records.map(row=>[row.scope_id,row.value]));
+  },
+  async saveEntries(entries){
+   await database().query(
+    `insert into app_private.scoped_documents(namespace,scope_id,value)
+      select $1,data.id,jsonb_build_object('signature',data.signature,'vector',data.vector)
+      from jsonb_to_recordset($2::jsonb) as data(id text,signature text,vector jsonb)
+      on conflict(namespace,scope_id) do update set value=excluded.value`,
+    [VISUAL_INDEX_NAMESPACE,JSON.stringify(entries)]
+   );
+  }
+ }:undefined
+);
 let nextVisualIndexBuild=0;
 let nextEmbeddingSlot=0;
 async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):Promise<number[][]>{
@@ -722,8 +711,6 @@ let visualIndexReady = false;
 // ─────────────────────────────────────────────────────────────────────────────
 const JINA_API_KEY = (process.env.JINA_API_KEY || '').trim();
 const JINA_EMB_MODEL = 'jina-embeddings-v5-omni-small';
-const IMAGE_EMB_CACHE_PATH = path.join(process.cwd(), 'src', 'data', 'imageEmbeddings.json');
-const IMAGE_EMB_CACHE_VERSION = 1;
 
 // filename -> number[] (1024 dims, normalized by Jina)
 const IMAGE_EMB_INDEX = new Map<string, number[]>();
@@ -878,81 +865,59 @@ async function jinaEmbedImages(buffers: Buffer[], task: 'retrieval.query' | 'ret
 // Load the catalog embedding cache; build it in the background when missing
 // and a Jina key is configured.
 async function buildImageEmbeddingIndex(): Promise<void> {
-  try {
-    if (fs.existsSync(IMAGE_EMB_CACHE_PATH)) {
-      const cached = JSON.parse(fs.readFileSync(IMAGE_EMB_CACHE_PATH, 'utf8')) as {
-        version: number;
-        model: string;
-        entries: Record<string, number[]>;
-      };
-      if (cached && cached.version === IMAGE_EMB_CACHE_VERSION && cached.entries) {
-        for (const [img, emb] of Object.entries(cached.entries)) {
-          if (Array.isArray(emb) && emb.length === 1024) {
-            IMAGE_EMB_INDEX.set(img, emb);
-            const norm = normalizeCatalogImageKey(img);
-            if (norm) IMAGE_EMB_INDEX.set(norm, emb);
-          }
-        }
-        for (const item of CATALOG_ITEMS) {
-          const norm = normalizeCatalogImageKey(item.image) || normalizeCatalogImageKey(item.code);
-          const emb = IMAGE_EMB_INDEX.get(norm);
-          if (emb) {
-            if (item.image) IMAGE_EMB_INDEX.set((item.image || '').trim(), emb);
-            if (item.code) IMAGE_EMB_INDEX.set((item.code || '').trim().toLowerCase(), emb);
-          }
-        }
-      }
-    }
-    embIndexReady = IMAGE_EMB_INDEX.size > 0;
-    console.log(
-      `[Server] Jina embedding index: ${IMAGE_EMB_INDEX.size} catalog images` +
-        (JINA_API_KEY ? '' : ' (no JINA_API_KEY — query-side embeddings disabled)')
-    );
-
-    // Background build for any catalog image missing from the cache
-    if (JINA_API_KEY) {
-      const missing = CATALOG_ITEMS.filter(
-        it => (it.image || '').trim() && !IMAGE_EMB_INDEX.has((it.image || '').trim())
-      );
-      if (missing.length > 0) {
-        console.log(`[Server] Building Jina embeddings for ${missing.length} catalog images (background)...`);
-        (async () => {
-          try {
-            const files: string[] = [];
-            const bufs: Buffer[] = [];
-            for (const item of missing) {
-              const file = (item.image || '').trim();
-              const buf = await getCatalogImageBuffer(file);
-              if (!buf) continue;
-              bufs.push(buf);
-              files.push(file);
-            }
-            const embeddings = await jinaEmbedImages(bufs, 'retrieval.passage');
-            let built = 0;
-            for (let i = 0; i < files.length; i++) {
-              if (embeddings[i]) {
-                IMAGE_EMB_INDEX.set(files[i], embeddings[i] as number[]);
-                built++;
-              }
-            }
-            if (built > 0) {
-              embIndexReady = IMAGE_EMB_INDEX.size > 0;
-              fs.writeFileSync(
-                IMAGE_EMB_CACHE_PATH,
-                JSON.stringify({ version: IMAGE_EMB_CACHE_VERSION, model: JINA_EMB_MODEL, entries: Object.fromEntries(IMAGE_EMB_INDEX) })
-              );
-              console.log(`[Server] Jina embedding index updated: +${built} (total ${IMAGE_EMB_INDEX.size})`);
-            }
-          } catch (e: any) {
-            console.error('[Server] Jina embedding background build failed:', e?.message);
-          }
-        })();
-      }
-    }
-  } catch (e: any) {
-    console.error('[Server] Jina embedding index failed (channel disabled):', e?.message);
-    embIndexReady = false;
+ try {
+  if(!databaseEnabled())throw new Error('PostgreSQL required for image embeddings');
+  const saved=(await database().query(
+   'select file_name,embedding::text as vector from public.catalog_image_features where embedding is not null'
+  )).rows;
+  for(const row of saved){
+   const values=String(row.vector||'').replace(/^\\[/,'').replace(/\\]$/,'').split(',').map(Number);
+   if(values.length!==1024||values.some(v=>!Number.isFinite(v)))continue;
+   IMAGE_EMB_INDEX.set(row.file_name,values);
+   const alias=normalizeCatalogImageKey(row.file_name);
+   if(alias)IMAGE_EMB_INDEX.set(alias,values);
   }
+  for(const item of CATALOG_ITEMS){
+   const match=IMAGE_EMB_INDEX.get(normalizeCatalogImageKey(item.image));
+   if(!match)continue;
+   if(item.image)IMAGE_EMB_INDEX.set(item.image.trim(),match);
+   if(item.code)IMAGE_EMB_INDEX.set(item.code.trim().toLowerCase(),match);
+  }
+  embIndexReady=IMAGE_EMB_INDEX.size>0;
+  console.log('[AI index] Loaded Jina vectors from PostgreSQL:',saved.length);
+  if(!JINA_API_KEY)return;
+  const missing=(await database().query(
+   `with photos as (
+     select distinct on(file_name) file_name,image_url from (
+       select file_name,image_url,0 as priority from public.catalog_image_audits
+       union all
+       select file_name,url as image_url,1 as priority from public.catalog_gallery_images
+     ) source order by file_name,priority
+    )
+    select a.file_name,a.image_url from photos a
+    left join public.catalog_image_features f on f.file_name=a.file_name
+    where f.embedding is null order by a.file_name limit 10`
+  )).rows;
+  const files:string[]=[],buffers:Buffer[]=[];
+  for(const row of missing){
+   const buffer=await getCatalogImageBuffer(row.image_url||row.file_name);
+   if(buffer){files.push(row.file_name);buffers.push(buffer);}
+  }
+  if(!buffers.length)return;
+  const vectors=await jinaEmbedImages(buffers,'retrieval.passage');
+  for(let i=0;i<files.length;i++){
+   const v=vectors[i];if(!v||v.length!==1024||v.some(n=>!Number.isFinite(n)))continue;
+   await database().query(
+    `insert into public.catalog_image_features(file_name,embedding_model,embedding)
+     values($1,$2,$3::vector) on conflict(file_name) do update
+     set embedding_model=excluded.embedding_model,embedding=excluded.embedding,updated_at=now()`,
+    [files[i],JINA_EMB_MODEL,'['+v.join(',')+']']
+   );
+   IMAGE_EMB_INDEX.set(files[i],v);
+   const alias=normalizeCatalogImageKey(files[i]);if(alias)IMAGE_EMB_INDEX.set(alias,v);
+  }
+  embIndexReady=IMAGE_EMB_INDEX.size>0;
+ }catch(error:any){console.warn('[AI index] Database embedding load/update failed:',String(error?.message||error).slice(0,180));}
 }
 
 // ----------------------------------------------------------------------------
@@ -1471,81 +1436,77 @@ function gridDistance(a: ImageFeatures, b: ImageFeatures): number {
 }
 
 async function buildImageFeatureIndex(): Promise<void> {
-  try {
-    buildCatalogImageAliases();
-
-    // 1) Try loading cache (v2 multi-feature format)
-    if (fs.existsSync(IMAGE_HASH_CACHE_PATH)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(IMAGE_HASH_CACHE_PATH, 'utf8')) as {
-          version: number;
-          entries: Record<string, DualFeatures>;
-        };
-        if (cached && cached.version === FEATURE_CACHE_VERSION && cached.entries) {
-          for (const [file, feat] of Object.entries(cached.entries)) {
-            if (
-              feat?.raw && typeof feat.raw.dh === 'string' && feat.raw.dh.length === 64 && Array.isArray(feat.raw.col) &&
-              feat?.clean && typeof feat.clean.dh === 'string' && feat.clean.dh.length === 64 && Array.isArray(feat.clean.col)
-            ) {
-              IMAGE_FEATURE_INDEX.set(file, feat);
-              const norm = normalizeCatalogImageKey(file);
-              if (norm) IMAGE_FEATURE_INDEX.set(norm, feat);
-            }
-          }
-          for (const item of CATALOG_ITEMS) {
-            const norm = normalizeCatalogImageKey(item.image) || normalizeCatalogImageKey(item.code);
-            const feat = IMAGE_FEATURE_INDEX.get(norm);
-            if (feat) {
-              if (item.image) IMAGE_FEATURE_INDEX.set((item.image || '').trim(), feat);
-              if (item.code) IMAGE_FEATURE_INDEX.set((item.code || '').trim().toLowerCase(), feat);
-            }
-          }
-        }
-      } catch {
-        // corrupt cache -> rebuild below
-      }
-    }
-
-    // 2) Extract features for any catalog image missing from the index
-    let newlyHashed = 0;
-    for (const item of CATALOG_ITEMS) {
-      const file = (item.image || '').trim();
-      if (!file || IMAGE_FEATURE_INDEX.has(file)) continue;
-      const buf = await getCatalogImageBuffer(file);
-      if (!buf) continue;
-      try {
-        IMAGE_FEATURE_INDEX.set(file, await computeDualImageFeatures(buf));
-        newlyHashed++;
-      } catch {
-        // unreadable image -> skip
-      }
-    }
-
-    // 3) Persist cache if we extracted anything new
-    if (newlyHashed > 0) {
-      try {
-        fs.writeFileSync(
-          IMAGE_HASH_CACHE_PATH,
-          JSON.stringify({ version: FEATURE_CACHE_VERSION, entries: Object.fromEntries(IMAGE_FEATURE_INDEX) })
-        );
-      } catch {
-        // cache write failure is non-fatal
-      }
-    }
-
-    visualIndexReady = IMAGE_FEATURE_INDEX.size > 0;
-    console.log(
-      `[Server] Visual feature index ready: ${IMAGE_FEATURE_INDEX.size} catalog images` +
-        (newlyHashed > 0 ? ` (${newlyHashed} newly processed)` : ' (from cache)')
-    );
-  } catch (e: any) {
-    console.error('[Server] Visual feature index failed (visual search disabled):', e.message);
+ try {
+  if(!databaseEnabled())throw new Error('PostgreSQL required for visual hashes');
+  buildCatalogImageAliases();
+  const columns=['dh','ph','ah','eh','aspect','col','radial','hog','hu','grid'];
+  const select=['file_name',...['raw','clean'].flatMap(p=>columns.map(c=>p+'_'+c))].join(',');
+  const records=(await database().query('select '+select+' from public.catalog_image_features')).rows;
+  const fromRow=(row:any,p:string):ImageFeatures=>({
+   dh:row[p+'_dh'],ph:row[p+'_ph'],ah:row[p+'_ah'],eh:row[p+'_eh'],
+   aspect:row[p+'_aspect'],col:row[p+'_col']||[],radial:row[p+'_radial']||[],
+   hog:row[p+'_hog']||[],hu:row[p+'_hu']||[],grid:row[p+'_grid']||[]
+  });
+  for(const row of records){
+   if(!row.raw_dh || !row.clean_dh)continue;
+   const features={raw:fromRow(row,'raw'),clean:fromRow(row,'clean')};
+   IMAGE_FEATURE_INDEX.set(row.file_name,features);
+   const alias=normalizeCatalogImageKey(row.file_name);
+   if(alias)IMAGE_FEATURE_INDEX.set(alias,features);
   }
+  for(const item of CATALOG_ITEMS){
+   const match=IMAGE_FEATURE_INDEX.get(normalizeCatalogImageKey(item.image));
+   if(!match)continue;
+   if(item.image)IMAGE_FEATURE_INDEX.set(item.image.trim(),match);
+   if(item.code)IMAGE_FEATURE_INDEX.set(item.code.trim().toLowerCase(),match);
+  }
+  visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
+  console.log('[AI index] Loaded visual hashes from PostgreSQL:',records.length);
+  const missing=(await database().query(
+   `with photos as (
+     select distinct on(file_name) file_name,image_url from (
+       select file_name,image_url,0 as priority from public.catalog_image_audits
+       union all
+       select file_name,url as image_url,1 as priority from public.catalog_gallery_images
+     ) source order by file_name,priority
+    )
+    select a.file_name,a.image_url from photos a
+    left join public.catalog_image_features f on f.file_name=a.file_name
+    where f.raw_dh is null or f.clean_dh is null order by a.file_name limit 12`
+  )).rows;
+  for(const row of missing){
+   try {
+    const buffer=await getCatalogImageBuffer(row.image_url||row.file_name);
+    if(!buffer)continue;
+    const features=await computeDualImageFeatures(buffer);
+    const values:Record<string,unknown>={};
+    for(const prefix of ['raw','clean'] as const){
+     const source=features[prefix] as any;
+     for(const column of columns){
+      const v=source[column];
+      values[prefix+'_'+column]=['col','radial','hog','hu','grid'].includes(column)?JSON.stringify(v??[]):v??null;
+     }
+    }
+    const names=Object.keys(values);
+    const jsonFields=new Set(['col','radial','hog','hu','grid']);
+    const placeholders=names.map((col,i)=>'$'+(i+3)+(jsonFields.has(col.split('_').slice(1).join('_'))?'::jsonb':''));
+    const updates=names.map(col=>col+'=excluded.'+col).join(',');
+    await database().query(
+      `insert into public.catalog_image_features(file_name,image_url,${names.join(',')})
+       values($1,$2,${placeholders.join(',')})
+       on conflict(file_name) do update set ${updates},updated_at=now()`,
+      [row.file_name,row.image_url||null,...names.map(name=>values[name])]
+    );
+    IMAGE_FEATURE_INDEX.set(row.file_name,features);
+    const alias=normalizeCatalogImageKey(row.file_name);
+    if(alias)IMAGE_FEATURE_INDEX.set(alias,features);
+   }catch(error:any){console.warn('[AI index] Image hashing skipped:',row.file_name,String(error?.message||error).slice(0,90));}
+  }
+  visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
+ }catch(error:any){console.warn('[AI index] Database visual hash load/update failed:',String(error?.message||error).slice(0,180));}
 }
 
-// Build in background so server startup isn't blocked on first run
-void buildImageFeatureIndex();
-void buildImageEmbeddingIndex();
+// Initialize after authoritative database catalog hydration in start().
 
 function brandForCatalogItem(item: CatalogItem): string {
   const itemName = item.name.toLowerCase();
@@ -6504,14 +6465,28 @@ async function start() {
   assertProductionDatabaseConfig();
   if(databaseEnabled()){
     await database().query('select revision from app_private.portal_version');
+    const [pinRecords,timingRecords]=await Promise.all([
+      database().query('select sku,dim_2r_outer,dim_w,dim_h,dim_2r_inner,pdf_page,printed_page,drawing_pdf_page,source_sha256,is_conflict from public.owner_catalogue_pin_rows'),
+      database().query('select designation,reference_source,length_mm,teeth_count,pdf_page,source_page,is_conflict,source_url from public.timing_belt_reference_lengths')
+    ]);
+    installOwnerPinRows(pinRecords.rows);
+    installTimingReferenceRows(timingRecords.rows);
     const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
     installDatabaseProducts(products);
+    const [auditResult, photoResult] = await Promise.all([
+      database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
+      database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name')
+    ]);
+    if (!auditResult.rows.length) throw new Error('Image audits missing in PostgreSQL; refusing a static JSON fallback');
+    installCatalogImageMetadata(auditResult.rows,photoResult.rows);
     const saved=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
     CATALOG_OVERRIDES_CACHE=saved || {version:1,updatedAt:'',deletedCodes:[],families:{}};
     inventoryCodes.clear();for(const product of products)for(const variant of product.variants || [])inventoryCodes.add(variant.code);
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
+  void buildImageFeatureIndex();
+  void buildImageEmbeddingIndex();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

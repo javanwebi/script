@@ -1,3 +1,4 @@
+import './catalogFixtures';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {partMeasurements,measurementError,persianPartAnalysis,measurementText} from '../src/utils/partMeasurements';
 import {partDimensionMatch} from '../src/utils/partDimensionMatch';
