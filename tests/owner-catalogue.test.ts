@@ -2,13 +2,13 @@ import './catalogFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ownerPinDimensions } from '../src/data/ownerCatalogue';
-import pins from '../src/data/ownerCataloguePinTable.json';
-import photos from '../src/data/ownerCataloguePhotos.json';
+import pins from './fixtures/ownerCataloguePinTable.json';
+import photos from './fixtures/ownerCataloguePhotos.json';
 import review from '../docs/product-image-review.json';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, USER_PRODUCTS_BY_CODE } from '../src/data/userProducts';
-import source from '../src/data/catalogueSource.json';
+import source from './fixtures/catalogueSource.json';
 import { getImageAssignmentAudit } from '../src/data/imageAssignments';
-import research from '../src/data/imageResearch.json';
+import research from './fixtures/imageResearch.json';
 
 import { matchesCatalogCategory } from '../src/data/categories';
 import { enrichTechnicalVariant } from '../src/data/productTechnicalData';
