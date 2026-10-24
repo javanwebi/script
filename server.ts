@@ -6520,6 +6520,18 @@ async function start() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    // Source-controlled product assets bypass catalogue APIs and the database.
+    // Hashed WebP derivatives are immutable; numbered originals remain cacheable
+    // but revalidatable so unchanged source names are not cached forever.
+    app.use('/products/catalog',express.static(path.join(distPath,'products','catalog'),{
+      fallthrough:true,
+      setHeaders(res,fileName){
+        res.setHeader('X-Content-Type-Options','nosniff');
+        if(/\.[a-f0-9]{12}\.w(?:320|960)\.webp$/.test(fileName))
+          res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+        else res.setHeader('Cache-Control','public, max-age=86400');
+      }
+    }));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
