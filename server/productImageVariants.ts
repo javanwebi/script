@@ -17,7 +17,7 @@ export async function serveProductImage(req:Request,res:Response,source:string,r
    e=>{if(e&&!res.headersSent)res.status((e as any).status||404).end()});
  }
  const folder=path.join(root,'thumbs',String(width));
- const output=path.join(folder,path.basename(source).replace(/\.(png|jpe?g|webp)$/i,'')+'.webp');
+ const output=path.join(folder,path.basename(source)+'.webp');
  const imageHeaders={...headers,'Content-Type':'image/webp'};
  if(await fs.stat(output).then(s=>s.isFile()).catch(()=>false))
   return res.sendFile(output,{dotfiles:'deny',headers:imageHeaders},
@@ -58,7 +58,7 @@ export async function warmProductThumbs(files:string[],root:string){
  for(const file of files){
   const relative=path.relative(root,file);
   if(relative.startsWith('..')||path.isAbsolute(relative))continue;
-  const dest=path.join(root,'thumbs','420',path.basename(file).replace(/\.(png|jpe?g|webp)$/i,'')+'.webp');
+  const dest=path.join(root,'thumbs','420',path.basename(file)+'.webp');
   if(await fs.stat(dest).then(s=>s.isFile()).catch(()=>false))continue;
   try{
    const stat=await fs.statfs(root);
