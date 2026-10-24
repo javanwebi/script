@@ -610,7 +610,6 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 // dHash (difference hash). Resistant to resize/recompress/watermark shifts.
 // ============================================================================
 
-const IMAGE_HASH_CACHE_PATH = process.env.IMAGE_HASH_CACHE_PATH || path.join(process.cwd(), 'src', 'data', 'imageHashes.json');
 const GITHUB_CATALOG_IMAGES_REPO = 'https://raw.githubusercontent.com/javanweb/imagesatlas/main';
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
 const VISUAL_INDEX_NAMESPACE='catalog_visual_gemini_768';
@@ -1430,93 +1429,67 @@ function gridDistance(a: ImageFeatures, b: ImageFeatures): number {
 }
 
 async function buildImageFeatureIndex(): Promise<void> {
-  try {
-    buildCatalogImageAliases();
-    if(databaseEnabled()){
-      const rows=(await database().query(`select file_name,raw_dh,raw_ph,raw_ah,raw_eh,raw_aspect,raw_col,raw_radial,raw_hog,raw_hu,raw_grid,clean_dh,clean_ph,clean_ah,clean_eh,clean_aspect,clean_col,clean_radial,clean_hog,clean_hu,clean_grid from public.catalog_image_features`)).rows;
-      for(const row of rows){
-        if(!row.raw_dh || !row.clean_dh)continue;
-        const feature=(prefix:string):ImageFeatures=>({
-          dh:row[prefix+'_dh'],ph:row[prefix+'_ph'],ah:row[prefix+'_ah'],eh:row[prefix+'_eh'],
-          aspect:row[prefix+'_aspect'],col:row[prefix+'_col'] || [],radial:row[prefix+'_radial'] || [],
-          hog:row[prefix+'_hog'] || [],hu:row[prefix+'_hu'] || [],grid:row[prefix+'_grid'] || []
-        });
-        const pair={raw:feature('raw'),clean:feature('clean')};
-        IMAGE_FEATURE_INDEX.set(row.file_name,pair);
-        const alias=normalizeCatalogImageKey(row.file_name);
-        if(alias)IMAGE_FEATURE_INDEX.set(alias,pair);
-      }
-      visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
-      return;
-    }
-
-    // 1) Try loading cache (v2 multi-feature format)
-    if (fs.existsSync(IMAGE_HASH_CACHE_PATH)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(IMAGE_HASH_CACHE_PATH, 'utf8')) as {
-          version: number;
-          entries: Record<string, DualFeatures>;
-        };
-        if (cached && cached.version === FEATURE_CACHE_VERSION && cached.entries) {
-          for (const [file, feat] of Object.entries(cached.entries)) {
-            if (
-              feat?.raw && typeof feat.raw.dh === 'string' && feat.raw.dh.length === 64 && Array.isArray(feat.raw.col) &&
-              feat?.clean && typeof feat.clean.dh === 'string' && feat.clean.dh.length === 64 && Array.isArray(feat.clean.col)
-            ) {
-              IMAGE_FEATURE_INDEX.set(file, feat);
-              const norm = normalizeCatalogImageKey(file);
-              if (norm) IMAGE_FEATURE_INDEX.set(norm, feat);
-            }
-          }
-          for (const item of CATALOG_ITEMS) {
-            const norm = normalizeCatalogImageKey(item.image) || normalizeCatalogImageKey(item.code);
-            const feat = IMAGE_FEATURE_INDEX.get(norm);
-            if (feat) {
-              if (item.image) IMAGE_FEATURE_INDEX.set((item.image || '').trim(), feat);
-              if (item.code) IMAGE_FEATURE_INDEX.set((item.code || '').trim().toLowerCase(), feat);
-            }
-          }
-        }
-      } catch {
-        // corrupt cache -> rebuild below
-      }
-    }
-
-    // 2) Extract features for any catalog image missing from the index
-    let newlyHashed = 0;
-    for (const item of CATALOG_ITEMS) {
-      const file = (item.image || '').trim();
-      if (!file || IMAGE_FEATURE_INDEX.has(file)) continue;
-      const buf = await getCatalogImageBuffer(file);
-      if (!buf) continue;
-      try {
-        IMAGE_FEATURE_INDEX.set(file, await computeDualImageFeatures(buf));
-        newlyHashed++;
-      } catch {
-        // unreadable image -> skip
-      }
-    }
-
-    // 3) Persist cache if we extracted anything new
-    if (newlyHashed > 0) {
-      try {
-        fs.writeFileSync(
-          IMAGE_HASH_CACHE_PATH,
-          JSON.stringify({ version: FEATURE_CACHE_VERSION, entries: Object.fromEntries(IMAGE_FEATURE_INDEX) })
-        );
-      } catch {
-        // cache write failure is non-fatal
-      }
-    }
-
-    visualIndexReady = IMAGE_FEATURE_INDEX.size > 0;
-    console.log(
-      `[Server] Visual feature index ready: ${IMAGE_FEATURE_INDEX.size} catalog images` +
-        (newlyHashed > 0 ? ` (${newlyHashed} newly processed)` : ' (from cache)')
-    );
-  } catch (e: any) {
-    console.error('[Server] Visual feature index failed (visual search disabled):', e.message);
+ try {
+  if(!databaseEnabled())throw new Error('PostgreSQL required for visual hashes');
+  buildCatalogImageAliases();
+  const columns=['dh','ph','ah','eh','aspect','col','radial','hog','hu','grid'];
+  const select=['file_name',...['raw','clean'].flatMap(p=>columns.map(c=>p+'_'+c))].join(',');
+  const records=(await database().query('select '+select+' from public.catalog_image_features')).rows;
+  const fromRow=(row:any,p:string):ImageFeatures=>({
+   dh:row[p+'_dh'],ph:row[p+'_ph'],ah:row[p+'_ah'],eh:row[p+'_eh'],
+   aspect:row[p+'_aspect'],col:row[p+'_col']||[],radial:row[p+'_radial']||[],
+   hog:row[p+'_hog']||[],hu:row[p+'_hu']||[],grid:row[p+'_grid']||[]
+  });
+  for(const row of records){
+   if(!row.raw_dh || !row.clean_dh)continue;
+   const features={raw:fromRow(row,'raw'),clean:fromRow(row,'clean')};
+   IMAGE_FEATURE_INDEX.set(row.file_name,features);
+   const alias=normalizeCatalogImageKey(row.file_name);
+   if(alias)IMAGE_FEATURE_INDEX.set(alias,features);
   }
+  for(const item of CATALOG_ITEMS){
+   const match=IMAGE_FEATURE_INDEX.get(normalizeCatalogImageKey(item.image));
+   if(!match)continue;
+   if(item.image)IMAGE_FEATURE_INDEX.set(item.image.trim(),match);
+   if(item.code)IMAGE_FEATURE_INDEX.set(item.code.trim().toLowerCase(),match);
+  }
+  visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
+  console.log('[AI index] Loaded visual hashes from PostgreSQL:',records.length);
+  const missing=(await database().query(
+   `select a.file_name,a.image_url from public.catalog_image_audits a
+    left join public.catalog_image_features f on f.file_name=a.file_name
+    where f.raw_dh is null or f.clean_dh is null order by a.file_name limit 12`
+  )).rows;
+  for(const row of missing){
+   try {
+    const buffer=await getCatalogImageBuffer(row.image_url||row.file_name);
+    if(!buffer)continue;
+    const features=await computeDualImageFeatures(buffer);
+    const values:Record<string,unknown>={};
+    for(const prefix of ['raw','clean'] as const){
+     const source=features[prefix] as any;
+     for(const column of columns){
+      const v=source[column];
+      values[prefix+'_'+column]=['col','radial','hog','hu','grid'].includes(column)?JSON.stringify(v??[]):v??null;
+     }
+    }
+    const names=Object.keys(values);
+    const jsonFields=new Set(['col','radial','hog','hu','grid']);
+    const placeholders=names.map((col,i)=>'$'+(i+3)+(jsonFields.has(col.split('_').slice(1).join('_'))?'::jsonb':''));
+    const updates=names.map(col=>col+'=excluded.'+col).join(',');
+    await database().query(
+      `insert into public.catalog_image_features(file_name,image_url,${names.join(',')})
+       values($1,$2,${placeholders.join(',')})
+       on conflict(file_name) do update set ${updates},updated_at=now()`,
+      [row.file_name,row.image_url||null,...names.map(name=>values[name])]
+    );
+    IMAGE_FEATURE_INDEX.set(row.file_name,features);
+    const alias=normalizeCatalogImageKey(row.file_name);
+    if(alias)IMAGE_FEATURE_INDEX.set(alias,features);
+   }catch(error:any){console.warn('[AI index] Image hashing skipped:',row.file_name,String(error?.message||error).slice(0,90));}
+  }
+  visualIndexReady=IMAGE_FEATURE_INDEX.size>0;
+ }catch(error:any){console.warn('[AI index] Database visual hash load/update failed:',String(error?.message||error).slice(0,180));}
 }
 
 // Initialize after authoritative database catalog hydration in start().
