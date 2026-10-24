@@ -712,8 +712,6 @@ let visualIndexReady = false;
 // ─────────────────────────────────────────────────────────────────────────────
 const JINA_API_KEY = (process.env.JINA_API_KEY || '').trim();
 const JINA_EMB_MODEL = 'jina-embeddings-v5-omni-small';
-const IMAGE_EMB_CACHE_PATH = path.join(process.cwd(), 'src', 'data', 'imageEmbeddings.json');
-const IMAGE_EMB_CACHE_VERSION = 1;
 
 // filename -> number[] (1024 dims, normalized by Jina)
 const IMAGE_EMB_INDEX = new Map<string, number[]>();
@@ -868,93 +866,52 @@ async function jinaEmbedImages(buffers: Buffer[], task: 'retrieval.query' | 'ret
 // Load the catalog embedding cache; build it in the background when missing
 // and a Jina key is configured.
 async function buildImageEmbeddingIndex(): Promise<void> {
-  try {
-    if(databaseEnabled()){
-      const rows=(await database().query("select file_name,embedding::text as vector from public.catalog_image_features where embedding is not null")).rows;
-      for(const row of rows){
-        const values=String(row.vector || '').replace(/^\[/,'').replace(/\]$/,'').split(',').map(Number);
-        if(!values.length || values.some(v=>!Number.isFinite(v)))continue;
-        IMAGE_EMB_INDEX.set(row.file_name,values);
-        const alias=normalizeCatalogImageKey(row.file_name);
-        if(alias) IMAGE_EMB_INDEX.set(alias,values);
-      }
-      embIndexReady=IMAGE_EMB_INDEX.size>0;
-      return;
-    }
-    if (fs.existsSync(IMAGE_EMB_CACHE_PATH)) {
-      const cached = JSON.parse(fs.readFileSync(IMAGE_EMB_CACHE_PATH, 'utf8')) as {
-        version: number;
-        model: string;
-        entries: Record<string, number[]>;
-      };
-      if (cached && cached.version === IMAGE_EMB_CACHE_VERSION && cached.entries) {
-        for (const [img, emb] of Object.entries(cached.entries)) {
-          if (Array.isArray(emb) && emb.length === 1024) {
-            IMAGE_EMB_INDEX.set(img, emb);
-            const norm = normalizeCatalogImageKey(img);
-            if (norm) IMAGE_EMB_INDEX.set(norm, emb);
-          }
-        }
-        for (const item of CATALOG_ITEMS) {
-          const norm = normalizeCatalogImageKey(item.image) || normalizeCatalogImageKey(item.code);
-          const emb = IMAGE_EMB_INDEX.get(norm);
-          if (emb) {
-            if (item.image) IMAGE_EMB_INDEX.set((item.image || '').trim(), emb);
-            if (item.code) IMAGE_EMB_INDEX.set((item.code || '').trim().toLowerCase(), emb);
-          }
-        }
-      }
-    }
-    embIndexReady = IMAGE_EMB_INDEX.size > 0;
-    console.log(
-      `[Server] Jina embedding index: ${IMAGE_EMB_INDEX.size} catalog images` +
-        (JINA_API_KEY ? '' : ' (no JINA_API_KEY — query-side embeddings disabled)')
-    );
-
-    // Background build for any catalog image missing from the cache
-    if (JINA_API_KEY) {
-      const missing = CATALOG_ITEMS.filter(
-        it => (it.image || '').trim() && !IMAGE_EMB_INDEX.has((it.image || '').trim())
-      );
-      if (missing.length > 0) {
-        console.log(`[Server] Building Jina embeddings for ${missing.length} catalog images (background)...`);
-        (async () => {
-          try {
-            const files: string[] = [];
-            const bufs: Buffer[] = [];
-            for (const item of missing) {
-              const file = (item.image || '').trim();
-              const buf = await getCatalogImageBuffer(file);
-              if (!buf) continue;
-              bufs.push(buf);
-              files.push(file);
-            }
-            const embeddings = await jinaEmbedImages(bufs, 'retrieval.passage');
-            let built = 0;
-            for (let i = 0; i < files.length; i++) {
-              if (embeddings[i]) {
-                IMAGE_EMB_INDEX.set(files[i], embeddings[i] as number[]);
-                built++;
-              }
-            }
-            if (built > 0) {
-              embIndexReady = IMAGE_EMB_INDEX.size > 0;
-              fs.writeFileSync(
-                IMAGE_EMB_CACHE_PATH,
-                JSON.stringify({ version: IMAGE_EMB_CACHE_VERSION, model: JINA_EMB_MODEL, entries: Object.fromEntries(IMAGE_EMB_INDEX) })
-              );
-              console.log(`[Server] Jina embedding index updated: +${built} (total ${IMAGE_EMB_INDEX.size})`);
-            }
-          } catch (e: any) {
-            console.error('[Server] Jina embedding background build failed:', e?.message);
-          }
-        })();
-      }
-    }
-  } catch (e: any) {
-    console.error('[Server] Jina embedding index failed (channel disabled):', e?.message);
-    embIndexReady = false;
+ try {
+  if(!databaseEnabled())throw new Error('PostgreSQL required for image embeddings');
+  const saved=(await database().query(
+   'select file_name,embedding::text as vector from public.catalog_image_features where embedding is not null'
+  )).rows;
+  for(const row of saved){
+   const values=String(row.vector||'').replace(/^\\[/,'').replace(/\\]$/,'').split(',').map(Number);
+   if(values.length!==1024||values.some(v=>!Number.isFinite(v)))continue;
+   IMAGE_EMB_INDEX.set(row.file_name,values);
+   const alias=normalizeCatalogImageKey(row.file_name);
+   if(alias)IMAGE_EMB_INDEX.set(alias,values);
   }
+  for(const item of CATALOG_ITEMS){
+   const match=IMAGE_EMB_INDEX.get(normalizeCatalogImageKey(item.image));
+   if(!match)continue;
+   if(item.image)IMAGE_EMB_INDEX.set(item.image.trim(),match);
+   if(item.code)IMAGE_EMB_INDEX.set(item.code.trim().toLowerCase(),match);
+  }
+  embIndexReady=IMAGE_EMB_INDEX.size>0;
+  console.log('[AI index] Loaded Jina vectors from PostgreSQL:',saved.length);
+  if(!JINA_API_KEY)return;
+  const missing=(await database().query(
+   `select a.file_name,a.image_url from public.catalog_image_audits a
+    left join public.catalog_image_features f on f.file_name=a.file_name
+    where f.embedding is null order by a.file_name limit 10`
+  )).rows;
+  const files:string[]=[],buffers:Buffer[]=[];
+  for(const row of missing){
+   const buffer=await getCatalogImageBuffer(row.image_url||row.file_name);
+   if(buffer){files.push(row.file_name);buffers.push(buffer);}
+  }
+  if(!buffers.length)return;
+  const vectors=await jinaEmbedImages(buffers,'retrieval.passage');
+  for(let i=0;i<files.length;i++){
+   const v=vectors[i];if(!v||v.length!==1024||v.some(n=>!Number.isFinite(n)))continue;
+   await database().query(
+    `insert into public.catalog_image_features(file_name,embedding_model,embedding)
+     values($1,$2,$3::vector) on conflict(file_name) do update
+     set embedding_model=excluded.embedding_model,embedding=excluded.embedding,updated_at=now()`,
+    [files[i],JINA_EMB_MODEL,'['+v.join(',')+']']
+   );
+   IMAGE_EMB_INDEX.set(files[i],v);
+   const alias=normalizeCatalogImageKey(files[i]);if(alias)IMAGE_EMB_INDEX.set(alias,v);
+  }
+  embIndexReady=IMAGE_EMB_INDEX.size>0;
+ }catch(error:any){console.warn('[AI index] Database embedding load/update failed:',String(error?.message||error).slice(0,180));}
 }
 
 // ----------------------------------------------------------------------------
