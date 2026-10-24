@@ -1,5 +1,6 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
+import {startCatalogGithubPublisher} from './server/catalogGithubPublication';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -350,7 +351,7 @@ app.use('/api/catalog', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   void requirePortalAdmin(req, res, next);
 });
-registerProductImageStorage(app,async()=>{
+const reloadCatalogImageData=async()=>{
   const fresh=await readProducts();
   installDatabaseProducts(fresh);
   const latest=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
@@ -360,7 +361,8 @@ registerProductImageStorage(app,async()=>{
   // New admin uploads are also indexed without requiring the next deployment.
   void buildImageFeatureIndex();
   void buildImageEmbeddingIndex();
-});
+};
+registerProductImageStorage(app,reloadCatalogImageData);
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
   if(!authorized){const originalJson=res.json.bind(res);res.json=((body:any)=>originalJson(publicCatalog(body))) as typeof res.json;}
@@ -6531,6 +6533,13 @@ async function start() {
         else res.setHeader('Cache-Control','public, max-age=86400');
       }
     }));
+    app.use('/products/uploads',express.static(path.join(distPath,'products','uploads'),{
+      fallthrough:true,
+      setHeaders(res){
+        res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+        res.setHeader('X-Content-Type-Options','nosniff');
+      }
+    }));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -6547,6 +6556,8 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
+    // Opt-in only after reviewed outbox migration and private token configuration.
+    startCatalogGithubPublisher(reloadCatalogImageData);
     // Official images are bundled with the validated source build.
     // No automatic DB URL rewrite; the old Volume and links remain intact
     // until an approved, backed-up production migration is executed.
