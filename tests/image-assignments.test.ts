@@ -5,8 +5,8 @@ import { USER_PRODUCTS } from '../src/data/userProducts';
 import { getImageAssignmentAudit, imageFileName } from '../src/data/imageAssignments';
 import { INDUSTRIAL_PRESET_SAMPLES } from '../src/data/recognitionSamples';
 import review from '../docs/product-image-review.json';
-import research from '../src/data/imageResearch.json';
-import owner from '../src/data/ownerCataloguePhotos.json';
+import research from './fixtures/imageResearch.json';
+import owner from './fixtures/ownerCataloguePhotos.json';
 
 // Historical fixtures validate parity. Production UI fetches source records from PostgreSQL.
 const byResearch=new Map(research.items.map(item=>[item.file,item]));
