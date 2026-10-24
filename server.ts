@@ -357,6 +357,9 @@ registerProductImageStorage(app,async()=>{
   CATALOG_OVERRIDES_CACHE=latest || {version:1,updatedAt:'',deletedCodes:[],families:{}};
   invalidatePublicCatalogCache();
   refreshRecognitionCatalog();
+  // New admin uploads are also indexed without requiring the next deployment.
+  void buildImageFeatureIndex();
+  void buildImageEmbeddingIndex();
 });
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
