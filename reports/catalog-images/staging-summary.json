@@ -1,0 +1,22 @@
+{
+  "originalCount": 869,
+  "rawBytes": 248863215,
+  "thumbBytes": 7650506,
+  "mediumBytes": 27017004,
+  "generated": 869,
+  "unchanged": 0,
+  "liveVolume": {
+    "tested": 0,
+    "failed": 0,
+    "unverifiedVolume": 869,
+    "source": "https://sanatpish-production.up.railway.app/storage/products/catalog/",
+    "bytes": 0,
+    "latencyMs": {
+      "median": 0,
+      "p95": 0,
+      "max": 0
+    }
+  },
+  "exactHashMatches": 869,
+  "duplicateSha256": 0
+}
