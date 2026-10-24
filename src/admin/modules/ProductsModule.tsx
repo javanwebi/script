@@ -40,6 +40,7 @@ import {
 import { toPersianDigits } from '../../utils/formatters';
 import { getProductImageUrl, TOTAL_OFFICIAL_IMAGES_COUNT } from '../../assets/imagesproducts';
 import { ProductImage } from '../../components/product/ProductImage';
+import { uploadProductImage } from '../../services/productImageUpload';
 import { subscribeCatalogChanges, buildDefaultGalleryImages } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
 
@@ -254,6 +255,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [newImgVariantCode, setNewImgVariantCode] = useState('');
   const [newImgTitle, setNewImgTitle] = useState('');
   const [imageFormFeedback, setImageFormFeedback] = useState<string | null>(null);
+  const [productImageUploading, setProductImageUploading] = useState(false);
 
   // Image replacement / move to another family state
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
@@ -649,7 +651,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   // Helpers inside Editor for Images (Tab 3)
-  const handleAddImageToDraft = (urlToAdd: string, fileName?: string) => {
+  const handleAddImageToDraft = (urlToAdd: string, fileName?: string, persistedId?: string) => {
     if (!draftFamily || !urlToAdd.trim()) return;
     const resolvedUrl = getProductImageUrl(urlToAdd) || urlToAdd.trim();
     const targetVarCode = newImgScope === 'variant' ? newImgVariantCode : undefined;
@@ -659,7 +661,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     }
 
     const newImg: ProductGalleryImage = {
-      id: `img-${draftFamily.code}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: persistedId || `img-${draftFamily.code}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       url: resolvedUrl,
       fileName,
       scope: newImgScope,
@@ -683,24 +685,43 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     });
     setNewImgTitle('');
     setCustomImgUrl('');
-    setImageFormFeedback('تصویر به پیش‌نویس اضافه شد. برای ثبت نهایی، دکمه «ذخیره در پایگاه داده سایت» را بزنید.');
+    setImageFormFeedback(persistedId
+      ? 'تصویر در Storage سرور و پایگاه داده ذخیره شد؛ بدون نیاز به انتشار مجدد سایت.'
+      : 'تصویر به پیش‌نویس اضافه شد. برای ثبت نهایی، دکمه «ذخیره در پایگاه داده سایت» را بزنید.');
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, replaceId?: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '');
-      if (!dataUrl) return;
-      if (replaceId) {
-        handleReplaceImageInDraft(replaceId, dataUrl, file.name);
-        setReplacingImageId(null);
-      } else {
-        handleAddImageToDraft(dataUrl, file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, replaceId?: string) => {
+    const file=e.target.files?.[0];
+    e.target.value='';
+    if(!file||!draftFamily)return;
+    if(isCreatingNewFamily || !products.some(p=>p.code===draftFamily.code)){
+      setImageFormFeedback('برای تصویر جدید ابتدا خانواده را با دکمه «ذخیره در پایگاه داده سایت» ثبت کنید.');
+      return;
+    }
+    const prior=replaceId?(draftFamily.galleryImages||[]).find(g=>g.id===replaceId):undefined;
+    const variantCode=prior ? (prior.scope==='variant'?prior.variantCode:undefined) :
+      (newImgScope==='variant'?newImgVariantCode:undefined);
+    if((prior?.scope==='variant'||(!prior&&newImgScope==='variant'))&&!variantCode){
+      setImageFormFeedback('ابتدا کد دقیق SKU را انتخاب کنید.');
+      return;
+    }
+    setProductImageUploading(true);
+    setImageFormFeedback('در حال ذخیره تصویر روی هارد سرور و ثبت ارتباط در PostgreSQL…');
+    try{
+      const stored=await uploadProductImage(file,{
+        familyCode:draftFamily.code,
+        variantCode,
+        title:prior?.title||newImgTitle.trim()||file.name,
+        replaceId
+      });
+      if(replaceId){
+        handleReplaceImageInDraft(replaceId,stored.url,stored.fileName);
+        setImageFormFeedback('تصویر قبلی با تصویر ذخیره‌شده در Storage جایگزین شد و در دیتابیس ثبت شد.');
+      }else handleAddImageToDraft(stored.url,stored.fileName,stored.id);
+      setReplacingImageId(null);
+    }catch(error:any){
+      setImageFormFeedback(error.message||'ذخیره تصویر انجام نشد؛ فایل و دیتابیس تغییر نکردند.');
+    }finally{setProductImageUploading(false);}
   };
 
   const handleUpdateGalleryImage = (
@@ -844,7 +865,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             }],images:[...(previous.images||[]),url]};
           });
         }}
-        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
+        onEdit={(code,file,skuCode,imageUrl,imageTitle,persistedId)=>{
           const product=products.find(p=>p.code===code);if(!product)return;
           handleOpenEditFamily(product,skuCode?'variants':'images');
           if(skuCode){
@@ -862,7 +883,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
             if(gallery.some(image=>image.url===url))return previous;
             return {...previous,galleryImages:[...gallery,{
-              id:`review-${file}`,url,fileName:file,
+              id:persistedId||`review-${file}`,url,fileName:file,
               scope:skuCode?'variant':'family',variantCode:skuCode,
               identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
             }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
@@ -3074,8 +3095,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                         <label className="min-h-24 px-4 py-5 rounded-xl border-2 border-dashed border-slate-300 hover:border-[#E06518] bg-white text-[#55565A] flex flex-col items-center justify-center gap-2 cursor-pointer">
                           <Upload className="w-5 h-5 text-[#E06518]"/>
                           <span className="text-sm font-bold">انتخاب تصویر از دستگاه</span>
-                          <span className="text-[11px] text-slate-500">فرمت‌های رایج تصویر</span>
-                          <input type="file" accept="image/*" onChange={e => handleFileUpload(e)} className="hidden"/>
+                          <span className="text-[11px] text-slate-500">PNG، JPG، WebP تا ۸ مگابایت — ذخیره دائمی روی سرور</span>
+                          <input type="file" accept="image/png,image/jpeg,image/webp" disabled={productImageUploading} onChange={e => {void handleFileUpload(e)}} className="hidden"/>
                         </label>
                       )}
                       {newImgSourceType === 'url' && (
@@ -3159,7 +3180,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-end">
                                   <label className="block text-xs">شماره تصویر جدید کاتالوگ<input type="number" min={1} max={TOTAL_OFFICIAL_IMAGES_COUNT} value={replaceCatalogueNum} onChange={e=>setReplaceCatalogueNum(Math.max(1,parseInt(e.target.value)||1))} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"/></label>
                                   <button type="button" onClick={()=>handleReplaceImageInDraft(img.id,getProductImageUrl(`e(${replaceCatalogueNum}).png`),`e(${replaceCatalogueNum}).png`)} className="px-3 py-2 rounded-lg bg-[#E06518] text-white font-bold">جایگزینی از کاتالوگ</button>
-                                  <label className="px-3 py-2 rounded-lg bg-slate-800 text-white font-bold cursor-pointer text-center">بارگذاری فایل<input type="file" accept="image/*" onChange={e=>handleFileUpload(e,img.id)} className="hidden"/></label>
+                                  <label className="px-3 py-2 rounded-lg bg-slate-800 text-white font-bold cursor-pointer text-center">بارگذاری فایل<input type="file" accept="image/png,image/jpeg,image/webp" disabled={productImageUploading} onChange={e=>{void handleFileUpload(e,img.id)}} className="hidden"/></label>
                                 </div>
                               </div>
                             )}

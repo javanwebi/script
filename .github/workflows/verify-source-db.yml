@@ -26,6 +26,8 @@ jobs:
         run: npm run test:portal
       - name: Check private JSON archive maintenance CLI syntax
         run: node --check scripts/database/syncGithubJsonArchive.mjs
+      - name: Product image storage regressions
+        run: node --import tsx --test tests/product-image-storage.test.ts
       - name: Guard retired operational JSON
         run: node scripts/database/check-json-retirement.mjs
       - name: Catalog regression tests
