@@ -865,7 +865,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             }],images:[...(previous.images||[]),url]};
           });
         }}
-        onEdit={(code,file,skuCode,imageUrl,imageTitle)=>{
+        onEdit={(code,file,skuCode,imageUrl,imageTitle,persistedId)=>{
           const product=products.find(p=>p.code===code);if(!product)return;
           handleOpenEditFamily(product,skuCode?'variants':'images');
           if(skuCode){
@@ -883,7 +883,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
             if(gallery.some(image=>image.url===url))return previous;
             return {...previous,galleryImages:[...gallery,{
-              id:`review-${file}`,url,fileName:file,
+              id:persistedId||`review-${file}`,url,fileName:file,
               scope:skuCode?'variant':'family',variantCode:skuCode,
               identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
             }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
