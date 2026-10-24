@@ -58,7 +58,20 @@ export function clearPortalCache() {
   durableStorage.removeItem("atlas_admin_auth_v1");
   durableStorage.removeItem("hyper_sanat_registered_users_v2");
 }
-export async function hydratePortal() {
+// A shared hydration is sufficient for simultaneous page/admin mounts.
+// Without single-flight protection each caller issues /api/portal and /api/runtime,
+// multiplying the most expensive requests while data is unchanged.
+let hydrationInFlight: Promise<Awaited<ReturnType<typeof loadPortal>>> | null = null;
+export function hydratePortal() {
+  if (hydrationInFlight) return hydrationInFlight;
+  const request = loadPortal();
+  hydrationInFlight = request;
+  void request.finally(() => {
+    if (hydrationInFlight === request) hydrationInFlight = null;
+  }).catch(() => {});
+  return request;
+}
+async function loadPortal() {
   if (saving) await saving;
   if (saveError) throw saveError;
   const data = await portalRequest();
