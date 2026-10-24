@@ -74,5 +74,9 @@ jobs:
           git add public/products/catalog src/generated/catalogImageAssets.ts reports/catalog-images
           if ! git diff --cached --quiet; then
             git commit -m 'assets: stage verified 869 catalog PNG originals and 1738 responsive WebP copies'
+            # The PR branch may receive source-only fixes while optimization runs.
+            # Rebase without force; never overwrite independent commits.
+            git fetch origin feature/catalog-images-github-staging-20261024
+            git rebase origin/feature/catalog-images-github-staging-20261024
             git push origin HEAD:refs/heads/feature/catalog-images-github-staging-20261024
           fi
