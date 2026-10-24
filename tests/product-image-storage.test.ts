@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {prepareProductStorage,productStorageDirectory} from '../server/productImageStorage';
+import {prepareProductStorage,productStorageDirectory,registerProductImageStorage} from '../server/productImageStorage';
+import express from 'express';
+import type {AddressInfo} from 'node:net';
 import {getProductImageUrl} from '../src/assets/imagesproducts';
 import {IMAGE_IMPORT_SOURCES} from '../server/catalogImageVolumeMigration';
 import {officialImageFile} from '../src/services/catalogImageCorpus';
@@ -59,4 +61,24 @@ test('verified source is only the 869 original PNGs from imagesatlas',()=>{
  assert.equal(source.pattern.test('../e(1).png'),false);
  assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
  assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
+});
+
+
+test('public storage GET serves existing PNGs using exact numbered filenames',async()=>{
+ const app=express();
+ registerProductImageStorage(app,async()=>{});
+ const listener=app.listen(0,'127.0.0.1');
+ try{
+  const base='http://127.0.0.1:'+ (listener.address() as AddressInfo).port;
+  for(const n of [1,131,869]){
+   const res=await fetch(base+'/storage/products/catalog/e('+n+').png');
+   assert.equal(res.status,200,'original e('+n+').png should be publicly available');
+   assert.match(res.headers.get('content-type')||'',/image\/png/);
+   assert.ok((await res.arrayBuffer()).byteLength>100,'expected real stored image bytes');
+  }
+  const denied=await fetch(base+'/storage/products/catalog/e(870).png');
+  assert.equal(denied.status,404);
+ }finally{
+  await new Promise<void>((resolve,reject)=>listener.close(error=>error?reject(error):resolve()));
+ }
 });
