@@ -1,5 +1,5 @@
 import {adminReportsApi} from './server/db/adminReports';
-import {registerProductImageStorage,prepareProductStorage} from './server/productImageStorage';
+import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
