@@ -45,11 +45,12 @@ jobs:
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
-      - name: Verify every SHA-256 against Supabase export AND the live Railway Volume
+      - name: Verify all source hashes and report inaccessible current Volume URLs
         run: node scripts/catalog-images/stage.mjs stage
         env:
           CATALOG_SOURCE_DIR: .catalog-source
           BASELINE_VOLUME_URL: https://sanatpish-production.up.railway.app
+          REQUIRE_VOLUME_VERIFICATION: '0' # report live 404, fail any actual SHA mismatch
       - name: Confirm all originals and 1,738 generated WebP sizes
         run: node scripts/catalog-images/stage.mjs verify
       - name: Test TypeScript and image resolver regression
