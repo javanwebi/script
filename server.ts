@@ -961,7 +961,7 @@ function resolveCatalogImagePath(image?:string):string|null {
 }
 async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|null> {
   if(!image)return null;
-  const stored=/^\\/storage\\/products\\/([a-f0-9-]{36}\\.webp)$/.exec(image);
+  const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
     try{return await fs.promises.readFile(path.join(productStorageDirectory(),stored[1]));}
     catch{return null;}
