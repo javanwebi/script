@@ -1,0 +1,50 @@
+name: Vendor verified imagesatlas originals into script
+on:
+  push:
+    branches:
+      - feat/vendor-imagesatlas-to-script-20261024
+    paths:
+      - .github/workflows/vendor-imagesatlas.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: vendor-imagesatlas-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout the site source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Checkout immutable public source of 869 PNGs
+        uses: actions/checkout@v4
+        with:
+          repository: javanweb/imagesatlas
+          ref: 5bbaec971a05771939663d47803b5d5c2c624c6d
+          path: .image-source-imagesatlas
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Import original images and record per-image Git hashes
+        run: node scripts/vendor-imagesatlas.mjs
+      - name: Verify every imported image and reject incomplete imports
+        run: node scripts/verify-vendored-catalog.mjs
+      - name: Commit the 869 image files to THIS repository branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f storage/products/catalog
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat(images): vendor all 869 verified PNG assets from imagesatlas'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo 'All pinned assets already tracked; no new commit.'
+          fi
