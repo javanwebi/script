@@ -50,6 +50,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [sourceError,setSourceError]=useState('');
   const [title,setTitle]=useState('');
   const [category,setCategory]=useState('');
+  const [submenu,setSubmenu]=useState('');
   const [subcategory,setSubcategory]=useState('');
   const [familyCode,setFamilyCode]=useState('');
   const [familySearch,setFamilySearch]=useState('');
@@ -59,10 +60,17 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [mobileEditor,setMobileEditor]=useState(false);
   const selectedRow=audit.find(x=>x.file===file);
   const family=products.find(x=>x.code===familyCode);
-  const allFamilies=useMemo(()=>[...new Map(audit.flatMap(r=>r.families.map(f=>[f.code,f.name] as const))).entries()].sort((a,b)=>a[1].localeCompare(b[1],'fa')),[audit]);
-  const categoryNames=useMemo(()=>[...new Set([...categories.map(c=>c.name),...products.map(p=>p.categoryName)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,categories]);
-  const subcategories=useMemo(()=>[...new Set([...(categories.find(x=>x.name===category)?.subcategories||[]),...products.filter(x=>x.categoryName===category).map(x=>x.subcategory||'')].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,categories,category]);
-  const families=useMemo(()=>products.filter(p=>(!category||p.categoryName===category)&&(!subcategory||p.subcategory===subcategory)&&normalizeCatalogueText(p.code+' '+p.name+' '+(p.variants||[]).map(v=>v.code+' '+v.name).join(' ')).includes(normalizeCatalogueText(familySearch))).slice(0,100),[products,category,subcategory,familySearch]);
+  // All families must be selectable, even with no currently associated image.
+  // Hierarchy: categoryName -> submenu -> subcategory -> family (as on the site).
+  const allFamilies=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products]);
+  const categoryNames=useMemo(()=>[...new Set(products.map(p=>p.categoryName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products]);
+  const submenus=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category).map(p=>p.submenu).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category]);
+  const subcategories=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category&&(!submenu||p.submenu===submenu)).map(p=>p.subcategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category,submenu]);
+  const families=useMemo(()=>products.filter(p=>
+    (!category||p.categoryName===category)&&(!submenu||p.submenu===submenu)&&
+    (!subcategory||p.subcategory===subcategory)&&
+    normalizeCatalogueText(p.code+' '+p.name+' '+(p.variants||[]).map(v=>v.code+' '+v.name).join(' ')).includes(normalizeCatalogueText(familySearch))
+  ).sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products,category,submenu,subcategory,familySearch]);
   const filtered=useMemo(()=>audit.filter(r=>{
     if(filter!=='all'&&(filter==='catalogue-photo'?!r.ownerCatalogue:r.status!==filter))return false;
     if(familyFilter==='none'&&r.families.length)return false;
@@ -76,9 +84,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setTitle(found?.observed||'');
-    setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -147,7 +155,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         </div>
         {moreFilters&&<div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
           <label className="text-xs font-bold text-slate-600">خانواده محصول
-            <select value={familyFilter} onChange={e=>{setFamilyFilter(e.target.value);setPage(0)}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-2.5 font-normal"><option value="all">همه خانواده‌ها</option><option value="none">بدون خانواده</option>{allFamilies.map(([code,name])=><option key={code} value={code}>{name} — {code}</option>)}</select>
+            <select value={familyFilter} onChange={e=>{setFamilyFilter(e.target.value);setPage(0)}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-2.5 font-normal"><option value="all">همه خانواده‌ها</option><option value="none">بدون خانواده</option>{allFamilies.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
           </label>
           <div className="flex items-end justify-start"><button type="button" className="rounded-lg px-3 py-2 text-xs font-bold text-[#C65A16] hover:bg-white" onClick={()=>{setSearch('');setFilter('all');setFamilyFilter('all');setPage(0)}}>پاک‌کردن همه فیلترها</button></div>
         </div>}
@@ -227,14 +235,15 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۱. دسته‌بندی محصول</h4><button type="button" onClick={onCreateCategory} className="inline-flex items-center gap-1 rounded-lg border border-orange-200 px-2.5 py-2 text-[11px] font-bold text-[#C65A16]"><FolderPlus size={14}/> افزودن دسته / زیردسته</button></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="text-xs text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">انتخاب دسته</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-                  <label className="text-xs text-slate-600">زیردسته<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">انتخاب زیردسته</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubmenu('');setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">همه دسته‌ها</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">زیرمنو<select disabled={!category} value={submenu} onChange={e=>{setSubmenu(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">همه زیرمنوها</option>{submenus.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">زیرگروه / نوع فنی<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">همه زیرگروه‌ها</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
                 </div>
               </div>}
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{if(source==='upload'){setSourceError('ابتدا خانواده جدید را ثبت کنید؛ سپس فایل را در آن بارگذاری کنید.');return;}onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button></div>
                 <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full rounded-lg border border-slate-200 p-3 text-xs"/>
-                <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
+                <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select><p className="mt-1 text-[11px] text-slate-500">{fa(families.length)} خانواده مطابق فیلترهای انتخاب‌شده</p>
               </div>}
               {url&&family&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۳. محل اتصال تصویر</h4><button type="button" onClick={()=>{if(source==='upload'){setSourceError('ابتدا کد جدید را در خانواده ثبت کنید؛ سپس فایل را به آن متصل کنید.');return;}onCreateSku(family.code,file,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16]">+ افزودن کد کالا</button></div>
