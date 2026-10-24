@@ -52,9 +52,11 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   // Original images are checked into the site source, so they remain available
   // even if the Railway volume is replaced; new uploads still use the volume.
   const vendoredRoot=path.join(process.cwd(),'storage','products','catalog');
-  const onVolume=await fs.stat(path.join(persistentRoot,file))
-    .then(info=>info.isFile()).catch(()=>false);
-  const from=onVolume?persistentRoot:vendoredRoot;
+  // Production is volume-first and volume-only: do not mask missing persistent
+  // files by serving a copy from the Git checkout.
+  const from=process.env.NODE_ENV==='production'?persistentRoot:
+    await fs.stat(path.join(persistentRoot,file)).then(info=>info.isFile()).catch(()=>false)
+      ?persistentRoot:vendoredRoot;
   return res.sendFile(file,{root:from,dotfiles:'deny',
    headers:{'Cache-Control':'public, max-age=2592000, immutable',
     'Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
@@ -92,7 +94,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
     let pending=thumbnailsInFlight.get(name);
     if(!pending){
      pending=(async()=>{
-      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||vendored;
+      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||
+        (process.env.NODE_ENV==='production'?onVolume:vendored);
       if(!(await fs.stat(src).then(s=>s.isFile()).catch(()=>false)))
        throw Object.assign(new Error('Image not found'),{status:404});
       await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o750});
@@ -159,7 +162,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
     throw fail(400,'فرمت یا ابعاد تصویر معتبر نیست.');
    const optimized=await sharp(raw,{limitInputPixels:MAX_PIXELS})
      .rotate().resize({width:1800,height:1800,fit:'inside',withoutEnlargement:true})
-     .webp({quality:82,effort:2}).toBuffer();
+     .webp({quality:80,effort:1}).toBuffer();
    const dir=await prepareProductStorage();
    const id=crypto.randomUUID();
    const name=id+'.webp';
@@ -229,6 +232,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    invalidatePublicCatalogCache();
    res.setHeader('Cache-Control','no-store');
    res.status(201).json({success:true,image:gallery});
+   console.log('[Product storage] Saved WebP on persistent volume and linked PostgreSQL:',
+     gallery.fileName,variantCode?'sku':'family');
    void onCatalogUpdated().catch(error=>console.warn('[Product storage] Image saved; async index refresh failed:',(error as Error)?.name||'unknown'));
    return;
   }catch(error:any){
