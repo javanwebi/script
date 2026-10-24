@@ -13,18 +13,32 @@ export function installCatalogImageMetadata(rows:ImageAuditMetadata[],photos:Own
   headings=new Map(photos.filter(p=>p.catalogue_group).map(p=>[p.file_name,p.catalogue_group!]));
 }
 export function officialImageFile(value:string): string | undefined {
- try{
+ try {
   const text=decodeURIComponent(value.trim());
-  if(/^https?:/i.test(text)){
-   const url=new URL(text);
-   const allowed=url.protocol==='https:' && (
-    (url.hostname==='raw.githubusercontent.com' && /^\\/javanweb\\/imagesatlas\\/(?:main|[a-f0-9]{40})\\/e\\([1-9]\\d{0,3}\\)\\.png$/.test(url.pathname)) ||
-    (url.hostname==='cdn.jsdelivr.net' && /^\\/gh\\/javanweb\\/imagesatlas@(?:main|[a-f0-9]{40})\\/e\\([1-9]\\d{0,3}\\)\\.png$/.test(url.pathname))
-   );
-   if(!allowed)return;
-  }else if(!/^e\\(\\d+\\)\\.png$/i.test(text) && !/^\\/storage\\/products\\/catalog\\/e\\(\\d+\\)\\.png$/i.test(text))return;
-  const n=Number(text.match(/e\\((\\d+)\\)\\.png(?:$|[?#])/i)?.[1]);
-  if(Number.isInteger(n)&&n>=1&&n<=869)return `e(${n}).png`;
+  let name='';
+  if(/^https?:/i.test(text)) {
+   const u=new URL(text);
+   if(u.protocol!=='https:' || u.username || u.password)return;
+   const parts=u.pathname.split('/').filter(Boolean);
+   const raw=u.hostname==='raw.githubusercontent.com'
+     && parts.length===4 && parts[0]==='javanweb' && parts[1]==='imagesatlas'
+     && (parts[2]==='main'||/^[a-f0-9]{40}$/.test(parts[2]));
+   const cdn=u.hostname==='cdn.jsdelivr.net'
+     && parts.length===4 && parts[0]==='gh' && parts[1]==='javanweb'
+     && /^(imagesatlas@main|imagesatlas@[a-f0-9]{40})$/.test(parts[2]);
+   // CDN path must be: gh/javanweb/imagesatlas@COMMIT/FILE.
+   // Raw GitHub path must be: javanweb/imagesatlas/COMMIT/FILE.
+   if(!raw && !cdn)return;
+   name=parts[3];
+  } else if(text.startsWith('/storage/products/catalog/')){
+   name=text.slice('/storage/products/catalog/'.length);
+  } else {
+   name=text;
+  }
+  const found=/^e\(([1-9]\d{0,3})\)\.png$/.exec(name);
+  if(!found)return;
+  const n=Number(found[1]);
+  if(n>=1&&n<=869)return `e(${n}).png`;
  }catch{/* invalid URL */}
 }
 
