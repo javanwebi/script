@@ -84,11 +84,10 @@ async function deleteUncommittedGithubImage(name:string,sha:string):Promise<void
 
 export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Promise<void>){
  const root=productStorageDirectory();
- // The original 869 catalogue assets are publicly served from the mounted
- // volume. The URL never discloses a filesystem path.
+ // Legacy official-image paths permanently redirect to the external, pinned CDN.
  app.get('/storage/products/catalog/:file',(req,res)=>{
   const file=String(req.params.file||'');
-  const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
+  const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
   return res.redirect(301,'https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@5bbaec971a05771939663d47803b5d5c2c624c6d/'+encodeURIComponent(file));
  });
@@ -158,7 +157,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
        if(!images.includes(url))images.push(url);
        return images;
      };
-     // Verify the volume write before recording the URL, inside the same transaction.
+     // The GitHub upload is already confirmed (or legacy volume file is staged) before updating the DB.
      if(temp){await fs.rename(temp,dest);temp='';}
      if(old){
        await client.query(`update public.catalog_gallery_images set url=$2,file_name=$3,variant_code=$4,scope=$5,title=$6,identity_verified=false,updated_at=now() where id=$1`,
