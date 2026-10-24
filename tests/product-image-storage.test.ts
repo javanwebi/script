@@ -82,7 +82,14 @@ test('public storage GET serves existing PNGs using exact numbered filenames',as
    const res=await fetch(base+'/storage/products/catalog/e('+n+').png');
    assert.equal(res.status,200,'original e('+n+').png should be publicly available');
    assert.match(res.headers.get('content-type')||'',/image\/png/);
-   assert.ok((await res.arrayBuffer()).byteLength>100,'expected real stored image bytes');
+   const originalBytes=(await res.arrayBuffer()).byteLength;
+   assert.ok(originalBytes>100,'expected real stored image bytes');
+   const thumb=await fetch(base+'/storage/products/thumbs/e('+n+').webp');
+   assert.equal(thumb.status,200,'image thumbnail should be served from the same storage');
+   assert.match(thumb.headers.get('content-type')||'',/image\/webp/);
+   const bytes=(await thumb.arrayBuffer()).byteLength;
+   assert.ok(bytes>100 && bytes<originalBytes,'thumb should be smaller than original PNG');
+
   }
   const denied=await fetch(base+'/storage/products/catalog/e(870).png');
   assert.equal(denied.status,404);
