@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Product } from '../types';
+import {getProductImageUrl} from '../assets/imagesproducts';
 
 export interface ImageBinding { familyCode:string; code?:string; verified:boolean; }
 export interface CatalogImageRecord {id:string;url:string;label:string;revision:string;bindings:ImageBinding[];}
@@ -12,23 +13,28 @@ export function installCatalogImageMetadata(rows:ImageAuditMetadata[],photos:Own
   headings=new Map(photos.filter(p=>p.catalogue_group).map(p=>[p.file_name,p.catalogue_group!]));
 }
 export function officialImageFile(value:string): string | undefined {
-  try {
-    const text=decodeURIComponent(value.trim());
-    if (/^https?:/i.test(text)) {
-      const url=new URL(text);
-      if (!(url.hostname==='raw.githubusercontent.com' && url.pathname.startsWith('/javanweb/imagesatlas/main/')) &&
-          !(url.hostname==='cdn.jsdelivr.net' && url.pathname.startsWith('/gh/javanweb/imagesatlas@main/'))) return;
-    } else if (!/^e\(\d+\)\.png$/i.test(text) && !/^\/storage\/products\/catalog\/e\(\d+\)\.png$/i.test(text)) return;
-    const n=Number(text.match(/e\((\d+)\)\.png(?:$|[?#])/i)?.[1]);
-    if(Number.isInteger(n) && n>=1 && n<=869)return `e(${n}).png`;
-  } catch { /* invalid URL is not an official asset */ }
+ try{
+  const text=decodeURIComponent(value.trim());
+  if(/^https?:/i.test(text)){
+   const url=new URL(text);
+   const allowed=url.protocol==='https:' && (
+    (url.hostname==='raw.githubusercontent.com' && /^\\/javanweb\\/imagesatlas\\/(?:main|[a-f0-9]{40})\\/e\\([1-9]\\d{0,3}\\)\\.png$/.test(url.pathname)) ||
+    (url.hostname==='cdn.jsdelivr.net' && /^\\/gh\\/javanweb\\/imagesatlas@(?:main|[a-f0-9]{40})\\/e\\([1-9]\\d{0,3}\\)\\.png$/.test(url.pathname))
+   );
+   if(!allowed)return;
+  }else if(!/^e\\(\\d+\\)\\.png$/i.test(text) && !/^\\/storage\\/products\\/catalog\\/e\\(\\d+\\)\\.png$/i.test(text))return;
+  const n=Number(text.match(/e\\((\\d+)\\)\\.png(?:$|[?#])/i)?.[1]);
+  if(Number.isInteger(n)&&n>=1&&n<=869)return `e(${n}).png`;
+ }catch{/* invalid URL */}
 }
+
 /** The corpus includes all 869 photos, including photos with no SKU association. */
 export function buildCatalogImageCorpus(products:Product[], revision=''):CatalogImageRecord[] {
   const images=new Map<string,CatalogImageRecord>();
-  for(const item of audits) images.set(item.file_name,{id:item.file_name,url:item.image_url || `https://raw.githubusercontent.com/javanweb/imagesatlas/main/${item.file_name}`,
+  for(const item of audits) images.set(item.file_name,{id:item.file_name,url:getProductImageUrl(item.image_url || item.file_name),
     label:headings.get(item.file_name) || item.observed_description || item.file_name,revision:item.sha256 || revision,bindings:[]});
-  const add=(url:string,binding:ImageBinding,label:string)=>{
+  const add=(rawUrl:string,binding:ImageBinding,label:string)=>{
+    const url=getProductImageUrl(rawUrl);
     if(!url || /^blob:/i.test(url))return;
     const key=officialImageFile(url) || `upload-${createHash('sha256').update(url).digest('hex').slice(0,24)}`;
     let image=images.get(key);
