@@ -1,0 +1,77 @@
+name: Stage 869 original product photos in GitHub (never production)
+on:
+  push:
+    branches:
+      - feature/catalog-images-github-staging-20261024
+    paths:
+      - .github/workflows/stage-official-product-images.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stage-catalog-assets
+  cancel-in-progress: false
+jobs:
+  stage:
+    if: github.ref == 'refs/heads/feature/catalog-images-github-staging-20261024'
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned project dependencies
+        run: npm ci
+      - name: Download pinned 869-file source Git commit (never use floating main)
+        shell: bash
+        run: |
+          git init -q .catalog-source
+          git -C .catalog-source remote add origin https://github.com/javanweb/imagesatlas.git
+          git -C .catalog-source fetch --depth=1 origin 5bbaec971a05771939663d47803b5d5c2c624c6d
+          git -C .catalog-source checkout -q --detach FETCH_HEAD
+          test "$(find .catalog-source -maxdepth 1 -type f -name 'e(*).png' | wc -l)" -eq 869
+      - name: Back up exact original PNGs before changes (independent GitHub artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-source-originals-pinned-20261024
+          path: |
+            .catalog-source/*.png
+            scripts/catalog-images/official-source-checksums.json
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - name: Verify every SHA-256 against Supabase export AND the live Railway Volume
+        run: node scripts/catalog-images/stage.mjs stage
+        env:
+          CATALOG_SOURCE_DIR: .catalog-source
+          BASELINE_VOLUME_URL: https://sanatpish-production.up.railway.app
+      - name: Confirm all originals and 1,738 generated WebP sizes
+        run: node scripts/catalog-images/stage.mjs verify
+      - name: Test TypeScript and image resolver regression
+        run: |
+          npm run lint
+          node --import tsx --test tests/catalog-static-image-routes.test.ts tests/product-image-storage.test.ts
+      - name: Build the actual static production output on staging
+        run: npm run build
+      - name: Validate every original PNG and responsive asset in dist/
+        run: VERIFY_DIST=1 node scripts/catalog-images/stage.mjs verify
+      - name: Check build output and report asset sizes
+        run: |
+          test "$(find dist/products/catalog -maxdepth 1 -type f -name 'e(*).png' | wc -l)" -eq 869
+          test "$(find dist/products/catalog/optimized -maxdepth 1 -type f -name '*.webp' | wc -l)" -eq 1738
+          du -sh dist/products/catalog
+      - name: Commit verified 869 originals plus optimized copies to STAGING BRANCH ONLY
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/products/catalog src/generated/catalogImageAssets.ts reports/catalog-images
+          if ! git diff --cached --quiet; then
+            git commit -m 'assets: stage verified 869 catalog PNG originals and 1738 responsive WebP copies'
+            git push origin HEAD:refs/heads/feature/catalog-images-github-staging-20261024
+          fi
