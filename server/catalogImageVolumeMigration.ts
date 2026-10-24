@@ -20,8 +20,12 @@ export type ImageImportSource={
 };
 export const IMAGE_IMPORT_SOURCES:ImageImportSource[]=[
  {repo:'javanweb/imagesatlas',commit:'5bbaec971a05771939663d47803b5d5c2c624c6d',target:'catalog',count:869,pattern:/^e\([1-9]\d{0,3}\)\.png$/},
+ // javanweb/IMAGE contains 725 JPEGs (e(131).jpg–e(856).jpg, no e(695).jpg), NOT the official 869 PNGs.
+ // Store them separately without overwriting verified PNG-to-SKU bindings.
+ {repo:'javanweb/IMAGE',commit:'5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6',target:'legacy-jpg',count:725,pattern:/^images\/e\([1-9]\d{0,3}\)\.jpg$/},
 ];
 const reserveBytes=48*1024*1024;
+const legacyReserveBytes=24*1024*1024; // Leave room for pending admin uploads on the current 500 MB volume.
 const sourcePrefix='https://raw.githubusercontent.com/javanweb/imagesatlas/main/';
 const cdnPrefix='https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@main/';
 const destinationPrefix='/storage/products/catalog/';
@@ -136,10 +140,22 @@ async function ensureSource(source:ImageImportSource,root:string){
  const available=stat.bavail*stat.bsize;
  console.log('[Product images] Existing originals recovered from cache:',reused,
    'need MB:',Math.ceil(needed/1048576),'free MB:',Math.floor(available/1048576));
- if(needed && available<needed+reserveBytes){
+ const safetyBytes=source.target==='legacy-jpg'?legacyReserveBytes:reserveBytes;
+ if(needed && available<needed+safetyBytes){
    throw new Error('Insufficient persistent-volume capacity after cache reuse; need='+
-    Math.ceil((needed+reserveBytes)/1048576)+'MB free='+
+    Math.ceil((needed+safetyBytes)/1048576)+'MB free='+
     Math.floor(available/1048576)+'MB');
+ }
+ // Clone the pinned IMAGE repository in a single streaming archive (725 HTTPS
+ // requests would be slow). Extraction stays inside /data/storage/products/legacy-jpg.
+ // Verify every resulting Git blob before advertising any of these paths.
+ if(source.target==='legacy-jpg' && missing.length){
+  console.log('[Product images] Streaming 725 legacy JPEG originals from pinned javanweb/IMAGE commit');
+  await extractPinnedArchive(source,destination);
+  if(!await verified(files,destination))
+   throw new Error('Legacy JPEG import failed SHA-1 validation; catalog PNG bindings remain unchanged');
+  console.log('[Product images] Verified all legacy JPEGs on mounted Storage:',files.length);
+  return files;
  }
  // Download missing blobs individually to avoid a tar extraction overwriting
  // previously verified hardlinked files or creating duplicate volume content.
