@@ -1,4 +1,5 @@
 import {adminReportsApi} from './server/db/adminReports';
+import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -348,6 +349,11 @@ app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
 app.use('/api/catalog', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   void requirePortalAdmin(req, res, next);
+});
+registerProductImageStorage(app,async()=>{
+  const fresh=await readProducts();
+  installDatabaseProducts(fresh);
+  refreshRecognitionCatalog();
 });
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
@@ -955,6 +961,11 @@ function resolveCatalogImagePath(image?:string):string|null {
 }
 async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|null> {
   if(!image)return null;
+  const stored=/^\\/storage\\/products\\/([a-f0-9-]{36}\\.webp)$/.exec(image);
+  if(stored){
+    try{return await fs.promises.readFile(path.join(productStorageDirectory(),stored[1]));}
+    catch{return null;}
+  }
   const official=officialImageFile(image);
   const filename=official || crypto.createHash('sha256').update(image+revision).digest('hex')+'.image';
   const cachedPath=path.join(CATALOG_IMAGES_CACHE_DIR,filename);
@@ -6460,6 +6471,7 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 
 // Vite middleware setup
 async function start() {
+  await prepareProductStorage();
   // The UI and static assets are bundled from src/. Customer, order, inventory
   // and price state must never silently fall back to local files in production.
   assertProductionDatabaseConfig();
