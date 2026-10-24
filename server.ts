@@ -1,6 +1,5 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
-import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -17,6 +16,7 @@ import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
 import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile, installCatalogImageMetadata } from './src/services/catalogImageCorpus';
+import {getProductImageUrl} from './src/assets/imagesproducts';
 import { installOwnerPinRows } from './src/data/ownerCatalogue';
 import { installTimingReferenceRows } from './src/data/imperialTimingReference';
 import { scanEveryCatalogImage, type ScanProgress } from './src/services/exhaustiveImageScan';
@@ -968,11 +968,7 @@ function resolveCatalogImagePath(image?:string):string|null {
 }
 async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|null> {
   if(!image)return null;
-  const catalogFile=officialImageFile(image);
-  if(catalogFile){
-    try{return await fs.promises.readFile(path.join(productStorageDirectory(),'catalog',catalogFile));}
-    catch{ /* Original URL remains valid while one-time import runs. */ }
-  }
+  // Official catalog images are fetched from their immutable CDN URL, never the Railway volume.
   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
     try{return await fs.promises.readFile(path.join(productStorageDirectory(),stored[1]));}
@@ -993,7 +989,7 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
       const file=path.resolve(process.cwd(),image.startsWith('/src/') ? image.slice(1) : 'dist'+image);
       if(file.startsWith(base+path.sep) && fs.existsSync(file))buffer=fs.readFileSync(file);
     } else {
-      const url=official ? new URL(`${GITHUB_CATALOG_IMAGES_REPO}/${encodeURIComponent(official)}`) : new URL(image);
+      const url=official ? new URL(getProductImageUrl(image)) : new URL(image);
       if(url.protocol!=='https:' || url.username || url.password)return null;
       if(!official){
         const addresses=await lookup(url.hostname,{all:true});
@@ -6536,19 +6532,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    // Non-destructive background import: verify every source Git blob first,
-    // then atomically switch PostgreSQL image links to volume-local URLs.
-    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
-      const [images,photos,products]=await Promise.all([
-        database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
-        database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
-        readProducts()
-      ]);
-      installCatalogImageMetadata(images.rows,photos.rows);
-      installDatabaseProducts(products);
-      refreshRecognitionCatalog();
-      invalidatePublicCatalogCache();
-    });
+    // PostgreSQL image URLs are canonical; never re-import or rewrite them to the server volume.
   });
 }
 
