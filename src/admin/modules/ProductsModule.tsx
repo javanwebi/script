@@ -68,6 +68,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   useEffect(() => {
     return subscribeCatalogChanges(() => {
       setProducts(adminService.getProducts());
+      setCategories(adminService.getCategories());
     });
   }, []);
 
