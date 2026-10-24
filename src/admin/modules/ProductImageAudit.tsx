@@ -165,7 +165,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
           {visible.map(row=><article key={row.file} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-[#E8B995] hover:shadow-sm">
             <div className="flex h-40 items-center justify-center bg-white p-4 sm:h-44">
-              <ProductImage src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="h-full w-full object-contain"/>
+              <ProductImage thumbnail loading="lazy" decoding="async" src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="h-full w-full object-contain"/>
             </div>
             <div className="flex flex-1 flex-col gap-3 border-t border-slate-100 p-3.5 sm:p-4">
               <div className="flex items-start justify-between gap-2">
