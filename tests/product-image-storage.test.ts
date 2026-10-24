@@ -75,6 +75,7 @@ test('public storage GET serves existing PNGs using exact numbered filenames',as
  const app=express();
  registerProductImageStorage(app,async()=>{});
  const listener=app.listen(0,'127.0.0.1');
+ await new Promise<void>((resolve,reject)=>{if(listener.listening)return resolve();listener.once('listening',resolve);listener.once('error',reject);});
  try{
   const base='http://127.0.0.1:'+ (listener.address() as AddressInfo).port;
   for(const n of [1,131,869]){
