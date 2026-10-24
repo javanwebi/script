@@ -38,7 +38,7 @@ jobs:
       - name: Verify the 869 originals and original byte total before independent backup
         run: |
           count="$(find .catalog-source -maxdepth 1 -type f -name '*.png' | wc -l)"
-          bytes="$(find .catalog-source -maxdepth 1 -type f -name '*.png' -printf '%s\\n' | awk '{sum+=$1} END {printf "%.0f", sum}')"
+          bytes="$(find .catalog-source -maxdepth 1 -type f -name '*.png' -printf '%s\n' | awk '{sum+=$1} END {printf "%.0f", sum}')"
           test "$count" -eq 869 && test "$bytes" -eq 248863215
       - name: Back up exact original PNGs before changes (independent GitHub artifact)
         uses: actions/upload-artifact@v4
