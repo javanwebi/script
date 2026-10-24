@@ -470,29 +470,7 @@ interface CatalogOverridesDb {
 let CATALOG_OVERRIDES_CACHE: CatalogOverridesDb | null = null;
 
 function loadCatalogOverridesDb(): CatalogOverridesDb {
-  if (CATALOG_OVERRIDES_CACHE) return CATALOG_OVERRIDES_CACHE;
-  if(databaseEnabled())throw new Error("Database catalogue has not been initialized; local fallback is disabled");
-  try {
-    if (fs.existsSync(CATALOG_OVERRIDES_DB_PATH)) {
-      const raw = fs.readFileSync(CATALOG_OVERRIDES_DB_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      CATALOG_OVERRIDES_CACHE = {
-        version: parsed.version || 1,
-        updatedAt: parsed.updatedAt || new Date().toISOString(),
-        deletedCodes: Array.isArray(parsed.deletedCodes) ? parsed.deletedCodes : [],
-        families: parsed.families && typeof parsed.families === 'object' ? parsed.families : {},
-      };
-      return CATALOG_OVERRIDES_CACHE;
-    }
-  } catch (err) {
-    console.warn('[CatalogOverridesDB] Error reading database file:', err);
-  }
-  CATALOG_OVERRIDES_CACHE = {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    deletedCodes: [],
-    families: {},
-  };
+  if (!databaseEnabled() || !CATALOG_OVERRIDES_CACHE) throw new Error('PostgreSQL catalog state is not hydrated');
   return CATALOG_OVERRIDES_CACHE;
 }
 
