@@ -19,8 +19,8 @@ export function officialImageFile(value:string): string | undefined {
       const url=new URL(text);
       if (!(url.hostname==='raw.githubusercontent.com' && url.pathname.startsWith('/javanweb/imagesatlas/main/')) &&
           !(url.hostname==='cdn.jsdelivr.net' && url.pathname.startsWith('/gh/javanweb/imagesatlas@main/'))) return;
-    } else if (!/^e\(\d+\)\.png$/i.test(text) && !/^\/storage\/products\/catalog\/e\(\d+\)\.png$/i.test(text)) return;
-    const n=Number(text.match(/e\((\d+)\)\.png(?:$|[?#])/i)?.[1]);
+    } else if (!/^e\(\d+\)\.(?:png|jpg)$/i.test(text) && !/^\/storage\/products\/catalog\/e\(\d+\)\.(?:png|jpg)$/i.test(text)) return;
+    const n=Number(text.match(/e\((\d+)\)\.(?:png|jpg)(?:$|[?#])/i)?.[1]);
     if(Number.isInteger(n) && n>=1 && n<=869)return `e(${n}).png`;
   } catch { /* invalid URL is not an official asset */ }
 }

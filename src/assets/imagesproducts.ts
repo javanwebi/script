@@ -38,12 +38,23 @@ export function getProductImageUrl(imageName?:string|null):string {
  const input=imageName.trim();
  // Server-uploaded images are also on the same persistent mounted Volume.
  if(/^\/storage\/products\/[a-f0-9-]{36}\.webp$/.test(input))return input;
- const local=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
+ const local=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.(?:png|jpg))$/.exec(input);
  if(local)return normalizeImageFileName(local[1])?input:'';
  // Normalize historical GitHub links; they must not reach the browser once migrated.
  const historical=oldGithubOfficialFile(input);
  if(historical)return `${PERSISTENT_CATALOG_IMAGE_BASE}/${historical}`;
+ // User-supplied IMAGE JPEG revisions are also served only from local Volume URLs.
+ try {
+  const uri=new URL(input);
+  if(uri.protocol==='https:' && uri.hostname==='raw.githubusercontent.com' &&
+     /^\/javanweb\/IMAGE\/(?:main|[a-f0-9]{40})\/images\/e\([1-9]\d{0,3}\)\.jpg$/.test(decodeURIComponent(uri.pathname))) {
+    const file=decodeURIComponent(uri.pathname).split('/').pop()!;
+    return normalizeImageFileName(file)?PERSISTENT_CATALOG_IMAGE_BASE+'/'+file:'';
+  }
+ } catch {}
  if(/^(https?:|data:|blob:)/i.test(input))return input;
+ const jpg=/^e\(([1-9]\d{0,3})\)\.jpg$/.exec(input);
+ if(jpg && Number(jpg[1])<=869)return PERSISTENT_CATALOG_IMAGE_BASE+'/'+input;
  const file=normalizeImageFileName(input);
  return file?`${PERSISTENT_CATALOG_IMAGE_BASE}/${file}`:'';
 }

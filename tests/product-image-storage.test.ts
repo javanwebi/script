@@ -8,6 +8,7 @@ import express from 'express';
 import type {AddressInfo} from 'node:net';
 import {getProductImageUrl} from '../src/assets/imagesproducts';
 import {IMAGE_IMPORT_SOURCES} from '../server/catalogImageVolumeMigration';
+import {IMAGE_JPEG_REPOSITORY,IMAGE_JPEG_PINNED_COMMIT,IMAGE_JPEG_COUNT} from '../server/catalogJpegVolumeImport';
 import {officialImageFile} from '../src/services/catalogImageCorpus';
 
 test('product image folder is writable and remains outside the Git working tree',async()=>{
@@ -34,6 +35,9 @@ test('product URLs are served by the same site, without converting them to GitHu
  assert.equal(getProductImageUrl('e(1).png'),'/storage/products/catalog/e(1).png');
  assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),'/storage/products/catalog/e(1).png');
  assert.equal(getProductImageUrl('/storage/products/catalog/e(869).png'),'/storage/products/catalog/e(869).png');
+ assert.equal(getProductImageUrl('/storage/products/catalog/e(131).jpg'),'/storage/products/catalog/e(131).jpg');
+ assert.equal(getProductImageUrl('e(131).jpg'),'/storage/products/catalog/e(131).jpg');
+ assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/IMAGE/main/images/e(131).jpg'),'/storage/products/catalog/e(131).jpg');
  assert.equal(getProductImageUrl('/storage/products/../private.txt'),'');
 });
 
@@ -67,6 +71,7 @@ test('existing 869 PNG product links stay intact and IMAGE JPEG originals are im
  assert.equal(reference.pattern.test('images/e(856).jpg'),true);
  assert.equal(reference.pattern.test('../e(131).jpg'),false);
  assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
+ assert.equal(officialImageFile('/storage/products/catalog/e(131).jpg'),'e(131).png');
  assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
 });
 
@@ -96,4 +101,11 @@ test('public storage GET serves existing PNGs using exact numbered filenames',as
  }finally{
   await new Promise<void>((resolve,reject)=>listener.close(error=>error?reject(error):resolve()));
  }
+});
+
+test('same-number 725 IMAGE JPEG revisions keep legacy family and image identity',()=>{
+ assert.equal(IMAGE_JPEG_REPOSITORY,'javanweb/IMAGE');
+ assert.equal(IMAGE_JPEG_PINNED_COMMIT.length,40);
+ assert.equal(IMAGE_JPEG_COUNT,725);
+ assert.equal(officialImageFile('/storage/products/catalog/e(695).png'),'e(695).png');
 });

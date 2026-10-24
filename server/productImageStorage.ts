@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import express from 'express';
+import {serveProductImage} from './productImageVariants';
 import {databaseEnabled,transaction} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
 
@@ -46,86 +47,24 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  // volume. The URL never discloses a filesystem path.
  app.get('/storage/products/catalog/:file',async(req,res)=>{
   const file=String(req.params.file||'');
-  const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
+  const match=/^e\(([1-9]\d{0,3})\)\.(png|jpg)$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
-  const persistentRoot=path.join(root,'catalog');
-  // Original images are checked into the site source, so they remain available
-  // even if the Railway volume is replaced; new uploads still use the volume.
-  const vendoredRoot=path.join(process.cwd(),'storage','products','catalog');
-  const onVolume=await fs.stat(path.join(persistentRoot,file))
-    .then(info=>info.isFile()).catch(()=>false);
-  const from=onVolume?persistentRoot:vendoredRoot;
-  return res.sendFile(file,{root:from,dotfiles:'deny',
-   headers:{'Cache-Control':'public, max-age=2592000, immutable',
-    'Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
-  },error=>{
-   if(error && !res.headersSent)res.status((error as any).status||404).end();
-  });
+  const persistent=path.join(root,'catalog',file);
+  const exists=await fs.stat(persistent).then(s=>s.isFile()).catch(()=>false);
+  const fallback=path.join(process.cwd(),'storage','products','catalog',file);
+  const source=exists?persistent:fallback;
+  if(!exists&&match[2]==='jpg')return res.status(404).end();
+  if(!exists&&!await fs.stat(fallback).then(s=>s.isFile()).catch(()=>false))
+   return res.status(404).end();
+  return serveProductImage(req,res,source,root,match[2]==='jpg'?'image/jpeg':'image/png');
  });
- // Legacy JPEGs from javanweb/IMAGE are stored separately; they do not
- // silently replace original PNGs or inherit unverified SKU associations.
- app.get('/storage/products/legacy-jpg/images/:file',async(req,res)=>{
-  const file=String(req.params.file||'');
-  if(!/^e\([1-9]\d{0,3}\)\.jpg$/.test(file))return res.status(404).end();
-  return res.sendFile(file,{root:path.join(root,'legacy-jpg','images'),dotfiles:'deny',
-   headers:{'Cache-Control':'public, max-age=2592000, immutable',
-    'Content-Type':'image/jpeg','X-Content-Type-Options':'nosniff'}
-  },error=>{
-   if(error && !res.headersSent)res.status((error as any).status||404).end();
-  });
- });
-
-
- const thumbnailsInFlight=new Map<string,Promise<void>>();
- // Small WebP derivatives avoid transferring multi-hundred-KB PNGs to every
- // catalog card. All thumbnails are derived from exact, already-bound originals.
- app.get('/storage/products/thumbs/:file',async(req,res)=>{
-  const name=String(req.params.file||'');
-  const match=/^e\(([1-9]\d{0,3})\)\.webp$/.exec(name);
-  if(!match||Number(match[1])>869)return res.status(404).end();
-  const sourceName='e('+match[1]+').png';
-  const onVolume=path.join(root,'catalog',sourceName);
-  const vendored=path.join(process.cwd(),'storage','products','catalog',sourceName);
-  const destination=path.join(root,'thumbs',name);
-  try{
-   if(!(await fs.stat(destination).then(s=>s.isFile()&&s.size>0).catch(()=>false))){
-    let pending=thumbnailsInFlight.get(name);
-    if(!pending){
-     pending=(async()=>{
-      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||vendored;
-      if(!(await fs.stat(src).then(s=>s.isFile()).catch(()=>false)))
-       throw Object.assign(new Error('Image not found'),{status:404});
-      await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o750});
-      const temp=destination+'.'+crypto.randomUUID()+'.tmp';
-      try{
-       await sharp(src,{limitInputPixels:MAX_PIXELS}).resize({
-        width:420,height:420,fit:'inside',withoutEnlargement:true
-       }).webp({quality:74,effort:1}).toFile(temp);
-       await fs.rename(temp,destination);
-      }finally{await fs.unlink(temp).catch(()=>{});}
-     })();
-     thumbnailsInFlight.set(name,pending);
-     void pending.finally(()=>thumbnailsInFlight.delete(name)).catch(()=>{});
-    }
-    await pending;
-   }
-   return res.sendFile(name,{root:path.join(root,'thumbs'),dotfiles:'deny',headers:{
-    'Cache-Control':'public, max-age=31536000, immutable',
-    'Content-Type':'image/webp','X-Content-Type-Options':'nosniff'
-   }},error=>{if(error && !res.headersSent)res.status((error as any).status||404).end();});
-  }catch(error:any){
-   return res.status(error?.status===404?404:503).end();
-  }
- });
-
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
   if(!/^[a-f0-9-]{36}\.webp$/.test(name))return res.status(404).end();
-  return res.sendFile(name,{root,dotfiles:'deny',headers:{
-   'Cache-Control':'public, max-age=31536000, immutable',
-   'Content-Type':'image/webp','X-Content-Type-Options':'nosniff'
-  }},(error)=>{if(error && !res.headersSent)res.status((error as any).status||404).end();});
+  const source=path.join(root,name);
+  if(!await fs.stat(source).then(s=>s.isFile()).catch(()=>false))return res.status(404).end();
+  return serveProductImage(req,res,source,root,'image/webp');
  });
 
  // /api/catalog is already guarded by requirePortalAdmin in server.ts.

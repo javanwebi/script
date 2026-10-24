@@ -1,6 +1,7 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
+import {beginCatalogJpegImport} from './server/catalogJpegVolumeImport';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -6545,7 +6546,7 @@ async function start() {
     console.log(`[Server] Gemini key: ${keyStatus}`);
     // Non-destructive background import: verify every source Git blob first,
     // then atomically switch PostgreSQL image links to volume-local URLs.
-    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
+    const refreshVolumeCatalog = async()=>{
       const [images,photos,products]=await Promise.all([
         database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
         database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
@@ -6555,7 +6556,9 @@ async function start() {
       installDatabaseProducts(products);
       refreshRecognitionCatalog();
       invalidatePublicCatalogCache();
-    });
+    };
+    void beginImageVolumeMigration(productStorageDirectory(),refreshVolumeCatalog)
+      .then(()=>beginCatalogJpegImport(productStorageDirectory(),refreshVolumeCatalog));
   });
 }
 
