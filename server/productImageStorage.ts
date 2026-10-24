@@ -39,6 +39,49 @@ function cleanCode(value:unknown):string {
 }
 const fail=(status:number,message:string)=>Object.assign(new Error(message),{status});
 
+/**
+ * GitHub is an optional off-server binary store. Only this backend has access
+ * to the Contents:write credential; the browser receives an immutable CDN URL.
+ * The token must have access specifically to javanweb/imagesatlas.
+ */
+const IMAGE_REPO='javanweb/imagesatlas';
+const IMAGE_BRANCH='main';
+async function saveGitHubProductImage(name:string,optimized:Buffer):Promise<{url:string;contentSha:string}|null>{
+ const token=process.env.PRODUCT_IMAGE_GITHUB_TOKEN;
+ if(!token)return null; // Existing volume uploads keep working until repo write access is configured.
+ const location='storage/products/'+name;
+ const response=await fetch('https://api.github.com/repos/'+IMAGE_REPO+'/contents/'+location,{
+  method:'PUT',
+  headers:{
+   'Authorization':'Bearer '+token,
+   'Accept':'application/vnd.github+json',
+   'X-GitHub-Api-Version':'2022-11-28',
+   'User-Agent':'sanatpish-product-image-upload',
+   'Content-Type':'application/json'
+  },
+  body:JSON.stringify({message:'Add product image '+name,content:optimized.toString('base64'),branch:IMAGE_BRANCH}),
+  signal:AbortSignal.timeout(30000)
+ });
+ if(response.status!==201)throw fail(502,'مجوز نوشتن در مخزن تصاویر GitHub یا ارتباط آن بررسی شود.');
+ const result=await response.json() as {commit?:{sha?:string};content?:{sha?:string}};
+ const commit=result.commit?.sha||'',sha=result.content?.sha||'';
+ if(!/^[a-f0-9]{40}$/.test(commit)||!/^[a-f0-9]{40}$/.test(sha))
+  throw fail(502,'تأیید نسخه ذخیره‌شده تصویر در GitHub ناموفق بود.');
+ return {url:'https://cdn.jsdelivr.net/gh/'+IMAGE_REPO+'@'+commit+'/'+location,contentSha:sha};
+}
+async function deleteUncommittedGithubImage(name:string,sha:string):Promise<void>{
+ const token=process.env.PRODUCT_IMAGE_GITHUB_TOKEN;
+ if(!token||!/^[a-f0-9]{40}$/.test(sha))return;
+ await fetch('https://api.github.com/repos/'+IMAGE_REPO+'/contents/storage/products/'+name,{
+  method:'DELETE',
+  headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
+   'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+  body:JSON.stringify({message:'Rollback unlinked product upload '+name,sha,branch:IMAGE_BRANCH}),
+  signal:AbortSignal.timeout(20000)
+ }).catch(()=>{});
+}
+
+
 export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Promise<void>){
  const root=productStorageDirectory();
  // The original 869 catalogue assets are publicly served from the mounted
@@ -47,15 +90,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   const file=String(req.params.file||'');
   const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
-  return res.sendFile(file,{root:path.join(root,'catalog'),dotfiles:'deny',
-   headers:{'Cache-Control':'public, max-age=86400','Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
-  },error=>{
-    if(!error||res.headersSent)return;
-    // Preserve availability while initial import is still in progress.
-    if((error as any).code==='ENOENT')
-      return res.redirect(302,'https://raw.githubusercontent.com/javanweb/imagesatlas/5bbaec971a05771939663d47803b5d5c2c624c6d/'+encodeURIComponent(file));
-    res.status((error as any).status||404).end();
-  });
+  return res.redirect(301,'https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@5bbaec971a05771939663d47803b5d5c2c624c6d/'+encodeURIComponent(file));
  });
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
@@ -72,6 +107,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   let dest='';
   let temp='';
   let committed=false;
+  let githubImage:{url:string;contentSha:string}|null=null;
+  let uploadedName='';
   try{
    const identity=await getPortalIdentity(req);
    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
@@ -93,13 +130,19 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    const optimized=await sharp(raw,{limitInputPixels:MAX_PIXELS})
      .rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true})
      .webp({quality:84,effort:4}).toBuffer();
-   const dir=await prepareProductStorage();
    const id=crypto.randomUUID();
    const name=id+'.webp';
-   dest=path.join(dir,name);
-   temp=path.join(dir,'.'+id+'.tmp');
-   const url='/storage/products/'+name;
-   await fs.writeFile(temp,optimized,{flag:'wx',mode:0o640});
+   uploadedName=name;
+   // When the narrowly scoped GitHub token exists, store ONLY in GitHub.
+   // Otherwise retain the existing reliable volume flow until authorized.
+   githubImage=await saveGitHubProductImage(name,optimized);
+   const url=githubImage?.url || '/storage/products/'+name;
+   if(!githubImage){
+    const dir=await prepareProductStorage();
+    dest=path.join(dir,name);
+    temp=path.join(dir,'.'+id+'.tmp');
+    await fs.writeFile(temp,optimized,{flag:'wx',mode:0o640});
+   }
    const gallery=await transaction(async client=>{
      const family=(await client.query('select code,images from public.catalog_families where code=$1 and is_active=true and not is_deleted for update',[familyCode])).rows[0];
      if(!family)throw fail(404,'ابتدا خانواده کالا را در دیتابیس ذخیره کنید.');
@@ -116,7 +159,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
        return images;
      };
      // Verify the volume write before recording the URL, inside the same transaction.
-     await fs.rename(temp,dest);temp='';
+     if(temp){await fs.rename(temp,dest);temp='';}
      if(old){
        await client.query(`update public.catalog_gallery_images set url=$2,file_name=$3,variant_code=$4,scope=$5,title=$6,identity_verified=false,updated_at=now() where id=$1`,
         [galleryId,url,name,variantCode,variantCode?'variant':'family',title||name]);
@@ -163,6 +206,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    if(!committed){
     if(temp)await fs.unlink(temp).catch(()=>{});
     if(dest)await fs.unlink(dest).catch(()=>{});
+    if(githubImage&&uploadedName)await deleteUncommittedGithubImage(uploadedName,githubImage.contentSha);
    }
    const status=Number(error?.status)||500;
    if(status>=500)console.error('[Product storage] Upload failed:',String(error?.code||error?.name||'error').slice(0,60));
