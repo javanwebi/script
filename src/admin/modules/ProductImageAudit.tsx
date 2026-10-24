@@ -4,6 +4,7 @@ import type {Product} from '../../types';
 import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
+import {uploadProductImage} from '../../services/productImageUpload';
 import {normalizeCatalogueText} from '../../data/userProducts';
 
 type AuditRow=ReturnType<typeof getImageAssignmentAudit>[number];
@@ -17,7 +18,7 @@ const card='rounded-xl border border-[#E7E8EA] bg-white';
 export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onCreateSku}:{
   products:Product[];
   categories:{name:string;subcategories?:string[]}[];
-  onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string)=>void;
+  onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string,persistedId?:string)=>void;
   onCreateFamily:(file:string,category:string,subcategory:string,imageUrl?:string,imageTitle?:string)=>void;
   onCreateCategory:()=>void;
   onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
@@ -43,6 +44,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [file,setFile]=useState('');
   const [url,setUrl]=useState('');
   const [source,setSource]=useState<Source>('existing');
+  const [selectedUpload,setSelectedUpload]=useState<File|null>(null);
+  const [savingUpload,setSavingUpload]=useState(false);
   const [urlInput,setUrlInput]=useState('');
   const [sourceError,setSourceError]=useState('');
   const [title,setTitle]=useState('');
@@ -72,14 +75,15 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const visible=filtered.slice(currentPage*24,(currentPage+1)*24);
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
-    setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSourceError('');setTitle(found?.observed||'');
+    setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setTitle(found?.observed||'');
     setFamilySearch('');setCategory('');setSubcategory('');setFamilyCode('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setCategory('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
-    if(!upload.type.startsWith('image/')){setSourceError('فایل انتخاب‌شده تصویر نیست.');return}
-    if(upload.size>5*1024*1024){setSourceError('حداکثر حجم هر تصویر ۵ مگابایت است.');return}
+    if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
+    if(upload.size>8*1024*1024){setSourceError('حداکثر حجم هر تصویر ۸ مگابایت است.');return}
+    setSelectedUpload(upload);
     const reader=new FileReader();
     reader.onload=()=>{setFile(upload.name);setUrl(String(reader.result||''));setTitle(upload.name);setSourceError('')};
     reader.onerror=()=>setSourceError('فایل خوانده نشد.');
@@ -89,9 +93,22 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     try{const value=new URL(urlInput.trim());if(!['https:','http:'].includes(value.protocol))throw Error('invalid');setFile(value.pathname.split('/').pop()||'تصویر جدید');setUrl(value.href);setTitle('');setSourceError('')}
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
-  const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing')};
-  const apply=()=>{
-    if(!file||!url||!familyCode||(placement==='sku'&&!sku))return;
+  const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null)};
+  const apply=async()=>{
+    if(!file||!url||!familyCode||(placement==='sku'&&!sku)||savingUpload)return;
+    if(source==='upload'){
+      if(!selectedUpload){setSourceError('ابتدا فایل تصویر را انتخاب کنید.');return;}
+      setSavingUpload(true);setSourceError('');
+      try{
+        const saved=await uploadProductImage(selectedUpload,{
+          familyCode,variantCode:placement==='sku'?sku:undefined,title:title||selectedUpload.name
+        });
+        onEdit(familyCode,saved.fileName,placement==='sku'?sku:undefined,saved.url,title,saved.id);
+        closeSelection();
+      }catch(error:any){setSourceError(error.message||'ثبت تصویر در Storage ممکن نشد.');}
+      finally{setSavingUpload(false);}
+      return;
+    }
     onEdit(familyCode,file,placement==='sku'?sku:undefined,url,title);
     closeSelection();
   };
@@ -201,9 +218,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
             </div>
             <div className="min-h-0 space-y-4 p-3 sm:p-5 lg:overflow-y-auto">
               <div className="flex flex-wrap gap-2" role="group" aria-label="منبع تصویر">
-                {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','استفاده از لینک']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
+                {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','استفاده از لینک']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setSelectedUpload(null);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
               </div>
-              {source==='upload'&&<label className="block rounded-xl border border-dashed border-[#E7B995] bg-[#FFFAF6] p-4 text-xs font-bold text-[#55565A]">انتخاب تصویر از دستگاه<input type="file" accept="image/*" onChange={e=>chooseFile(e.target.files?.[0])} className="mt-2 block w-full text-xs"/></label>}
+              {source==='upload'&&<label className="block rounded-xl border border-dashed border-[#E7B995] bg-[#FFFAF6] p-4 text-xs font-bold text-[#55565A]">انتخاب تصویر از دستگاه<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>chooseFile(e.target.files?.[0])} className="mt-2 block w-full text-xs"/></label>}
               {source==='url'&&<div className="flex flex-col gap-2 sm:flex-row"><input type="url" value={urlInput} onChange={e=>setUrlInput(e.target.value)} dir="ltr" placeholder="https://example.com/image.png" className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-xs"/><button type="button" onClick={chooseUrl} className="rounded-lg bg-[#55565A] px-4 py-3 text-xs font-bold text-white">بارگذاری لینک</button></div>}
               {sourceError&&<p role="alert" className="text-xs text-rose-600">{sourceError}</p>}
               {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 p-3 font-normal" placeholder="نام قطعه یا توضیحی که در تصویر دیده می‌شود"/></label>}
@@ -215,12 +232,12 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                 </div>
               </div>}
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{if(source==='upload'){setSourceError('ابتدا خانواده جدید را ثبت کنید؛ سپس فایل را در آن بارگذاری کنید.');return;}onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button></div>
                 <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full rounded-lg border border-slate-200 p-3 text-xs"/>
                 <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
               </div>}
               {url&&family&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۳. محل اتصال تصویر</h4><button type="button" onClick={()=>{onCreateSku(family.code,file,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16]">+ افزودن کد کالا</button></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۳. محل اتصال تصویر</h4><button type="button" onClick={()=>{if(source==='upload'){setSourceError('ابتدا کد جدید را در خانواده ثبت کنید؛ سپس فایل را به آن متصل کنید.');return;}onCreateSku(family.code,file,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16]">+ افزودن کد کالا</button></div>
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" aria-pressed={placement==='family'} onClick={()=>{setPlacement('family');setSku('')}} className={placement==='family'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">تصویر خانواده</strong><span className="mt-1 block text-[10px] text-slate-500">برای همه مدل‌های خانواده</span></button>
                   <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={placement==='sku'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">کد دقیق کالا</strong><span className="mt-1 block text-[10px] text-slate-500">فقط یک SKU مشخص</span></button>
@@ -230,7 +247,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
               {url&&<p className="rounded-xl bg-amber-50 p-3 text-[11px] leading-6 text-amber-800">اتصال تصویر به‌تنهایی هویت فنی قطعه را تأیید نمی‌کند. مشخصات فنی کد کالا باید در فرم ویرایش همان محصول بررسی شود. فایل جدید تا ذخیره در فضای دائمی، آماده انتشار نیست.</p>}
               <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
                 <button type="button" onClick={closeSelection} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A]">انصراف</button>
-                {url&&<button type="button" disabled={!familyCode||(placement==='sku'&&!sku)} onClick={apply} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> ذخیره اتصال و ادامه تکمیل مشخصات</button>}
+                {url&&<button type="button" disabled={savingUpload||!familyCode||(placement==='sku'&&!sku)} onClick={()=>{void apply()}} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> {savingUpload?'در حال ذخیره روی سرور…':source==='upload'?'ذخیره در Storage و اتصال به کالا':'ذخیره اتصال و ادامه تکمیل مشخصات'}</button>}
               </div>
             </div>
           </div>
