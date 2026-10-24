@@ -20,7 +20,6 @@ export type ImageImportSource={
 };
 export const IMAGE_IMPORT_SOURCES:ImageImportSource[]=[
  {repo:'javanweb/imagesatlas',commit:'5bbaec971a05771939663d47803b5d5c2c624c6d',target:'catalog',count:869,pattern:/^e\([1-9]\d{0,3}\)\.png$/},
- {repo:'javanweb/IMAGE',commit:'5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6',target:'legacy-jpg',count:725,pattern:/^images\/e\([1-9]\d{0,3}\)\.jpg$/},
 ];
 const reserveBytes=48*1024*1024;
 const sourcePrefix='https://raw.githubusercontent.com/javanweb/imagesatlas/main/';
@@ -103,13 +102,8 @@ async function extractPinnedArchive(source:ImageImportSource,target:string){
 }
 async function ensureSource(source:ImageImportSource,root:string){
  const files=await githubTree(source);
- if(source.target==='catalog'){
-  const vendored=path.join(process.cwd(),'storage','products','catalog');
-  if(await verified(files,vendored)){
-   console.log('[Product images] All originals verified in current site source:',files.length);
-   return files;
-  }
- }
+ // Require each original on the mounted Volume. An image in the Git checkout
+ // is not persistent after the container is replaced or redeployed.
  const destination=path.join(root,source.target);
  await fs.mkdir(destination,{recursive:true,mode:0o750});
  if(await verified(files,destination))return files;
