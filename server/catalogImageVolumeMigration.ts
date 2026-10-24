@@ -10,6 +10,7 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import crypto from 'node:crypto';
 import {Readable} from 'node:stream';
+import {createWriteStream} from 'node:fs';
 import {pipeline} from 'node:stream/promises';
 import {transaction,databaseEnabled} from './db/connection';
 
@@ -82,17 +83,69 @@ async function extractPinnedArchive(source:ImageImportSource,target:string){
 async function ensureSource(source:ImageImportSource,root:string){
  const files=await githubTree(source);
  const destination=path.join(root,source.target);
- if(!await verified(files,destination)){
-  const requiredBytes=files.reduce((total,f)=>total+f.size,0);
-  const stat=await fs.statfs(root);
-  // Mounted volumes are not backups. Keep an extra reserve for new admin photos.
-  const available=stat.bavail*stat.bsize;
-  if(available<requiredBytes+reserveBytes)
-   throw new Error('Insufficient persistent-volume capacity for '+source.repo);
-  await extractPinnedArchive(source,destination);
-  if(!await verified(files,destination))
-   throw new Error('Imported images differ from GitHub SHA-1 manifest: '+source.repo);
+ await fs.mkdir(destination,{recursive:true,mode:0o750});
+ if(await verified(files,destination))return files;
+ // The former image matcher may already have downloaded the same PNG files
+ // into the cache ON THE SAME MOUNT. Prefer hardlinks to avoid wasting 250 MB.
+ const cacheRoot=process.env.CATALOG_IMAGES_CACHE_DIR ||
+   path.join(process.cwd(),'.cache','catalog_images');
+ let reused=0;
+ const missing:GithubFile[]=[];
+ for(const file of files){
+  const target=path.join(destination,file.path);
+  if(await fs.stat(target).then(s=>s.size===file.size).catch(()=>false) &&
+     await fileGitSha(target).then(sha=>sha===file.sha).catch(()=>false))continue;
+  const fromCache=path.join(cacheRoot,file.path);
+  let linked=false;
+  if(await fs.stat(fromCache).then(s=>s.size===file.size).catch(()=>false) &&
+     await fileGitSha(fromCache).then(sha=>sha===file.sha).catch(()=>false)){
+    try {
+     await fs.link(fromCache,target);
+     reused++;
+     linked=true;
+    }catch(error:any){
+     if(error?.code==='EEXIST')linked=await fileGitSha(target).then(sha=>sha===file.sha).catch(()=>false);
+    }
+  }
+  if(!linked)missing.push(file);
  }
+ const needed=missing.reduce((total,file)=>total+file.size,0);
+ const stat=await fs.statfs(root);
+ const available=stat.bavail*stat.bsize;
+ console.log('[Product images] Existing originals recovered from cache:',reused,
+   'need MB:',Math.ceil(needed/1048576),'free MB:',Math.floor(available/1048576));
+ if(needed && available<needed+reserveBytes){
+   throw new Error('Insufficient persistent-volume capacity after cache reuse; need='+
+    Math.ceil((needed+reserveBytes)/1048576)+'MB free='+
+    Math.floor(available/1048576)+'MB');
+ }
+ // Download missing blobs individually to avoid a tar extraction overwriting
+ // previously verified hardlinked files or creating duplicate volume content.
+ async function fetchMissing(file:GithubFile){
+  const name=path.join(destination,file.path);
+  const temp=name+'.'+crypto.randomUUID()+'.tmp';
+  const url=`https://raw.githubusercontent.com/${source.repo}/${source.commit}/${encodeURIComponent(file.path)}`;
+  try {
+   const response=await fetch(url,{signal:AbortSignal.timeout(30000),redirect:'error'});
+   if(!response.ok||!response.body)throw new Error('HTTP '+response.status);
+   const length=Number(response.headers.get('content-length'));
+   if(Number.isFinite(length)&&length>file.size)throw new Error('oversized source');
+   await pipeline(Readable.fromWeb(response.body as any),createWriteStream(temp,{mode:0o640,flags:'wx'}));
+   const stat=await fs.stat(temp);
+   if(stat.size!==file.size||await fileGitSha(temp)!==file.sha)
+    throw new Error('Git blob SHA mismatch');
+   await fs.rename(temp,name);
+  }catch(error){
+   await fs.unlink(temp).catch(()=>{});
+   throw error;
+  }
+ }
+ for(let offset=0;offset<missing.length;offset+=5){
+  await Promise.all(missing.slice(offset,offset+5).map(fetchMissing));
+  if((offset+5)%50===0||offset+5>=missing.length)
+   console.log('[Product images] Imported verified originals:',Math.min(offset+5,missing.length),'of',missing.length);
+ }
+ if(!await verified(files,destination))throw new Error('Imported images do not match pinned Git blobs');
  return files;
 }
 /** Replace only the known original PNG URLs, not user URLs or independently imported JPEGs. */
