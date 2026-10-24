@@ -1,6 +1,5 @@
 import {adminReportsApi} from './server/db/adminReports';
-import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
-import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
+import {registerProductImageStorage,prepareProductStorage} from './server/productImageStorage';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -6548,19 +6547,9 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    // Non-destructive background import: verify every source Git blob first,
-    // then atomically switch PostgreSQL image links to volume-local URLs.
-    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
-      const [images,photos,products]=await Promise.all([
-        database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
-        database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
-        readProducts()
-      ]);
-      installCatalogImageMetadata(images.rows,photos.rows);
-      installDatabaseProducts(products);
-      refreshRecognitionCatalog();
-      invalidatePublicCatalogCache();
-    });
+    // Official images are bundled with the validated source build.
+    // No automatic DB URL rewrite; the old Volume and links remain intact
+    // until an approved, backed-up production migration is executed.
   });
 }
 
