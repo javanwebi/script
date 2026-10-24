@@ -24,5 +24,9 @@ jobs:
         run: npm run test:database
       - name: Portal tests
         run: npm run test:portal
+      - name: Guard retired operational JSON
+        run: node scripts/database/check-json-retirement.mjs
+      - name: Catalog regression tests
+        run: node --import tsx --test tests/product-families.test.ts tests/product-technical-data.test.ts tests/owner-catalogue.test.ts tests/imperial-reference.test.ts tests/image-assignments.test.ts tests/part-measurements.test.ts tests/recognition-policy.test.ts tests/catalog-image-scan.test.ts tests/catalog-photo-identity.test.ts
       - name: Build static React frontend from source
         run: npm run build
