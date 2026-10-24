@@ -35,6 +35,24 @@ async function fileGitSha(filename:string):Promise<string>{
  return crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
 }
 async function githubTree(source:ImageImportSource):Promise<GithubFile[]>{
+ // When the pinned originals have been vendored into javanwebi/script, derive
+ // the manifest locally instead of making any GitHub API call on startup.
+ if(source.repo==='javanweb/imagesatlas'){
+  const manifestFile=path.join(process.cwd(),'storage','products','catalog','manifest.json');
+  try{
+   const manifest=JSON.parse(await fs.readFile(manifestFile,'utf8'));
+   if(manifest.sourceRepo!==source.repo || manifest.sourceCommit!==source.commit ||
+      !Array.isArray(manifest.files) || manifest.files.length!==source.count)
+    throw new Error('Bundled imagesatlas manifest is invalid');
+   const files:GithubFile[]=manifest.files.map((f:any)=>({
+    path:String(f.name),size:Number(f.size),sha:String(f.gitBlobSha),type:'blob'
+   }));
+   if(files.some(f=>!safeFileName(f.path,source) || !Number.isSafeInteger(f.size) ||
+      f.size<1 || !/^[a-f0-9]{40}$/.test(f.sha)))
+    throw new Error('Bundled imagesatlas manifest has invalid entries');
+   return files;
+  }catch(error:any){if(error?.code!=='ENOENT')throw error;}
+ }
  const url=`https://api.github.com/repos/${source.repo}/git/trees/${source.commit}?recursive=1`;
  const response=await fetch(url,{headers:{'Accept':'application/vnd.github+json','User-Agent':'sanatpish-catalog-volume-migration'},signal:AbortSignal.timeout(30000)});
  if(!response.ok)throw new Error('GitHub image manifest unavailable: '+source.repo+' HTTP '+response.status);
@@ -82,6 +100,13 @@ async function extractPinnedArchive(source:ImageImportSource,target:string){
 }
 async function ensureSource(source:ImageImportSource,root:string){
  const files=await githubTree(source);
+ if(source.target==='catalog'){
+  const vendored=path.join(process.cwd(),'storage','products','catalog');
+  if(await verified(files,vendored)){
+   console.log('[Product images] All originals verified in current site source:',files.length);
+   return files;
+  }
+ }
  const destination=path.join(root,source.target);
  await fs.mkdir(destination,{recursive:true,mode:0o750});
  if(await verified(files,destination))return files;
