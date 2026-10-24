@@ -21,8 +21,8 @@ const fixtures=review.items.map(item=>{
 test('all image assets have review status without turning sequential filenames into warehouse SKUs',()=>{
  const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures);
  assert.equal(audit.length,869);
- assert.equal(audit.filter(x=>x.status==='family-example').length,464);
- assert.equal(audit.filter(x=>x.status==='unassigned').length,405);
+ assert.equal(audit.filter(x=>x.status==='family-example').length,463);
+ assert.equal(audit.filter(x=>x.status==='unassigned').length,406);
  assert.ok(audit.every(x=>x.requiresCodeEvidence));
  assert.ok(audit.every(x=>x.families.every(f=>f.skus.length===0)));
 });
@@ -50,6 +50,6 @@ test('recognition examples never populate fabricated technical dimensions',()=>{
 
 test('all unresolved images have detailed visual research without fabricated SKU or standard',()=>{
  const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures).filter(row=>row.status==='unassigned');
- assert.equal(audit.length,405);
+ assert.equal(audit.length,406);
  for(const row of audit){assert.ok(row.research);assert.equal(row.research.sourceSha256,row.sha256);assert.equal(row.research.exactSku,null);assert.equal(row.research.standardStatus,'not-established');assert.ok(row.research.requiredChecks.length>=3);}
 });
