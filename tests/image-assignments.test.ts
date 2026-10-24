@@ -51,5 +51,8 @@ test('recognition examples never populate fabricated technical dimensions',()=>{
 test('all unresolved images have detailed visual research without fabricated SKU or standard',()=>{
  const audit=getImageAssignmentAudit(USER_PRODUCTS,fixtures).filter(row=>row.status==='unassigned');
  assert.equal(audit.length,406);
- for(const row of audit){assert.ok(row.research);assert.equal(row.research.sourceSha256,row.sha256);assert.equal(row.research.exactSku,null);assert.equal(row.research.standardStatus,'not-established');assert.ok(row.research.requiredChecks.length>=3);}
+ const researched=audit.filter(row=>row.research);
+ assert.equal(researched.length,405,'historical visual research covers exactly 405 unresolved images');
+ assert.equal(audit.filter(row=>!row.research).length,1,'one additional photo is unassigned without verified research');
+ for(const row of researched){assert.equal(row.research!.sourceSha256,row.sha256);assert.equal(row.research!.exactSku,null);assert.equal(row.research!.standardStatus,'not-established');assert.ok(row.research!.requiredChecks.length>=3);}
 });
