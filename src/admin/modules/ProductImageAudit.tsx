@@ -64,8 +64,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   // Hierarchy: categoryName -> submenu -> subcategory -> family (as on the site).
   const allFamilies=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products]);
   const categoryNames=useMemo(()=>[...new Set(products.map(p=>p.categoryName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products]);
-  const submenus=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category).map(p=>p.submenu).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category]);
-  const subcategories=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category&&(!submenu||p.submenu===submenu)).map(p=>p.subcategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category,submenu]);
+  const submenus=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category).map(p=>p.submenu).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category]);
+  const subcategories=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category&&(!submenu||p.submenu===submenu)).map(p=>p.subcategory).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category,submenu]);
   const families=useMemo(()=>products.filter(p=>
     (!category||p.categoryName===category)&&(!submenu||p.submenu===submenu)&&
     (!subcategory||p.subcategory===subcategory)&&
