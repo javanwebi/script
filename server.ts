@@ -623,7 +623,7 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 // dHash (difference hash). Resistant to resize/recompress/watermark shifts.
 // ============================================================================
 
-const GITHUB_CATALOG_IMAGES_REPO = 'https://raw.githubusercontent.com/javanweb/imagesatlas/main';
+
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
 const VISUAL_INDEX_NAMESPACE='catalog_visual_gemini_768';
 const catalogVisualIndex=new CatalogVisualIndex(
@@ -970,8 +970,15 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
   if(!image)return null;
   const catalogFile=officialImageFile(image);
   if(catalogFile){
-    try{return await fs.promises.readFile(path.join(productStorageDirectory(),'catalog',catalogFile));}
-    catch{ /* Original URL remains valid while one-time import runs. */ }
+    // Database URLs resolve to our own app. The verified original exists either
+    // on the Railway volume or as a tracked asset in this exact site revision.
+    for(const directory of [
+      path.join(productStorageDirectory(),'catalog'),
+      path.join(process.cwd(),'storage','products','catalog')
+    ]){
+      try{return await fs.promises.readFile(path.join(directory,catalogFile));}catch{}
+    }
+    return null; // Never make a GitHub network request for official product images.
   }
   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
@@ -993,7 +1000,7 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
       const file=path.resolve(process.cwd(),image.startsWith('/src/') ? image.slice(1) : 'dist'+image);
       if(file.startsWith(base+path.sep) && fs.existsSync(file))buffer=fs.readFileSync(file);
     } else {
-      const url=official ? new URL(`${GITHUB_CATALOG_IMAGES_REPO}/${encodeURIComponent(official)}`) : new URL(image);
+      const url=new URL(image);
       if(url.protocol!=='https:' || url.username || url.password)return null;
       if(!official){
         const addresses=await lookup(url.hostname,{all:true});

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Product } from '../types';
+import {getProductImageUrl} from '../assets/imagesproducts';
 
 export interface ImageBinding { familyCode:string; code?:string; verified:boolean; }
 export interface CatalogImageRecord {id:string;url:string;label:string;revision:string;bindings:ImageBinding[];}
@@ -26,7 +27,7 @@ export function officialImageFile(value:string): string | undefined {
 /** The corpus includes all 869 photos, including photos with no SKU association. */
 export function buildCatalogImageCorpus(products:Product[], revision=''):CatalogImageRecord[] {
   const images=new Map<string,CatalogImageRecord>();
-  for(const item of audits) images.set(item.file_name,{id:item.file_name,url:item.image_url || `https://raw.githubusercontent.com/javanweb/imagesatlas/main/${item.file_name}`,
+  for(const item of audits) images.set(item.file_name,{id:item.file_name,url:getProductImageUrl(item.image_url || item.file_name),
     label:headings.get(item.file_name) || item.observed_description || item.file_name,revision:item.sha256 || revision,bindings:[]});
   const add=(url:string,binding:ImageBinding,label:string)=>{
     if(!url || /^blob:/i.test(url))return;

@@ -43,18 +43,22 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  const root=productStorageDirectory();
  // The original 869 catalogue assets are publicly served from the mounted
  // volume. The URL never discloses a filesystem path.
- app.get('/storage/products/catalog/:file',(req,res)=>{
+ app.get('/storage/products/catalog/:file',async(req,res)=>{
   const file=String(req.params.file||'');
   const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
-  return res.sendFile(file,{root:path.join(root,'catalog'),dotfiles:'deny',
-   headers:{'Cache-Control':'public, max-age=86400','Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
+  const persistentRoot=path.join(root,'catalog');
+  // Original images are checked into the site source, so they remain available
+  // even if the Railway volume is replaced; new uploads still use the volume.
+  const vendoredRoot=path.join(process.cwd(),'storage','products','catalog');
+  const onVolume=await fs.stat(path.join(persistentRoot,file))
+    .then(info=>info.isFile()).catch(()=>false);
+  const from=onVolume?persistentRoot:vendoredRoot;
+  return res.sendFile(file,{root:from,dotfiles:'deny',
+   headers:{'Cache-Control':'public, max-age=2592000, immutable',
+    'Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
   },error=>{
-    if(!error||res.headersSent)return;
-    // Preserve availability while initial import is still in progress.
-    if((error as any).code==='ENOENT')
-      return res.redirect(302,'https://raw.githubusercontent.com/javanweb/imagesatlas/5bbaec971a05771939663d47803b5d5c2c624c6d/'+encodeURIComponent(file));
-    res.status((error as any).status||404).end();
+   if(error && !res.headersSent)res.status((error as any).status||404).end();
   });
  });
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
