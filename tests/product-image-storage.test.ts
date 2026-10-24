@@ -26,12 +26,15 @@ test('product image folder is writable and remains outside the Git working tree'
  }
 });
 
-test('product URLs are served by the same site, without converting them to GitHub links',()=>{
+test('official product photos resolve to a pinned CDN release instead of the Railway image volume',()=>{
  const url='/storage/products/00000000-0000-4000-8000-000000000000.webp';
- assert.equal(getProductImageUrl(url),url);
- assert.equal(getProductImageUrl('e(1).png'),'/storage/products/catalog/e(1).png');
- assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),'/storage/products/catalog/e(1).png');
- assert.equal(getProductImageUrl('/storage/products/catalog/e(869).png'),'/storage/products/catalog/e(869).png');
+ const pinned='https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@5bbaec971a05771939663d47803b5d5c2c624c6d/';
+ assert.equal(getProductImageUrl(url),url); // Old uploaded binaries remain accessible.
+ assert.equal(getProductImageUrl('e(1).png'),pinned+'e(1).png');
+ assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),pinned+'e(1).png');
+ assert.equal(getProductImageUrl('/storage/products/catalog/e(869).png'),pinned+'e(869).png');
+ assert.equal(getProductImageUrl(pinned+'e(131).png'),pinned+'e(131).png');
+ assert.equal(getProductImageUrl('https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@abcdef1234567890abcdef1234567890abcdef12/storage/products/abc.webp'),'https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@abcdef1234567890abcdef1234567890abcdef12/storage/products/abc.webp');
  assert.equal(getProductImageUrl('/storage/products/../private.txt'),'');
 });
 
@@ -58,5 +61,6 @@ test('verified source is only the 869 original PNGs from imagesatlas',()=>{
  assert.equal(source.pattern.test('e(131).jpg'),false);
  assert.equal(source.pattern.test('../e(1).png'),false);
  assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
+ assert.equal(officialImageFile('https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@5bbaec971a05771939663d47803b5d5c2c624c6d/e(131).png'),'e(131).png');
  assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
 });
