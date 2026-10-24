@@ -43,6 +43,7 @@ import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
 import { subscribeCatalogChanges, buildDefaultGalleryImages } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
+import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
 
 interface ProductsModuleProps {
   onQuickImportClick?: () => void;
@@ -55,6 +56,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [products, setProducts] = useState<Product[]>(() => adminService.getProducts());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedSubmenu, setSelectedSubmenu] = useState('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('all');
   const [priceFilter, setPriceFilter] = useState<'all' | 'priced' | 'inquiry'>('all');
   const [imageFilter, setImageFilter] = useState<'all' | 'sku_bound' | 'has_images' | 'no_images'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -65,6 +68,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   useEffect(() => {
     return subscribeCatalogChanges(() => {
       setProducts(adminService.getProducts());
+      setCategories(adminService.getCategories());
     });
   }, []);
 
@@ -270,14 +274,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [previewSelectedVariantCode, setPreviewSelectedVariantCode] = useState('');
   const [previewActiveImageIdx, setPreviewActiveImageIdx] = useState(0);
 
-  // Distinct category names from the 1,383 catalog families
-  const catalogCategoryNames = useMemo(() => {
-    const set = new Set<string>();
-    products.forEach(p => {
-      if (p.categoryName) set.add(p.categoryName);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fa'));
-  }, [products]);
+  // Use live product hierarchy: independent category metadata can be outdated.
+  const hierarchy = useMemo(() => catalogHierarchyOptions(products, {
+    category:selectedCategory, submenu:selectedSubmenu, subcategory:selectedSubcategory,
+  }), [products,selectedCategory,selectedSubmenu,selectedSubcategory]);
+  const catalogCategoryNames = hierarchy.categories;
+  const openFamiliesInCategory = (category:string) => {
+    setActiveSubTab('products');setSelectedCategory(category);
+    setSelectedSubmenu('all');setSelectedSubcategory('all');setSearchQuery('');
+    setPriceFilter('all');setImageFilter('all');setStatusFilter('all');setCurrentPage(1);
+  };
 
   // Global stats
   const catalogStats = useMemo(() => {
@@ -326,9 +332,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         if (!terms.every(t => hay.includes(t))) return false;
       }
 
-      if (selectedCategory !== 'all' && p.categoryName !== selectedCategory && p.categorySlug !== selectedCategory) {
-        return false;
-      }
+      if (!matchesFamilyHierarchy(p, {category:selectedCategory,submenu:selectedSubmenu,subcategory:selectedSubcategory})) return false;
 
       if (statusFilter === 'active' && p.active === false) return false;
       if (statusFilter === 'inactive' && p.active !== false) return false;
@@ -354,7 +358,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
       return true;
     });
-  }, [products, searchQuery, selectedCategory, statusFilter, priceFilter, imageFilter]);
+  }, [products, searchQuery, selectedCategory, selectedSubmenu, selectedSubcategory, statusFilter, priceFilter, imageFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
   const paginatedProducts = filteredProducts.slice(
@@ -1058,7 +1062,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             <details className="rounded-xl border border-slate-200 bg-slate-50">
               <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">
                 فیلترهای بیشتر: دسته‌بندی و وضعیت تصویر
-                {(selectedCategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
+                {(selectedCategory !== 'all' || selectedSubmenu !== 'all' || selectedSubcategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
               </summary>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 pt-0">
                 <label className="block text-xs font-bold text-slate-600">
@@ -1067,6 +1071,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     value={selectedCategory}
                     onChange={e => {
                       setSelectedCategory(e.target.value);
+                      setSelectedSubmenu('all');setSelectedSubcategory('all');
                       setCurrentPage(1);
                     }}
                     className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
@@ -1075,6 +1080,22 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     {catalogCategoryNames.map(catName => (
                       <option key={catName} value={catName}>{catName}</option>
                     ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold text-slate-600">زیرمنو
+                  <select aria-label="فیلتر زیرمنوی کالاها" value={selectedSubmenu}
+                    onChange={e=>{setSelectedSubmenu(e.target.value);setSelectedSubcategory('all');setCurrentPage(1)}}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white">
+                    <option value="all">همه زیرمنوها ({toPersianDigits(hierarchy.submenus.length)})</option>
+                    {hierarchy.submenus.map(name=><option key={name} value={name}>{name}</option>)}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold text-slate-600">زیرگروه / نوع فنی
+                  <select aria-label="فیلتر زیرگروه کالاها" value={selectedSubcategory}
+                    onChange={e=>{setSelectedSubcategory(e.target.value);setCurrentPage(1)}}
+                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white">
+                    <option value="all">همه زیرگروه‌ها ({toPersianDigits(hierarchy.subcategories.length)})</option>
+                    {hierarchy.subcategories.map(name=><option key={name} value={name}>{name}</option>)}
                   </select>
                 </label>
                 <label className="block text-xs font-bold text-slate-600">
@@ -1488,7 +1509,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200/80 text-slate-700">
-                      {toPersianDigits(cat.count || 0)} خانواده
+                      {toPersianDigits(catalogFamilyCount(products,cat.name || cat.slug))} خانواده
                     </span>
                   </div>
 
@@ -1522,6 +1543,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     /{cat.slug}
                   </span>
                   <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={()=>openFamiliesInCategory(cat.name || cat.slug)}
+                      className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#C65A16] border border-orange-200 text-xs font-bold">
+                      مشاهده خانواده‌ها
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleOpenCategoryModal(cat)}
