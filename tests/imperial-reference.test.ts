@@ -15,7 +15,7 @@ test('all imported reference lengths agree with an integer tooth count and the p
  }
  assert.equal(checkImperialDesignation('817','L').status,'reference-conflict');
  assert.equal(checkImperialDesignation('1235','H').lengthMm,undefined);
- assert.equal(checkImperialDesignation('1020','H').sourceUrl,'https://global.mitsuboshi.com/assetFiles/timing_belt_design_manual_en.pdf');
+ assert.equal(checkImperialDesignation('1020','H').sourceUrl,'https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf');
 });
 test('the persisted 2642-row audit contains existing identifiers only and claims no exact stocked-item verification',()=>{
  assert.deepEqual(report.records.map(r=>r.sku).sort(),[...cohort.skus].sort());
