@@ -9,9 +9,12 @@ import crypto from 'node:crypto';
 import {databaseEnabled,transaction} from './db/connection';
 import {warmProductThumbs} from './productImageVariants';
 
-const REPO='javanweb/IMAGE';
-const REVISION='5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6';
-const EXPECTED=725;
+export const IMAGE_JPEG_REPOSITORY='javanweb/IMAGE';
+const REPO=IMAGE_JPEG_REPOSITORY;
+export const IMAGE_JPEG_PINNED_COMMIT='5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6';
+const REVISION=IMAGE_JPEG_PINNED_COMMIT;
+export const IMAGE_JPEG_COUNT=725;
+const EXPECTED=IMAGE_JPEG_COUNT;
 const MIN_FREE=25*1024*1024;
 type FileEntry={name:string;repoPath:string;size:number;sha:string};
 
