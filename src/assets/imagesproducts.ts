@@ -61,6 +61,8 @@ export function getProductImageUrl(imageName?: string | null): string {
     return clean;
   }
 
+  // New admin uploads are served immediately from the persistent Railway volume.
+  if (/^\\/storage\\/products\\/[a-f0-9-]{36}\\.webp$/.test(clean)) return clean;
   const fileName = normalizeImageFileName(clean);
   return fileName ? `${GITHUB_RAW_BASE}/${fileName}` : '';
 }
