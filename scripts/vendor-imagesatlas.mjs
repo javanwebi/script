@@ -11,9 +11,9 @@ const head=execFileSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8'}
 if(head!==commit)throw new Error('Unexpected source revision: '+head);
 const tree=execFileSync('git',['-C',source,'ls-tree','-rz','--long','HEAD']).toString('utf8');
 const files=tree.split('\0').filter(Boolean).map(line=>{
- const match=/^100644 blob ([a-f0-9]{40}) ([0-9]+)\t(.+)$/.exec(line);
+ const match=/^100644 blob ([a-f0-9]{40})\s+([0-9]+)\t(.+)$/.exec(line);
  if(!match || !/^e\([1-9]\d{0,3}\)\.png$/.test(match[3]))
-  throw new Error('Unexpected catalog repository object');
+  throw new Error('Unexpected catalog repository object: '+JSON.stringify(line).slice(0,170));
  return {name:match[3],gitBlobSha:match[1],size:Number(match[2])};
 });
 if(files.length!==869 || new Set(files.map(x=>x.name)).size!==869)
