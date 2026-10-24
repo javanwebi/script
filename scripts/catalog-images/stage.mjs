@@ -128,14 +128,15 @@ async function stage(){
  console.log('Catalog source-staging summary:',JSON.stringify(summary));
 }
 async function verify(){
- const manifest=JSON.parse(await fs.readFile(manifestFile,'utf8'));
+ const root=process.env.VERIFY_DIST==='1'?path.resolve('dist/products/catalog'):output;
+ const manifest=JSON.parse(await fs.readFile(path.join(root,'manifest.json'),'utf8'));
  if(Object.keys(manifest.records||{}).length!==869)throw new Error('Missing photos in optimized manifest');
- await verifyOriginals(output);
+ await verifyOriginals(root);
  await pool(expected,6,async entry=>{
   const record=manifest.records[entry.file];
   if(record.sha256!==entry.sha256)throw new Error('Manifest hash mismatch for '+entry.file);
   for(const variant of [record.thumb,record.medium]){
-   const file=path.resolve('public'+variant);
+   const file=path.resolve((process.env.VERIFY_DIST==='1'?'dist':'public')+variant);
    if(!file.startsWith(output+path.sep)||!(await fs.stat(file).then(x=>x.size>0).catch(()=>false)))
     throw new Error('Missing optimized variant '+variant);
   }
