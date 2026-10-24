@@ -30,7 +30,7 @@ test('product URLs are served by the same site, without converting them to GitHu
  const url='/storage/products/00000000-0000-4000-8000-000000000000.webp';
  assert.equal(getProductImageUrl(url),url);
  assert.equal(getProductImageUrl('e(1).png'),'/products/catalog/e(1).png');
- assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),'/storage/products/catalog/e(1).png');
+ assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),'/products/catalog/e(1).png');
  assert.equal(getProductImageUrl('/storage/products/catalog/e(869).png'),'/products/catalog/e(869).png');
  assert.equal(getProductImageUrl('/storage/products/../private.txt'),'');
 });
