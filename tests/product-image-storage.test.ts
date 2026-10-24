@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {prepareProductStorage,productStorageDirectory} from '../server/productImageStorage';
 import {getProductImageUrl} from '../src/assets/imagesproducts';
+import {IMAGE_IMPORT_SOURCES} from '../server/catalogImageVolumeMigration';
+import {officialImageFile} from '../src/services/catalogImageCorpus';
 
 test('product image folder is writable and remains outside the Git working tree',async()=>{
  const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'sanat-product-volume-'));
@@ -41,4 +43,18 @@ test('production photo folder requires a mounted path',async()=>{
   if(previousDir===undefined)delete process.env.PRODUCT_STORAGE_DIR;else process.env.PRODUCT_STORAGE_DIR=previousDir;
   if(previousNode===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previousNode;
  }
+});
+
+test('verified source is only the 869 original PNGs from imagesatlas',()=>{
+ assert.equal(IMAGE_IMPORT_SOURCES.length,1);
+ const [source]=IMAGE_IMPORT_SOURCES;
+ assert.equal(source.repo,'javanweb/imagesatlas');
+ assert.equal(source.count,869);
+ assert.equal(source.target,'catalog');
+ assert.ok(source.pattern.test('e(1).png'));
+ assert.ok(source.pattern.test('e(869).png'));
+ assert.equal(source.pattern.test('e(131).jpg'),false);
+ assert.equal(source.pattern.test('../e(1).png'),false);
+ assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
+ assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
 });
