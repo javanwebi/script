@@ -95,10 +95,10 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
    if(!databaseEnabled())return res.status(503).json({success:false,message:'اتصال به PostgreSQL الزامی است.'});
    const binaryUpload=Buffer.isBuffer(req.body);
-   const requestedFamily=binaryUpload?req.get('x-family-code'):req.body?.familyCode;
-   const requestedVariant=binaryUpload?req.get('x-variant-code'):req.body?.variantCode;
-   const requestedReplacement=binaryUpload?req.get('x-replace-id'):req.body?.replaceId;
-   const requestedTitle=binaryUpload?req.get('x-image-title'):req.body?.title;
+   const requestedFamily=binaryUpload?req.query.familyCode:req.body?.familyCode;
+   const requestedVariant=binaryUpload?req.query.variantCode:req.body?.variantCode;
+   const requestedReplacement=binaryUpload?req.query.replaceId:req.body?.replaceId;
+   const requestedTitle=binaryUpload?req.query.title:req.body?.title;
    const familyCode=cleanCode(requestedFamily);
    const variantCode=requestedVariant ? cleanCode(requestedVariant):null;
    const replaceId=requestedReplacement ? String(requestedReplacement):null;
