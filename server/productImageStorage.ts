@@ -72,6 +72,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   let dest='';
   let temp='';
   let committed=false;
+  const extraFiles:string[]=[];
   try{
    const identity=await getPortalIdentity(req);
    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
@@ -98,6 +99,23 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    const name=id+'.webp';
    dest=path.join(dir,name);
    temp=path.join(dir,'.'+id+'.tmp');
+   // Preserve the byte-identical uploaded original on the persistent Volume.
+   // The eventual GitHub publisher consumes these immutable UUID paths.
+   const originalExt=metadata.format==='jpeg'?'jpg':metadata.format as 'png'|'webp';
+   const originalSha=crypto.createHash('sha256').update(raw).digest('hex');
+   const variantSuffix='.'+originalSha.slice(0,12);
+   const queueDir=path.join(dir,'publish-queue');
+   await fs.mkdir(queueDir,{recursive:true,mode:0o750});
+   const originalFile=path.join(queueDir,id+'.'+originalExt);
+   const thumbnailFile=path.join(queueDir,id+variantSuffix+'.w320.webp');
+   const mediumFile=path.join(queueDir,id+variantSuffix+'.w960.webp');
+   for(const [file,content] of [
+     [originalFile,raw],
+     [thumbnailFile,await sharp(raw,{limitInputPixels:MAX_PIXELS}).rotate().resize(320,320,{fit:'inside',withoutEnlargement:true}).webp({quality:80,effort:3}).toBuffer()],
+     [mediumFile,await sharp(raw,{limitInputPixels:MAX_PIXELS}).rotate().resize(960,960,{fit:'inside',withoutEnlargement:true}).webp({quality:84,effort:3}).toBuffer()]
+   ] as [string,Buffer][]){
+     await fs.writeFile(file,content,{flag:'wx',mode:0o640});extraFiles.push(file);
+   }
    const url='/storage/products/'+name;
    await fs.writeFile(temp,optimized,{flag:'wx',mode:0o640});
    const gallery=await transaction(async client=>{
@@ -154,6 +172,15 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
        await client.query("update public.portal_kv_store set value=$2::jsonb where key=$1",
          ['catalog_overrides_db_v1',JSON.stringify(state)]);
      }
+     if(process.env.PRODUCT_GITHUB_PUBLISH_ENABLED==='1'){
+       await client.query(
+         'insert into public.catalog_image_publications(upload_id,gallery_id,family_code,variant_code,original_extension,original_sha256,old_url,public_original_url,public_thumb_url,public_medium_url) values($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+         [id,galleryId,familyCode,variantCode,originalExt,originalSha,url,
+          '/products/uploads/'+id+'.'+originalExt,
+          '/products/uploads/optimized/'+id+variantSuffix+'.w320.webp',
+          '/products/uploads/optimized/'+id+variantSuffix+'.w960.webp']
+       );
+     }
      return {id:galleryId,url,fileName:name,familyCode,variantCode,scope:variantCode?'variant':'family',title:title||name};
    });
    committed=true;
@@ -163,6 +190,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    if(!committed){
     if(temp)await fs.unlink(temp).catch(()=>{});
     if(dest)await fs.unlink(dest).catch(()=>{});
+    for(const file of extraFiles)await fs.unlink(file).catch(()=>{});
    }
    const status=Number(error?.status)||500;
    if(status>=500)console.error('[Product storage] Upload failed:',String(error?.code||error?.name||'error').slice(0,60));
