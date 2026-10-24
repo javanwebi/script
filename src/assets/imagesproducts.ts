@@ -1,13 +1,13 @@
 /**
  * Product image URL resolver.
  * The authoritative catalogue is in PostgreSQL and original image binaries
- * are served from the persistent /data/storage/products/catalog Volume.
+ * are served from immutable source-controlled assets after staging is approved.
  * Direct links to the old image repository are normalized to local paths.
  */
 export const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/javanweb/imagesatlas/main';
 export const JSDELIVR_CDN_BASE = 'https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@main';
 export const TOTAL_OFFICIAL_IMAGES_COUNT=869;
-export const PERSISTENT_CATALOG_IMAGE_BASE='/storage/products/catalog';
+export const PERSISTENT_CATALOG_IMAGE_BASE='/products/catalog';
 
 export function normalizeImageFileName(imageName?:string|null):string {
  if(!imageName)return '';
@@ -38,8 +38,16 @@ export function getProductImageUrl(imageName?:string|null):string {
  const input=imageName.trim();
  // Server-uploaded images are also on the same persistent mounted Volume.
  if(/^\/storage\/products\/[a-f0-9-]{36}\.webp$/.test(input))return input;
+ // Published, UUID-addressed admin uploads and their SHA-versioned WebP views.
+ // Keep these URLs verbatim; they are different from the numbered official PNGs.
+ if(/^\/products\/uploads\/(?:[a-f0-9-]{36}\.(?:png|jpg|webp)|optimized\/[a-f0-9-]{36}\.[a-f0-9]{12}\.w(?:320|960)\.webp)$/.test(input))return input;
+ // Retain the old mounted-volume originals as rollback, but serve official photos
+ // from the source bundle on staging. The DB is not rewritten by this resolver.
+ const oldVolume=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
+ if(oldVolume)return `${PERSISTENT_CATALOG_IMAGE_BASE}/${oldVolume[1]}`;
+ if(/^\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.test(input))return input;
  const local=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
- if(local)return normalizeImageFileName(local[1])?input:'';
+ if(local)return normalizeImageFileName(local[1])?`${PERSISTENT_CATALOG_IMAGE_BASE}/${local[1]}`:'';
  // Normalize historical GitHub links; they must not reach the browser once migrated.
  const historical=oldGithubOfficialFile(input);
  if(historical)return `${PERSISTENT_CATALOG_IMAGE_BASE}/${historical}`;

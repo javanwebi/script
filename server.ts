@@ -1,6 +1,6 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
-import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
+import {startCatalogGithubPublisher} from './server/catalogGithubPublication';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -351,7 +351,7 @@ app.use('/api/catalog', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   void requirePortalAdmin(req, res, next);
 });
-registerProductImageStorage(app,async()=>{
+const reloadCatalogImageData=async()=>{
   const fresh=await readProducts();
   installDatabaseProducts(fresh);
   const latest=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
@@ -361,7 +361,8 @@ registerProductImageStorage(app,async()=>{
   // New admin uploads are also indexed without requiring the next deployment.
   void buildImageFeatureIndex();
   void buildImageEmbeddingIndex();
-});
+};
+registerProductImageStorage(app,reloadCatalogImageData);
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
   if(!authorized){const originalJson=res.json.bind(res);res.json=((body:any)=>originalJson(publicCatalog(body))) as typeof res.json;}
@@ -970,8 +971,14 @@ async function getCatalogImageBuffer(image?:string, revision=''):Promise<Buffer|
   if(!image)return null;
   const catalogFile=officialImageFile(image);
   if(catalogFile){
-    try{return await fs.promises.readFile(path.join(productStorageDirectory(),'catalog',catalogFile));}
-    catch{ /* Original URL remains valid while one-time import runs. */ }
+    // Source bundle becomes authoritative after verified deploy; Volume is
+    // retained only as a non-destructive fallback during rollout/rollback.
+    for(const dir of [path.join(process.cwd(),'dist','products','catalog'),
+                      path.join(process.cwd(),'public','products','catalog'),
+                      path.join(productStorageDirectory(),'catalog')]){
+      try{return await fs.promises.readFile(path.join(dir,catalogFile));}
+      catch{ /* continue to next verified source */ }
+    }
   }
   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(image);
   if(stored){
@@ -6520,6 +6527,25 @@ async function start() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    // Source-controlled product assets bypass catalogue APIs and the database.
+    // Hashed WebP derivatives are immutable; numbered originals remain cacheable
+    // but revalidatable so unchanged source names are not cached forever.
+    app.use('/products/catalog',express.static(path.join(distPath,'products','catalog'),{
+      fallthrough:true,
+      setHeaders(res,fileName){
+        res.setHeader('X-Content-Type-Options','nosniff');
+        if(/\.[a-f0-9]{12}\.w(?:320|960)\.webp$/.test(fileName))
+          res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+        else res.setHeader('Cache-Control','public, max-age=86400');
+      }
+    }));
+    app.use('/products/uploads',express.static(path.join(distPath,'products','uploads'),{
+      fallthrough:true,
+      setHeaders(res){
+        res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+        res.setHeader('X-Content-Type-Options','nosniff');
+      }
+    }));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -6536,19 +6562,11 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    // Non-destructive background import: verify every source Git blob first,
-    // then atomically switch PostgreSQL image links to volume-local URLs.
-    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
-      const [images,photos,products]=await Promise.all([
-        database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
-        database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
-        readProducts()
-      ]);
-      installCatalogImageMetadata(images.rows,photos.rows);
-      installDatabaseProducts(products);
-      refreshRecognitionCatalog();
-      invalidatePublicCatalogCache();
-    });
+    // Opt-in only after reviewed outbox migration and private token configuration.
+    startCatalogGithubPublisher(reloadCatalogImageData);
+    // Official images are bundled with the validated source build.
+    // No automatic DB URL rewrite; the old Volume and links remain intact
+    // until an approved, backed-up production migration is executed.
   });
 }
 

@@ -517,6 +517,9 @@ export const ProductDetailPage: React.FC = () => {
               <ProductImage
                 src={currentGalleryImage?.url}
                 alt={currentGalleryImage?.title || requestedProduct.name}
+                loading="eager"
+                fetchPriority="high"
+                sizes="(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 620px"
                 className="absolute inset-0 w-full h-full object-contain p-6 sm:p-8 group-hover:scale-105 transition-transform duration-300"
               />
 
