@@ -1,12 +1,11 @@
 /**
  * One-time, non-destructive import of the official PNG image catalogue and the
- * independently supplied IMAGE JPEG repository into a persistent Railway volume.
+ * existing catalog images from imagesatlas into the persistent Railway volume.
  *
  * Never infer SKU bindings from numbered filenames. Only existing catalogue PNG
  * URLs are switched to local files, after checking EVERY source Git blob.
  */
 import fs from 'node:fs/promises';
-import {createReadStream,createWriteStream} from 'node:fs';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import crypto from 'node:crypto';
@@ -20,7 +19,6 @@ export type ImageImportSource={
 };
 export const IMAGE_IMPORT_SOURCES:ImageImportSource[]=[
  {repo:'javanweb/imagesatlas',commit:'5bbaec971a05771939663d47803b5d5c2c624c6d',target:'catalog',count:869,pattern:/^e\([1-9]\d{0,3}\)\.png$/},
- {repo:'javanweb/IMAGE',commit:'5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6',target:'IMAGE',count:725,pattern:/^images\/e\([1-9]\d{0,3}\)\.jpg$/},
 ];
 const reserveBytes=48*1024*1024;
 const sourcePrefix='https://raw.githubusercontent.com/javanweb/imagesatlas/main/';
@@ -101,8 +99,7 @@ async function ensureSource(source:ImageImportSource,root:string){
 export async function commitVolumeCatalogUrls(sources:{source:ImageImportSource;files:GithubFile[]}[]){
  if(!databaseEnabled())throw new Error('PostgreSQL is required');
  const originals=sources.find(item=>item.source.target==='catalog')?.files||[];
- const imported=sources.find(item=>item.source.target==='IMAGE')?.files||[];
- if(originals.length!==869||imported.length!==725)throw new Error('Incomplete image import');
+ if(originals.length!==869)throw new Error('Incomplete official image import');
  return transaction(async client=>{
   await client.query("select pg_advisory_xact_lock(hashtext('sanatpish-image-volume-import-v1'))");
   for(const {source,files} of sources){
@@ -122,10 +119,6 @@ export async function commitVolumeCatalogUrls(sources:{source:ImageImportSource;
     ['volume-images/'+source.repo+'@'+source.commit,checksum,serialized]
    );
   }
-  const replacements=[
-   [sourcePrefix,destinationPrefix],
-   [cdnPrefix,destinationPrefix]
-  ];
   const changed:Record<string,number>={};
   const urlColumns=[
    ['catalog_image_audits','image_url'],['catalog_image_features','image_url'],
