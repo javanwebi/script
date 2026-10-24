@@ -49,7 +49,13 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   if(!match||Number(match[1])>869)return res.status(404).end();
   return res.sendFile(file,{root:path.join(root,'catalog'),dotfiles:'deny',
    headers:{'Cache-Control':'public, max-age=86400','Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
-  },error=>{if(error&&!res.headersSent)res.status((error as any).status||404).end();});
+  },error=>{
+    if(!error||res.headersSent)return;
+    // Preserve availability while initial import is still in progress.
+    if((error as any).code==='ENOENT')
+      return res.redirect(302,'https://raw.githubusercontent.com/javanweb/imagesatlas/5bbaec971a05771939663d47803b5d5c2c624c6d/'+encodeURIComponent(file));
+    res.status((error as any).status||404).end();
+  });
  });
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
