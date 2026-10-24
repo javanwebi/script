@@ -7,6 +7,32 @@ import { applyCatalogueCorrections } from '../src/data/catalogueCorrections';
 import { categorySlugFor, installCatalogProducts } from '../src/data/userProducts';
 import { getProductImageUrl } from '../src/assets/imagesproducts';
 import { installCatalogImageMetadata } from '../src/services/catalogImageCorpus';
+import pins from '../src/data/ownerCataloguePinTable.json';
+import imperial from '../src/data/imperialTimingReference.json';
+import misumi from '../src/data/misumiTimingReference.json';
+import { installOwnerPinRows } from '../src/data/ownerCatalogue';
+import { installTimingReferenceRows, type TimingReferenceRow } from '../src/data/imperialTimingReference';
+
+installOwnerPinRows(pins.rows.map(row=>({
+ sku:row.sku,dim_2r_outer:row['2R'],dim_w:row.W,dim_h:row.h,dim_2r_inner:row['2r'],
+ pdf_page:pins.pdfPage,printed_page:pins.printedPage,drawing_pdf_page:pins.drawingPdfPage,
+ source_sha256:pins.sha256,is_conflict:pins.conflicts.includes(row.sku)
+})));
+const referenceRows:TimingReferenceRow[]=[
+ ...Object.entries(imperial.lengths).map(([designation,row])=>({
+  designation,reference_source:'optibelt_imperial',length_mm:row.lengthMm,teeth_count:row.teeth,
+  pdf_page:row.pdfPage,source_page:null,is_conflict:false,source_url:imperial.sourceUrl
+ })),
+ ...Object.entries(imperial.conflicts).map(([designation,row])=>({
+  designation,reference_source:'optibelt_imperial',length_mm:null,teeth_count:null,
+  pdf_page:row.pdfPage,source_page:null,is_conflict:true,source_url:imperial.sourceUrl
+ })),
+ ...Object.entries(misumi.lengths).map(([designation,row])=>({
+  designation,reference_source:'misumi_imperial',length_mm:row.lengthMm,teeth_count:row.teeth,
+  pdf_page:null,source_page:row.sourcePage,is_conflict:false,source_url:row.sourceUrl
+ }))
+];
+installTimingReferenceRows(referenceRows);
 
 const mapped=Object.fromEntries(Object.entries(images as Record<string,{files:string[];familyName:string}>));
 const raw=catalogue.map(family=>{
