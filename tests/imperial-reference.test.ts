@@ -1,10 +1,10 @@
 import './catalogFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import data from '../src/data/imperialTimingReference.json';
+import data from './fixtures/imperialTimingReference.json';
 import { checkImperialDesignation } from '../src/data/imperialTimingReference';
 import report from '../docs/technical-research-2642.json';
-import cohort from '../src/data/technicalResearchCohort.json';
+import cohort from './fixtures/technicalResearchCohort.json';
 test('all imported reference lengths agree with an integer tooth count and the profile pitch',()=>{
  const pitch:Record<string,number>={MXL:2.032,XL:5.08,L:9.525,H:12.7,XH:22.225,XXH:31.75,DXL:5.08,DL:9.525,DH:12.7};
  assert.equal(Object.keys(data.lengths).length,581);
