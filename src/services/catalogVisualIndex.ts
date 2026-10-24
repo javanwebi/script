@@ -6,6 +6,7 @@ import type {CatalogImageRecord} from './catalogImageCorpus';
 
 export type EmbedImages=(buffers:Buffer[])=>Promise<number[][]>;
 type Entry={signature:string;vector:number[]};
+export interface VisualIndexPersistence { loadEntries():Promise<Record<string,Entry>>; saveEntries(rows:Array<{id:string;signature:string;vector:number[]}>):Promise<void>; }
 const MODEL='gemini-embedding-2:768';
 const signature=(row:CatalogImageRecord)=>createHash('sha256').update(JSON.stringify([row.url,row.revision])).digest('hex');
 function normalized(value:unknown):number[] {
@@ -19,10 +20,10 @@ export class CatalogVisualIndex {
  private loaded=false;
  private writes:Promise<void>=Promise.resolve();
  private building?:Promise<void>;
- constructor(private file:string){}
+ constructor(private file:string, private persistence?:VisualIndexPersistence){}
  async load(){
   if(this.loaded)return;this.loaded=true;
-  try{const saved=JSON.parse(await fs.readFile(this.file,'utf8'));if(saved.model===MODEL)for(const [id,entry] of Object.entries(saved.entries || {}) as [string,Entry][]){
+  try{const saved=this.persistence?{model:MODEL,entries:await this.persistence.loadEntries()}:JSON.parse(await fs.readFile(this.file,'utf8'));if(saved.model===MODEL)for(const [id,entry] of Object.entries(saved.entries || {}) as [string,Entry][]){
    try{this.entries.set(id,{signature:entry.signature,vector:normalized(entry.vector)});}catch{}
   }}catch{}
  }
@@ -42,10 +43,13 @@ export class CatalogVisualIndex {
     for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
     // Persist completed batches so a provider interruption does not restart the entire index.
     const write=this.writes.catch(()=>{}).then(async()=>{
-     await fs.mkdir(path.dirname(this.file),{recursive:true});
-     const temp=this.file+'.'+randomUUID()+'.tmp';
-     await fs.writeFile(temp,JSON.stringify({model:MODEL,entries:Object.fromEntries(this.entries)}),{mode:0o600});
-     await fs.rename(temp,this.file);
+     if(this.persistence) await this.persistence.saveEntries(entries);
+     else {
+      await fs.mkdir(path.dirname(this.file),{recursive:true});
+      const temp=this.file+'.'+randomUUID()+'.tmp';
+      await fs.writeFile(temp,JSON.stringify({model:MODEL,entries:Object.fromEntries(this.entries)}),{mode:0o600});
+      await fs.rename(temp,this.file);
+     }
     });this.writes=write;await write;
    }}catch(error){stopped=true;throw error;}
    }));
