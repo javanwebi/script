@@ -13,7 +13,9 @@ export const ProductImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> =
   const local = src ? getProductImageUrl(src) : "";
   const official = local.startsWith("/products/catalog/") ?
     normalizeImageFileName(local.split("/").at(-1)) : "";
-  const variants = official ? catalogImageAssets[official] : undefined;
+  const uploaded = /^\/products\/uploads\/optimized\/([a-f0-9-]{36}\.[a-f0-9]{12})\.w960\.webp$/.exec(local);
+  const variants = official ? catalogImageAssets[official] :
+    uploaded ? {thumb:'/products/uploads/optimized/'+uploaded[1]+'.w320.webp',medium:local} : undefined;
   const candidates = variants ?
     [variants.medium, local] :
     src?.startsWith(RAW) ? [CDN + src.slice(RAW.length), src] :
