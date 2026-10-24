@@ -11,8 +11,8 @@ const expectedCommit='5bbaec971a05771939663d47803b5d5c2c624c6d';
 const sourceCommit=execFileSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
 if(sourceCommit!==expectedCommit)throw new Error('Unexpected source commit');
 const tree=execFileSync('git',['-C',source,'ls-tree','-rz','--long','HEAD']).toString('utf8');
-const files=tree.split('\\0').filter(Boolean).map(line=>{
- const match=/^100644 blob ([a-f0-9]{40})\\s+([0-9]+)\\t(.+)$/.exec(line);
+const files=tree.split('\0').filter(Boolean).map(line=>{
+ const match=/^100644 blob ([a-f0-9]{40})\s+([0-9]+)\t(.+)$/.exec(line);
  if(!match)throw new Error('Invalid original image tree');
  return {name:match[3],gitBlobSha:match[1],size:Number(match[2])};
 });
