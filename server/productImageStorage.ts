@@ -1,3 +1,4 @@
+import {invalidatePublicCatalogCache} from './db/runtimeApi';
 import type {Express,Request,Response} from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -45,7 +46,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  // volume. The URL never discloses a filesystem path.
  app.get('/storage/products/catalog/:file',async(req,res)=>{
   const file=String(req.params.file||'');
-  const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
+  const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
   const persistentRoot=path.join(root,'catalog');
   // Original images are checked into the site source, so they remain available
@@ -61,6 +62,62 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    if(error && !res.headersSent)res.status((error as any).status||404).end();
   });
  });
+ // Legacy JPEGs from javanweb/IMAGE are stored separately; they do not
+ // silently replace original PNGs or inherit unverified SKU associations.
+ app.get('/storage/products/legacy-jpg/images/:file',async(req,res)=>{
+  const file=String(req.params.file||'');
+  if(!/^e\([1-9]\d{0,3}\)\.jpg$/.test(file))return res.status(404).end();
+  return res.sendFile(file,{root:path.join(root,'legacy-jpg','images'),dotfiles:'deny',
+   headers:{'Cache-Control':'public, max-age=2592000, immutable',
+    'Content-Type':'image/jpeg','X-Content-Type-Options':'nosniff'}
+  },error=>{
+   if(error && !res.headersSent)res.status((error as any).status||404).end();
+  });
+ });
+
+
+ const thumbnailsInFlight=new Map<string,Promise<void>>();
+ // Small WebP derivatives avoid transferring multi-hundred-KB PNGs to every
+ // catalog card. All thumbnails are derived from exact, already-bound originals.
+ app.get('/storage/products/thumbs/:file',async(req,res)=>{
+  const name=String(req.params.file||'');
+  const match=/^e\(([1-9]\d{0,3})\)\.webp$/.exec(name);
+  if(!match||Number(match[1])>869)return res.status(404).end();
+  const sourceName='e('+match[1]+').png';
+  const onVolume=path.join(root,'catalog',sourceName);
+  const vendored=path.join(process.cwd(),'storage','products','catalog',sourceName);
+  const destination=path.join(root,'thumbs',name);
+  try{
+   if(!(await fs.stat(destination).then(s=>s.isFile()&&s.size>0).catch(()=>false))){
+    let pending=thumbnailsInFlight.get(name);
+    if(!pending){
+     pending=(async()=>{
+      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||vendored;
+      if(!(await fs.stat(src).then(s=>s.isFile()).catch(()=>false)))
+       throw Object.assign(new Error('Image not found'),{status:404});
+      await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o750});
+      const temp=destination+'.'+crypto.randomUUID()+'.tmp';
+      try{
+       await sharp(src,{limitInputPixels:MAX_PIXELS}).resize({
+        width:420,height:420,fit:'inside',withoutEnlargement:true
+       }).webp({quality:74,effort:1}).toFile(temp);
+       await fs.rename(temp,destination);
+      }finally{await fs.unlink(temp).catch(()=>{});}
+     })();
+     thumbnailsInFlight.set(name,pending);
+     void pending.finally(()=>thumbnailsInFlight.delete(name)).catch(()=>{});
+    }
+    await pending;
+   }
+   return res.sendFile(name,{root:path.join(root,'thumbs'),dotfiles:'deny',headers:{
+    'Cache-Control':'public, max-age=31536000, immutable',
+    'Content-Type':'image/webp','X-Content-Type-Options':'nosniff'
+   }},error=>{if(error && !res.headersSent)res.status((error as any).status||404).end();});
+  }catch(error:any){
+   return res.status(error?.status===404?404:503).end();
+  }
+ });
+
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
@@ -72,7 +129,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  });
 
  // /api/catalog is already guarded by requirePortalAdmin in server.ts.
- app.post('/api/catalog/product-images/upload',async(req:Request,res:Response)=>{
+ app.post('/api/catalog/product-images/upload',express.raw({type:['image/png','image/jpeg','image/webp'],limit:'8mb'}),async(req:Request,res:Response)=>{
   let dest='';
   let temp='';
   let committed=false;
@@ -80,14 +137,20 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    const identity=await getPortalIdentity(req);
    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
    if(!databaseEnabled())return res.status(503).json({success:false,message:'اتصال به PostgreSQL الزامی است.'});
-   const familyCode=cleanCode(req.body?.familyCode);
-   const variantCode=req.body?.variantCode ? cleanCode(req.body.variantCode):null;
-   const replaceId=req.body?.replaceId ? String(req.body.replaceId):null;
-   const title=typeof req.body?.title==='string'?req.body.title.trim().slice(0,180):'';
-   if(!familyCode || (req.body?.variantCode && !variantCode))
+   const binaryUpload=Buffer.isBuffer(req.body);
+   const requestedFamily=binaryUpload?req.query.familyCode:req.body?.familyCode;
+   const requestedVariant=binaryUpload?req.query.variantCode:req.body?.variantCode;
+   const requestedReplacement=binaryUpload?req.query.replaceId:req.body?.replaceId;
+   const requestedTitle=binaryUpload?req.query.title:req.body?.title;
+   const familyCode=cleanCode(requestedFamily);
+   const variantCode=requestedVariant ? cleanCode(requestedVariant):null;
+   const replaceId=requestedReplacement ? String(requestedReplacement):null;
+   const title=typeof requestedTitle==='string'?requestedTitle.trim().slice(0,180):'';
+   if(!familyCode || (requestedVariant && !variantCode))
     throw fail(400,'کد خانواده یا SKU معتبر نیست.');
    if(replaceId && !/^[\w.:-]{1,150}$/.test(replaceId))throw fail(400,'شناسه تصویر جایگزین نامعتبر است.');
-   const raw=parseUpload(req.body?.dataUrl);
+   const raw=binaryUpload ? req.body as Buffer : parseUpload(req.body?.dataUrl);
+   if(!raw.length||raw.length>MAX_UPLOAD_BYTES)throw fail(413,'حجم تصویر معتبر نیست.');
    let metadata:{width?:number;height?:number;format?:string};
    try{metadata=await sharp(raw,{limitInputPixels:MAX_PIXELS}).metadata();}
    catch{throw fail(400,'تصویر قابل خواندن نیست.');}
@@ -95,8 +158,8 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
       !['jpeg','png','webp'].includes(metadata.format||''))
     throw fail(400,'فرمت یا ابعاد تصویر معتبر نیست.');
    const optimized=await sharp(raw,{limitInputPixels:MAX_PIXELS})
-     .rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true})
-     .webp({quality:84,effort:4}).toBuffer();
+     .rotate().resize({width:1800,height:1800,fit:'inside',withoutEnlargement:true})
+     .webp({quality:82,effort:2}).toBuffer();
    const dir=await prepareProductStorage();
    const id=crypto.randomUUID();
    const name=id+'.webp';
@@ -161,8 +224,13 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
      return {id:galleryId,url,fileName:name,familyCode,variantCode,scope:variantCode?'variant':'family',title:title||name};
    });
    committed=true;
-   try{await onCatalogUpdated();}catch(error){console.warn('[Product storage] Persisted image; in-memory refresh failed:',(error as Error)?.name||'unknown');}
-   return res.status(201).json({success:true,image:gallery});
+   // Database data is authoritative: invalidate public cache before returning.
+   // Do not hold the upload response while rebuilding 10k+ SKU search indices.
+   invalidatePublicCatalogCache();
+   res.setHeader('Cache-Control','no-store');
+   res.status(201).json({success:true,image:gallery});
+   void onCatalogUpdated().catch(error=>console.warn('[Product storage] Image saved; async index refresh failed:',(error as Error)?.name||'unknown'));
+   return;
   }catch(error:any){
    if(!committed){
     if(temp)await fs.unlink(temp).catch(()=>{});

@@ -84,16 +84,16 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
     if(upload.size>8*1024*1024){setSourceError('حداکثر حجم هر تصویر ۸ مگابایت است.');return}
     setSelectedUpload(upload);
-    const reader=new FileReader();
-    reader.onload=()=>{setFile(upload.name);setUrl(String(reader.result||''));setTitle(upload.name);setSourceError('')};
-    reader.onerror=()=>setSourceError('فایل خوانده نشد.');
-    reader.readAsDataURL(upload);
+    // Local preview is immediate; upload sends the original bytes, not base64.
+    if(url.startsWith('blob:'))URL.revokeObjectURL(url);
+    setFile(upload.name);setUrl(URL.createObjectURL(upload));
+    setTitle(upload.name);setSourceError('');
   };
   const chooseUrl=()=>{
     try{const value=new URL(urlInput.trim());if(!['https:','http:'].includes(value.protocol))throw Error('invalid');setFile(value.pathname.split('/').pop()||'تصویر جدید');setUrl(value.href);setTitle('');setSourceError('')}
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
-  const closeSelection=()=>{setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null)};
+  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null)};
   const apply=async()=>{
     if(!file||!url||!familyCode||(placement==='sku'&&!sku)||savingUpload)return;
     if(source==='upload'){
@@ -165,7 +165,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
           {visible.map(row=><article key={row.file} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-[#E8B995] hover:shadow-sm">
             <div className="flex h-40 items-center justify-center bg-white p-4 sm:h-44">
-              <ProductImage src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="h-full w-full object-contain"/>
+              <ProductImage thumbnail loading="lazy" decoding="async" src={getProductImageUrl(row.file)} alt={row.observed||row.file} className="h-full w-full object-contain"/>
             </div>
             <div className="flex flex-1 flex-col gap-3 border-t border-slate-100 p-3.5 sm:p-4">
               <div className="flex items-start justify-between gap-2">

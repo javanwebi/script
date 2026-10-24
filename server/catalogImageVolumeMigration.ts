@@ -20,6 +20,7 @@ export type ImageImportSource={
 };
 export const IMAGE_IMPORT_SOURCES:ImageImportSource[]=[
  {repo:'javanweb/imagesatlas',commit:'5bbaec971a05771939663d47803b5d5c2c624c6d',target:'catalog',count:869,pattern:/^e\([1-9]\d{0,3}\)\.png$/},
+ {repo:'javanweb/IMAGE',commit:'5e8fadaef9f16d0ed03dae3462b60cae4c2a50e6',target:'legacy-jpg',count:725,pattern:/^images\/e\([1-9]\d{0,3}\)\.jpg$/},
 ];
 const reserveBytes=48*1024*1024;
 const sourcePrefix='https://raw.githubusercontent.com/javanweb/imagesatlas/main/';
@@ -37,8 +38,10 @@ async function fileGitSha(filename:string):Promise<string>{
 async function githubTree(source:ImageImportSource):Promise<GithubFile[]>{
  // When the pinned originals have been vendored into javanwebi/script, derive
  // the manifest locally instead of making any GitHub API call on startup.
- if(source.repo==='javanweb/imagesatlas'){
-  const manifestFile=path.join(process.cwd(),'storage','products','catalog','manifest.json');
+ if(source.repo==='javanweb/imagesatlas' || source.repo==='javanweb/IMAGE'){
+  const manifestFile=source.repo==='javanweb/imagesatlas'
+    ? path.join(process.cwd(),'storage','products','catalog','manifest.json')
+    : path.join(process.cwd(),'storage','products','manifests','image-jpg.json');
   try{
    const manifest=JSON.parse(await fs.readFile(manifestFile,'utf8'));
    if(manifest.sourceRepo!==source.repo || manifest.sourceCommit!==source.commit ||
@@ -149,7 +152,8 @@ async function ensureSource(source:ImageImportSource,root:string){
  async function fetchMissing(file:GithubFile){
   const name=path.join(destination,file.path);
   const temp=name+'.'+crypto.randomUUID()+'.tmp';
-  const url=`https://raw.githubusercontent.com/${source.repo}/${source.commit}/${encodeURIComponent(file.path)}`;
+  await fs.mkdir(path.dirname(name),{recursive:true,mode:0o750});
+  const url=`https://raw.githubusercontent.com/${source.repo}/${source.commit}/${file.path.split('/').map(encodeURIComponent).join('/')}`;
   try {
    const response=await fetch(url,{signal:AbortSignal.timeout(30000),redirect:'error'});
    if(!response.ok||!response.body)throw new Error('HTTP '+response.status);

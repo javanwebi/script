@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {prepareProductStorage,productStorageDirectory} from '../server/productImageStorage';
+import {prepareProductStorage,productStorageDirectory,registerProductImageStorage} from '../server/productImageStorage';
+import express from 'express';
+import type {AddressInfo} from 'node:net';
 import {getProductImageUrl} from '../src/assets/imagesproducts';
 import {IMAGE_IMPORT_SOURCES} from '../server/catalogImageVolumeMigration';
 import {officialImageFile} from '../src/services/catalogImageCorpus';
@@ -47,8 +49,8 @@ test('production photo folder requires a mounted path',async()=>{
  }
 });
 
-test('verified source is only the 869 original PNGs from imagesatlas',()=>{
- assert.equal(IMAGE_IMPORT_SOURCES.length,1);
+test('existing 869 PNG product links stay intact and IMAGE JPEG originals are imported separately',()=>{
+ assert.equal(IMAGE_IMPORT_SOURCES.length,2);
  const [source]=IMAGE_IMPORT_SOURCES;
  assert.equal(source.repo,'javanweb/imagesatlas');
  assert.equal(source.count,869);
@@ -57,6 +59,41 @@ test('verified source is only the 869 original PNGs from imagesatlas',()=>{
  assert.ok(source.pattern.test('e(869).png'));
  assert.equal(source.pattern.test('e(131).jpg'),false);
  assert.equal(source.pattern.test('../e(1).png'),false);
+ const reference=IMAGE_IMPORT_SOURCES[1];
+ assert.equal(reference.repo,'javanweb/IMAGE');
+ assert.equal(reference.target,'legacy-jpg');
+ assert.equal(reference.count,725);
+ assert.equal(reference.pattern.test('images/e(131).jpg'),true);
+ assert.equal(reference.pattern.test('images/e(856).jpg'),true);
+ assert.equal(reference.pattern.test('../e(131).jpg'),false);
  assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
  assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
+});
+
+
+test('public storage GET serves existing PNGs using exact numbered filenames',async()=>{
+ const app=express();
+ registerProductImageStorage(app,async()=>{});
+ const listener=app.listen(0,'127.0.0.1');
+ await new Promise<void>((resolve,reject)=>{if(listener.listening)return resolve();listener.once('listening',resolve);listener.once('error',reject);});
+ try{
+  const base='http://127.0.0.1:'+ (listener.address() as AddressInfo).port;
+  for(const n of [1,131,869]){
+   const res=await fetch(base+'/storage/products/catalog/e('+n+').png');
+   assert.equal(res.status,200,'original e('+n+').png should be publicly available');
+   assert.match(res.headers.get('content-type')||'',/image\/png/);
+   const originalBytes=(await res.arrayBuffer()).byteLength;
+   assert.ok(originalBytes>100,'expected real stored image bytes');
+   const thumb=await fetch(base+'/storage/products/thumbs/e('+n+').webp');
+   assert.equal(thumb.status,200,'image thumbnail should be served from the same storage');
+   assert.match(thumb.headers.get('content-type')||'',/image\/webp/);
+   const bytes=(await thumb.arrayBuffer()).byteLength;
+   assert.ok(bytes>100 && bytes<originalBytes,'thumb should be smaller than original PNG');
+
+  }
+  const denied=await fetch(base+'/storage/products/catalog/e(870).png');
+  assert.equal(denied.status,404);
+ }finally{
+  await new Promise<void>((resolve,reject)=>listener.close(error=>error?reject(error):resolve()));
+ }
 });
