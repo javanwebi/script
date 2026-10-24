@@ -68,7 +68,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
     throw fail(400,'کد خانواده یا SKU معتبر نیست.');
    if(replaceId && !/^[\w.:-]{1,150}$/.test(replaceId))throw fail(400,'شناسه تصویر جایگزین نامعتبر است.');
    const raw=parseUpload(req.body?.dataUrl);
-   let metadata:sharp.Metadata;
+   let metadata:{width?:number;height?:number;format?:string};
    try{metadata=await sharp(raw,{limitInputPixels:MAX_PIXELS}).metadata();}
    catch{throw fail(400,'تصویر قابل خواندن نیست.');}
    if(!metadata.width||!metadata.height||metadata.width*metadata.height>MAX_PIXELS ||
