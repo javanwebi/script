@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';import crypto from 'node:crypto';import {sourc
 import {getManagedCatalogProducts,normalizeMergedProduct} from '../../src/data/mockGenerator';import {USER_PRODUCTS_RAW} from '../../src/data/userProducts';import {BRANDS} from '../../src/data/brands';import {CATEGORIES} from '../../src/data/categories';
 import {persistUsers,writeDocument,saveProducts} from '../../server/db/repository';import type {SqlClient} from '../../server/db/connection';import {domainFor} from '../../server/db/namespaces';
 export async function importSourceData(client:SqlClient,options:{portalPath?:string;overridesPath?:string;browserExportPath?:string}={}){
+ if(!USER_PRODUCTS_RAW.length)throw new Error('Historical JSON importer disabled: hydrate reviewed catalogue fixtures explicitly in a local test database; production uses PostgreSQL migrations.');
  const sources=await sourceInventory();
  const runtimeHashes=[];for(const file of [options.portalPath,options.overridesPath,options.browserExportPath].filter(Boolean) as string[])runtimeHashes.push(crypto.createHash('sha256').update(await fs.readFile(file)).digest('hex'));
  const digest=crypto.createHash('sha256').update(JSON.stringify({sources:sources.map(({payload,...source})=>source),runtimeHashes,seedVersion:3})).digest('hex');
