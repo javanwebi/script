@@ -62,7 +62,7 @@ jobs:
       - name: Test TypeScript and staged/legacy image resolver regressions
         run: |
           npm run lint
-          node --import tsx --test tests/catalog-static-image-routes.test.ts tests/product-image-storage.test.ts
+          node --import tsx --test tests/catalog-static-image-routes.test.ts tests/product-image-storage.test.ts tests/image-assignments.test.ts
       - name: Build the actual static production output on staging
         run: npm run build
       - name: Validate every original PNG and responsive asset in dist/
