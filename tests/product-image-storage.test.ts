@@ -49,8 +49,8 @@ test('production photo folder requires a mounted path',async()=>{
  }
 });
 
-test('verified source is only the 869 original PNGs from imagesatlas',()=>{
- assert.equal(IMAGE_IMPORT_SOURCES.length,1);
+test('existing 869 PNG product links stay intact and IMAGE JPEG originals are imported separately',()=>{
+ assert.equal(IMAGE_IMPORT_SOURCES.length,2);
  const [source]=IMAGE_IMPORT_SOURCES;
  assert.equal(source.repo,'javanweb/imagesatlas');
  assert.equal(source.count,869);
@@ -59,6 +59,13 @@ test('verified source is only the 869 original PNGs from imagesatlas',()=>{
  assert.ok(source.pattern.test('e(869).png'));
  assert.equal(source.pattern.test('e(131).jpg'),false);
  assert.equal(source.pattern.test('../e(1).png'),false);
+ const reference=IMAGE_IMPORT_SOURCES[1];
+ assert.equal(reference.repo,'javanweb/IMAGE');
+ assert.equal(reference.target,'legacy-jpg');
+ assert.equal(reference.count,725);
+ assert.equal(reference.pattern.test('images/e(131).jpg'),true);
+ assert.equal(reference.pattern.test('images/e(856).jpg'),true);
+ assert.equal(reference.pattern.test('../e(131).jpg'),false);
  assert.equal(officialImageFile('/storage/products/catalog/e(131).png'),'e(131).png');
  assert.equal(officialImageFile('/storage/products/catalog/../../etc/passwd'),undefined);
 });
