@@ -146,7 +146,7 @@ async function verify(){
   if(record.sha256!==entry.sha256)throw new Error('Manifest hash mismatch for '+entry.file);
   for(const variant of [record.thumb,record.medium]){
    const file=path.resolve((process.env.VERIFY_DIST==='1'?'dist':'public')+variant);
-   if(!file.startsWith(output+path.sep)||!(await fs.stat(file).then(x=>x.size>0).catch(()=>false)))
+   if(!file.startsWith(root+path.sep)||!(await fs.stat(file).then(x=>x.size>0).catch(()=>false)))
     throw new Error('Missing optimized variant '+variant);
   }
  });
