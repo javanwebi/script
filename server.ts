@@ -458,7 +458,6 @@ app.post(['/api/ai/catalog-source', '/api/ai/catalog-summary'], (req, res) => {
 // ATLAS TWO-LEVEL CATALOG MANAGEMENT & OVERRIDES DATABASE (FAMILIES + SKUS)
 // ============================================================================
 
-const CATALOG_OVERRIDES_DB_PATH = process.env.CATALOG_OVERRIDES_DB_PATH || path.join(process.cwd(), 'src', 'data', 'catalogOverridesDb.json');
 
 interface CatalogOverridesDb {
   version: number;
@@ -475,7 +474,8 @@ function loadCatalogOverridesDb(): CatalogOverridesDb {
 }
 
 async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
-  if(databaseEnabled()){
+  if(!databaseEnabled())throw new Error('PostgreSQL is required for catalogue changes');
+  {
     db.updatedAt=new Date().toISOString();
     await transaction(async client=>{await writeDocument(client,"catalog_overrides/runtime",db,"global",undefined,"catalog_overrides");const previous:CatalogOverridesDb=CATALOG_OVERRIDES_CACHE || {version:1,updatedAt:"",families:{},deletedCodes:[]};
       const codes=new Set([...Object.keys(db.families),...Object.keys(previous.families)]);
@@ -485,14 +485,7 @@ async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
       if(db.deletedCodes.length)await client.query(adoptedSchema()?'update public.catalog_families set is_active=false where code=any($1::text[])':'update public.product_families set active=false where code=any($1::text[])',[db.deletedCodes]);});
     CATALOG_OVERRIDES_CACHE=db;return;
   }
-  db.updatedAt = new Date().toISOString();
-  CATALOG_OVERRIDES_CACHE = db;
-  try {
-    fs.mkdirSync(path.dirname(CATALOG_OVERRIDES_DB_PATH), { recursive: true });
-    fs.writeFileSync(CATALOG_OVERRIDES_DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[CatalogOverridesDB] Error writing database file:', err);
-  }
+
 }
 
 app.get('/api/catalog/overrides', async (req, res) => {
