@@ -5,6 +5,8 @@ on:
       - feat/vendor-imagesatlas-to-script-20261024
     paths:
       - .github/workflows/vendor-imagesatlas.yml
+      - scripts/vendor-imagesatlas.mjs
+      - scripts/verify-vendored-catalog.mjs
   workflow_dispatch:
 permissions:
   contents: write
