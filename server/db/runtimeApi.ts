@@ -13,6 +13,13 @@ function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '
 const PUBLIC_CATALOG_TTL_MS=120000;
 let publicCatalogCache:{expires:number,value:unknown}|undefined;
 let publicCatalogInFlight:Promise<unknown>|undefined;
+let publicCatalogGeneration=0;
+/** Public /api/runtime responses must see newly uploaded images immediately. */
+export function invalidatePublicCatalogCache(){
+ publicCatalogGeneration++;
+ publicCatalogCache=undefined;
+ publicCatalogInFlight=undefined;
+}
 const PUBLIC_DOCUMENT_TTL_MS=60000;
 const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
 const sharedDocumentInFlight=new Map<string,Promise<unknown>>();
@@ -31,11 +38,16 @@ async function cachedPublicDocument(key:string):Promise<unknown>{
 
 async function publicProductsCached():Promise<unknown>{
  if(publicCatalogCache && Date.now()<publicCatalogCache.expires)return publicCatalogCache.value;
- if(!publicCatalogInFlight)publicCatalogInFlight=readProducts().then(products=>{
-  const value=publicCatalog(products);
-  publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
-  return value;
- }).finally(()=>{publicCatalogInFlight=undefined;});
+ if(!publicCatalogInFlight){
+  const generation=publicCatalogGeneration;
+  const task=readProducts().then(products=>{
+    const value=publicCatalog(products);
+    if(generation===publicCatalogGeneration)
+      publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
+    return value;
+  }).finally(()=>{if(publicCatalogInFlight===task)publicCatalogInFlight=undefined;});
+  publicCatalogInFlight=task;
+ }
  return publicCatalogInFlight;
 }
 export async function runtimeApi(req:Request,res:Response){
