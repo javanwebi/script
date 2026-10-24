@@ -15,6 +15,8 @@ import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
 import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile, installCatalogImageMetadata } from './src/services/catalogImageCorpus';
+import { installOwnerPinRows } from './src/data/ownerCatalogue';
+import { installTimingReferenceRows } from './src/data/imperialTimingReference';
 import { scanEveryCatalogImage, type ScanProgress } from './src/services/exhaustiveImageScan';
 import { RecognitionJobs } from './src/services/recognitionJobs';
 import { workerVision } from './src/services/partRecognitionGateway';
@@ -6501,6 +6503,12 @@ async function start() {
   assertProductionDatabaseConfig();
   if(databaseEnabled()){
     await database().query('select revision from app_private.portal_version');
+    const [pinRecords,timingRecords]=await Promise.all([
+      database().query('select sku,dim_2r_outer,dim_w,dim_h,dim_2r_inner,pdf_page,printed_page,drawing_pdf_page,source_sha256,is_conflict from public.owner_catalogue_pin_rows'),
+      database().query('select designation,reference_source,length_mm,teeth_count,pdf_page,source_page,is_conflict,source_url from public.timing_belt_reference_lengths')
+    ]);
+    installOwnerPinRows(pinRecords.rows);
+    installTimingReferenceRows(timingRecords.rows);
     const products=await readProducts();if(!products.length)throw new Error('Database catalogue is empty; run the reviewed importer first');
     installDatabaseProducts(products);
     const [auditResult, photoResult] = await Promise.all([
