@@ -102,13 +102,8 @@ async function extractPinnedArchive(source:ImageImportSource,target:string){
 }
 async function ensureSource(source:ImageImportSource,root:string){
  const files=await githubTree(source);
- if(source.target==='catalog'){
-  const vendored=path.join(process.cwd(),'storage','products','catalog');
-  if(await verified(files,vendored)){
-   console.log('[Product images] All originals verified in current site source:',files.length);
-   return files;
-  }
- }
+ // Require each original on the mounted Volume. An image in the Git checkout
+ // is not persistent after the container is replaced or redeployed.
  const destination=path.join(root,source.target);
  await fs.mkdir(destination,{recursive:true,mode:0o750});
  if(await verified(files,destination))return files;
