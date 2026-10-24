@@ -116,6 +116,28 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
        const prior=(await client.query('select images from public.catalog_variants where code=$1 for update',[old.variant_code])).rows[0];
        if(prior)await client.query('update public.catalog_variants set images=$2::jsonb where code=$1',[old.variant_code,JSON.stringify(pictures(prior.images).filter((x:string)=>x!==oldUrl))]);
      }
+     // Historical admin overrides may still be displayed over normalized tables.
+     // Update only their image fields, preserving prices, names, codes and specs.
+     const state=(await client.query("select value from public.portal_kv_store where key='catalog_overrides_db_v1' for update")).rows[0]?.value;
+     if(state?.families?.[familyCode]){
+       const original=state.families[familyCode];
+       const galleryImages=Array.isArray(original.galleryImages)?[...original.galleryImages]:[];
+       const previous=galleryImages.findIndex((entry:any)=>entry.id===galleryId);
+       const updated={id:galleryId,url,fileName:name,scope:variantCode?'variant':'family',
+         variantCode:variantCode||undefined,title:title||name,identityVerified:false,
+         order:previous>=0?galleryImages[previous].order:galleryImages.length+1};
+       if(previous>=0)galleryImages[previous]=updated;else galleryImages.push(updated);
+       const patchedVariants=Array.isArray(original.variants)?original.variants.map((entry:any)=>{
+         if(variantCode && entry.code===variantCode)return {...entry,images:adjust(entry.images)};
+         if(old?.variant_code && entry.code===old.variant_code && !variantCode)
+           return {...entry,images:pictures(entry.images).filter((x:string)=>x!==oldUrl)};
+         return entry;
+       }):original.variants;
+       state.families[familyCode]={...original,images:adjust(original.images),
+         galleryImages,variants:patchedVariants};
+       await client.query("update public.portal_kv_store set value=$2::jsonb where key=$1",
+         ['catalog_overrides_db_v1',JSON.stringify(state)]);
+     }
      return {id:galleryId,url,fileName:name,familyCode,variantCode,scope:variantCode?'variant':'family',title:title||name};
    });
    committed=true;
