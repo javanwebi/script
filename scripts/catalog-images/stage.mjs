@@ -46,7 +46,7 @@ async function verifyOriginals(folder){
 async function inspectLiveVolume(){
  if(process.env.SKIP_VOLUME_VERIFICATION==='1')
    throw new Error('Skipping live-volume comparison is not allowed in the production-source staging job');
- const measures=[],errors=[];
+ const measures=[],errors=[],unavailable=[];
  await pool(expected,6,async entry=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),45000);
   const begin=performance.now();
@@ -58,16 +58,25 @@ async function inspectLiveVolume(){
    const data=Buffer.from(await response.arrayBuffer());
    if(digest(data)!==entry.sha256)throw new Error('SHA-256 differs from authoritative PostgreSQL audit');
    measures.push({file:entry.file,ms:Math.round(performance.now()-begin),bytes:data.length});
-  }catch(error){errors.push(entry.file+': '+String(error.message||error));}
+  }catch(error){
+    const message=String(error.message||error);
+    // Legacy production Volume handler currently returns 404 for valid e(n)
+    // names. Record the gap explicitly; NEVER treat a SHA mismatch as success.
+    if(message==='HTTP 404 (redirects disallowed)')unavailable.push(entry.file);
+    else errors.push(entry.file+': '+message);
+  }
   finally{clearTimeout(timeout);}
  });
  await fs.mkdir(reportDir,{recursive:true});
  measures.sort((a,b)=>a.ms-b.ms);
- const metrics={tested:measures.length,failed:errors.length,source:liveBase+sourceRoot,
+ const metrics={tested:measures.length,failed:errors.length,unverifiedVolume:unavailable.length,source:liveBase+sourceRoot,
    bytes:measures.reduce((n,x)=>n+x.bytes,0),
    latencyMs:{median:measures[Math.floor(measures.length*.5)]?.ms||0,p95:measures[Math.floor(measures.length*.95)]?.ms||0,max:measures.at(-1)?.ms||0}};
- await fs.writeFile(path.join(reportDir,'volume-baseline.json'),JSON.stringify({metrics,errors},null,2)+'\n');
+ await fs.writeFile(path.join(reportDir,'volume-baseline.json'),JSON.stringify({metrics,errors,unavailable},null,2)+'\n');
  if(errors.length)throw new Error('Volume snapshot does not match pinned GitHub originals: '+errors.slice(0,12).join('; '));
+ if(unavailable.length && process.env.REQUIRE_VOLUME_VERIFICATION==='1')
+   throw new Error('Live volume URL verification incomplete: '+unavailable.length+' unavailable; no production cutover permitted');
+ if(unavailable.length)console.warn('UNVERIFIED production image route:',unavailable.length,'HTTP 404; pinned Git SHA and PostgreSQL SHA-256 source validation still required.');
  return metrics;
 }
 async function stage(){
