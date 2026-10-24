@@ -45,7 +45,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
  // volume. The URL never discloses a filesystem path.
  app.get('/storage/products/catalog/:file',(req,res)=>{
   const file=String(req.params.file||'');
-  const match=/^e\\(([1-9]\\d{0,3})\\)\\.png$/.exec(file);
+  const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
   return res.sendFile(file,{root:path.join(root,'catalog'),dotfiles:'deny',
    headers:{'Cache-Control':'public, max-age=86400','Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
