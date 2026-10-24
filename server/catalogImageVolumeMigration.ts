@@ -38,8 +38,10 @@ async function fileGitSha(filename:string):Promise<string>{
 async function githubTree(source:ImageImportSource):Promise<GithubFile[]>{
  // When the pinned originals have been vendored into javanwebi/script, derive
  // the manifest locally instead of making any GitHub API call on startup.
- if(source.repo==='javanweb/imagesatlas'){
-  const manifestFile=path.join(process.cwd(),'storage','products','catalog','manifest.json');
+ if(source.repo==='javanweb/imagesatlas' || source.repo==='javanweb/IMAGE'){
+  const manifestFile=source.repo==='javanweb/imagesatlas'
+    ? path.join(process.cwd(),'storage','products','catalog','manifest.json')
+    : path.join(process.cwd(),'storage','products','manifests','image-jpg.json');
   try{
    const manifest=JSON.parse(await fs.readFile(manifestFile,'utf8'));
    if(manifest.sourceRepo!==source.repo || manifest.sourceCommit!==source.commit ||
