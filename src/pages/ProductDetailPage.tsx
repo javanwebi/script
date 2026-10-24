@@ -148,11 +148,14 @@ export const ProductDetailPage: React.FC = () => {
       const variantImgIdx = galleryImages.findIndex(
         (img) => img.scope === "variant" && img.variantCode === initialCode,
       );
-      setActiveImageIndex(variantImgIdx);
+      // A family photograph may be shown as a clearly labelled general reference,
+      // but must never be represented as a verified photo of the selected SKU.
+      const familyImgIdx = galleryImages.findIndex((img) => img.scope === "family");
+      setActiveImageIndex(variantImgIdx >= 0 ? variantImgIdx : familyImgIdx);
     } else {
-      setActiveImageIndex(0);
+      setActiveImageIndex(galleryImages.length ? 0 : -1);
     }
-  }, [decodedCode, product?.code, visibleVariants.length]);
+  }, [decodedCode, product?.code, visibleVariants.length, galleryImages]);
 
   // 1. Customer selects a SKU code -> show image, specs, and price of that SKU
   const handleSelectVariant = (newVariantCode: string) => {
@@ -178,8 +181,9 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
 
-    // Missing evidence must never fall back to a different code or a family photo.
-    setActiveImageIndex(-1);
+    // Keep the family's general image visible, labelled as a family reference.
+    // Never substitute another SKU's photo or claim this is SKU verified.
+    setActiveImageIndex(galleryImages.findIndex((img) => img.scope === "family"));
   };
 
   // 2. Customer clicks an image -> if linked to a SKU, automatically select that SKU;
@@ -559,7 +563,7 @@ export const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {!currentGalleryImage && selectedVariant && (
+            {selectedVariant && selectedVariantImagesCount === 0 && (
               <p role="status" className="text-xs text-slate-600 leading-6 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 تصویر اختصاصی کد <strong dir="ltr">{selectedVariant.code}</strong> هنوز تأیید و ثبت نشده است. مشخصات زیر مربوط به همین کد است.
               </p>
