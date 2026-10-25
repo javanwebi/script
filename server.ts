@@ -38,6 +38,7 @@ import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms } from './src/utils/forzaSpeechPipeline';
+import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -6734,6 +6735,26 @@ async function start() {
           .catch(error => console.warn('[FORZA provider smoke test] FAILED:', String(error?.message || error).slice(0, 140)));
       }, 4000);
       probe.unref();
+    }
+    // Warm the *exact* visible welcome text while the particle avatar forms.
+    // This also tests real Gemini TTS and makes subsequent visitors instant.
+    // A failure never blocks Express startup or other site functionality.
+    if (configuredForzaWorkerUrl()) {
+      const warm = setTimeout(() => {
+        const text = cleanPersianTextForVoice(FORZA_GREETING_TEXT);
+        const key = `male-fa:${text.slice(0, 300)}:${text.length}`;
+        void generateForzaWorkerPersianVoice(text)
+          .then(audio => {
+            if (audio?.length) {
+              ttsAudioCache.set(key, `data:audio/wav;base64,${audio.toString('base64')}`);
+              console.info('[FORZA greeting TTS warmup] SUCCESS; provider=cloudflare; audioBytes=' + audio.length);
+            } else {
+              console.warn('[FORZA greeting TTS warmup] FAILED; voice fallback may be required');
+            }
+          })
+          .catch(error => console.warn('[FORZA greeting TTS warmup] FAILED', error?.name || 'error'));
+      }, 500);
+      warm.unref();
     }
     // Non-destructive background import: verify every source Git blob first,
     // then atomically switch PostgreSQL image links to volume-local URLs.
