@@ -128,6 +128,12 @@ export class ForzaRealtimeClient {
         this.lastPongAt = Date.now();
         return;
       case 'fallback_required':
+        // An intentionally configured HTTP Worker is NOT a connection error.
+        // Switch to its compatible turn-based path without the red error banner.
+        if (message.reasonCode === 'worker_configured') {
+          this.switchToLegacy();
+          return;
+        }
         this.fallback(message.reason || message.error || 'حالت صوت زنده در دسترس نیست.', message.reasonCode !== 'missing_key');
         return;
       case 'session_closed':
@@ -303,6 +309,12 @@ export class ForzaRealtimeClient {
     if (this.disposed || this.socket?.readyState !== WebSocket.OPEN) return false;
     this.socket.send(JSON.stringify(message));
     return true;
+  }
+
+  private switchToLegacy() {
+    if (this.disposed) return;
+    this.stop();
+    this.callback.onMode('legacy');
   }
 
   private fallback(reason: string, allowLegacy = true) {

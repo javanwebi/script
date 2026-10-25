@@ -186,12 +186,11 @@ export async function callAtlasAiWorkerChat(
     ? (process.env.PART_RECOGNITION_WORKER_TOKEN || '').trim()
     : (process.env.FORZA_WORKER_TOKEN || '').trim();
   const preferredModel = options.model || 'gemini-3.5-flash-lite';
-  const models = [
-    preferredModel,
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
-    'gemini-flash-latest',
-  ];
+  // Dedicated FORZA Worker chat selects its provider model internally. Never
+  // retry the same failing upstream request four times under invented models.
+  const models = options.forzaChat
+    ? [preferredModel]
+    : [preferredModel, 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
   let lastError = '';
 
   for (const m of models) {
@@ -217,8 +216,15 @@ export async function callAtlasAiWorkerChat(
 
       if (!res.ok) {
         const errText = await res.text();
-        console.warn(`[AtlasWorker] Model ${m} HTTP ${res.status}:`, errText);
-        lastError = errText;
+        let providerType = 'worker_unavailable';
+        try {
+          const parsed = JSON.parse(errText);
+          providerType = String(parsed?.error?.type || providerType).slice(0, 80);
+        } catch {}
+        // Log response status/type, not provider payload or credentials.
+        console.warn(`[AtlasWorker] HTTP ${res.status}; reason=${providerType}; chat=${Boolean(options.forzaChat)}`);
+        lastError = `HTTP ${res.status} (${providerType})`;
+        if (options.forzaChat || res.status === 401 || res.status === 403) break;
         continue;
       }
 
@@ -6087,6 +6093,49 @@ app.post('/api/ai/forza-live', async (req, res) => {
       } catch (sttErr) {
         console.warn('[AI FORZA] Audio STT error:', sttErr);
       }
+    }
+
+    // When the provider key resides in Cloudflare, send audio to its
+    // authenticated STT endpoint instead of silently substituting a generic
+    // question. This is essential for accurate spoken conversations.
+    if (!userQuery && audioBase64 && !apiKey && configuredForzaWorkerUrl()) {
+      try {
+        const workerUrl = configuredForzaWorkerUrl();
+        const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
+        const token = ((sameRecognitionOrigin
+          ? process.env.PART_RECOGNITION_WORKER_TOKEN
+          : process.env.FORZA_WORKER_TOKEN) || '').trim();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 19000);
+        try {
+          const result = await fetch(`${workerUrl}/v1/forza/transcribe`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ audioBase64, audioMimeType }),
+            signal: controller.signal,
+          });
+          const response = await result.json().catch(() => null) as any;
+          if (!result.ok) {
+            console.warn('[AI FORZA] Worker STT failure:', result.status, response?.error?.type || 'unknown');
+          } else {
+            userQuery = String(response?.text || '').trim().slice(0, 2500);
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (error: any) {
+        console.warn('[AI FORZA] Worker STT connection failed:', error?.name || 'network_error');
+      }
+    }
+    if (!userQuery && audioBase64 && !image) {
+      // Do not hallucinate an answer to words we could not transcribe.
+      return res.status(422).json({
+        success: false,
+        error: 'صدای شما به متن تبدیل نشد. لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.',
+      });
     }
 
     let replyText = '';
