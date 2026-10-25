@@ -8,6 +8,7 @@ import {
 } from "./pages/DiscoveryPages";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { CatalogRouteHydrator } from "./components/catalog/CatalogRouteHydrator";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ClubPointsProvider } from "./context/ClubPointsContext";
@@ -86,6 +87,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <CatalogRouteHydrator />
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
