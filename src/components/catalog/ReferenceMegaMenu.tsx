@@ -104,11 +104,11 @@ export function ReferenceMegaMenu({
               ({ category: c, label }) =>
                 c && (
                   <div key={c.slug}>
-                    {c.name === "تسمه و انتقال نیرو" ? (
+                    {(c.name === "تسمه و انتقال نیرو" || c.name === "تسمه و انتقال قدرت") ? (
                       <details className="reference-belts">
                         <summary>{label}</summary>
                         <Link
-                          to={`/category/${c.name === "تسمه و انتقال نیرو" ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(c.slug)}`}
+                          to={`/category/${(c.name === "تسمه و انتقال نیرو" || c.name === "تسمه و انتقال قدرت") ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(c.slug)}`}
                           onClick={onNavigate}
                         >
                           همه تسمه‌های انتقال نیرو <ArrowUpLeft size={13} />
