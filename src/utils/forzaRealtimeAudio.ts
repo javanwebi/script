@@ -71,3 +71,19 @@ export function audioSampleRate(mimeType: string, fallback = FORZA_OUTPUT_RATE):
 export function mayQueueMicrophoneFrame(readyState: number, bufferedAmount: number): boolean {
   return readyState === 1 && bufferedAmount <= FORZA_MAX_SOCKET_BUFFER;
 }
+/** Gemini may stream either cumulative text snapshots or incremental fragments. */
+export function appendLiveTranscript(previous: string, incoming: string): string {
+  const fragment = String(incoming || '');
+  const normalized = fragment.trim();
+  const old = previous.trim();
+  if (!normalized) return previous;
+  if (!old) return normalized;
+  if (normalized.startsWith(old)) return normalized;
+  if (old.endsWith(normalized)) return previous;
+  // Some streams replay the last words at chunk boundaries.
+  for (let length = Math.min(old.length, normalized.length); length >= 3; length--) {
+    if (old.endsWith(normalized.slice(0, length))) return old + normalized.slice(length);
+  }
+  if (/^\s/.test(fragment) || /[\s]$/.test(previous) || /^[،؛؟.,!?:]/.test(normalized)) return previous + fragment;
+  return old + ' ' + normalized;
+}
