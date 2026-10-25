@@ -35,6 +35,7 @@ export class ForzaRealtimeClient {
   private silentSink: GainNode | null = null;
   private resampler: StreamingPcmResampler | null = null;
   private readonly sources = new Set<AudioBufferSourceNode>();
+  private readonly ignoredResponseIds = new Set<string>();
   private playbackEndAt = 0;
   private playbackGeneration = 0;
   private responseId = '';
@@ -137,6 +138,7 @@ export class ForzaRealtimeClient {
         }
         return;
       case 'audio_chunk':
+        if (this.ignoredResponseIds.has(String(message.responseId || ''))) return;
         if (typeof message.data === 'string') {
           if (this.responseId !== message.responseId) this.newResponse(message.responseId);
           this.enqueueAudio(message.data, audioSampleRate(message.mimeType));
@@ -144,6 +146,7 @@ export class ForzaRealtimeClient {
         return;
       case 'ai_text_chunk':
       case 'ai_transcript':
+        if (this.ignoredResponseIds.has(String(message.responseId || ''))) return;
         if (typeof message.text === 'string') {
           if (this.responseId !== message.responseId) this.newResponse(message.responseId);
           this.aiTranscript = appendLiveTranscript(this.aiTranscript, message.text);
@@ -151,6 +154,7 @@ export class ForzaRealtimeClient {
         }
         return;
       case 'interrupted':
+        if (message.responseId) this.ignoreResponse(String(message.responseId));
         this.stopPlayback();
         this.callback.onStatus('listening');
         return;
@@ -161,6 +165,15 @@ export class ForzaRealtimeClient {
         return;
       default:
         return;
+    }
+  }
+
+  private ignoreResponse(id: string) {
+    this.ignoredResponseIds.add(id);
+    // Keep only a short history to avoid unbounded memory growth in long calls.
+    if (this.ignoredResponseIds.size > 16) {
+      const oldest = this.ignoredResponseIds.values().next().value;
+      if (oldest) this.ignoredResponseIds.delete(oldest);
     }
   }
 
@@ -266,6 +279,7 @@ export class ForzaRealtimeClient {
 
   sendText(text: string) {
     if (!text.trim() || !this.nativeConnected || this.disposed) return false;
+    if (this.responseId) this.ignoreResponse(this.responseId);
     this.stopPlayback();
     this.userTranscript = text.trim();
     this.callback.onUserText(this.userTranscript);
