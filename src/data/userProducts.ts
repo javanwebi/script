@@ -13,8 +13,10 @@ export let CATALOGUE_SKU_COUNT = 0;
 const searchIndex = new Map<string,string>();
 
 export function categorySlugFor(name:string):string {
-  return name.trim().replace(/[\\s\\u200c]+/g, '-');
+  if (/^تسمه(?:\s|\u200c|-)+و(?:\s|\u200c|-)+انتقال(?:\s|\u200c|-)+(?:نیرو|قدرت)$/.test(name.trim())) return 'تسمه-و-انتقال-نیرو';
+  return name.trim().replace(/[\s\u200c]+/g, '-');
 }
+
 export const normalizeCatalogueText = (value:string) => value.toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک')
   .replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/\\u200c/g,' ').replace(/\\s+/g,' ').trim();
 
