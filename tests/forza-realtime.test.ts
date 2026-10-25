@@ -25,7 +25,7 @@ test('48 kHz mic input streams as 16 kHz mono audio with correct pitch', () => {
     const expected=Math.sin(2*Math.PI*440*i/16000)*0.55;
     maxError=Math.max(maxError,Math.abs(decoded[i]-expected));
   }
-  assert.ok(maxError < 0.04, \`Streaming audio drift/distortion too large: \${maxError}\`);
+  assert.ok(maxError < 0.04, 'Streaming audio drift/distortion too large: ' + maxError);
 });
 
 test('44.1 kHz mic and chunk boundaries keep approximately 16k samples/second', () => {
@@ -34,7 +34,7 @@ test('44.1 kHz mic and chunk boundaries keep approximately 16k samples/second', 
   for(let i=0;i<44;i++) parts.push(sampler.convert(new Float32Array(1000).fill(0.1)));
   parts.push(sampler.convert(new Float32Array(100).fill(0.1)));
   const count=parts.reduce((sum,p)=>sum+p.length,0);
-  assert.ok(Math.abs(count-16000)<=2, \`Resampled size wrong: \${count}\`);
+  assert.ok(Math.abs(count-16000)<=2, 'Resampled size wrong: ' + count);
 });
 
 test('PCM codec decodes little endian signed values and rejects odd byte lengths', () => {
