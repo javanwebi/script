@@ -42,13 +42,14 @@ export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredCategories = CATEGORIES.filter(cat => {
+    if (cat.active === false) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       cat.name.toLowerCase().includes(q) ||
-      cat.nameEn.toLowerCase().includes(q) ||
+      (cat.nameEn || '').toLowerCase().includes(q) ||
       cat.description.toLowerCase().includes(q) ||
-      flattenCategoryNodes(cat.children).some(node => node.name.toLowerCase().includes(q))
+      flattenCategoryNodes(cat.children || []).some(node => node.hidden !== true && node.name.toLowerCase().includes(q))
     );
   });
 
@@ -127,7 +128,7 @@ export const AllCategoriesPage: React.FC = () => {
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
           {filteredCategories.map((category) => {
             const familyCount = category.familyCount ?? category.count;
             const skuCount = category.skuCount ?? category.count;
@@ -188,7 +189,7 @@ export const AllCategoriesPage: React.FC = () => {
                     {category.description}
                   </p>
 
-                  <CategoryNavigation nodes={category.children} categorySlug={category.slug} />
+                  <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} />
 
                   {/* Action Link Button */}
                   <div className="pt-2 mt-auto border-t border-slate-100">
