@@ -9,7 +9,7 @@ import '../category-showcase.css';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
@@ -41,7 +41,12 @@ import {
 
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  if (resolveCategorySlug(slug || '') === categorySlugFor('تسمه و انتقال نیرو')) {
+  const location = useLocation();
+  const canonicalBeltSlug = categorySlugFor('تسمه و انتقال نیرو');
+  if (resolveCategorySlug(slug || '') === canonicalBeltSlug) {
+    if (slug !== canonicalBeltSlug) {
+      return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
+    }
     return <BeltCategoryExperience />;
   }
   return <LegacyCategoryPage />;

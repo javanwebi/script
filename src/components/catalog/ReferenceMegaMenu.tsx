@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpLeft, Layers, Move, Link2, Box } from "lucide-react";
-import { CATEGORIES } from "../../data/categories";
+import { CATEGORIES, resolveCategorySlug } from "../../data/categories";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
 const pillars = [
@@ -108,7 +108,7 @@ export function ReferenceMegaMenu({
                       <details className="reference-belts">
                         <summary>{label}</summary>
                         <Link
-                          to={`/products?category=${c.slug}`}
+                          to={`/category/${resolveCategorySlug(c.slug)}`}
                           onClick={onNavigate}
                         >
                           همه تسمه‌های انتقال نیرو <ArrowUpLeft size={13} />

@@ -3,6 +3,7 @@ import { ProductCard } from "../components/product/ProductCard";
 import {
   matchesProductSearch,
   CATALOGUE_SKU_COUNT,
+  categorySlugFor,
 } from "../data/userProducts";
 import { ProductImage } from "../components/product/ProductImage";
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -48,6 +49,8 @@ import {
   ArrowUpDown,
   Image as ImageIcon,
 } from "lucide-react";
+
+const BELT_CATEGORY_SLUG = categorySlugFor("تسمه و انتقال نیرو");
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   "power-transmission": <Cpu className="w-4 h-4" />,
@@ -111,6 +114,16 @@ export const ProductsPage: React.FC = () => {
     setSearchQuery(queryParam);
     setCurrentPage(1);
   }, [categoryParam, subParam, queryParam]);
+
+  // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
+  useEffect(() => {
+    if (categoryParam !== BELT_CATEGORY_SLUG) return;
+    const destinationParams = new URLSearchParams();
+    if (searchParams.has("sub")) destinationParams.set("sub", subParam);
+    if (queryParam.trim()) destinationParams.set("q", queryParam);
+    const query = destinationParams.toString();
+    navigate(`/category/${BELT_CATEGORY_SLUG}${query ? `?${query}` : ""}`, { replace: true });
+  }, [categoryParam, subParam, queryParam, searchParams, navigate]);
 
   // Available brands in the entire catalog
   const allBrands = useMemo(() => {

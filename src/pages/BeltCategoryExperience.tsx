@@ -14,7 +14,6 @@ import industryPackaging from '../assets/images/ind_factory_1789372929899.jpg';
 import industryFood from '../assets/images/ind_food_bottles_1789640622505.jpg';
 import aiVisual from '../assets/images/ai_search_mobile_1789379723502.jpg';
 import aiConsult from '../assets/images/ai_consult_robot_1789379706342.jpg';
-import beltIllustration from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import './BeltCategoryExperience.css';
 
 const BELT_SLUG = 'تسمه-و-انتقال-نیرو';
@@ -98,10 +97,10 @@ function CatalogCard({ product }: { product: Product }) {
 
 export const BeltCategoryExperience: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedFamily = searchParams.get('sub') || 'all';
+  const selectedFamily = searchParams.get('sub') || 'کلاسیک';
   const isClassic = selectedFamily === 'کلاسیک';
   const [revision, setRevision] = useState(0);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('default');
   const [filters, setFilters] = useState<Filters>(blankFilters);
   const [draft, setDraft] = useState<Filters>(blankFilters);
@@ -156,7 +155,7 @@ export const BeltCategoryExperience: React.FC = () => {
   const currentPage = Math.min(page, totalPages);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const activeCount = filters.brands.length + (filters.profile !== 'all' ? 1 : 0) + [filters.minimumLength, filters.maximumLength, filters.minimumPrice, filters.maximumPrice].filter(Boolean).length + Number(filters.inStock) + Number(filters.quoteOnly);
-  const chooseFamily = (family: string) => { const params = new URLSearchParams(searchParams); if (family === 'all') params.delete('sub'); else params.set('sub', family); setSearchParams(params); setSearch(''); setPage(1); };
+  const chooseFamily = (family: string) => { const params = new URLSearchParams(searchParams); params.set('sub', family); params.delete('q'); setSearchParams(params); setSearch(''); setPage(1); };
   const scrollToProducts = () => productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const changeFilters = (next: Filters) => { setFilters(next); setPage(1); };
   const openSheet = () => { setDraft({ ...filters, brands: [...filters.brands] }); setSheetOpen(true); };
@@ -183,11 +182,6 @@ export const BeltCategoryExperience: React.FC = () => {
         </button>;
       })}</div>
     </section>
-    <section className="bce-featured-actions" aria-label="خدمات تخصصی صنعت پیش">
-      <Link to="/identify-part" className="bce-featured-panel bce-featured-scan"><img src={aiVisual} alt="سیستم شناسایی قطعه صنعتی" loading="lazy"/><div><span>هوش مصنوعی صنعت پیش</span><h2>کد تسمه را نمی‌دانید؟</h2><p>تصویر تسمه یا پلاک دستگاه را بفرستید و مسیر شناسایی را آغاز کنید.</p><strong>شناسایی با تصویر <ArrowLeft size={17}/></strong></div></Link>
-      <Link to="/ai-consult" className="bce-featured-panel bce-featured-consult"><img src={aiConsult} alt="مشاوره انتخاب تجهیزات انتقال قدرت" loading="lazy"/><div><span>مشاوره فنی آنلاین</span><h2>انتخاب درست، بدون آزمون و خطا</h2><p>برای انتخاب پروفیل، سایز و سازگاری تسمه راهنمایی بگیرید.</p><strong>دریافت مشاوره <ArrowLeft size={17}/></strong></div></Link>
-    </section>
-    <section className="bce-brand-strip" aria-label="برندهای کاتالوگ"><strong>برندهای حاضر در این خانواده</strong><div className="bce-brands-scroll">{brands.slice(0,12).map(brand => <button type="button" key={brand} onClick={() => changeFilters({ ...filters, brands: filters.brands.includes(brand) ? [] : [brand] })} aria-pressed={filters.brands.includes(brand)} dir="ltr">{brand}</button>)}</div><span>{toPersianDigits(familyProducts.length)} خانواده محصول</span></section>
     {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...PROFILES].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
     <div className="bce-catalog" ref={productsRef}>
       <aside className="bce-sidebar" aria-label="فیلترهای محصولات"><div className="bce-sidebar-top"><h2><SlidersHorizontal size={19}/> فیلتر محصولات</h2><button type="button" onClick={() => changeFilters(blankFilters())}>پاکسازی <RotateCcw size={14}/></button></div><div className="bce-sidebar-search"><Search size={17}/><input aria-label="جستجو در کاتالوگ" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="نام، کد یا مشخصات فنی..."/></div><FilterFields value={filters} onChange={changeFilters} brands={brands} products={familyProducts} classic={isClassic} hasPrices={hasPrices}/></aside>
@@ -201,7 +195,6 @@ export const BeltCategoryExperience: React.FC = () => {
         </>}
       </section>
     </div>
-    <section className="bce-editorial-band"><img src="/images/belt-hero-cinematic.webp" alt="تسمه و پولی‌های انتقال قدرت صنعتی" loading="lazy"/><div><span>راهنمای مهندسی انتخاب تسمه</span><h2>از پروفیل تا طول دقیق؛ انتخاب را با مشخصات دستگاه آغاز کنید</h2><p>در تسمه‌های کلاسیک مقاطع A، B، C، D، E، Z و M رایج‌اند. برای انتخاب نهایی، سطح مقطع، طول، تعداد شیار پولی و شرایط کاری باید با مشخصات سازنده دستگاه تطبیق داشته باشد.</p><button type="button" onClick={scrollToProducts}>بررسی موجودی کاتالوگ <ArrowLeft size={16}/></button></div></section>
     <section className="bce-selection-guide"><div className="bce-section-heading"><div><span>راهنمای کاربردی</span><h2>با اطمینان تسمه مناسب را انتخاب کنید</h2></div><Link to="/ai-consult">راهنمای تخصصی <ChevronLeft size={17}/></Link></div><div className="bce-steps">{[
       ['۰۱','نوع کاربرد','دستگاه، شرایط و محیط کاری را مشخص کنید.'],['۰۲','انتخاب مقطع','پروفیل و خانواده انتقال قدرت را تطبیق دهید.'],['۰۳','سایز و کد','طول و کد درج‌شده روی تسمه را کنترل کنید.'],['۰۴','استعلام','قیمت و موجودی کد موردنظر را دریافت کنید.']
     ].map(([n,title,desc]) => <div key={n}><span>{n}</span><h3>{title}</h3><p>{desc}</p></div>)}</div></section>
