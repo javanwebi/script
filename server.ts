@@ -35,7 +35,7 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
-import { GoogleGenAI, Modality, type LiveServerMessage } from '@google/genai';
+import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -6271,6 +6271,13 @@ function setupGeminiLiveWebSocket(server: http.Server) {
     try {
       const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
       if (url.pathname === '/api/live' || url.pathname === '/live') {
+        // Browser-origin check prevents cross-site WebSocket hijacking.
+        const origin = request.headers.origin;
+        if (origin && new URL(origin).host !== request.headers.host) {
+          socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+          socket.destroy();
+          return;
+        }
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit('connection', ws, request);
         });
@@ -6290,16 +6297,30 @@ function setupGeminiLiveWebSocket(server: http.Server) {
 4. پاسخ‌های صوتی به زبان فارسی طبیعی و با صدای مرد بیان می‌شوند.`;
 
   wss.on('connection', async (clientWs: WebSocket) => {
+    // Preserve FORZA provider priority: a configured Worker uses the existing
+    // HTTP route until that Worker implements a compatible bidirectional Live WS.
+    // Never bypass a configured Worker by silently using the internal Gemini key.
+    if ((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim()) {
+      clientWs.send(JSON.stringify({
+        type: 'fallback_required',
+        reasonCode: 'worker_configured',
+        reason: 'ورکر FORZA تنظیم شده است؛ تماس از مسیر سازگار Worker برقرار می‌شود.',
+      }));
+      clientWs.close(1000, 'Worker provider selected');
+      return;
+    }
     const apiKey = getGeminiKey();
     if (!apiKey) {
       if (clientWs.readyState === WebSocket.OPEN) {
         clientWs.send(
           JSON.stringify({
             type: 'fallback_required',
-            reason: 'کلید GEMINI_API_KEY پیکربندی نشده است. به سیستم ترکیبی متصل می‌شویم.',
+            reasonCode: 'missing_key',
+            reason: 'کلید داخلی FORZA تنظیم نشده است. متغیر ai-forza یا AI_FORZA_API_KEY یا GEMINI_API_KEY را در Railway ثبت کنید.',
           })
         );
       }
+      clientWs.close(1000, 'FORZA key not configured');
       return;
     }
 
@@ -6312,12 +6333,34 @@ function setupGeminiLiveWebSocket(server: http.Server) {
     let isClosed = false;
     let currentTurnResponseId = `resp-live-${Date.now()}`;
     let hasLoggedTurnStart = false;
+    let responseCounter = 0;
+    const sendLive = (data: Record<string, unknown>) => {
+      if (!isClosed && clientWs.readyState === WebSocket.OPEN && clientWs.bufferedAmount < 2_000_000)
+        clientWs.send(JSON.stringify(data));
+    };
+    const beginResponse = () => {
+      if (hasLoggedTurnStart) return;
+      hasLoggedTurnStart = true;
+      currentTurnResponseId = `resp-live-${Date.now()}-${++responseCounter}`;
+    };
 
     try {
       liveSession = await ai.live.connect({
         model: 'gemini-3.8-live',
         config: {
           responseModalities: [Modality.AUDIO],
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+              // Longer silence grace prevents replying during natural Persian
+              // pauses. Barge-in still interrupts FORZA when the user speaks.
+              startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
+              prefixPaddingMs: 250,
+              silenceDurationMs: 1350,
+            },
+            activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+          },
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Charon' },
@@ -6330,87 +6373,53 @@ function setupGeminiLiveWebSocket(server: http.Server) {
         callbacks: {
           onmessage: (message: LiveServerMessage) => {
             if (isClosed || clientWs.readyState !== WebSocket.OPEN) return;
-
-            // 1. Audio chunks from Gemini Live model turn
-            const parts = message.serverContent?.modelTurn?.parts;
-            if (parts && parts.length > 0) {
-              if (!hasLoggedTurnStart) {
-                hasLoggedTurnStart = true;
-                console.log(`[AI_GENERATION_START] userTurnId=${currentTurnResponseId} responseId=${currentTurnResponseId} mode=live endpoint=/api/live model=gemini-3.8-live timestamp=${new Date().toISOString()}`);
-              }
-              for (const part of parts) {
-                if (part.inlineData?.data) {
-                  clientWs.send(
-                    JSON.stringify({
-                      type: 'audio_chunk',
-                      responseId: currentTurnResponseId,
-                      data: part.inlineData.data,
-                      mimeType: part.inlineData.mimeType || 'audio/pcm;rate=24000',
-                    })
-                  );
-                }
-                if (part.text) {
-                  clientWs.send(
-                    JSON.stringify({
-                      type: 'ai_text_chunk',
-                      responseId: currentTurnResponseId,
-                      text: part.text,
-                    })
-                  );
-                }
-              }
+            const content = message.serverContent;
+            const parts = content?.modelTurn?.parts;
+            const aiOutput = (content as any)?.outputTranscription?.text ||
+              (content as any)?.outputAudioTranscription?.text;
+            if ((parts?.length || aiOutput) && !hasLoggedTurnStart) {
+              beginResponse();
+              console.log('[AI FORZA Live] response began (native audio)');
             }
 
-            // 2. Transcribed user input
-            const userText =
-              (message.serverContent as any)?.inputTranscription?.text ||
-              (message.serverContent as any)?.inputAudioTranscription?.text;
-            if (userText) {
-              currentTurnResponseId = `resp-live-${Date.now()}`;
+            // Send every chunk as soon as it arrives. The browser queues PCM
+            // continuously and drains the queue when the turn completes.
+            for (const part of parts || []) {
+              if (part.inlineData?.data) sendLive({
+                type: 'audio_chunk',
+                responseId: currentTurnResponseId,
+                data: part.inlineData.data,
+                mimeType: part.inlineData.mimeType || 'audio/pcm;rate=24000',
+              });
+              if (part.text) sendLive({
+                type: 'ai_text_chunk',
+                responseId: currentTurnResponseId,
+                text: part.text,
+              });
+            }
+
+            // Transcription updates must NOT change model response identifiers.
+            const input = (content as any)?.interimInputTranscription?.text ||
+              (content as any)?.inputTranscription?.text ||
+              (content as any)?.inputAudioTranscription?.text;
+            if (input) sendLive({
+              type: 'user_transcript',
+              text: input,
+              final: !(content as any)?.interimInputTranscription?.text,
+            });
+            if (aiOutput) sendLive({
+              type: 'ai_transcript',
+              responseId: currentTurnResponseId,
+              text: aiOutput,
+            });
+
+            if (content?.interrupted) {
+              sendLive({ type: 'interrupted', responseId: currentTurnResponseId });
               hasLoggedTurnStart = false;
-              clientWs.send(
-                JSON.stringify({
-                  type: 'user_transcript',
-                  responseId: currentTurnResponseId,
-                  text: userText,
-                })
-              );
             }
-
-            // 3. Transcribed AI output
-            const aiText =
-              (message.serverContent as any)?.outputTranscription?.text ||
-              (message.serverContent as any)?.outputAudioTranscription?.text;
-            if (aiText) {
-              clientWs.send(
-                JSON.stringify({
-                  type: 'ai_transcript',
-                  responseId: currentTurnResponseId,
-                  text: aiText,
-                })
-              );
-            }
-
-            // 4. User Barge-in / Interruption signal
-            if (message.serverContent?.interrupted) {
+            if (content?.turnComplete) {
+              sendLive({ type: 'turn_complete', responseId: currentTurnResponseId });
               hasLoggedTurnStart = false;
-              clientWs.send(
-                JSON.stringify({
-                  type: 'interrupted',
-                  responseId: currentTurnResponseId,
-                })
-              );
-            }
-
-            // 5. Turn Complete signal
-            if (message.serverContent?.turnComplete) {
-              hasLoggedTurnStart = false;
-              clientWs.send(
-                JSON.stringify({
-                  type: 'turn_complete',
-                  responseId: currentTurnResponseId,
-                })
-              );
             }
           },
           onerror: (err: any) => {
@@ -6454,40 +6463,32 @@ function setupGeminiLiveWebSocket(server: http.Server) {
       }
     }
 
-    clientWs.on('message', async (raw: any) => {
+    clientWs.on('message', (raw: any) => {
       try {
+        // Bound audio frames to protect the server from uncontrolled payloads.
+        if (raw.length > 100_000) {
+          clientWs.close(1009, 'Audio frame too large');
+          return;
+        }
         const msg = JSON.parse(raw.toString());
-
-        if (msg.type === 'realtime_audio' && msg.audio) {
-          if (liveSession) {
-            liveSession.sendRealtimeInput({
-              audio: {
-                data: msg.audio,
-                mimeType: 'audio/pcm;rate=16000',
-              },
-            });
-          }
-        } else if (msg.type === 'text' && msg.text) {
-          if (liveSession) {
-            liveSession.send({
-              clientContent: {
-                turns: [
-                  {
-                    role: 'user',
-                    parts: [{ text: msg.text }],
-                  },
-                ],
-                turnComplete: true,
-              },
-            });
-          }
-        } else if (msg.type === 'ping') {
-          if (clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(JSON.stringify({ type: 'pong' }));
-          }
+        if (msg.type === 'ping') {
+          sendLive({ type: 'pong' });
+          return;
+        }
+        if (!liveSession) return;
+        if (msg.type === 'realtime_audio') {
+          if (typeof msg.audio !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(msg.audio)
+              || msg.audio.length > 65000) return;
+          liveSession.sendRealtimeInput({
+            audio: { data: msg.audio, mimeType: 'audio/pcm;rate=16000' },
+          });
+        } else if (msg.type === 'audio_stream_end') {
+          liveSession.sendRealtimeInput({ audioStreamEnd: true });
+        } else if (msg.type === 'text' && typeof msg.text === 'string' && msg.text.trim()) {
+          liveSession.sendRealtimeInput({ text: msg.text.slice(0, 3000) });
         }
       } catch (e) {
-        console.warn('[Gemini Live WS message parse error]:', e);
+        console.warn('[Gemini Live] Dropped invalid client message');
       }
     });
 
