@@ -88,7 +88,15 @@ export async function catalogProductsApi(req: Request, res: Response) {
   try {
     // Count only families, then read precisely one page; never load 10k variants.
     const listParams = [...params, limit, (page - 1) * limit];
-    const limitParameter = '
+    const limitParameter = '$' + (params.length + 1);
+    const offsetParameter = '$' + (params.length + 2);
+    const [countResult, families] = await Promise.all([
+      database().query(`select count(*)::int as total from public.catalog_families f where ${where}`, params),
+      database().query(`select f.code,f.name,f.brand,f.category_slug,f.category_name,f.submenu,f.subcategory,
+        f.unit,f.description,f.images,f.has_catalogue_image,f.technical_specs,f.tags,f.is_active
+        from public.catalog_families f where ${where}
+        order by f.code limit ${limitParameter} offset ${offsetParameter}`, listParams),
+    ]);
     // Keep actual SKU code/size choices for product cards without transferring full technical reviews.
     const codes = families.rows.map(row => row.code);
     const variants = codes.length ? (await database().query(
@@ -135,122 +143,6 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
     })));
     cacheHeaders(res);
     return sendCatalogJson(req, res, { success: true, product: publicCatalog({
-      ...product, galleryImages: gallery.rows.map(g => ({
-        id:g.id,url:g.url,fileName:g.file_name,scope:g.scope,variantCode:g.variant_code,
-        identityVerified:g.identity_verified === true,title:g.title,order:g.sort_order,
-      })),
-    }) });
-  } catch (error) { return fail(res, error); }
-}
- + (params.length + 1);
-    const offsetParameter = '
-    // Keep actual SKU code/size choices for product cards without transferring full technical reviews.
-    const codes = families.rows.map(row => row.code);
-    const variants = codes.length ? (await database().query(
-      `select family_code,code,name,size,model,brand,unit,active
-       from public.catalog_variants where active and family_code = any($1::text[])
-       order by family_code,sort_order,code`, [codes])).rows : [];
-    const byFamily = new Map<string, any[]>();
-    for (const v of variants) {
-      const arr = byFamily.get(v.family_code) || [];
-      arr.push({ code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,active:true });
-      byFamily.set(v.family_code, arr);
-    }
-    cacheHeaders(res);
-    const total = Number(countResult.rows[0]?.total || 0);
-    return res.json({ success: true, page, limit, total, totalPages: Math.ceil(total / limit),
-      products: publicCatalog(families.rows.map(f => catalogListFields(f, byFamily.get(f.code) || []))) });
-  } catch (error) { return fail(res, error); }
-}
-
-export async function catalogProductDetailApi(req: Request, res: Response) {
-  if (!ready(res)) return;
-  const code = asText(req.params.id, 180);
-  if (!code) return res.status(400).json({ success: false, message: 'کد کالا الزامی است.' });
-  try {
-    const db = database();
-    const families = await db.query(`select f.code,f.name,f.brand,f.category_slug,f.category_name,f.submenu,
-      f.subcategory,f.unit,f.description,f.images,f.has_catalogue_image,f.technical_specs,f.tags,f.is_active
-      from public.catalog_families f
-      where f.is_active and not f.is_deleted and
-        (f.code=$1 or exists (select 1 from public.catalog_variants v
-         where v.family_code=f.code and v.code=$1 and v.active))
-      order by (f.code=$1) desc limit 1`, [code]);
-    if (!families.rows.length) return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
-    const family = families.rows[0];
-    const [variants, gallery] = await Promise.all([
-      db.query(`select code,name,size,model,brand,unit,images,technical_specs,technical_review,active
-        from public.catalog_variants where family_code=$1 and active order by sort_order,code`, [family.code]),
-      db.query(`select id,url,file_name,scope,variant_code,identity_verified,title,sort_order
-        from public.catalog_gallery_images where family_code=$1 order by sort_order,id`, [family.code]),
-    ]);
-    const product = catalogListFields(family, variants.rows.map(v => ({
-      code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,
-      images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
-    })));
-    cacheHeaders(res);
-    return res.json({ success: true, product: publicCatalog({
-      ...product, galleryImages: gallery.rows.map(g => ({
-        id:g.id,url:g.url,fileName:g.file_name,scope:g.scope,variantCode:g.variant_code,
-        identityVerified:g.identity_verified === true,title:g.title,order:g.sort_order,
-      })),
-    }) });
-  } catch (error) { return fail(res, error); }
-}
- + (params.length + 2);
-    const [countResult, families] = await Promise.all([
-      database().query(`select count(*)::int as total from public.catalog_families f where ${where}`, params),
-      database().query(`select f.code,f.name,f.brand,f.category_slug,f.category_name,f.submenu,f.subcategory,
-        f.unit,f.description,f.images,f.has_catalogue_image,f.technical_specs,f.tags,f.is_active
-        from public.catalog_families f where ${where}
-        order by f.code limit ${limitParameter} offset ${offsetParameter}`, listParams),
-    ]);
-    // Keep actual SKU code/size choices for product cards without transferring full technical reviews.
-    const codes = families.rows.map(row => row.code);
-    const variants = codes.length ? (await database().query(
-      `select family_code,code,name,size,model,brand,unit,active
-       from public.catalog_variants where active and family_code = any($1::text[])
-       order by family_code,sort_order,code`, [codes])).rows : [];
-    const byFamily = new Map<string, any[]>();
-    for (const v of variants) {
-      const arr = byFamily.get(v.family_code) || [];
-      arr.push({ code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,active:true });
-      byFamily.set(v.family_code, arr);
-    }
-    cacheHeaders(res);
-    const total = Number(countResult.rows[0]?.total || 0);
-    return res.json({ success: true, page, limit, total, totalPages: Math.ceil(total / limit),
-      products: publicCatalog(families.rows.map(f => catalogListFields(f, byFamily.get(f.code) || []))) });
-  } catch (error) { return fail(res, error); }
-}
-
-export async function catalogProductDetailApi(req: Request, res: Response) {
-  if (!ready(res)) return;
-  const code = asText(req.params.id, 180);
-  if (!code) return res.status(400).json({ success: false, message: 'کد کالا الزامی است.' });
-  try {
-    const db = database();
-    const families = await db.query(`select f.code,f.name,f.brand,f.category_slug,f.category_name,f.submenu,
-      f.subcategory,f.unit,f.description,f.images,f.has_catalogue_image,f.technical_specs,f.tags,f.is_active
-      from public.catalog_families f
-      where f.is_active and not f.is_deleted and
-        (f.code=$1 or exists (select 1 from public.catalog_variants v
-         where v.family_code=f.code and v.code=$1 and v.active))
-      order by (f.code=$1) desc limit 1`, [code]);
-    if (!families.rows.length) return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
-    const family = families.rows[0];
-    const [variants, gallery] = await Promise.all([
-      db.query(`select code,name,size,model,brand,unit,images,technical_specs,technical_review,active
-        from public.catalog_variants where family_code=$1 and active order by sort_order,code`, [family.code]),
-      db.query(`select id,url,file_name,scope,variant_code,identity_verified,title,sort_order
-        from public.catalog_gallery_images where family_code=$1 order by sort_order,id`, [family.code]),
-    ]);
-    const product = catalogListFields(family, variants.rows.map(v => ({
-      code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,
-      images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
-    })));
-    cacheHeaders(res);
-    return res.json({ success: true, product: publicCatalog({
       ...product, galleryImages: gallery.rows.map(g => ({
         id:g.id,url:g.url,fileName:g.file_name,scope:g.scope,variantCode:g.variant_code,
         identityVerified:g.identity_verified === true,title:g.title,order:g.sort_order,
