@@ -686,6 +686,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
 
         mr.onstop = () => {
+          // Ignore events from an old recorder replaced by a microphone retry.
+          if (mediaRecorderRef.current !== mr) return;
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
           const hadSpeech = hasSpeechSoundRef.current;
@@ -814,6 +816,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }});
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=stream;
+      micContextWarningRef.current=false;
+      vadRef.current.reset();
+      for (const track of stream.getAudioTracks()) {
+        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از اتصال مجدد، «تلاش مجدد» را بزنید.');
+      }
       if(ctx){
         micSourceNodeRef.current?.disconnect();
         const source=ctx.createMediaStreamSource(stream);
@@ -852,7 +859,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }});
         if(!active){stream.getTracks().forEach(track=>track.stop());return;}
         streamRef.current=stream;
+        micContextWarningRef.current=false;
         setMicrophoneError(null);
+        for (const track of stream.getAudioTracks()) {
+          track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. برای فعال‌سازی دوباره تلاش کنید.');
+        }
         try {
           const ctx=ensureCtx();
           if(ctx){
@@ -890,6 +901,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
     return ()=>{
       active=false;
+      greetingStartedRef.current=false;
+      greetingFinishedRef.current=false;
       if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
       stopListening();
       streamRef.current?.getTracks().forEach(track=>track.stop());
