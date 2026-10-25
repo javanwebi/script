@@ -18,9 +18,10 @@ type Props = {
 export const CategoryNavigation: React.FC<Props> = ({ nodes, categorySlug, onNavigate, onSelect, selected, expanded = false }) => {
   const canonicalCategorySlug = resolveCategorySlug(categorySlug);
   const beltCategorySlug = categorySlugFor('تسمه و انتقال نیرو');
-  const isBeltCategory = canonicalCategorySlug === beltCategorySlug;
-  const categoryHref = (selection: string) => isBeltCategory
-    ? `/category/${beltCategorySlug}?${new URLSearchParams({ sub: selection })}`
+  const pulleyCategorySlug = categorySlugFor('پولی و انتقال نیرو');
+  const isDedicatedCategory = canonicalCategorySlug === beltCategorySlug || canonicalCategorySlug === pulleyCategorySlug;
+  const categoryHref = (selection: string) => isDedicatedCategory
+    ? `/category/${canonicalCategorySlug}?${new URLSearchParams({ sub: selection })}`
     : `/products?${new URLSearchParams({ category: categorySlug, sub: selection })}`;
   const containsSelected = (node: CategoryNode): boolean => node.name === selected || Boolean(node.children?.some(containsSelected));
   const renderNode = (node: CategoryNode, depth: number): React.ReactNode => {
