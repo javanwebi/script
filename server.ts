@@ -6189,7 +6189,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
       replyText = await callAtlasAiWorkerChat(workerMessages, {
         model: 'gemini-2.5-flash',
-        timeoutMs: 14000,
+        timeoutMs: 32000,
         forzaChat: true,
       });
       if (replyText) {
@@ -6197,7 +6197,17 @@ app.post('/api/ai/forza-live', async (req, res) => {
       }
     } catch (workerErr: any) {
       console.warn('[AI FORZA] Configured Worker failed:', workerErr?.message || workerErr);
-      return res.status(502).json({ success: false, error: 'ارتباط با Worker فورزا برقرار نشد. تنظیمات Worker را بررسی کنید.' });
+      const reason = String(workerErr?.message || '');
+      const userMessage = reason.includes('hint:model') || reason.includes('gemini_model_unavailable')
+        ? 'مدل هوش مصنوعی برای کلید فعلی Worker در دسترس نیست. تنظیمات مدل Gemini را بررسی کنید.'
+        : reason.includes('gemini_quota_error') || reason.includes('hint:region')
+          ? 'سرویس Gemini پاسخ نمی‌دهد؛ سهمیه یا محدودیت منطقه‌ای کلید Worker را بررسی کنید.'
+          : reason.includes('gemini_invalid_api_key') || reason.includes('hint:key')
+            ? 'کلید Gemini ذخیره‌شده در Cloudflare معتبر نیست؛ Secret آن را بررسی کنید.'
+            : reason.includes('aborted')
+              ? 'زمان پاسخ‌گویی Gemini طولانی شد. دوباره تلاش کنید.'
+              : 'Worker متصل است اما هوش مصنوعی نتوانست پاسخ دهد. وضعیت Gemini را بررسی کنید.';
+      return res.status(502).json({ success: false, error: userMessage });
     }
 
     // 2. Direct GoogleGenAI when no Worker URL has been configured.
@@ -6629,7 +6639,7 @@ async function start() {
         void callAtlasAiWorkerChat([
           { role: 'system', content: 'به زبان فارسی، بسیار کوتاه و دوستانه پاسخ بده.' },
           { role: 'user', content: 'سلام' },
-        ], { model: 'gemini-2.5-flash', forzaChat: true, timeoutMs: 10000 })
+        ], { model: 'gemini-2.5-flash', forzaChat: true, timeoutMs: 32000 })
           .then(reply => console.info('[FORZA provider smoke test] SUCCESS; response characters:', reply.length))
           .catch(error => console.warn('[FORZA provider smoke test] FAILED:', String(error?.message || error).slice(0, 140)));
       }, 4000);
