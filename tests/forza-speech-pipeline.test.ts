@@ -23,7 +23,7 @@ test('Persian normalization preserves real product codes and numbers',()=>{
   assert.equal(normalizePersianTranscript('   '),'');
 });
 
-test('Never cut user's half-finished sentence after a short hesitation',()=>{
+test('Do not cut a half-finished sentence after a short hesitation',()=>{
   assert.ok(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false)>=2200);
   assert.ok(forzaEndOfTurnPauseMs('مدل 6205',true)>=2300);
   assert.ok(forzaEndOfTurnPauseMs('سلام',false)>=1550);
