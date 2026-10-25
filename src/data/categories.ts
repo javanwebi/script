@@ -24,7 +24,7 @@ for (const family of USER_PRODUCTS_RAW) {
   if (!submenu.children!.some(n => n.name === family.subcategory)) submenu.children!.push({ name: family.subcategory });
 }
 export function flattenCategoryNodes(nodes: CategoryNode[]): CategoryNode[] {
-  return nodes.flatMap(node => [node, ...flattenCategoryNodes(node.children || [])]);
+  return nodes.filter(node => node.hidden !== true).flatMap(node => [node, ...flattenCategoryNodes(node.children || [])]);
 }
 const legacyNames: Record<string, string> = {
   'belts-power-transmission': 'تسمه و انتقال نیرو', 'industrial-belts': 'تسمه و انتقال نیرو',
