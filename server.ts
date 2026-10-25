@@ -175,7 +175,7 @@ function configuredForzaWorkerUrl(): string {
 
 export async function callAtlasAiWorkerChat(
   messages: Array<{ role: string; content: any }>,
-  options: { model?: string; timeoutMs?: number } = {}
+  options: { model?: string; timeoutMs?: number; forzaChat?: boolean } = {}
 ): Promise<string> {
   const workerUrl = configuredForzaWorkerUrl();
   if (!workerUrl) throw new Error('FORZA_WORKER_NOT_CONFIGURED');
@@ -199,7 +199,7 @@ export async function callAtlasAiWorkerChat(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), options.timeoutMs || 15000);
 
-      const res = await fetch(`${workerUrl}/v1/chat/completions`, {
+      const res = await fetch(`${workerUrl}${options.forzaChat ? '/v1/forza/chat' : '/v1/chat/completions'}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -6135,6 +6135,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       replyText = await callAtlasAiWorkerChat(workerMessages, {
         model: 'gemini-2.5-flash',
         timeoutMs: 14000,
+        forzaChat: true,
       });
       if (replyText) {
         console.log('[AI FORZA] Successfully responded via user Cloudflare Worker');
