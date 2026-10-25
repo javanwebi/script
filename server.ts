@@ -186,12 +186,11 @@ export async function callAtlasAiWorkerChat(
     ? (process.env.PART_RECOGNITION_WORKER_TOKEN || '').trim()
     : (process.env.FORZA_WORKER_TOKEN || '').trim();
   const preferredModel = options.model || 'gemini-3.5-flash-lite';
-  const models = [
-    preferredModel,
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
-    'gemini-flash-latest',
-  ];
+  // Dedicated FORZA Worker chat selects its provider model internally. Never
+  // retry the same failing upstream request four times under invented models.
+  const models = options.forzaChat
+    ? [preferredModel]
+    : [preferredModel, 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
   let lastError = '';
 
   for (const m of models) {
@@ -217,8 +216,15 @@ export async function callAtlasAiWorkerChat(
 
       if (!res.ok) {
         const errText = await res.text();
-        console.warn(`[AtlasWorker] Model ${m} HTTP ${res.status}:`, errText);
-        lastError = errText;
+        let providerType = 'worker_unavailable';
+        try {
+          const parsed = JSON.parse(errText);
+          providerType = String(parsed?.error?.type || providerType).slice(0, 80);
+        } catch {}
+        // Log response status/type, not provider payload or credentials.
+        console.warn(`[AtlasWorker] HTTP ${res.status}; reason=${providerType}; chat=${Boolean(options.forzaChat)}`);
+        lastError = `HTTP ${res.status} (${providerType})`;
+        if (options.forzaChat || res.status === 401 || res.status === 403) break;
         continue;
       }
 
