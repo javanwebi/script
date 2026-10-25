@@ -13,11 +13,11 @@ const cacheHeaders = (res: Response) => {
   res.setHeader('Vary', 'Accept-Encoding');
 };
 const asText = (value: unknown, max = 120) => typeof value === 'string' ? value.trim().slice(0, max) : '';
-const positive = (value: unknown, fallback: number, cap: number) => {
+export const positive = (value: unknown, fallback: number, cap: number) => {
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= 1 ? Math.min(n, cap) : fallback;
 };
-const listFields = (f: Record<string, any>, variants: any[] = []) => ({
+export const catalogListFields = (f: Record<string, any>, variants: any[] = []) => ({
   code: f.code,
   name: f.name,
   brand: f.brand,
@@ -104,7 +104,7 @@ export async function catalogProductsApi(req: Request, res: Response) {
     cacheHeaders(res);
     const total = Number(countResult.rows[0]?.total || 0);
     return sendCatalogJson(req, res, { success: true, page, limit, total, totalPages: Math.ceil(total / limit),
-      products: publicCatalog(families.rows.map(f => listFields(f, byFamily.get(f.code) || []))) });
+      products: publicCatalog(families.rows.map(f => catalogListFields(f, byFamily.get(f.code) || []))) });
   } catch (error) { return fail(res, error); }
 }
 
@@ -129,7 +129,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
       db.query(`select id,url,file_name,scope,variant_code,identity_verified,title,sort_order
         from public.catalog_gallery_images where family_code=$1 order by sort_order,id`, [family.code]),
     ]);
-    const product = listFields(family, variants.rows.map(v => ({
+    const product = catalogListFields(family, variants.rows.map(v => ({
       code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,
       images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
     })));
@@ -159,7 +159,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
     cacheHeaders(res);
     const total = Number(countResult.rows[0]?.total || 0);
     return res.json({ success: true, page, limit, total, totalPages: Math.ceil(total / limit),
-      products: publicCatalog(families.rows.map(f => listFields(f, byFamily.get(f.code) || []))) });
+      products: publicCatalog(families.rows.map(f => catalogListFields(f, byFamily.get(f.code) || []))) });
   } catch (error) { return fail(res, error); }
 }
 
@@ -184,7 +184,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
       db.query(`select id,url,file_name,scope,variant_code,identity_verified,title,sort_order
         from public.catalog_gallery_images where family_code=$1 order by sort_order,id`, [family.code]),
     ]);
-    const product = listFields(family, variants.rows.map(v => ({
+    const product = catalogListFields(family, variants.rows.map(v => ({
       code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,
       images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
     })));
@@ -220,7 +220,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
     cacheHeaders(res);
     const total = Number(countResult.rows[0]?.total || 0);
     return res.json({ success: true, page, limit, total, totalPages: Math.ceil(total / limit),
-      products: publicCatalog(families.rows.map(f => listFields(f, byFamily.get(f.code) || []))) });
+      products: publicCatalog(families.rows.map(f => catalogListFields(f, byFamily.get(f.code) || []))) });
   } catch (error) { return fail(res, error); }
 }
 
@@ -245,7 +245,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
       db.query(`select id,url,file_name,scope,variant_code,identity_verified,title,sort_order
         from public.catalog_gallery_images where family_code=$1 order by sort_order,id`, [family.code]),
     ]);
-    const product = listFields(family, variants.rows.map(v => ({
+    const product = catalogListFields(family, variants.rows.map(v => ({
       code:v.code,name:v.name,size:v.size,model:v.model,brand:v.brand,unit:v.unit,
       images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
     })));
