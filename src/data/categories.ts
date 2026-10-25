@@ -43,7 +43,11 @@ const legacyNames: Record<string, string> = {
   'hoses-channels': 'شیلنگ و اتصالات', 'vacuum-cleaners': 'تجهیزات وکیوم', 'seals-foam-refractory': 'آب‌بندی و درزگیری',
 };
 export const CATEGORY_ALIASES = Object.fromEntries(Object.entries(legacyNames).map(([slug, name]) => [slug, categorySlugFor(name)]));
-export const resolveCategorySlug = (slug: string) => CATEGORY_ALIASES[slug] || slug;
+export const resolveCategorySlug = (slug: string) => {
+  const mapped = CATEGORY_ALIASES[slug] || slug;
+  if (/^تسمه(?:\s|\u200c|-)+و(?:\s|\u200c|-)+انتقال(?:\s|\u200c|-)+(?:نیرو|قدرت)$/.test(mapped)) return 'تسمه-و-انتقال-نیرو';
+  return mapped;
+};
 export function matchesCatalogCategory(product: Product, slug: string, selection = 'all'): boolean {
   if (product.categorySlug !== resolveCategorySlug(slug)) return false;
   if (selection === 'all') return true;
@@ -105,4 +109,4 @@ export function getManagedCategories(): EnhancedCategory[] {
 }
 
 export const findCatalogCategory = (slug: string) =>
-  getManagedCategories().find(category => category.slug === resolveCategorySlug(slug) || category.slug === slug);
+  getManagedCategories().find(category => resolveCategorySlug(category.slug) === resolveCategorySlug(slug));
