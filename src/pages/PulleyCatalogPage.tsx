@@ -66,7 +66,8 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState("featured");
-  const [listView, setListView] = useState(false);
+  // Most catalogue families do not yet have verified photography: a compact index is clearer.
+  const [listView, setListView] = useState(true);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -239,7 +240,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
                     const cost = priceOf(p);
                     const type = TYPE_INFO.find(t => t.id === typeOf(p));
                     const wishlist = isInWishlist(p.code);
-                    return <article className="pc-product" key={p.code}>
+                    return <article className={"pc-product" + (hasPhoto ? "" : " pc-product--unpictured")} key={p.code}>
                       <div className="pc-product-photo">
                         <Link to={"/product/" + encodeURIComponent(p.code)} aria-label={"جزئیات " + p.name}>{hasPhoto ? <ProductImage src={p.images[0]} alt={p.name} thumbnail loading="lazy"/> : <div className="pc-no-photo"><ImageOff size={35}/><span>تصویر تأییدشده موجود نیست</span></div>}</Link>
                         {hasPhoto && <span className="pc-verified"><Check size={12}/> تصویر کاتالوگ</span>}
