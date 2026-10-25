@@ -1122,11 +1122,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       {/* 3. Persian Voice Subtitles & Interaction Pill matching screenshot layout */}
       <div
         dir="rtl"
-        className="absolute bottom-10 right-4 sm:right-10 max-w-xs sm:max-w-md z-30 flex flex-col gap-2.5 pointer-events-none"
+        className="absolute bottom-10 right-4 sm:right-10 w-[calc(100%-2rem)] max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none"
       >
         {/* Turn Status Pill & Mic / Speaker Controls */}
-        <div className="self-end inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/85 border border-white/20 backdrop-blur-md shadow-lg text-xs pointer-events-auto transition-all">
-          <span className="font-medium text-white text-[11px] sm:text-[12px]">
+        <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
+          <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
             {turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : status === 'thinking'
@@ -1233,7 +1233,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               value={customInput}
               onChange={e => setCustomInput(e.target.value)}
               placeholder="سؤال فنی خود را تایپ کنید..."
-              className="flex-1 bg-transparent px-3 py-1.5 text-xs text-white placeholder-white/40 outline-none"
+              className="flex-1 bg-transparent px-3 py-2 text-[13px] sm:text-sm text-white placeholder-white/45 outline-none forza-persian-copy"
               autoFocus
             />
             <button
@@ -1249,20 +1249,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {/* User live speech transcript */}
         {userText && (
-          <div className="text-xs sm:text-sm bg-black/85 border border-[#dee2e5]/40 text-[#dee2e5] px-3.5 py-2 rounded-xl backdrop-blur-md shadow-md animate-fadeInCard pointer-events-auto leading-relaxed">
-            <span className="text-white font-bold ml-2">شما:</span>
+          <div className="forza-persian-copy text-[13px] sm:text-[14px] bg-black/88 border border-white/15 text-[#f1f3f5] px-4 py-3 rounded-2xl backdrop-blur-xl shadow-xl animate-fadeInCard pointer-events-auto">
+            <span className="forza-persian-label text-white ml-2">شما:</span>
             <span>{userText}</span>
           </div>
         )}
 
         {/* AI voice response subtitle box matching screenshot */}
         {displayedAi && (
-          <div className="text-xs sm:text-sm bg-[#080d18]/95 border border-[#e06518]/50 text-white p-3.5 sm:p-4 rounded-xl backdrop-blur-md shadow-2xl pointer-events-auto leading-relaxed border-t-2 border-t-[#e06518] animate-fadeInCard">
-            <div className="text-[11px] font-bold text-[#e06518] mb-1.5 tracking-wider flex items-center justify-end gap-1.5" dir="rtl">
-              <span>: AI FORZA</span>
+          <div className="text-xs sm:text-sm bg-[#0b0908]/94 border border-[#e06518]/45 text-white p-4 sm:p-5 rounded-2xl backdrop-blur-xl shadow-2xl pointer-events-auto border-t-2 border-t-[#e06518] animate-fadeInCard">
+            <div className="forza-persian-label text-[12px] font-bold text-[#f47a29] mb-2 flex items-center justify-end gap-1.5" dir="rtl">
+              <span><bdi dir="ltr" className="forza-code">AI FORZA</bdi> :</span>
               <Volume2 size={13} className="text-[#e06518]" />
             </div>
-            <p className="text-[12px] sm:text-[13px] text-[#dee2e5] leading-relaxed font-normal">{displayedAi}</p>
+            <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{displayedAi}</p>
           </div>
         )}
 
