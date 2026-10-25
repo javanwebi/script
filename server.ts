@@ -36,6 +36,7 @@ import dotenv from 'dotenv';
 import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
+import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -207,7 +208,7 @@ export async function callAtlasAiWorkerChat(
         },
         body: JSON.stringify({
           model: m,
-          messages,
+          messages: options.forzaChat ? normalizeForzaWorkerMessages(messages) : messages,
         }),
         signal: controller.signal,
       });
