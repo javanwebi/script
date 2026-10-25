@@ -219,12 +219,12 @@ export const Header: React.FC = () => {
           {/* 1. Right: SANAT PISH Logo */}
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/" className="flex items-center group shrink-0" title="صنعت پیش - پیش به صنعت">
-              <div className="h-9 sm:h-11 md:h-12 lg:h-14 w-auto flex items-center justify-center shrink-0">
+              <div className="h-11 sm:h-12 lg:h-14 w-auto flex items-center justify-center shrink-0">
                 {/* Use the supplied official square lockup on phones and tablets only. */}
                 <img
                   src="/images/mobile-header-logo.png"
                   alt="لوگوی صنعت پیش"
-                  className="block lg:hidden h-10 sm:h-12 w-auto max-w-[86px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                  className="block lg:hidden h-10 sm:h-11 w-auto max-w-[86px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
                   width={70}
                   height={48}
                   decoding="async"
