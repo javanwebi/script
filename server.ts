@@ -2,7 +2,7 @@ import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {checkoutApi} from './server/db/checkout';
-import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
+import {runtimeApi,primePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -388,7 +388,7 @@ registerProductImageStorage(app,async()=>{
   installDatabaseProducts(fresh);
   const latest=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
   CATALOG_OVERRIDES_CACHE=latest || {version:1,updatedAt:'',deletedCodes:[],families:{}};
-  invalidatePublicCatalogCache();
+  primePublicCatalogCache(fresh);
   refreshRecognitionCatalog();
   // New admin uploads are also indexed without requiring the next deployment.
   void buildImageFeatureIndex();
@@ -6715,6 +6715,7 @@ async function start() {
     ]);
     if (!auditResult.rows.length) throw new Error('Image audits missing in PostgreSQL; refusing a static JSON fallback');
     installCatalogImageMetadata(auditResult.rows,photoResult.rows);
+    primePublicCatalogCache(products);
     const saved=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
     CATALOG_OVERRIDES_CACHE=saved || {version:1,updatedAt:'',deletedCodes:[],families:{}};
     inventoryCodes.clear();for(const product of products)for(const variant of product.variants || [])inventoryCodes.add(variant.code);
@@ -6792,7 +6793,7 @@ async function start() {
       installCatalogImageMetadata(images.rows,photos.rows);
       installDatabaseProducts(products);
       refreshRecognitionCatalog();
-      invalidatePublicCatalogCache();
+      primePublicCatalogCache(products);
     });
   });
 }
