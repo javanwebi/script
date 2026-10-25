@@ -129,7 +129,8 @@ export const AllCategoriesPage: React.FC = () => {
         {/* Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCategories.map((category) => {
-            const count = category.count;
+            const familyCount = category.familyCount ?? category.count;
+            const skuCount = category.skuCount ?? category.count;
 
             return (
               <div
@@ -161,9 +162,12 @@ export const AllCategoriesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-[#484344]/80 backdrop-blur-md text-orange-400 border border-orange-400/30">
-                      {toPersianDigits(count)} کالا
+                  <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-[#484344]/90 backdrop-blur-md text-orange-300 border border-orange-400/40">
+                      {toPersianDigits(skuCount)} کد کالا
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/90 text-[#484344] border border-white/70 shadow-sm">
+                      {toPersianDigits(familyCount)} خانواده
                     </span>
                   </div>
 

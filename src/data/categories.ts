@@ -6,6 +6,8 @@ import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProduct
 export interface CategoryNode { name: string; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
   children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
+  /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
+  familyCount?: number; skuCount?: number;
 }
 // Only columns A, B and C belong in navigation. Family names and SKU names never enter this tree.
 const definitions: EnhancedCategory[] = [];
@@ -49,13 +51,20 @@ export function matchesCatalogCategory(product: Product, slug: string, selection
   return beltMatch ?? (product.submenu === selection || product.subcategory === selection);
 }
 
-const INITIAL_CATEGORIES: EnhancedCategory[] = definitions.map(category => ({
-  ...category, count: USER_PRODUCTS.filter(p => p.categorySlug === category.slug).length,
-  description: category.children.map(n => n.name).join('، '),
-  children: category.name === "تسمه و انتقال نیرو" ? BELT_MENU : category.children,
-  subcategories: category.name === "تسمه و انتقال نیرو" ? BELT_MENU.map(n=>n.name) : category.children.map(n => n.name),
-  image: USER_PRODUCTS.find(p => p.categorySlug === category.slug && p.images.length)?.images[0],
-}));
+const INITIAL_CATEGORIES: EnhancedCategory[] = definitions.map(category => {
+  const products = USER_PRODUCTS.filter(p => p.categorySlug === category.slug);
+  const familyCount = products.length;
+  return {
+    ...category,
+    count: familyCount,
+    familyCount,
+    skuCount: products.reduce((sum, product) => sum + (product.variants?.length || 0), 0),
+    description: category.children.map(n => n.name).join('، '),
+    children: category.name === "تسمه و انتقال نیرو" ? BELT_MENU : category.children,
+    subcategories: category.name === "تسمه و انتقال نیرو" ? BELT_MENU.map(n=>n.name) : category.children.map(n => n.name),
+    image: products.find(p => p.images.length)?.images[0],
+  };
+});
 // Browser arrays are populated only by /api/runtime after PostgreSQL hydration.
 // Keep the Node-only fixture for legacy isolated tests; never paint this snapshot to users.
 export const CATEGORIES: EnhancedCategory[] = typeof window === 'undefined' ? INITIAL_CATEGORIES : [];
@@ -72,12 +81,21 @@ export function getManagedCategories(): EnhancedCategory[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && (databaseStorageEnabled() || parsed.length > 0)) {
-        return parsed.map((c: any) => ({
-          ...c,
-          children: Array.isArray(c.children) && c.children.length > 0
-            ? c.children
-            : (Array.isArray(c.subcategories) ? c.subcategories.map((s: string) => ({ name: s, children: [] })) : []),
-        }));
+        return parsed.map((c: any) => {
+          const familyCountValue = Number(c.familyCount ?? c.count ?? 0);
+          const skuCountValue = Number(c.skuCount ?? c.itemCount ?? c.count ?? 0);
+          const familyCount = Number.isFinite(familyCountValue) ? Math.max(0, familyCountValue) : 0;
+          const skuCount = Number.isFinite(skuCountValue) ? Math.max(0, skuCountValue) : familyCount;
+          return {
+            ...c,
+            count: familyCount,
+            familyCount,
+            skuCount,
+            children: Array.isArray(c.children) && c.children.length > 0
+              ? c.children
+              : (Array.isArray(c.subcategories) ? c.subcategories.map((s: string) => ({ name: s, children: [] })) : []),
+          };
+        });
       }
     }
   } catch {
