@@ -43,7 +43,11 @@ export function getProductImageUrl(imageName?:string|null):string {
  // Normalize historical GitHub links; they must not reach the browser once migrated.
  const historical=oldGithubOfficialFile(input);
  if(historical)return `${PERSISTENT_CATALOG_IMAGE_BASE}/${historical}`;
- if(/^(https?:|data:|blob:)/i.test(input))return input;
+ // Data/blob URLs are allowed only for unsaved local image previews in admin.
+ // Persisted product images must be served from the mounted Storage volume.
+ if(/^(blob:|data:image\/(?:png|jpeg|webp);base64,)/i.test(input))return input;
+ // Do not silently load unknown remote product images from GitHub or a CDN.
+ if(/^https?:/i.test(input))return '';
  const file=normalizeImageFileName(input);
  return file?`${PERSISTENT_CATALOG_IMAGE_BASE}/${file}`:'';
 }
