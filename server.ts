@@ -6091,8 +6091,9 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
     let replyText = '';
 
-    // 1. Primary engine: User's Cloudflare Worker (https://atlasai.javanwebio.workers.dev)
-    try {
+    // 1. Use only a configured Worker. When blank, use the internal key.
+    const hasForzaWorker = Boolean((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim());
+    if (hasForzaWorker) try {
       const workerMessages: Array<{ role: string; content: any }> = [
         { role: 'system', content: forzaSystemInstruction },
       ];
@@ -6132,7 +6133,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       }
 
       replyText = await callAtlasAiWorkerChat(workerMessages, {
-        model: 'gemini-3.5-flash-lite',
+        model: 'gemini-2.5-flash',
         timeoutMs: 14000,
       });
       if (replyText) {
