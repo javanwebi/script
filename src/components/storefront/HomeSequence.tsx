@@ -35,9 +35,8 @@ const groups = [
 ];
 
 export function HomeCategoryStrip() {
-  const categories = groups
-    .map((name) => CATEGORIES.find((c) => c.name === name))
-    .filter((c) => !!c);
+  // All visible main categories are hydrated from PostgreSQL, including admin renames.
+  const categories = CATEGORIES.filter(c => c.active !== false);
   return (
     <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
       <div className="home-category-track">
@@ -59,7 +58,7 @@ export function HomeCategoryStrip() {
             to={`/category/${c.slug}`}
           >
             <ProductImage
-              src={categoryArtwork[c.name] || c.image}
+              src={c.image || categoryArtwork[c.name]}
               alt={c.name}
               loading="lazy"
             />

@@ -116,6 +116,42 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   }
  });
 
+
+ // Category banners share the persistent volume but never write fake SKU/gallery entries.
+ // The admin saves the returned URL in catalog_categories.image_url through /api/runtime.
+ app.post('/api/catalog/category-images/upload',
+  express.raw({type:['image/png','image/jpeg','image/webp'],limit:'8mb'}),
+  async(req:Request,res:Response)=>{
+   let temporary='';
+   try{
+    const identity=await getPortalIdentity(req);
+    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر می‌تواند تصویر دسته‌بندی بارگذاری کند.'});
+    if(!databaseEnabled())return res.status(503).json({success:false,message:'دیتابیس متصل نیست.'});
+    const raw=req.body;
+    if(!Buffer.isBuffer(raw) || !raw.length || raw.length>MAX_UPLOAD_BYTES)
+     return res.status(400).json({success:false,message:'تصویر معتبر با حداکثر حجم ۸ مگابایت ارسال کنید.'});
+    const meta=await sharp(raw,{limitInputPixels:MAX_PIXELS}).metadata();
+    if(!meta.width || !meta.height || meta.width*meta.height>MAX_PIXELS ||
+       !['png','jpeg','webp'].includes(meta.format||''))
+     return res.status(400).json({success:false,message:'فرمت یا ابعاد تصویر پشتیبانی نمی‌شود.'});
+    const optimized=await sharp(raw,{limitInputPixels:MAX_PIXELS}).rotate()
+     .resize({width:1400,height:1100,fit:'inside',withoutEnlargement:true})
+     .webp({quality:82,effort:2}).toBuffer();
+    const dir=await prepareProductStorage();
+    const name=crypto.randomUUID()+'.webp';
+    temporary=path.join(dir,'.'+name+'.tmp');
+    await fs.writeFile(temporary,optimized,{flag:'wx',mode:0o640});
+    await fs.rename(temporary,path.join(dir,name));
+    temporary='';
+    res.setHeader('Cache-Control','no-store');
+    return res.status(201).json({success:true,url:'/storage/products/'+name});
+   }catch(error:any){
+    const status=error?.status===413?413:500;
+    if(status>=500)console.error('[Category image] Storage upload failed:',String(error?.code||error?.name||'error').slice(0,60));
+    return res.status(status).json({success:false,message:status===413?'حجم تصویر بیش از حد مجاز است.':'آپلود تصویر دسته‌بندی انجام نشد.'});
+   }finally{if(temporary)await fs.unlink(temporary).catch(()=>{});}
+  });
+
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');

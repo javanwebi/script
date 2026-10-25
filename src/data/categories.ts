@@ -3,7 +3,7 @@ import { BELT_MENU, matchesBeltSelection } from "./beltNavigation";
 import type { Category, Product } from '../types';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProducts';
 
-export interface CategoryNode { name: string; children?: CategoryNode[]; }
+export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
   children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
   /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
@@ -24,7 +24,7 @@ for (const family of USER_PRODUCTS_RAW) {
   if (!submenu.children!.some(n => n.name === family.subcategory)) submenu.children!.push({ name: family.subcategory });
 }
 export function flattenCategoryNodes(nodes: CategoryNode[]): CategoryNode[] {
-  return nodes.flatMap(node => [node, ...flattenCategoryNodes(node.children || [])]);
+  return nodes.filter(node => node.hidden !== true).flatMap(node => [node, ...flattenCategoryNodes(node.children || [])]);
 }
 const legacyNames: Record<string, string> = {
   'belts-power-transmission': 'تسمه و انتقال نیرو', 'industrial-belts': 'تسمه و انتقال نیرو',
@@ -78,7 +78,7 @@ export const CATEGORIES_STORAGE_KEY = 'atlas_admin_categories_v1';
 
 /** Normalize the sparse PostgreSQL category projection to the full UI contract. */
 export function normalizeManagedCategory(c: Record<string, any>): EnhancedCategory {
-  const children: CategoryNode[] = Array.isArray(c.children) && c.children.length > 0
+  const children: CategoryNode[] = Array.isArray(c.children)
     ? c.children
     : (Array.isArray(c.subcategories)
       ? c.subcategories.map((s: string) => ({ name: s, children: [] }))
