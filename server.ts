@@ -37,7 +37,7 @@ import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
-import { normalizePersianTranscript, verbalizeForzaTechnicalTerms } from './src/utils/forzaSpeechPipeline';
+import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
@@ -5914,7 +5914,9 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
     ? process.env.PART_RECOGNITION_WORKER_TOKEN
     : process.env.FORZA_WORKER_TOKEN) || '';
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 17000);
+  // Bound neural TTS latency so a stalled Cloudflare model does not keep
+  // the customer waiting 17+ seconds before the Persian fallback is tried.
+  const timer = setTimeout(() => controller.abort(), 8500);
   try {
     const response = await fetch(workerUrl + '/v1/forza/tts', {
       method:'POST',
@@ -6069,7 +6071,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
       return res.status(503).json({ success: false, error: 'کلید پردازش صوتی Gemini در دسترس نیست' });
     }
 
-    const cleanAudioData = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    const cleanAudioData = extractForzaAudioBase64(audioBase64);
     let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
     if (!cleanAudioMime || !cleanAudioMime.startsWith('audio/')) {
       cleanAudioMime = 'audio/webm';
@@ -6112,7 +6114,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
 app.post('/api/ai/forza-live', async (req, res) => {
   try {
-    const { query, history, image, audioBase64, audioMimeType, deferAudio } = req.body;
+    const { query, history, image, audioBase64, audioMimeType, deferAudio, transcribeOnly } = req.body;
     const turnStartedAt = Date.now();
     let sttFinishedAt = turnStartedAt;
     const apiKey = getGeminiKey();
@@ -6167,7 +6169,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
         if (sttResult?.text) {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
-          console.log(`[AI FORZA Live] Successfully converted voice to text: "${userQuery}"`);
+          console.info('[AI FORZA STT] Transcript available; chars=' + userQuery.length);
         }
       } catch (sttErr) {
         console.warn('[AI FORZA] Audio STT error:', sttErr);
@@ -6193,7 +6195,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ audioBase64, audioMimeType }),
+            body: JSON.stringify({ audioBase64: extractForzaAudioBase64(audioBase64), audioMimeType }),
             signal: controller.signal,
           });
           const response = await result.json().catch(() => null) as any;
@@ -6218,6 +6220,13 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
 
     sttFinishedAt = Date.now();
+    if (transcribeOnly === true) {
+      return res.json({
+        success: true,
+        userTranscript: userQuery,
+        timings: { sttMs: sttFinishedAt - turnStartedAt },
+      });
+    }
     let replyText = '';
 
     // 1. Use only a configured Worker. When blank, use the internal key.

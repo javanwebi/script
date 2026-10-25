@@ -45,10 +45,14 @@ export function normalizePersianTranscript(value: string): string {
     .trim();
 }
 
-/** Longer pauses protect thought breaks and provisional recognizer text. */
+/** Finish complete questions quickly, but preserve natural mid-thought pauses.
+ * No fixed 2.3s delay after every recognition event.
+ */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
-  const suggested = analyzePersianSentenceCompletion(text).recommendedPauseMs;
-  return Math.min(3200, Math.max(hasInterim ? 2300 : 1550, suggested));
+  const analysis = analyzePersianSentenceCompletion(text);
+  if (analysis.isMidThought) return hasInterim ? 1900 : 1750;
+  if (hasInterim) return 1100;
+  return Math.min(950, Math.max(700, analysis.recommendedPauseMs - 100));
 }
 
 /**
@@ -77,4 +81,17 @@ export function verbalizeForzaTechnicalTerms(text: string): string {
     /\b(?:2RS|RS|ZZ|C3|C4|DIN|ISO|SWR|PK|PJ|PL|GT|XPA|XPB|XPC)\b/gi,
     code => spokenTechnicalCodes[code.toUpperCase()] || code,
   );
+}
+
+/** MediaRecorder produces data:audio/webm;codecs=opus;base64,... on Chrome.
+ * Strip all MIME parameters before sending raw Base64 to the Gemini Worker.
+ */
+export function extractForzaAudioBase64(input: string): string {
+  const value = String(input || '').trim();
+  if (!value.startsWith('data:')) return value;
+  const comma = value.indexOf(',');
+  if (comma < 0 || !/;base64$/i.test(value.slice(0, comma))) {
+    throw new Error('Invalid encoded audio header');
+  }
+  return value.slice(comma + 1);
 }

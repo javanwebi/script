@@ -12,8 +12,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
+import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 
 interface AiForzaCallExperienceProps {
@@ -81,6 +82,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechInterimRef = useRef(false);
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
   const recognitionFailedRef = useRef(false);
+  const vadRef = useRef(new ForzaVoiceActivity());
+  const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
@@ -201,109 +204,99 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setIsUserSpeaking(false);
   }, []);
 
-  // Real-time audio noise/frequency monitoring & Voice Activity Detection (VAD)
+  // Low-latency VAD uses actual mic PCM RMS, not decorative frequency motion.
+  // The worker STT fallback receives MediaRecorder audio after a real speech
+  // segment finishes; Chrome SpeechRecognition may finish even sooner.
   useEffect(() => {
-    if (voiceMode !== 'legacy') return;
-    let active = true;
-    const dataArray = new Uint8Array(128);
-
-    const checkLevel = () => {
-      if (!active) return;
-      let level = 0;
-
-      if (status === 'speaking') {
-        const time = Date.now();
-        // Dynamic multi-frequency speech cadence matching Persian acoustic speech bursts
-        const base = 0.65;
-        const wave1 = Math.sin(time * 0.018) * 0.32;
-        const wave2 = Math.cos(time * 0.029) * 0.18;
-        const wave3 = Math.sin(time * 0.045) * 0.12;
-        level = Math.min(1.25, Math.max(0.18, base + wave1 + wave2 + wave3));
-      } else if (status === 'listening' && micAnalyserRef.current && !isMicMuted) {
-        try {
-          micAnalyserRef.current.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-          }
-          const avg = sum / dataArray.length;
-          level = Math.min(1, Math.max(0, avg / 110));
-
-          // Intelligent Voice Activity Detection for user speech
-          if (!isAiSpeakingRef.current && !isProcessingTurnRef.current && statusRef.current !== 'thinking') {
-            const isSpeakingNow = level > 0.062;
-
-            if (isSpeakingNow) {
-              hasSpeechSoundRef.current = true;
-              setIsUserSpeaking(true);
-
-              // Begin recording audio chunks if MediaRecorder is idle
-              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'inactive') {
-                audioChunksRef.current = [];
-                try {
-                  mediaRecorderRef.current.start(250);
-                } catch {}
-              }
-
-              // Reset silence countdown while user continues to speak
-              if (silenceTimerRef.current) {
-                clearTimeout(silenceTimerRef.current);
-                silenceTimerRef.current = null;
-              }
-            } else if (hasSpeechSoundRef.current) {
-              // Sound detected previously, now user paused
-              if (!silenceTimerRef.current) {
-                const currentText = activeTranscriptRef.current?.trim() || '';
-                const pauseMs = forzaEndOfTurnPauseMs(currentText, speechInterimRef.current);
-
-                silenceTimerRef.current = window.setTimeout(() => {
-                  silenceTimerRef.current = null;
-                  setIsUserSpeaking(false);
-
-                  if (isProcessingTurnRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking') {
-                    return;
-                  }
-
-                  // 1. If WebSpeech captured words, dispatch immediately
-                  const transcript = activeTranscriptRef.current?.trim();
-                  if (transcript && transcript.length > 1) {
-                    activeTranscriptRef.current = '';
-                    hasSpeechSoundRef.current = false;
-                    void handleUserFinishedSpeaking(transcript);
-                    return;
-                  }
-
-                  // 2. Otherwise stop MediaRecorder; its onstop handler will dispatch the recorded audio to worker
-                  if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                    try {
-                      mediaRecorderRef.current.stop();
-                    } catch {}
-                  }
-                }, pauseMs);
-              }
-            }
-          }
-        } catch {
-          level = 0;
-        }
-      } else {
-        level = 0;
+    let active=true;
+    let frame=0;
+    let lastCheck=0;
+    let samples=new Uint8Array(512);
+    const check=(timestamp:number)=>{
+      if(!active)return;
+      frame=requestAnimationFrame(check);
+      if(timestamp-lastCheck<55)return;
+      lastCheck=timestamp;
+      if(statusRef.current==='speaking'){
+        setAudioLevel(0.4+Math.random()*0.22);
+        return;
       }
-
-      setAudioLevel(prev => {
-        const lerpFactor = level > prev ? 0.45 : 0.22;
-        return prev + (level - prev) * lerpFactor;
-      });
-      animFrameAudioRef.current = requestAnimationFrame(checkLevel);
+      if(statusRef.current!=='listening'||!greetingFinishedRef.current||micMutedRef.current||isAiSpeakingRef.current||isProcessingTurnRef.current){
+        vadRef.current.reset();
+        setAudioLevel(0);
+        return;
+      }
+      const analyser=micAnalyserRef.current;
+      if(!analyser || !streamRef.current?.active){
+        // WebSpeech may be available without Web Audio; expose real mic
+        // readiness rather than pretending to hear any sound.
+        setAudioLevel(0);
+        return;
+      }
+      if(ctxRef.current?.state==='suspended'){
+        if(!micContextWarningRef.current){
+          micContextWarningRef.current=true;
+          setMicrophoneError('مرورگر پردازش صدا را متوقف کرده است. برای فعال‌سازی روی «تلاش مجدد میکروفون» بزنید.');
+        }
+        return;
+      }
+      try {
+        // getByteTimeDomainData() writes only fftSize samples. A longer
+        // zero-initialized buffer makes silence look like loud speech.
+        if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(samples);
+        const rms=rootMeanSquareFromTimeDomain(samples);
+        const current=vadRef.current.sample(rms,Date.now());
+        setAudioLevel(current.level);
+        if(current.speechStarted){
+          hasSpeechSoundRef.current=true;
+          setIsUserSpeaking(true);
+        }
+        // 650-900ms after a clearly finished question, ~1.7s for an
+        // unfinished Persian thought. Worker audio STT is the safety net.
+        if(current.speaking){
+          if(silenceTimerRef.current){
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current=null;
+          }
+        }else if(current.silenceMs>0 && hasSpeechSoundRef.current && !silenceTimerRef.current){
+          const transcript=activeTranscriptRef.current.trim();
+          const pauseMs=transcript
+            ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
+            : 1000;
+          const remaining=Math.max(80,pauseMs-current.silenceMs);
+          silenceTimerRef.current=window.setTimeout(()=>{
+            silenceTimerRef.current=null;
+            if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
+            if(vadRef.current.sample(0,Date.now()).silenceMs<pauseMs)return;
+            setIsUserSpeaking(false);
+            if(activeTranscriptRef.current.trim()){
+              const text=activeTranscriptRef.current.trim();
+              activeTranscriptRef.current='';
+              hasSpeechSoundRef.current=false;
+              vadRef.current.reset();
+              void handleUserFinishedSpeaking(text);
+            }else if(mediaRecorderRef.current?.state==='recording'){
+              // MediaRecorder.onstop dispatches the audio to Worker STT.
+              mediaRecorderRef.current.stop();
+              vadRef.current.reset();
+            }else{
+              hasSpeechSoundRef.current=false;
+              vadRef.current.reset();
+            }
+          },remaining);
+        }
+      }catch(err){
+        console.warn('[FORZA] Audio analyser failed',(err as any)?.name||'audio_error');
+      }
     };
-
-    animFrameAudioRef.current = requestAnimationFrame(checkLevel);
-
-    return () => {
-      active = false;
-      if (animFrameAudioRef.current) cancelAnimationFrame(animFrameAudioRef.current);
+    frame=requestAnimationFrame(check);
+    return()=>{
+      active=false;
+      cancelAnimationFrame(frame);
+      if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
     };
-  }, [isMicMuted, status, voiceMode]);
+  },[]);
 
   // Compute reactive mode for Three.js ParticleAvatar
   const avatarMode = status === 'speaking' ? 'speak' : status === 'listening' ? 'listen' : 'auto';
@@ -591,7 +584,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       isProcessingTurnRef.current = true;
       stopListening();
-      unlockAudio();
+      // No audio-unlock call here: it can accidentally replay the introduction
+      // while the customer's recording is being submitted.
       setStatus('thinking');
       setTurn('ai');
       activeTranscriptRef.current = '';
@@ -620,9 +614,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             reader.onerror = reject;
           });
           reader.readAsDataURL(audioBlob);
-          const audioBase64 = await base64Promise;
-          payload.audioBase64 = audioBase64;
-          payload.audioMimeType = audioMime || audioBlob.type || 'audio/webm';
+          const audioBase64 = extractForzaAudioBase64(await base64Promise);
+          // Transcribe speech first so the customer's exact words appear
+          // immediately, before waiting on AI generation and spoken output.
+          const sttResponse = await fetch('/api/ai/forza-live', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              audioBase64,
+              audioMimeType:audioMime || audioBlob.type || 'audio/webm',
+              transcribeOnly:true,
+            }),
+          });
+          const sttData = await sttResponse.json().catch(()=>null);
+          if(!sttResponse.ok || !sttData?.success || !String(sttData.userTranscript||'').trim()){
+            throw new Error(sttData?.error||'گفتار واضحی دریافت نشد؛ لطفاً دوباره صحبت کنید.');
+          }
+          payload.query = String(sttData.userTranscript).trim();
+          setUserText(payload.query);
+          setMicrophoneError(null);
         }
 
         const res = await fetch('/api/ai/forza-live', {
@@ -662,7 +672,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, speakText, startListening, stopListening, unlockAudio]
+    [setStatus, speakText, startListening, stopListening]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -679,6 +689,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
 
         mr.onstop = () => {
+          // Ignore events from an old recorder replaced by a microphone retry.
+          if (mediaRecorderRef.current !== mr) return;
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
           const hadSpeech = hasSpeechSoundRef.current;
@@ -702,6 +714,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const audioBlob = new Blob(chunks, { type: finalMime });
             if (audioBlob.size > 1200) {
               void handleUserFinishedSpeaking('', audioBlob, finalMime);
+            } else {
+              setMicrophoneError('صدای ضبط‌شده خیلی کوتاه است؛ میکروفون را نزدیک‌تر کنید و دوباره صحبت کنید.');
             }
           }
         };
@@ -791,36 +805,43 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus]);
 
-  // Browser mic permission must be recoverable after a denial.
+  // This gesture-based retry is necessary after a declined browser permission.
+  // getUserMedia() is never replaced with simulated audio input.
   const retryMicrophone = useCallback(async () => {
     setMicrophoneError(null);
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
+      // Resuming AudioContext from an explicit click also unlocks analyser VAD.
       const ctx=ensureCtx();
-      if(ctx?.state==='suspended')await ctx.resume();
+      if (ctx?.state==='suspended') await ctx.resume();
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
       }});
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=stream;
+      micContextWarningRef.current=false;
+      vadRef.current.reset();
+      for (const track of stream.getAudioTracks()) {
+        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از اتصال مجدد، «تلاش مجدد» را بزنید.');
+      }
       if(ctx){
         micSourceNodeRef.current?.disconnect();
         const source=ctx.createMediaStreamSource(stream);
         const analyser=ctx.createAnalyser();
-        analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+        analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
         source.connect(analyser);
         micSourceNodeRef.current=source;
         micAnalyserRef.current=analyser;
       }
-      if(mediaRecorderRef.current?.state==='recording')mediaRecorderRef.current.stop();
+      if(mediaRecorderRef.current?.state==='recording') mediaRecorderRef.current.stop();
       setupMediaRecorder(stream);
       recognitionFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
-      if(greetingFinishedRef.current&&!micMutedRef.current)startListening();
-    }catch(error:any){
-      setMicrophoneError(error?.name==='NotAllowedError'||error?.name==='PermissionDeniedError'
-        ?'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس دوباره تلاش کنید.'
-        :'میکروفون وصل نشد. میکروفون پیش‌فرض و مجوز آن را بررسی کنید.');
+      if(greetingFinishedRef.current && !micMutedRef.current) startListening();
+    } catch(error:any) {
+      setMicrophoneError(error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
+        ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس «تلاش مجدد» را بزنید.'
+        : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening]);
 
@@ -841,13 +862,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }});
         if(!active){stream.getTracks().forEach(track=>track.stop());return;}
         streamRef.current=stream;
+        micContextWarningRef.current=false;
         setMicrophoneError(null);
+        for (const track of stream.getAudioTracks()) {
+          track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. برای فعال‌سازی دوباره تلاش کنید.');
+        }
         try {
           const ctx=ensureCtx();
           if(ctx){
             const node=ctx.createMediaStreamSource(stream);
             const analyser=ctx.createAnalyser();
-            analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+            analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
             node.connect(analyser);
             micAnalyserRef.current=analyser;
             micSourceNodeRef.current=node;
@@ -879,6 +904,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
     return ()=>{
       active=false;
+      greetingStartedRef.current=false;
+      greetingFinishedRef.current=false;
       if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
       stopListening();
       streamRef.current?.getTracks().forEach(track=>track.stop());
