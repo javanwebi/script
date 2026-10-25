@@ -1,3 +1,4 @@
+import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
 import {
   matchesProductSearch,
@@ -264,6 +265,10 @@ export const ProductsPage: React.FC = () => {
     (inStockOnly ? 1 : 0) +
     (hasCatalogueImageFilter ? 1 : 0) +
     (searchQuery.trim() ? 1 : 0);
+
+  if (selectedCategory === "پولی-و-انتقال-نیرو") {
+    return <PulleyCatalogPage products={allProducts.filter(p => matchesCatalogCategory(p, selectedCategory))} />;
+  }
 
   return (
     <div className="catalogue-page min-h-screen text-right" dir="rtl">
