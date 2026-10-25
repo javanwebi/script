@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { ForzaRealtimeClient } from './forzaRealtimeClient';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms } from '../../utils/forzaSpeechPipeline';
 import './style.css';
 
 interface AiForzaCallExperienceProps {
@@ -544,15 +544,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             startListening();
             return resolve();
           }
-          const u = new SpeechSynthesisUtterance(text);
+          // Browser fallback uses the same industrial-pronunciation dictionary
+          // as server-side Edge TTS. Never deliberately choose an Arabic voice
+          // over a Persian one; some code terms otherwise sound incorrect.
+          const u = new SpeechSynthesisUtterance(verbalizeForzaTechnicalTerms(text));
           u.lang = 'fa-IR';
           u.rate = 0.95;
 
           const voices = window.speechSynthesis.getVoices();
           const faVoice =
-            voices.find(v => v.lang.startsWith('fa') || v.lang.includes('IR')) ||
-            voices.find(v => v.lang.startsWith('ar')) ||
-            voices[0];
+            voices.find(v => v.lang.toLowerCase() === 'fa-ir') ||
+            voices.find(v => v.lang.toLowerCase().startsWith('fa'));
           if (faVoice) u.voice = faVoice;
 
           activeUtteranceRef.current = u;
