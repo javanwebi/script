@@ -18,7 +18,9 @@ import { ScrollToTop } from "./components/layout/ScrollToTop";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 // Pages
-import { HomePage } from "./pages/HomePage";
+const HomePage = lazy(() =>
+  import("./pages/HomePage").then(module => ({ default: module.HomePage })),
+);
 const ProductsPage = lazy(() =>
   import("./pages/ProductsPage").then((module) => ({
     default: module.ProductsPage,
