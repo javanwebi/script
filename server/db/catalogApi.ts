@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { adoptedSchema, database, databaseEnabled } from './connection';
 import { publicCatalog } from '../../src/utils/catalogPrivacy';
+import { sendCatalogJson } from './compactJson';
 
 /**
  * Public, read-only catalog endpoints. No commercial fields, identities, private
@@ -44,7 +45,7 @@ const ready = (res: Response) => {
   return false;
 };
 
-export async function catalogSummaryApi(_req: Request, res: Response) {
+export async function catalogSummaryApi(req: Request, res: Response) {
   if (!ready(res)) return;
   try {
     const db = database();
@@ -56,7 +57,7 @@ export async function catalogSummaryApi(_req: Request, res: Response) {
                 from public.catalog_categories where is_active order by sort_order,name`),
     ]);
     cacheHeaders(res);
-    return res.json({ success: true, ...counts.rows[0], categories: categories.rows });
+    return sendCatalogJson(req, res, { success: true, ...counts.rows[0], categories: categories.rows });
   } catch (error) { return fail(res, error); }
 }
 
@@ -102,7 +103,7 @@ export async function catalogProductsApi(req: Request, res: Response) {
     }
     cacheHeaders(res);
     const total = Number(countResult.rows[0]?.total || 0);
-    return res.json({ success: true, page, limit, total, totalPages: Math.ceil(total / limit),
+    return sendCatalogJson(req, res, { success: true, page, limit, total, totalPages: Math.ceil(total / limit),
       products: publicCatalog(families.rows.map(f => listFields(f, byFamily.get(f.code) || []))) });
   } catch (error) { return fail(res, error); }
 }
@@ -133,7 +134,7 @@ export async function catalogProductDetailApi(req: Request, res: Response) {
       images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,active:v.active,
     })));
     cacheHeaders(res);
-    return res.json({ success: true, product: publicCatalog({
+    return sendCatalogJson(req, res, { success: true, product: publicCatalog({
       ...product, galleryImages: gallery.rows.map(g => ({
         id:g.id,url:g.url,fileName:g.file_name,scope:g.scope,variantCode:g.variant_code,
         identityVerified:g.identity_verified === true,title:g.title,order:g.sort_order,
