@@ -5,7 +5,7 @@ import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
-import { categorySlugFor, matchesCatalogCategory } from '../data/categories';
+import { matchesCatalogCategory } from '../data/categories';
 import { matchesProductSearch } from '../data/userProducts';
 import { toPersianDigits } from '../utils/formatters';
 import heroFallback from '../assets/images/forza_sub_belt_1791282448324.jpg';
@@ -28,7 +28,7 @@ const FAMILY_OPTIONS = [
 ] as const;
 const PROFILES = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'] as const;
 const number = (raw: string) => Number(raw.replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٬,]/g, ''));
-const priceOf = (p: Product) => p.prices?.retail > 0 && !p.inquiryOnly ? p.prices.retail : null;
+const priceOf = (p: Product): number | null => { const retail = p.prices?.retail; return typeof retail === 'number' && Number.isFinite(retail) && retail > 0 && !p.inquiryOnly ? retail : null; };
 const lengthMm = (p: Product): number | null => {
   const spec = p.technicalSpecs?.find(item => /طول|length/i.test(item.key));
   if (!spec) return null;
