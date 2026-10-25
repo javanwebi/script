@@ -179,6 +179,12 @@ export async function callAtlasAiWorkerChat(
 ): Promise<string> {
   const workerUrl = configuredForzaWorkerUrl();
   if (!workerUrl) throw new Error('FORZA_WORKER_NOT_CONFIGURED');
+  // This Cloudflare Worker enforces APP_WORKER_TOKEN. Only reuse the
+  // recognition token when calling that exact configured origin.
+  const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
+  const workerToken = sameRecognitionOrigin
+    ? (process.env.PART_RECOGNITION_WORKER_TOKEN || '').trim()
+    : (process.env.FORZA_WORKER_TOKEN || '').trim();
   const preferredModel = options.model || 'gemini-3.5-flash-lite';
   const models = [
     preferredModel,
@@ -198,6 +204,7 @@ export async function callAtlasAiWorkerChat(
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'SanatPish-Forza/1.0',
+          ...(workerToken ? { Authorization: `Bearer ${workerToken}` } : {}),
         },
         body: JSON.stringify({
           model: m,
