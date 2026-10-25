@@ -72,7 +72,9 @@ export class ForzaRealtimeClient {
       if (!Context) throw new Error('این مرورگر از پخش صوت زنده پشتیبانی نمی‌کند.');
       this.context = new Context();
       // Create/resume on the explicit user click, before the WebSocket handshake.
-      await this.context!.resume();
+      // Browsers may postpone resume() until the next user gesture. Do not
+      // block the provider handshake or introduction while awaiting it.
+      void this.context!.resume().catch(() => {});
       this.output = this.context!.createGain();
       this.output.gain.value = this.speakerMuted ? 0 : 1;
       this.output.connect(this.context!.destination);
