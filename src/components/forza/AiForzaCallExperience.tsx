@@ -12,7 +12,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
@@ -614,7 +614,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             reader.onerror = reject;
           });
           reader.readAsDataURL(audioBlob);
-          const audioBase64 = await base64Promise;
+          const audioBase64 = extractForzaAudioBase64(await base64Promise);
           // Transcribe speech first so the customer's exact words appear
           // immediately, before waiting on AI generation and spoken output.
           const sttResponse = await fetch('/api/ai/forza-live', {
