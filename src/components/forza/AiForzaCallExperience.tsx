@@ -696,8 +696,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         }
       } catch (err: any) {
-        console.warn('[AI FORZA] Error during conversational turn:', err);
-        setErrorNotice('خطا در تبدیل صدا یا پاسخ هوش مصنوعی فورزا؛ لطفاً مجدداً بفرمایید.');
+        console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
+        if (!q) setUserText('پاسخ صوتی دریافت نشد؛ لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.');
+        setErrorNotice(
+          String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
+        );
       } finally {
         isProcessingTurnRef.current = false;
         setStatus('listening');
