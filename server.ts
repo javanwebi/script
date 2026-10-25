@@ -5918,9 +5918,11 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
     ? process.env.PART_RECOGNITION_WORKER_TOKEN
     : process.env.FORZA_WORKER_TOKEN) || '';
   const controller = new AbortController();
-  // Bound neural TTS latency so a stalled Cloudflare model does not keep
-  // the customer waiting 17+ seconds before the Persian fallback is tried.
-  const timer = setTimeout(() => controller.abort(), 8500);
+  // The Cloudflare TTS call has a 12.5 s per-model ceiling and may retry an
+  // alternate model after a fast 429 quota response. Aborting at 8.5 s
+  // prematurely discarded valid Persian audio during production warmup.
+  // Keep an upper bound, but allow a normal TTS attempt to finish.
+  const timer = setTimeout(() => controller.abort(), 17000);
   try {
     const response = await fetch(workerUrl + '/v1/forza/tts', {
       method:'POST',
