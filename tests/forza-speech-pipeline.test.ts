@@ -24,10 +24,10 @@ test('Persian normalization preserves real product codes and numbers',()=>{
 });
 
 test('Do not cut a half-finished sentence after a short hesitation',()=>{
-  assert.ok(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false)>=2200);
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205',true)>=2300);
-  assert.ok(forzaEndOfTurnPauseMs('سلام',false)>=1550);
-  assert.ok(forzaEndOfTurnPauseMs('مدل چند است؟',false)<2200);
+  assert.ok(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false)>=1700);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205',true)>=1800);
+  assert.ok(forzaEndOfTurnPauseMs('سلام',false)<=950);
+  assert.ok(forzaEndOfTurnPauseMs('مدل چند است؟',false)<=900);
 });
 
 test('Only the spoken copy expands industrial codes, never the underlying SKU',()=>{
