@@ -6095,6 +6095,49 @@ app.post('/api/ai/forza-live', async (req, res) => {
       }
     }
 
+    // When the provider key resides in Cloudflare, send audio to its
+    // authenticated STT endpoint instead of silently substituting a generic
+    // question. This is essential for accurate spoken conversations.
+    if (!userQuery && audioBase64 && !apiKey && configuredForzaWorkerUrl()) {
+      try {
+        const workerUrl = configuredForzaWorkerUrl();
+        const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
+        const token = (sameRecognitionOrigin
+          ? process.env.PART_RECOGNITION_WORKER_TOKEN
+          : process.env.FORZA_WORKER_TOKEN || '').trim();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 19000);
+        try {
+          const result = await fetch(`${workerUrl}/v1/forza/transcribe`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ audioBase64, audioMimeType }),
+            signal: controller.signal,
+          });
+          const response = await result.json().catch(() => null) as any;
+          if (!result.ok) {
+            console.warn('[AI FORZA] Worker STT failure:', result.status, response?.error?.type || 'unknown');
+          } else {
+            userQuery = String(response?.text || '').trim().slice(0, 2500);
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (error: any) {
+        console.warn('[AI FORZA] Worker STT connection failed:', error?.name || 'network_error');
+      }
+    }
+    if (!userQuery && audioBase64 && !image) {
+      // Do not hallucinate an answer to words we could not transcribe.
+      return res.status(422).json({
+        success: false,
+        error: 'صدای شما به متن تبدیل نشد. لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.',
+      });
+    }
+
     let replyText = '';
 
     // 1. Use only a configured Worker. When blank, use the internal key.
