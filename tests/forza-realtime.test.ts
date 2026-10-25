@@ -7,6 +7,7 @@ import {
   audioSampleRate,
   mayQueueMicrophoneFrame,
   FORZA_MAX_SOCKET_BUFFER,
+  appendLiveTranscript,
 } from '../src/utils/forzaRealtimeAudio.ts';
 import { ForzaRealtimeClient } from '../src/components/forza/forzaRealtimeClient.ts';
 
@@ -35,6 +36,14 @@ test('44.1 kHz mic and chunk boundaries keep approximately 16k samples/second', 
   parts.push(sampler.convert(new Float32Array(100).fill(0.1)));
   const count=parts.reduce((sum,p)=>sum+p.length,0);
   assert.ok(Math.abs(count-16000)<=2, 'Resampled size wrong: ' + count);
+});
+
+test('incremental Persian transcripts preserve words without duplicating cumulative snapshots', () => {
+  assert.equal(appendLiveTranscript('', 'سلام'), 'سلام');
+  assert.equal(appendLiveTranscript('سلام', 'سلام دوست من'), 'سلام دوست من');
+  assert.equal(appendLiveTranscript('سلام دوست', 'دوست من'), 'سلام دوست من');
+  assert.equal(appendLiveTranscript('تسمه ', 'تایمینگ'), 'تسمه تایمینگ');
+  assert.equal(appendLiveTranscript('مدل C3', '؟'), 'مدل C3؟');
 });
 
 test('PCM codec decodes little endian signed values and rejects odd byte lengths', () => {
