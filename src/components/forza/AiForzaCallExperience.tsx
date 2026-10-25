@@ -590,6 +590,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     async (textToSend?: string, audioBlob?: Blob, audioMime?: string) => {
       const q = (textToSend || '').trim();
       if (!q && !audioBlob) return;
+      if (!greetingFinishedRef.current) return;
       if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
 
       isProcessingTurnRef.current = true;
@@ -739,6 +740,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const recognized = extractPersianSpeechRecognition(event.results);
         const currentSpeech = recognized.text;
         if (currentSpeech) {
+          speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
           setUserText(currentSpeech);
@@ -1107,6 +1109,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             type="button"
             onClick={() => setIsMicMuted(prev => {
               const next = !prev;
+              micMutedRef.current = next;
+              if (next) stopListening();
+              else if (greetingFinishedRef.current) startListening();
               return next;
             })}
             className={`p-1 rounded-md cursor-pointer ${isMicMuted ? 'text-red-400' : 'text-[#dee2e5]/70 hover:text-white'}`}
