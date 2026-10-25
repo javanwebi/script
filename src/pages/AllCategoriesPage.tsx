@@ -189,7 +189,7 @@ export const AllCategoriesPage: React.FC = () => {
                   {/* Action Link Button */}
                   <div className="pt-2 mt-auto border-t border-slate-100">
                     <Link
-                      to={`/category/${resolveCategorySlug(category.slug)}`}
+                      to={`/category/${category.name === "تسمه و انتقال نیرو" ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(category.slug)}`}
                       className="w-full inline-flex items-center justify-center gap-2 bg-[#484344] hover:bg-[#E06518] text-white py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm hover:shadow-md group-hover:shadow-orange-500/20"
                     >
                       <span>مشاهده محصولات این دسته‌بندی</span>
