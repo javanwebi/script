@@ -8,6 +8,8 @@ import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
+import { PulleyCatalogPage } from './PulleyCatalogPage';
+import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
@@ -49,7 +51,22 @@ export const CategoryPage: React.FC = () => {
     }
     return <BeltCategoryExperience />;
   }
+  const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
+  if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
+    if (slug !== canonicalPulleySlug) {
+      return <Navigate to={`/category/${canonicalPulleySlug}${location.search}${location.hash}`} replace />;
+    }
+    return <PulleyCategoryRoute />;
+  }
   return <LegacyCategoryPage />;
+};
+
+/** Use the same DB-hydrated catalogue as the rest of the storefront. */
+const PulleyCategoryRoute: React.FC = () => {
+  const [, refresh] = useState(0);
+  useEffect(() => subscribeCatalogChanges(() => refresh(value => value + 1)), []);
+  const products = getProductsByCategory(categorySlugFor('پولی و انتقال نیرو'), 5000, 0).products;
+  return <PulleyCatalogPage products={products} />;
 };
 
 const LegacyCategoryPage: React.FC = () => {

@@ -10,6 +10,7 @@ import type { Product } from "../types";
 import { ProductImage } from "../components/product/ProductImage";
 import { useWishlist } from "../context/WishlistContext";
 import { toPersianDigits } from "../utils/formatters";
+import { STORE_ASSETS } from "../assets/images";
 import "./pulley-catalog.css";
 
 type Props = { products: Product[] };
@@ -51,32 +52,10 @@ function profiles(p: Product): string[] {
   return entries.flatMap(s => s.value.split(/[,،;/]+/g).map(v => clean(v)).filter(Boolean));
 }
 
-function PulleyDrawing({ type = "other" }: { type?: PulleyKind }) {
-  const teeth = type === "timing";
-  const grooved = type === "grooved";
-  return (
-    <svg className={"pc-drawing pc-drawing--" + type} viewBox="0 0 190 150" fill="none" role="img" aria-label="نمای شماتیک پولی؛ تصویر واقعی محصول نیست">
-      <defs>
-        <linearGradient id="pc-metal" x1="0" x2="1" y1="0" y2="1">
-          <stop stopColor="#e7edf0" /><stop offset=".28" stopColor="#6b7a82"/><stop offset=".55" stopColor="#26323a"/><stop offset=".83" stopColor="#8d9ba3"/><stop offset="1" stopColor="#1b252c"/>
-        </linearGradient>
-        <linearGradient id="pc-core" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#2f3d46"/><stop offset="1" stopColor="#060b0f"/></linearGradient>
-      </defs>
-      <ellipse cx="105" cy="130" rx="60" ry="9" fill="#8b98a0" opacity=".13"/>
-      <ellipse cx="118" cy="74" rx={grooved ? 45 : 47} ry="57" fill="url(#pc-metal)" stroke="#677880" strokeWidth="4"/>
-      {grooved && <><ellipse cx="111" cy="74" rx="46" ry="57" stroke="#192229" strokeWidth="7"/><ellipse cx="100" cy="74" rx="45" ry="57" stroke="#677982" strokeWidth="5"/></>}
-      <ellipse cx="88" cy="74" rx="47" ry="57" fill="url(#pc-metal)" stroke="#303f47" strokeWidth={teeth ? 9 : 5} strokeDasharray={teeth ? "6 3" : undefined}/>
-      <ellipse cx="88" cy="74" rx="34" ry="44" fill="url(#pc-core)" stroke="#72828a" strokeWidth="5"/>
-      <ellipse cx="88" cy="74" rx="16" ry="22" fill="#070d11" stroke="#a3afb6" strokeWidth="5"/>
-      {type === "idler" && <><circle cx="88" cy="34" r="5" fill="#94a4ae"/><circle cx="88" cy="113" r="5" fill="#94a4ae"/></>}
-      <path d="M60 30C70 17 96 13 110 29" stroke="#f2f8fb" strokeWidth="3" opacity=".54" strokeLinecap="round"/>
-      <path d="M45 76c0-18 4-31 13-42" stroke="#e06518" strokeWidth="4" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
 export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  // Every submenu, including links from the header, stays on this landing page.
+  const selectedSubmenu = searchParams.get("sub") || "all";
   const { toggleWishlist, isInWishlist } = useWishlist();
   const [kind, setKind] = useState<PulleyKind>("all");
   const [keyword, setKeyword] = useState(searchParams.get("q") || "");
@@ -87,7 +66,8 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState("featured");
-  const [listView, setListView] = useState(false);
+  // Most catalogue families do not yet have verified photography: a compact index is clearer.
+  const [listView, setListView] = useState(true);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -95,6 +75,18 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [haveCode, setHaveCode] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
 
+  const submenuOptions = useMemo(() => {
+    const options = Array.from(new Set(products.map(p => p.subcategory).filter(Boolean)));
+    return options.map(name => ({ name, count: products.filter(p => p.subcategory === name).length }));
+  }, [products]);
+  const selectSubmenu = (name: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (name === "all") next.delete("sub"); else next.set("sub", name);
+    setSearchParams(next);
+    setKind("all");
+    setPage(1);
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));
+  };
   const types = useMemo(() => TYPE_INFO.map(type => {
     const matching = type.id === "all" ? products : products.filter(p => typeOf(p) === type.id);
     return { ...type, count: matching.length, image: matching.find(realImage)?.images?.[0] };
@@ -105,14 +97,14 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const totalSkus = useMemo(() => products.reduce((s, p) => s + skuCount(p), 0), [products]);
   const imageCount = useMemo(() => products.filter(realImage).length, [products]);
   const knownStockCount = useMemo(() => products.filter(inStock).length, [products]);
-  const activeCount = (kind !== "all" ? 1 : 0) + brand.length + (profile ? 1 : 0) + (photoOnly ? 1 : 0) + (availableOnly ? 1 : 0) + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
+  const activeCount = (selectedSubmenu !== "all" ? 1 : 0) + (kind !== "all" ? 1 : 0) + brand.length + (profile ? 1 : 0) + (photoOnly ? 1 : 0) + (availableOnly ? 1 : 0) + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
   const scrollToResults = () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectType = (next: PulleyKind) => { setKind(next); setPage(1); };
   const startGuidedSearch = () => {setKind(useCase === "unknown" ? "all" : useCase);setPage(1);setGuideOpen(false);requestAnimationFrame(scrollToResults);};
   const reset = () => {
     setKind("all"); setBrand([]); setProfile(""); setPhotoOnly(false); setAvailableOnly(false);
     setMinPrice(""); setMaxPrice(""); setKeyword(""); setPage(1);
-    setSearchParams({ category: "پولی-و-انتقال-نیرو" });
+    setSearchParams({});
   };
   const setBrandValue = (name: string) => {
     setBrand(current => current.includes(name) ? current.filter(x => x !== name) : [...current, name]);
@@ -125,6 +117,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
     const maxParsed = Number(maxPrice.replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٬,\s]/g, ""));
     const max = maxPrice.trim() && Number.isFinite(maxParsed) ? maxParsed : Infinity;
     const list = products.filter(p => {
+      if (selectedSubmenu !== "all" && p.subcategory !== selectedSubmenu && p.submenu !== selectedSubmenu) return false;
       if (kind !== "all" && typeOf(p) !== kind) return false;
       if (brand.length && !brand.includes(p.brand)) return false;
       if (profile && !profiles(p).includes(profile)) return false;
@@ -143,7 +136,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
     if (sort === "price-low") list.sort((a, b) => (priceOf(a) || Infinity) - (priceOf(b) || Infinity));
     if (sort === "price-high") list.sort((a, b) => priceOf(b) - priceOf(a));
     return list;
-  }, [products, kind, brand, profile, photoOnly, availableOnly, minPrice, maxPrice, keyword, sort]);
+  }, [products, kind, brand, profile, photoOnly, availableOnly, minPrice, maxPrice, keyword, sort, selectedSubmenu]);
 
   const pageSize = 12;
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -190,23 +183,29 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
     <main className="pc-page" dir="rtl">
       <header className="pc-hero">
         <div className="pc-hero-art" aria-hidden="true"/>
+        <img className="pc-hero-photo" src={STORE_ASSETS.heroPulley} alt="" aria-hidden="true" />
         <div className="pc-hero-content">
           <nav className="pc-crumb" aria-label="مسیر صفحه"><Link to="/">خانه</Link><ChevronLeft size={13}/><span>قطعات انتقال نیرو</span><ChevronLeft size={13}/><strong>پولی صنعتی</strong></nav>
-          <span className="pc-overline"><Sparkles size={16}/> کاتالوگ تخصصی صنعت پیش</span>
+          <span className="pc-overline"><Sparkles size={16}/> مهندسی انتقال قدرت / کاتالوگ صنعت پیش</span>
           <h1>پولی و <em>انتقال نیرو</em></h1>
           <p>از شناسایی نوع پولی تا انتخاب دقیق کد کالا؛ خانواده‌های واقعی کاتالوگ را با مشخصات فنی مقایسه کنید.</p>
           <div className="pc-hero-actions"><button type="button" onClick={() => setGuideOpen(true)} className="pc-hero-primary">راهنمای انتخاب پولی <ArrowLeft size={18}/></button><button type="button" onClick={scrollToResults} className="pc-hero-secondary">مشاهده محصولات <ArrowUpLeft size={16}/></button></div>
           <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> خانواده ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> خانواده تصویردار</span></div>
         </div>
-        <div className="pc-hero-corner"><BadgeCheck size={17}/> اطلاعات متصل به کاتالوگ</div>
+        <div className="pc-hero-corner"><BadgeCheck size={17}/> خانواده‌ها و کدهای ثبت‌شده در صنعت پیش</div>
       </header>
 
       <div className="pc-shell">
         <section className="pc-explore" aria-label="انتخاب نوع پولی">
           <div className="pc-section-heading"><div><span className="pc-eyebrow">راهنمای انتخاب سریع</span><h2>چه نوع پولی نیاز دارید؟</h2><p>بر اساس عنوان واقعی خانواده‌ها انتخاب کنید</p></div><span className="pc-guide-label"><CircleDot size={17}/> {nf(types.length - 1)} گروه قابل جستجو</span></div>
+          <nav className="pc-taxonomy-nav" aria-label="زیردسته‌های واقعی پولی">
+            <span>مسیر انتخاب محصول</span>
+            <button type="button" aria-current={selectedSubmenu === "all" ? "page" : undefined} onClick={() => selectSubmenu("all")}>همه خانواده‌ها <b>{nf(products.length)}</b></button>
+            {submenuOptions.map(option => <button type="button" key={option.name} aria-current={selectedSubmenu === option.name ? "page" : undefined} onClick={() => selectSubmenu(option.name)}>{option.name} <b>{nf(option.count)}</b></button>)}
+          </nav>
           <div className="pc-types" role="group" aria-label="گروه‌های پولی">
             {types.map(item => <button type="button" onClick={() => selectType(item.id)} aria-pressed={kind === item.id} className={"pc-type" + (kind === item.id ? " is-selected" : "")} key={item.id}>
-              <div className="pc-type-image">{item.image ? <ProductImage src={item.image} alt={"نمونه واقعی " + item.title} thumbnail loading="lazy"/> : <PulleyDrawing type={item.id}/>}</div>
+              <div className="pc-type-image">{item.image ? <ProductImage src={item.image} alt={"نمونه ثبت‌شده " + item.title} thumbnail loading="lazy"/> : <span className="pc-type-icon"><CircleDot size={30}/></span>}</div>
               <div className="pc-type-copy"><strong>{item.title}</strong><span>{item.desc}</span><small>{nf(item.count)} خانواده</small></div><ChevronLeft className="pc-type-arrow" size={18}/>
             </button>)}
           </div>
@@ -232,7 +231,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
                 </div>
               </div>
 
-              {(activeCount > 0 || keyword) && <div className="pc-active-filters"><span>فیلترهای فعال:</span>{kind !== "all" && <button onClick={() => selectType("all")}>{TYPE_INFO.find(t => t.id === kind)?.title}<X size={13}/></button>}{brand.map(b => <button key={b} onClick={() => setBrandValue(b)}>{b}<X size={13}/></button>)}{profile && <button onClick={() => {setProfile("");setPage(1);}}>{profile}<X size={13}/></button>}{keyword && <button onClick={() => setKeyword("")}>جستجو: {keyword}<X size={13}/></button>}{(photoOnly || availableOnly || minPrice || maxPrice) && <button onClick={reset}>حذف فیلترهای تکمیلی<X size={13}/></button>}<button className="pc-reset-inline" onClick={reset}><RotateCcw size={13}/> همه فیلترها</button></div>}
+              {(activeCount > 0 || keyword) && <div className="pc-active-filters"><span>فیلترهای فعال:</span>{selectedSubmenu !== "all" && <button onClick={() => selectSubmenu("all")}>{selectedSubmenu}<X size={13}/></button>}{kind !== "all" && <button onClick={() => selectType("all")}>{TYPE_INFO.find(t => t.id === kind)?.title}<X size={13}/></button>}{brand.map(b => <button key={b} onClick={() => setBrandValue(b)}>{b}<X size={13}/></button>)}{profile && <button onClick={() => {setProfile("");setPage(1);}}>{profile}<X size={13}/></button>}{keyword && <button onClick={() => setKeyword("")}>جستجو: {keyword}<X size={13}/></button>}{(photoOnly || availableOnly || minPrice || maxPrice) && <button onClick={reset}>حذف فیلترهای تکمیلی<X size={13}/></button>}<button className="pc-reset-inline" onClick={reset}><RotateCcw size={13}/> همه فیلترها</button></div>}
 
               {shown.length === 0 ? <div className="pc-empty"><PackageSearch size={46}/><h3>محصولی با این مشخصات پیدا نشد</h3><p>فیلترها یا عبارت جستجو را تغییر دهید. هیچ کالای فرضی به فهرست اضافه نمی‌شود.</p><button type="button" onClick={reset}>نمایش همه خانواده‌ها <ArrowLeft size={16}/></button></div> :
                 <div className={"pc-grid" + (listView ? " pc-grid--list" : "")}>
@@ -241,9 +240,9 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
                     const cost = priceOf(p);
                     const type = TYPE_INFO.find(t => t.id === typeOf(p));
                     const wishlist = isInWishlist(p.code);
-                    return <article className="pc-product" key={p.code}>
+                    return <article className={"pc-product" + (hasPhoto ? "" : " pc-product--unpictured")} key={p.code}>
                       <div className="pc-product-photo">
-                        <Link to={"/product/" + encodeURIComponent(p.code)} aria-label={"جزئیات " + p.name}>{hasPhoto ? <ProductImage src={p.images[0]} alt={p.name} thumbnail loading="lazy"/> : <div className="pc-no-photo"><PulleyDrawing type={typeOf(p)}/><span><ImageOff size={13}/> تصویر محصول ثبت نشده</span></div>}</Link>
+                        <Link to={"/product/" + encodeURIComponent(p.code)} aria-label={"جزئیات " + p.name}>{hasPhoto ? <ProductImage src={p.images[0]} alt={p.name} thumbnail loading="lazy"/> : <div className="pc-no-photo"><ImageOff size={35}/><span>تصویر تأییدشده موجود نیست</span></div>}</Link>
                         {hasPhoto && <span className="pc-verified"><Check size={12}/> تصویر کاتالوگ</span>}
                         <button type="button" className="pc-wishlist" aria-label={wishlist ? "حذف از علاقه‌مندی" : "افزودن به علاقه‌مندی"} aria-pressed={wishlist} onClick={() => toggleWishlist(p.code)}><Heart size={19} fill={wishlist ? "#e06518" : "none"}/></button>
                       </div>
@@ -279,7 +278,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
           </div>
           <div className="pc-finder-footer"><button type="button" onClick={() => setGuideOpen(true)}>شروع انتخاب راهنمایی‌شده <ArrowLeft size={17}/></button><span>بدون حدس‌زدن سایز و بدون پیشنهاد کالای ساختگی</span></div>
         </section>
-        <aside className="pc-assist"><div className="pc-assist-icon"><CircleDot size={34}/></div><div><span className="pc-eyebrow">کمک در انتخاب قطعه</span><h2>کد فنی پولی را نمی‌دانید؟</h2><p>تصویر یا مشخصات دستگاه را آماده کنید و از میزکار شناسایی صنعت پیش کمک بگیرید.</p></div><Link to="/ai-desk">رفتن به مشاوره هوشمند <ArrowLeft size={18}/></Link></aside>
+        <aside className="pc-assist"><div className="pc-assist-icon"><CircleDot size={34}/></div><div><span className="pc-eyebrow">کمک در انتخاب قطعه</span><h2>کد فنی پولی را نمی‌دانید؟</h2><p>تصویر یا مشخصات دستگاه را آماده کنید و از میزکار شناسایی صنعت پیش کمک بگیرید.</p></div><Link to="/ai-consult">رفتن به مشاوره هوشمند <ArrowLeft size={18}/></Link></aside>
       </div>
 
 
