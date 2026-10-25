@@ -38,6 +38,9 @@ export function getProductImageUrl(imageName?:string|null):string {
  const input=imageName.trim();
  // Server-uploaded images are also on the same persistent mounted Volume.
  if(/^\/storage\/products\/[a-f0-9-]{36}\.webp$/.test(input))return input;
+ // Verified legacy JPEGs and derived thumbnail files remain on the same volume.
+ if(/^\/storage\/products\/legacy-jpg\/images\/e\([1-9]\d{0,3}\)\.jpg$/.test(input))return input;
+ if(/^\/storage\/products\/thumbs\/e\(([1-9]\d{0,3})\)\.webp$/.test(input))return input;
  const local=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
  if(local)return normalizeImageFileName(local[1])?input:'';
  // Normalize historical GitHub links; they must not reach the browser once migrated.
