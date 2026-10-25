@@ -6112,7 +6112,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
 app.post('/api/ai/forza-live', async (req, res) => {
   try {
-    const { query, history, image, audioBase64, audioMimeType, deferAudio } = req.body;
+    const { query, history, image, audioBase64, audioMimeType, deferAudio, transcribeOnly } = req.body;
     const turnStartedAt = Date.now();
     let sttFinishedAt = turnStartedAt;
     const apiKey = getGeminiKey();
@@ -6167,7 +6167,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
         if (sttResult?.text) {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
-          console.log(`[AI FORZA Live] Successfully converted voice to text: "${userQuery}"`);
+          console.info('[AI FORZA STT] Transcript available; chars=' + userQuery.length);
         }
       } catch (sttErr) {
         console.warn('[AI FORZA] Audio STT error:', sttErr);
@@ -6218,6 +6218,13 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
 
     sttFinishedAt = Date.now();
+    if (transcribeOnly === true) {
+      return res.json({
+        success: true,
+        userTranscript: userQuery,
+        timings: { sttMs: sttFinishedAt - turnStartedAt },
+      });
+    }
     let replyText = '';
 
     // 1. Use only a configured Worker. When blank, use the internal key.
