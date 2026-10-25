@@ -28,6 +28,7 @@ export interface ParticleAvatarProps {
   backgroundSpeed?: number;
   restartKey?: number;
   onError?: (err: string) => void;
+  onFormed?: () => void;
   onStats?: (stats: { fps: number | null; tier: string; renderMs: number; particles?: number }) => void;
   className?: string;
 }
@@ -307,6 +308,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       backgroundSpeed = 2,
       restartKey = 0,
       onError,
+      onFormed,
       onStats,
       className = '',
     },
@@ -327,8 +329,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       getStats: () => null,
     });
 
-    const props = useRef({ paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onStats });
-    props.current = { paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onStats };
+    const props = useRef({ paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onFormed, onStats });
+    props.current = { paused, mode, intensity, audioLevel, quality, background, backgroundSpeed, onError, onFormed, onStats };
 
     useImperativeHandle(
       ref,
@@ -379,6 +381,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         });
       } catch (e: any) {
         props.current.onError?.('برای اجرای موتور ذرات FORZA شتاب‌دهی WebGL فعال نیاز است.');
+        // Missing WebGL must not prevent an accessible voice conversation.
+        props.current.onFormed?.();
         return;
       }
 
@@ -451,6 +455,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       resize();
 
       let burst = 0;
+      let formationReported = false;
       let speechVal = 0;
       let last = performance.now();
       let t = 0;
@@ -467,6 +472,11 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           t += dt;
           shared.uTime.value = t;
           shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 4);
+          // Notify only after the actual particle formation reaches 100%.
+          if (!formationReported && shared.uProgress.value >= 1) {
+            formationReported = true;
+            props.current.onFormed?.();
+          }
           burst *= Math.pow(0.05, dt);
           shared.uBurst.value = burst;
 
