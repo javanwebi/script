@@ -38,6 +38,7 @@ import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms } from './src/utils/forzaSpeechPipeline';
+import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -5905,6 +5906,49 @@ async function generatePersianMaleSpeechEdge(text: string): Promise<Buffer | nul
   return null;
 }
 
+async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | null> {
+  const workerUrl = configuredForzaWorkerUrl();
+  if (!workerUrl) return null;
+  const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
+  const workerToken = (sameRecognitionOrigin
+    ? process.env.PART_RECOGNITION_WORKER_TOKEN
+    : process.env.FORZA_WORKER_TOKEN) || '';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 17000);
+  try {
+    const response = await fetch(workerUrl + '/v1/forza/tts', {
+      method:'POST',
+      headers: {
+        'Content-Type':'application/json',
+        ...(workerToken ? { Authorization: 'Bearer ' + workerToken.trim() } : {}),
+      },
+      body: JSON.stringify({ text: text.slice(0,1000) }),
+      signal:controller.signal,
+    });
+    const data = await response.json().catch(()=>null) as any;
+    if (!response.ok || !data?.success || typeof data.audioBase64 !== 'string') {
+      console.warn('[FORZA TTS] Worker unavailable', {
+        status:response.status,
+        type:String(data?.error?.type || 'no_audio').slice(0,60),
+      });
+      return null;
+    }
+    const raw = data.audioBase64;
+    if (raw.length > 8000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
+    const bytes = Buffer.from(raw,'base64');
+    if (!bytes.length || bytes.length > 6000000 || bytes.byteLength % 2 !== 0) return null;
+    const rateMatch = /rate=(\d{4,6})/.exec(String(data.mimeType || ''));
+    const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
+    if (sampleRate < 8000 || sampleRate > 48000) return null;
+    return pcmToWav(bytes, sampleRate, 1, 16);
+  } catch (error:any) {
+    console.warn('[FORZA TTS] Worker speech endpoint failure', error?.name || 'network');
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // POST: /api/ai/tts - Convert AI engineering response to fluent male Persian speech
 app.post('/api/ai/tts', async (req, res) => {
   const startedAt = Date.now();
@@ -5915,8 +5959,8 @@ app.post('/api/ai/tts', async (req, res) => {
   try {
     const { text, voice } = req.body;
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ error: 'متن برای خواندن الزامی است' });
+    if (typeof text !== 'string' || !text.trim() || text.length > 1800) {
+      return res.status(400).json({ error: 'متن برای خواندن معتبر نیست' });
     }
 
     // Clean and comprehend text for fluent speech reading
@@ -5938,7 +5982,22 @@ app.post('/api/ai/tts', async (req, res) => {
       });
     }
 
-    // 1. PRIMARY ENGINE: Gemini High-Fidelity Audio TTS
+    // Configured Cloudflare Worker owns the secret. Send text only to the
+    // authenticated Worker; never send a key or audio provider details to JS.
+    // Prefer this path over a browser voice which may have no Persian locale.
+    if (configuredForzaWorkerUrl()) {
+      const workerAudio = await generateForzaWorkerPersianVoice(cleanedText);
+      if (workerAudio) {
+        reportProvider('cloudflare-gemini-persian-tts');
+        const dataUrl = 'data:audio/wav;base64,' + workerAudio.toString('base64');
+        if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
+        ttsAudioCache.set(cacheKey,dataUrl);
+        return res.json({ success:true, audioBase64:dataUrl, mimeType:'audio/wav',
+          provider:'cloudflare-gemini-persian-tts',cleanedText });
+      }
+    }
+
+    // Internal Gemini key (only if the Worker is unavailable or not configured).
     const maleVoice = voice === 'Puck' ? 'Puck' : 'Charon';
     const audioBuf = await generatePersianSpeechGemini(cleanedText, maleVoice);
     if (audioBuf && audioBuf.length > 0) {
@@ -6676,6 +6735,26 @@ async function start() {
           .catch(error => console.warn('[FORZA provider smoke test] FAILED:', String(error?.message || error).slice(0, 140)));
       }, 4000);
       probe.unref();
+    }
+    // Warm the *exact* visible welcome text while the particle avatar forms.
+    // This also tests real Gemini TTS and makes subsequent visitors instant.
+    // A failure never blocks Express startup or other site functionality.
+    if (configuredForzaWorkerUrl()) {
+      const warm = setTimeout(() => {
+        const text = cleanPersianTextForVoice(FORZA_GREETING_TEXT);
+        const key = `male-fa:${text.slice(0, 300)}:${text.length}`;
+        void generateForzaWorkerPersianVoice(text)
+          .then(audio => {
+            if (audio?.length) {
+              ttsAudioCache.set(key, `data:audio/wav;base64,${audio.toString('base64')}`);
+              console.info('[FORZA greeting TTS warmup] SUCCESS; provider=cloudflare; audioBytes=' + audio.length);
+            } else {
+              console.warn('[FORZA greeting TTS warmup] FAILED; voice fallback may be required');
+            }
+          })
+          .catch(error => console.warn('[FORZA greeting TTS warmup] FAILED', error?.name || 'error'));
+      }, 500);
+      warm.unref();
     }
     // Non-destructive background import: verify every source Git blob first,
     // then atomically switch PostgreSQL image links to volume-local URLs.
