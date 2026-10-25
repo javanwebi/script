@@ -38,3 +38,41 @@ test('public output removes commercial fields recursively', () => {
   assert.equal(safe.product.variants[0].stock, undefined);
   assert.equal(safe.product.variants[0].code, 'SKU');
 });
+
+test('Brotli JSON keeps private runtime Vary: Cookie and preserves payload', async () => {
+  const { brotliDecompressSync } = await import('node:zlib');
+  const { sendCatalogJson } = await import('../server/db/compactJson');
+  const headers = new Map<string,string>([['vary', 'Cookie']]);
+  let body: Buffer | undefined;
+  const res = {
+    headersSent: false,
+    setHeader: (key: string, value: string) => { headers.set(key.toLowerCase(),value); },
+    vary: (key: string) => { headers.set('vary', (headers.get('vary') || '') + ', ' + key); },
+    type: () => res,
+    send: (value: Buffer) => { body = value; return res; },
+  };
+  const req = { get: (key: string) => key === 'accept-encoding' ? 'br, gzip' : undefined };
+  const payload = { result: 'تسمه'.repeat(3000) };
+  await sendCatalogJson(req as any,res as any,payload);
+  assert.equal(headers.get('content-encoding'), 'br');
+  assert.match(headers.get('vary') || '', /Cookie/);
+  assert.match(headers.get('vary') || '', /Accept-Encoding/);
+  assert.deepEqual(JSON.parse(brotliDecompressSync(body!).toString()), payload);
+});
+
+test('catalog endpoints refuse missing PostgreSQL instead of inventing products', async () => {
+  const { catalogSummaryApi } = await import('../server/db/catalogApi');
+  const original = process.env.DATA_BACKEND;
+  process.env.DATA_BACKEND = 'none';
+  const result: { status?: number; body?: any } = {};
+  const res = { status: (status: number) => { result.status = status; return res; },
+                json: (body: any) => { result.body = body; return res; } };
+  try {
+    await catalogSummaryApi({} as any, res as any);
+    assert.equal(result.status, 503);
+    assert.equal(result.body.success, false);
+  } finally {
+    if (original === undefined) delete process.env.DATA_BACKEND;
+    else process.env.DATA_BACKEND = original;
+  }
+});
