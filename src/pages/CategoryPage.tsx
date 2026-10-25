@@ -32,6 +32,21 @@ export const CategoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubcat, setSelectedSubcat] = useState<string>(subParam);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedProfile, setSelectedProfile] = useState('all');
+  const [minLength, setMinLength] = useState('');
+  const [maxLength, setMaxLength] = useState('');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isClassicBelt = category.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
+  const beltProfiles = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'];
+  const beltLength = (product: { technicalSpecs: {key:string;value:string}[] }): number | null => {
+    const entry = product.technicalSpecs?.find(spec => /طول|length/i.test(spec.key));
+    if (!entry) return null;
+    const normalized = entry.value.replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/,/g, '');
+    const number = normalized.match(/\d+(?:\.\d+)?/);
+    if (!number) return null;
+    const parsed = Number(number[0]);
+    return Number.isFinite(parsed) ? (/اینچ|inch/i.test(normalized) ? parsed * 25.4 : parsed) : null;
+  };
   const [inStockOnly, setInStockOnly] = useState(false);
   const [inquiryOnlyFilter, setInquiryOnlyFilter] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'code'>('default');
@@ -41,6 +56,7 @@ export const CategoryPage: React.FC = () => {
 
   useEffect(() => {
     setSelectedSubcat(subParam);
+    setSelectedProfile('all');
     setPage(1);
   }, [category.slug, subParam]);
   const selectSubcategory = (name: string) => {
@@ -85,6 +101,18 @@ export const CategoryPage: React.FC = () => {
     if (selectedSubcat !== 'all') {
       list = list.filter(p => matchesCatalogCategory(p, category.slug, selectedSubcat));
     }
+    if (isClassicBelt && selectedProfile !== 'all') {
+      const pattern = new RegExp('^' + selectedProfile + '[-\\s]?\\d', 'i');
+      list = list.filter(p => pattern.test(p.code) || p.variants?.some(v => pattern.test(v.code)));
+    }
+    if (minLength.trim() || maxLength.trim()) {
+      const min = minLength.trim() ? Number(minLength) : null;
+      const max = maxLength.trim() ? Number(maxLength) : null;
+      list = list.filter(p => {
+        const length = beltLength(p);
+        return length !== null && (min === null || length >= min) && (max === null || length <= max);
+      });
+    }
     if (selectedBrand !== 'all') {
       list = list.filter(p => p.brand === selectedBrand);
     }
@@ -104,13 +132,16 @@ export const CategoryPage: React.FC = () => {
     }
 
     return list;
-  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, inStockOnly, inquiryOnlyFilter, sortBy]);
+  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
 
   const paginated = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setSelectedProfile('all');
+    setMinLength('');
+    setMaxLength('');
     selectSubcategory('all');
     setSelectedBrand('all');
     setInStockOnly(false);
@@ -119,7 +150,7 @@ export const CategoryPage: React.FC = () => {
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || inStockOnly || inquiryOnlyFilter;
+  const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || inStockOnly || inquiryOnlyFilter || selectedProfile !== 'all' || minLength !== '' || maxLength !== '';
 
   return (
     <div className="space-y-6 text-right pb-12" dir="rtl">
@@ -215,6 +246,20 @@ export const CategoryPage: React.FC = () => {
       )}
 
 
+      {isClassicBelt && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-black text-[#2B313A]">انتخاب پروفیل تسمه کلاسیک V</h2>
+          <div className="flex flex-wrap gap-2" dir="ltr">
+            {['all', ...beltProfiles].map(profile => (
+              <button type="button" key={profile} aria-pressed={selectedProfile === profile}
+                onClick={() => { setSelectedProfile(profile); setPage(1); }}
+                className={`min-w-11 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${selectedProfile === profile ? 'border-[#E06518] bg-[#E06518] text-white' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-[#E06518]'}`}>
+                {profile === 'all' ? 'همه' : profile}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {/* In-Category Search & Sorting Toolbar */}
       <div
         ref={productsSectionRef}
@@ -278,11 +323,15 @@ export const CategoryPage: React.FC = () => {
         </div>
       </div>
 
+      <button type="button" onClick={() => setMobileFiltersOpen(open => !open)} aria-expanded={mobileFiltersOpen}
+        className="lg:hidden flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 py-3 text-xs font-bold text-[#E06518]">
+        <SlidersHorizontal className="h-4 w-4" /> {mobileFiltersOpen ? 'بستن فیلترها' : 'فیلتر محصولات'}
+      </button>
       {/* Main Content Area: Sidebar Filters + Products Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Filters Widget */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4 sticky top-24">
+        <div className={mobileFiltersOpen ? "space-y-4 lg:block" : "hidden space-y-4 lg:block"}>
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4 lg:sticky lg:top-24">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <span className="text-xs sm:text-sm font-black text-[#2B313A] flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-[#E06518]" />
@@ -299,6 +348,22 @@ export const CategoryPage: React.FC = () => {
               )}
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="category-product-code" className="block text-xs font-extrabold text-slate-800">کد یا نام محصول</label>
+              <input id="category-product-code" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                placeholder="مثلاً A-45" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#E06518] focus:outline-none"/>
+            </div>
+            {isClassicBelt && (
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <p className="text-xs font-extrabold text-slate-800">محدوده طول ثبت‌شده (میلی‌متر)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input aria-label="حداقل طول" type="number" min="0" placeholder="از" value={minLength}
+                    onChange={e => { setMinLength(e.target.value); setPage(1); }} className="w-full min-w-0 rounded-lg border border-slate-200 p-2 text-xs"/>
+                  <input aria-label="حداکثر طول" type="number" min="0" placeholder="تا" value={maxLength}
+                    onChange={e => { setMaxLength(e.target.value); setPage(1); }} className="w-full min-w-0 rounded-lg border border-slate-200 p-2 text-xs"/>
+                </div>
+              </div>
+            )}
             {/* Brand Filter */}
             {availableBrands.length > 0 && (
               <div className="space-y-1.5">
@@ -323,6 +388,10 @@ export const CategoryPage: React.FC = () => {
               </div>
             )}
 
+            <label className="flex cursor-pointer items-center justify-between gap-2 rounded-xl bg-slate-50 p-2.5 text-xs font-bold">
+              <span>فقط کالاهای دارای موجودی ثبت‌شده</span>
+              <input type="checkbox" checked={inStockOnly} onChange={e => { setInStockOnly(e.target.checked); if (e.target.checked) setInquiryOnlyFilter(false); setPage(1); }} className="accent-[#E06518]"/>
+            </label>
             {/* Status Toggles */}
             <div className="pt-3 border-t border-slate-100 space-y-2.5">
 
@@ -346,6 +415,10 @@ export const CategoryPage: React.FC = () => {
 
         {/* Product Grid Column */}
         <div className="lg:col-span-3 space-y-6">
+          <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
+            <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
+            <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
+          </div>
           {paginated.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4">
               <div className="w-16 h-16 bg-orange-50 text-[#E06518] rounded-full flex items-center justify-center mx-auto">
