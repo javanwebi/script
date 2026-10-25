@@ -4,6 +4,7 @@ import {
   decodePcm16Base64,
   audioSampleRate,
   mayQueueMicrophoneFrame,
+  appendLiveTranscript,
 } from '../../utils/forzaRealtimeAudio';
 
 export type ForzaVoicePhase = 'connecting' | 'native' | 'legacy' | 'unavailable';
@@ -131,8 +132,7 @@ export class ForzaRealtimeClient {
         return;
       case 'user_transcript':
         if (message.text) {
-          if (message.final) this.userTranscript = String(message.text);
-          else this.userTranscript = String(message.text);
+          this.userTranscript = appendLiveTranscript(this.userTranscript, String(message.text));
           this.callback.onUserText(this.userTranscript);
         }
         return;
@@ -146,7 +146,7 @@ export class ForzaRealtimeClient {
       case 'ai_transcript':
         if (typeof message.text === 'string') {
           if (this.responseId !== message.responseId) this.newResponse(message.responseId);
-          this.aiTranscript += message.text;
+          this.aiTranscript = appendLiveTranscript(this.aiTranscript, message.text);
           this.callback.onAiText(this.aiTranscript);
         }
         return;
@@ -156,6 +156,7 @@ export class ForzaRealtimeClient {
         return;
       case 'turn_complete':
         this.turnCompleted = true;
+        this.userTranscript = '';
         if (this.sources.size === 0) this.callback.onStatus('listening');
         return;
       default:
