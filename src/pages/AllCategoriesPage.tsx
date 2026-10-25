@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES, flattenCategoryNodes } from '../data/categories';
+import { CATEGORIES, flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { USER_PRODUCTS, CATALOGUE_SKU_COUNT } from '../data/userProducts';
 import { 
@@ -189,7 +189,7 @@ export const AllCategoriesPage: React.FC = () => {
                   {/* Action Link Button */}
                   <div className="pt-2 mt-auto border-t border-slate-100">
                     <Link
-                      to={`/category/${category.slug}`}
+                      to={`/category/${resolveCategorySlug(category.slug)}`}
                       className="w-full inline-flex items-center justify-center gap-2 bg-[#484344] hover:bg-[#E06518] text-white py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm hover:shadow-md group-hover:shadow-orange-500/20"
                     >
                       <span>مشاهده محصولات این دسته‌بندی</span>
