@@ -66,11 +66,11 @@ test('runtime catalog imports cannot bundle old JSON fixtures into production', 
     'server/db/runtimeApi.ts',
   ]) {
     const source = readFileSync(path, 'utf8');
-    assert.ok(!/from\\s*['"][^'"]*tests\\/fixtures\\//.test(source), path);
-    assert.ok(!/from\\s*['"][^'"]*catalogueSource\\.json/.test(source), path);
-    assert.ok(!/from\\s*['"][^'"]*catalogueImages\\.json/.test(source), path);
+    assert.ok(!/from\s*['"][^'"]*tests\/fixtures\//.test(source), path);
+    assert.ok(!/from\s*['"][^'"]*catalogueSource\.json/.test(source), path);
+    assert.ok(!/from\s*['"][^'"]*catalogueImages\.json/.test(source), path);
   }
   const dockerIgnore = readFileSync('.dockerignore', 'utf8');
-  assert.match(dockerIgnore, /^storage\\/$/m, 'images may be tracked for archival, but must not be baked into Docker');
-  assert.match(readFileSync('server/db/repository.ts','utf8'), /readAdoptedProducts\\(database\\(\\)\\)/);
+  assert.match(dockerIgnore, /^storage\/$/m, 'images may be tracked for archival, but must not be baked into Docker');
+  assert.match(readFileSync('server/db/repository.ts','utf8'), /readAdoptedProducts\(database\(\)\)/);
 });
