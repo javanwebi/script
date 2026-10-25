@@ -80,6 +80,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micMutedRef = useRef(false);
   const speechInterimRef = useRef(false);
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
+  const recognitionFailedRef = useRef(false);
+  const lastMicActivityRef = useRef(0);
+  const recorderStartedAtRef = useRef(0);
+  const speechSegmentStartedRef = useRef(false);
   const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
@@ -146,13 +150,26 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     hasSpeechSoundRef.current = false;
     audioChunksRef.current = [];
 
-    // 1. Restart browser SpeechRecognition if supported and unmuted
-    if (!isMicMuted && recognitionRef.current && !isRecognitionActiveRef.current) {
+    // Prefer fast WebSpeech; simultaneously capture actual microphone audio
+    // so the Cloudflare STT route works when Chrome recognition fails.
+    if (!micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
       try {
         recognitionRef.current.start();
         isRecognitionActiveRef.current = true;
       } catch {
-        // Recognition may already be starting or running
+        recognitionFailedRef.current = true;
+      }
+    }
+    const recorder = mediaRecorderRef.current;
+    if (!micMutedRef.current && recorder?.state === 'inactive') {
+      try {
+        audioChunksRef.current = [];
+        speechSegmentStartedRef.current = false;
+        recorderStartedAtRef.current = Date.now();
+        recorder.start(250);
+      } catch (error) {
+        console.warn('[FORZA] MediaRecorder could not start', (error as any)?.name || 'unavailable');
+        setMicrophoneError('ضبط صدا فعال نشد؛ مجوز میکروفون را بررسی کنید.');
       }
     }
 
@@ -160,7 +177,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
-  }, [isCallActive, isMicMuted, setStatus]);
+  }, [isCallActive, setStatus]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isRecognitionActiveRef.current) {
