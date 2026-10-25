@@ -3,6 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
+import {catalogSummaryApi,catalogProductsApi,catalogProductDetailApi} from './server/db/catalogApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -378,6 +379,10 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
+app.get('/api/catalog/summary',catalogSummaryApi);
+app.get('/api/catalog/products',catalogProductsApi);
+app.get('/api/catalog/search',catalogProductsApi);
+app.get('/api/catalog/products/:id',catalogProductDetailApi);
 app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
 app.use('/api/catalog', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
