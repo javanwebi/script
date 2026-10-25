@@ -12,9 +12,11 @@ export const PERSISTENT_CATALOG_IMAGE_BASE='/storage/products/catalog';
 export function normalizeImageFileName(imageName?:string|null):string {
  if(!imageName)return '';
  const value=imageName.trim();
- const match=value.match(/(?:e\(?|at-e)?(\d+)\)?(?:\.(png|jpe?g|webp|svg))?/i);
+ // Accept complete, verified catalogue filenames only. Never infer a SKU
+ // image from an arbitrary digit inside a URL or malformed path.
+ const match=/^(?:e\(?([1-9]\d{0,3})\)?|at-e0*([1-9]\d{0,3}))(?:\.(?:png|jpe?g|webp|svg))?$/i.exec(value);
  if(!match)return '';
- const n=Number(match[1]);
+ const n=Number(match[1] || match[2]);
  return Number.isInteger(n)&&n>=1&&n<=869?`e(${n}).png`:'';
 }
 export function isVerifiedCatalogueImage(imageName?:string|null):boolean {
