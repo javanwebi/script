@@ -108,7 +108,7 @@ export function ReferenceMegaMenu({
                       <details className="reference-belts">
                         <summary>{label}</summary>
                         <Link
-                          to={`/category/${resolveCategorySlug(c.slug)}`}
+                          to={`/category/${c.name === "تسمه و انتقال نیرو" ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(c.slug)}`}
                           onClick={onNavigate}
                         >
                           همه تسمه‌های انتقال نیرو <ArrowUpLeft size={13} />
