@@ -14,7 +14,7 @@ const amount = (p: Product) => p.inquiryOnly ? 0 : Number(p.prices?.retail || 0)
 const num = (s: string) => Number(s.replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))));
 function categoryItems(products: Product[]) {
   const labels = unique(products.map(p => p.submenu || p.subcategory));
-  return labels.map(label => ({ label, count: products.filter(p => (p.submenu || p.subcategory) === label).length, image: products.find(p => (p.submenu || p.subcategory) === label && p.images?.[0])?.images[0] }));
+  return labels.map(label => ({ label, count: products.filter(p => (p.submenu || p.subcategory) === label).length, image: products.find(p => (p.submenu || p.subcategory) === label && p.hasCatalogueImage && p.images?.[0])?.images[0] || products.find(p => (p.submenu || p.subcategory) === label && p.images?.[0])?.images[0] }));
 }
 export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [params, setParams] = useSearchParams();
@@ -69,7 +69,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   </div>;
   return <main className="pulley-catalog" dir="rtl">
     <div className="pulley-hero">
-      <div className="pulley-hero-image">{heroImage&&<ProductImage src={heroImage} alt="پولی صنعتی" />}</div>
+      <div className="pulley-hero-image"><img src="/images/pulley-hero-industrial.svg" alt="تصویر صنعتی پولی‌های شیاردار و تسمه‌های انتقال نیرو" /></div>
       <div className="pulley-hero-copy"><div className="pulley-breadcrumb"><Link to="/">خانه</Link><ChevronLeft size={13}/> تسمه و انتقال نیرو <ChevronLeft size={13}/> پولی و انتقال نیرو</div><h1>پولی و انتقال نیرو</h1><p>انتخاب پولی صنعتی بر اساس خانواده، برند و مشخصات فنی واقعی قطعات</p><div className="pulley-benefits"><span><Truck size={19}/> هماهنگی ارسال</span><span><ShieldCheck size={19}/> اطلاعات فنی کالا</span><span><Check size={19}/> مشاوره تخصصی</span></div></div>
     </div>
     <div className="pulley-container">
