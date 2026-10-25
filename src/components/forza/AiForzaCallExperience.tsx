@@ -368,10 +368,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setDisplayedAi('');
       return;
     }
-    if (voiceMode === 'native') {
-      setDisplayedAi(aiText);
-      return;
-    }
     let i = 0;
     setDisplayedAi('');
     const id = window.setInterval(() => {
@@ -1075,7 +1071,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         <div className="self-end inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/85 border border-white/20 backdrop-blur-md shadow-lg text-xs pointer-events-auto transition-all">
           <span className="font-medium text-white text-[11px] sm:text-[12px]">
             {turn === 'user'
-              ? (voiceMode === 'native' ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید' : 'نوبت شماست (مستقیم صحبت کنید)')
+              ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
               : 'AI FORZA در حال صحبت...'}
