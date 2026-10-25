@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { ForzaRealtimeClient } from './forzaRealtimeClient';
-import { analyzePersianSentenceCompletion } from '../../utils/silenceDetector';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms } from '../../utils/forzaSpeechPipeline';
 import './style.css';
 
 interface AiForzaCallExperienceProps {
@@ -268,8 +268,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               // Sound detected previously, now user paused
               if (!silenceTimerRef.current) {
                 const currentText = activeTranscriptRef.current?.trim() || '';
-                const analysis = analyzePersianSentenceCompletion(currentText);
-                const pauseMs = analysis.recommendedPauseMs || 1350;
+                const pauseMs = forzaEndOfTurnPauseMs(currentText, !currentText);
 
                 silenceTimerRef.current = window.setTimeout(() => {
                   silenceTimerRef.current = null;
@@ -545,15 +544,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             startListening();
             return resolve();
           }
-          const u = new SpeechSynthesisUtterance(text);
+          // Browser fallback uses the same industrial-pronunciation dictionary
+          // as server-side Edge TTS. Never deliberately choose an Arabic voice
+          // over a Persian one; some code terms otherwise sound incorrect.
+          const u = new SpeechSynthesisUtterance(verbalizeForzaTechnicalTerms(text));
           u.lang = 'fa-IR';
           u.rate = 0.95;
 
           const voices = window.speechSynthesis.getVoices();
           const faVoice =
-            voices.find(v => v.lang.startsWith('fa') || v.lang.includes('IR')) ||
-            voices.find(v => v.lang.startsWith('ar')) ||
-            voices[0];
+            voices.find(v => v.lang.toLowerCase() === 'fa-ir') ||
+            voices.find(v => v.lang.toLowerCase().startsWith('fa'));
           if (faVoice) u.voice = faVoice;
 
           activeUtteranceRef.current = u;
@@ -642,6 +643,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       try {
         const payload: any = {
           history: historyRef.current.slice(-8),
+          // First deliver the exact AI words; synthesize audio as a second step.
+          deferAudio: true,
         };
 
         if (q) {
@@ -680,20 +683,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({ role: 'model', text: reply });
           setAiText(reply);
 
-          if (data.audioBase64) {
-            setStatus('speaking');
-            setTurn('ai');
-            try {
-              await playDataUrl(data.audioBase64);
-            } catch (playErr) {
-              console.warn('[AI FORZA] Direct audio play failed, falling back:', playErr);
-              if (!autoplayBlocked) {
-                await speakText(reply);
-              }
-            }
-          } else {
-            await speakText(reply);
-          }
+          // Fast path: render transcription and AI reply immediately. TTS
+          // follows independently, avoiding extra seconds inside /forza-live.
+          await speakText(reply);
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
@@ -708,7 +700,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [autoplayBlocked, playDataUrl, setStatus, speakText, startListening, stopListening, unlockAudio]
+    [setStatus, speakText, startListening, stopListening, unlockAudio]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -777,19 +769,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onresult = (event: any) => {
         if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
 
-        let interim = '';
-        let final = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const trans = event.results[i][0]?.transcript || '';
-          if (event.results[i].isFinal) {
-            final += trans;
-          } else {
-            interim += trans;
-          }
-        }
-
-        const currentSpeech = (final || interim || '').trim();
+        // Chrome's results include earlier FINAL words on every event.
+        // Rebuild all segments; processing only resultIndex loses sentences.
+        const recognized = extractPersianSpeechRecognition(event.results);
+        const currentSpeech = recognized.text;
         if (currentSpeech) {
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
@@ -798,8 +781,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setTurn('user');
           setIsUserSpeaking(true);
 
-          const analysis = analyzePersianSentenceCompletion(currentSpeech);
-          const pauseMs = analysis.recommendedPauseMs || 1250;
+          const pauseMs = forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim);
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = window.setTimeout(() => {
@@ -847,6 +829,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(() => {
     if (voiceMode !== 'legacy') return;
     let mounted = true;
+    let introductionFinished = false;
 
     // Start in calm idle state - hair stays completely still until speech actually plays!
     setStatus('idle');
@@ -857,19 +840,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // Non-blocking greeting speech & mic init
     const timer = setTimeout(() => {
       if (!mounted) return;
-      void speakText(GREETING_TEXT)
-        .then(() => {
-          if (!mounted) return;
-          setStatus('listening');
-          setTurn('user');
-          startListening();
-        })
-        .catch(() => {
-          if (!mounted) return;
-          setStatus('listening');
-          setTurn('user');
-          startListening();
-        });
+      void speakText(GREETING_TEXT).finally(() => {
+        if (!mounted) return;
+        // Don't recognize FORZA's own welcome as the customer's voice.
+        introductionFinished = true;
+        isAiSpeakingRef.current = false;
+        setStatus('listening');
+        setTurn('user');
+        startListening();
+      });
 
       try {
         if (navigator?.mediaDevices?.getUserMedia) {
@@ -903,7 +882,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 setupMediaRecorder(stream);
                 const rec = initSpeechRecognition();
                 recognitionRef.current = rec;
-                if (rec && !isMicMuted) {
+                if (rec && !isMicMuted && introductionFinished) {
                   try {
                     rec.start();
                     isRecognitionActiveRef.current = true;
@@ -915,7 +894,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               if (mounted) {
                 const rec = initSpeechRecognition();
                 recognitionRef.current = rec;
-                if (rec && !isMicMuted) {
+                if (rec && !isMicMuted && introductionFinished) {
                   try {
                     rec.start();
                     isRecognitionActiveRef.current = true;
@@ -926,7 +905,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         } else {
           const rec = initSpeechRecognition();
           recognitionRef.current = rec;
-          if (rec && !isMicMuted) {
+          if (rec && !isMicMuted && introductionFinished) {
             try {
               rec.start();
               isRecognitionActiveRef.current = true;
@@ -936,7 +915,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       } catch {
         const rec = initSpeechRecognition();
         recognitionRef.current = rec;
-        if (rec && !isMicMuted) {
+        if (rec && !isMicMuted && introductionFinished) {
           try {
             rec.start();
             isRecognitionActiveRef.current = true;
