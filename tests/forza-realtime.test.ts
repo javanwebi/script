@@ -103,3 +103,24 @@ test('Native voice never sends a typed message unless connected', () => {
   assert.equal(client.sendText('سلام'),false);
   assert.equal(client.sendText('   '),false);
 });
+
+test('configured Worker is a normal legacy mode, not a FORZA connection error', () => {
+  const modes:string[] = [];
+  const errors:string[] = [];
+  const client:any = new ForzaRealtimeClient({
+    onMode: (mode:string) => modes.push(mode),
+    onStatus: () => {},
+    onUserText: () => {},
+    onAiText: () => {},
+    onLevel: () => {},
+    onError: (message:string) => errors.push(message),
+  });
+  client.disposed = false;
+  client.acceptMessage({
+    type: 'fallback_required',
+    reasonCode: 'worker_configured',
+    reason: 'ورکر تنظیم شده است؛ حالت HTTP فعال است.',
+  });
+  assert.deepEqual(modes, ['legacy']);
+  assert.deepEqual(errors, [], 'Worker mode selection must not display a red toast');
+});
