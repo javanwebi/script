@@ -1,0 +1,22 @@
+/* Industrial category landing experience - scoped, no global overrides */
+.category-showcase { width:100%; max-width:none; }
+.category-showcase .category-showcase-hero { box-shadow:0 20px 45px rgba(28,31,35,.14); }
+.category-showcase .category-showcase-hero-image { object-position: center 43%; }
+.category-showcase .category-showcase-hero:after { content:"";position:absolute;top:0;bottom:0;left:46%;width:13%;transform:skew(-22deg);background:linear-gradient(180deg,rgba(224,101,24,.75),rgba(224,101,24,.25));pointer-events:none;z-index:0; }
+.category-showcase .category-showcase-families>button { min-height:118px;box-shadow:0 4px 12px rgba(37,40,42,.045); }
+.category-showcase .category-showcase-families img { width:46%;height:100%;max-height:105px;filter:drop-shadow(0 5px 4px rgba(0,0,0,.16)); }
+.category-showcase .category-showcase-products article { min-height:375px; }
+.category-showcase .category-showcase-product-media img { max-height:100%;object-fit:contain; }
+.category-showcase .category-showcase-guide>div>div { min-height:155px;padding:24px; }
+.category-showcase .category-showcase-industries>a { min-height:145px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f9fafb,#f1f2f3);font-size:15px; }
+.category-showcase .category-showcase-actions>a { min-height:180px;padding:30px;display:flex;flex-direction:column;justify-content:center; }
+.category-showcase .category-showcase-actions strong { font-size:20px; }
+@media (max-width:767px) {
+.category-showcase .category-showcase-hero { min-height:390px; }
+.category-showcase .category-showcase-hero-image { object-position:60% center;opacity:.5; }
+.category-showcase .category-showcase-hero:after { left:70%; }
+.category-showcase .category-showcase-families>button { min-height:98px; }
+.category-showcase .category-showcase-guide>div>div { min-height:142px;padding:14px; }
+.category-showcase .category-showcase-industries>a { min-height:115px;font-size:13px; }
+.category-showcase .category-showcase-actions>a { min-height:140px;padding:20px; }
+}
