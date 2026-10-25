@@ -8,9 +8,9 @@ const ephemeral=(key:string)=>/auth|credentials|registered_users|mock_inactive|m
 export function databaseStorageEnabled(){return enabled;}
 export function hydrateMemory(run:()=>void){hydrating=true;try{run();}finally{hydrating=false;}}
 function emit(state:string,message=''){window.dispatchEvent(new CustomEvent('atlas-portal-save-status',{detail:{state,message}}));}
-export async function refreshDurableStorage(){
+export async function refreshDurableStorage(options: {omitGuestCatalog?: boolean} = {}){
  if(enabled)await flushDurableChanges();
- const res=await fetch('/api/runtime',{credentials:'same-origin',cache:'no-store'});if(!res.ok)throw new Error('دریافت اطلاعات از پایگاه داده ممکن نشد.');const data=await res.json();if(!data.success)throw new Error(data.message);enabled=data.database===true;
+ const res=await fetch(options.omitGuestCatalog ? '/api/runtime?catalog=omit' : '/api/runtime',{credentials:'same-origin',cache:'no-store'});if(!res.ok)throw new Error('دریافت اطلاعات از پایگاه داده ممکن نشد.');const data=await res.json();if(!data.success)throw new Error(data.message);enabled=data.database===true;
  if(enabled){memory.clear();versions.clear();userId=data.userId;for(const [key,value] of Object.entries(data.values || {}))memory.set(key,JSON.stringify(value));for(const [key,value] of Object.entries(data.versions || {}))versions.set(key,Number(value));window.dispatchEvent(new CustomEvent('sanat-durable-hydrated',{detail:data}));}
  return data;
 }
