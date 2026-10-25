@@ -9,7 +9,7 @@ const gzipAsync = promisify(gzip);
 export async function sendCatalogJson(req: Request, res: Response, body: unknown): Promise<Response> {
   const data = Buffer.from(JSON.stringify(body));
   const accepted = req.get('accept-encoding') || '';
-  res.setHeader('Vary', 'Accept-Encoding');
+  res.vary('Accept-Encoding');
   if (data.length < 2048 || (!accepted.includes('br') && !accepted.includes('gzip'))) {
     return res.type('application/json').send(data);
   }
