@@ -29,6 +29,8 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
+import { flushDurableChanges } from '../../services/durableStorage';
+import { CategoryTreeEditor } from '../CategoryTreeEditor';
 import {
   Product,
   ProductVariant,
@@ -81,7 +83,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [brands, setBrands] = useState<Brand[]>(() => adminService.getBrands());
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [categorySubcatInput, setCategorySubcatInput] = useState('');
+  const [categoryImageUploading, setCategoryImageUploading] = useState(false);
+  const [categorySavePending, setCategorySavePending] = useState(false);
+  const [categorySaveError, setCategorySaveError] = useState('');
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [brandSpecialtyInput, setBrandSpecialtyInput] = useState('');
@@ -92,10 +96,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       setEditingCategory({
         ...cat,
         subcategories: [...(cat.subcategories || [])],
+        children: (cat.children || (cat.subcategories || []).map(name => ({ name, value: name, children: [] }))).map(node => ({ ...node, children: (node.children || []).map(child => ({ ...child })) })),
         active: cat.active !== undefined ? cat.active : true,
       });
     } else {
-      const nextId = Math.max(0, ...categories.map(c => c.id || 0)) + 1;
+      const nextId = Math.max(0, ...categories.map(c => Number(c.id) || 0)) + 1;
       setEditingCategory({
         id: nextId,
         slug: `cat-${nextId}`,
@@ -103,31 +108,63 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         nameEn: '',
         description: '',
         subcategories: [],
+        children: [],
         icon: 'Cog',
         count: 0,
         image: '',
         active: true,
       });
     }
-    setCategorySubcatInput('');
+    setCategorySaveError('');
     setIsCategoryModalOpen(true);
   };
 
-  const handleSaveCategoryModal = () => {
+  const handleSaveCategoryModal = async () => {
     if (!editingCategory || !editingCategory.name.trim()) return;
     const finalSlug =
       editingCategory.slug.trim() ||
       editingCategory.name.trim().replace(/[\s\u200c]+/g, '-');
+    const children = (editingCategory.children || []).filter(node => node.name.trim()).map(node => ({
+      ...node, name: node.name.trim(), children: (node.children || []).filter(child => child.name.trim()).map(child => ({ ...child, name: child.name.trim() })),
+    }));
     const toSave: Category = {
       ...editingCategory,
       name: editingCategory.name.trim(),
       nameEn: editingCategory.nameEn.trim() || finalSlug,
       slug: finalSlug,
+      children,
+      subcategories: children.filter(node => !node.hidden).map(node => node.name),
     };
-    adminService.saveCategory(toSave);
-    setCategories(adminService.getCategories());
-    setIsCategoryModalOpen(false);
-    setEditingCategory(null);
+    setCategorySavePending(true);
+    setCategorySaveError('');
+    try {
+      adminService.saveCategory(toSave);
+      await flushDurableChanges();
+      setCategories(adminService.getCategories());
+      setIsCategoryModalOpen(false);
+      setEditingCategory(null);
+    } catch (error) {
+      setCategorySaveError(error instanceof Error ? error.message : 'تغییرات دسته‌بندی ذخیره نشد.');
+    } finally {
+      setCategorySavePending(false);
+    }
+  };
+
+  const handleCategoryImageUpload = async (file: File) => {
+    setCategorySaveError('');
+    setCategoryImageUploading(true);
+    try {
+      if (!['image/png','image/jpeg','image/webp'].includes(file.type) || !file.size || file.size > 8 * 1024 * 1024)
+        throw new Error('تصویر PNG، JPG یا WebP با حداکثر حجم ۸ مگابایت انتخاب کنید.');
+      const response = await fetch('/api/catalog/category-images/upload', {
+        method:'POST', credentials:'same-origin', headers:{'Content-Type':file.type}, body:file,
+      });
+      const result = await response.json().catch(() => ({ success:false, message:'پاسخ سرور قابل خواندن نیست.' }));
+      if (!response.ok || !result.success || !result.url) throw new Error(result.message || 'آپلود تصویر انجام نشد.');
+      setEditingCategory(prev => prev ? { ...prev, image: result.url } : prev);
+    } catch (error) {
+      setCategorySaveError(error instanceof Error ? error.message : 'آپلود تصویر با خطا مواجه شد.');
+    } finally { setCategoryImageUploading(false); }
   };
 
   const handleDeleteCategoryItem = (slug: string) => {
@@ -280,7 +317,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   }), [products,selectedCategory,selectedSubmenu,selectedSubcategory]);
   const catalogCategoryNames = hierarchy.categories;
   const openFamiliesInCategory = (category:string) => {
-    setActiveSubTab('products');setSelectedCategory(category);
+    setActiveSubTab('products');setSelectedCategory(products.find(p => p.categorySlug === category)?.categoryName || products.find(p => p.categoryName === category)?.categoryName || category);
     setSelectedSubmenu('all');setSelectedSubcategory('all');setSearchQuery('');
     setPriceFilter('all');setImageFilter('all');setStatusFilter('all');setCurrentPage(1);
   };
@@ -1745,7 +1782,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     </div>
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">شناسه مسیر (Slug)</label>
-                      <input type="text" dir="ltr" value={editingCategory.slug} onChange={e => setEditingCategory({ ...editingCategory, slug: e.target.value })} placeholder="industrial-belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
+                      <input type="text" dir="ltr" value={editingCategory.slug} onChange={e => setEditingCategory({ ...editingCategory, slug: e.target.value })} disabled={categories.some(c => c.id === editingCategory.id)} title="شناسه مسیر دسته‌بندی موجود تغییر نمی‌کند تا لینک محصولات حفظ شود." placeholder="industrial-belts" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono" />
                     </div>
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">تعداد خانواده محصول</label>
@@ -1768,76 +1805,42 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 />
               </div>
 
-              {/* Subcategories Management */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-                <label className="block font-bold text-slate-800">
-                  زیرگروه‌های این دسته‌بندی ({toPersianDigits(editingCategory.subcategories.length)} زیرگروه)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={categorySubcatInput}
-                    onChange={e => setCategorySubcatInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && categorySubcatInput.trim()) {
-                        e.preventDefault();
-                        setEditingCategory({
-                          ...editingCategory,
-                          subcategories: [
-                            ...editingCategory.subcategories,
-                            categorySubcatInput.trim(),
-                          ],
-                        });
-                        setCategorySubcatInput('');
-                      }
-                    }}
-                    placeholder="نام زیرگروه جدید را بنویسید و افزودن را بزنید..."
-                    className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!categorySubcatInput.trim()) return;
-                      setEditingCategory({
-                        ...editingCategory,
-                        subcategories: [
-                          ...editingCategory.subcategories,
-                          categorySubcatInput.trim(),
-                        ],
-                      });
-                      setCategorySubcatInput('');
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-slate-800 text-white font-bold cursor-pointer"
-                  >
-                    + افزودن زیرگروه
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {editingCategory.subcategories.map((sub, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-700"
-                    >
-                      <span>{sub}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingCategory({
-                            ...editingCategory,
-                            subcategories: editingCategory.subcategories.filter(
-                              (_, idx) => idx !== i
-                            ),
-                          })
-                        }
-                        className="text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <h4 className="text-sm font-black text-slate-800">تصویر دسته‌بندی</h4>
+                <p className="text-[11px] text-slate-500">تصویر در فضای دائمی سرور ذخیره شده و در هدر، صفحه اصلی و صفحه دسته‌بندی نمایش داده می‌شود.</p>
+                <div className="flex items-center gap-3">
+                  <div className="h-24 w-28 flex items-center justify-center overflow-hidden rounded-xl bg-white border border-slate-200 shrink-0">
+                    {editingCategory.image ? <img src={editingCategory.image} className="h-full w-full object-contain p-1" alt="پیش‌نمایش دسته‌بندی" /> : <ImageIcon className="text-slate-300" size={30} />}
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#E06518] px-4 py-2.5 text-white font-bold">
+                      <Upload size={16} /> {categoryImageUploading ? 'در حال بارگذاری...' : 'آپلود / تعویض تصویر'}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" disabled={categoryImageUploading}
+                        className="sr-only" onChange={e => { const file=e.target.files?.[0]; if(file) void handleCategoryImageUpload(file); e.target.value=''; }} />
+                    </label>
+                    {editingCategory.image && <button type="button" onClick={() => setEditingCategory({...editingCategory,image:''})} className="block text-[11px] font-bold text-rose-600">حذف تصویر از دسته</button>}
+                    <p className="text-[10px] text-slate-500">حداکثر ۸ مگابایت؛ تصویر برای وب بهینه می‌شود.</p>
+                  </div>
                 </div>
               </div>
+
+              <label className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white cursor-pointer">
+                <input type="checkbox" checked={editingCategory.active !== false}
+                  onChange={e => setEditingCategory({...editingCategory,active:e.target.checked})}
+                  className="accent-[#E06518] h-4 w-4" />
+                <span className="font-bold text-slate-800">نمایش دسته‌بندی در سایت و منوی همه محصولات</span>
+              </label>
+
+              <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <div>
+                  <h4 className="font-black text-slate-800">مدیریت نام و نمایش زیرمنوها</h4>
+                  <p className="text-[11px] text-slate-500 leading-6">هر نام را مستقیم تغییر دهید یا مخفی کنید. تغییر نام، کلید فیلتر کالاهای موجود را عوض نمی‌کند.</p>
+                </div>
+                <CategoryTreeEditor nodes={editingCategory.children || []}
+                  onChange={children => setEditingCategory(prev => prev ? {...prev,children,subcategories:children.filter(node => !node.hidden).map(node => node.name)} : prev)} />
+              </div>
+
+              {categorySaveError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{categorySaveError}</p>}
 
               <div className="sticky bottom-0 bg-white flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100">
                 <button
@@ -1849,10 +1852,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveCategoryModal}
+                  onClick={() => void handleSaveCategoryModal()}
+                  disabled={categorySavePending || categoryImageUploading}
                   className="px-5 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold cursor-pointer"
                 >
-                  ذخیره دسته‌بندی
+                  {categorySavePending ? "در حال ذخیره..." : "ذخیره دسته‌بندی"}
                 </button>
               </div>
             </div>
