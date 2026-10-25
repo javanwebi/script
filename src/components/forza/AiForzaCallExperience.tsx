@@ -211,7 +211,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     let active=true;
     let frame=0;
     let lastCheck=0;
-    const samples=new Uint8Array(512);
+    let samples=new Uint8Array(512);
     const check=(timestamp:number)=>{
       if(!active)return;
       frame=requestAnimationFrame(check);
@@ -241,6 +241,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         return;
       }
       try {
+        // getByteTimeDomainData() writes only fftSize samples. A longer
+        // zero-initialized buffer makes silence look like loud speech.
+        if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(samples);
         const rms=rootMeanSquareFromTimeDomain(samples);
         const current=vadRef.current.sample(rms,Date.now());
@@ -825,7 +828,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         micSourceNodeRef.current?.disconnect();
         const source=ctx.createMediaStreamSource(stream);
         const analyser=ctx.createAnalyser();
-        analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+        analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
         source.connect(analyser);
         micSourceNodeRef.current=source;
         micAnalyserRef.current=analyser;
@@ -869,7 +872,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(ctx){
             const node=ctx.createMediaStreamSource(stream);
             const analyser=ctx.createAnalyser();
-            analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+            analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
             node.connect(analyser);
             micAnalyserRef.current=analyser;
             micSourceNodeRef.current=node;
