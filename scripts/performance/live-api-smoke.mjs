@@ -6,6 +6,7 @@ for (const path of paths) {
   for (const round of [1, 2]) {
     const started = performance.now();
     let status = 0, error = '';
+    let audit = '';
     try {
       const response = await fetch(new URL(path, base), {
         redirect: 'error',
@@ -13,14 +14,36 @@ for (const path of paths) {
         headers: { Accept: 'application/json', 'User-Agent': 'SanatPish-Latency-Smoke/1.0' },
       });
       status = response.status;
-      await response.arrayBuffer();
+      if (path === '/api/runtime' && response.ok) {
+        const payload = await response.json();
+        const categories = payload?.values?.atlas_admin_categories_v1;
+        const products = payload?.products;
+        const familyCount = Array.isArray(products) ? products.length : 0;
+        const skuCount = Array.isArray(products)
+          ? products.reduce((sum, product) => sum + (Array.isArray(product.variants) ? product.variants.length : 0), 0)
+          : 0;
+        const categoryFamilyCount = Array.isArray(categories)
+          ? categories.reduce((sum, category) => sum + Number(category.familyCount ?? category.count ?? 0), 0)
+          : 0;
+        const categorySkuCount = Array.isArray(categories)
+          ? categories.reduce((sum, category) => sum + Number(category.skuCount ?? 0), 0)
+          : 0;
+        audit = 'catalog=' + familyCount + ' families/' + skuCount + ' SKUs/' + (Array.isArray(categories) ? categories.length : 0) + ' categories';
+        if (payload.success !== true || payload.database !== true) error = 'runtime is not database-backed';
+        else if (familyCount !== 1383 || skuCount !== 10435 || !Array.isArray(categories) || categories.length !== 29
+          || categoryFamilyCount !== 1383 || categorySkuCount !== 10435) {
+          error = 'catalog payload mismatch: ' + audit + ', category totals=' + categoryFamilyCount + ' families/' + categorySkuCount + ' SKUs';
+        }
+      } else {
+        await response.arrayBuffer();
+      }
       if (!response.ok) error = 'HTTP ' + status;
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     }
     const ms = Math.round(performance.now() - started);
-    samples.push({ path, round, status, ms, error });
-    console.log(path + ' #' + round + ': ' + ms + 'ms, status=' + status + (error ? ', error=' + error : ''));
+    samples.push({ path, round, status, ms, error, audit });
+    console.log(path + ' #' + round + ': ' + ms + 'ms, status=' + status + (audit ? ', ' + audit : '') + (error ? ', error=' + error : ''));
   }
 }
 const markdown = [
