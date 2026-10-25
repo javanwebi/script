@@ -20,7 +20,7 @@ export const CategoryNavigation: React.FC<Props> = ({ nodes, categorySlug, onNav
     const label = onSelect ? (
       <button type="button" className={labelClass} aria-pressed={selected === node.name} onClick={() => onSelect(node.name)}>{node.name}</button>
     ) : (
-      <Link className={labelClass} to={`/products?${new URLSearchParams({ category: categorySlug, sub: node.name })}`} onClick={onNavigate}>{node.name}</Link>
+      <Link className={labelClass} to={`/category/${categorySlug}?${new URLSearchParams({ sub: node.name })}`} onClick={onNavigate}>{node.name}</Link>
     );
     return (
       <li key={node.name}>
