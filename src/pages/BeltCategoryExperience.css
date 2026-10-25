@@ -190,3 +190,45 @@
 .bce-family-image .bce-family-placeholder{display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;color:#82909e}
 .bce-family-image .bce-family-placeholder small{font-size:10px}
 @media(max-width:570px){.bce-hero-photo{object-position:36% center}.bce-hero-wash{background:linear-gradient(270deg,rgba(13,20,28,.95) 0%,rgba(13,20,28,.80) 53%,rgba(13,20,28,.26) 100%)}}
+
+/* 2026 Industrial marketplace art direction: spacious editorial grid, image-first navigation. */
+.bce{--bce-bg:#f8f9fa;--bce-ink:#1c262e;background:#f8f9fa;padding-inline:clamp(14px,2vw,44px)}
+.bce-breadcrumb{height:46px;font-size:11px}
+.bce-hero{min-height:440px;max-height:580px;border-radius:17px;box-shadow:0 18px 42px #111e2b22;background:#101820}
+.bce-hero-photo{position:absolute!important;inset:0;width:100%;height:100%;object-fit:cover;object-position:38% center;z-index:0!important;opacity:1!important;display:block!important}
+.bce-hero-wash{position:absolute;inset:0;z-index:1!important;background:linear-gradient(270deg,#0c141cef 0%,#10191fdc 29%,#10191f81 49%,#10191f11 79%);pointer-events:none}
+.bce-hero-content{position:relative;z-index:3;width:min(680px,61%);min-height:440px;padding:48px clamp(25px,4vw,75px);gap:20px}
+.bce-hero h1{font-size:clamp(37px,3.6vw,68px);letter-spacing:-.035em;line-height:1.35}
+.bce-hero h1 em{font-size:clamp(21px,2vw,34px);letter-spacing:0}
+.bce-hero-content>p{font-size:clamp(13px,1vw,16px);line-height:2;max-width:570px}
+.bce-hero-stamp{z-index:3!important}
+.bce-family-area{margin-top:26px}
+.bce-family-grid{gap:12px}
+.bce-family-tile{position:relative;min-height:200px;align-items:flex-start;padding:0 0 14px;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #e4e9ee;box-shadow:0 7px 18px #192c3910;transition:transform .2s,box-shadow .2s,border-color .2s}
+.bce-family-tile:hover{transform:translateY(-4px);box-shadow:0 15px 36px #192c3921}
+.bce-family-image{height:125px;width:100%;background:linear-gradient(135deg,#f4f5f6,#e6eaed);margin:0 0 12px;overflow:hidden}
+.bce-family-image>img,.bce-family-image>span>img{width:100%;height:100%;max-height:none;object-fit:contain;padding:7px;filter:none}
+.bce-family-image>img[src*="forza_sub_belt"]{object-fit:cover;padding:0}
+.bce-family-name{margin-inline:14px;font-size:15px}
+.bce-family-tile>small{margin-inline:14px;font-size:11px}
+.bce-family-chevron{position:absolute;bottom:15px;left:12px}
+.bce-featured-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:28px 0}
+.bce-featured-panel{position:relative;min-height:220px;border-radius:16px;overflow:hidden;color:#fff;background:#16222e;isolation:isolate;display:flex;align-items:center;justify-content:flex-start;border:1px solid #ffffff12}
+.bce-featured-panel>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.bce-featured-panel:after{content:"";position:absolute;inset:0;background:linear-gradient(270deg,#121d27f5 0%,#121d27d9 42%,#121d271f 100%);z-index:1}
+.bce-featured-consult:after{background:linear-gradient(270deg,#7b310fe8 0%,#7b310fc8 39%,#171e2617 100%)}
+.bce-featured-panel>div{position:relative;z-index:2;max-width:67%;padding:26px 32px;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.bce-featured-panel span{font-size:11px;color:#ffb881;font-weight:800}
+.bce-featured-panel h2{font-size:clamp(19px,1.7vw,28px);line-height:1.5;font-weight:950}
+.bce-featured-panel p{font-size:12px;line-height:1.9;color:#e9edf1}
+.bce-featured-panel strong{display:flex;align-items:center;gap:7px;color:#fff;background:#e06518;padding:10px 17px;border-radius:9px;font-size:12px}
+.bce-editorial-band{margin:48px 0 26px;display:grid;grid-template-columns:43% 57%;min-height:320px;background:#14202b;border-radius:18px;overflow:hidden;direction:ltr}
+.bce-editorial-band>img{height:100%;width:100%;object-fit:cover;object-position:left center;max-height:370px}
+.bce-editorial-band>div{direction:rtl;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:13px;padding:clamp(24px,4vw,55px);color:#fff}
+.bce-editorial-band span{color:#f6a36a;font-size:12px;font-weight:800}
+.bce-editorial-band h2{font-size:clamp(22px,2vw,32px);line-height:1.6}
+.bce-editorial-band p{font-size:13px;line-height:2.1;color:#d8e0e6}
+.bce-editorial-band button{display:flex;align-items:center;gap:9px;color:#fff;background:#e06518;border:0;padding:12px 18px;border-radius:8px;font-weight:800;font-size:12px}
+.bce-product-list,.bce-products-grid{min-width:0}
+@media(max-width:900px){.bce-hero{min-height:370px}.bce-hero-content{width:75%;min-height:370px}.bce-featured-panel>div{max-width:85%}.bce-editorial-band{grid-template-columns:40% 60%}}
+@media(max-width:640px){.bce{padding-inline:12px}.bce-hero{min-height:400px;border-radius:13px}.bce-hero-photo{object-position:36% center;opacity:.72!important}.bce-hero-wash{background:linear-gradient(0deg,#101922ed 0%,#101922dc 31%,#10192285 73%,#10192212 100%)}.bce-hero-content{width:100%;min-height:400px;justify-content:flex-end;padding:22px;gap:11px}.bce-hero h1{font-size:31px}.bce-hero h1 em{font-size:20px}.bce-hero-content>p{font-size:11px}.bce-hero-stamp{display:none}.bce-family-grid{display:flex;overflow-x:auto;gap:10px;padding-bottom:9px;scroll-snap-type:x mandatory}.bce-family-tile{flex:0 0 156px;min-height:182px;scroll-snap-align:start}.bce-family-image{height:112px}.bce-family-name{font-size:12px;margin-inline:10px}.bce-family-tile>small{font-size:9px;margin-inline:10px}.bce-featured-actions{grid-template-columns:1fr;gap:10px;margin:20px 0}.bce-featured-panel{min-height:185px}.bce-featured-panel>div{max-width:80%;padding:18px}.bce-featured-panel h2{font-size:19px}.bce-featured-panel p{font-size:11px}.bce-editorial-band{grid-template-columns:1fr;margin:26px 0}.bce-editorial-band>img{height:155px;object-position:center}.bce-editorial-band>div{padding:24px}.bce-editorial-band h2{font-size:20px}}

@@ -14,6 +14,7 @@ import industryPackaging from '../assets/images/ind_factory_1789372929899.jpg';
 import industryFood from '../assets/images/ind_food_bottles_1789640622505.jpg';
 import aiVisual from '../assets/images/ai_search_mobile_1789379723502.jpg';
 import aiConsult from '../assets/images/ai_consult_robot_1789379706342.jpg';
+import beltIllustration from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import './BeltCategoryExperience.css';
 
 const BELT_SLUG = 'تسمه-و-انتقال-نیرو';
@@ -163,24 +164,28 @@ export const BeltCategoryExperience: React.FC = () => {
   return <main className="bce" dir="rtl">
     <div className="bce-breadcrumb"><Link to="/">خانه</Link><ChevronLeft size={14}/><Link to="/categories">دسته‌بندی کالاها</Link><ChevronLeft size={14}/><strong>تسمه و انتقال نیرو</strong></div>
     <section className="bce-hero" aria-labelledby="bce-hero-title">
-      <img className="bce-hero-photo" src="/images/belt-hero-cinematic.webp" alt="مجموعه پولی و تسمه انتقال نیرو در خط تولید صنعتی"/>
-      <div className="bce-hero-wash"/><div className="bce-hero-slash"/>
+      <img className="bce-hero-photo" src={beltIllustration} alt="مجموعه پولی و تسمه انتقال نیرو در خط تولید صنعتی"/>
+      <div className="bce-hero-wash"/>
       <div className="bce-hero-content"><span className="bce-kicker"><Zap size={15}/> سامانه تخصصی قطعات خطوط تولید</span>
         <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های کلاسیک V' : 'انتخاب حرفه‌ای قطعات انتقال قدرت'}</em></h1>
         <p>انتخاب دقیق خانواده، پروفیل و کد محصول از کاتالوگ صنعت پیش؛ بررسی مشخصات فنی، تصاویر واقعی و درخواست استعلام در چند مرحله.</p>
         <div className="bce-hero-actions"><button type="button" onClick={scrollToProducts}>مشاهده محصولات <ArrowLeft size={18}/></button><Link to="/ai-consult">مشاوره انتخاب تسمه <Headphones size={18}/></Link></div>
         <div className="bce-hero-points"><span><ShieldCheck size={20}/> کدهای واقعی کاتالوگ</span><span><Truck size={20}/> استعلام تأمین و ارسال</span><span><Settings2 size={20}/> انتخاب مهندسی</span></div>
       </div>
-      <div className="bce-hero-stamp"><span>POWER TRANSMISSION</span><b>صنعت پیش</b></div>
+      <div className="bce-hero-stamp"><span>INDUSTRIAL DRIVE SYSTEMS</span><b>انتقال قدرت، دقیق و مطمئن</b></div>
     </section>
     <section className="bce-family-area" aria-labelledby="bce-family-title"><div className="bce-section-heading"><div><span>کاوش سریع</span><h2 id="bce-family-title">تسمه موردنیاز خود را پیدا کنید</h2></div><button type="button" onClick={() => chooseFamily('all')}>همه خانواده‌ها <ChevronLeft size={16}/></button></div>
       <div className="bce-family-grid">{FAMILY_OPTIONS.map((item, i) => {
         const sample = allProducts.find(p => matchesCatalogCategory(p, BELT_SLUG, item.id) && p.images?.[0]);
         return <button type="button" key={item.id} aria-pressed={selectedFamily === item.id} onClick={() => chooseFamily(item.id)} className={'bce-family-tile ' + (selectedFamily === item.id ? 'selected' : '')}>
-          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <span className="bce-family-placeholder"><Layers3 size={23}/><small>تصویر محصول موجود نیست</small></span>}</span>
+          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <img src={beltIllustration} alt="نمای صنعتی سیستم انتقال نیرو" loading="lazy" />}</span>
           <span className="bce-family-name">{item.title}</span><small dir="ltr">{item.subtitle}</small><span className="bce-family-chevron"><ChevronLeft size={15}/></span>
         </button>;
       })}</div>
+    </section>
+    <section className="bce-featured-actions" aria-label="خدمات تخصصی صنعت پیش">
+      <Link to="/identify-part" className="bce-featured-panel bce-featured-scan"><img src={aiVisual} alt="سیستم شناسایی قطعه صنعتی" loading="lazy"/><div><span>هوش مصنوعی صنعت پیش</span><h2>کد تسمه را نمی‌دانید؟</h2><p>تصویر تسمه یا پلاک دستگاه را بفرستید و مسیر شناسایی را آغاز کنید.</p><strong>شناسایی با تصویر <ArrowLeft size={17}/></strong></div></Link>
+      <Link to="/ai-consult" className="bce-featured-panel bce-featured-consult"><img src={aiConsult} alt="مشاوره انتخاب تجهیزات انتقال قدرت" loading="lazy"/><div><span>مشاوره فنی آنلاین</span><h2>انتخاب درست، بدون آزمون و خطا</h2><p>برای انتخاب پروفیل، سایز و سازگاری تسمه راهنمایی بگیرید.</p><strong>دریافت مشاوره <ArrowLeft size={17}/></strong></div></Link>
     </section>
     <section className="bce-brand-strip" aria-label="برندهای کاتالوگ"><strong>برندهای حاضر در این خانواده</strong><div className="bce-brands-scroll">{brands.slice(0,12).map(brand => <button type="button" key={brand} onClick={() => changeFilters({ ...filters, brands: filters.brands.includes(brand) ? [] : [brand] })} aria-pressed={filters.brands.includes(brand)} dir="ltr">{brand}</button>)}</div><span>{toPersianDigits(familyProducts.length)} خانواده محصول</span></section>
     {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...PROFILES].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
@@ -196,6 +201,7 @@ export const BeltCategoryExperience: React.FC = () => {
         </>}
       </section>
     </div>
+    <section className="bce-editorial-band"><img src={beltIllustration} alt="تسمه و پولی‌های انتقال قدرت صنعتی" loading="lazy"/><div><span>راهنمای مهندسی انتخاب تسمه</span><h2>از پروفیل تا طول دقیق؛ انتخاب را با مشخصات دستگاه آغاز کنید</h2><p>در تسمه‌های کلاسیک مقاطع A، B، C، D، E، Z و M رایج‌اند. برای انتخاب نهایی، سطح مقطع، طول، تعداد شیار پولی و شرایط کاری باید با مشخصات سازنده دستگاه تطبیق داشته باشد.</p><button type="button" onClick={scrollToProducts}>بررسی موجودی کاتالوگ <ArrowLeft size={16}/></button></div></section>
     <section className="bce-selection-guide"><div className="bce-section-heading"><div><span>راهنمای کاربردی</span><h2>با اطمینان تسمه مناسب را انتخاب کنید</h2></div><Link to="/ai-consult">راهنمای تخصصی <ChevronLeft size={17}/></Link></div><div className="bce-steps">{[
       ['۰۱','نوع کاربرد','دستگاه، شرایط و محیط کاری را مشخص کنید.'],['۰۲','انتخاب مقطع','پروفیل و خانواده انتقال قدرت را تطبیق دهید.'],['۰۳','سایز و کد','طول و کد درج‌شده روی تسمه را کنترل کنید.'],['۰۴','استعلام','قیمت و موجودی کد موردنظر را دریافت کنید.']
     ].map(([n,title,desc]) => <div key={n}><span>{n}</span><h3>{title}</h3><p>{desc}</p></div>)}</div></section>
