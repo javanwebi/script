@@ -764,8 +764,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onerror = (e: any) => {
         const error = e?.error;
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
-        if (error === 'network') {
+        if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
+          recognitionFailedRef.current=true;
+          setMicrophoneError('تشخیص گفتار مرورگر فعال نیست؛ تبدیل گفتار توسط Worker امتحان می‌شود.');
         }
       };
 
@@ -790,116 +792,69 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus]);
 
-  // Initial startup: greeting & mic setup (non-blocking for instant 0ms entry)
+  // Start only after the avatar confirms 100% of particles have formed.
+  // Never listen to the introduction or silently skip an autoplay denial.
   useEffect(() => {
-    if (voiceMode !== 'legacy') return;
-    let mounted = true;
-    let introductionFinished = false;
-
-    // Start in calm idle state - hair stays completely still until speech actually plays!
-    setStatus('idle');
-    setTurn('idle');
-    historyRef.current.push({ role: 'model', text: GREETING_TEXT });
+    if (!particlesFormed || greetingStartedRef.current) return;
+    greetingStartedRef.current=true;
+    let active=true;
+    setStatus('idle'); setTurn('ai'); setGreetingPhase('preparing');
     setDisplayedAi(GREETING_TEXT);
-
-    // Non-blocking greeting speech & mic init
-    const timer = setTimeout(() => {
-      if (!mounted) return;
-      void speakText(GREETING_TEXT).finally(() => {
-        if (!mounted) return;
-        // Don't recognize FORZA's own welcome as the customer's voice.
-        introductionFinished = true;
-        isAiSpeakingRef.current = false;
-        setStatus('listening');
-        setTurn('user');
-        startListening();
-      });
-
+    if(!historyRef.current.length)historyRef.current.push({role:'model',text:GREETING_TEXT});
+    const prepareMicrophone=async()=>{
       try {
-        if (navigator?.mediaDevices?.getUserMedia) {
-          navigator.mediaDevices
-            .getUserMedia({
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-              },
-            })
-            .then(stream => {
-              if (mounted) {
-                streamRef.current = stream;
-                try {
-                  const ctx = ensureCtx();
-                  if (ctx) {
-                    const micSource = ctx.createMediaStreamSource(stream);
-                    const micAnalyser = ctx.createAnalyser();
-                    micAnalyser.fftSize = 256;
-                    micAnalyser.smoothingTimeConstant = 0.6;
-                    micSource.connect(micAnalyser);
-                    micAnalyserRef.current = micAnalyser;
-                    micSourceNodeRef.current = micSource;
-                  }
-                } catch {
-                  /* ignore mic audio node error */
-                }
-
-                // Initialize both MediaRecorder and SpeechRecognition
-                setupMediaRecorder(stream);
-                const rec = initSpeechRecognition();
-                recognitionRef.current = rec;
-                if (rec && !isMicMuted && introductionFinished) {
-                  try {
-                    rec.start();
-                    isRecognitionActiveRef.current = true;
-                  } catch {}
-                }
-              }
-            })
-            .catch(() => {
-              if (mounted) {
-                const rec = initSpeechRecognition();
-                recognitionRef.current = rec;
-                if (rec && !isMicMuted && introductionFinished) {
-                  try {
-                    rec.start();
-                    isRecognitionActiveRef.current = true;
-                  } catch {}
-                }
-              }
-            });
-        } else {
-          const rec = initSpeechRecognition();
-          recognitionRef.current = rec;
-          if (rec && !isMicMuted && introductionFinished) {
-            try {
-              rec.start();
-              isRecognitionActiveRef.current = true;
-            } catch {}
+        if(!navigator.mediaDevices?.getUserMedia)throw new Error('microphone_unsupported');
+        const stream=await navigator.mediaDevices.getUserMedia({audio:{
+          echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
+        }});
+        if(!active){stream.getTracks().forEach(track=>track.stop());return;}
+        streamRef.current=stream;
+        setMicrophoneError(null);
+        try {
+          const ctx=ensureCtx();
+          if(ctx){
+            const node=ctx.createMediaStreamSource(stream);
+            const analyser=ctx.createAnalyser();
+            analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+            node.connect(analyser);
+            micAnalyserRef.current=analyser;
+            micSourceNodeRef.current=node;
           }
-        }
-      } catch {
-        const rec = initSpeechRecognition();
-        recognitionRef.current = rec;
-        if (rec && !isMicMuted && introductionFinished) {
-          try {
-            rec.start();
-            isRecognitionActiveRef.current = true;
-          } catch {}
-        }
+        }catch{}
+        setupMediaRecorder(stream);
+        recognitionRef.current=initSpeechRecognition();
+        if(greetingFinishedRef.current)startListening();
+      }catch(e:any){
+        if(!active)return;
+        recognitionRef.current=initSpeechRecognition();
+        setMicrophoneError(e?.name==='NotAllowedError'
+          ?'مجوز میکروفون داده نشده است؛ آن را در مرورگر فعال کنید.'
+          :'میکروفون در دسترس نیست؛ مجوز و اتصال آن را بررسی کنید.');
       }
-    }, 40);
-
-    return () => {
-      mounted = false;
-      clearTimeout(timer);
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    };
+    void prepareMicrophone();
+    void speakText(GREETING_TEXT).then(()=>{
+      if(!active)return;
+      greetingFinishedRef.current=true;
+      setGreetingPhase('complete');
+      setStatus('listening');setTurn('user');
+      startListening();
+    }).catch((e:any)=>{
+      if(!active)return;
+      console.warn('[FORZA] Greeting playback blocked',e?.message||'audio_error');
+      setGreetingPhase('needs-permission');
+      setAutoplayBlocked(true);
+    });
+    return ()=>{
+      active=false;
+      if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
       stopListening();
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
+      streamRef.current?.getTracks().forEach(track=>track.stop());
+      streamRef.current=null;
       stopAudio();
     };
-  }, [voiceMode]);
+  },[particlesFormed,ensureCtx,setupMediaRecorder,initSpeechRecognition,
+    speakText,startListening,stopListening,stopAudio,setStatus]);
 
   const endCall = useCallback(() => {
     stopAudio();
