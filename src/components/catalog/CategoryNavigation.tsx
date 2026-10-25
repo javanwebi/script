@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { resolveCategorySlug } from '../../data/categories';
-import { categorySlugFor } from '../../data/userProducts';
 import type { CategoryNode } from '../../data/categories';
 
 type Props = {
@@ -17,12 +16,9 @@ type Props = {
 /** One recursive view preserves every level of the catalogue taxonomy. */
 export const CategoryNavigation: React.FC<Props> = ({ nodes, categorySlug, onNavigate, onSelect, selected, expanded = false }) => {
   const canonicalCategorySlug = resolveCategorySlug(categorySlug);
-  const beltCategorySlug = categorySlugFor('تسمه و انتقال نیرو');
-  const pulleyCategorySlug = categorySlugFor('پولی و انتقال نیرو');
-  const isDedicatedCategory = canonicalCategorySlug === beltCategorySlug || canonicalCategorySlug === pulleyCategorySlug;
-  const categoryHref = (selection: string) => isDedicatedCategory
-    ? `/category/${canonicalCategorySlug}?${new URLSearchParams({ sub: selection })}`
-    : `/products?${new URLSearchParams({ category: categorySlug, sub: selection })}`;
+  // Submenus stay within their own category page; the filter key survives label changes.
+  const categoryHref = (selection: string) =>
+    '/category/' + canonicalCategorySlug + '?' + new URLSearchParams({ sub: selection }).toString();
   const selectionValue = (node: CategoryNode) => node.value || node.name;
   const containsSelected = (node: CategoryNode): boolean => selectionValue(node) === selected || Boolean(node.children?.some(containsSelected));
   const renderNode = (node: CategoryNode, depth: number): React.ReactNode => {
