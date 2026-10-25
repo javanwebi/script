@@ -47,6 +47,19 @@ export const CategoryPage: React.FC = () => {
   const [minLength, setMinLength] = useState('');
   const [maxLength, setMaxLength] = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileFiltersOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [mobileFiltersOpen]);
   const isBeltCategory = category.name === 'تسمه و انتقال نیرو';
   const isClassicBelt = category.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
   const beltProfiles = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'];
@@ -295,14 +308,61 @@ export const CategoryPage: React.FC = () => {
         </div>
       </div>
 
-      <button type="button" onClick={() => setMobileFiltersOpen(open => !open)} aria-expanded={mobileFiltersOpen}
-        className="lg:hidden flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 py-3 text-xs font-bold text-[#E06518]">
-        <SlidersHorizontal className="h-4 w-4" /> {mobileFiltersOpen ? 'بستن فیلترها' : 'فیلتر محصولات'}
-      </button>
+      <div className="category-mobile-toolbar lg:hidden" role="group" aria-label="فیلتر و مرتب‌سازی">
+        <button type="button" onClick={() => setMobileFiltersOpen(true)} aria-haspopup="dialog">
+          <SlidersHorizontal size={18} /> فیلترها {hasActiveFilters && <span className="category-filter-active-dot"/>}
+        </button>
+        <button type="button" onClick={() => setSortBy(sortBy === 'code' ? 'default' : 'code')}>
+          <ArrowUpDown size={18}/> {sortBy === 'code' ? 'مرتب بر اساس کد' : 'مرتب‌سازی'}
+        </button>
+        <span>{toPersianDigits(filteredProducts.length)} کالا</span>
+      </div>
+      {mobileFiltersOpen && <div className="category-filter-overlay lg:hidden" onMouseDown={() => setMobileFiltersOpen(false)}>
+        <section className="category-filter-sheet" role="dialog" aria-modal="true" aria-label="فیلتر محصولات" onMouseDown={event => event.stopPropagation()}>
+          <div className="category-filter-handle"/>
+          <div className="category-filter-sheet-header">
+            <strong>فیلتر محصولات</strong>
+            <button type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="بستن فیلترها">✕</button>
+          </div>
+          <div className="category-filter-sheet-content" id="mobile-filter-content">
+            <div className="category-mobile-filters">
+              <label className="category-filter-label">کد یا نام محصول
+                <input value={searchQuery} onChange={event => {setSearchQuery(event.target.value);setPage(1);}} placeholder="جستجوی کد کالا، مثلاً A-45"/>
+              </label>
+              {isClassicBelt && <fieldset>
+                <legend>پروفیل تسمه</legend>
+                <div className="category-filter-pills">
+                  {['all', ...beltProfiles].map(profile => <button type="button" key={profile} aria-pressed={selectedProfile === profile}
+                    onClick={() => {setSelectedProfile(profile);setPage(1);}}>{profile === 'all' ? 'همه' : profile}</button>)}
+                </div>
+                <legend>طول تسمه (میلی‌متر)</legend>
+                <div className="category-filter-range">
+                  <input type="number" min="0" aria-label="حداقل طول" placeholder="از" value={minLength} onChange={event=>{setMinLength(event.target.value);setPage(1);}}/>
+                  <input type="number" min="0" aria-label="حداکثر طول" placeholder="تا" value={maxLength} onChange={event=>{setMaxLength(event.target.value);setPage(1);}}/>
+                </div>
+              </fieldset>}
+              <fieldset><legend>برند</legend>
+                {availableBrands.map(brand => <label className="category-filter-choice" key={brand}>
+                  <span>{brand}</span>
+                  <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={event=>{setSelectedBrands(previous=>event.target.checked?[...previous,brand]:previous.filter(value=>value!==brand));setPage(1);}}/>
+                </label>)}
+              </fieldset>
+              <fieldset><legend>موجودی و استعلام</legend>
+                <label className="category-filter-choice">فقط موجود در انبار <input type="checkbox" checked={inStockOnly} onChange={event=>{setInStockOnly(event.target.checked);if(event.target.checked)setInquiryOnlyFilter(false);setPage(1);}}/></label>
+                <label className="category-filter-choice">فقط نیازمند استعلام <input type="checkbox" checked={inquiryOnlyFilter} onChange={event=>{setInquiryOnlyFilter(event.target.checked);if(event.target.checked)setInStockOnly(false);setPage(1);}}/></label>
+              </fieldset>
+            </div>
+          </div>
+          <div className="category-filter-sheet-footer">
+            <button type="button" onClick={handleResetFilters}>پاک کردن</button>
+            <button type="button" onClick={() => setMobileFiltersOpen(false)}>نمایش {toPersianDigits(filteredProducts.length)} کالا</button>
+          </div>
+        </section>
+      </div>}
       {/* Main Content Area: Sidebar Filters + Products Grid */}
       <div className="category-showcase-shop grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Sidebar Filters Widget */}
-        <div className={mobileFiltersOpen ? "space-y-4 lg:block" : "hidden space-y-4 lg:block"}>
+        <div className="hidden space-y-4 lg:block">
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4 lg:sticky lg:top-24">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <span className="text-xs sm:text-sm font-black text-[#2B313A] flex items-center gap-2">
