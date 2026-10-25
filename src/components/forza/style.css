@@ -60,6 +60,56 @@
   font-weight: 600;
 }
 
+
+/* Persian typography: HUD's monospace face is only for Latin telemetry/code.
+   Any RTL/user-facing copy must remain readable Vazirmatn with normal shaping. */
+.forza-stage [dir='rtl'],
+.forza-stage [lang='fa'],
+.forza-stage input,
+.forza-stage button,
+.forza-stage textarea,
+.forza-hud [dir='rtl'] {
+  font-family: 'Vazirmatn', Tahoma, 'Segoe UI', Arial, sans-serif !important;
+  letter-spacing: 0 !important;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  text-rendering: optimizeLegibility;
+}
+
+.forza-stage [dir='rtl'] {
+  line-height: 1.85;
+  word-spacing: 0.03em;
+}
+
+.forza-stage input,
+.forza-stage textarea {
+  direction: rtl;
+  text-align: right;
+  line-height: 1.8;
+}
+
+.forza-stage .forza-persian-copy {
+  font-family: 'Vazirmatn', Tahoma, 'Segoe UI', Arial, sans-serif !important;
+  direction: rtl;
+  unicode-bidi: plaintext;
+  letter-spacing: 0 !important;
+  line-height: 1.9;
+  font-weight: 500;
+}
+
+.forza-stage .forza-persian-label {
+  font-family: 'Vazirmatn', Tahoma, 'Segoe UI', Arial, sans-serif !important;
+  letter-spacing: 0 !important;
+  line-height: 1.7;
+  font-weight: 700;
+}
+
+.forza-stage .forza-code {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
 /* Glowing Corner Brackets */
 .hud-corner {
   position: absolute;
