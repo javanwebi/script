@@ -37,6 +37,7 @@ import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
+import { normalizePersianTranscript, verbalizeForzaTechnicalTerms } from './src/utils/forzaSpeechPipeline';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -5719,7 +5720,7 @@ function cleanPersianTextForVoice(raw: string): string {
   t = t.replace(/،\s*\./g, '.');
   t = t.replace(/\.\s*،/g, '.');
 
-  return t;
+  return verbalizeForzaTechnicalTerms(t);
 }
 
 // Split text into natural chunks for Edge TTS if text is long
@@ -5925,7 +5926,7 @@ app.post('/api/ai/tts', async (req, res) => {
       return res.json({
         success: true,
         audioBase64: ttsAudioCache.get(cacheKey),
-        mimeType: 'audio/wav',
+        mimeType: ttsAudioCache.get(cacheKey)?.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mp3',
         cleanedText,
       });
     }
@@ -6041,7 +6042,9 @@ app.post('/api/ai/transcribe', async (req, res) => {
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
 app.post('/api/ai/forza-live', async (req, res) => {
   try {
-    const { query, history, image, audioBase64, audioMimeType } = req.body;
+    const { query, history, image, audioBase64, audioMimeType, deferAudio } = req.body;
+    const turnStartedAt = Date.now();
+    let sttFinishedAt = turnStartedAt;
     const apiKey = getGeminiKey();
 
     if (!query && !image && !audioBase64) {
@@ -6061,7 +6064,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 - هرگز از جدول، ستاره مارک‌داون (*)، هش‌تگ (#) یا شکلک‌های ایموجی استفاده نکنید.
 - اگر تصویر ناواضح است یا اطلاعات کافی نیست، به طور محترمانه از کاربر بخواهید زاویه دیگر، پلاک یا ابعاد قطعه را مشخص نماید.`;
 
-    let userQuery = (query || '').trim();
+    let userQuery = normalizePersianTranscript(String(query || '')).slice(0, 2500);
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && apiKey) {
@@ -6144,6 +6147,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       });
     }
 
+    sttFinishedAt = Date.now();
     let replyText = '';
 
     // 1. Use only a configured Worker. When blank, use the internal key.
@@ -6289,6 +6293,23 @@ app.post('/api/ai/forza-live', async (req, res) => {
       } else {
         replyText = 'درود، من هوش مصنوعی فورزا هستم. در حال شنیدن صدای شما هستم؛ بفرمایید برای کدام بخش خط تولید یا چه قطعه‌ای به راهنمایی نیاز دارید؟';
       }
+    }
+
+    const aiFinishedAt = Date.now();
+    // Respond with text immediately. The browser requests TTS separately
+    // so customer subtitles are never held hostage by Edge/Gemini synthesis.
+    // This preserves existing callers which expect one combined response.
+    if (deferAudio === true) {
+      return res.json({
+        success: true,
+        userTranscript: userQuery,
+        text: replyText,
+        audioBase64: null,
+        timings: {
+          sttMs: sttFinishedAt - turnStartedAt,
+          aiMs: aiFinishedAt - sttFinishedAt,
+        },
+      });
     }
 
     // Clean text for pristine Persian speech synthesis
