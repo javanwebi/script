@@ -90,6 +90,9 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const [listView, setListView] = useState(false);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [useCase, setUseCase] = useState<"unknown" | "timing" | "idler" | "variable" | "fixed" | "grooved">("unknown");
+  const [haveCode, setHaveCode] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
 
   const types = useMemo(() => TYPE_INFO.map(type => {
@@ -105,6 +108,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
   const activeCount = (kind !== "all" ? 1 : 0) + brand.length + (profile ? 1 : 0) + (photoOnly ? 1 : 0) + (availableOnly ? 1 : 0) + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
   const scrollToResults = () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const selectType = (next: PulleyKind) => { setKind(next); setPage(1); };
+  const startGuidedSearch = () => {setKind(useCase === "unknown" ? "all" : useCase);setPage(1);setGuideOpen(false);requestAnimationFrame(scrollToResults);};
   const reset = () => {
     setKind("all"); setBrand([]); setProfile(""); setPhotoOnly(false); setAvailableOnly(false);
     setMinPrice(""); setMaxPrice(""); setKeyword(""); setPage(1);
@@ -191,7 +195,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
           <span className="pc-overline"><Sparkles size={16}/> کاتالوگ تخصصی صنعت پیش</span>
           <h1>پولی و <em>انتقال نیرو</em></h1>
           <p>از شناسایی نوع پولی تا انتخاب دقیق کد کالا؛ خانواده‌های واقعی کاتالوگ را با مشخصات فنی مقایسه کنید.</p>
-          <div className="pc-hero-actions"><button type="button" onClick={scrollToResults} className="pc-hero-primary">مشاهده خانواده‌ها <ArrowLeft size={18}/></button><Link to="/ai-desk" className="pc-hero-secondary">مشاوره هوشمند <ArrowUpLeft size={16}/></Link></div>
+          <div className="pc-hero-actions"><button type="button" onClick={() => setGuideOpen(true)} className="pc-hero-primary">راهنمای انتخاب پولی <ArrowLeft size={18}/></button><button type="button" onClick={scrollToResults} className="pc-hero-secondary">مشاهده محصولات <ArrowUpLeft size={16}/></button></div>
           <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> خانواده ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> خانواده تصویردار</span></div>
         </div>
         <div className="pc-hero-corner"><BadgeCheck size={17}/> اطلاعات متصل به کاتالوگ</div>
@@ -264,8 +268,42 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
           </div>
         </section>
 
+
+        <section className="pc-finder-section" aria-label="راهنمای انتخاب پولی">
+          <div className="pc-finder-title"><span className="pc-eyebrow">راهنمای انتخاب قدم‌به‌قدم</span><h2>چطور پولی مناسب دستگاهتان را پیدا کنید؟</h2><p>اگر شماره فنی پولی را ندارید، با چند مشخصه ساده شروع کنید.</p></div>
+          <div className="pc-finder-steps">
+            <div><span className="pc-step-number">۱</span><strong>نوع مکانیزم</strong><p>تایمینگ، تسمه شیاری، هرزگرد یا دورمتغیر بودن پولی را مشخص کنید.</p></div>
+            <div><span className="pc-step-number">۲</span><strong>ابعاد و پروفیل</strong><p>قطر بیرونی، قطر سوراخ محور، تعداد شیار و پروفیل را اندازه بگیرید.</p></div>
+            <div><span className="pc-step-number">۳</span><strong>تطبیق کد فنی</strong><p>کد کالا و مشخصات را بررسی کرده و پیش از سفارش تأیید کنید.</p></div>
+            <div><span className="pc-step-number">۴</span><strong>کمک متخصص</strong><p>اگر اطلاعات ناقص است، تصویر پولی یا پلاک دستگاه را ارائه کنید.</p></div>
+          </div>
+          <div className="pc-finder-footer"><button type="button" onClick={() => setGuideOpen(true)}>شروع انتخاب راهنمایی‌شده <ArrowLeft size={17}/></button><span>بدون حدس‌زدن سایز و بدون پیشنهاد کالای ساختگی</span></div>
+        </section>
         <aside className="pc-assist"><div className="pc-assist-icon"><CircleDot size={34}/></div><div><span className="pc-eyebrow">کمک در انتخاب قطعه</span><h2>کد فنی پولی را نمی‌دانید؟</h2><p>تصویر یا مشخصات دستگاه را آماده کنید و از میزکار شناسایی صنعت پیش کمک بگیرید.</p></div><Link to="/ai-desk">رفتن به مشاوره هوشمند <ArrowLeft size={18}/></Link></aside>
       </div>
+
+
+      {guideOpen && <div className="pc-guide-root" role="presentation">
+        <button className="pc-guide-scrim" aria-label="بستن راهنما" onClick={() => setGuideOpen(false)}/>
+        <section className="pc-guide-dialog" role="dialog" aria-modal="true" aria-label="راهنمای انتخاب پولی">
+          <div className="pc-guide-head"><div><span className="pc-eyebrow">انتخاب تخصصی</span><h2>پولی مناسب را پیدا کنید</h2></div><button type="button" onClick={() => setGuideOpen(false)} aria-label="بستن"><X size={21}/></button></div>
+          <p>کدام توصیف به نیازتان نزدیک‌تر است؟ دسته‌بندی فقط محصولات واقعی همین کاتالوگ را نشان می‌دهد.</p>
+          <div className="pc-guide-choices">
+            {[
+              {id:"unknown",label:"نوع پولی را نمی‌دانم",hint:"همه خانواده‌ها را بررسی می‌کنم"},
+              {id:"idler",label:"هرزگرد یا بلبرینگی",hint:"هدایت تسمه یا تنظیم کشش"},
+              {id:"timing",label:"تایمینگ و دندانه‌دار",hint:"انتقال حرکت هم‌زمان"},
+              {id:"grooved",label:"شیاری و چندتسمه",hint:"تسمه V یا چندشیار"},
+              {id:"variable",label:"دورمتغیر",hint:"تغییر نسبت و سرعت"},
+              {id:"fixed",label:"پولی ثابت",hint:"انتقال نیرو با نسبت ثابت"}
+            ].map(option => <button key={option.id} type="button" className={useCase===option.id?"chosen":""} onClick={()=>setUseCase(option.id as typeof useCase)}><CircleDot size={17}/><span><strong>{option.label}</strong><small>{option.hint}</small></span>{useCase===option.id&&<Check size={17}/>}</button>)}
+          </div>
+          <label className="pc-guide-check"><input type="checkbox" checked={haveCode} onChange={e=>setHaveCode(e.target.checked)}/> کد یا مشخصات فنی پولی را دارم</label>
+          {haveCode&&<label className="pc-guide-search"><Search size={17}/><input value={keyword} placeholder="کد، سایز یا پروفیل را بنویسید" onChange={e=>{setKeyword(e.target.value);setPage(1)}}/></label>}
+          <button type="button" className="pc-guide-submit" onClick={startGuidedSearch}>نمایش خانواده‌های مرتبط <ArrowLeft size={18}/></button>
+          <small>برای انتخاب قطعی باید مشخصات فنی و ابعاد را با دستگاه خود مطابقت دهید.</small>
+        </section>
+      </div>}
 
       {drawer && <div className="pc-drawer-root"><button className="pc-drawer-scrim" type="button" aria-label="بستن فیلترها" onClick={() => setDrawer(false)}/><div className="pc-drawer" role="dialog" aria-modal="true" aria-label="فیلتر محصولات"><div className="pc-drawer-head"><strong>فیلتر محصولات</strong><button type="button" aria-label="بستن" onClick={() => setDrawer(false)}><X size={21}/></button></div>{filters}<button type="button" className="pc-drawer-apply" onClick={() => setDrawer(false)}>نمایش {nf(filtered.length)} خانواده <ArrowLeft size={18}/></button></div></div>}
     </main>
