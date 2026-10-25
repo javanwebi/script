@@ -76,6 +76,41 @@ export const PRIMARY_CATALOG_CATEGORIES = CATEGORIES;
 
 export const CATEGORIES_STORAGE_KEY = 'atlas_admin_categories_v1';
 
+/** Normalize the sparse PostgreSQL category projection to the full UI contract. */
+export function normalizeManagedCategory(c: Record<string, any>): EnhancedCategory {
+  const children: CategoryNode[] = Array.isArray(c.children) && c.children.length > 0
+    ? c.children
+    : (Array.isArray(c.subcategories)
+      ? c.subcategories.map((s: string) => ({ name: s, children: [] }))
+      : []);
+  const familyCountValue = Number(c.familyCount ?? c.count ?? 0);
+  const skuCountValue = Number(c.skuCount ?? c.itemCount ?? c.count ?? 0);
+  const familyCount = Number.isFinite(familyCountValue) ? Math.max(0, familyCountValue) : 0;
+  const skuCount = Number.isFinite(skuCountValue) ? Math.max(0, skuCountValue) : familyCount;
+  const nameEn = typeof c.nameEn === 'string' ? c.nameEn : '';
+  const description = typeof c.description === 'string' && c.description.trim()
+    ? c.description
+    : children.map(node => node.name).filter(Boolean).join('، ');
+  const icon = typeof c.icon === 'string' && c.icon.trim() ? c.icon : 'Package';
+  const image = typeof c.image === 'string' && c.image.trim() ? c.image : undefined;
+
+  return {
+    ...c,
+    id: (c.id ?? 0) as number,
+    slug: typeof c.slug === 'string' ? c.slug : '',
+    name: typeof c.name === 'string' ? c.name : '',
+    nameEn,
+    description,
+    icon,
+    image,
+    count: familyCount,
+    familyCount,
+    skuCount,
+    subcategories: Array.isArray(c.subcategories) ? c.subcategories : children.map(node => node.name),
+    children,
+  };
+}
+
 export function getManagedCategories(): EnhancedCategory[] {
   if (typeof window === 'undefined') return CATEGORIES;
   // A client with no hydrated database must not show stale checked-in catalogue menus.
@@ -85,21 +120,7 @@ export function getManagedCategories(): EnhancedCategory[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && (databaseStorageEnabled() || parsed.length > 0)) {
-        return parsed.map((c: any) => {
-          const familyCountValue = Number(c.familyCount ?? c.count ?? 0);
-          const skuCountValue = Number(c.skuCount ?? c.itemCount ?? c.count ?? 0);
-          const familyCount = Number.isFinite(familyCountValue) ? Math.max(0, familyCountValue) : 0;
-          const skuCount = Number.isFinite(skuCountValue) ? Math.max(0, skuCountValue) : familyCount;
-          return {
-            ...c,
-            count: familyCount,
-            familyCount,
-            skuCount,
-            children: Array.isArray(c.children) && c.children.length > 0
-              ? c.children
-              : (Array.isArray(c.subcategories) ? c.subcategories.map((s: string) => ({ name: s, children: [] })) : []),
-          };
-        });
+        return parsed.map((c: Record<string, any>) => normalizeManagedCategory(c));
       }
     }
   } catch {
