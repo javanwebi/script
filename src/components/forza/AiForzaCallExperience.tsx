@@ -12,6 +12,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
+import { ForzaRealtimeClient } from './forzaRealtimeClient';
 import { analyzePersianSentenceCompletion } from '../../utils/silenceDetector';
 import './style.css';
 
@@ -70,6 +71,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
   const [isUserSpeaking, setIsUserSpeaking] = useState<boolean>(false);
+  const [voiceMode, setVoiceMode] = useState<'pending' | 'connecting' | 'native' | 'legacy' | 'unavailable'>('pending');
+  const realtimeRef = useRef<ForzaRealtimeClient | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
     fps: null,
@@ -120,6 +123,40 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const setStatus = useCallback((s: ForzaStatus) => {
     statusRef.current = s;
     setStatusState(s);
+  }, []);
+
+  // Explicit user click unlocks microphone and audio output.
+  const startRealtime = useCallback(() => {
+    realtimeRef.current?.stop();
+    realtimeRef.current = null;
+    setErrorNotice(null);
+    setVoiceMode('connecting');
+    const client = new ForzaRealtimeClient({
+      onMode: mode => {
+        setVoiceMode(mode);
+        if (mode === 'native') {
+          setStatus('listening');
+          setTurn('user');
+          setAiText('تماس زنده برقرار شد؛ صحبتتان را کامل کنید.');
+        }
+      },
+      onStatus: next => {
+        setStatus(next);
+        setTurn(next === 'listening' ? 'user' : 'ai');
+        if (next !== 'listening') setIsUserSpeaking(false);
+      },
+      onUserText: text => { setUserText(text); setIsUserSpeaking(true); },
+      onAiText: text => { setAiText(text); },
+      onLevel: value => setAudioLevel(value),
+      onError: message => setErrorNotice(message),
+    });
+    realtimeRef.current = client;
+    void client.start();
+  }, [setStatus]);
+
+  useEffect(() => () => {
+    realtimeRef.current?.stop();
+    realtimeRef.current = null;
   }, []);
 
   // Start/Stop voice listening helpers
@@ -174,6 +211,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Real-time audio noise/frequency monitoring & Voice Activity Detection (VAD)
   useEffect(() => {
+    if (voiceMode !== 'legacy') return;
     let active = true;
     const dataArray = new Uint8Array(128);
 
@@ -274,7 +312,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       active = false;
       if (animFrameAudioRef.current) cancelAnimationFrame(animFrameAudioRef.current);
     };
-  }, [isMicMuted, status]);
+  }, [isMicMuted, status, voiceMode]);
 
   // Compute reactive mode for Three.js ParticleAvatar
   const avatarMode = status === 'speaking' ? 'speak' : status === 'listening' ? 'listen' : 'auto';
@@ -339,6 +377,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setDisplayedAi('');
       return;
     }
+    if (voiceMode === 'native') {
+      setDisplayedAi(aiText);
+      return;
+    }
     let i = 0;
     setDisplayedAi('');
     const id = window.setInterval(() => {
@@ -347,7 +389,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (i >= aiText.length) window.clearInterval(id);
     }, 18);
     return () => window.clearInterval(id);
-  }, [aiText]);
+  }, [aiText, voiceMode]);
 
   // Call duration timer
   useEffect(() => {
@@ -794,6 +836,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Initial startup: greeting & mic setup (non-blocking for instant 0ms entry)
   useEffect(() => {
+    if (voiceMode !== 'legacy') return;
     let mounted = true;
 
     // Start in calm idle state - hair stays completely still until speech actually plays!
@@ -903,9 +946,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       stopAudio();
     };
-  }, [ensureCtx, initSpeechRecognition, isMicMuted, setStatus, setupMediaRecorder, speakText, startListening, stopAudio, stopListening]);
+  }, [voiceMode]);
 
   const endCall = useCallback(() => {
+    realtimeRef.current?.stop();
+    realtimeRef.current = null;
     stopAudio();
     if (recognitionRef.current) {
       try {
@@ -920,6 +965,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setIsCallActive(false);
     if (onClose) onClose();
   }, [onClose, stopAudio]);
+
+  const submitUserText = (text: string) => {
+    if (voiceMode === 'native') {
+      realtimeRef.current?.sendText(text);
+      return;
+    }
+    if (voiceMode === 'legacy') void handleUserFinishedSpeaking(text);
+  };
 
   const toFarsiDigits = (n: number | string) => {
     const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
@@ -948,6 +1001,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if ((e.target as HTMLElement).tagName === 'CANVAS') setClean(c => !c);
       }}
     >
+      {(voiceMode === 'pending' || voiceMode === 'connecting' || voiceMode === 'unavailable') && (
+        <div dir="rtl" className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-[90vw] text-center">
+          <button type="button" disabled={voiceMode === 'connecting'} onClick={startRealtime}
+            className="px-6 py-3 rounded-full text-sm font-black bg-[#E06518] hover:bg-[#C95210] text-white shadow-xl border border-white/20 disabled:opacity-60">
+            <Mic size={16} className="inline ml-2" />
+            {voiceMode === 'connecting' ? 'در حال اتصال به تماس زنده...' : voiceMode === 'unavailable' ? 'تلاش مجدد برای تماس' : 'شروع مکالمه زنده FORZA'}
+          </button>
+          <span className="text-xs text-white/80 bg-black/60 rounded-xl px-3 py-2">
+            پس از اتصال صحبت کنید؛ فورزا تا پایان صحبت شما گوش می‌دهد.
+          </span>
+        </div>
+      )}
       {/* 1. Permanent Holographic Particle Mesh Avatar Engine */}
       <ParticleAvatar
         ref={avatarRef}
@@ -1048,7 +1113,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               <button
                 key={i}
                 type="button"
-                onClick={() => handleUserFinishedSpeaking(topic)}
+                onClick={() => submitUserText(topic)}
                 disabled={status === 'thinking'}
                 className="text-[11px] text-right px-3 py-1.5 rounded-lg bg-black/70 hover:bg-[#E06518]/25 border border-white/10 hover:border-[#E06518]/60 text-[#dee2e5] hover:text-white backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
@@ -1114,7 +1179,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         <div className="self-end inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/85 border border-white/20 backdrop-blur-md shadow-lg text-xs pointer-events-auto transition-all">
           <span className="font-medium text-white text-[11px] sm:text-[12px]">
             {turn === 'user'
-              ? 'نوبت شماست (مستقیم صحبت کنید)'
+              ? (voiceMode === 'native' ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید' : 'نوبت شماست (مستقیم صحبت کنید)')
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
               : 'AI FORZA در حال صحبت...'}
@@ -1134,6 +1199,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               setIsSpeakerMuted(prev => {
                 const next = !prev;
                 if (audioElRef.current) audioElRef.current.muted = next;
+                realtimeRef.current?.setSpeakerMuted(next);
                 return next;
               });
             }}
@@ -1143,6 +1209,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             title={isSpeakerMuted ? 'خروج از حالت بی‌صدا' : 'بی‌صدا کردن صدای گوینده'}
           >
             {isSpeakerMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMicMuted(prev => {
+              const next = !prev;
+              realtimeRef.current?.setMicMuted(next);
+              return next;
+            })}
+            className={`p-1 rounded-md cursor-pointer ${isMicMuted ? 'text-red-400' : 'text-[#dee2e5]/70 hover:text-white'}`}
+            title={isMicMuted ? 'روشن کردن میکروفون' : 'بی‌صدا کردن میکروفون'}>
+            {isMicMuted ? <MicOff size={14} /> : <Mic size={14} />}
           </button>
           <button
             type="button"
@@ -1176,7 +1253,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 const text = customInput.trim();
                 setCustomInput('');
                 setShowTextInput(false);
-                handleUserFinishedSpeaking(text);
+                submitUserText(text);
               }
             }}
             className="flex items-center gap-2 p-1.5 rounded-xl bg-black/90 border border-[#E06518]/60 backdrop-blur-md shadow-2xl pointer-events-auto animate-fadeInCard"
