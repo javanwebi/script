@@ -110,6 +110,8 @@ export interface Category {
   count: number;
   image?: string;
   active?: boolean;
+  /** Nested category and submenu navigation maintained by the admin. */
+  children?: import('./data/categories').CategoryNode[];
 }
 
 export interface Brand {
