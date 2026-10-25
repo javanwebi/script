@@ -218,13 +218,18 @@ export async function callAtlasAiWorkerChat(
       if (!res.ok) {
         const errText = await res.text();
         let providerType = 'worker_unavailable';
+        let safeProviderStatus = '';
         try {
           const parsed = JSON.parse(errText);
           providerType = String(parsed?.error?.type || providerType).slice(0, 80);
+          // Strictly whitelisted diagnostic label; do NOT log provider bodies,
+          // secrets, or arbitrary untrusted upstream error messages.
+          const message = String(parsed?.error?.message || '');
+          if (/^FORZA_PROVIDER_STATUS:[A-Z_]{1,36}; hint:(key|region|model|request|unknown)$/.test(message))
+            safeProviderStatus = message;
         } catch {}
-        // Log response status/type, not provider payload or credentials.
-        console.warn(`[AtlasWorker] HTTP ${res.status}; reason=${providerType}; chat=${Boolean(options.forzaChat)}`);
-        lastError = `HTTP ${res.status} (${providerType})`;
+        console.warn(`[AtlasWorker] HTTP ${res.status}; reason=${providerType}; chat=${Boolean(options.forzaChat)}; ${safeProviderStatus}`);
+        lastError = `HTTP ${res.status} (${providerType}) ${safeProviderStatus}`;
         if (options.forzaChat || res.status === 401 || res.status === 403) break;
         continue;
       }
