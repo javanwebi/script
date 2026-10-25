@@ -6,11 +6,12 @@ import aiRobot from '../assets/images/ai_consult_robot_1789379706342.jpg';
 import aiScan from '../assets/images/ai_search_mobile_1789379723502.jpg';
 import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
-import { matchesProductSearch } from '../data/userProducts';
+import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
+import { BeltCategoryExperience } from './BeltCategoryExperience';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
-import { CATEGORIES, findCatalogCategory, matchesCatalogCategory } from '../data/categories';
+import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { getProductsByCategory } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
@@ -39,6 +40,14 @@ import {
 } from 'lucide-react';
 
 export const CategoryPage: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  if (resolveCategorySlug(slug || '') === categorySlugFor('تسمه و انتقال نیرو')) {
+    return <BeltCategoryExperience />;
+  }
+  return <LegacyCategoryPage />;
+};
+
+const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
 
   const category = findCatalogCategory(slug || '') || CATEGORIES[0];
