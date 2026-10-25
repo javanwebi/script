@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES, flattenCategoryNodes } from '../data/categories';
+import { getManagedCategories, flattenCategoryNodes } from '../data/categories';
+import type { EnhancedCategory } from '../data/categories';
+import { categorySlugFor } from '../data/userProducts';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { USER_PRODUCTS, CATALOGUE_SKU_COUNT } from '../data/userProducts';
 import { 
@@ -41,7 +43,10 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredCategories = CATEGORIES.filter(cat => {
+  const categories = getManagedCategories();
+  const beltName = 'تسمه و انتقال نیرو';
+  const visibleCategories: EnhancedCategory[] = categories.some(c => c.name === beltName) ? categories : [{id: -1, name: beltName, slug: categorySlugFor(beltName), nameEn: 'Industrial Belts', description: 'تسمه‌های کلاسیک، تایمینگ، شیاری و پلی‌یورتان', icon: 'Layers', children: [{name: 'تسمه V-BELT', children: [{name:'کلاسیک'}, {name:'اسپشیال'}]}, {name:'تسمه تایمینگ'}, {name:'تسمه شیاری'}, {name:'تسمه گرد پلی اورتان'}, {name:'تسمه CRC پنج ضلعی'}], subcategories: [], count: 0}, ...categories];
+  const filteredCategories = visibleCategories.filter(cat => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -86,7 +91,7 @@ export const AllCategoriesPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center">
                 <span className="block text-2xl font-black text-orange-400 font-mono">
-                  {toPersianDigits(CATEGORIES.length)}
+                  {toPersianDigits(visibleCategories.length)}
                 </span>
                 <span className="text-xs text-slate-300 font-medium">دسته‌بندی تخصصی</span>
               </div>

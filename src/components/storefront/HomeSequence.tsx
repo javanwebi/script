@@ -14,7 +14,8 @@ import {
   Sparkles,
   Maximize2,
 } from "lucide-react";
-import { CATEGORIES } from "../../data/categories";
+import { getManagedCategories } from "../../data/categories";
+import { categorySlugFor } from "../../data/userProducts";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
@@ -35,8 +36,9 @@ const groups = [
 ];
 
 export function HomeCategoryStrip() {
+  const catalogCategories = getManagedCategories();
   const categories = groups
-    .map((name) => CATEGORIES.find((c) => c.name === name))
+    .map((name) => catalogCategories.find((c) => c.name === name) || (name === "تسمه و انتقال نیرو" ? {name, slug: categorySlugFor(name), image: categoryArtwork[name]} : undefined))
     .filter((c) => !!c);
   return (
     <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
