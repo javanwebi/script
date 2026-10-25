@@ -3,7 +3,7 @@ import { BELT_MENU, matchesBeltSelection } from "./beltNavigation";
 import type { Category, Product } from '../types';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProducts';
 
-export interface CategoryNode { name: string; hidden?: boolean; children?: CategoryNode[]; }
+export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
   children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
   /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
