@@ -791,6 +791,39 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus]);
 
+  // Browser mic permission must be recoverable after a denial.
+  const retryMicrophone = useCallback(async () => {
+    setMicrophoneError(null);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
+      const ctx=ensureCtx();
+      if(ctx?.state==='suspended')await ctx.resume();
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{
+        echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
+      }});
+      streamRef.current?.getTracks().forEach(track=>track.stop());
+      streamRef.current=stream;
+      if(ctx){
+        micSourceNodeRef.current?.disconnect();
+        const source=ctx.createMediaStreamSource(stream);
+        const analyser=ctx.createAnalyser();
+        analyser.fftSize=256;analyser.smoothingTimeConstant=0.6;
+        source.connect(analyser);
+        micSourceNodeRef.current=source;
+        micAnalyserRef.current=analyser;
+      }
+      if(mediaRecorderRef.current?.state==='recording')mediaRecorderRef.current.stop();
+      setupMediaRecorder(stream);
+      recognitionFailedRef.current=false;
+      recognitionRef.current=initSpeechRecognition();
+      if(greetingFinishedRef.current&&!micMutedRef.current)startListening();
+    }catch(error:any){
+      setMicrophoneError(error?.name==='NotAllowedError'||error?.name==='PermissionDeniedError'
+        ?'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس دوباره تلاش کنید.'
+        :'میکروفون وصل نشد. میکروفون پیش‌فرض و مجوز آن را بررسی کنید.');
+    }
+  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening]);
+
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
   useEffect(() => {
@@ -1125,8 +1158,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         </div>
 
         {microphoneError && (
-          <div role="alert" className="pointer-events-auto self-end max-w-sm text-right rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-xs text-amber-200">
-            {microphoneError}
+          <div role="alert" className="pointer-events-auto self-end flex max-w-sm flex-col gap-2 rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-right text-xs text-amber-200">
+            <span>{microphoneError}</span>
+            <button type="button" onClick={() => void retryMicrophone()}
+              className="rounded-lg bg-[#E06518] px-3 py-2 font-semibold text-white hover:bg-[#c9540d]">
+              <Mic size={14} className="ml-1 inline" /> تلاش مجدد برای فعال‌کردن میکروفون
+            </button>
           </div>
         )}
         {greetingPhase === 'forming' && (
