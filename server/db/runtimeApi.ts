@@ -20,6 +20,12 @@ export function invalidatePublicCatalogCache(){
  publicCatalogCache=undefined;
  publicCatalogInFlight=undefined;
 }
+/** Seed the public response cache from the catalogue already loaded during startup. */
+export function primePublicCatalogCache(products:unknown){
+ publicCatalogGeneration++;
+ publicCatalogInFlight=undefined;
+ publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:publicCatalog(products)};
+}
 const PUBLIC_DOCUMENT_TTL_MS=60000;
 const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
 const sharedDocumentInFlight=new Map<string,Promise<unknown>>();
