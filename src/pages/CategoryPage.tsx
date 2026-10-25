@@ -1,3 +1,9 @@
+import industryCeramic from '../assets/images/ind_ceramic_1789372889504.jpg';
+import industryTextile from '../assets/images/ind_textile_1789372911510.jpg';
+import industryFood from '../assets/images/ind_food_bottles_1789640622505.jpg';
+import industryPackaging from '../assets/images/ind_factory_1789372929899.jpg';
+import aiRobot from '../assets/images/ai_consult_robot_1789379706342.jpg';
+import aiScan from '../assets/images/ai_search_mobile_1789379723502.jpg';
 import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
 import { matchesProductSearch } from '../data/userProducts';
@@ -202,7 +208,7 @@ export const CategoryPage: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-l from-[#202225] via-[#202225]/95 to-[#202225]/20"/>
             <div className="absolute left-[27%] top-0 h-full w-[12%] -skew-x-[25deg] bg-[#E06518]/75"/>
             <div className="relative z-10 flex min-h-[360px] flex-col justify-center gap-5 p-7 md:min-h-[440px] md:p-14">
-              <h1 className="text-3xl font-black md:text-5xl">تسمه و انتقال نیرو</h1>
+              <div className="category-hero-eyebrow">صنعت پیش <span> / </span> راهکارهای انتقال قدرت</div><h1 className="text-3xl font-black md:text-5xl">تسمه و انتقال نیرو</h1>
               <h2 className="text-xl font-bold md:text-3xl">{isClassicBelt ? 'تسمه‌های کلاسیک V' : selectedSubcat === 'all' ? 'انواع تسمه‌های صنعتی' : selectedSubcat}</h2>
               <p className="max-w-[450px] text-xs leading-7 text-slate-200 md:text-sm">انتخاب سریع و دقیق تسمه مناسب خط تولید شما بر اساس خانواده، کد و مشخصات ثبت‌شده در کاتالوگ صنعت پیش.</p>
               <div className="mt-2 flex flex-wrap gap-4 text-[11px] font-bold md:gap-7">
@@ -210,6 +216,7 @@ export const CategoryPage: React.FC = () => {
                 <span className="flex items-center gap-2"><Truck className="text-[#E06518]"/> استعلام تأمین و موجودی</span>
                 <span className="flex items-center gap-2"><Headphones className="text-[#E06518]"/> مشاوره تخصصی</span>
               </div>
+              <div className="category-hero-actions"><button type="button" onClick={()=>scrollToSectionElement(productsSectionRef.current,{behavior:'smooth'})}>مشاهده محصولات <ChevronLeft size={17}/></button><Link to="/ai-consult">راهنمای انتخاب تخصصی <Headphones size={16}/></Link></div>
             </div>
           </section>
           <section className="category-showcase-families grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="خانواده‌های تسمه">
@@ -228,6 +235,11 @@ export const CategoryPage: React.FC = () => {
                 {image ? <img src={image} alt="" loading="lazy" className="h-14 w-16 object-contain md:h-20 md:w-20"/> : <Layers size={25} className="text-slate-400"/>}
               </button>;
             })}
+          </section>
+          <section className="category-brand-ribbon" aria-label="برندهای موجود در کاتالوگ">
+            <strong>برندهای موجود در کاتالوگ</strong>
+            <div>{availableBrands.slice(0,9).map(brand => <button key={brand} type="button" onClick={()=>{setSelectedBrands([brand]);setPage(1);scrollToSectionElement(productsSectionRef.current,{behavior:'smooth'});}}>{brand}</button>)}</div>
+            <button type="button" onClick={()=>{setSelectedBrands([]);setPage(1);}}>همه برندها</button>
           </section>
           {isClassicBelt && <div className="flex flex-wrap items-center justify-center gap-2" dir="ltr">
             {['all',...beltProfiles].map(profile=><button type="button" key={profile} aria-pressed={selectedProfile===profile} onClick={()=>{setSelectedProfile(profile);setPage(1);}}
@@ -527,12 +539,19 @@ export const CategoryPage: React.FC = () => {
           <section>
             <h2 className="mb-3 text-lg font-black">کاربردها در صنایع مختلف</h2>
             <div className="category-showcase-industries grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {['کاشی و سرامیک','نساجی و پارچه','بسته‌بندی و کارتن‌سازی','غذایی و نوشیدنی'].map(name=><Link key={name} to="/industries" className="rounded-xl border border-slate-200 bg-white p-5 text-center text-xs font-black text-slate-700 hover:border-orange-400">{name}</Link>)}
+              {[
+                {name:'کاشی و سرامیک',image:industryCeramic,path:'/industries/ceramic',description:'انتقال نیرو در خطوط تولید'},
+                {name:'نساجی و پارچه',image:industryTextile,path:'/industries/textile',description:'تجهیزات بافندگی و ریسندگی'},
+                {name:'بسته‌بندی و کارتن‌سازی',image:industryPackaging,path:'/industries/packaging',description:'ماشین‌آلات بسته‌بندی'},
+                {name:'غذایی و نوشیدنی',image:industryFood,path:'/industries/food',description:'خطوط تولید مواد غذایی'},
+              ].map(item=><Link key={item.name} to={item.path} className="category-industry-tile">
+                <img src={item.image} loading="lazy" alt={item.name}/><div><strong>{item.name}</strong><small>{item.description}</small><ChevronLeft size={22}/></div>
+              </Link>)}
             </div>
           </section>
           <div className="category-showcase-actions grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Link to="/ai-visual-search" className="rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
-            <Link to="/ai-consult" className="rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
+            <Link to="/identify-part" className="category-action-scan rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><img src={aiScan} alt="" loading="lazy"/><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
+            <Link to="/ai-consult" className="category-action-consult rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><img src={aiRobot} alt="" loading="lazy"/><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
           </div>
         </>
       )}
