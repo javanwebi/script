@@ -444,6 +444,7 @@ export const CategoryPage: React.FC = () => {
 
         {/* Product Grid Column */}
         <div className="lg:col-span-3 space-y-6">
+          <div className="category-product-headline"><div><strong>انتخاب قطعات انتقال نیرو</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
           <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
             <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
@@ -474,15 +475,19 @@ export const CategoryPage: React.FC = () => {
               <div className="category-showcase-products grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {paginated.map(product => (
                   isBeltCategory ? (
-                    <article key={product.code} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+                    <article key={product.code} className="category-premium-card flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
                       <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
                         <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
                       </Link>
-                      <div className="mt-3 flex items-center justify-between gap-2"><strong dir="ltr" className="text-base font-black text-slate-900">{product.code}</strong><span className="text-[11px] font-extrabold text-[#E06518]">{product.brand}</span></div>
-                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="mt-2 line-clamp-2 min-h-10 text-xs font-bold text-slate-800 hover:text-[#E06518]">{product.name}</Link>
-                      <p className="mt-1 text-[11px] text-slate-500">{product.subcategory}</p>
-                      <span className={`mt-2 text-[11px] font-bold ${product.stockKnown && product.stock > 0?'text-green-600':'text-slate-500'}`}>{product.stockKnown ? product.stock > 0 ? '● موجود در انبار' : 'موجودی تأیید نشده' : 'موجودی نیازمند استعلام'}</span>
-                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="mt-3 rounded-lg bg-[#E06518] py-2.5 text-center text-xs font-extrabold text-white hover:bg-[#bd5310]">استعلام قیمت</Link>
+                      <div className="category-sku-head"><strong dir="ltr">{product.code}</strong><span dir="ltr">{product.brand || 'صنعت پیش'}</span></div>
+                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-title">{product.name}</Link>
+                      <p className="category-sku-family"><Layers size={13}/>{product.subcategory}</p>
+                      <dl className="category-sku-specs">
+                        {(product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0,2).map(spec=><div key={spec.key}><dt>{spec.key}</dt><dd>{spec.value}</dd></div>)}
+                        {!product.technicalSpecs?.length && <div><dt>دسته</dt><dd>{product.subcategory}</dd></div>}
+                      </dl>
+                      <div className="category-sku-status"><span className={product.stockKnown && product.stock > 0 ? 'available' : 'unconfirmed'}></span>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'استعلام موجودی و قیمت'}</div>
+                      <div className="category-sku-actions"><Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link><Link to={`/product/${encodeURIComponent(product.code)}`} aria-label={`اطلاعات فنی ${product.code}`} className="category-sku-secondary"><Ruler size={18}/></Link></div>
                     </article>
                   ) : <ProductCard key={product.code} product={product}/>
                 ))}
