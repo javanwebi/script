@@ -162,13 +162,23 @@ const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return recognitionWorkerUrl(process.env); }
 
 // User-provided Cloudflare Worker for AI Forza Call & General AI REST requests
-const ATLAS_AI_WORKER_URL =
-  (process.env.ATLAS_AI_WORKER_URL || 'https://atlasai.javanwebio.workers.dev').trim().replace(/\/+$/, '');
+// A Worker is optional. Never silently use a hard-coded Worker when ENV is empty.
+// FORZA_WORKER_URL takes priority; ATLAS_AI_WORKER_URL remains backward compatible.
+function configuredForzaWorkerUrl(): string {
+  const configured = (process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim();
+  if (!configured) return '';
+  const url = new URL(configured);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash)
+    throw new Error('FORZA_WORKER_URL must be a valid HTTPS URL without credentials, query or fragment.');
+  return url.href.replace(/\/+$/, '');
+}
 
 export async function callAtlasAiWorkerChat(
   messages: Array<{ role: string; content: any }>,
   options: { model?: string; timeoutMs?: number } = {}
 ): Promise<string> {
+  const workerUrl = configuredForzaWorkerUrl();
+  if (!workerUrl) throw new Error('FORZA_WORKER_NOT_CONFIGURED');
   const preferredModel = options.model || 'gemini-3.5-flash-lite';
   const models = [
     preferredModel,
@@ -183,7 +193,7 @@ export async function callAtlasAiWorkerChat(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), options.timeoutMs || 15000);
 
-      const res = await fetch(`${ATLAS_AI_WORKER_URL}/v1/chat/completions`, {
+      const res = await fetch(`${workerUrl}/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4982,8 +4992,9 @@ app.post('/api/ai/consult', async (req, res) => {
 
     let replyText = '';
 
-    // 1. Primary engine: User's Cloudflare Worker (https://atlasai.javanwebio.workers.dev)
-    try {
+    // 1. Configured Worker only. Empty Worker ENV -> direct internal Gemini key.
+    const hasForzaWorker = Boolean((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim());
+    if (hasForzaWorker) try {
       const workerMessages: Array<{ role: string; content: any }> = [
         { role: 'system', content: systemPrompt+catalogContext },
       ];
@@ -6121,10 +6132,11 @@ app.post('/api/ai/forza-live', async (req, res) => {
         console.log('[AI FORZA] Successfully responded via user Cloudflare Worker');
       }
     } catch (workerErr: any) {
-      console.warn('[AI FORZA] Worker attempt error, trying fallback:', workerErr?.message || workerErr);
+      console.warn('[AI FORZA] Configured Worker failed:', workerErr?.message || workerErr);
+      return res.status(502).json({ success: false, error: 'ارتباط با Worker فورزا برقرار نشد. تنظیمات Worker را بررسی کنید.' });
     }
 
-    // 2. Secondary fallback: Direct GoogleGenAI if local API key is configured
+    // 2. Direct GoogleGenAI when no Worker URL has been configured.
     if (!replyText && apiKey) {
       try {
         const ai = new GoogleGenAI({
