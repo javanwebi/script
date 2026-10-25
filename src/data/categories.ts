@@ -96,6 +96,9 @@ export function normalizeManagedCategory(c: Record<string, any>): EnhancedCatego
 
   return {
     ...c,
+    id: (c.id ?? 0) as number,
+    slug: typeof c.slug === 'string' ? c.slug : '',
+    name: typeof c.name === 'string' ? c.name : '',
     nameEn,
     description,
     icon,
@@ -103,6 +106,7 @@ export function normalizeManagedCategory(c: Record<string, any>): EnhancedCatego
     count: familyCount,
     familyCount,
     skuCount,
+    subcategories: Array.isArray(c.subcategories) ? c.subcategories : children.map(node => node.name),
     children,
   };
 }
