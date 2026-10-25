@@ -1,3 +1,5 @@
+import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
+import '../category-showcase.css';
 import { matchesProductSearch } from '../data/userProducts';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
@@ -165,7 +167,7 @@ export const CategoryPage: React.FC = () => {
   const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || selectedBrands.length > 0 || inStockOnly || inquiryOnlyFilter || selectedProfile !== 'all' || minLength !== '' || maxLength !== '';
 
   return (
-    <div className="space-y-6 text-right pb-12" dir="rtl">
+    <div className="category-showcase space-y-8 text-right pb-16" dir="rtl">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
         <Link to="/" className="hover:text-[#E06518] transition-colors">
@@ -182,13 +184,13 @@ export const CategoryPage: React.FC = () => {
 
       {isBeltCategory ? (
         <>
-          <section className="relative isolate min-h-[230px] overflow-hidden rounded-2xl bg-[#222529] text-white md:min-h-[290px]">
-            {category.image && <img src={category.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65" />}
+          <section className="category-showcase-hero relative isolate min-h-[360px] overflow-hidden rounded-2xl bg-[#222529] text-white md:min-h-[440px]">
+            <img src={beltHero} alt="تسمه‌های صنعتی و انتقال نیرو" className="category-showcase-hero-image absolute inset-0 h-full w-full object-cover opacity-80" />
             <div className="absolute inset-0 bg-gradient-to-l from-[#202225] via-[#202225]/95 to-[#202225]/20"/>
             <div className="absolute left-[27%] top-0 h-full w-[12%] -skew-x-[25deg] bg-[#E06518]/75"/>
-            <div className="relative z-10 flex min-h-[230px] flex-col justify-center gap-3 p-6 md:min-h-[290px] md:p-10">
-              <h1 className="text-2xl font-black md:text-4xl">تسمه و انتقال نیرو</h1>
-              <h2 className="text-lg font-bold md:text-2xl">{isClassicBelt ? 'تسمه‌های کلاسیک V' : selectedSubcat === 'all' ? 'انواع تسمه‌های صنعتی' : selectedSubcat}</h2>
+            <div className="relative z-10 flex min-h-[360px] flex-col justify-center gap-5 p-7 md:min-h-[440px] md:p-14">
+              <h1 className="text-3xl font-black md:text-5xl">تسمه و انتقال نیرو</h1>
+              <h2 className="text-xl font-bold md:text-3xl">{isClassicBelt ? 'تسمه‌های کلاسیک V' : selectedSubcat === 'all' ? 'انواع تسمه‌های صنعتی' : selectedSubcat}</h2>
               <p className="max-w-[450px] text-xs leading-7 text-slate-200 md:text-sm">انتخاب سریع و دقیق تسمه مناسب خط تولید شما بر اساس خانواده، کد و مشخصات ثبت‌شده در کاتالوگ صنعت پیش.</p>
               <div className="mt-2 flex flex-wrap gap-4 text-[11px] font-bold md:gap-7">
                 <span className="flex items-center gap-2"><ShieldCheck className="text-[#E06518]"/> انتخاب از کاتالوگ واقعی</span>
@@ -197,7 +199,7 @@ export const CategoryPage: React.FC = () => {
               </div>
             </div>
           </section>
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" aria-label="خانواده‌های تسمه">
+          <section className="category-showcase-families grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="خانواده‌های تسمه">
             {[
               {label:'کلاسیک',value:'کلاسیک',matcher:/کلاسیک/},
               {label:'پروفیل باریک',value:'اسپشیال',matcher:/اسپشیال/},
@@ -298,7 +300,7 @@ export const CategoryPage: React.FC = () => {
         <SlidersHorizontal className="h-4 w-4" /> {mobileFiltersOpen ? 'بستن فیلترها' : 'فیلتر محصولات'}
       </button>
       {/* Main Content Area: Sidebar Filters + Products Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="category-showcase-shop grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Sidebar Filters Widget */}
         <div className={mobileFiltersOpen ? "space-y-4 lg:block" : "hidden space-y-4 lg:block"}>
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4 lg:sticky lg:top-24">
@@ -397,11 +399,11 @@ export const CategoryPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="category-showcase-products grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {paginated.map(product => (
                   isBeltCategory ? (
                     <article key={product.code} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
-                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="flex h-44 items-center justify-center rounded-lg bg-[#fafafa]">
+                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
                         <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
                       </Link>
                       <div className="mt-3 flex items-center justify-between gap-2"><strong dir="ltr" className="text-base font-black text-slate-900">{product.code}</strong><span className="text-[11px] font-extrabold text-[#E06518]">{product.brand}</span></div>
@@ -450,10 +452,10 @@ export const CategoryPage: React.FC = () => {
       </div>
       {isBeltCategory && (
         <>
-          <section className="rounded-2xl bg-[#fff8f3] p-5">
+          <section className="category-showcase-guide rounded-2xl bg-[#fff8f3] p-6 md:p-9">
             <h2 className="text-base font-black text-slate-900">راهنمای انتخاب سریع تسمه کلاسیک</h2>
             <p className="mt-1 text-xs text-slate-500">در چهار مرحله مشخصات مورد نیاز را بررسی کنید.</p>
-            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[
                 ['۱','شناسایی کاربرد','نوع دستگاه و شرایط کاری'],
                 ['۲','انتخاب پروفیل','انتخاب سری متناسب با دستگاه'],
@@ -464,11 +466,11 @@ export const CategoryPage: React.FC = () => {
           </section>
           <section>
             <h2 className="mb-3 text-lg font-black">کاربردها در صنایع مختلف</h2>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="category-showcase-industries grid grid-cols-2 gap-4 lg:grid-cols-4">
               {['کاشی و سرامیک','نساجی و پارچه','بسته‌بندی و کارتن‌سازی','غذایی و نوشیدنی'].map(name=><Link key={name} to="/industries" className="rounded-xl border border-slate-200 bg-white p-5 text-center text-xs font-black text-slate-700 hover:border-orange-400">{name}</Link>)}
             </div>
           </section>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="category-showcase-actions grid grid-cols-1 gap-4 md:grid-cols-2">
             <Link to="/ai-visual-search" className="rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
             <Link to="/ai-consult" className="rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
           </div>
