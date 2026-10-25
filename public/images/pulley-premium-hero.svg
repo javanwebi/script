@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 640" role="img" aria-label="بنر صنعتی پولی‌های فلزی و انتقال نیرو">
+<defs>
+<linearGradient id="back" x1="0" x2="1" y1=".8" y2=".1"><stop stop-color="#060c11"/><stop offset=".48" stop-color="#1b2a32"/><stop offset="1" stop-color="#0c151d"/></linearGradient>
+<radialGradient id="spot"><stop stop-color="#dd6620" stop-opacity=".55"/><stop offset=".45" stop-color="#8f3c16" stop-opacity=".18"/><stop offset="1" stop-color="#101a20" stop-opacity="0"/></radialGradient>
+<radialGradient id="steel" cx=".33" cy=".2" r=".85"><stop stop-color="#d0dce0"/><stop offset=".15" stop-color="#5d6b72"/><stop offset=".42" stop-color="#111a20"/><stop offset=".64" stop-color="#5a666c"/><stop offset=".84" stop-color="#101a20"/><stop offset="1" stop-color="#8b9aa0"/></radialGradient>
+<linearGradient id="rim" x1="0" x2="1" y1="0" y2=".9"><stop stop-color="#e3e9e8"/><stop offset=".19" stop-color="#11191e"/><stop offset=".44" stop-color="#aab4b7"/><stop offset=".6" stop-color="#0a1015"/><stop offset=".88" stop-color="#56646b"/><stop offset="1" stop-color="#d2dce0"/></linearGradient>
+<linearGradient id="copper" x1="0" x2=".88" y1="0" y2="1"><stop stop-color="#ffb45b"/><stop offset=".16" stop-color="#e06518"/><stop offset=".5" stop-color="#a53604"/><stop offset=".73" stop-color="#ff8a28"/><stop offset="1" stop-color="#742c0a"/></linearGradient>
+<filter id="sh"><feGaussianBlur stdDeviation="25"/></filter>
+<filter id="shine"><feGaussianBlur stdDeviation="3"/></filter>
+<g id="pulley">
+<circle r="206" fill="#010406" opacity=".8" transform="translate(19 25)"/>
+<circle r="198" fill="url(#rim)" stroke="#00070a" stroke-width="8"/>
+<circle r="181" fill="#060c10" stroke="#87949b" stroke-width="6"/>
+<circle r="171" fill="url(#copper)" stroke="#12191e" stroke-width="13"/>
+<circle r="158" fill="#060d11" stroke="#a4aeb2" stroke-width="5"/>
+<circle r="145" fill="url(#steel)" stroke="#000508" stroke-width="13"/>
+<circle r="122" fill="#10191e" stroke="#374850" stroke-width="12"/>
+<circle r="106" fill="url(#rim)" stroke="#05090c" stroke-width="8"/>
+<g fill="#020609" stroke="#77868a" stroke-width="7"><circle cx="0" cy="-79" r="26"/><circle cx="76" cy="23" r="26"/><circle cx="-76" cy="23" r="26"/></g>
+<circle r="52" fill="url(#steel)" stroke="#b5c0c0" stroke-width="6"/>
+<circle r="27" fill="#05090c" stroke="#58666b" stroke-width="8"/>
+<path d="M-160 -80A182 182 0 0 1 98 -153" stroke="#f8fdfc" stroke-opacity=".36" stroke-width="5" fill="none"/>
+</g>
+</defs>
+<rect width="1920" height="640" fill="url(#back)"/>
+<path d="M0 0H860L420 640H0Z" fill="#233036" opacity=".5"/>
+<path d="M0 0H126L0 207Z" fill="#e06518" opacity=".95"/><path d="M1080 0H1200L778 640H659Z" fill="#e06518" opacity=".14"/>
+<ellipse cx="554" cy="340" rx="810" ry="480" fill="url(#spot)"/>
+<g opacity=".18" stroke="#6d818a" stroke-width="2">
+<path d="M0 125H1920M0 255H1920M0 385H1920M0 515H1920"/>
+<path d="M120 0V640M420 0V640M720 0V640M1020 0V640M1320 0V640M1620 0V640"/>
+</g>
+<path d="M0 607H1110" stroke="#aab9bc" stroke-width="20" opacity=".22" filter="url(#sh)"/>
+<g transform="translate(820 191) rotate(-17) scale(.65)"><use href="#pulley"/></g>
+<g transform="translate(1050 461) rotate(9) scale(.38)"><use href="#pulley"/></g>
+<g transform="translate(450 316) rotate(-11) scale(1.12)"><use href="#pulley"/></g>
+<g fill="none" stroke-linecap="round">
+<path d="M-80 65C174 71 435 15 710 33S987 88 1139 116" stroke="#06090c" stroke-width="73"/>
+<path d="M-80 65C174 71 435 15 710 33S987 88 1139 116" stroke="#5b6269" stroke-width="57"/>
+<path d="M-80 65C174 71 435 15 710 33S987 88 1139 116" stroke="#131c21" stroke-width="40"/>
+<path d="M-80 65C174 71 435 15 710 33S987 88 1139 116" stroke="url(#copper)" stroke-width="22"/>
+<path d="M-80 54C174 60 435 4 710 22S987 77 1139 105" stroke="#ffd09c" stroke-opacity=".78" stroke-width="4"/>
+<path d="M90 640C255 448 419 445 660 473S916 577 1160 640" stroke="#020709" stroke-width="76"/>
+<path d="M90 640C255 448 419 445 660 473S916 577 1160 640" stroke="#46545a" stroke-width="45"/>
+<path d="M90 640C255 448 419 445 660 473S916 577 1160 640" stroke="#0b151a" stroke-width="31"/>
+<path d="M90 640C255 448 419 445 660 473S916 577 1160 640" stroke="#c65311" stroke-width="12"/>
+</g>
+<rect x="1080" y="0" width="840" height="640" fill="#101a23" opacity=".18"/>
+<path d="M0 635H1920" stroke="#e06518" stroke-width="5"/>
+</svg>
