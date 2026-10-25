@@ -34,5 +34,7 @@ jobs:
         run: node --import tsx --test tests/admin-catalog-hierarchy.test.ts
       - name: Catalog regression tests
         run: node --import tsx --test tests/product-families.test.ts tests/product-technical-data.test.ts tests/owner-catalogue.test.ts tests/imperial-reference.test.ts tests/image-assignments.test.ts tests/part-measurements.test.ts tests/recognition-policy.test.ts tests/catalog-image-scan.test.ts tests/catalog-photo-identity.test.ts
+      - name: FORZA real-time PCM / VAD protocol regressions
+        run: node --import tsx --test tests/forza-realtime.test.ts
       - name: Build static React frontend from source
         run: npm run build
