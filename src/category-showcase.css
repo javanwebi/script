@@ -20,3 +20,58 @@
 .category-showcase .category-showcase-industries>a { min-height:115px;font-size:13px; }
 .category-showcase .category-showcase-actions>a { min-height:140px;padding:20px; }
 }
+
+/* Edge-to-edge category canvas, without affecting other routes */
+.storefront > main:has(> .category-showcase) {max-width:none!important;width:100%!important;margin:0!important;padding:0!important;}
+.category-showcase {width:100%;max-width:none;padding-inline:clamp(12px,1.7vw,36px);background:#fff;}
+.category-showcase .category-showcase-hero {border-radius:16px;min-height:clamp(420px,33vw,610px);}
+.category-showcase .category-showcase-hero > div.relative {min-height:clamp(420px,33vw,610px);}
+.category-showcase .category-showcase-families > button {min-height:clamp(130px,11vw,190px);font-size:clamp(12px,1vw,16px);}
+.category-showcase .category-showcase-families img {max-height:160px;}
+.category-showcase .category-showcase-products article {min-height:440px;padding:clamp(12px,1.2vw,20px);}
+.category-showcase .category-showcase-product-media {height:clamp(210px,17vw,300px);}
+.category-showcase .category-showcase-shop {grid-template-columns:minmax(270px,22%) minmax(0,1fr);}
+.category-showcase .category-showcase-guide {padding:clamp(24px,3vw,54px);}
+.category-showcase .category-showcase-industries>a {min-height:210px;}
+.category-showcase .category-showcase-actions>a {min-height:250px;}
+.category-mobile-toolbar {position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;background:white;padding:10px 0;border-bottom:1px solid #e5e7eb;}
+.category-mobile-toolbar button {display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-weight:800;font-size:12px;white-space:nowrap;}
+.category-mobile-toolbar>span {margin-inline-start:auto;color:#64748b;font-size:12px;white-space:nowrap;}
+.category-filter-active-dot {width:7px;height:7px;background:#e06518;border-radius:50%;}
+.category-filter-overlay {position:fixed;inset:0;background:#111827a8;z-index:1000;display:flex;align-items:flex-end;}
+.category-filter-sheet {background:#fff;width:100%;height:min(90dvh,840px);border-radius:22px 22px 0 0;display:flex;flex-direction:column;box-shadow:0 -10px 50px #0003;animation:category-sheet-up .24s ease-out;}
+.category-filter-handle {height:5px;width:46px;background:#cbd5e1;border-radius:9px;margin:10px auto 4px;flex-shrink:0;}
+.category-filter-sheet-header {display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;}
+.category-filter-sheet-header strong {font-size:17px;}
+.category-filter-sheet-header button {font-size:20px;padding:4px 12px;}
+.category-filter-sheet-content {overflow-y:auto;flex:1;padding:16px 20px;overscroll-behavior:contain;}
+.category-mobile-filters fieldset {border-bottom:1px solid #eee;padding:16px 0;}
+.category-mobile-filters legend,.category-filter-label {font-weight:800;font-size:14px;display:block;margin-bottom:12px;}
+.category-filter-label input,.category-filter-range input {width:100%;border:1px solid #ddd;border-radius:10px;padding:12px;margin-top:8px;min-width:0;}
+.category-filter-pills {display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+.category-filter-pills button {padding:9px 14px;background:#f4f4f5;border:1px solid #e4e4e7;border-radius:12px;}
+.category-filter-pills button[aria-pressed=true] {background:#e06518;color:white;border-color:#e06518;}
+.category-filter-range {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.category-filter-choice {display:flex;align-items:center;justify-content:space-between;padding:12px 0;font-size:13px;}
+.category-filter-choice input {width:18px;height:18px;accent-color:#e06518;}
+.category-filter-sheet-footer {display:grid;grid-template-columns:1fr 2fr;gap:12px;padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid #eee;background:white;}
+.category-filter-sheet-footer button {border:1px solid #e5e7eb;border-radius:12px;padding:14px;font-weight:800;font-size:13px;}
+.category-filter-sheet-footer button:last-child {background:#e06518;color:white;border-color:#e06518;}
+@keyframes category-sheet-up {from {transform:translateY(100%)}to {transform:translateY(0)}}
+@media(max-width:1023px) {
+.category-showcase .category-showcase-shop {grid-template-columns:minmax(0,1fr);}
+.category-showcase .category-showcase-hero {min-height:350px;}
+.category-showcase .category-showcase-hero > div.relative {min-height:350px;}
+.category-showcase .category-showcase-products {grid-template-columns:repeat(2,minmax(0,1fr));}
+.category-showcase .category-showcase-products article {min-height:350px;}
+.category-showcase .category-showcase-product-media {height:180px;}
+.category-showcase .category-showcase-industries>a {min-height:120px;}
+.category-showcase .category-showcase-actions>a {min-height:150px;}
+}
+@media(max-width:440px) {
+.category-showcase .category-showcase-products {gap:8px;}
+.category-showcase .category-showcase-products article {padding:8px;min-height:340px;}
+.category-showcase .category-showcase-product-media {height:150px;}
+.category-showcase .category-showcase-products article strong {font-size:14px;}
+.category-showcase .category-showcase-products article a {font-size:12px;}
+}
