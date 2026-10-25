@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpLeft, Layers, Move, Link2, Box } from "lucide-react";
-import { CATEGORIES } from "../../data/categories";
+import { getManagedCategories } from "../../data/categories";
+import { categorySlugFor } from "../../data/userProducts";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
 const pillars = [
@@ -73,12 +74,14 @@ export function ReferenceMegaMenu({
   onNavigate?: () => void;
   compact?: boolean;
 }) {
+  const catalogCategories = getManagedCategories();
   const columns = pillars.map((g) => ({
     ...g,
     categories: g.names
       .map((name, i) => ({
         category:
-          CATEGORIES.find((c) => c.name === name) ||
+          catalogCategories.find((c) => c.name === name) ||
+          (name === "تسمه و انتقال نیرو" ? { name, slug: categorySlugFor(name), children: [{name:"تسمه V-BELT",children:[{name:"کلاسیک"},{name:"اسپشیال"}]},{name:"تسمه تایمینگ"},{name:"تسمه شیاری"},{name:"تسمه گرد پلی اورتان"},{name:"تسمه CRC پنج ضلعی"}] } : undefined) ||
           (name === "پروفیل و سازه آلومینیوم" ? { name, slug: "", children: [] } : undefined),
         label: g.labels[i],
       }))
@@ -108,7 +111,7 @@ export function ReferenceMegaMenu({
                       <details className="reference-belts">
                         <summary>{label}</summary>
                         <Link
-                          to={`/products?category=${c.slug}`}
+                          to={`/category/${c.slug}`}
                           onClick={onNavigate}
                         >
                           همه تسمه‌های انتقال نیرو <ArrowUpLeft size={13} />
@@ -123,7 +126,7 @@ export function ReferenceMegaMenu({
                       <Link
                         to={
                           c.slug
-                            ? `/products?category=${c.slug}`
+                            ? `/category/${c.slug}`
                             : `/products?q=${encodeURIComponent("پروفیل آلومینیوم")}`
                         }
                         onClick={onNavigate}
