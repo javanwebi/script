@@ -5,7 +5,7 @@ import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
-import { matchesCatalogCategory } from '../data/categories';
+import { CATEGORIES, matchesCatalogCategory } from '../data/categories';
 import { matchesProductSearch } from '../data/userProducts';
 import { toPersianDigits } from '../utils/formatters';
 import industryCeramic from '../assets/images/ind_ceramic_1789372889504.jpg';
@@ -173,6 +173,7 @@ export const BeltCategoryExperience: React.FC = () => {
       </div>
       <div className="bce-hero-stamp"><span>POWER TRANSMISSION</span><b>صنعت پیش</b></div>
     </section>
+    {CATEGORIES.find(c => c.slug === BELT_SLUG)?.image && <aside className="mx-4 my-5 flex items-center gap-4 rounded-2xl border border-orange-100 bg-white p-3 md:mx-8" aria-label="تصویر دسته‌بندی ثبت‌شده"><img src={CATEGORIES.find(c => c.slug === BELT_SLUG)!.image} alt="تصویر دسته‌بندی تسمه و انتقال نیرو" className="h-20 w-24 rounded-xl object-contain bg-slate-50 p-2" /><div><strong className="block text-sm font-black text-slate-800">تصویر دسته‌بندی تسمه و انتقال نیرو</strong><span className="text-xs text-slate-500">تصویر مدیریت‌شده در کاتالوگ صنعت پیش</span></div></aside>}
     <section className="bce-family-area" aria-labelledby="bce-family-title"><div className="bce-section-heading"><div><span>کاوش سریع</span><h2 id="bce-family-title">تسمه موردنیاز خود را پیدا کنید</h2></div><button type="button" onClick={() => chooseFamily('all')}>همه خانواده‌ها <ChevronLeft size={16}/></button></div>
       <div className="bce-family-grid">{FAMILY_OPTIONS.map((item, i) => {
         const sample = allProducts.find(p => matchesCatalogCategory(p, BELT_SLUG, item.id) && p.images?.[0]);
