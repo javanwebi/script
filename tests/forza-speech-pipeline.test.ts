@@ -19,7 +19,7 @@ test('Chrome cumulative WebSpeech results preserve earlier finalized words',()=>
 });
 
 test('Persian normalization preserves real product codes and numbers',()=>{
-  assert.equal(normalizePersianTranscript('بلبرينگ 6205-2RS و كد SPB  '),'بلبرينگ 6205-2RS و کد SPB');
+  assert.equal(normalizePersianTranscript('بلبرينگ 6205-2RS و كد SPB  '),'بلبرینگ 6205-2RS و کد SPB');
   assert.equal(normalizePersianTranscript('   '),'');
 });
 
