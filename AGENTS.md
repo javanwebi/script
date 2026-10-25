@@ -13,3 +13,7 @@
 ## Actual production schema (owner supplied 2026-10-20)
 
 The connected managed project now uses `user_profiles`, `catalog_families`, `catalog_variants` and the owner's 49-table master schema. Original `supabase/migrations` and importer target a DIFFERENT prototype schema; never apply those to the adopted database or import repository seeds over existing catalogue rows. Compatible follow-up SQL is in `supabase/adopted/migrations`. Inspect actual migration history and schema before any change. Do not switch DATA_BACKEND on the live app until adapters target these actual tables.
+
+## Premium UI/UX tasks
+
+When a request involves designing, redesigning, or visually reviewing the storefront, category/industry pages, product discovery, banners, navigation, or responsive UI, read and follow `.agents/skills/sanatpish-premium-ui/SKILL.md` before editing. It defines the required repo reconnaissance, real-asset policy, Sanat Pish brand/RTL standards, interaction requirements, responsive breakpoints, and visual QA bar. Do not treat a successful build alone as proof that the design is visually correct.
