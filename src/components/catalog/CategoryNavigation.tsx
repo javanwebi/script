@@ -17,9 +17,10 @@ type Props = {
 /** One recursive view preserves every level of the catalogue taxonomy. */
 export const CategoryNavigation: React.FC<Props> = ({ nodes, categorySlug, onNavigate, onSelect, selected, expanded = false }) => {
   const canonicalCategorySlug = resolveCategorySlug(categorySlug);
-  const isBeltCategory = canonicalCategorySlug === categorySlugFor('تسمه و انتقال نیرو');
+  const beltCategorySlug = categorySlugFor('تسمه و انتقال نیرو');
+  const isBeltCategory = canonicalCategorySlug === beltCategorySlug;
   const categoryHref = (selection: string) => isBeltCategory
-    ? `/category/${canonicalCategorySlug}?${new URLSearchParams({ sub: selection })}`
+    ? `/category/${beltCategorySlug}?${new URLSearchParams({ sub: selection })}`
     : `/products?${new URLSearchParams({ category: categorySlug, sub: selection })}`;
   const containsSelected = (node: CategoryNode): boolean => node.name === selected || Boolean(node.children?.some(containsSelected));
   const renderNode = (node: CategoryNode, depth: number): React.ReactNode => {
