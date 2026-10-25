@@ -11,6 +11,7 @@ import { ProductImage } from "../components/product/ProductImage";
 import { useWishlist } from "../context/WishlistContext";
 import { toPersianDigits } from "../utils/formatters";
 import { STORE_ASSETS } from "../assets/images";
+import { CATEGORIES } from "../data/categories";
 import "./pulley-catalog.css";
 
 type Props = { products: Product[] };
@@ -195,6 +196,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
         <div className="pc-hero-corner"><BadgeCheck size={17}/> خانواده‌ها و کدهای ثبت‌شده در صنعت پیش</div>
       </header>
 
+      {CATEGORIES.find(c => c.slug === "پولی-و-انتقال-نیرو")?.image && <aside className="mx-4 my-5 flex items-center gap-4 rounded-2xl border border-orange-100 bg-white p-3 md:mx-8" aria-label="تصویر دسته‌بندی ثبت‌شده"><img src={CATEGORIES.find(c => c.slug === "پولی-و-انتقال-نیرو")!.image} alt="تصویر دسته‌بندی پولی و انتقال نیرو" className="h-20 w-24 rounded-xl object-contain bg-slate-50 p-2" /><div><strong className="block text-sm font-black text-slate-800">تصویر دسته‌بندی پولی و انتقال نیرو</strong><span className="text-xs text-slate-500">تصویر مدیریت‌شده در کاتالوگ صنعت پیش</span></div></aside>}
       <div className="pc-shell">
         <section className="pc-explore" aria-label="انتخاب نوع پولی">
           <div className="pc-section-heading"><div><span className="pc-eyebrow">راهنمای انتخاب سریع</span><h2>چه نوع پولی نیاز دارید؟</h2><p>بر اساس عنوان واقعی خانواده‌ها انتخاب کنید</p></div><span className="pc-guide-label"><CircleDot size={17}/> {nf(types.length - 1)} گروه قابل جستجو</span></div>
