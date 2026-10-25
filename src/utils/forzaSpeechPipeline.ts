@@ -82,3 +82,16 @@ export function verbalizeForzaTechnicalTerms(text: string): string {
     code => spokenTechnicalCodes[code.toUpperCase()] || code,
   );
 }
+
+/** MediaRecorder produces data:audio/webm;codecs=opus;base64,... on Chrome.
+ * Strip all MIME parameters before sending raw Base64 to the Gemini Worker.
+ */
+export function extractForzaAudioBase64(input: string): string {
+  const value = String(input || '').trim();
+  if (!value.startsWith('data:')) return value;
+  const comma = value.indexOf(',');
+  if (comma < 0 || !/;base64$/i.test(value.slice(0, comma))) {
+    throw new Error('Invalid encoded audio header');
+  }
+  return value.slice(comma + 1);
+}
