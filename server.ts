@@ -5907,6 +5907,11 @@ async function generatePersianMaleSpeechEdge(text: string): Promise<Buffer | nul
 
 // POST: /api/ai/tts - Convert AI engineering response to fluent male Persian speech
 app.post('/api/ai/tts', async (req, res) => {
+  const startedAt = Date.now();
+  const reportProvider = (provider: string) => {
+    // Never log the customer's question, generated text, or audio payload.
+    console.info(`[FORZA TTS] provider=${provider}; durationMs=${Date.now() - startedAt}`);
+  };
   try {
     const { text, voice } = req.body;
 
@@ -5923,8 +5928,10 @@ app.post('/api/ai/tts', async (req, res) => {
     // Check in-memory cache first
     const cacheKey = `male-fa:${cleanedText.slice(0, 300)}:${cleanedText.length}`;
     if (ttsAudioCache.has(cacheKey)) {
+      reportProvider('memory-cache');
       return res.json({
         success: true,
+        provider: 'memory-cache',
         audioBase64: ttsAudioCache.get(cacheKey),
         mimeType: ttsAudioCache.get(cacheKey)?.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mp3',
         cleanedText,
@@ -5935,6 +5942,7 @@ app.post('/api/ai/tts', async (req, res) => {
     const maleVoice = voice === 'Puck' ? 'Puck' : 'Charon';
     const audioBuf = await generatePersianSpeechGemini(cleanedText, maleVoice);
     if (audioBuf && audioBuf.length > 0) {
+      reportProvider('gemini-neural');
       const dataUrl = `data:audio/wav;base64,${audioBuf.toString('base64')}`;
       if (ttsAudioCache.size > 100) {
         const firstKey = ttsAudioCache.keys().next().value;
@@ -5954,6 +5962,7 @@ app.post('/api/ai/tts', async (req, res) => {
     try {
       const edgeBuf = await generatePersianMaleSpeechEdge(cleanedText);
       if (edgeBuf && edgeBuf.length > 0) {
+        reportProvider('edge-farid-neural');
         const dataUrl = `data:audio/mp3;base64,${edgeBuf.toString('base64')}`;
         if (ttsAudioCache.size > 100) {
           const firstKey = ttsAudioCache.keys().next().value;
@@ -5970,7 +5979,8 @@ app.post('/api/ai/tts', async (req, res) => {
       }
     } catch {}
 
-    // Graceful response allowing the frontend client to speak naturally via browser SpeechSynthesis
+    // Graceful response allowing the frontend client to speak via browser SpeechSynthesis.
+    reportProvider('browser-fallback');
     return res.json({
       success: false,
       useClientSpeech: true,
@@ -5978,6 +5988,7 @@ app.post('/api/ai/tts', async (req, res) => {
       cleanedText,
     });
   } catch (err: any) {
+    reportProvider('error-browser-fallback');
     return res.json({
       success: false,
       useClientSpeech: true,
