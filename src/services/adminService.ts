@@ -11,7 +11,7 @@ import {
   moveGalleryImageToFamily,
 } from '../data/mockGenerator';
 import { MOCK_DISCOUNT_CODES } from '../data/mockData';
-import { CATEGORIES } from '../data/categories';
+import { CATEGORIES, getManagedCategories } from '../data/categories';
 import { BRANDS } from '../data/brands';
 import { agencyService } from './agencyService';
 
@@ -1059,6 +1059,8 @@ ERR-001,تسمه بدون قیمت تستی,نامشخص,ناشناخته,0,-5`;
     }
     try {
       persistPortalCache(STORAGE_KEYS.CATEGORIES, JSON.stringify(list));
+      // One live PostgreSQL-hydrated catalogue drives the header, home and category pages.
+      CATEGORIES.splice(0, CATEGORIES.length, ...getManagedCategories());
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('atlas-categories-updated'));
         window.dispatchEvent(new CustomEvent('atlas-catalog-updated'));
@@ -1074,6 +1076,7 @@ ERR-001,تسمه بدون قیمت تستی,نامشخص,ناشناخته,0,-5`;
     const filtered = list.filter(c => c.slug !== slug);
     try {
       persistPortalCache(STORAGE_KEYS.CATEGORIES, JSON.stringify(filtered));
+      CATEGORIES.splice(0, CATEGORIES.length, ...getManagedCategories());
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('atlas-categories-updated'));
         window.dispatchEvent(new CustomEvent('atlas-catalog-updated'));
