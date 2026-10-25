@@ -87,6 +87,9 @@ test('Live turn state preserves one response ID and cancels pending playback on 
   client.acceptMessage({type:'interrupted',responseId:'resp1'});
   assert.equal(client.playbackGeneration,1,'playback queue must be invalidated');
   assert.equal(states.at(-1),'listening');
+  const priorSubtitle = aiTexts.at(-1);
+  client.acceptMessage({type:'ai_text_chunk',responseId:'resp1',text:'این پیام دیر رسیده و باید حذف شود'});
+  assert.equal(aiTexts.at(-1),priorSubtitle, 'Stale interrupted audio transcript must not appear');
   client.acceptMessage({type:'ai_text_chunk',responseId:'resp2',text:'در مورد کاربرد بگویید.'});
   assert.equal(aiTexts.at(-1),'در مورد کاربرد بگویید.');
   client.acceptMessage({type:'turn_complete'});
