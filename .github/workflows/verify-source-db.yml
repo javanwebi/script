@@ -38,3 +38,5 @@ jobs:
         run: node --import tsx --test tests/forza-realtime.test.ts tests/forza-live-browser-simulation.test.ts tests/forza-worker-protocol.test.ts
       - name: Build static React frontend from source
         run: npm run build
+      - name: Probe real FORZA model via production Worker (temporary)
+        run: node scripts/forza-live-smoke.mjs
