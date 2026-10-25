@@ -75,3 +75,44 @@
 .category-showcase .category-showcase-products article strong {font-size:14px;}
 .category-showcase .category-showcase-products article a {font-size:12px;}
 }
+
+.category-showcase { --industry-orange:#e06518; background:linear-gradient(180deg,#f8f9fb 0,#fff 38%); }
+.category-showcase .category-showcase-hero {border:1px solid #303437;box-shadow:0 18px 38px #10131830; }
+.category-showcase .category-showcase-hero:before {content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 18%,#00000015 55%,#171b1fee 98%);z-index:1;pointer-events:none;}
+.category-showcase .category-showcase-hero > .relative {align-items:flex-start;}
+.category-hero-eyebrow {font-weight:800;font-size:12px;letter-spacing:.03em;color:#ffb78c;}
+.category-hero-eyebrow span {padding-inline:8px;color:white;}
+.category-hero-actions {display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;}
+.category-hero-actions a,.category-hero-actions button {display:inline-flex;gap:10px;align-items:center;justify-content:center;border-radius:10px;padding:13px 22px;font-weight:850;font-size:13px;border:1px solid #ffffff65;color:#fff;background:#ffffff15;backdrop-filter:blur(12px);}
+.category-hero-actions button {background:#e06518;border-color:#e06518;}
+.category-hero-actions a:hover {background:#ffffff35;}
+.category-showcase .category-showcase-families>button {background:linear-gradient(140deg,#fff 0%,#f0f1f3 100%);border:1px solid #e3e5e8;border-radius:15px;box-shadow:0 6px 20px #13151c10;}
+.category-showcase .category-showcase-families>button[aria-pressed=true] {background:linear-gradient(135deg,#fff8f2,#fff);border:2px solid #e06518;}
+.category-brand-ribbon {display:flex;align-items:center;gap:15px;min-height:72px;padding:13px 20px;background:#fff;border:1px solid #e9eaed;border-radius:16px;box-shadow:0 5px 22px #1720340a;}
+.category-brand-ribbon>strong {font-size:13px;white-space:nowrap;}
+.category-brand-ribbon>div {display:flex;align-items:center;overflow-x:auto;gap:8px;scrollbar-width:thin;flex:1;}
+.category-brand-ribbon>div button {min-width:94px;padding:10px 14px;border:1px solid #eee;border-radius:9px;background:#f9fafb;color:#333;font-weight:900;font-size:12px;direction:ltr;}
+.category-brand-ribbon>button {color:#e06518;font-size:12px;font-weight:800;white-space:nowrap;}
+.category-showcase .category-showcase-products article {border:1px solid #e9eaed;border-radius:15px;box-shadow:0 4px 15px #17203409;}
+.category-showcase .category-showcase-products article:hover {border-color:#e0651899;transform:translateY(-2px);box-shadow:0 13px 26px #17203416;}
+.category-showcase .category-showcase-product-media {background:radial-gradient(ellipse at center,#fff 20%,#f6f7f9 100%);}
+.category-industry-tile {position:relative;overflow:hidden;min-height:240px!important;display:block!important;padding:0!important;border-radius:14px;color:white!important;border:0!important;background:#191b1f!important;}
+.category-industry-tile img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s ease;}
+.category-industry-tile:hover img {transform:scale(1.07);}
+.category-industry-tile:after {content:"";position:absolute;inset:25% 0 0;background:linear-gradient(0deg,#080a0deb,transparent);}
+.category-industry-tile>div {position:absolute;z-index:2;bottom:0;right:0;left:0;padding:20px;display:flex;flex-direction:column;gap:5px;}
+.category-industry-tile strong {font-size:17px;}
+.category-industry-tile small {font-size:12px;color:#eee;}
+.category-industry-tile svg {position:absolute;left:15px;bottom:20px;color:#ff8a42;}
+.category-showcase .category-showcase-actions>a {position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(90deg,#fbece1 0%,#fff 75%);}
+.category-showcase .category-showcase-actions>a img {position:absolute;inset-inline-start:0;bottom:0;width:44%;height:100%;object-fit:cover;opacity:.53;z-index:-1;mask-image:linear-gradient(270deg,transparent,#000);}
+.category-showcase .category-showcase-actions>a.category-action-consult {background:linear-gradient(90deg,#e6ebfc,#fff);}
+@media(max-width:767px) {
+.category-hero-actions a,.category-hero-actions button {padding:10px 13px;font-size:11px;}
+.category-brand-ribbon {padding:10px;flex-direction:column;align-items:stretch;}
+.category-brand-ribbon>div button {min-width:80px;}
+.category-industry-tile {min-height:155px!important;}
+.category-industry-tile strong {font-size:13px;}
+.category-industry-tile small {font-size:10px;}
+.category-industry-tile>div {padding:12px;}
+}
