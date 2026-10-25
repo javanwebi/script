@@ -581,7 +581,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       isProcessingTurnRef.current = true;
       stopListening();
-      unlockAudio();
+      // No audio-unlock call here: it can accidentally replay the introduction
+      // while the customer's recording is being submitted.
       setStatus('thinking');
       setTurn('ai');
       activeTranscriptRef.current = '';
@@ -611,8 +612,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           });
           reader.readAsDataURL(audioBlob);
           const audioBase64 = await base64Promise;
-          payload.audioBase64 = audioBase64;
-          payload.audioMimeType = audioMime || audioBlob.type || 'audio/webm';
+          // Transcribe speech first so the customer's exact words appear
+          // immediately, before waiting on AI generation and spoken output.
+          const sttResponse = await fetch('/api/ai/forza-live', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              audioBase64,
+              audioMimeType:audioMime || audioBlob.type || 'audio/webm',
+              transcribeOnly:true,
+            }),
+          });
+          const sttData = await sttResponse.json().catch(()=>null);
+          if(!sttResponse.ok || !sttData?.success || !String(sttData.userTranscript||'').trim()){
+            throw new Error(sttData?.error||'گفتار واضحی دریافت نشد؛ لطفاً دوباره صحبت کنید.');
+          }
+          payload.query = String(sttData.userTranscript).trim();
+          setUserText(payload.query);
+          setMicrophoneError(null);
         }
 
         const res = await fetch('/api/ai/forza-live', {
@@ -652,7 +669,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, speakText, startListening, stopListening, unlockAudio]
+    [setStatus, speakText, startListening, stopListening]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -692,6 +709,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const audioBlob = new Blob(chunks, { type: finalMime });
             if (audioBlob.size > 1200) {
               void handleUserFinishedSpeaking('', audioBlob, finalMime);
+            } else {
+              setMicrophoneError('صدای ضبط‌شده خیلی کوتاه است؛ میکروفون را نزدیک‌تر کنید و دوباره صحبت کنید.');
             }
           }
         };
