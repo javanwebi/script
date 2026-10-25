@@ -10,6 +10,7 @@ import {
   Sparkles,
   Eye,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
@@ -97,6 +98,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     particles: 0,
   });
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
+  const lastPlayableVoiceRef = useRef<{ text:string; audioUrl:string } | null>(null);
   const [fullscreenError, setFullscreenError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -518,11 +521,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
+    setVoiceOutputError(null);
     setStatus('thinking');
     setTurn('ai');
     try {
       const speech=await requestSpeechAudio(text);
       if(speech.audioBase64) {
+        lastPlayableVoiceRef.current = {text,audioUrl:speech.audioBase64};
         try {
           await playDataUrl(speech.audioBase64);
           return;
@@ -542,6 +547,29 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       throw error;
     }
   },[playDataUrl,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
+
+  const replayAiVoice = useCallback(async () => {
+    const text = aiText.trim();
+    if (!text) return;
+    setVoiceOutputError(null);
+    // The previously synthesized audio is reused immediately on a real user
+    // gesture: no extra Gemini quota or network round-trip.
+    try {
+      const existing = lastPlayableVoiceRef.current;
+      if (existing?.text === text && existing.audioUrl) {
+        stopListening();
+        await playDataUrl(existing.audioUrl);
+      } else {
+        await speakText(text);
+      }
+    } catch (error:any) {
+      setVoiceOutputError(error?.message === 'autoplay_permission_required'
+        ? 'مرورگر به اجازه پخش صدا نیاز دارد؛ گزینه فعال‌کردن صدا را بزنید.'
+        : 'صدای فارسی ساخته یا پخش نشد. سرویس تولید صدا یا صدای فارسی مرورگر در دسترس نیست.');
+    } finally {
+      if (greetingFinishedRef.current) startListening();
+    }
+  },[aiText,playDataUrl,speakText,startListening,stopListening]);
 
   // A user gesture permits browser audio, but it never skips the greeting.
   const unlockAudio = useCallback(() => {
@@ -655,9 +683,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({ role: 'model', text: reply });
           setAiText(reply);
 
-          // Fast path: render transcription and AI reply immediately. TTS
-          // follows independently, avoiding extra seconds inside /forza-live.
-          await speakText(reply);
+          // Text arrives first; audio has its own failure state. A TTS error
+          // must never be misreported as an AI conversation failure.
+          try {
+            await speakText(reply);
+          } catch (voiceError: any) {
+            const blocked = voiceError?.message === 'autoplay_permission_required';
+            setVoiceOutputError(blocked
+              ? 'مرورگر جلوی پخش صدا را گرفت. روی «فعال‌کردن صدا» بزنید.'
+              : 'پخش صدای فارسی در دسترس نیست. «خواندن دوباره پاسخ» را امتحان کنید.');
+            console.warn('[FORZA Voice] Reply audio was not played',voiceError?.message || 'unknown');
+          }
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
@@ -1163,6 +1199,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </button>
           <button
             type="button"
+            onClick={() => { void replayAiVoice(); }}
+            disabled={!aiText.trim() || status === 'speaking'}
+            className="p-1 rounded-md text-[#dee2e5]/70 hover:text-white hover:bg-white/10 disabled:opacity-40"
+            title="خواندن دوباره پاسخ فورزا"
+            aria-label="خواندن دوباره پاسخ فورزا">
+            <RotateCcw size={14}/>
+          </button>
+          <button
+            type="button"
             onClick={() => setIsMicMuted(prev => {
               const next = !prev;
               micMutedRef.current = next;
@@ -1204,6 +1249,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </div>
         )}
 
+        {voiceOutputError && (
+          <div role="alert" className="pointer-events-auto self-end max-w-sm rounded-xl border border-orange-400/50 bg-black/90 px-3 py-2 text-xs text-orange-100">
+            {voiceOutputError}
+            <button type="button" onClick={() => { void replayAiVoice(); }}
+              className="mt-2 block rounded-md border border-orange-400/50 px-2 py-1 font-bold text-white hover:bg-orange-600/30">
+              خواندن دوباره پاسخ
+            </button>
+          </div>
+        )}
         {/* Browser Autoplay Unblock Badge */}
         {autoplayBlocked && (
           <button
