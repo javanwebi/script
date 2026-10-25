@@ -6,6 +6,7 @@ import { CATEGORIES, findCatalogCategory, matchesCatalogCategory } from '../data
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { getProductsByCategory } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
+import { ProductImage } from '../components/product/ProductImage';
 import { toPersianDigits } from '../utils/formatters';
 import {
   ChevronLeft,
@@ -19,7 +20,14 @@ import {
   RotateCcw,
   Boxes,
   ShieldCheck,
-  Check
+  Check,
+  Heart,
+  Truck,
+  Headphones,
+  Ruler,
+  Camera,
+  MessageCircle,
+  ChevronDown
 } from 'lucide-react';
 
 export const CategoryPage: React.FC = () => {
@@ -32,10 +40,12 @@ export const CategoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubcat, setSelectedSubcat] = useState<string>(subParam);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedProfile, setSelectedProfile] = useState('all');
   const [minLength, setMinLength] = useState('');
   const [maxLength, setMaxLength] = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isBeltCategory = category.name === 'تسمه و انتقال نیرو';
   const isClassicBelt = category.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
   const beltProfiles = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'];
   const beltLength = (product: { technicalSpecs: {key:string;value:string}[] }): number | null => {
@@ -113,6 +123,7 @@ export const CategoryPage: React.FC = () => {
         return length !== null && (min === null || length >= min) && (max === null || length <= max);
       });
     }
+    if (selectedBrands.length) list = list.filter(p => selectedBrands.includes(p.brand));
     if (selectedBrand !== 'all') {
       list = list.filter(p => p.brand === selectedBrand);
     }
@@ -132,7 +143,7 @@ export const CategoryPage: React.FC = () => {
     }
 
     return list;
-  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
+  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
 
   const paginated = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
@@ -144,13 +155,14 @@ export const CategoryPage: React.FC = () => {
     setMaxLength('');
     selectSubcategory('all');
     setSelectedBrand('all');
+    setSelectedBrands([]);
     setInStockOnly(false);
     setInquiryOnlyFilter(false);
     setSortBy('default');
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || inStockOnly || inquiryOnlyFilter || selectedProfile !== 'all' || minLength !== '' || maxLength !== '';
+  const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || selectedBrands.length > 0 || inStockOnly || inquiryOnlyFilter || selectedProfile !== 'all' || minLength !== '' || maxLength !== '';
 
   return (
     <div className="space-y-6 text-right pb-12" dir="rtl">
@@ -167,104 +179,62 @@ export const CategoryPage: React.FC = () => {
         <span className="text-slate-800 font-bold">{category.name}</span>
       </nav>
 
-      {/* Hero Category Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#484344] via-[#3A3637] to-[#484344] text-white rounded-3xl p-6 sm:p-8 lg:p-10 shadow-xl border border-slate-700/60">
-        <div className="absolute top-0 left-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -translate-x-1/3 -translate-y-1/3" />
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-slate-500/10 rounded-full blur-2xl pointer-events-none translate-x-1/3 translate-y-1/3" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-3 flex-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>دسته‌بندی تخصصی قطعات صنعتی</span>
+      {isBeltCategory ? (
+        <>
+          <section className="relative isolate min-h-[230px] overflow-hidden rounded-2xl bg-[#222529] text-white md:min-h-[290px]">
+            {category.image && <img src={category.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65" />}
+            <div className="absolute inset-0 bg-gradient-to-l from-[#202225] via-[#202225]/95 to-[#202225]/20"/>
+            <div className="absolute left-[27%] top-0 h-full w-[12%] -skew-x-[25deg] bg-[#E06518]/75"/>
+            <div className="relative z-10 flex min-h-[230px] flex-col justify-center gap-3 p-6 md:min-h-[290px] md:p-10">
+              <h1 className="text-2xl font-black md:text-4xl">تسمه و انتقال نیرو</h1>
+              <h2 className="text-lg font-bold md:text-2xl">{isClassicBelt ? 'تسمه‌های کلاسیک V' : selectedSubcat === 'all' ? 'انواع تسمه‌های صنعتی' : selectedSubcat}</h2>
+              <p className="max-w-[450px] text-xs leading-7 text-slate-200 md:text-sm">انتخاب سریع و دقیق تسمه مناسب خط تولید شما بر اساس خانواده، کد و مشخصات ثبت‌شده در کاتالوگ صنعت پیش.</p>
+              <div className="mt-2 flex flex-wrap gap-4 text-[11px] font-bold md:gap-7">
+                <span className="flex items-center gap-2"><ShieldCheck className="text-[#E06518]"/> انتخاب از کاتالوگ واقعی</span>
+                <span className="flex items-center gap-2"><Truck className="text-[#E06518]"/> استعلام تأمین و موجودی</span>
+                <span className="flex items-center gap-2"><Headphones className="text-[#E06518]"/> مشاوره تخصصی</span>
+              </div>
             </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
-              {category.name}
-            </h1>
-
-            <p className="text-slate-300 text-xs sm:text-sm max-w-3xl leading-relaxed">
-              {category.description}
-            </p>
-
-            {/* Quick Stats Badges */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 text-white border border-white/10 text-xs font-bold backdrop-blur-sm">
-                <Boxes className="w-3.5 h-3.5 text-orange-400" />
-                <span>{toPersianDigits(filteredProducts.length)} قلم کالا</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 text-white border border-white/10 text-xs font-bold backdrop-blur-sm">
-                <Layers className="w-3.5 h-3.5 text-orange-400" />
-                <span>{toPersianDigits(category.subcategories?.length || 0)} زیرگروه تخصصی</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 text-white border border-white/10 text-xs font-bold backdrop-blur-sm">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>گارانتی اصالت و سلامت فنی</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Category Image Box Showcase */}
-          {category.image && (
-            <div className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 rounded-2xl bg-white/95 p-3.5 border-2 border-white/20 shadow-2xl shrink-0 self-center md:self-auto flex items-center justify-center backdrop-blur-md">
-              <img
-                src={category.image}
-                alt={category.name}
-                className="w-full h-full object-contain hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Subcategories Megamenu Selection Showcase */}
-      {category.subcategories && category.subcategories.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#E06518]" />
-              <h2 className="text-sm sm:text-base font-extrabold text-[#484344]">
-                زیرگروه‌های تخصصی {category.name}
-              </h2>
-            </div>
-            {selectedSubcat !== 'all' && (
-              <button
-                onClick={() => {
-                  selectSubcategory('all');
-                  setPage(1);
-                }}
-                className="text-xs font-bold text-[#E06518] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <span>نمایش همه زیرگروه‌ها</span>
-              </button>
-            )}
-          </div>
-
-          <button type="button" onClick={() => selectSubcategory('all')} className="mb-3 px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-[#484344] hover:text-[#E06518]">همه محصولات این دسته</button>
-          <CategoryNavigation key={category.slug} nodes={category.children} categorySlug={category.slug} selected={selectedSubcat} onSelect={selectSubcategory} />
-        </div>
-      )}
-
-
-      {isClassicBelt && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-black text-[#2B313A]">انتخاب پروفیل تسمه کلاسیک V</h2>
-          <div className="flex flex-wrap gap-2" dir="ltr">
-            {['all', ...beltProfiles].map(profile => (
-              <button type="button" key={profile} aria-pressed={selectedProfile === profile}
-                onClick={() => { setSelectedProfile(profile); setPage(1); }}
-                className={`min-w-11 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${selectedProfile === profile ? 'border-[#E06518] bg-[#E06518] text-white' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-[#E06518]'}`}>
-                {profile === 'all' ? 'همه' : profile}
-              </button>
-            ))}
-          </div>
+          </section>
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" aria-label="خانواده‌های تسمه">
+            {[
+              {label:'کلاسیک',value:'کلاسیک',matcher:/کلاسیک/},
+              {label:'پروفیل باریک',value:'اسپشیال',matcher:/اسپشیال/},
+              {label:'تایمینگ',value:'تسمه تایمینگ',matcher:/تایمینگ/},
+              {label:'شیاری',value:'تسمه شیاری',matcher:/شیاری/},
+              {label:'گرد پلی‌یورتان',value:'تسمه گرد پلی اورتان',matcher:/گرد/},
+              {label:'CRC پنج‌ضلعی',value:'تسمه CRC پنج ضلعی',matcher:/CRC/},
+            ].map((item,index) => {
+              const image = rawData.products.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
+              return <button type="button" key={item.value} aria-pressed={selectedSubcat === item.value}
+                onClick={()=>selectSubcategory(item.value)} className={`flex h-20 items-center justify-between gap-1 overflow-hidden rounded-xl border px-3 text-xs font-extrabold transition-colors md:h-24 ${selectedSubcat===item.value ? 'border-[#E06518] bg-orange-50 text-[#E06518]' : 'border-slate-100 bg-[#f5f6f7] hover:border-orange-300'}`}>
+                <span>{item.label}</span>
+                {image ? <img src={image} alt="" loading="lazy" className="h-14 w-16 object-contain md:h-20 md:w-20"/> : <Layers size={25} className="text-slate-400"/>}
+              </button>;
+            })}
+          </section>
+          {isClassicBelt && <div className="flex flex-wrap items-center justify-center gap-2" dir="ltr">
+            {['all',...beltProfiles].map(profile=><button type="button" key={profile} aria-pressed={selectedProfile===profile} onClick={()=>{setSelectedProfile(profile);setPage(1);}}
+              className={`h-10 min-w-10 rounded-full px-3 text-xs font-bold ${selectedProfile===profile?'bg-[#E06518] text-white':'bg-[#f2f3f5] text-slate-700 hover:bg-orange-50'}`}>{profile==='all'?'همه':profile}</button>)}
+          </div>}
+        </>
+      ) : (
+        <section className="rounded-2xl bg-[#303337] p-8 text-white">
+          <h1 className="text-3xl font-black">{category.name}</h1>
+          <p className="mt-3 text-sm text-slate-200">{category.description}</p>
         </section>
+      )}
+      {!isBeltCategory && category.subcategories?.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <CategoryNavigation key={category.slug} nodes={category.children} categorySlug={category.slug} selected={selectedSubcat} onSelect={selectSubcategory}/>
+        </div>
       )}
       {/* In-Category Search & Sorting Toolbar */}
       <div
         ref={productsSectionRef}
         id="category-products-section"
-        className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4 scroll-mt-24"
+        className="bg-[#f7f8f9] rounded-xl border border-slate-100 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3 scroll-mt-24"
       >
         {/* Search within category */}
         <div className="relative w-full md:w-80">
@@ -364,30 +334,15 @@ export const CategoryPage: React.FC = () => {
                 </div>
               </div>
             )}
-            {/* Brand Filter */}
             {availableBrands.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="block text-xs font-extrabold text-[#2B313A]">
-                  برند تولیدکننده:
-                </label>
-                <select
-                  value={selectedBrand}
-                  onChange={e => {
-                    setSelectedBrand(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#E06518] font-medium"
-                >
-                  <option value="all">همه برندها ({toPersianDigits(availableBrands.length)})</option>
-                  {availableBrands.map(b => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <fieldset className="space-y-3 border-t border-slate-100 pt-3">
+                <legend className="text-xs font-extrabold text-slate-800">برند</legend>
+                {availableBrands.map(brand => <label key={brand} className="flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-700">
+                  <span>{brand} <span className="text-slate-400">({toPersianDigits(rawData.products.filter(p=>p.brand===brand).length)})</span></span>
+                  <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={e=>{setSelectedBrands(previous=>e.target.checked?[...previous,brand]:previous.filter(v=>v!==brand));setPage(1);}} className="h-4 w-4 accent-[#E06518]"/>
+                </label>)}
+              </fieldset>
             )}
-
             <label className="flex cursor-pointer items-center justify-between gap-2 rounded-xl bg-slate-50 p-2.5 text-xs font-bold">
               <span>فقط کالاهای دارای موجودی ثبت‌شده</span>
               <input type="checkbox" checked={inStockOnly} onChange={e => { setInStockOnly(e.target.checked); if (e.target.checked) setInquiryOnlyFilter(false); setPage(1); }} className="accent-[#E06518]"/>
@@ -442,9 +397,20 @@ export const CategoryPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {paginated.map(product => (
-                  <ProductCard key={product.code} product={product} />
+                  isBeltCategory ? (
+                    <article key={product.code} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="flex h-44 items-center justify-center rounded-lg bg-[#fafafa]">
+                        <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
+                      </Link>
+                      <div className="mt-3 flex items-center justify-between gap-2"><strong dir="ltr" className="text-base font-black text-slate-900">{product.code}</strong><span className="text-[11px] font-extrabold text-[#E06518]">{product.brand}</span></div>
+                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="mt-2 line-clamp-2 min-h-10 text-xs font-bold text-slate-800 hover:text-[#E06518]">{product.name}</Link>
+                      <p className="mt-1 text-[11px] text-slate-500">{product.subcategory}</p>
+                      <span className={`mt-2 text-[11px] font-bold ${product.stockKnown && product.stock > 0?'text-green-600':'text-slate-500'}`}>{product.stockKnown ? product.stock > 0 ? '● موجود در انبار' : 'موجودی تأیید نشده' : 'موجودی نیازمند استعلام'}</span>
+                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="mt-3 rounded-lg bg-[#E06518] py-2.5 text-center text-xs font-extrabold text-white hover:bg-[#bd5310]">استعلام قیمت</Link>
+                    </article>
+                  ) : <ProductCard key={product.code} product={product}/>
                 ))}
               </div>
 
@@ -482,6 +448,32 @@ export const CategoryPage: React.FC = () => {
           )}
         </div>
       </div>
+      {isBeltCategory && (
+        <>
+          <section className="rounded-2xl bg-[#fff8f3] p-5">
+            <h2 className="text-base font-black text-slate-900">راهنمای انتخاب سریع تسمه کلاسیک</h2>
+            <p className="mt-1 text-xs text-slate-500">در چهار مرحله مشخصات مورد نیاز را بررسی کنید.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                ['۱','شناسایی کاربرد','نوع دستگاه و شرایط کاری'],
+                ['۲','انتخاب پروفیل','انتخاب سری متناسب با دستگاه'],
+                ['۳','بررسی سایز','کنترل طول و مشخصات فنی'],
+                ['۴','استعلام و خرید','دریافت قیمت و موجودی واقعی'],
+              ].map(([step,title,description])=><div key={step} className="rounded-xl border border-orange-100 bg-white p-4"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 font-black text-[#E06518]">{step}</span><h3 className="mt-2 text-xs font-black">{title}</h3><p className="mt-1 text-[11px] text-slate-500">{description}</p></div>)}
+            </div>
+          </section>
+          <section>
+            <h2 className="mb-3 text-lg font-black">کاربردها در صنایع مختلف</h2>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {['کاشی و سرامیک','نساجی و پارچه','بسته‌بندی و کارتن‌سازی','غذایی و نوشیدنی'].map(name=><Link key={name} to="/industries" className="rounded-xl border border-slate-200 bg-white p-5 text-center text-xs font-black text-slate-700 hover:border-orange-400">{name}</Link>)}
+            </div>
+          </section>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Link to="/ai-visual-search" className="rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
+            <Link to="/ai-consult" className="rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
+          </div>
+        </>
+      )}
     </div>
   );
 };
