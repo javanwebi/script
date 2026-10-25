@@ -37,7 +37,7 @@ import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
-import { normalizePersianTranscript, verbalizeForzaTechnicalTerms } from './src/utils/forzaSpeechPipeline';
+import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
@@ -6071,7 +6071,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
       return res.status(503).json({ success: false, error: 'کلید پردازش صوتی Gemini در دسترس نیست' });
     }
 
-    const cleanAudioData = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    const cleanAudioData = extractForzaAudioBase64(audioBase64);
     let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
     if (!cleanAudioMime || !cleanAudioMime.startsWith('audio/')) {
       cleanAudioMime = 'audio/webm';
@@ -6195,7 +6195,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ audioBase64, audioMimeType }),
+            body: JSON.stringify({ audioBase64: extractForzaAudioBase64(audioBase64), audioMimeType }),
             signal: controller.signal,
           });
           const response = await result.json().catch(() => null) as any;
