@@ -1,0 +1,38 @@
+name: Verify catalog runtime split
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/db/catalogApi.ts'
+      - 'server/db/compactJson.ts'
+      - 'server/db/runtimeApi.ts'
+      - 'server.ts'
+      - 'src/main.tsx'
+      - 'src/services/catalogClient.ts'
+      - 'src/services/durableStorage.ts'
+      - 'src/components/catalog/CatalogRouteHydrator.tsx'
+      - 'tests/catalog-public-api.test.ts'
+      - '.github/workflows/catalog-runtime-split.yml'
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript typecheck
+        run: npm run lint
+      - name: Catalog API contract regression
+        run: node --import tsx --test tests/catalog-public-api.test.ts
+      - name: Database regression tests
+        run: npm run test:database
+      - name: Portal/auth regression tests
+        run: npm run test:portal
+      - name: Production build
+        run: npm run build
