@@ -4,6 +4,7 @@ import {refreshDurableStorage} from './services/durableStorage';
 import {installDatabaseReferences} from './data/databaseReferences';
 import {installDatabaseProducts} from './data/mockGenerator';
 import './index.css';
+import { wantsCatalogV2Preview, setCatalogV2GuestReady } from './services/catalogClient';
 
 function showBackendUnavailable(){
   // Keep the application shell visible, but do not serve stale bundled products
@@ -25,6 +26,7 @@ async function boot(){
   window.addEventListener('sanat-durable-hydrated',(event)=>{
     const data=(event as CustomEvent).detail;
     if(data?.database){
+      setCatalogV2GuestReady(wantsCatalogV2Preview() && !data.userId && !data.admin);
       installDatabaseReferences();
       installDatabaseProducts(data.products);
       document.getElementById('sanat-backend-status')?.remove();
@@ -39,7 +41,7 @@ async function boot(){
   let mountRevision=0;
   rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
   rerenderOnFirstDatabaseHydration();
-  void refreshDurableStorage().then(state=>{
+  void refreshDurableStorage({omitGuestCatalog:wantsCatalogV2Preview()}).then(state=>{
     if(!state.database)showBackendUnavailable();
   }).catch(error=>{
     console.error('[SanatPish] Express API unavailable; PostgreSQL product data will not be replaced with stale JSON.',error);
