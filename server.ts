@@ -39,6 +39,7 @@ import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandli
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
+import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
@@ -5829,9 +5830,12 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
 
       const inlineData = response?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
       if (inlineData?.data) {
-        const rawPcm = Buffer.from(inlineData.data, 'base64');
-        const wavBuffer = pcmToWav(rawPcm, 24000, 1, 16);
-        return wavBuffer;
+        const audioBytes = Buffer.from(inlineData.data, 'base64');
+        const kind = classifyForzaAudio(audioBytes, inlineData.mimeType);
+        if (kind === 'wav') return audioBytes;
+        if (kind === 'pcm16') return pcmToWav(audioBytes, 24000, 1, 16);
+        console.warn('[FORZA TTS] Direct Gemini returned unsupported audio format');
+        return null;
       }
     } catch (err: any) {
       const msg = err?.message || String(err);
@@ -5847,7 +5851,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
 }
 
 // Generate Native Persian Male Neural Speech with resilient Gemini TTS & Edge fallback
-async function generatePersianMaleSpeechEdge(text: string): Promise<Buffer | null> {
+async function generatePersianMaleSpeechEdge(text: string, skipGemini = false): Promise<Buffer | null> {
   const cleanKey = (text || '').trim();
   if (!cleanKey) return null;
 
@@ -5856,7 +5860,7 @@ async function generatePersianMaleSpeechEdge(text: string): Promise<Buffer | nul
   }
 
   // 1. Try Gemini Audio TTS (instant, crystal-clear male neural voice Charon)
-  const geminiBuffer = await generatePersianSpeechGemini(cleanKey, 'Charon');
+  const geminiBuffer = skipGemini ? null : await generatePersianSpeechGemini(cleanKey, 'Charon');
   if (geminiBuffer && geminiBuffer.length > 0) {
     if (ttsBufferCache.size > 200) {
       const firstKey = ttsBufferCache.keys().next().value;
@@ -5938,7 +5942,15 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
     const raw = data.audioBase64;
     if (raw.length > 8000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
     const bytes = Buffer.from(raw,'base64');
-    if (!bytes.length || bytes.length > 6000000 || bytes.byteLength % 2 !== 0) return null;
+    if (!bytes.length || bytes.length > 6000000) return null;
+    // Gemini 3.8 TTS returns a complete RIFF/WAVE file by default; older
+    // models can return headerless PCM. Never double-encode WAV as PCM.
+    const audioKind = classifyForzaAudio(bytes, data.mimeType);
+    if (audioKind === 'wav') return bytes;
+    if (audioKind !== 'pcm16') {
+      console.warn('[FORZA TTS] Worker returned an unsupported audio container');
+      return null;
+    }
     const rateMatch = /rate=(\d{4,6})/.exec(String(data.mimeType || ''));
     const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
     if (sampleRate < 8000 || sampleRate > 48000) return null;
@@ -6021,7 +6033,9 @@ app.post('/api/ai/tts', async (req, res) => {
 
     // 2. SECONDARY ENGINE: Edge TTS Farid Neural
     try {
-      const edgeBuf = await generatePersianMaleSpeechEdge(cleanedText);
+      // Gemini was already attempted above; Edge must return real MP3 here,
+      // never relabel a Gemini WAV buffer as audio/mp3.
+      const edgeBuf = await generatePersianMaleSpeechEdge(cleanedText, true);
       if (edgeBuf && edgeBuf.length > 0) {
         reportProvider('edge-farid-neural');
         const dataUrl = `data:audio/mp3;base64,${edgeBuf.toString('base64')}`;
