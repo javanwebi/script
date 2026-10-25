@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { ForzaRealtimeClient } from './forzaRealtimeClient';
-import { analyzePersianSentenceCompletion } from '../../utils/silenceDetector';
 import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs } from '../../utils/forzaSpeechPipeline';
 import './style.css';
 
@@ -269,7 +268,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               // Sound detected previously, now user paused
               if (!silenceTimerRef.current) {
                 const currentText = activeTranscriptRef.current?.trim() || '';
-                const analysis = analyzePersianSentenceCompletion(currentText);
                 const pauseMs = forzaEndOfTurnPauseMs(currentText, !currentText);
 
                 silenceTimerRef.current = window.setTimeout(() => {
