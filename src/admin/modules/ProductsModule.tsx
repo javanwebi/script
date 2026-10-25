@@ -1546,7 +1546,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200/80 text-slate-700">
-                      {toPersianDigits(catalogFamilyCount(products,cat.name || cat.slug))} خانواده
+                      {toPersianDigits(catalogFamilyCount(products,products.find(p => p.categorySlug === cat.slug)?.categoryName || cat.name))} خانواده
                     </span>
                   </div>
 
@@ -1580,7 +1580,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     /{cat.slug}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={()=>openFamiliesInCategory(cat.name || cat.slug)}
+                    <button type="button" onClick={()=>openFamiliesInCategory(cat.slug)}
                       className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#C65A16] border border-orange-200 text-xs font-bold">
                       مشاهده خانواده‌ها
                     </button>
