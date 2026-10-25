@@ -22,7 +22,7 @@ interface AiForzaCallExperienceProps {
 
 type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-const GREETING_TEXT = 'من هوش مصنوعی فورزا، مشاور فنی صنعت پیش با شعار پیش به صنعت هستم. بفرمایید، در خدمت شما هستم.';
+const GREETING_TEXT = 'سلام، خوش آمدید به صنعت پیش. من فورزا، دستیار هوشمند فنی شما هستم. می‌توانم در شناسایی قطعات صنعتی، انتخاب تسمه و پولی، بررسی کد بلبرینگ و مشخصات فنی، پیدا کردن قطعه مناسب دستگاه‌ها و راهنمایی استعلام محصول کمک کنم. بفرمایید، چه کاری براتون انجام بدم؟';
 
 const QUICK_TOPICS = [
   'محاسبه طول و گام تسمه تایمینگ PU',
@@ -137,7 +137,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (mode === 'native') {
           setStatus('listening');
           setTurn('user');
-          setAiText('تماس زنده برقرار شد؛ صحبتتان را کامل کنید.');
+          setAiText(GREETING_TEXT);
         }
       },
       onStatus: next => {
@@ -154,10 +154,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     void client.start();
   }, [setStatus]);
 
-  useEffect(() => () => {
-    realtimeRef.current?.stop();
-    realtimeRef.current = null;
-  }, []);
+  useEffect(() => {
+    // Open the session immediately on page entry; no start-call button.
+    // Browser microphone and speaker permissions are requested only by the
+    // browser; if autoplay is disallowed, the UI offers an audio unlock.
+    startRealtime();
+    return () => {
+      realtimeRef.current?.stop();
+      realtimeRef.current = null;
+    };
+  }, [startRealtime]);
 
   // Start/Stop voice listening helpers
   const startListening = useCallback(() => {
@@ -1001,16 +1007,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if ((e.target as HTMLElement).tagName === 'CANVAS') setClean(c => !c);
       }}
     >
-      {(voiceMode === 'pending' || voiceMode === 'connecting' || voiceMode === 'unavailable') && (
-        <div dir="rtl" className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-[90vw] text-center">
-          <button type="button" disabled={voiceMode === 'connecting'} onClick={startRealtime}
-            className="px-6 py-3 rounded-full text-sm font-black bg-[#E06518] hover:bg-[#C95210] text-white shadow-xl border border-white/20 disabled:opacity-60">
-            <Mic size={16} className="inline ml-2" />
-            {voiceMode === 'connecting' ? 'در حال اتصال به تماس زنده...' : voiceMode === 'unavailable' ? 'تلاش مجدد برای تماس' : 'شروع مکالمه زنده FORZA'}
-          </button>
-          <span className="text-xs text-white/80 bg-black/60 rounded-xl px-3 py-2">
-            پس از اتصال صحبت کنید؛ فورزا تا پایان صحبت شما گوش می‌دهد.
-          </span>
+      {(voiceMode === 'pending' || voiceMode === 'connecting') && (
+        <div dir="rtl" role="status"
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-40 rounded-xl border border-white/20 bg-black/75 px-4 py-2 text-xs text-white">
+          در حال برقراری اتصال فورزا...
+        </div>
+      )}
+      {voiceMode === 'unavailable' && (
+        <div dir="rtl" role="status"
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-40 rounded-xl border border-red-500/50 bg-black/80 px-4 py-2 text-xs text-white">
+          اتصال صوتی برقرار نشد. برای تلاش مجدد صفحه را تازه‌سازی کنید.
         </div>
       )}
       {/* 1. Permanent Holographic Particle Mesh Avatar Engine */}
