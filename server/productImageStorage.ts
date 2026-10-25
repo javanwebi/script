@@ -49,13 +49,12 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   const match=/^e\(([1-9]\d{0,3})\)\.png$/.exec(file);
   if(!match||Number(match[1])>869)return res.status(404).end();
   const persistentRoot=path.join(root,'catalog');
-  // Original images are checked into the site source, so they remain available
-  // even if the Railway volume is replaced; new uploads still use the volume.
-  const vendoredRoot=path.join(process.cwd(),'storage','products','catalog');
+  // The mounted /data volume is authoritative. Never fall back to checked-in
+  // GitHub images when an original is missing: return 404 for repair instead.
   const onVolume=await fs.stat(path.join(persistentRoot,file))
     .then(info=>info.isFile()).catch(()=>false);
-  const from=onVolume?persistentRoot:vendoredRoot;
-  return res.sendFile(file,{root:from,dotfiles:'deny',
+  if(!onVolume)return res.status(404).end();
+  return res.sendFile(file,{root:persistentRoot,dotfiles:'deny',
    headers:{'Cache-Control':'public, max-age=2592000, immutable',
     'Content-Type':'image/png','X-Content-Type-Options':'nosniff'}
   },error=>{
@@ -85,14 +84,13 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   if(!match||Number(match[1])>869)return res.status(404).end();
   const sourceName='e('+match[1]+').png';
   const onVolume=path.join(root,'catalog',sourceName);
-  const vendored=path.join(process.cwd(),'storage','products','catalog',sourceName);
   const destination=path.join(root,'thumbs',name);
   try{
    if(!(await fs.stat(destination).then(s=>s.isFile()&&s.size>0).catch(()=>false))){
     let pending=thumbnailsInFlight.get(name);
     if(!pending){
      pending=(async()=>{
-      const src=await fs.stat(onVolume).then(s=>s.isFile()?onVolume:null).catch(()=>null)||vendored;
+      const src=onVolume;
       if(!(await fs.stat(src).then(s=>s.isFile()).catch(()=>false)))
        throw Object.assign(new Error('Image not found'),{status:404});
       await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o750});

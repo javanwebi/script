@@ -12,9 +12,11 @@ export const PERSISTENT_CATALOG_IMAGE_BASE='/storage/products/catalog';
 export function normalizeImageFileName(imageName?:string|null):string {
  if(!imageName)return '';
  const value=imageName.trim();
- const match=value.match(/(?:e\(?|at-e)?(\d+)\)?(?:\.(png|jpe?g|webp|svg))?/i);
+ // Accept complete, verified catalogue filenames only. Never infer a SKU
+ // image from an arbitrary digit inside a URL or malformed path.
+ const match=/^(?:e\(?([1-9]\d{0,3})\)?|at-e0*([1-9]\d{0,3}))(?:\.(?:png|jpe?g|webp|svg))?$/i.exec(value);
  if(!match)return '';
- const n=Number(match[1]);
+ const n=Number(match[1] || match[2]);
  return Number.isInteger(n)&&n>=1&&n<=869?`e(${n}).png`:'';
 }
 export function isVerifiedCatalogueImage(imageName?:string|null):boolean {
@@ -38,12 +40,19 @@ export function getProductImageUrl(imageName?:string|null):string {
  const input=imageName.trim();
  // Server-uploaded images are also on the same persistent mounted Volume.
  if(/^\/storage\/products\/[a-f0-9-]{36}\.webp$/.test(input))return input;
+ // Verified legacy JPEGs and derived thumbnail files remain on the same volume.
+ if(/^\/storage\/products\/legacy-jpg\/images\/e\([1-9]\d{0,3}\)\.jpg$/.test(input))return input;
+ if(/^\/storage\/products\/thumbs\/e\(([1-9]\d{0,3})\)\.webp$/.test(input))return input;
  const local=/^\/storage\/products\/catalog\/(e\([1-9]\d{0,3}\)\.png)$/.exec(input);
  if(local)return normalizeImageFileName(local[1])?input:'';
  // Normalize historical GitHub links; they must not reach the browser once migrated.
  const historical=oldGithubOfficialFile(input);
  if(historical)return `${PERSISTENT_CATALOG_IMAGE_BASE}/${historical}`;
- if(/^(https?:|data:|blob:)/i.test(input))return input;
+ // Data/blob URLs are allowed only for unsaved local image previews in admin.
+ // Persisted product images must be served from the mounted Storage volume.
+ if(/^(blob:|data:image\/(?:png|jpeg|webp);base64,)/i.test(input))return input;
+ // Do not silently load unknown remote product images from GitHub or a CDN.
+ if(/^https?:/i.test(input))return '';
  const file=normalizeImageFileName(input);
  return file?`${PERSISTENT_CATALOG_IMAGE_BASE}/${file}`:'';
 }

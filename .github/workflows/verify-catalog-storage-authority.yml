@@ -1,0 +1,37 @@
+name: Verify catalog database and storage authority
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server.ts'
+      - 'server/productImageStorage.ts'
+      - 'src/assets/imagesproducts.ts'
+      - 'src/components/product/ProductImage.tsx'
+      - 'tests/catalog-storage-authority.test.ts'
+      - '.github/workflows/verify-catalog-storage-authority.yml'
+  push:
+    branches: [hardening/catalog-db-volume-only-20261026]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Typescript
+        run: npm run lint
+      - name: Catalog Storage source and URL regression tests
+        run: node --import tsx --test tests/catalog-storage-authority.test.ts
+      - name: Database compatibility
+        run: npm run test:database
+      - name: Portal and auth compatibility
+        run: npm run test:portal
+      - name: Production Vite build
+        run: npm run build

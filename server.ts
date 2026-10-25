@@ -6782,9 +6782,12 @@ async function start() {
       }, 500);
       warm.unref();
     }
-    // Non-destructive background import: verify every source Git blob first,
-    // then atomically switch PostgreSQL image links to volume-local URLs.
-    void beginImageVolumeMigration(productStorageDirectory(),async()=>{
+    // Legacy image importer is opt-in only; never migrate or contact GitHub during ordinary startup.
+    // Normal requests must never depend on GitHub, local source images or
+    // background catalog URL rewrites. Enable this only for a planned,
+    // operator-controlled migration after verifying mounted storage.
+    if (process.env.CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT === 'true')
+      void beginImageVolumeMigration(productStorageDirectory(),async()=>{
       const [images,photos,products]=await Promise.all([
         database().query('select file_name,image_url,sha256,observed_description from public.catalog_image_audits order by file_name'),
         database().query('select file_name,catalogue_group from public.owner_catalogue_photos order by file_name'),
@@ -6794,7 +6797,7 @@ async function start() {
       installDatabaseProducts(products);
       refreshRecognitionCatalog();
       primePublicCatalogCache(products);
-    });
+      });
   });
 }
 

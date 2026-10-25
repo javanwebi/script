@@ -1,23 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
-const RAW = "https://raw.githubusercontent.com/javanweb/imagesatlas/main/";
-const CDN = "https://cdn.jsdelivr.net/gh/javanweb/imagesatlas@main/";
-/** Retry the same official image on an alternate host; never substitute another SKU's photo. */
+import { getProductImageUrl } from "../../assets/imagesproducts";
+/** Product pictures come from the mounted volume; never retry from GitHub/CDN. */
 export const ProductImage: React.FC<
   React.ImgHTMLAttributes<HTMLImageElement> & { thumbnail?: boolean }
 > = ({ src, alt, className, onError, thumbnail = false, ...props }) => {
   const [attempt, setAttempt] = useState(0);
   useEffect(() => setAttempt(0), [src]);
-  const candidates = src?.startsWith(RAW)
-    ? [CDN + src.slice(RAW.length), src]
-    : src?.startsWith(CDN)
-      ? [src, RAW + src.slice(CDN.length)]
-      : src
-        ? [src]
-        : [];
+  const normalized = getProductImageUrl(src);
+  const candidates = normalized ? [normalized] : [];
   // Listing cards get a compact derivative, while detail images keep their original resolution.
   // The original image is tried automatically if a thumbnail is not available yet.
-  const original = src?.match(/^\/storage\/products\/catalog\/e\(([1-9]\d{0,3})\)\.png$/);
+  const original = normalized.match(/^\/storage\/products\/catalog\/e\(([1-9]\d{0,3})\)\.png$/);
   if (thumbnail && original) {
     candidates.unshift('/storage/products/thumbs/e(' + original[1] + ').webp');
   }
