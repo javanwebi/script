@@ -6617,6 +6617,19 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
+    // One-time opt-in smoke check: exercise the REAL configured Cloudflare
+    // Worker with its bound Gemini secret, without exposing credentials.
+    if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
+      const probe = setTimeout(() => {
+        void callAtlasAiWorkerChat([
+          { role: 'system', content: 'به زبان فارسی، بسیار کوتاه و دوستانه پاسخ بده.' },
+          { role: 'user', content: 'سلام' },
+        ], { model: 'gemini-2.5-flash', forzaChat: true, timeoutMs: 10000 })
+          .then(reply => console.info('[FORZA provider smoke test] SUCCESS; response characters:', reply.length))
+          .catch(error => console.warn('[FORZA provider smoke test] FAILED:', String(error?.message || error).slice(0, 140)));
+      }, 4000);
+      probe.unref();
+    }
     // Non-destructive background import: verify every source Git blob first,
     // then atomically switch PostgreSQL image links to volume-local URLs.
     void beginImageVolumeMigration(productStorageDirectory(),async()=>{
