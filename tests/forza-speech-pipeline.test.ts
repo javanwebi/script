@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   extractPersianSpeechRecognition, forzaEndOfTurnPauseMs,
-  normalizePersianTranscript, verbalizeForzaTechnicalTerms,
+  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -39,4 +39,14 @@ test('Only the spoken copy expands industrial codes, never the underlying SKU',(
   assert.match(spoken,/آی اِس اُ/);
   assert.equal(technical,'بلبرینگ 6205-2RS با لقی C3 و تسمه PK، استاندارد ISO');
   assert.equal(verbalizeForzaTechnicalTerms(''),'');
+});
+
+test('Chrome MediaRecorder codec-specific data URLs are valid for Worker STT',()=>{
+  const bytes=Buffer.from([0x1a,0x45,0xdf,0xa3,0x00,0x01]);
+  const base64=bytes.toString('base64');
+  assert.equal(extractForzaAudioBase64('data:audio/webm;codecs=opus;base64,'+base64),base64);
+  assert.equal(extractForzaAudioBase64('data:audio/mp4;codecs=mp4a.40.2;base64,'+base64),base64);
+  assert.equal(extractForzaAudioBase64('data:audio/wav;base64,'+base64),base64);
+  assert.equal(extractForzaAudioBase64(base64),base64);
+  assert.throws(()=>extractForzaAudioBase64('data:audio/webm;codecs=opus,'+base64),/Invalid encoded audio/);
 });
