@@ -6102,9 +6102,9 @@ app.post('/api/ai/forza-live', async (req, res) => {
       try {
         const workerUrl = configuredForzaWorkerUrl();
         const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
-        const token = (sameRecognitionOrigin
+        const token = ((sameRecognitionOrigin
           ? process.env.PART_RECOGNITION_WORKER_TOKEN
-          : process.env.FORZA_WORKER_TOKEN || '').trim();
+          : process.env.FORZA_WORKER_TOKEN) || '').trim();
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 19000);
         try {
