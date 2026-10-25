@@ -45,10 +45,14 @@ export function normalizePersianTranscript(value: string): string {
     .trim();
 }
 
-/** Longer pauses protect thought breaks and provisional recognizer text. */
+/** Finish complete questions quickly, but preserve natural mid-thought pauses.
+ * No fixed 2.3s delay after every recognition event.
+ */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
-  const suggested = analyzePersianSentenceCompletion(text).recommendedPauseMs;
-  return Math.min(3200, Math.max(hasInterim ? 2300 : 1550, suggested));
+  const analysis = analyzePersianSentenceCompletion(text);
+  if (analysis.isMidThought) return hasInterim ? 1900 : 1750;
+  if (hasInterim) return 1100;
+  return Math.min(950, Math.max(700, analysis.recommendedPauseMs - 100));
 }
 
 /**
