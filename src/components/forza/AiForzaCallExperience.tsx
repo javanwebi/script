@@ -773,6 +773,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       rec.onend = () => {
         isRecognitionActiveRef.current = false;
+        if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
         // Auto-restart recognition if call is still active and listening
         if (isCallActive && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
           window.setTimeout(() => {
@@ -853,8 +854,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       streamRef.current=null;
       stopAudio();
     };
-  },[particlesFormed,ensureCtx,setupMediaRecorder,initSpeechRecognition,
-    speakText,startListening,stopListening,stopAudio,setStatus]);
+  // A scene starts once. Changing TTS/recognition callbacks must not tear down
+  // the stream mid-greeting or permanently disable the microphone.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[particlesFormed]);
 
   const endCall = useCallback(() => {
     stopAudio();
@@ -1119,6 +1122,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             <MessageSquare size={13} />
           </button>
         </div>
+
+        {microphoneError && (
+          <div role="alert" className="pointer-events-auto self-end max-w-sm text-right rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-xs text-amber-200">
+            {microphoneError}
+          </div>
+        )}
+        {greetingPhase === 'forming' && (
+          <div role="status" className="pointer-events-none self-end rounded-xl bg-black/80 px-3 py-2 text-xs text-white">
+            در حال تکمیل ذرات فورزا...
+          </div>
+        )}
+        {greetingPhase === 'preparing' && (
+          <div role="status" className="pointer-events-none self-end rounded-xl bg-black/80 px-3 py-2 text-xs text-white">
+            در حال آماده‌سازی صدای خوشامدگویی...
+          </div>
+        )}
 
         {/* Browser Autoplay Unblock Badge */}
         {autoplayBlocked && (
