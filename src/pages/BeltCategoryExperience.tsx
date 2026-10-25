@@ -8,7 +8,6 @@ import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGene
 import { matchesCatalogCategory } from '../data/categories';
 import { matchesProductSearch } from '../data/userProducts';
 import { toPersianDigits } from '../utils/formatters';
-import heroFallback from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import industryCeramic from '../assets/images/ind_ceramic_1789372889504.jpg';
 import industryTextile from '../assets/images/ind_textile_1789372911510.jpg';
 import industryPackaging from '../assets/images/ind_factory_1789372929899.jpg';
@@ -106,7 +105,7 @@ export const BeltCategoryExperience: React.FC = () => {
   const [filters, setFilters] = useState<Filters>(blankFilters);
   const [draft, setDraft] = useState<Filters>(blankFilters);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [heroFailed, setHeroFailed] = useState(false);
+
   const [page, setPage] = useState(1);
   const productsRef = useRef<HTMLDivElement>(null);
   const firstSheetButton = useRef<HTMLButtonElement>(null);
@@ -164,7 +163,7 @@ export const BeltCategoryExperience: React.FC = () => {
   return <main className="bce" dir="rtl">
     <div className="bce-breadcrumb"><Link to="/">خانه</Link><ChevronLeft size={14}/><Link to="/categories">دسته‌بندی کالاها</Link><ChevronLeft size={14}/><strong>تسمه و انتقال نیرو</strong></div>
     <section className="bce-hero" aria-labelledby="bce-hero-title">
-      <img className="bce-hero-photo" src={heroFailed ? heroFallback : '/images/belt-hero-cinematic.webp'} onError={() => setHeroFailed(true)} alt="مجموعه پولی و تسمه انتقال نیرو در خط تولید صنعتی"/>
+      <img className="bce-hero-photo" src="/images/belt-hero-cinematic.webp" alt="مجموعه پولی و تسمه انتقال نیرو در خط تولید صنعتی"/>
       <div className="bce-hero-wash"/><div className="bce-hero-slash"/>
       <div className="bce-hero-content"><span className="bce-kicker"><Zap size={15}/> سامانه تخصصی قطعات خطوط تولید</span>
         <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های کلاسیک V' : 'انتخاب حرفه‌ای قطعات انتقال قدرت'}</em></h1>
@@ -178,7 +177,7 @@ export const BeltCategoryExperience: React.FC = () => {
       <div className="bce-family-grid">{FAMILY_OPTIONS.map((item, i) => {
         const sample = allProducts.find(p => matchesCatalogCategory(p, BELT_SLUG, item.id) && p.images?.[0]);
         return <button type="button" key={item.id} aria-pressed={selectedFamily === item.id} onClick={() => chooseFamily(item.id)} className={'bce-family-tile ' + (selectedFamily === item.id ? 'selected' : '')}>
-          <span className="bce-family-image">{sample?.images?.[0] ? <img src={sample.images[0]} alt="" loading="lazy"/> : <Layers3 size={39}/>}</span>
+          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <span className="bce-family-placeholder"><Layers3 size={23}/><small>تصویر محصول موجود نیست</small></span>}</span>
           <span className="bce-family-name">{item.title}</span><small dir="ltr">{item.subtitle}</small><span className="bce-family-chevron"><ChevronLeft size={15}/></span>
         </button>;
       })}</div>
