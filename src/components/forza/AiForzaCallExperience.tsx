@@ -12,8 +12,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { ForzaRealtimeClient } from './forzaRealtimeClient';
 import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms } from '../../utils/forzaSpeechPipeline';
+import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import './style.css';
 
 interface AiForzaCallExperienceProps {
@@ -22,7 +22,7 @@ interface AiForzaCallExperienceProps {
 
 type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-const GREETING_TEXT = 'سلام، خوش آمدید به صنعت پیش. من فورزا، دستیار هوشمند فنی شما هستم. می‌توانم در شناسایی قطعات صنعتی، انتخاب تسمه و پولی، بررسی کد بلبرینگ و مشخصات فنی، پیدا کردن قطعه مناسب دستگاه‌ها و راهنمایی استعلام محصول کمک کنم. بفرمایید، چه کاری براتون انجام بدم؟';
+const GREETING_TEXT = FORZA_GREETING_TEXT;
 
 const QUICK_TOPICS = [
   'محاسبه طول و گام تسمه تایمینگ PU',
@@ -71,8 +71,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
   const [isUserSpeaking, setIsUserSpeaking] = useState<boolean>(false);
-  const [voiceMode, setVoiceMode] = useState<'pending' | 'connecting' | 'native' | 'legacy' | 'unavailable'>('pending');
-  const realtimeRef = useRef<ForzaRealtimeClient | null>(null);
+  // The configured provider speaks via STT -> text -> TTS, not Gemini Live WS.
+  const voiceMode = 'legacy' as const;
+  const [particlesFormed, setParticlesFormed] = useState(false);
+  const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
+  const greetingStartedRef = useRef(false);
+  const greetingFinishedRef = useRef(false);
+  const micMutedRef = useRef(false);
+  const speechInterimRef = useRef(false);
+  const pendingAudioResolveRef = useRef<(() => void) | null>(null);
+  const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
+  const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
     fps: null,
@@ -125,49 +134,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatusState(s);
   }, []);
 
-  // Explicit user click unlocks microphone and audio output.
-  const startRealtime = useCallback(() => {
-    realtimeRef.current?.stop();
-    realtimeRef.current = null;
-    setErrorNotice(null);
-    setVoiceMode('connecting');
-    const client = new ForzaRealtimeClient({
-      onMode: mode => {
-        setVoiceMode(mode);
-        if (mode === 'native') {
-          setStatus('listening');
-          setTurn('user');
-          setAiText(GREETING_TEXT);
-        }
-      },
-      onStatus: next => {
-        setStatus(next);
-        setTurn(next === 'listening' ? 'user' : 'ai');
-        if (next !== 'listening') setIsUserSpeaking(false);
-      },
-      onUserText: text => { setUserText(text); setIsUserSpeaking(true); },
-      onAiText: text => { setAiText(text); },
-      onLevel: value => setAudioLevel(value),
-      onError: message => setErrorNotice(message),
-    });
-    realtimeRef.current = client;
-    void client.start();
-  }, [setStatus]);
-
-  useEffect(() => {
-    // Open the session immediately on page entry; no start-call button.
-    // Browser microphone and speaker permissions are requested only by the
-    // browser; if autoplay is disallowed, the UI offers an audio unlock.
-    startRealtime();
-    return () => {
-      realtimeRef.current?.stop();
-      realtimeRef.current = null;
-    };
-  }, [startRealtime]);
-
   // Start/Stop voice listening helpers
   const startListening = useCallback(() => {
-    if (!isCallActive || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
+    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
       return;
     }
 
@@ -268,7 +237,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               // Sound detected previously, now user paused
               if (!silenceTimerRef.current) {
                 const currentText = activeTranscriptRef.current?.trim() || '';
-                const pauseMs = forzaEndOfTurnPauseMs(currentText, !currentText);
+                const pauseMs = forzaEndOfTurnPauseMs(currentText, speechInterimRef.current);
 
                 silenceTimerRef.current = window.setTimeout(() => {
                   silenceTimerRef.current = null;
@@ -937,8 +906,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [voiceMode]);
 
   const endCall = useCallback(() => {
-    realtimeRef.current?.stop();
-    realtimeRef.current = null;
     stopAudio();
     if (recognitionRef.current) {
       try {
@@ -955,11 +922,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [onClose, stopAudio]);
 
   const submitUserText = (text: string) => {
-    if (voiceMode === 'native') {
-      realtimeRef.current?.sendText(text);
-      return;
-    }
-    if (voiceMode === 'legacy') void handleUserFinishedSpeaking(text);
+    if (greetingFinishedRef.current) void handleUserFinishedSpeaking(text);
   };
 
   const toFarsiDigits = (n: number | string) => {
@@ -989,18 +952,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if ((e.target as HTMLElement).tagName === 'CANVAS') setClean(c => !c);
       }}
     >
-      {(voiceMode === 'pending' || voiceMode === 'connecting') && (
-        <div dir="rtl" role="status"
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-40 rounded-xl border border-white/20 bg-black/75 px-4 py-2 text-xs text-white">
-          در حال برقراری اتصال فورزا...
-        </div>
-      )}
-      {voiceMode === 'unavailable' && (
-        <div dir="rtl" role="status"
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-40 rounded-xl border border-red-500/50 bg-black/80 px-4 py-2 text-xs text-white">
-          اتصال صوتی برقرار نشد. برای تلاش مجدد صفحه را تازه‌سازی کنید.
-        </div>
-      )}
       {/* 1. Permanent Holographic Particle Mesh Avatar Engine */}
       <ParticleAvatar
         ref={avatarRef}
@@ -1011,6 +962,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         quality={quality}
         background={true}
         onStats={s => setStats(prev => ({ ...prev, ...s }))}
+        onFormed={() => setParticlesFormed(true)}
       />
 
       {/* Hidden HTML5 audio element for direct, crystal-clear Persian TTS streaming */}
@@ -1187,7 +1139,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               setIsSpeakerMuted(prev => {
                 const next = !prev;
                 if (audioElRef.current) audioElRef.current.muted = next;
-                realtimeRef.current?.setSpeakerMuted(next);
                 return next;
               });
             }}
@@ -1202,7 +1153,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             type="button"
             onClick={() => setIsMicMuted(prev => {
               const next = !prev;
-              realtimeRef.current?.setMicMuted(next);
               return next;
             })}
             className={`p-1 rounded-md cursor-pointer ${isMicMuted ? 'text-red-400' : 'text-[#dee2e5]/70 hover:text-white'}`}
