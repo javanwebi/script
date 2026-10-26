@@ -86,12 +86,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [categoryImageUploading, setCategoryImageUploading] = useState(false);
   const [categorySavePending, setCategorySavePending] = useState(false);
   const [categorySaveError, setCategorySaveError] = useState('');
+  const [categoryImageCandidate,setCategoryImageCandidate] = useState('');
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [brandSpecialtyInput, setBrandSpecialtyInput] = useState('');
   const [brandBadgeAccent, setBrandBadgeAccent] = useState('#E06518');
 
-  const handleOpenCategoryModal = (cat?: Category) => {
+  const handleOpenCategoryModal = (cat?: Category,candidateImage = '') => {
+    setCategoryImageCandidate(candidateImage&&!candidateImage.startsWith('blob:')?candidateImage:'');
     if (cat) {
       setEditingCategory({
         ...cat,
@@ -103,7 +105,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       const nextId = Math.max(0, ...categories.map(c => Number(c.id) || 0)) + 1;
       setEditingCategory({
         id: nextId,
-        slug: `cat-${nextId}`,
+        slug: '',
         name: '',
         nameEn: '',
         description: '',
@@ -141,6 +143,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       adminService.saveCategory(toSave);
       await flushDurableChanges();
       setCategories(adminService.getCategories());
+      window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{detail:{categoryName:toSave.name}}));
       setIsCategoryModalOpen(false);
       setEditingCategory(null);
     } catch (error) {
@@ -283,6 +286,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Draft Family being edited
   const [draftFamily, setDraftFamily] = useState<Product | null>(null);
+  const [familySavePending,setFamilySavePending] = useState(false);
+  const [pendingFamilyUpload,setPendingFamilyUpload] = useState<File|null>(null);
+  const [pendingFamilyImageTitle,setPendingFamilyImageTitle] = useState('');
   // Active variant code being edited inside Tab 2 ("variants")
   const [editingVariantCode, setEditingVariantCode] = useState<string>('');
   const [showSkuTechnicalSpecs, setShowSkuTechnicalSpecs] = useState(false);
@@ -450,6 +456,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     };
 
     setIsCreatingNewFamily(true);
+    setPendingFamilyUpload(null);
+    setPendingFamilyImageTitle('');
     setDraftFamily(newFam);
     setEditingVariantCode(firstSkuCode);
     setNewImgVariantCode(firstSkuCode);
@@ -491,6 +499,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
     const firstCode = variantsCopy[0]?.code || '';
     setIsCreatingNewFamily(false);
+    setPendingFamilyUpload(null);
+    setPendingFamilyImageTitle('');
     setDraftFamily({
       ...product,
       active: product.active ?? true,
