@@ -5879,6 +5879,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
       quotaId?: string;
       retryAfterSeconds?: number;
       cooldownMs?: number;
+      providerMessage?: string;
     }> = [];
     let lastCategory = 'speech_unavailable';
 
@@ -5953,7 +5954,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
             geminiTtsModelCooldowns.set(model.id, Date.now() + cooldownMs);
             geminiTtsModelCooldownReasons.set(model.id, 'quota');
             lastCategory = 'tts_quota_exhausted';
-            attempts.push({ model: model.id, category: 'quota', status: response.status, quotaMetric, quotaId, retryAfterSeconds: retrySeconds || undefined, cooldownMs });
+            attempts.push({ model: model.id, category: 'quota', status: response.status, quotaMetric, quotaId, retryAfterSeconds: retrySeconds || undefined, cooldownMs, providerMessage });
             console.warn('[FORZA TTS] Gemini model quota limited', {
               model: model.id, status: response.status, quotaMetric, quotaId,
               retryAfterSeconds: retrySeconds || null, cooldownMs,
@@ -5971,7 +5972,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
           }
 
           lastCategory = (response.status === 401 || response.status === 403) ? 'gemini_auth_error' : 'tts_provider_error';
-          attempts.push({ model: model.id, category: lastCategory, status: response.status });
+          attempts.push({ model: model.id, category: lastCategory, status: response.status, providerMessage });
           console.warn('[FORZA TTS] Gemini model rejected', {
             model: model.id, status: response.status, category: lastCategory, providerMessage,
           });
@@ -6057,9 +6058,11 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
       attempts.length === GEMINI_TTS_MODELS.length &&
       attempts.every((attempt) => attempt.category === 'quota' || attempt.category === 'cooldown')
     ) {
-      geminiTtsGlobalCooldownUntil = Date.now() + 5 * 60 * 1000;
+      const now = Date.now();
+      const longestModelCooldownUntil = Math.max(...GEMINI_TTS_MODELS.map((model) => geminiTtsModelCooldowns.get(model.id) || 0));
+      geminiTtsGlobalCooldownUntil = Math.max(now + 5 * 60 * 1000, longestModelCooldownUntil);
       console.warn('[FORZA TTS] all Gemini models quota-limited; pausing repeat attempts', {
-        cooldownMs: 5 * 60 * 1000, modelsChecked: attempts.length,
+        cooldownMs: geminiTtsGlobalCooldownUntil - now, modelsChecked: attempts.length,
       });
     }
 
@@ -6069,6 +6072,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
         model: attempt.model, category: attempt.category, status: attempt.status,
         quotaMetric: attempt.quotaMetric, quotaId: attempt.quotaId,
         retryAfterSeconds: attempt.retryAfterSeconds, cooldownMs: attempt.cooldownMs,
+        providerMessage: attempt.providerMessage,
       })),
       durationMs: Date.now() - startedAt,
     });
@@ -6123,6 +6127,7 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
             status: Number.isFinite(item?.status) ? item.status : undefined,
             quotaMetric: String(item?.quotaMetric || '').slice(0, 100),
             quotaId: String(item?.quotaId || '').slice(0, 100),
+            providerMessage: String(item?.providerMessage || '').slice(0, 160),
             cooldownMs: Number.isFinite(item?.cooldownMs) ? item.cooldownMs : undefined,
           }))
         : [];
