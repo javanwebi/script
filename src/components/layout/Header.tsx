@@ -733,6 +733,11 @@ export const Header: React.FC = () => {
             <div
               className="relative"
               ref={megaMenuRef}
+              onMouseEnter={() => {
+                setActiveDropdown(null);
+                setIsMegaMenuOpen(true);
+              }}
+              onMouseLeave={() => setIsMegaMenuOpen(false)}
             >
               <button
                 type="button"

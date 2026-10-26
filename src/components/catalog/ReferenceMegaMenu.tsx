@@ -20,7 +20,9 @@ type SavedNavigationGroup = {
 const readCategories = (): EnhancedCategory[] => {
   const managed = getManagedCategories();
   const source = managed.length ? managed : CATEGORIES;
-  return source.filter(category => category.active !== false && Boolean(category.name && category.slug));
+  // Only show active categories that contain real catalog families; this also excludes empty test entries.
+  return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
+    Number(category.familyCount ?? category.count ?? 0) > 0);
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -90,9 +92,11 @@ export function ReferenceMegaMenu({
 
   useEffect(() => {
     let mounted = true;
-    const syncCategories = () => {
-      const next = readCategories();
-      if (!mounted) return;
+    const applyCategories = (input: unknown) => {
+      if (!mounted || !Array.isArray(input)) return;
+      const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
+        Boolean(category.name && category.slug) && Number(category.familyCount ?? category.count ?? 0) > 0);
+      if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
         next.some(category => category.slug === current)
@@ -100,15 +104,26 @@ export function ReferenceMegaMenu({
           : (next.find(category => resolveCategorySlug(category.slug) === "تسمه-و-انتقال-نیرو")?.slug || next[0]?.slug || "")
       );
     };
+    const loadCategories = () => fetch("/api/catalog/categories", { credentials: "same-origin", cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (mounted && data?.success && Array.isArray(data.categories)) applyCategories(data.categories);
+      })
+      .catch(() => { /* Keep hydrated runtime categories if the dedicated endpoint is unavailable. */ });
+    const syncCategories = () => {
+      applyCategories(readCategories());
+      void loadCategories();
+    };
     const loadGroups = () => {
-      fetch("/api/catalog/navigation-groups", { credentials: "same-origin" })
+      fetch("/api/catalog/navigation-groups", { credentials: "same-origin", cache: "no-store" })
         .then(response => response.ok ? response.json() : null)
         .then(data => {
           if (mounted && data?.success && Array.isArray(data.groups)) setSavedGroups(data.groups);
         })
         .catch(() => { /* Category navigation remains usable without optional group metadata. */ });
     };
-    syncCategories();
+    applyCategories(readCategories());
+    void loadCategories();
     loadGroups();
     window.addEventListener("atlas-categories-updated", syncCategories);
     window.addEventListener("atlas-catalog-updated", syncCategories);
@@ -234,7 +249,7 @@ export function ReferenceMegaMenu({
       <aside className="reference-menu-rail" aria-label="دسته‌بندی‌های اصلی">
         <div className="reference-menu-rail-heading">
           <strong>دسته‌بندی‌ها</strong>
-          <span>{toPersianDigits(filteredCategories.length)} گروه</span>
+          <span>{toPersianDigits(filteredCategories.length)} دسته</span>
         </div>
         <div className="reference-menu-category-list">
           {navigationSections.map(section => {

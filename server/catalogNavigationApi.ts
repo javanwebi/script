@@ -8,6 +8,46 @@ const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||u
 const fail=(res:Response,error:unknown)=>{console.error('[Catalog navigation/direct SKU]',error instanceof Error?error.message:String(error));return res.status(503).json({success:false,message:'ارتباط با پایگاه داده برقرار نشد.'});};
 
 export function registerCatalogNavigationApi(app:Express){
+  // PostgreSQL is the authoritative source for every product category shown in the mega-menu.
+  app.get('/api/catalog/categories',async(_req,res)=>{
+    try{
+      if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
+      const result=await database().query(
+        `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
+          c.sort_order as "sortOrder",c.is_active as active,c.metadata,
+          coalesce(fc.family_count,0) as "familyCount",
+          coalesce(fc.sku_count,0) as "skuCount"
+        from public.catalog_categories c
+        left join (
+          select f.category_slug,
+            count(distinct f.code) filter (where f.is_active=true and f.is_deleted=false) as family_count,
+            count(distinct v.code) filter (where f.is_active=true and f.is_deleted=false and v.active=true) as sku_count
+          from public.catalog_families f
+          left join public.catalog_variants v on v.family_code=f.code
+          group by f.category_slug
+        ) fc on fc.category_slug=c.slug
+        where c.is_active=true and coalesce(fc.family_count,0)>0
+        order by c.sort_order,c.name`);
+      const categories=result.rows.map((row:any)=>{
+        const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
+        const children=Array.isArray(metadata.children)?metadata.children:
+          (Array.isArray(metadata.subcategories)?metadata.subcategories.map((name:unknown)=>({name:String(name),children:[]})):[]);
+        const familyCount=Number(row.familyCount)||0,skuCount=Number(row.skuCount)||0;
+        const subcategories=Array.isArray(metadata.subcategories)?metadata.subcategories:
+          children.map((node:any)=>String(node?.name||'')).filter(Boolean);
+        return {
+          id:row.id,slug:row.slug,name:row.name,nameEn:typeof metadata.nameEn==='string'?metadata.nameEn:'',
+          icon:row.icon||metadata.icon||'Package',image:row.image||metadata.image||undefined,
+          description:row.description||metadata.description||children.map((node:any)=>String(node?.name||'')).filter(Boolean).join('، '),
+          active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,
+          children,subcategories,
+        };
+      });
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,categories});
+    }catch(error){return fail(res,error);}
+  });
+
   app.get('/api/catalog/navigation-groups',async(req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,groups:[]});

@@ -442,3 +442,14 @@
 .reference-menu-category-group .reference-menu-category-copy strong { font-size: 10px; }
 .reference-menu-category-group .reference-menu-category-copy small { font-size: 8px; }
 @media (min-width: 1024px) { .reference-catalog-menu { margin-top: 0 !important; } }
+
+/* Make the complete category list visibly scrollable instead of looking truncated. */
+.reference-menu-category-list {
+  scrollbar-width: auto;
+  scrollbar-color: #e56b1e #edf1f4;
+  padding-left: 4px;
+}
+.reference-menu-category-list::-webkit-scrollbar { width: 7px; }
+.reference-menu-category-list::-webkit-scrollbar-track { background: #edf1f4; border-radius: 8px; }
+.reference-menu-category-list::-webkit-scrollbar-thumb { background: #e56b1e; border: 2px solid #edf1f4; border-radius: 8px; }
+.reference-menu-category-group { flex: 0 0 auto; }
