@@ -5965,6 +5965,71 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
   }
 }
 
+
+// Stream verified male Persian MP3 directly to the browser. The first decoded
+// frames may be played before synthesis finishes; no base64 / full-file wait.
+app.post('/api/ai/tts-stream', async (req, res) => {
+  const text = req.body?.text;
+  if (typeof text !== 'string' || !text.trim() || text.length > 240) {
+    return res.status(400).json({ error: 'invalid_tts_text' });
+  }
+  const speech = cleanPersianTextForVoice(text);
+  if (!speech) return res.status(400).json({ error: 'empty_tts_text' });
+
+  const startedAt = Date.now();
+  const tts = new MsEdgeTTS();
+  let finished = false;
+  let wroteAudio = false;
+  let firstByteTimer: NodeJS.Timeout | undefined;
+  let stream: ReturnType<MsEdgeTTS['toStream']>['audioStream'] | undefined;
+  const shutdown = () => {
+    if (finished) return;
+    finished = true;
+    if (firstByteTimer) clearTimeout(firstByteTimer);
+    try { stream?.destroy(); } catch {}
+    try { tts.close(); } catch {}
+  };
+  const failure = () => {
+    if (finished) return;
+    const sent = res.headersSent;
+    shutdown();
+    if (sent) res.destroy();
+    else res.status(503).json({ error: 'tts_stream_unavailable' });
+  };
+  res.once('close', shutdown);
+  req.once('aborted', shutdown);
+  // Only a short start bound; normal playback is not cut off mid-sentence.
+  firstByteTimer = setTimeout(failure, 6500);
+  try {
+    await tts.setMetadata('fa-IR-FaridNeural', OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    if (finished) return;
+    stream = tts.toStream(speech).audioStream;
+    stream.on('data', (chunk: Buffer) => {
+      if (finished || !chunk?.length) return;
+      if (!wroteAudio) {
+        wroteAudio = true;
+        if (firstByteTimer) clearTimeout(firstByteTimer);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'no-store, no-transform');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.flushHeaders();
+        console.info(`[FORZA TTS] provider=edge-stream; firstAudioMs=${Date.now() - startedAt}`);
+      }
+      if (!res.write(chunk)) stream?.pause();
+    });
+    res.on('drain', () => stream?.resume());
+    stream.once('error', failure);
+    stream.once('end', () => {
+      if (finished) return;
+      if (!wroteAudio) { failure(); return; }
+      res.end();
+      shutdown();
+    });
+  } catch {
+    failure();
+  }
+});
+
 // POST: /api/ai/tts - Convert AI engineering response to fluent male Persian speech
 app.post('/api/ai/tts', async (req, res) => {
   const startedAt = Date.now();

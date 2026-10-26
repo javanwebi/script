@@ -18,6 +18,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
+import { playForzaStreamingAudio } from '../../utils/forzaStreamingAudio';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -95,6 +96,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechSegmentStartedRef = useRef(false);
   const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
   const ttsReadyRef = useRef(new Map<string, { audioBase64?: string; useClientSpeech?: boolean }>());
+  const activeStreamControllerRef = useRef<AbortController | null>(null);
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -401,6 +403,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const stopAudio = useCallback(() => {
+    activeStreamControllerRef.current?.abort();
+    activeStreamControllerRef.current = null;
     isAiSpeakingRef.current = false;
     try {
       if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
@@ -541,6 +545,40 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     void requestSpeechAudio(GREETING_TEXT).catch(() => {});
   }, [requestSpeechAudio]);
 
+  // Fast-path only for conversational replies: retain the prewarmed greeting
+  // and the full-file TTS fallback for browsers without MP3 MediaSource.
+  const playStreamingText = useCallback(async (text: string): Promise<boolean> => {
+    if (typeof MediaSource === 'undefined' || !MediaSource.isTypeSupported('audio/mpeg')) return false;
+    stopAudio();
+    const controller = new AbortController();
+    activeStreamControllerRef.current = controller;
+    let audio = audioElRef.current;
+    if (!audio) {
+      audio = new Audio();
+      audioElRef.current = audio;
+    }
+    audio.muted = isSpeakerMuted;
+    audio.volume = 1;
+    try {
+      await playForzaStreamingAudio(audio, text, controller.signal, () => {
+        isAiSpeakingRef.current = true;
+        setStatus('speaking');
+        setTurn('ai');
+        setAutoplayBlocked(false);
+      });
+      return true;
+    } catch (error: any) {
+      if (error?.message === 'autoplay_permission_required' ||
+          error?.message === 'stream_interrupted_after_start' ||
+          error?.message === 'stream_cancelled') throw error;
+      // Stream unavailable before speech: keep the existing safe TTS path.
+      return false;
+    } finally {
+      if (activeStreamControllerRef.current === controller) activeStreamControllerRef.current = null;
+      isAiSpeakingRef.current = false;
+    }
+  }, [isSpeakerMuted, setStatus, stopAudio]);
+
   const speakText = useCallback(async (text:string) => {
     stopListening();
     setVoiceOutputError(null);
@@ -553,6 +591,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Build the following phrase while the current one is audible.
       const nextChunk = chunks[index + 1];
       if (nextChunk) void requestSpeechAudio(nextChunk).catch(() => {});
+      if (index === 0 && text !== GREETING_TEXT) {
+        try {
+          if (await playStreamingText(chunk)) continue;
+        } catch (error: any) {
+          if (callClosedRef.current || error?.message === 'stream_cancelled') return;
+          throw error;
+        }
+      }
       let speech: {audioBase64?: string} = {};
       try { speech = await requestSpeechAudio(chunk); } catch { /* Try the supported browser voice for this chunk only. */ }
       if (callClosedRef.current) return;
@@ -568,7 +614,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       if (!callClosedRef.current) await speakBrowserFallback(chunk);
     }
-  },[playDataUrl,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
+  },[playDataUrl,playStreamingText,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
