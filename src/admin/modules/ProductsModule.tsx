@@ -43,7 +43,7 @@ import { toPersianDigits } from '../../utils/formatters';
 import { getProductImageUrl, TOTAL_OFFICIAL_IMAGES_COUNT } from '../../assets/imagesproducts';
 import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
-import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer } from '../../data/mockGenerator';
+import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
 import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
 
@@ -86,12 +86,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [categoryImageUploading, setCategoryImageUploading] = useState(false);
   const [categorySavePending, setCategorySavePending] = useState(false);
   const [categorySaveError, setCategorySaveError] = useState('');
+  const [categoryImageCandidate,setCategoryImageCandidate] = useState('');
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [brandSpecialtyInput, setBrandSpecialtyInput] = useState('');
   const [brandBadgeAccent, setBrandBadgeAccent] = useState('#E06518');
 
-  const handleOpenCategoryModal = (cat?: Category) => {
+  const handleOpenCategoryModal = (cat?: Category,candidateImage = '') => {
+    setCategoryImageCandidate(candidateImage&&!candidateImage.startsWith('blob:')?candidateImage:'');
     if (cat) {
       setEditingCategory({
         ...cat,
@@ -103,7 +105,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       const nextId = Math.max(0, ...categories.map(c => Number(c.id) || 0)) + 1;
       setEditingCategory({
         id: nextId,
-        slug: `cat-${nextId}`,
+        slug: '',
         name: '',
         nameEn: '',
         description: '',
@@ -141,6 +143,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       adminService.saveCategory(toSave);
       await flushDurableChanges();
       setCategories(adminService.getCategories());
+      window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{detail:{categoryName:toSave.name}}));
       setIsCategoryModalOpen(false);
       setEditingCategory(null);
     } catch (error) {
@@ -283,6 +286,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Draft Family being edited
   const [draftFamily, setDraftFamily] = useState<Product | null>(null);
+  const [familySavePending,setFamilySavePending] = useState(false);
+  const [pendingFamilyUpload,setPendingFamilyUpload] = useState<File|null>(null);
+  const [pendingFamilyImageTitle,setPendingFamilyImageTitle] = useState('');
   // Active variant code being edited inside Tab 2 ("variants")
   const [editingVariantCode, setEditingVariantCode] = useState<string>('');
   const [showSkuTechnicalSpecs, setShowSkuTechnicalSpecs] = useState(false);
@@ -405,10 +411,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Open Editor for New Family
   const handleOpenNewFamily = () => {
-    const randomNum = Math.floor(91000 + Math.random() * 8999);
-    const firstSkuCode = String(randomNum);
+    const familyId = `FAM-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
     const newFam: Product = {
-      code: `FAM-${firstSkuCode}`,
+      code: familyId,
       name: '',
       brand: 'ATLAS',
       categoryName: catalogCategoryNames[0] || 'قطعات مکانیکی',
@@ -429,31 +434,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         { key: 'نوع فنی خانواده', value: 'قطعه صنعتی' },
         { key: 'واحد فروش', value: 'عدد' },
       ],
-      variants: [
-        {
-          code: firstSkuCode,
-          name: 'نوع اول محصول',
-          size: 'استاندارد',
-          model: '',
-          brand: 'ATLAS',
-          unit: 'عدد',
-          price: 0,
-          prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
-          inquiryOnly: true,
-          stock: 10,
-          stockKnown: true,
-          active: true,
-          images: [],
-          technicalSpecs: [{ key: 'سایز', value: 'استاندارد' }],
-        },
-      ],
+      variants: [],
     };
 
     setIsCreatingNewFamily(true);
+    setPendingFamilyUpload(null);
+    setPendingFamilyImageTitle('');
     setDraftFamily(newFam);
-    setEditingVariantCode(firstSkuCode);
-    setNewImgVariantCode(firstSkuCode);
-    setPreviewSelectedVariantCode(firstSkuCode);
+    setEditingVariantCode('');
+    setNewImgVariantCode('');
+    setPreviewSelectedVariantCode('');
     setPreviewActiveImageIdx(-1);
     setEditorTab('family');
     setIsEditorOpen(true);
@@ -491,6 +481,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
     const firstCode = variantsCopy[0]?.code || '';
     setIsCreatingNewFamily(false);
+    setPendingFamilyUpload(null);
+    setPendingFamilyImageTitle('');
     setDraftFamily({
       ...product,
       active: product.active ?? true,
@@ -508,8 +500,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   // Save Family + Variants + Images + Prices to Database
-  const handleSaveDraftFamily = () => {
-    if (!draftFamily) return;
+  const handleSaveDraftFamily = async () => {
+    if (!draftFamily || familySavePending) return;
     if (!draftFamily.name.trim()) {
       setSaveFeedback('لطفاً نام خانواده محصول را وارد کنید.');
       setTimeout(() => setSaveFeedback(null), 3000);
@@ -553,17 +545,61 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       ...draftFamily,
       code: draftFamily.code.trim(),
       name: draftFamily.name.trim(),
-      categorySlug: draftFamily.categoryName.trim().replace(/[\s\u200c]+/g, '-'),
+      categorySlug: categories.find(c=>c.name===draftFamily.categoryName)?.slug || draftFamily.categoryName.trim().replace(/[\s\u200c]+/g, '-'),
       technicalSpecs: cleanSpecs,
       galleryImages: cleanGallery,
       images: cleanGallery.map(g => g.url),
       variants: cleanVariants,
     };
 
-    adminService.saveProduct(payload);
-    refreshProducts();
-    setSaveFeedback('تغییرات خانواده، کدهای کالا، تصاویر و قیمت‌ها در پایگاه داده ذخیره شد.');
-    setTimeout(() => setSaveFeedback(null), 3500);
+    setFamilySavePending(true);
+    setSaveFeedback(null);
+    try {
+      const normalized=normalizeMergedProduct(payload,payload);
+      const response=await fetch('/api/catalog/overrides/family',{
+        method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(20000)
+      });
+      const data=await response.json().catch(()=>({success:false,message:'پاسخ پایگاه داده معتبر نیست.'}));
+      if(!response.ok||!data.success)throw new Error(data.message||'ذخیره خانواده در دیتابیس انجام نشد.');
+      let imageWarning='';
+      let storedFamilyImage:{id:string;url:string;fileName:string}|undefined;
+      if(pendingFamilyUpload){
+        try{
+          const stored=await uploadProductImage(pendingFamilyUpload,{
+            familyCode:payload.code,title:pendingFamilyImageTitle||pendingFamilyUpload.name
+          });
+          storedFamilyImage=stored;
+          setPendingFamilyUpload(null);
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.id===stored.id))return previous;
+            const nextGallery=[...gallery,{
+              id:stored.id,url:stored.url,fileName:stored.fileName,scope:'family' as const,
+              title:pendingFamilyImageTitle||stored.fileName,identityVerified:false,order:gallery.length+1
+            }];
+            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+          });
+        }catch(error){
+          imageWarning=error instanceof Error?error.message:'بارگذاری تصویر انجام نشد.';
+        }
+      }
+      await syncCatalogFromServer();
+      refreshProducts();
+      setIsCreatingNewFamily(false);
+      window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{
+        detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code,imageUrl:storedFamilyImage?.url,imageFileName:storedFamilyImage?.fileName}
+      }));
+      if(imageWarning){
+        setEditorTab('images');
+        setSaveFeedback('خانواده ذخیره شد؛ اما تصویر ذخیره نشد: '+imageWarning+' — در بخش تصاویر دوباره آپلود کنید.');
+      }else setSaveFeedback('نام، دسته‌بندی، کدها و تصاویر خانواده در دیتابیس ثبت شدند.');
+    }catch(error){
+      setSaveFeedback(error instanceof Error?error.message:'ذخیره خانواده در دیتابیس انجام نشد.');
+    }finally{
+      setFamilySavePending(false);
+    }
   };
 
   // Toggle Family Active/Inactive directly from table
@@ -876,19 +912,48 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   return (
     <div className="space-y-6 text-right" dir="rtl">
       <ProductImageAudit products={products} categories={categories}
-        onCreateCategory={()=>handleOpenCategoryModal()}
-        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
+        onCreateCategory={candidateImage=>handleOpenCategoryModal(undefined,candidateImage)}
+        onEditCategory={(name,candidateImage)=>{
+          const found=categories.find(c=>c.name===name);
+          if(found)handleOpenCategoryModal(found,candidateImage);
+        }}
+        onEditFamily={(code,file,imageUrl,imageTitle,upload)=>{
+          const product=products.find(p=>p.code===code);
+          if(!product)return;
+          handleOpenEditFamily(product,'family');
+          setPendingFamilyUpload(upload||null);
+          setPendingFamilyImageTitle(imageTitle||'');
+          setNewImgTitle(imageTitle||'');
+          setNewImgScope('family');
+          const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
+          if(persistedUrl)setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===persistedUrl))return previous;
+            const nextGallery=[...gallery,{
+              id:'review-selected-'+Date.now(),url:persistedUrl,fileName:file,scope:'family' as const,
+              identityVerified:false,title:imageTitle||'تصویر انتخاب‌شده از بانک تصاویر',
+              order:gallery.length+1
+            }];
+            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+          });
+        }}
+        onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload)=>{
           handleOpenNewFamily();
-          const url=imageUrl||getProductImageUrl(file);
+          const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
+          setPendingFamilyUpload(upload||null);
+          setPendingFamilyImageTitle(imageTitle||'');
           setDraftFamily(previous=>previous?{
             ...previous,
             categoryName:category||previous.categoryName,
+            categorySlug:categories.find(c=>c.name===category)?.slug||previous.categorySlug,
+            submenu:submenu||previous.submenu,
             subcategory:subcategory||previous.subcategory,
-            images:[...(previous.images||[]),url],
-            galleryImages:[...(previous.galleryImages||[]),{
-              id:`review-new-${file}`,url,fileName:file,scope:'family',
+            images:persistedUrl?[persistedUrl]:[],
+            galleryImages:persistedUrl?[{
+              id:'review-new-'+file,url:persistedUrl,fileName:file,scope:'family',
               identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
-            }]
+            }]:[]
           }:previous);
           setEditorTab('family');
         }}
@@ -1755,8 +1820,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           CATEGORY ADD / EDIT MODAL
          ===================================================================== */}
       {isCategoryModalOpen && editingCategory && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl max-h-[100dvh] sm:max-h-[92vh] rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[180] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-3xl max-h-[100dvh] sm:max-h-[92vh] rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             <div className="px-5 py-4 bg-white text-[#55565A] border-b border-slate-200 flex items-center justify-between shrink-0">
               <h3 className="text-sm font-black flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#E06518]" />
@@ -1836,6 +1901,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </div>
               </div>
 
+              {categoryImageCandidate && categoryImageCandidate!==editingCategory.image && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3">
+                <ProductImage src={categoryImageCandidate} alt="تصویر انتخاب‌شده از بانک تصاویر" className="h-16 w-16 rounded-lg bg-white object-contain"/>
+                <p className="min-w-0 flex-1 text-[11px] leading-5 font-bold text-slate-700">همین تصویر انتخاب‌شده در بررسی کالا را می‌توانید به دسته‌بندی اختصاص دهید.</p>
+                <button type="button" onClick={()=>setEditingCategory({...editingCategory,image:categoryImageCandidate})} className="rounded-lg bg-[#E56B1E] px-3 py-2 text-xs font-bold text-white">انتخاب این تصویر برای دسته</button>
+              </div>}
               <label className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white cursor-pointer">
                 <input type="checkbox" checked={editingCategory.active !== false}
                   onChange={e => setEditingCategory({...editingCategory,active:e.target.checked})}
@@ -2196,7 +2266,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           TWO-LEVEL FAMILY & SKU EDITOR MODAL
          ===================================================================== */}
       {isEditorOpen && draftFamily && (
-        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-[180] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[94vh] rounded-none sm:rounded-3xl border-0 sm:border sm:border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             {/* Modal Top Header */}
             <div className="px-3 sm:px-5 py-3 sm:py-4 bg-white text-[#55565A] border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -2224,7 +2294,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleSaveDraftFamily}
+                  onClick={()=>void handleSaveDraftFamily()}
+                  disabled={familySavePending}
                   className="px-4 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Check className="w-4 h-4" />

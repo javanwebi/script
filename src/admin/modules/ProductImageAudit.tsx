@@ -1,6 +1,6 @@
 import React, {useEffect,useMemo,useState} from 'react';
-import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Info} from 'lucide-react';
-import type {Product} from '../../types';
+import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info} from 'lucide-react';
+import type {Product, Category} from '../../types';
 import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
@@ -15,12 +15,14 @@ const fa=(n:number)=>n.toLocaleString('fa-IR');
 const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
-export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onCreateSku,onAssignSku}:{
+export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignSku}:{
   products:Product[];
-  categories:{name:string;subcategories?:string[]}[];
+  categories:Category[];
   onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string,persistedId?:string)=>void;
-  onCreateFamily:(file:string,category:string,subcategory:string,imageUrl?:string,imageTitle?:string)=>void;
-  onCreateCategory:()=>void;
+  onCreateFamily:(file:string,category:string,submenu:string,subcategory:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
+  onCreateCategory:(imageUrl?:string)=>void;
+  onEditCategory:(categoryName:string,imageUrl?:string)=>void;
+  onEditFamily:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
   onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
   onAssignSku:(input:{targetFamilyCode:string;skuCode:string;imageUrl:string;fileName:string;title?:string;persistedId?:string})=>Promise<void>;
 }){
@@ -65,9 +67,51 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   // All families must be selectable, even with no currently associated image.
   // Hierarchy: categoryName -> submenu -> subcategory -> family (as on the site).
   const allFamilies=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products]);
-  const categoryNames=useMemo(()=>[...new Set(products.map(p=>p.categoryName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[products]);
-  const submenus=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category).map(p=>p.submenu).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category]);
-  const subcategories=useMemo(()=>[...new Set(products.filter(p=>p.categoryName===category&&(!submenu||p.submenu===submenu)).map(p=>p.subcategory).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b,'fa')),[products,category,submenu]);
+  // Navigation configuration and product assignments are both authoritative sources:
+  // an empty newly created category/menu must be selectable immediately.
+  const categoryNames=useMemo(()=>[...new Set([
+    ...categories.filter(item=>item.active!==false).map(item=>item.name),
+    ...products.map(product=>product.categoryName)
+  ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[categories,products]);
+  const currentCategory=categories.find(item=>item.name===category);
+  const submenus=useMemo(()=>{
+    const nodes=(categories.find(item=>item.name===category)?.children||[]);
+    const options=new Map<string,string>();
+    nodes.forEach(node=>options.set(node.value||node.name,node.name));
+    products.filter(product=>product.categoryName===category).forEach(product=>{
+      if(product.submenu&&!options.has(product.submenu))options.set(product.submenu,product.submenu);
+    });
+    return [...options].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label,'fa'));
+  },[categories,products,category]);
+  const subcategories=useMemo(()=>{
+    const nodes=(categories.find(item=>item.name===category)?.children||[]);
+    const options=new Map<string,string>();
+    nodes.filter(node=>!submenu||(node.value||node.name)===submenu).forEach(node=>{
+      (node.children||[]).forEach(child=>options.set(child.value||child.name,child.name));
+    });
+    products.filter(product=>product.categoryName===category&&(!submenu||product.submenu===submenu)).forEach(product=>{
+      if(product.subcategory&&!options.has(product.subcategory))options.set(product.subcategory,product.subcategory);
+    });
+    return [...options].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label,'fa'));
+  },[categories,products,category,submenu]);
+  useEffect(()=>{
+    const onSaved=(event:Event)=>{
+      const detail=(event as CustomEvent<{categoryName?:string;submenu?:string;subcategory?:string;familyCode?:string;imageUrl?:string;imageFileName?:string}>).detail;
+      if(!detail)return;
+      if(detail.categoryName) setCategory(detail.categoryName);
+      if(detail.submenu!==undefined)setSubmenu(detail.submenu);
+      if(detail.subcategory!==undefined)setSubcategory(detail.subcategory);
+      if(detail.familyCode){setFamilyCode(detail.familyCode);setFamilySearch('');}
+      if(detail.imageUrl){
+        setUrl(previous=>{if(previous.startsWith('blob:'))URL.revokeObjectURL(previous);return detail.imageUrl||'';});
+        setFile(detail.imageFileName||'تصویر خانواده');
+        setSource('existing');
+        setSelectedUpload(null);
+      }
+    };
+    window.addEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
+    return ()=>window.removeEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
+  },[]);
   const families=useMemo(()=>products.filter(p=>
     (!category||p.categoryName===category)&&(!submenu||p.submenu===submenu)&&
     (!subcategory||p.subcategory===subcategory)&&
@@ -244,7 +288,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       </div>
 
       {mobileEditor&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:p-5" onClick={e=>{if(e.target===e.currentTarget)closeSelection()}}>
-        <div role="dialog" aria-modal="true" aria-label="بررسی و اتصال تصویر به محصول" className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div role="dialog" aria-modal="true" aria-label="بررسی و اتصال تصویر به محصول" className="flex max-h-[94dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center justify-between gap-3 bg-[#55565A] px-4 py-3 text-white sm:px-5">
             <div className="min-w-0"><h3 className="text-sm font-black sm:text-base">بررسی و اتصال تصویر</h3><p dir="ltr" className="mt-1 truncate text-[10px] text-slate-200">{file||'تصویر جدید'} · انتخاب دسته، خانواده و کد دقیق</p></div>
             <button type="button" onClick={closeSelection} aria-label="بستن فرم تصویر" className="shrink-0 rounded-lg border border-white/25 p-2 hover:bg-white/10"><X size={18}/></button>
@@ -271,17 +315,43 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
               {sourceError&&<p role="alert" className="text-xs text-rose-600">{sourceError}</p>}
               {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 p-3 font-normal" placeholder="نام قطعه یا توضیحی که در تصویر دیده می‌شود"/></label>}
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۱. دسته‌بندی محصول</h4><button type="button" onClick={onCreateCategory} className="inline-flex items-center gap-1 rounded-lg border border-orange-200 px-2.5 py-2 text-[11px] font-bold text-[#C65A16]"><FolderPlus size={14}/> افزودن دسته / زیردسته</button></div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="text-xs text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubmenu('');setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">همه دسته‌ها</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-                  <label className="text-xs text-slate-600">زیرمنو<select disabled={!category} value={submenu} onChange={e=>{setSubmenu(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">همه زیرمنوها</option>{submenus.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
-                  <label className="text-xs text-slate-600">زیرگروه / نوع فنی<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">همه زیرگروه‌ها</option>{subcategories.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><h4 className="text-sm font-black text-[#55565A]">۱. دسته‌بندی محصول</h4><p className="mt-1 text-[10px] text-slate-500">مدیریت دسته، زیرمنو، زیرگروه و تصویر بدون خروج از این پنجره</p></div>
+                  <div className="flex flex-wrap gap-2">
+                    {category&&currentCategory&&<button type="button" onClick={()=>onEditCategory(category,source==='upload'?'':url)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-[#55565A]"><Edit3 size={14}/> ویرایش دسته، تصویر و زیرمنوها</button>}
+                    <button type="button" onClick={()=>onCreateCategory(source==='upload'?'':url)} className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[11px] font-bold text-[#C65A16]"><FolderPlus size={14}/> دسته جدید</button>
+                  </div>
                 </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="text-xs text-slate-600">دسته اصلی<select value={category} onChange={e=>{setCategory(e.target.value);setSubmenu('');setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3"><option value="">انتخاب دسته اصلی</option>{categoryNames.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">زیرمنو<select disabled={!category} value={submenu} onChange={e=>{setSubmenu(e.target.value);setSubcategory('');setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">انتخاب زیرمنو</option>{submenus.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
+                  <label className="text-xs text-slate-600">زیرگروه / نوع فنی<select disabled={!category} value={subcategory} onChange={e=>{setSubcategory(e.target.value);setFamilyCode('');setSku('')}} className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-50"><option value="">انتخاب زیرگروه</option>{subcategories.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
+                  {category&&currentCategory&&<div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-100 bg-orange-50/40 p-2.5">
+                    {currentCategory.image&&<ProductImage src={currentCategory.image} alt={currentCategory.name} className="h-12 w-14 rounded-md bg-white object-contain"/>}
+                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-slate-700">{currentCategory.name}</p><p className="text-[10px] text-slate-500">{fa(currentCategory.children?.length||0)} زیرمنو · تصویر قابل ویرایش</p></div>
+                    <button type="button" onClick={()=>onEditCategory(category,source==='upload'?'':url)} className="text-[11px] font-bold text-[#C65A16] underline">مدیریت ساختار</button>
+                  </div>}
+                </div>
+                {category&&currentCategory&&<div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={()=>onEditCategory(category,source==='upload'?'':url)} className="rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-600">+ افزودن یا ویرایش زیرمنو و زیرگروه</button>
+                </div>}
               </div>}
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><button type="button" disabled={!file} onClick={()=>{if(source==='upload'){setSourceError('ابتدا خانواده جدید را ثبت کنید؛ سپس فایل را در آن بارگذاری کنید.');return;}onCreateFamily(file,category,subcategory,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button></div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><h4 className="text-sm font-black text-[#55565A]">۲. خانواده کالا</h4><p className="mt-1 text-[10px] text-slate-500">افزودن و ویرایش نام، دسته‌بندی، تصویر و کدهای خانواده همین‌جا</p></div>
+                  <div className="flex flex-wrap gap-2">
+                    {family&&<button type="button" onClick={()=>onEditFamily(family.code,file,source==='upload'?'':url,title,selectedUpload||undefined)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-700"><Edit3 size={13}/> ویرایش نام و تصویر خانواده</button>}
+                    <button type="button" disabled={!category} onClick={()=>onCreateFamily(file,category,submenu,subcategory,source==='upload'?'':url,title,selectedUpload||undefined)} className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#C65A16] disabled:opacity-40">+ ساخت خانواده جدید</button>
+                  </div>
+                </div>
                 <input value={familySearch} onChange={e=>setFamilySearch(e.target.value)} placeholder="جستجو با نام یا کد خانواده…" className="w-full rounded-lg border border-slate-200 p-3 text-xs"/>
-                <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select><p className="mt-1 text-[11px] text-slate-500">{fa(families.length)} خانواده مطابق فیلترهای انتخاب‌شده</p>
+                <select aria-label="انتخاب خانواده کالا" value={familyCode} onChange={e=>{setFamilyCode(e.target.value);setSku('')}} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"><option value="">انتخاب خانواده</option>{families.map(p=><option key={p.code} value={p.code}>{p.name} — {p.code}</option>)}</select>
+                {family&&<div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-100 bg-orange-50/50 p-2.5">
+                  {(family.images?.[0]||family.galleryImages?.[0]?.url)&&<ProductImage src={family.images?.[0]||family.galleryImages?.[0]?.url} alt={family.name} className="h-16 w-16 rounded-lg bg-white object-contain"/>}
+                  <div className="min-w-0 flex-1"><p className="text-xs font-bold text-[#55565A]">{family.name}</p><p dir="ltr" className="text-[11px] text-slate-500">{family.code}</p><p className="text-[10px] text-slate-500">{fa(family.variants?.length||0)} کد کالا</p></div>
+                  <button type="button" onClick={()=>onEditFamily(family.code,file,source==='upload'?'':url,title,selectedUpload||undefined)} className="rounded-lg bg-white px-3 py-2 text-[11px] font-bold text-[#C65A16]">مدیریت تصاویر</button>
+                </div>}
+                <p className="mt-1 text-[11px] text-slate-500">{fa(families.length)} خانواده مطابق فیلترهای انتخاب‌شده</p>
               </div>}
               {url&&family&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-black text-[#55565A]">۳. محل اتصال تصویر</h4><button type="button" onClick={()=>{if(source==='upload'){setSourceError('ابتدا کد جدید را در خانواده ثبت کنید؛ سپس فایل را به آن متصل کنید.');return;}onCreateSku(family.code,file,url,title);closeSelection()}} className="rounded-lg border border-orange-200 px-3 py-2 text-[11px] font-bold text-[#C65A16]">+ افزودن کد کالا</button></div>
