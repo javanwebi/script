@@ -411,10 +411,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Open Editor for New Family
   const handleOpenNewFamily = () => {
-    const randomNum = Math.floor(91000 + Math.random() * 8999);
-    const firstSkuCode = String(randomNum);
+    const familyId = `FAM-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
     const newFam: Product = {
-      code: `FAM-${firstSkuCode}`,
+      code: familyId,
       name: '',
       brand: 'ATLAS',
       categoryName: catalogCategoryNames[0] || 'قطعات مکانیکی',
@@ -435,33 +434,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         { key: 'نوع فنی خانواده', value: 'قطعه صنعتی' },
         { key: 'واحد فروش', value: 'عدد' },
       ],
-      variants: [
-        {
-          code: firstSkuCode,
-          name: 'نوع اول محصول',
-          size: 'استاندارد',
-          model: '',
-          brand: 'ATLAS',
-          unit: 'عدد',
-          price: 0,
-          prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
-          inquiryOnly: true,
-          stock: 10,
-          stockKnown: true,
-          active: true,
-          images: [],
-          technicalSpecs: [{ key: 'سایز', value: 'استاندارد' }],
-        },
-      ],
+      variants: [],
     };
 
     setIsCreatingNewFamily(true);
     setPendingFamilyUpload(null);
     setPendingFamilyImageTitle('');
     setDraftFamily(newFam);
-    setEditingVariantCode(firstSkuCode);
-    setNewImgVariantCode(firstSkuCode);
-    setPreviewSelectedVariantCode(firstSkuCode);
+    setEditingVariantCode('');
+    setNewImgVariantCode('');
+    setPreviewSelectedVariantCode('');
     setPreviewActiveImageIdx(-1);
     setEditorTab('family');
     setIsEditorOpen(true);
