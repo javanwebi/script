@@ -5986,7 +5986,7 @@ app.post('/api/ai/tts', async (req, res) => {
     }
 
     // Check in-memory cache first
-    const cacheKey = `male-fa:${cleanedText.slice(0, 300)}:${cleanedText.length}`;
+    const cacheKey = `male-fa:voice-only-v2:${cleanedText.slice(0, 300)}:${cleanedText.length}`;
     if (ttsAudioCache.has(cacheKey)) {
       reportProvider('memory-cache');
       return res.json({
