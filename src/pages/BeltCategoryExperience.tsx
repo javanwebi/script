@@ -5,7 +5,8 @@ import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
-import { CATEGORIES, matchesCatalogCategory } from '../data/categories';
+import { matchesCatalogCategory } from '../data/categories';
+import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch } from '../data/userProducts';
 import { toPersianDigits } from '../utils/formatters';
 import industryCeramic from '../assets/images/ind_ceramic_1789372889504.jpg';
@@ -25,6 +26,21 @@ const FAMILY_OPTIONS = [
   { id: 'تسمه گرد پلی اورتان', title: 'گرد پلی‌یورتان', subtitle: 'صنعتی و انتقال حرکت', search: /گرد.*پلی|پلی.*گرد/i },
   { id: 'تسمه CRC پنج ضلعی', title: 'CRC پنج‌ضلعی', subtitle: 'جوشی و فابریک', search: /CRC|پنج ضلعی/i },
 ] as const;
+const FAMILY_ARTWORK: Record<string, string> = {
+  'کلاسیک': STORE_ASSETS.products.forzaBelt,
+  'اسپشیال': STORE_ASSETS.forzaSubBelt,
+  'تسمه تایمینگ': STORE_ASSETS.products.pvcBelt,
+  'تسمه شیاری': STORE_ASSETS.categories.belts,
+  'تسمه گرد پلی اورتان': STORE_ASSETS.forzaSubBelt,
+  'تسمه CRC پنج ضلعی': STORE_ASSETS.categories.belts,
+};
+const referenceArtworkForProduct = (product: Product): string => {
+  const text = [product.name, product.subcategory, product.submenu, ...(product.tags || [])].join(' ').toLowerCase();
+  if (/تایم|timing|htd|gt\d/i.test(text)) return STORE_ASSETS.products.pvcBelt;
+  if (/شیاری|ribbed|\bpk\b|\bpy\b|\bpl\b/i.test(text)) return STORE_ASSETS.categories.belts;
+  if (/اسپشیال|special|\bspa\b|\bspb\b|\bspc\b/i.test(text)) return STORE_ASSETS.forzaSubBelt;
+  return STORE_ASSETS.products.forzaBelt;
+};
 const PROFILES = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'] as const;
 const number = (raw: string) => Number(raw.replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٬,]/g, ''));
 const priceOf = (p: Product): number | null => { const retail = p.prices?.retail; return typeof retail === 'number' && Number.isFinite(retail) && retail > 0 && !p.inquiryOnly ? retail : null; };
@@ -79,8 +95,12 @@ function CatalogCard({ product }: { product: Product }) {
   const marked = isInWishlist(product.code);
   const price = priceOf(product);
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 2);
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [product.images?.[0]]);
+  const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   return <article className="bce-product-card">
-    <div className="bce-product-image"><Link to={href} aria-label={'مشاهده ' + product.name}><ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/></Link>
+    <div className="bce-product-image"><Link to={href} aria-label={'مشاهده ' + product.name}>{hasSpecificImage ? <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async" onError={() => setImageFailed(true)}/> : <img className="bce-product-reference-art" src={referenceArtworkForProduct(product)} alt="" loading="lazy" decoding="async"/>}</Link>
+      {!hasSpecificImage && <span className="bce-image-note">تصویر اختصاصی ثبت نشده</span>}
       <button type="button" aria-label={marked ? 'حذف از علاقه‌مندی' : 'افزودن به علاقه‌مندی'} aria-pressed={marked} className="bce-heart" onClick={() => toggleWishlist(product.code)}><Heart size={18} fill={marked ? '#E06518' : 'none'}/></button>
       {product.variants && product.variants.length > 1 && <span className="bce-variant-badge">{toPersianDigits(product.variants.length)} سایز</span>}
     </div>
@@ -122,6 +142,11 @@ export const BeltCategoryExperience: React.FC = () => {
   }, [sheetOpen]);
   const allProducts = useMemo(() => getProductsByCategory(BELT_SLUG, 12000).products, [revision]);
   const familyProducts = useMemo(() => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)), [allProducts, selectedFamily]);
+  const familyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    FAMILY_OPTIONS.forEach(item => counts.set(item.id, allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, item.id)).length));
+    return counts;
+  }, [allProducts]);
   const brands = useMemo(() => Array.from(new Set(familyProducts.map(p => p.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [familyProducts]);
   const hasPrices = familyProducts.some(p => priceOf(p) !== null);
   const filtered = useMemo(() => {
@@ -173,13 +198,13 @@ export const BeltCategoryExperience: React.FC = () => {
       </div>
       <div className="bce-hero-stamp"><span>POWER TRANSMISSION</span><b>صنعت پیش</b></div>
     </section>
-    {CATEGORIES.find(c => c.slug === BELT_SLUG)?.image && <aside className="mx-4 my-5 flex items-center gap-4 rounded-2xl border border-orange-100 bg-white p-3 md:mx-8" aria-label="تصویر دسته‌بندی ثبت‌شده"><img src={CATEGORIES.find(c => c.slug === BELT_SLUG)!.image} alt="تصویر دسته‌بندی تسمه و انتقال نیرو" className="h-20 w-24 rounded-xl object-contain bg-slate-50 p-2" /><div><strong className="block text-sm font-black text-slate-800">تصویر دسته‌بندی تسمه و انتقال نیرو</strong><span className="text-xs text-slate-500">تصویر مدیریت‌شده در کاتالوگ صنعت پیش</span></div></aside>}
     <section className="bce-family-area" aria-labelledby="bce-family-title"><div className="bce-section-heading"><div><span>کاوش سریع</span><h2 id="bce-family-title">تسمه موردنیاز خود را پیدا کنید</h2></div><button type="button" onClick={() => chooseFamily('all')}>همه خانواده‌ها <ChevronLeft size={16}/></button></div>
       <div className="bce-family-grid">{FAMILY_OPTIONS.map((item, i) => {
         const sample = allProducts.find(p => matchesCatalogCategory(p, BELT_SLUG, item.id) && p.images?.[0]);
+        const count = familyCounts.get(item.id) || 0;
         return <button type="button" key={item.id} aria-pressed={selectedFamily === item.id} onClick={() => chooseFamily(item.id)} className={'bce-family-tile ' + (selectedFamily === item.id ? 'selected' : '')}>
-          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <span className="bce-family-placeholder" role="img" aria-label={`تصویر ثبت نشده برای ${item.title}`}><PackageSearch size={28} aria-hidden="true"/><small>تصویر ثبت نشده</small></span>}</span>
-          <span className="bce-family-name">{item.title}</span><small dir="ltr">{item.subtitle}</small><span className="bce-family-chevron"><ChevronLeft size={15}/></span>
+          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <img className="bce-family-reference-art" src={FAMILY_ARTWORK[item.id] || STORE_ASSETS.categories.belts} alt="" loading="lazy" decoding="async"/>}{!sample?.images?.[0] && <span className="bce-family-image-note">تصویر مرجع خانواده</span>}</span>
+          <span className="bce-family-name">{item.title}</span><small className="bce-family-subtitle" dir="ltr">{item.subtitle}</small><span className="bce-family-count">{toPersianDigits(count)} کالا</span><span className="bce-family-chevron"><ChevronLeft size={15}/></span>
         </button>;
       })}</div>
     </section>
