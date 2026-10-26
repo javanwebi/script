@@ -587,7 +587,7 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
     const resolvedImageUrl=persistedImage?.url||imageUrl;
     if(!resolvedImageUrl||resolvedImageUrl.length>2000||resolvedImageUrl.includes('\\')||
        resolvedImageUrl.startsWith('//')||
-       (!resolvedImageUrl.startsWith('/')&&!/^https?:\\/\\/[^\\s]+$/i.test(resolvedImageUrl)))
+       (!resolvedImageUrl.startsWith('/')&&!/^https?:\/\/[^\s]+$/i.test(resolvedImageUrl)))
       return res.status(400).json({success:false,message:'آدرس تصویر معتبر نیست.'});
     const resolvedFileName=persistedImage?.fileName||fileName;
     const imageTitle=title||persistedImage?.title||('تصویر کد '+skuCode);
