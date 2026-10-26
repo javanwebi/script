@@ -453,3 +453,71 @@
 .reference-menu-category-list::-webkit-scrollbar-track { background: #edf1f4; border-radius: 8px; }
 .reference-menu-category-list::-webkit-scrollbar-thumb { background: #e56b1e; border: 2px solid #edf1f4; border-radius: 8px; }
 .reference-menu-category-group { flex: 0 0 auto; }
+
+/* 2026-10-26: enlarged mega menu with independent nested scroll regions. */
+@media (min-width: 1024px) {
+  .reference-catalog-menu {
+    width: min(1470px, calc(100vw - 24px)) !important;
+    right: 12px !important;
+    height: min(730px, calc(100dvh - 146px)) !important;
+    max-height: calc(100dvh - 146px) !important;
+    grid-template-columns: 320px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+  .reference-menu-rail {
+    min-height: 0 !important;
+    height: 100%;
+    overflow: hidden !important;
+  }
+  .reference-menu-category-list {
+    flex: 1 1 0;
+    min-height: 0 !important;
+    max-height: 100%;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #e56b1e #edf1f4;
+    -webkit-overflow-scrolling: touch;
+  }
+  .reference-menu-main {
+    height: 100%;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .reference-menu-category-hero,
+  .reference-menu-footer { flex: 0 0 auto !important; }
+  .reference-menu-subgrid {
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    padding: 2px 6px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #e56b1e #edf1f4;
+  }
+  .reference-menu-subgrid::-webkit-scrollbar,
+  .reference-menu-category-list::-webkit-scrollbar { width: 8px; }
+  .reference-menu-subgrid::-webkit-scrollbar-thumb,
+  .reference-menu-category-list::-webkit-scrollbar-thumb {
+    background: #e56b1e;
+    border-radius: 10px;
+    border: 2px solid #edf1f4;
+  }
+  .reference-menu-empty-state { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .reference-catalog-menu {
+    grid-template-columns: 278px minmax(0, 1fr) !important;
+    width: calc(100vw - 24px) !important;
+    right: 12px !important;
+  }
+}
+@media (min-width: 1024px) and (max-height: 660px) {
+  .reference-catalog-menu { height: calc(100dvh - 140px) !important; }
+  .reference-menu-category-hero { min-height: 100px; }
+}

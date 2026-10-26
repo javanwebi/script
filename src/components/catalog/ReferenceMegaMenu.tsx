@@ -342,7 +342,7 @@ export function ReferenceMegaMenu({
                       </div>
                       {links.length ? (
                         <div className="reference-menu-sub-links">
-                          {links.slice(0, 8).map(child => (
+                          {links.map(child => (
                             <Link key={child.name} to={selectionHref(activeCategory, child)} onClick={onNavigate}>
                               <span>{child.name}</span><ArrowUpLeft size={12} />
                             </Link>
@@ -351,11 +351,6 @@ export function ReferenceMegaMenu({
                       ) : (
                         <Link className="reference-menu-subgroup-single" to={selectionHref(activeCategory, node)} onClick={onNavigate}>
                           ورود به این گروه <ArrowLeft size={14} />
-                        </Link>
-                      )}
-                      {links.length > 8 && (
-                        <Link className="reference-menu-more" to={selectionHref(activeCategory, node)} onClick={onNavigate}>
-                          مشاهده همه زیرگروه‌ها
                         </Link>
                       )}
                     </section>
