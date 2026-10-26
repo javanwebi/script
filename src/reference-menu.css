@@ -300,3 +300,34 @@
   .reference-catalog-menu *,
   .reference-catalog-mobile * { transition: none !important; animation: none !important; }
 }
+
+
+/* Keep expanded subgroups inside the menu scroll area; avoids clipping differences between browsers. */
+@media (min-width: 1024px) {
+  .reference-catalog-menu {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: calc(100vh - 158px);
+    max-height: calc(100dvh - 158px);
+    overscroll-behavior: contain;
+  }
+  .reference-catalog-menu .reference-belts > ul {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    margin: 2px 8px 8px 0;
+    padding: 5px 8px 5px 0;
+    border: 0;
+    border-right: 2px solid #f1c7a9;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fffaf6;
+  }
+  .reference-catalog-menu .reference-belts > ul > li {
+    border-bottom: 1px solid #f1e8e2;
+  }
+  .reference-catalog-menu .reference-belts > ul > li:last-child { border-bottom: 0; }
+  .reference-catalog-menu .reference-belts ul details { margin-block: 2px; }
+}
