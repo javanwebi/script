@@ -520,7 +520,7 @@ function loadCatalogOverridesDb(): CatalogOverridesDb {
   return CATALOG_OVERRIDES_CACHE;
 }
 
-async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
+async function saveCatalogOverridesDb(db: CatalogOverridesDb, transferSku?: {skuCode:string;sourceFamilyCode:string;targetFamilyCode:string}): Promise<void> {
   if(!databaseEnabled())throw new Error('PostgreSQL is required for catalogue changes');
   {
     db.updatedAt=new Date().toISOString();
@@ -529,11 +529,119 @@ async function saveCatalogOverridesDb(db: CatalogOverridesDb): Promise<void> {
       const baseline=await readDocument(client,'catalogue/base','global','reference');if(!baseline)throw new Error('Missing database catalogue baseline');
       const products=[];for(const code of codes){if(JSON.stringify(db.families[code])===JSON.stringify(previous.families[code]))continue;const base=baseline.find((p:any)=>p.code===code);if(db.families[code] || base)products.push(normalizeMergedProduct(base || null,db.families[code] || {}));}
       await saveProducts(client,products);
+      if(transferSku && transferSku.sourceFamilyCode!==transferSku.targetFamilyCode){
+        // Gallery rows belong to the SKU, so they follow it to the destination family.
+        await client.query("update public.catalog_gallery_images set family_code=$2,updated_at=now() where variant_code=$1 and family_code=$3 and scope='variant'",[transferSku.skuCode,transferSku.targetFamilyCode,transferSku.sourceFamilyCode]);
+      }
+      if(transferSku){
+        await client.query('update public.catalog_families f set item_count=(select count(*)::integer from public.catalog_variants v where v.family_code=f.code and v.active) where f.code=any($1::text[])',[[transferSku.sourceFamilyCode,transferSku.targetFamilyCode]]);
+      }
       if(db.deletedCodes.length)await client.query(adoptedSchema()?'update public.catalog_families set is_active=false where code=any($1::text[])':'update public.product_families set active=false where code=any($1::text[])',[db.deletedCodes]);});
     CATALOG_OVERRIDES_CACHE=db;return;
   }
 
 }
+
+
+// Move an existing SKU into the selected destination family and bind the reviewed image.
+// Prices, stock, reservations, SKU code, and technical specifications remain unchanged.
+app.post('/api/catalog/sku-transfer',async(req,res)=>{
+  try{
+    const identity=await getPortalIdentity(req);
+    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر می‌تواند کد کالا را منتقل کند.'});
+    if(!databaseEnabled()||!adoptedSchema())return res.status(503).json({success:false,message:'انتقال کد کالا به دیتابیس اصلی متصل نیاز دارد.'});
+    const targetFamilyCode=String(req.body?.targetFamilyCode||'').trim();
+    const skuCode=String(req.body?.skuCode||'').trim();
+    const imageUrl=String(req.body?.imageUrl||'').trim();
+    const fileName=String(req.body?.fileName||'').split(/[\\/]/).pop()?.slice(0,255)||'';
+    const title=String(req.body?.title||'').trim().slice(0,180);
+    const persistedId=String(req.body?.persistedId||'').trim();
+    const codePattern=/^[\\p{L}\\p{N}_.-]{1,110}$/u;
+    if(!codePattern.test(targetFamilyCode)||!codePattern.test(skuCode))
+      return res.status(400).json({success:false,message:'کد خانواده یا کد کالا معتبر نیست.'});
+    if(persistedId&&!/^[\\w.:-]{1,150}$/.test(persistedId))
+      return res.status(400).json({success:false,message:'شناسه تصویر معتبر نیست.'});
+    if(!imageUrl&&!persistedId)
+      return res.status(400).json({success:false,message:'تصویر معتبر برای اتصال انتخاب نشده است.'});
+    if(imageUrl.length>2000||imageUrl.includes('\\')||imageUrl.startsWith('//')||
+       (imageUrl&&!imageUrl.startsWith('/')&&!/^https?:\\/\\/[^\\s]+$/i.test(imageUrl)))
+      return res.status(400).json({success:false,message:'آدرس تصویر معتبر نیست.'});
+
+    const storedState=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
+    const currentDb:CatalogOverridesDb=storedState&&typeof storedState==='object'
+      ? structuredClone(storedState as CatalogOverridesDb)
+      : structuredClone(loadCatalogOverridesDb());
+    CATALOG_OVERRIDES_CACHE=currentDb;
+    const products=await readProducts();
+    const target=products.find(product=>product.code===targetFamilyCode);
+    const source=products.find(product=>(product.variants||[]).some(variant=>variant.code===skuCode));
+    const skuVariant=source?.variants?.find(variant=>variant.code===skuCode);
+    if(!target)return res.status(404).json({success:false,message:'خانواده مقصد در کاتالوگ فعال پیدا نشد.'});
+    if(!source||!skuVariant)return res.status(404).json({success:false,message:'کد کالا در کاتالوگ پیدا نشد.'});
+
+    const persistedImage=persistedId?(target.galleryImages||[]).find(image=>image.id===persistedId):undefined;
+    if(persistedId&&!persistedImage)
+      return res.status(409).json({success:false,message:'تصویر ذخیره‌شده در خانواده مقصد پیدا نشد؛ فرم را تازه کنید.'});
+    const resolvedImageUrl=persistedImage?.url||imageUrl;
+    if(!resolvedImageUrl||resolvedImageUrl.length>2000||resolvedImageUrl.includes('\\')||
+       resolvedImageUrl.startsWith('//')||
+       (!resolvedImageUrl.startsWith('/')&&!/^https?:\\/\\/[^\\s]+$/i.test(resolvedImageUrl)))
+      return res.status(400).json({success:false,message:'آدرس تصویر معتبر نیست.'});
+    const resolvedFileName=persistedImage?.fileName||fileName;
+    const imageTitle=title||persistedImage?.title||('تصویر کد '+skuCode);
+    const sourceGallery=(source.galleryImages||[]);
+    const movedImages=source.code===target.code?[]:sourceGallery.filter(image=>image.scope==='variant'&&image.variantCode===skuCode);
+    const remainingSourceGallery=source.code===target.code?sourceGallery:sourceGallery.filter(image=>!(image.scope==='variant'&&image.variantCode===skuCode));
+    const targetGallery=[...(target.galleryImages||[])];
+    if(source.code!==target.code){
+      for(const image of movedImages)if(!targetGallery.some(existing=>existing.id===image.id))
+        targetGallery.push({...image,order:targetGallery.length+1});
+    }
+    const newImageId=persistedId||crypto.randomUUID();
+    const byId=targetGallery.findIndex(image=>image.id===newImageId);
+    const byUrl=targetGallery.findIndex(image=>image.scope==='variant'&&image.variantCode===skuCode&&image.url===resolvedImageUrl);
+    const galleryId=byId>=0?newImageId:byUrl>=0?targetGallery[byUrl].id:newImageId;
+    const galleryEntry={
+      id:galleryId,url:resolvedImageUrl,fileName:resolvedFileName||undefined,
+      scope:'variant' as const,variantCode:skuCode,identityVerified:false,
+      title:imageTitle,order:byId>=0?(targetGallery[byId].order||byId+1):byUrl>=0?(targetGallery[byUrl].order||byUrl+1):targetGallery.length+1
+    };
+    if(byId>=0)targetGallery[byId]=galleryEntry;
+    else if(byUrl>=0)targetGallery[byUrl]=galleryEntry;
+    else targetGallery.push(galleryEntry);
+
+    const movedVariant={...skuVariant,images:Array.from(new Set([...(skuVariant.images||[]),resolvedImageUrl]))};
+    const nextTargetVariants=(target.variants||[]).some(variant=>variant.code===skuCode)
+      ? (target.variants||[]).map(variant=>variant.code===skuCode?movedVariant:variant)
+      : [...(target.variants||[]),movedVariant];
+    const nextTarget:Product={
+      ...target,variants:nextTargetVariants,galleryImages:targetGallery,
+      images:targetGallery.map(image=>image.url)
+    };
+    if(source.code!==target.code){
+      const movedSkuUrls=new Set([...(skuVariant.images||[]),...movedImages.map(image=>image.url),resolvedImageUrl]);
+      const remainingFamilyUrls=new Set(remainingSourceGallery.filter(image=>image.scope==='family').map(image=>image.url));
+      const remainingImages=(source.images||[]).filter(url=>!movedSkuUrls.has(url)||remainingFamilyUrls.has(url));
+      const nextSource:Product={
+        ...source,variants:(source.variants||[]).filter(variant=>variant.code!==skuCode),
+        galleryImages:remainingSourceGallery,
+        images:remainingSourceGallery.length?remainingSourceGallery.map(image=>image.url):remainingImages
+      };
+      currentDb.families[nextSource.code]=nextSource;
+    }
+    currentDb.families[nextTarget.code]=nextTarget;
+    await saveCatalogOverridesDb(currentDb,{skuCode,sourceFamilyCode:source.code,targetFamilyCode:target.code});
+    const freshProducts=await readProducts();
+    installDatabaseProducts(freshProducts);
+    primePublicCatalogCache(freshProducts);
+    refreshRecognitionCatalog();
+    return res.json({success:true,skuCode,sourceFamilyCode:source.code,targetFamilyCode:target.code,moved:source.code!==target.code,imageUrl:resolvedImageUrl});
+  }catch(error:any){
+    const status=Number(error?.status)||500;
+    if(status>=500)console.error('[Catalog SKU transfer] Failed:',String(error?.code||error?.name||'unknown').slice(0,80));
+    return res.status(status).json({success:false,message:status>=500?'انتقال کد کالا و اتصال تصویر ذخیره نشد؛ اطلاعات قبلی حفظ شدند.':error.message||'انتقال کد کالا انجام نشد.'});
+  }
+});
 
 app.get('/api/catalog/overrides', async (req, res) => {
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');
