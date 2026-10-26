@@ -595,3 +595,26 @@
   .bce-hero-actions > * { min-width: 0; }
   .bce-products-grid > * { min-width: 0; }
 }
+
+
+/* Honest, stable fallback when a family has no catalog-linked image. */
+.bce-family-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed #d7dce0;
+  border-radius: 9px;
+  color: #77838c;
+  background: linear-gradient(145deg, #f6f8f9, #fff);
+}
+.bce-family-placeholder svg { color: #e06518; }
+.bce-family-placeholder small { font-size: 10px; line-height: 1.6; }
+@media (max-width: 640px) {
+  .bce-family-placeholder svg { width: 24px; height: 24px; }
+  .bce-family-placeholder small { font-size: 9px; }
+}
