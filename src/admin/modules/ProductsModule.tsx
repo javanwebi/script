@@ -43,7 +43,7 @@ import { toPersianDigits } from '../../utils/formatters';
 import { getProductImageUrl, TOTAL_OFFICIAL_IMAGES_COUNT } from '../../assets/imagesproducts';
 import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
-import { subscribeCatalogChanges, buildDefaultGalleryImages } from '../../data/mockGenerator';
+import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
 import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
 
@@ -905,6 +905,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
             }],images:[...(previous.images||[]),url]};
           });
+        }}
+        onAssignSku={async input=>{
+          const response=await fetch('/api/catalog/sku-transfer',{
+            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            signal:AbortSignal.timeout(20000),body:JSON.stringify(input)
+          });
+          const result=await response.json().catch(()=>({success:false,message:'پاسخ سرور قابل خواندن نیست.'}));
+          if(!response.ok||!result.success)throw new Error(result.message||'انتقال کد کالا انجام نشد.');
+          await syncCatalogFromServer();
+          refreshProducts();
+          setSaveFeedback(`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} منتقل شد و تصویر آن ثبت شد.`);
+          window.setTimeout(()=>setSaveFeedback(null),3500);
         }}
         onEdit={(code,file,skuCode,imageUrl,imageTitle,persistedId)=>{
           const product=products.find(p=>p.code===code);if(!product)return;
