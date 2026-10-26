@@ -72,6 +72,21 @@ const categoryArtwork = (category: EnhancedCategory): string => {
   return A.categories.transmission;
 };
 
+function CategoryThumbnail({ category, FallbackIcon }: { category: EnhancedCategory; FallbackIcon: typeof Layers }) {
+  const [failed, setFailed] = useState(false);
+  const src = typeof category.image === "string" ? category.image.trim() : "";
+  useEffect(() => setFailed(false), [src]);
+  return (
+    <span className="reference-menu-category-thumb" aria-hidden="true">
+      {src && !failed ? (
+        <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      ) : (
+        <FallbackIcon size={19} />
+      )}
+    </span>
+  );
+}
+
 const categoryHref = (category: EnhancedCategory) =>
   "/category/" + resolveCategorySlug(category.slug);
 
@@ -291,7 +306,7 @@ export function ReferenceMegaMenu({
                       onFocus={() => setActiveSlug(category.slug)}
                       onClick={() => setActiveSlug(category.slug)}
                     >
-                      <span className="reference-menu-category-icon"><Icon size={16} /></span>
+                      <CategoryThumbnail category={category} FallbackIcon={Icon} />
                       <span className="reference-menu-category-copy">
                         <strong>{category.name}</strong>
                         <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرگروه‌ها"}</small>
