@@ -730,15 +730,26 @@ export const Header: React.FC = () => {
           <nav className="flex items-center gap-0.5 xl:gap-1 text-[11px] xl:text-xs font-medium text-white" dir="rtl">
             
             {/* 1. همه محصولات (Orange LayoutGrid icon + Down Chevron) */}
-            <div className="relative" ref={megaMenuRef}>
+            <div
+              className="relative"
+              ref={megaMenuRef}
+              onMouseLeave={() => setIsMegaMenuOpen(false)}
+            >
               <button
                 type="button"
+                aria-haspopup="true"
+                aria-expanded={isMegaMenuOpen}
                 onClick={() => {
                   setIsMegaMenuOpen(prev => !prev);
                   setActiveDropdown(null);
                 }}
                 onMouseEnter={() => {
                   setActiveDropdown(null);
+                  setIsMegaMenuOpen(true);
+                }}
+                onFocus={() => {
+                  setActiveDropdown(null);
+                  setIsMegaMenuOpen(true);
                 }}
                 className={`flex items-center gap-1.5 py-3 px-2 xl:px-2.5 whitespace-nowrap rounded-lg hover:bg-white/5 transition-colors cursor-pointer group ${
                   isMegaMenuOpen ? 'text-[#E06518] bg-white/5' : 'text-white hover:text-[#E06518]'
