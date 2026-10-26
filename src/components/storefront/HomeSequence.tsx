@@ -35,8 +35,10 @@ const groups = [
 ];
 
 export function HomeCategoryStrip() {
-  // All visible main categories are hydrated from PostgreSQL, including admin renames.
-  const categories = CATEGORIES.filter(c => c.active !== false);
+  // Preserve the original six-card horizontal homepage strip; other groups stay on /categories.
+  const categories = groups
+    .map(name => CATEGORIES.find(category => category.name === name && category.active !== false))
+    .filter((category): category is NonNullable<typeof category> => Boolean(category));
   return (
     <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
       <div className="home-category-track">
