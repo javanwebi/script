@@ -39,7 +39,6 @@ import type { OverlayOptions } from 'sharp';
 import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
-import { FORZA_GREETING_TEXT } from './src/utils/forzaGreeting';
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
@@ -5259,6 +5258,65 @@ app.post('/api/ai/consult', async (req, res) => {
 // Buffer cache for ultra-fast progressive TTS synthesis
 const ttsBufferCache = new Map<string, Buffer>();
 
+const FORZA_TTS_DISK_CACHE_DIR = process.env.FORZA_TTS_CACHE_DIR
+  || path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH || '/data', 'storage', 'forza-tts');
+const FORZA_TTS_DISK_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const FORZA_TTS_DISK_CACHE_MAX_FILES = 2000;
+
+function forzaTtsDiskCachePath(text: string, voice = 'Charon'): string {
+  const key = crypto.createHash('sha256').update(voice + '\0' + text).digest('hex');
+  return path.join(FORZA_TTS_DISK_CACHE_DIR, key + '.wav');
+}
+
+async function readForzaTtsDiskCache(text: string, voice = 'Charon'): Promise<Buffer | null> {
+  try {
+    const filePath = forzaTtsDiskCachePath(text, voice);
+    const stat = await fs.promises.stat(filePath);
+    if (Date.now() - stat.mtimeMs > FORZA_TTS_DISK_CACHE_TTL_MS) {
+      await fs.promises.unlink(filePath).catch(() => {});
+      return null;
+    }
+    const audio = await fs.promises.readFile(filePath);
+    if (classifyForzaAudio(audio, 'audio/wav') === 'wav') return audio;
+    await fs.promises.unlink(filePath).catch(() => {});
+  } catch {}
+  return null;
+}
+
+async function pruneForzaTtsDiskCache(): Promise<void> {
+  try {
+    const entries = await fs.promises.readdir(FORZA_TTS_DISK_CACHE_DIR, { withFileTypes: true });
+    const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.wav'));
+    if (files.length <= FORZA_TTS_DISK_CACHE_MAX_FILES) return;
+    const dated = await Promise.all(files.map(async (entry) => {
+      const filePath = path.join(FORZA_TTS_DISK_CACHE_DIR, entry.name);
+      const stat = await fs.promises.stat(filePath).catch(() => null);
+      return { filePath, mtimeMs: stat?.mtimeMs || 0 };
+    }));
+    dated.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    for (const entry of dated.slice(0, dated.length - FORZA_TTS_DISK_CACHE_MAX_FILES)) {
+      await fs.promises.unlink(entry.filePath).catch(() => {});
+    }
+  } catch {}
+}
+
+async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Charon'): Promise<void> {
+  if (!text || !audio?.length || classifyForzaAudio(audio, 'audio/wav') !== 'wav') return;
+  try {
+    await fs.promises.mkdir(FORZA_TTS_DISK_CACHE_DIR, { recursive: true });
+    const filePath = forzaTtsDiskCachePath(text, voice);
+    try {
+      await fs.promises.writeFile(filePath, audio, { flag: 'wx' });
+    } catch (error: any) {
+      if (error?.code !== 'EEXIST') throw error;
+    }
+    await pruneForzaTtsDiskCache();
+  } catch (error: any) {
+    console.warn('[FORZA TTS] persistent cache write skipped', { type: error?.code || error?.name || 'error' });
+  }
+}
+
+
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
 app.post('/api/ai/consult-stream', async (req, res) => {
   const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio } = req.body;
@@ -5862,6 +5920,11 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
   if (pending) return pending;
 
   const work = (async (): Promise<Buffer | null> => {
+    const diskCached = await readForzaTtsDiskCache(cleanKey, selectedVoice);
+    if (diskCached?.length) {
+      console.info('[FORZA TTS] persistent audio cache hit', { audioBytes: diskCached.length });
+      return diskCached;
+    }
     if (geminiTtsGlobalCooldownUntil > Date.now()) {
       console.warn('[FORZA TTS] direct Gemini cascade paused after quota exhaustion', {
         cooldownSeconds: Math.ceil((geminiTtsGlobalCooldownUntil - Date.now()) / 1000),
@@ -6088,6 +6151,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
         if (firstKey) ttsBufferCache.delete(firstKey);
       }
       ttsBufferCache.set(cacheKey, audio);
+      await writeForzaTtsDiskCache(cleanKey, audio, selectedVoice);
     }
     return audio;
   } finally {
@@ -6096,6 +6160,13 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
 }
 
 async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | null> {
+  const cleanSpeech = String(text || '').trim().slice(0, 1000);
+  if (!cleanSpeech) return null;
+  const diskCached = await readForzaTtsDiskCache(cleanSpeech, 'Charon');
+  if (diskCached?.length) {
+    console.info('[FORZA TTS] persistent audio cache hit', { audioBytes: diskCached.length });
+    return diskCached;
+  }
   const workerUrl = configuredForzaWorkerUrl();
   if (!workerUrl) return null;
   const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
@@ -6115,7 +6186,7 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
         'Content-Type':'application/json',
         ...(workerToken ? { Authorization: 'Bearer ' + workerToken.trim() } : {}),
       },
-      body: JSON.stringify({ text: text.slice(0,1000) }),
+      body: JSON.stringify({ text: cleanSpeech }),
       signal:controller.signal,
     });
     const data = await response.json().catch(()=>null) as any;
@@ -6146,7 +6217,10 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
     // Gemini 3.8 TTS returns a complete RIFF/WAVE file by default; older
     // models can return headerless PCM. Never double-encode WAV as PCM.
     const audioKind = classifyForzaAudio(bytes, data.mimeType);
-    if (audioKind === 'wav') return bytes;
+    if (audioKind === 'wav') {
+      await writeForzaTtsDiskCache(cleanSpeech, bytes, 'Charon');
+      return bytes;
+    }
     if (audioKind !== 'pcm16') {
       console.warn('[FORZA TTS] Worker returned an unsupported audio container');
       return null;
@@ -6154,7 +6228,9 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
     const rateMatch = /rate=(\d{4,6})/.exec(String(data.mimeType || ''));
     const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
     if (sampleRate < 8000 || sampleRate > 48000) return null;
-    return pcmToWav(bytes, sampleRate, 1, 16);
+    const wav = pcmToWav(bytes, sampleRate, 1, 16);
+    await writeForzaTtsDiskCache(cleanSpeech, wav, 'Charon');
+    return wav;
   } catch (error:any) {
     console.warn('[FORZA TTS] Worker speech endpoint failure', error?.name || 'network');
     return null;
@@ -6951,26 +7027,6 @@ async function start() {
           .catch(error => console.warn('[FORZA provider smoke test] FAILED:', String(error?.message || error).slice(0, 140)));
       }, 4000);
       probe.unref();
-    }
-    // Warm the *exact* visible welcome text while the particle avatar forms.
-    // This also tests real Gemini TTS and makes subsequent visitors instant.
-    // A failure never blocks Express startup or other site functionality.
-    if (configuredForzaWorkerUrl()) {
-      const warm = setTimeout(() => {
-        const text = cleanPersianTextForVoice(FORZA_GREETING_TEXT);
-        const key = `male-fa:${text.slice(0, 300)}:${text.length}`;
-        void generateForzaWorkerPersianVoice(text)
-          .then(audio => {
-            if (audio?.length) {
-              ttsAudioCache.set(key, `data:audio/wav;base64,${audio.toString('base64')}`);
-              console.info('[FORZA greeting TTS warmup] SUCCESS; provider=cloudflare; audioBytes=' + audio.length);
-            } else {
-              console.warn('[FORZA greeting TTS warmup] FAILED; voice fallback may be required');
-            }
-          })
-          .catch(error => console.warn('[FORZA greeting TTS warmup] FAILED', error?.name || 'error'));
-      }, 500);
-      warm.unref();
     }
     // Legacy image importer is opt-in only; never migrate or contact GitHub during ordinary startup.
     // Normal requests must never depend on GitHub, local source images or
