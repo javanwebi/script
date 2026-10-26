@@ -1,5 +1,5 @@
 import {database as postgresDatabase} from '../server/db/connection';
-import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
+import {supabaseIdentity,supabaseAuthAction,supabaseOnboardingProfile,refreshAuth} from "../server/db/supabaseAuth";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal,readDocument} from "../server/db/repository";
 import crypto from "node:crypto";
@@ -438,6 +438,10 @@ export default async function handler(
         res.setHeader('Cache-Control','private, no-store');
         await rateLimit(req);
         if(await supabaseAuthAction(req,res,body,safeUser))return;
+      }
+      if(body.action==='profile' && body.payload && Object.keys(body.payload).every(key=>['favoriteBrands','businessType','onboardingCompleted'].includes(key))){
+        await supabaseOnboardingProfile(req,res,body);
+        return;
       }
       req.body=body;
     }catch(e:any){

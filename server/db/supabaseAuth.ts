@@ -129,3 +129,35 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
  send(200,{success:true,user:safe(profile),admin:profile.role==='admin',requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }
+
+/** Fast, authenticated onboarding update: never load or rewrite the whole portal. */
+export async function supabaseOnboardingProfile(req:IncomingMessage,res:ServerResponse,body:any):Promise<void>{
+ const send=(status:number,data:any)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','private, no-store');res.end(JSON.stringify(data));};
+ try{
+  const patch=body?.payload;
+  if(!patch || typeof patch!=='object' || Array.isArray(patch))throw error(400,'اطلاعات ارسالی معتبر نیست.');
+  const allowed=['favoriteBrands','businessType','onboardingCompleted'];
+  if(Object.keys(patch).some(key=>!allowed.includes(key)))throw error(400,'فیلد نامعتبر برای تکمیل حساب.');
+  if(patch.favoriteBrands!==undefined){
+    const brands=await import('../../src/data/brands');
+    if(!Array.isArray(patch.favoriteBrands) || patch.favoriteBrands.length<1 || patch.favoriteBrands.length>brands.BRANDS.length || patch.favoriteBrands.some((id:unknown)=>typeof id!=='string' || !brands.BRANDS.some(b=>b.id===id && b.active!==false)))throw error(400,'یک یا چند برند معتبر انتخاب کنید.');
+  }
+  if(patch.businessType!==undefined){
+    const types=await import('../../src/data/iranLocations');
+    if(typeof patch.businessType!=='string' || !types.BUSINESS_TYPES.some(b=>b.id===patch.businessType))throw error(400,'نوع کسب‌وکار معتبر انتخاب کنید.');
+  }
+  if(patch.onboardingCompleted!==undefined && typeof patch.onboardingCompleted!=='boolean')throw error(400,'وضعیت تکمیل معتبر نیست.');
+  if(patch.onboardingCompleted===true && !patch.businessType)throw error(400,'ابتدا نوع کسب‌وکار را انتخاب کنید.');
+  const token=cookie(req,'sp_access');
+  if(!token)throw error(401,'ابتدا وارد حساب شوید.');
+  const identity=await client().auth.getUser(token);
+  if(identity.error || !identity.data.user)throw error(401,'نشست ورود منقضی شده است؛ دوباره وارد شوید.');
+  const result=await database().query(
+    "update public.user_profiles set preferences=coalesce(preferences,'{}'::jsonb) || $2::jsonb, updated_at=now() where id=$1 and status='active' returning id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices",
+    [identity.data.user.id,JSON.stringify(patch)]
+  );
+  const p=result.rows[0];if(!p)throw error(403,'حساب فعال پیدا نشد.');
+  const mappedRole=p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='agency'?'dealer':'retail';
+  send(200,{success:true,user:{...(p.preferences || {}),id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:mappedRole,active:true,approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices}});
+ }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ذخیره اطلاعات حساب انجام نشد؛ اتصال دیتابیس را بررسی کنید.'});}
+}
