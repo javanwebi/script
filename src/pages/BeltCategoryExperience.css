@@ -566,3 +566,32 @@
  .bce-toolbar{min-height:54px}
 }
 @media(max-width:370px){.bce-hero-actions{grid-template-columns:1fr}.bce-hero{min-height:510px!important}.bce-hero-content{min-height:510px!important}.bce-products-grid{gap:7px}}
+
+
+/* Cross-browser release guardrails for the complete belt category experience. */
+.bce {
+  overflow-x: hidden;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+.bce img { max-width: 100%; }
+.bce .bce-hero-content { direction: rtl; }
+.bce .bce-product-code,
+.bce [dir="ltr"],
+.bce .bce-product-specs strong { unicode-bidi: isolate; }
+.bce button,
+.bce a,
+.bce input,
+.bce select { -webkit-tap-highlight-color: transparent; }
+@supports not (overflow: clip) {
+  .bce { overflow-x: hidden; }
+}
+@media (min-width: 861px) {
+  .bce-hero-content { text-align: right; }
+}
+@media (max-width: 640px) {
+  .bce-hero-content { margin-inline: 0; }
+  .bce-hero-actions > * { min-width: 0; }
+  .bce-products-grid > * { min-width: 0; }
+}
