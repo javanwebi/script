@@ -336,13 +336,13 @@
 /* 2026 desktop mega-menu: category rail + real taxonomy links + searchable main panel. */
 .reference-catalog-menu {
   position: fixed !important;
-  top: 142px !important;
+  top: 128px;
   right: max(20px, calc((100vw - 1280px) / 2)) !important;
   width: min(1220px, calc(100vw - 40px)) !important;
   height: min(570px, calc(100dvh - 158px)) !important;
   max-height: calc(100dvh - 158px) !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 278px !important;
+  grid-template-columns: 278px minmax(0, 1fr) !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
@@ -365,7 +365,7 @@
 .reference-menu-search:focus-within { border-color: #e56b1e; box-shadow: 0 0 0 3px #e56b1e18; }
 .reference-menu-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #29343f; font: inherit; font-size: 12px; }
 .reference-menu-search input::placeholder { color: #9aa3ac; }
-.reference-menu-rail { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 14px 12px 12px; border-left: 1px solid #e6eaed; background: #f7f9fb; }
+.reference-menu-rail { grid-column: 1; grid-row: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 14px 12px 12px; border-left: 1px solid #e6eaed; background: #f7f9fb; }
 .reference-menu-rail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 1px 7px 12px; color: #2b3742; }
 .reference-menu-rail-heading strong { font-size: 13px; font-weight: 950; }
 .reference-menu-rail-heading span { font-size: 10px; color: #8b96a0; }
@@ -381,7 +381,7 @@
 .reference-menu-category-arrow { color: #a4adb5; }
 .reference-menu-category.is-active .reference-menu-category-arrow { color: #df6418; }
 .reference-menu-all-categories { min-height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; border: 1px solid #e5e9ed; border-radius: 10px; background: #fff; color: #bf5313 !important; font-size: 11px; font-weight: 900; }
-.reference-menu-main { grid-column: 1; grid-row: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 16px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; background: #fff; }
+.reference-menu-main { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 16px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; background: #fff; }
 .reference-menu-category-hero { flex: 0 0 auto; min-height: 142px; display: grid; grid-template-columns: minmax(0, 1fr) 175px; align-items: center; gap: 16px; padding: 15px 19px; border: 1px solid #e7ebef; border-radius: 15px; background: linear-gradient(110deg, #fff 0%, #fff8f2 100%); overflow: hidden; }
 .reference-menu-category-copy-block { min-width: 0; }
 .reference-menu-category-copy-block h2 { margin-top: 5px; color: #202b35; font-size: 22px; line-height: 1.45; font-weight: 950; }
@@ -429,3 +429,16 @@
 }
 @media (max-width: 1023px) { .reference-catalog-menu { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { .reference-catalog-menu *, .reference-catalog-mobile * { transition: none !important; animation: none !important; } }
+
+/* Grouped category rail: actual database groups are visible on the right side of the mega menu. */
+.reference-menu-category-group { min-width: 0; padding: 0 0 7px; }
+.reference-menu-category-group + .reference-menu-category-group { margin-top: 4px; padding-top: 8px; border-top: 1px solid #e3e8ec; }
+.reference-menu-group-heading { min-height: 29px; display: flex; align-items: center; gap: 7px; padding: 2px 7px 7px; color: #64717b; }
+.reference-menu-group-icon { display: grid; place-items: center; flex: 0 0 23px; width: 23px; height: 23px; border-radius: 7px; background: #e9edf1; color: #667580; }
+.reference-menu-group-heading strong { min-width: 0; flex: 1; font-size: 10px; line-height: 1.7; font-weight: 950; }
+.reference-menu-group-heading small { flex: 0 0 auto; color: #929da6; font-size: 9px; font-weight: 800; }
+.reference-menu-category-group .reference-menu-category { min-height: 46px; grid-template-columns: 29px minmax(0, 1fr) 14px; padding: 6px 7px; gap: 7px; }
+.reference-menu-category-group .reference-menu-category-icon { width: 29px; height: 29px; }
+.reference-menu-category-group .reference-menu-category-copy strong { font-size: 10px; }
+.reference-menu-category-group .reference-menu-category-copy small { font-size: 8px; }
+@media (min-width: 1024px) { .reference-catalog-menu { margin-top: 0 !important; } }

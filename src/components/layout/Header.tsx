@@ -733,14 +733,13 @@ export const Header: React.FC = () => {
             <div
               className="relative"
               ref={megaMenuRef}
-              onMouseLeave={() => setIsMegaMenuOpen(false)}
             >
               <button
                 type="button"
                 aria-haspopup="true"
                 aria-expanded={isMegaMenuOpen}
                 onClick={() => {
-                  setIsMegaMenuOpen(prev => !prev);
+                  setIsMegaMenuOpen(true);
                   setActiveDropdown(null);
                 }}
                 onMouseEnter={() => {
@@ -765,7 +764,7 @@ export const Header: React.FC = () => {
               </button>
 
               {/* Industrial MegaMenu Dropdown */}
-              {isMegaMenuOpen && <ReferenceMegaMenu onNavigate={()=>setIsMegaMenuOpen(false)}/>}
+              {isMegaMenuOpen && <ReferenceMegaMenu topOffset={navBarRef.current?.getBoundingClientRect().bottom ?? 128} onNavigate={()=>setIsMegaMenuOpen(false)}/>}
             </div>
 
 

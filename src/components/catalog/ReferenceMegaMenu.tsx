@@ -14,6 +14,7 @@ type SavedNavigationGroup = {
   imageUrl: string | null;
   categorySlugs: string[];
   sortOrder: number;
+  active?: boolean;
 };
 
 const readCategories = (): EnhancedCategory[] => {
@@ -41,6 +42,20 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
     .some(value => String(value || "").toLocaleLowerCase().includes(term));
 };
 
+const defaultNavigationGroup = (category: EnhancedCategory): string => {
+  const name = category.name || "";
+  if (/تسمه|پولی|زنجیر|نقاله|بلبرینگ|یاتاقان|چرخ|رولر|کوپلینگ|انتقال قدرت|ریل|حرکت/i.test(name)) {
+    return "انتقال قدرت و تجهیزات حرکتی";
+  }
+  if (/آب.?بندی|درزگیر|لاستیک|شیلنگ|سیال|پمپ|شیرآلات|وکیوم|مکش|فیلتر/i.test(name)) {
+    return "آب‌بندی، لاستیک و سیالات";
+  }
+  if (/کاشی|سرامیک|نساجی|پارچه|بسته.?بندی|غذایی|نوشیدنی|ماشین.?سازی|خط تولید|صنایع/i.test(name)) {
+    return "تجهیزات صنایع و خطوط تولید";
+  }
+  return "قطعات و مواد مهندسی";
+};
+
 const categoryArtwork = (category: EnhancedCategory): string => {
   const name = category.name || "";
   if (/تسمه|انتقال نیرو|انتقال قدرت/i.test(name)) return A.categories.belts;
@@ -62,9 +77,11 @@ const selectionHref = (category: EnhancedCategory, node: CategoryNode) =>
 export function ReferenceMegaMenu({
   onNavigate,
   compact = false,
+  topOffset = 128,
 }: {
   onNavigate?: () => void;
   compact?: boolean;
+  topOffset?: number;
 }) {
   const [categories, setCategories] = useState<EnhancedCategory[]>(() => readCategories());
   const [activeSlug, setActiveSlug] = useState("تسمه-و-انتقال-نیرو");
@@ -108,19 +125,69 @@ export function ReferenceMegaMenu({
     const visible = categories.filter(category => category.active !== false);
     if (!savedGroups?.length) return visible;
     const order = new Map<string, number>();
-    [...savedGroups].sort((a, b) => a.sortOrder - b.sortOrder).forEach((group, groupIndex) => {
+    [...savedGroups].filter(group => group.active !== false).sort((a, b) => a.sortOrder - b.sortOrder).forEach((group, groupIndex) => {
       group.categorySlugs.forEach((slug, itemIndex) => {
-        if (!order.has(slug)) order.set(slug, groupIndex * 1000 + itemIndex);
+        const canonical = resolveCategorySlug(slug);
+        if (!order.has(canonical)) order.set(canonical, groupIndex * 1000 + itemIndex);
       });
     });
     return [...visible].sort((a, b) =>
-      (order.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
+      (order.get(resolveCategorySlug(a.slug)) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(resolveCategorySlug(b.slug)) ?? Number.MAX_SAFE_INTEGER)
     );
   }, [categories, savedGroups]);
 
+  const navigationSections = useMemo(() => {
+    const available = orderedCategories;
+    const assigned = new Set<string>();
+    const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
+    const configured = [...(savedGroups || [])]
+      .filter(group => group.active !== false)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    if (configured.length) {
+      configured.forEach(group => {
+        const slugs = new Set(group.categorySlugs.map(resolveCategorySlug));
+        const members = available.filter(category => slugs.has(resolveCategorySlug(category.slug)) && !assigned.has(category.slug));
+        members.forEach(category => assigned.add(category.slug));
+        if (members.length) sections.push({
+          id: group.id,
+          title: group.title,
+          iconKey: group.iconKey || "layers",
+          categories: members,
+        });
+      });
+      const unassigned = available.filter(category => !assigned.has(category.slug));
+      if (unassigned.length) sections.push({
+        id: "other-categories",
+        title: "سایر دسته‌بندی‌ها",
+        iconKey: "package",
+        categories: unassigned,
+      });
+      return sections.map(section => ({
+        ...section,
+        categories: section.categories.filter(category => categoryMatches(category, search)),
+      })).filter(section => section.categories.length);
+    }
+
+    const fallbackGroups = new Map<string, EnhancedCategory[]>();
+    available.forEach(category => {
+      const title = defaultNavigationGroup(category);
+      const current = fallbackGroups.get(title) || [];
+      current.push(category);
+      fallbackGroups.set(title, current);
+    });
+    return [...fallbackGroups.entries()].map(([title, items], index) => ({
+      id: "default-" + index,
+      title,
+      iconKey: "layers",
+      categories: items.filter(category => categoryMatches(category, search)),
+    })).filter(section => section.categories.length);
+  }, [orderedCategories, savedGroups, search]);
+
   const filteredCategories = useMemo(
-    () => orderedCategories.filter(category => categoryMatches(category, search)),
-    [orderedCategories, search]
+    () => navigationSections.flatMap(section => section.categories),
+    [navigationSections]
   );
   const activeCategory =
     filteredCategories.find(category => category.slug === activeSlug) ||
@@ -146,7 +213,7 @@ export function ReferenceMegaMenu({
   const groups = activeCategory ? visibleNodes(activeCategory.children || []) : [];
 
   return (
-    <div className="reference-catalog-menu" dir="rtl" aria-label="مگامنو دسته‌بندی محصولات">
+    <div className="reference-catalog-menu" dir="rtl" aria-label="مگامنو دسته‌بندی محصولات" style={{ top: topOffset }}>
       <header className="reference-menu-header">
         <div className="reference-menu-header-copy">
           <span>کاتالوگ صنعتی صنعت پیش</span>
@@ -170,38 +237,56 @@ export function ReferenceMegaMenu({
           <span>{toPersianDigits(filteredCategories.length)} گروه</span>
         </div>
         <div className="reference-menu-category-list">
-          {filteredCategories.map(category => {
-            const selected = activeCategory?.slug === category.slug;
-            const Icon = /تسمه|انتقال نیرو|انتقال قدرت/i.test(category.name)
-              ? Layers
-              : /کارخانه|صنعت|سرامیک|نساجی/i.test(category.name)
+          {navigationSections.map(section => {
+            const GroupIcon = /سیال|آب.?بندی|لاستیک/i.test(section.title)
+              ? Link2
+              : /صنایع|خطوط تولید/i.test(section.title)
                 ? Factory
-                : /شیلنگ|آب.?بندی|لاستیک/i.test(category.name)
-                  ? Link2
-                  : /پروفیل|قطعه/i.test(category.name)
-                    ? Box
-                    : Move;
-            const count = Number(category.familyCount ?? category.count ?? 0);
+                : /مهندسی|قطعات|مواد/i.test(section.title)
+                  ? Box
+                  : Layers;
             return (
-              <button
-                type="button"
-                key={category.slug}
-                className={"reference-menu-category" + (selected ? " is-active" : "")}
-                aria-pressed={selected}
-                onMouseEnter={() => setActiveSlug(category.slug)}
-                onFocus={() => setActiveSlug(category.slug)}
-                onClick={() => setActiveSlug(category.slug)}
-              >
-                <span className="reference-menu-category-icon"><Icon size={17} /></span>
-                <span className="reference-menu-category-copy">
-                  <strong>{category.name}</strong>
-                  <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرگروه‌ها"}</small>
-                </span>
-                <ChevronLeft size={16} className="reference-menu-category-arrow" />
-              </button>
+              <section className="reference-menu-category-group" key={section.id}>
+                <div className="reference-menu-group-heading">
+                  <span className="reference-menu-group-icon"><GroupIcon size={14} /></span>
+                  <strong>{section.title}</strong>
+                  <small>{toPersianDigits(section.categories.length)}</small>
+                </div>
+                {section.categories.map(category => {
+                  const selected = activeCategory?.slug === category.slug;
+                  const Icon = /تسمه|انتقال نیرو|انتقال قدرت/i.test(category.name)
+                    ? Layers
+                    : /کارخانه|صنعت|سرامیک|نساجی/i.test(category.name)
+                      ? Factory
+                      : /شیلنگ|آب.?بندی|لاستیک/i.test(category.name)
+                        ? Link2
+                        : /پروفیل|قطعه/i.test(category.name)
+                          ? Box
+                          : Move;
+                  const count = Number(category.familyCount ?? category.count ?? 0);
+                  return (
+                    <button
+                      type="button"
+                      key={category.slug}
+                      className={"reference-menu-category" + (selected ? " is-active" : "")}
+                      aria-pressed={selected}
+                      onMouseEnter={() => setActiveSlug(category.slug)}
+                      onFocus={() => setActiveSlug(category.slug)}
+                      onClick={() => setActiveSlug(category.slug)}
+                    >
+                      <span className="reference-menu-category-icon"><Icon size={16} /></span>
+                      <span className="reference-menu-category-copy">
+                        <strong>{category.name}</strong>
+                        <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرگروه‌ها"}</small>
+                      </span>
+                      <ChevronLeft size={15} className="reference-menu-category-arrow" />
+                    </button>
+                  );
+                })}
+              </section>
             );
           })}
-          {filteredCategories.length === 0 && (
+          {navigationSections.length === 0 && (
             <div className="reference-menu-no-results">
               <PackageSearch size={22} />
               <span>دسته‌ای با این عبارت پیدا نشد.</span>
