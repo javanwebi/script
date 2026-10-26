@@ -43,7 +43,7 @@ import { toPersianDigits } from '../../utils/formatters';
 import { getProductImageUrl, TOTAL_OFFICIAL_IMAGES_COUNT } from '../../assets/imagesproducts';
 import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
-import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer } from '../../data/mockGenerator';
+import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
 import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
 
@@ -518,8 +518,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   // Save Family + Variants + Images + Prices to Database
-  const handleSaveDraftFamily = () => {
-    if (!draftFamily) return;
+  const handleSaveDraftFamily = async () => {
+    if (!draftFamily || familySavePending) return;
     if (!draftFamily.name.trim()) {
       setSaveFeedback('لطفاً نام خانواده محصول را وارد کنید.');
       setTimeout(() => setSaveFeedback(null), 3000);
@@ -563,17 +563,49 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       ...draftFamily,
       code: draftFamily.code.trim(),
       name: draftFamily.name.trim(),
-      categorySlug: draftFamily.categoryName.trim().replace(/[\s\u200c]+/g, '-'),
+      categorySlug: categories.find(c=>c.name===draftFamily.categoryName)?.slug || draftFamily.categoryName.trim().replace(/[\s\u200c]+/g, '-'),
       technicalSpecs: cleanSpecs,
       galleryImages: cleanGallery,
       images: cleanGallery.map(g => g.url),
       variants: cleanVariants,
     };
 
-    adminService.saveProduct(payload);
-    refreshProducts();
-    setSaveFeedback('تغییرات خانواده، کدهای کالا، تصاویر و قیمت‌ها در پایگاه داده ذخیره شد.');
-    setTimeout(() => setSaveFeedback(null), 3500);
+    setFamilySavePending(true);
+    setSaveFeedback(null);
+    try {
+      const normalized=normalizeMergedProduct(payload,payload);
+      const response=await fetch('/api/catalog/overrides/family',{
+        method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(20000)
+      });
+      const data=await response.json().catch(()=>({success:false,message:'پاسخ پایگاه داده معتبر نیست.'}));
+      if(!response.ok||!data.success)throw new Error(data.message||'ذخیره خانواده در دیتابیس انجام نشد.');
+      let imageWarning='';
+      if(pendingFamilyUpload){
+        try{
+          await uploadProductImage(pendingFamilyUpload,{
+            familyCode:payload.code,title:pendingFamilyImageTitle||pendingFamilyUpload.name
+          });
+          setPendingFamilyUpload(null);
+        }catch(error){
+          imageWarning=error instanceof Error?error.message:'بارگذاری تصویر انجام نشد.';
+        }
+      }
+      await syncCatalogFromServer();
+      refreshProducts();
+      setIsCreatingNewFamily(false);
+      window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{
+        detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code}
+      }));
+      if(imageWarning){
+        setEditorTab('images');
+        setSaveFeedback('خانواده ذخیره شد؛ اما تصویر ذخیره نشد: '+imageWarning+' — در بخش تصاویر دوباره آپلود کنید.');
+      }else setSaveFeedback('نام، دسته‌بندی، کدها و تصاویر خانواده در دیتابیس ثبت شدند.');
+    }catch(error){
+      setSaveFeedback(error instanceof Error?error.message:'ذخیره خانواده در دیتابیس انجام نشد.');
+    }finally{
+      setFamilySavePending(false);
+    }
   };
 
   // Toggle Family Active/Inactive directly from table
@@ -2249,7 +2281,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleSaveDraftFamily}
+                  onClick={()=>void handleSaveDraftFamily()}
+                  disabled={familySavePending}
                   className="px-4 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Check className="w-4 h-4" />
