@@ -1893,6 +1893,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 </div>
               </div>
 
+              {categoryImageCandidate && categoryImageCandidate!==editingCategory.image && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3">
+                <ProductImage src={categoryImageCandidate} alt="تصویر انتخاب‌شده از بانک تصاویر" className="h-16 w-16 rounded-lg bg-white object-contain"/>
+                <p className="min-w-0 flex-1 text-[11px] leading-5 font-bold text-slate-700">همین تصویر انتخاب‌شده در بررسی کالا را می‌توانید به دسته‌بندی اختصاص دهید.</p>
+                <button type="button" onClick={()=>setEditingCategory({...editingCategory,image:categoryImageCandidate})} className="rounded-lg bg-[#E56B1E] px-3 py-2 text-xs font-bold text-white">انتخاب این تصویر برای دسته</button>
+              </div>}
               <label className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white cursor-pointer">
                 <input type="checkbox" checked={editingCategory.active !== false}
                   onChange={e => setEditingCategory({...editingCategory,active:e.target.checked})}
