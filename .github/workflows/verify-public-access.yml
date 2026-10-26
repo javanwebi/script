@@ -1,0 +1,41 @@
+name: Verify public site access
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-public-access.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+permissions:
+  contents: read
+jobs:
+  verify-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public ingress from external runner
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+          for base in https://sanatpish-production.up.railway.app https://sanatpish-railway-gateway.javanwebio.workers.dev; do
+            echo "::group::$base"
+            for route in / /api/health /logo.png; do
+              for trial in 1 2; do
+                echo "Request: $base$route trial=$trial"
+                status=$(curl --location --silent --show-error --output /tmp/sanat-response --max-time 18 --connect-timeout 7 --write-out '%{http_code}' "$base$route") || status=000
+                echo "status=$status"
+                if [[ "$status" != "200" ]]; then failed=1; fi
+                if [[ "$route" == "/api/health" ]]; then cat /tmp/sanat-response; echo; fi
+              done
+            done
+            echo "::endgroup::"
+          done
+          echo "Testing safe POST origin rewrite (invalid namespace; no DB write)"
+          status=$(curl --silent --show-error --output /tmp/sanat-response --max-time 18 --connect-timeout 7 --write-out '%{http_code}' \
+            -X POST https://sanatpish-railway-gateway.javanwebio.workers.dev/api/runtime \
+            -H 'Origin: https://sanatpish-railway-gateway.javanwebio.workers.dev' \
+            -H 'Content-Type: application/json' --data '{"key":"nonexistent_test_key","value":null,"version":0}') || status=000
+          echo "POST invalid namespace response status=$status (expected 400)"
+          if [[ "$status" != "400" ]]; then failed=1; fi
+          exit "$failed"
