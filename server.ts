@@ -5998,19 +5998,56 @@ app.post('/api/ai/tts', async (req, res) => {
       });
     }
 
-    // Configured Cloudflare Worker owns the secret. Send text only to the
-    // authenticated Worker; never send a key or audio provider details to JS.
-    // Prefer this path over a browser voice which may have no Persian locale.
-    if (configuredForzaWorkerUrl()) {
-      const workerAudio = await generateForzaWorkerPersianVoice(cleanedText);
-      if (workerAudio) {
-        reportProvider('cloudflare-gemini-persian-tts');
-        const dataUrl = 'data:audio/wav;base64,' + workerAudio.toString('base64');
-        if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
-        ttsAudioCache.set(cacheKey,dataUrl);
-        return res.json({ success:true, audioBase64:dataUrl, mimeType:'audio/wav',
-          provider:'cloudflare-gemini-persian-tts',cleanedText });
-      }
+    // Start the local Persian Farid voice and the Worker in parallel. Prefer
+    // the clean local reading when it is ready promptly: the Worker can be slow
+    // or prepend an audible voice-style instruction instead of just the answer.
+    type FastForzaAudio = {
+      audio: Buffer;
+      provider: 'edge-farid-neural' | 'cloudflare-gemini-persian-tts';
+      mimeType: 'audio/mp3' | 'audio/wav';
+    };
+    const edgeAudioPromise: Promise<FastForzaAudio | null> =
+      generatePersianMaleSpeechEdge(cleanedText, true)
+        .then((audio): FastForzaAudio | null => audio?.length
+          ? { audio, provider: 'edge-farid-neural', mimeType: 'audio/mp3' }
+          : null)
+        .catch(() => null);
+    const workerAudioPromise: Promise<FastForzaAudio | null> = configuredForzaWorkerUrl()
+      ? generateForzaWorkerPersianVoice(cleanedText)
+          .then((audio): FastForzaAudio | null => audio?.length
+            ? { audio, provider: 'cloudflare-gemini-persian-tts', mimeType: 'audio/wav' }
+            : null)
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    // A brief grace period favors predictable Persian reading without
+    // waiting for the full, potentially slow Worker timeout.
+    const preferredEdge = await Promise.race([
+      edgeAudioPromise,
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 1300)),
+    ]);
+    const fastAudio = preferredEdge || await Promise.any([
+      edgeAudioPromise.then(audio => {
+        if (!audio) throw new Error('edge_tts_unavailable');
+        return audio;
+      }),
+      workerAudioPromise.then(audio => {
+        if (!audio) throw new Error('worker_tts_unavailable');
+        return audio;
+      }),
+    ]).catch(() => null);
+    if (fastAudio) {
+      reportProvider(fastAudio.provider);
+      const dataUrl = `data:${fastAudio.mimeType};base64,${fastAudio.audio.toString('base64')}`;
+      if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
+      ttsAudioCache.set(cacheKey, dataUrl);
+      return res.json({
+        success: true,
+        audioBase64: dataUrl,
+        mimeType: fastAudio.mimeType,
+        provider: fastAudio.provider,
+        cleanedText,
+      });
     }
 
     // Internal Gemini key (only if the Worker is unavailable or not configured).

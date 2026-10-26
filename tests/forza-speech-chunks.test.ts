@@ -13,3 +13,21 @@ test('empty text and pathological unbroken tokens are bounded',()=>{
  assert.equal(chunks.join(''),'x'.repeat(2000));assert.ok(chunks.every(c=>c.length<=240));
  assert.throws(()=>forzaSpeechChunks('text',0));
 });
+
+import { forzaFastStartSpeechChunks } from '../src/utils/forzaSpeechChunks';
+import { FORZA_GREETING_TEXT } from '../src/utils/forzaGreeting';
+
+test('short opening speech is prioritized while preserving longer reply wording', () => {
+ const answer = ('برای بررسی دقیق تسمه و پولی نیاز به کد فنی و اندازه دارید. ').repeat(12).trim();
+ const chunks = forzaFastStartSpeechChunks(answer);
+ assert.ok(chunks.length > 1);
+ assert.ok(chunks[0].length <= 96, 'first TTS payload should be short');
+ assert.ok(chunks.slice(1).every(chunk => chunk.length <= 240));
+ assert.equal(chunks.join(' '), answer);
+ assert.deepEqual(forzaFastStartSpeechChunks('   '), []);
+});
+
+test('FORZA greeting is solely a welcome and has no spoken voice instructions', () => {
+ assert.match(FORZA_GREETING_TEXT, /خوش آمدید/);
+ assert.doesNotMatch(FORZA_GREETING_TEXT, /با صدای|مرد ایرانی|لحن|دستورالعمل|گوینده/);
+});

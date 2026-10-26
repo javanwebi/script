@@ -20,3 +20,12 @@ export function forzaSpeechChunks(text: string, limit = 240): string[] {
   if (current) chunks.push(current);
   return chunks;
 }
+
+/** Start with a short speakable phrase; larger subsequent phrases keep requests economical. */
+export function forzaFastStartSpeechChunks(text: string): string[] {
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  if (!normalized) return [];
+  const first = forzaSpeechChunks(normalized, 96)[0];
+  if (!first) return [];
+  return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 240)];
+}

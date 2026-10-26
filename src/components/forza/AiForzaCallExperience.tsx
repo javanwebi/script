@@ -17,7 +17,7 @@ import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaT
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import { forzaSpeechChunks } from '../../utils/forzaSpeechChunks';
+import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -94,6 +94,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
+  const ttsReadyRef = useRef(new Map<string, { audioBase64?: string; useClientSpeech?: boolean }>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -509,6 +510,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }),[setStatus]);
 
   const requestSpeechAudio = useCallback((text:string) => {
+    const ready = ttsReadyRef.current.get(text);
+    if (ready?.audioBase64) return Promise.resolve(ready);
     const inFlight=ttsRequestsRef.current.get(text);
     if(inFlight)return inFlight;
     const promise=fetch('/api/ai/tts', {
@@ -518,21 +521,38 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       signal: AbortSignal.timeout(25000),
     }).then(async res=>{
       if(!res.ok)throw new Error('tts_http_'+res.status);
-      const data=await res.json();
-      return data as {audioBase64?:string;useClientSpeech?:boolean};
+      const data=await res.json() as {audioBase64?:string;useClientSpeech?:boolean};
+      if (data.audioBase64) {
+        const cache = ttsReadyRef.current;
+        cache.set(text, data);
+        if (cache.size > 24) {
+          const oldest = cache.keys().next().value;
+          if (oldest) cache.delete(oldest);
+        }
+      }
+      return data;
     }).finally(()=>ttsRequestsRef.current.delete(text));
     ttsRequestsRef.current.set(text,promise);
     return promise;
   },[]);
+
+  // Synthesize the greeting while the particle scene is forming, not after it finishes.
+  useEffect(() => {
+    void requestSpeechAudio(GREETING_TEXT).catch(() => {});
+  }, [requestSpeechAudio]);
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
     setVoiceOutputError(null);
     setStatus('thinking');
     setTurn('ai');
-    const chunks = forzaSpeechChunks(text);
-    for (const chunk of chunks) {
+    const chunks = forzaFastStartSpeechChunks(text);
+    for (let index = 0; index < chunks.length; index++) {
       if (callClosedRef.current) return;
+      const chunk = chunks[index];
+      // Build the following phrase while the current one is audible.
+      const nextChunk = chunks[index + 1];
+      if (nextChunk) void requestSpeechAudio(nextChunk).catch(() => {});
       let speech: {audioBase64?: string} = {};
       try { speech = await requestSpeechAudio(chunk); } catch { /* Try the supported browser voice for this chunk only. */ }
       if (callClosedRef.current) return;
