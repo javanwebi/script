@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+// Ensure the standalone mega-menu stylesheet is included even if global CSS import ordering changes.
+import "../../reference-menu.css";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpLeft, Box, ChevronLeft, Factory, Layers, Link2, Move, PackageSearch, Search, Sparkles } from "lucide-react";
 import { CATEGORIES, getManagedCategories, resolveCategorySlug } from "../../data/categories";
