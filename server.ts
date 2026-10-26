@@ -1,6 +1,7 @@
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
+import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -642,6 +643,9 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
     return res.status(status).json({success:false,message:status>=500?'انتقال کد کالا و اتصال تصویر ذخیره نشد؛ اطلاعات قبلی حفظ شدند.':error.message||'انتقال کد کالا انجام نشد.'});
   }
 });
+
+// Read-only public navigation and admin-only group/direct SKU write endpoints.
+registerCatalogNavigationApi(app);
 
 app.get('/api/catalog/overrides', async (req, res) => {
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');

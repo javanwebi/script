@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect,useState} from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowUpLeft, Layers, Move, Link2, Box } from "lucide-react";
 import { CATEGORIES, resolveCategorySlug } from "../../data/categories";
@@ -73,27 +73,55 @@ export function ReferenceMegaMenu({
   onNavigate?: () => void;
   compact?: boolean;
 }) {
-  // Keep the original four-column design, but never omit new database categories.
-  const visible = CATEGORIES.filter(category => category.active !== false);
-  const assigned = new Set<string>();
-  const columns = pillars.map(group => ({
+  const [savedGroups,setSavedGroups]=useState<Array<{id:string;title:string;iconKey:string;imageUrl:string|null;categorySlugs:string[];sortOrder:number}>|null>(null);
+  const [revision,setRevision]=useState(0);
+  useEffect(()=>{
+    let mounted=true;
+    const load=()=>{
+      fetch('/api/catalog/navigation-groups',{credentials:'same-origin'})
+        .then(response=>response.ok?response.json():null)
+        .then(data=>{if(mounted&&data?.success&&Array.isArray(data.groups))setSavedGroups(data.groups);})
+        .catch(()=>{/* Keep original four-group layout if the DB is temporarily unavailable. */});
+    };
+    load();
+    const update=()=>{setRevision(previous=>previous+1);load();};
+    window.addEventListener('catalog-navigation-groups-updated',update);
+    window.addEventListener('atlas-categories-updated',update);
+    return ()=>{mounted=false;window.removeEventListener('catalog-navigation-groups-updated',update);window.removeEventListener('atlas-categories-updated',update);};
+  },[]);
+  // Revision intentionally tracks database-hydrated category changes.
+  void revision;
+  const iconByKey:Record<string,typeof Layers>={layers:Layers,move:Move,'link-2':Link2,box:Box};
+  const visible=CATEGORIES.filter(category=>category.active!==false);
+  const assigned=new Set<string>();
+  const groups=savedGroups?.length?savedGroups.map((group,index)=>({
+    title:group.title,Icon:iconByKey[group.iconKey]||Layers,
+    image:group.imageUrl||pillars[index]?.image||A.categories.transmission,
+    names:group.categorySlugs.map(slug=>visible.find(category=>category.slug===slug)?.name||'').filter(Boolean),
+    labels:group.categorySlugs.map(slug=>{
+      const category=visible.find(item=>item.slug===slug);
+      if(!category)return '';
+      const original=pillars.flatMap(item=>item.names.map((name,index)=>({name,label:item.labels[index]}))).find(item=>item.name===category.name);
+      return original?.label||category.name;
+    }).filter(Boolean)
+  })):pillars;
+  const columns=groups.map(group=>({
     ...group,
-    categories: group.names.flatMap((name, i) => {
-      const category = visible.find(c => c.name === name);
-      if (!category || assigned.has(category.slug)) return [];
+    categories:group.names.flatMap((name,index)=>{
+      const category=visible.find(item=>item.name===name);
+      if(!category||assigned.has(category.slug))return [];
       assigned.add(category.slug);
-      return [{ category, label: group.labels[i] }];
-    }),
+      return [{category,label:group.labels[index]||category.name}];
+    })
   }));
-  // Distribute new/renamed categories across the same four original columns.
-  visible.filter(category => !assigned.has(category.slug)).forEach((category, index) => {
-    columns[index % columns.length].categories.push({ category, label: category.name });
+  // No active category may disappear simply because it is not yet assigned.
+  visible.filter(category=>!assigned.has(category.slug)).forEach((category,index)=>{
+    if(columns.length)columns[index%columns.length].categories.push({category,label:category.name});
   });
   return (
     <div
-      className={
-        compact ? "reference-catalog-mobile" : "reference-catalog-menu"
-      }
+      className={compact ? "reference-catalog-mobile" : "reference-catalog-menu"}
+      style={!compact&&columns.length!==4?{gridTemplateColumns:`repeat(${columns.length}, minmax(0,1fr)) 220px`}:undefined}
     >
       {columns.map(({ title, Icon, image, categories }) => (
         <section key={title}>

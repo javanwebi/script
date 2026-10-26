@@ -31,6 +31,7 @@ import {
 import { adminService } from '../../services/adminService';
 import { flushDurableChanges } from '../../services/durableStorage';
 import { CategoryTreeEditor } from '../CategoryTreeEditor';
+import { CatalogNavigationGroupsEditor } from '../CatalogNavigationGroupsEditor';
 import {
   Product,
   ProductVariant,
@@ -971,6 +972,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             }],images:[...(previous.images||[]),url]};
           });
         }}
+        onAssignDirectSku={async input=>{
+          const response=await fetch('/api/catalog/direct-skus',{
+            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
+          });
+          const data=await response.json().catch(()=>({}));
+          if(!response.ok||!data.success)throw Error(data.message||'کد کالا مستقیماً ثبت نشد.');
+          setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
+          window.dispatchEvent(new Event('catalog-direct-skus-updated'));
+        }}
         onAssignSku={async input=>{
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
@@ -1594,6 +1605,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               <span>+ افزودن دسته‌بندی جدید</span>
             </button>
           </div>
+
+          <CatalogNavigationGroupsEditor categories={categories}/>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map(cat => (

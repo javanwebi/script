@@ -29,6 +29,7 @@ const CategoryPage = lazy(() =>
   })),
 );
 import { AllCategoriesPage } from "./pages/AllCategoriesPage";
+const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
 const ProductDetailPage = lazy(() =>
   import("./pages/ProductDetailPage").then((module) => ({
     default: module.ProductDetailPage,
@@ -229,6 +230,7 @@ export default function App() {
                       element={<Navigate to="/industries/rubber" replace />}
                     />
                     <Route path="/category/:slug" element={<CategoryPage />} />
+                    <Route path="/direct-product/:code" element={<DirectSkuDetailPage />} />
 
                     {/* 3. Product Details */}
                     <Route
