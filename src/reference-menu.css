@@ -530,3 +530,46 @@
   .reference-menu-category-group .reference-menu-category-copy small { font-size: 10px; }
   .reference-menu-group-heading strong { font-size: 12px; }
 }
+
+/* Use each category's registered catalog image in the right-side mega-menu rail. */
+@media (min-width: 1024px) {
+  .reference-menu-category-group .reference-menu-category {
+    grid-template-columns: 48px minmax(0, 1fr) 16px;
+    gap: 11px;
+    min-height: 64px;
+  }
+  .reference-menu-category-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    overflow: hidden;
+    border: 1px solid #e0e5e9;
+    border-radius: 11px;
+    background: #fff8f2;
+    color: #e06518;
+  }
+  .reference-menu-category-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+  }
+  .reference-menu-category.is-active .reference-menu-category-thumb {
+    border-color: #e56b1e;
+    box-shadow: 0 0 0 2px rgb(229 107 30 / 12%);
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .reference-menu-category-group .reference-menu-category {
+    grid-template-columns: 42px minmax(0, 1fr) 15px;
+  }
+  .reference-menu-category-thumb {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+  }
+}
