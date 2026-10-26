@@ -35,11 +35,10 @@ test('same family photo and 100-percent model confidence cannot certify a wareho
  assert.equal(result.summary.catalogAvailability.status,'similar_in_catalog');
  assert.equal(result.similarCandidates[0].specs[0].value,'10');
 });
-test('read existing code retains exact hit and still presents real family alternatives',()=>{
+test('read existing code retains exact hit without inventing visual family alternatives',()=>{
  const result=finalizeRecognition({summary:{},matchedProducts:[{code:'123'}]},recognitionCatalog(products),{detected_code_on_part:'۱۲۳',code_read_confidence:95});
  assert.equal(result.matchedProducts[0].code,'123');
- assert.equal(result.similarCandidates[0].code,'124');
- assert.equal(result.similarCandidates[0].specs[0].value,'20');
+ assert.equal(result.similarCandidates.length,0);
 });
 test('a dedicated but shared photo cannot uniquely certify two codes; unavailable AI is explicit',()=>{
  const copy=structuredClone(products);copy[0].variants!.forEach(v=>v.images=['shared.png']);
@@ -67,7 +66,7 @@ test('only an explicitly reviewed dedicated photo can support image identity',()
  copy[0].galleryImages=[{id:'a',url:'a.png',scope:'variant',variantCode:'123',identityVerified:true}];
  const result=finalizeRecognition({summary:{},matchedProducts:[{code:'123',visualDistance:0}]},recognitionCatalog(copy));
  assert.equal(result.matchedProducts[0].identityEvidence,'dedicated-catalogue-photo');
- assert.equal(result.similarCandidates[0].code,'124');
+ assert.equal(result.similarCandidates.length,0);
  copy[0].galleryImages[0].identityVerified=false;
  assert.equal(finalizeRecognition({summary:{},matchedProducts:[{code:'123',visualDistance:0}]},recognitionCatalog(copy)).matchedProducts.length,0);
 });
@@ -112,5 +111,14 @@ test('even authenticated legacy requests cannot inject a provider key through he
   const request=new Request('https://worker.example/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer fixture', 'Content-Type':'application/json','X-Gemini-Key':'untrusted'},body:JSON.stringify({imageBase64:image,gemini_api_key:'untrusted'})});
   const response=await worker.fetch(request,{APP_WORKER_TOKEN:'fixture'});
   assert.equal(response.status,503);
+ }
+});
+
+test('missing, coerced or invalid image distances cannot prove exact identity',()=>{
+ const copy=structuredClone(products);
+ copy[0].galleryImages=[{id:'a',url:'a.png',scope:'variant',variantCode:'123',identityVerified:true}];
+ for(const visualDistance of [null,undefined,'',-1,NaN,Infinity]){
+  const result=finalizeRecognition({matchedProducts:[{code:'123',visualDistance}]},recognitionCatalog(copy));
+  assert.equal(result.matchedProducts.length,0);
  }
 });

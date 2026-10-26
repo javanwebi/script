@@ -24,6 +24,8 @@ export class ForzaVoiceActivity {
     }
     let speechStarted = false;
     if (audible) {
+      // Once a turn has started, even a short resumed syllable postpones its end.
+      if (this.detected) this.lastSpeechAt = timestampMs;
       this.voicedFrames = Math.min(this.voicedFrames + 1, 12);
       if (this.voicedFrames >= 5) {
         speechStarted = !this.detected;
@@ -40,6 +42,10 @@ export class ForzaVoiceActivity {
       silenceMs: this.detected ? Math.max(0, timestampMs - this.lastSpeechAt) : 0,
       level: Math.min(1, energy * 18),
     };
+  }
+
+  silenceDuration(timestampMs: number) {
+    return this.detected ? Math.max(0, timestampMs - this.lastSpeechAt) : 0;
   }
 
   reset() {

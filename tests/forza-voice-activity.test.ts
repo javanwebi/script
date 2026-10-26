@@ -35,3 +35,13 @@ test('actual time-domain waveform yields sensible mic levels',()=>{
   assert.ok(rootMeanSquareFromTimeDomain(voice)>0.1);
   assert.equal(rootMeanSquareFromTimeDomain(new Uint8Array()),0);
 });
+
+test('a resumed short syllable resets silence without needing five new frames',()=>{
+ const vad=new ForzaVoiceActivity();
+ for(let i=0;i<6;i++)vad.sample(0.03,i*50);
+ vad.sample(0,600);
+ vad.sample(0.03,900);
+ assert.equal(vad.silenceDuration(950),50);
+ assert.equal(vad.silenceDuration(1000),100);
+ assert.equal(vad.heardSpeech,true);
+});

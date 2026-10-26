@@ -43,7 +43,7 @@ export function finalizeRecognition(result: any, catalog: ReturnType<typeof reco
     seen.add(item.code);
     const readCode=normalizeCode(recognition.detected_code_on_part);
     const codeProof=readCode === normalizeCode(item.code) && Number.isFinite(Number(recognition.code_read_confidence)) && Number(recognition.code_read_confidence)>=90;
-    const photoProof=item.imageIdentityVerified && item.imageScope === 'variant' && imageOwners.get(item.image)?.size===1 && Number(candidate.visualDistance)<=0.08;
+    const photoProof=item.imageIdentityVerified && item.imageScope === 'variant' && imageOwners.get(item.image)?.size===1 && typeof candidate.visualDistance==='number' && Number.isFinite(candidate.visualDistance) && candidate.visualDistance>=0 && candidate.visualDistance<=0.08;
     const dimensionProof=dimensionProofCodes.has(item.code);
     const exact=!candidate.dimensionMismatch && (codeProof || photoProof || dimensionProof);
     const scannedPhoto=(result.catalogImageMatches || []).find((photo:any)=>photo.imageId===candidate.matchedImageId && photo.bindings?.some((binding:any)=>binding.code===item.code));
@@ -58,15 +58,8 @@ export function finalizeRecognition(result: any, catalog: ReturnType<typeof reco
   });
   const matchedProducts=pool.filter(c=>c.visualVerdict==='exact_match');
   const similarCandidates=pool.filter(c=>c.visualVerdict!=='exact_match');
-  if (matchedProducts.length && !similarCandidates.length) {
-    const families=new Set(matchedProducts.map(c=>byCode.get(normalizeCode(c.code))?.familyCode));
-    for (const item of catalog) {
-      if (seen.has(item.code) || !families.has(item.familyCode)) continue;
-      similarCandidates.push({code:item.code,name:item.name,brand:item.brand,specs:item.specs,image:item.image || undefined,imageScope:item.imageScope,
-        identityEvidence:'similarity-only',visualVerdict:'very_similar',visualVerdictFarsi:'گزینهٔ هم‌خانواده',distinction:'گزینهٔ هم‌خانواده؛ تطبیق تصویری و سازگاری فنی آن تأیید نشده است.'} as any);
-
-    }
-  }
+  // Family membership alone is not visual evidence. Only retain candidates
+  // actually returned by retrieval/verification; never pad with sibling SKUs.
   const exact=matchedProducts.length>0;
   const hasPhotoMatches=(result.catalogImageMatches || []).length>0;
   return {...result,recognitionPolicy:'inventory-v1',isAiGenerated:aiAvailable, matchedProducts,similarCandidates,rejectedCandidates:[],

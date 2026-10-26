@@ -271,7 +271,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           silenceTimerRef.current=window.setTimeout(()=>{
             silenceTimerRef.current=null;
             if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
-            if(vadRef.current.sample(0,Date.now()).silenceMs<pauseMs)return;
+            if(vadRef.current.silenceDuration(Date.now())<pauseMs)return;
             setIsUserSpeaking(false);
             if(activeTranscriptRef.current.trim()){
               const text=activeTranscriptRef.current.trim();
@@ -798,7 +798,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = window.setTimeout(() => {
-            if (activeTranscriptRef.current && !isAiSpeakingRef.current && !isProcessingTurnRef.current) {
+            silenceTimerRef.current = null;
+            if (vadRef.current.heardSpeech && vadRef.current.silenceDuration(Date.now()) < pauseMs) return;
+            if (activeTranscriptRef.current && !isAiSpeakingRef.current && !isProcessingTurnRef.current && statusRef.current === 'listening' && !micMutedRef.current) {
               const textToSend = activeTranscriptRef.current;
               activeTranscriptRef.current = '';
               hasSpeechSoundRef.current = false;
@@ -1161,7 +1163,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       {/* 3. Persian Voice Subtitles & Interaction Pill matching screenshot layout */}
       <div
         dir="rtl"
-        className="absolute bottom-10 right-4 sm:right-10 w-[calc(100%-2rem)] max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none"
+        className="absolute bottom-20 right-4 sm:right-10 w-[calc(100%-2rem)] sm:w-[min(36vw,30rem)] max-h-[55dvh] overflow-y-auto max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none"
       >
         {/* Turn Status Pill & Mic / Speaker Controls */}
         <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">

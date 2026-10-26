@@ -371,7 +371,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         application: application.trim() || undefined,
         features: features.trim() || undefined,
         stage,
-        observationOnly:stage==="quick",
+        observationOnly:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         setScanCounts(progress);
