@@ -1755,8 +1755,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           CATEGORY ADD / EDIT MODAL
          ===================================================================== */}
       {isCategoryModalOpen && editingCategory && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl max-h-[100dvh] sm:max-h-[92vh] rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[180] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-3xl max-h-[100dvh] sm:max-h-[92vh] rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             <div className="px-5 py-4 bg-white text-[#55565A] border-b border-slate-200 flex items-center justify-between shrink-0">
               <h3 className="text-sm font-black flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#E06518]" />
@@ -2196,7 +2196,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           TWO-LEVEL FAMILY & SKU EDITOR MODAL
          ===================================================================== */}
       {isEditorOpen && draftFamily && (
-        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-label="ویرایش خانواده محصول" className="fixed inset-0 z-[180]" bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-6xl h-[100dvh] sm:h-auto sm:max-h-[94vh] rounded-none sm:rounded-3xl border-0 sm:border sm:border-slate-200 shadow-2xl overflow-hidden flex flex-col">
             {/* Modal Top Header */}
             <div className="px-3 sm:px-5 py-3 sm:py-4 bg-white text-[#55565A] border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
