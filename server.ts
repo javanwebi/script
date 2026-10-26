@@ -6159,16 +6159,18 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
   }
 }
 
-async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | null> {
+type ForzaWorkerTtsResult = { audio: Buffer | null; errorType?: string };
+
+async function generateForzaWorkerPersianVoice(text: string): Promise<ForzaWorkerTtsResult> {
   const cleanSpeech = String(text || '').trim().slice(0, 1000);
-  if (!cleanSpeech) return null;
+  if (!cleanSpeech) return { audio: null, errorType: 'invalid_text' };
   const diskCached = await readForzaTtsDiskCache(cleanSpeech, 'Charon');
   if (diskCached?.length) {
     console.info('[FORZA TTS] persistent audio cache hit', { audioBytes: diskCached.length });
-    return diskCached;
+    return { audio: diskCached };
   }
   const workerUrl = configuredForzaWorkerUrl();
-  if (!workerUrl) return null;
+  if (!workerUrl) return { audio: null, errorType: 'worker_not_configured' };
   const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
   const workerToken = (sameRecognitionOrigin
     ? process.env.PART_RECOGNITION_WORKER_TOKEN
@@ -6208,32 +6210,32 @@ async function generateForzaWorkerPersianVoice(text: string): Promise<Buffer | n
         cooldownSeconds: Number.isFinite(data?.diagnostics?.cooldownSeconds) ? data.diagnostics.cooldownSeconds : undefined,
         attempts,
       });
-      return null;
+      return { audio: null, errorType: String(data?.error?.type || 'worker_http_error').slice(0, 60) };
     }
     const raw = data.audioBase64;
-    if (raw.length > 8000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
+    if (raw.length > 8000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return { audio: null, errorType: 'invalid_audio_payload' };
     const bytes = Buffer.from(raw,'base64');
-    if (!bytes.length || bytes.length > 6000000) return null;
+    if (!bytes.length || bytes.length > 6000000) return { audio: null, errorType: 'invalid_audio_size' };
     // Gemini 3.8 TTS returns a complete RIFF/WAVE file by default; older
     // models can return headerless PCM. Never double-encode WAV as PCM.
     const audioKind = classifyForzaAudio(bytes, data.mimeType);
     if (audioKind === 'wav') {
       await writeForzaTtsDiskCache(cleanSpeech, bytes, 'Charon');
-      return bytes;
+      return { audio: bytes };
     }
     if (audioKind !== 'pcm16') {
       console.warn('[FORZA TTS] Worker returned an unsupported audio container');
-      return null;
+      return { audio: null, errorType: 'unsupported_audio_format' };
     }
     const rateMatch = /rate=(\d{4,6})/.exec(String(data.mimeType || ''));
     const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
-    if (sampleRate < 8000 || sampleRate > 48000) return null;
+    if (sampleRate < 8000 || sampleRate > 48000) return { audio: null, errorType: 'invalid_sample_rate' };
     const wav = pcmToWav(bytes, sampleRate, 1, 16);
     await writeForzaTtsDiskCache(cleanSpeech, wav, 'Charon');
-    return wav;
+    return { audio: wav };
   } catch (error:any) {
     console.warn('[FORZA TTS] Worker speech endpoint failure', error?.name || 'network');
-    return null;
+    return { audio: null, errorType: 'worker_network_error' };
   } finally {
     clearTimeout(timer);
   }
@@ -6272,37 +6274,47 @@ app.post('/api/ai/tts', async (req, res) => {
       });
     }
 
-    // Keep Charon as the stable primary voice. Do not race Edge/Farid against
-    // Gemini/Charon, which made identical replies randomly switch voices.
+    // Charon remains the only voice. Do not repeat the Gemini cascade
+    // when the Worker already reports provider quota exhaustion.
     type FastForzaAudio = {
       audio: Buffer;
       provider: 'cloudflare-gemini-persian-tts';
-      mimeType: 'audio/mp3' | 'audio/wav';
+      mimeType: 'audio/wav';
     };
-    const workerAudioPromise: Promise<FastForzaAudio | null> = configuredForzaWorkerUrl()
-      ? generateForzaWorkerPersianVoice(cleanedText)
-          .then((audio): FastForzaAudio | null => audio?.length
-            ? { audio, provider: 'cloudflare-gemini-persian-tts', mimeType: 'audio/wav' }
-            : null)
-          .catch(() => null)
-      : Promise.resolve(null);
-    const fastAudio = await workerAudioPromise.catch(() => null);
+    const workerResult: ForzaWorkerTtsResult = configuredForzaWorkerUrl()
+      ? await generateForzaWorkerPersianVoice(cleanedText).catch(() => ({ audio: null, errorType: 'worker_network_error' }))
+      : { audio: null, errorType: 'worker_not_configured' };
+    const fastAudio: FastForzaAudio | null = workerResult.audio?.length
+      ? { audio: workerResult.audio, provider: 'cloudflare-gemini-persian-tts', mimeType: 'audio/wav' }
+      : null;
     if (fastAudio) {
       reportProvider(fastAudio.provider);
-      const dataUrl = `data:${fastAudio.mimeType};base64,${fastAudio.audio.toString('base64')}`;
+      const dataUrl = 'data:audio/wav;base64,' + fastAudio.audio.toString('base64');
       if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
       ttsAudioCache.set(cacheKey, dataUrl);
       return res.json({
         success: true,
         audioBase64: dataUrl,
-        mimeType: fastAudio.mimeType,
+        mimeType: 'audio/wav',
         provider: fastAudio.provider,
         cleanedText,
       });
     }
 
-    // Internal Gemini key (only if the Worker is unavailable or not configured).
-    const maleVoice = voice === 'Puck' ? 'Puck' : 'Charon';
+    const directGeminiAllowed = ['worker_network_error', 'worker_not_configured', 'unauthorized', 'ai_not_configured'].includes(workerResult.errorType || '');
+    if (!directGeminiAllowed) {
+      reportProvider(workerResult.errorType === 'tts_quota_exhausted' ? 'gemini-quota-exhausted' : 'gemini-provider-unavailable');
+      return res.status(503).json({
+        success: false,
+        useClientSpeech: false,
+        error: { type: workerResult.errorType || 'gemini_tts_unavailable', message: 'تولید صدای Gemini فعلاً در دسترس نیست.' },
+        cleanedText,
+      });
+    }
+
+    // Direct Gemini is only a network/configuration fallback; it is not retried
+    // after a provider quota response, to avoid spending more quota needlessly.
+    const maleVoice = 'Charon';
     const audioBuf = await generatePersianSpeechGemini(cleanedText, maleVoice);
     if (audioBuf && audioBuf.length > 0) {
       reportProvider('gemini-neural');
