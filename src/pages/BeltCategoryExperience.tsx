@@ -178,7 +178,7 @@ export const BeltCategoryExperience: React.FC = () => {
       <div className="bce-family-grid">{FAMILY_OPTIONS.map((item, i) => {
         const sample = allProducts.find(p => matchesCatalogCategory(p, BELT_SLUG, item.id) && p.images?.[0]);
         return <button type="button" key={item.id} aria-pressed={selectedFamily === item.id} onClick={() => chooseFamily(item.id)} className={'bce-family-tile ' + (selectedFamily === item.id ? 'selected' : '')}>
-          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <img src="/images/belt-hero-cinematic.webp" alt="نمای سیستم انتقال نیرو" loading="lazy" />}</span>
+          <span className="bce-family-image">{sample?.images?.[0] ? <ProductImage src={sample.images[0]} alt={item.title} thumbnail loading="lazy" decoding="async"/> : <span className="bce-family-placeholder" role="img" aria-label={`تصویر ثبت نشده برای ${item.title}`}><PackageSearch size={28} aria-hidden="true"/><small>تصویر ثبت نشده</small></span>}</span>
           <span className="bce-family-name">{item.title}</span><small dir="ltr">{item.subtitle}</small><span className="bce-family-chevron"><ChevronLeft size={15}/></span>
         </button>;
       })}</div>
