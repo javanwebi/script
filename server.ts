@@ -574,7 +574,7 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
       : structuredClone(loadCatalogOverridesDb());
     CATALOG_OVERRIDES_CACHE=structuredClone(previousDb);
     const currentDb:CatalogOverridesDb=structuredClone(previousDb);
-    const products=await readProducts();
+    const products:Product[]=await readProducts();
     const target=products.find(product=>product.code===targetFamilyCode);
     const source=products.find(product=>(product.variants||[]).some(variant=>variant.code===skuCode));
     const skuVariant=source?.variants?.find(variant=>variant.code===skuCode);
