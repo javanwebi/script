@@ -15,6 +15,7 @@ import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-r
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
+import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
 import { getProductsByCategory } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
@@ -49,14 +50,14 @@ export const CategoryPage: React.FC = () => {
     if (slug !== canonicalBeltSlug) {
       return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
     }
-    return <BeltCategoryExperience />;
+    return <><BeltCategoryExperience /><DirectSkuProducts categorySlug={canonicalBeltSlug} selectedSub={new URLSearchParams(location.search).get('sub')||'all'}/></>;
   }
   const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
   if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
     if (slug !== canonicalPulleySlug) {
       return <Navigate to={`/category/${canonicalPulleySlug}${location.search}${location.hash}`} replace />;
     }
-    return <PulleyCategoryRoute />;
+    return <><PulleyCategoryRoute /><DirectSkuProducts categorySlug={canonicalPulleySlug} selectedSub={new URLSearchParams(location.search).get('sub')||'all'}/></>;
   }
   return <LegacyCategoryPage />;
 };
@@ -218,6 +219,7 @@ const LegacyCategoryPage: React.FC = () => {
 
   return (
     <div className="category-showcase space-y-8 text-right pb-16" dir="rtl">
+      <DirectSkuProducts categorySlug={category.slug} selectedSub={selectedSubcat}/>
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
         <Link to="/" className="hover:text-[#E06518] transition-colors">
