@@ -96,12 +96,18 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   },[categories,products,category,submenu]);
   useEffect(()=>{
     const onSaved=(event:Event)=>{
-      const detail=(event as CustomEvent<{categoryName?:string;submenu?:string;subcategory?:string;familyCode?:string}>).detail;
+      const detail=(event as CustomEvent<{categoryName?:string;submenu?:string;subcategory?:string;familyCode?:string;imageUrl?:string;imageFileName?:string}>).detail;
       if(!detail)return;
       if(detail.categoryName) setCategory(detail.categoryName);
       if(detail.submenu!==undefined)setSubmenu(detail.submenu);
       if(detail.subcategory!==undefined)setSubcategory(detail.subcategory);
       if(detail.familyCode){setFamilyCode(detail.familyCode);setFamilySearch('');}
+      if(detail.imageUrl){
+        setUrl(previous=>{if(previous.startsWith('blob:'))URL.revokeObjectURL(previous);return detail.imageUrl||'';});
+        setFile(detail.imageFileName||'تصویر خانواده');
+        setSource('existing');
+        setSelectedUpload(null);
+      }
     };
     window.addEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
     return ()=>window.removeEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
