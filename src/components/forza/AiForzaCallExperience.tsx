@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
@@ -39,6 +39,13 @@ interface Turn {
   role: 'user' | 'model';
   text: string;
 }
+
+type ForzaSpeechResponse = {
+  success?: boolean;
+  audioBase64?: string;
+  useClientSpeech?: boolean;
+  error?: { type?: string; message?: string };
+};
 
 function getSupportedAudioMimeType(): string {
   const types = [
@@ -93,8 +100,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const lastMicActivityRef = useRef(0);
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
-  const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
-  const ttsReadyRef = useRef(new Map<string, { audioBase64?: string; useClientSpeech?: boolean }>());
+  const ttsRequestsRef = useRef(new Map<string, Promise<ForzaSpeechResponse>>());
+  const ttsReadyRef = useRef(new Map<string, ForzaSpeechResponse>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -143,7 +150,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const setStatus = useCallback((s: ForzaStatus) => {
     statusRef.current = s;
@@ -402,12 +408,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const stopAudio = useCallback(() => {
     isAiSpeakingRef.current = false;
-    try {
-      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-    } catch {}
-
     const a = audioElRef.current;
     if (a) {
       try {
@@ -469,46 +469,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }),[isSpeakerMuted,setStatus,stopAudio]);
 
-  // Browser speech fallback must be observable, not a silently resolved Promise.
-  const speakBrowserFallback = useCallback((text:string):Promise<void> => new Promise((resolve,reject)=>{
-    if(!('speechSynthesis' in window))return reject(new Error('browser_tts_unavailable'));
-    const spoken=new SpeechSynthesisUtterance(verbalizeForzaTechnicalTerms(text));
-    spoken.lang='fa-IR';
-    spoken.rate=0.95;
-    const voices=window.speechSynthesis.getVoices();
-    spoken.voice=voices.find(v=>v.lang.toLowerCase()==='fa-ir')
-      || voices.find(v=>v.lang.toLowerCase().startsWith('fa')) || null;
-    let started=false;
-    let finished=false;
-    const stopGuard=window.setTimeout(()=>{
-      if(!started) finish(new Error('browser_tts_permission_required'));
-    },3200);
-    function finish(error?:Error) {
-      if(finished)return;
-      finished=true;
-      clearTimeout(stopGuard);
-      activeUtteranceRef.current=null;
-      isAiSpeakingRef.current=false;
-      if(error)reject(error);else resolve();
-    }
-    spoken.onstart=()=>{
-      started=true;
-      isAiSpeakingRef.current=true;
-      setStatus('speaking');
-      setTurn('ai');
-      setAutoplayBlocked(false);
-    };
-    spoken.onend=()=>finish();
-    spoken.onerror=()=>finish(new Error('browser_tts_failed'));
-    activeUtteranceRef.current=spoken;
-    try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(spoken);
-    } catch {
-      finish(new Error('browser_tts_failed'));
-    }
-  }),[setStatus]);
-
   const requestSpeechAudio = useCallback((text:string) => {
     const ready = ttsReadyRef.current.get(text);
     if (ready?.audioBase64) return Promise.resolve(ready);
@@ -520,8 +480,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       body:JSON.stringify({text}),
       signal: AbortSignal.timeout(25000),
     }).then(async res=>{
-      if(!res.ok)throw new Error('tts_http_'+res.status);
-      const data=await res.json() as {audioBase64?:string;useClientSpeech?:boolean};
+      const data=await res.json().catch(()=>null) as ForzaSpeechResponse | null;
+      if (!res.ok || data?.success !== true || typeof data.audioBase64 !== 'string' || !data.audioBase64.startsWith('data:audio/')) {
+        throw new Error(data?.error?.type || 'gemini_tts_unavailable');
+      }
       if (data.audioBase64) {
         const cache = ttsReadyRef.current;
         cache.set(text, data);
@@ -550,25 +512,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     for (let index = 0; index < chunks.length; index++) {
       if (callClosedRef.current) return;
       const chunk = chunks[index];
-      // Build the following phrase while the current one is audible.
-      const nextChunk = chunks[index + 1];
-      if (nextChunk) void requestSpeechAudio(nextChunk).catch(() => {});
-      let speech: {audioBase64?: string} = {};
-      try { speech = await requestSpeechAudio(chunk); } catch { /* Try the supported browser voice for this chunk only. */ }
-      if (callClosedRef.current) return;
-      if (speech.audioBase64) {
-        lastPlayableVoiceRef.current = {text: chunk, audioUrl: speech.audioBase64};
-        try {
-          await playDataUrl(speech.audioBase64);
-          continue;
-        } catch (error: any) {
-          if (callClosedRef.current) return;
-          if (error?.message === 'autoplay_permission_required') throw error;
-        }
+      let speech: ForzaSpeechResponse;
+      try {
+        speech = await requestSpeechAudio(chunk);
+      } catch (error: any) {
+        console.warn('[FORZA Voice] Gemini TTS request failed', error?.message || 'unknown');
+        throw new Error('gemini_tts_unavailable');
       }
-      if (!callClosedRef.current) await speakBrowserFallback(chunk);
+      if (callClosedRef.current) return;
+      if (!speech.audioBase64) throw new Error('gemini_tts_unavailable');
+      lastPlayableVoiceRef.current = { text: chunk, audioUrl: speech.audioBase64 };
+      await playDataUrl(speech.audioBase64);
     }
-  },[playDataUrl,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
+  },[playDataUrl,requestSpeechAudio,setStatus,stopListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -587,7 +543,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'مرورگر به اجازه پخش صدا نیاز دارد؛ گزینه فعال‌کردن صدا را بزنید.'
-        : 'صدای فارسی ساخته یا پخش نشد. سرویس تولید صدا یا صدای فارسی مرورگر در دسترس نیست.');
+        : 'صدای Gemini ساخته یا پخش نشد؛ سهمیه و لاگ‌های TTS را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
     }
@@ -713,7 +669,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const blocked = voiceError?.message === 'autoplay_permission_required';
             setVoiceOutputError(blocked
               ? 'مرورگر جلوی پخش صدا را گرفت. روی «فعال‌کردن صدا» بزنید.'
-              : 'پخش صدای فارسی در دسترس نیست. «خواندن دوباره پاسخ» را امتحان کنید.');
+              : 'تولید صدای Gemini در دسترس نیست. پس از رفع خطا، «خواندن دوباره پاسخ» را امتحان کنید.');
             console.warn('[FORZA Voice] Reply audio was not played',voiceError?.message || 'unknown');
           }
         }

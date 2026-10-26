@@ -25,7 +25,9 @@ export function forzaSpeechChunks(text: string, limit = 240): string[] {
 export function forzaFastStartSpeechChunks(text: string): string[] {
   const normalized = text.trim().replace(/\s+/g, ' ');
   if (!normalized) return [];
-  const first = forzaSpeechChunks(normalized, 96)[0];
+  // Keep one short first phrase for fast start, then use larger Gemini requests
+  // to reduce API calls and quota pressure. Worker accepts up to 1000 characters.
+  const first = forzaSpeechChunks(normalized, 180)[0];
   if (!first) return [];
-  return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 240)];
+  return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 850)];
 }
