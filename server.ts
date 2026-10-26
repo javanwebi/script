@@ -7,6 +7,7 @@ import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} f
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
 import {installDatabaseProducts,normalizeMergedProduct} from './src/data/mockGenerator';
+import type { Product } from './src/types';
 import {partFamilyCompatible} from './src/utils/partFamilyCompatibility';
 import {partDimensionMatch} from './src/utils/partDimensionMatch';
 import {partMeasurements,measurementError,measurementText,persianPartAnalysis} from './src/utils/partMeasurements';
@@ -556,22 +557,23 @@ app.post('/api/catalog/sku-transfer',async(req,res)=>{
     const fileName=String(req.body?.fileName||'').split(/[\\/]/).pop()?.slice(0,255)||'';
     const title=String(req.body?.title||'').trim().slice(0,180);
     const persistedId=String(req.body?.persistedId||'').trim();
-    const codePattern=/^[\\p{L}\\p{N}_.-]{1,110}$/u;
+    const codePattern=/^[\p{L}\p{N}_.-]{1,110}$/u;
     if(!codePattern.test(targetFamilyCode)||!codePattern.test(skuCode))
       return res.status(400).json({success:false,message:'کد خانواده یا کد کالا معتبر نیست.'});
-    if(persistedId&&!/^[\\w.:-]{1,150}$/.test(persistedId))
+    if(persistedId&&!/^[\w.:-]{1,150}$/.test(persistedId))
       return res.status(400).json({success:false,message:'شناسه تصویر معتبر نیست.'});
     if(!imageUrl&&!persistedId)
       return res.status(400).json({success:false,message:'تصویر معتبر برای اتصال انتخاب نشده است.'});
     if(imageUrl.length>2000||imageUrl.includes('\\')||imageUrl.startsWith('//')||
-       (imageUrl&&!imageUrl.startsWith('/')&&!/^https?:\\/\\/[^\\s]+$/i.test(imageUrl)))
+       (imageUrl&&!imageUrl.startsWith('/')&&!/^https?:\/\/[^\s]+$/i.test(imageUrl)))
       return res.status(400).json({success:false,message:'آدرس تصویر معتبر نیست.'});
 
     const storedState=await readDocument(database(),'catalog_overrides/runtime','global','catalog_overrides');
-    const currentDb:CatalogOverridesDb=storedState&&typeof storedState==='object'
+    const previousDb:CatalogOverridesDb=storedState&&typeof storedState==='object'
       ? structuredClone(storedState as CatalogOverridesDb)
       : structuredClone(loadCatalogOverridesDb());
-    CATALOG_OVERRIDES_CACHE=currentDb;
+    CATALOG_OVERRIDES_CACHE=structuredClone(previousDb);
+    const currentDb:CatalogOverridesDb=structuredClone(previousDb);
     const products=await readProducts();
     const target=products.find(product=>product.code===targetFamilyCode);
     const source=products.find(product=>(product.variants||[]).some(variant=>variant.code===skuCode));
