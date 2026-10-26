@@ -213,3 +213,90 @@
 @media(min-width:1024px){.reference-catalog-menu{position:fixed;top:138px;right:max(20px,calc((100vw - 1280px)/2));width:min(1180px,calc(100vw - 40px))}}
 @media(min-width:1024px) and (max-width:1279px){.header-support-status{display:none}}
 @media(min-width:1024px){.reference-catalog-menu{overflow:visible}.reference-catalog-menu .reference-belts[open]{clear:none}.reference-catalog-menu .reference-belts>ul{position:absolute;top:0;right:calc(100% + 12px);width:300px;max-height:calc(100dvh - 200px);overflow:auto;padding:14px;background:#fff;border:1px solid #dce4e9;border-top:2px solid #e06518;border-radius:10px;box-shadow:0 15px 40px #283a4a25;z-index:3}.reference-catalog-menu .reference-belts>ul>li:last-child{border:0}}
+
+
+/* Production refinement: consistent RTL taxonomy, usable focus states and browser-safe sizing. */
+.reference-catalog-menu {
+  direction: rtl;
+  box-sizing: border-box;
+  width: min(1180px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(72vh, 720px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 0 0 16px 16px;
+  background: #fff;
+}
+.reference-catalog-menu *,
+.reference-catalog-mobile * { box-sizing: border-box; }
+.reference-catalog-menu > section { min-width: 0; }
+.reference-catalog-menu h3 { min-height: 42px; font-size: 12px; }
+.reference-catalog-menu .reference-category-links a,
+.reference-catalog-menu .reference-belts > summary {
+  border-radius: 7px;
+  padding: 8px 9px;
+  min-height: 38px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  transition: color .16s ease, background-color .16s ease;
+}
+.reference-catalog-menu .reference-category-links a:hover,
+.reference-catalog-menu .reference-belts > summary:hover {
+  background: #fff4ec;
+}
+.reference-catalog-menu a:focus-visible,
+.reference-catalog-menu summary:focus-visible,
+.reference-catalog-mobile a:focus-visible,
+.reference-catalog-mobile summary:focus-visible {
+  outline: 3px solid #e06518;
+  outline-offset: 2px;
+}
+.reference-catalog-menu .reference-belts > summary { list-style-position: inside; }
+.reference-catalog-menu .reference-belts > summary::marker { color: #e06518; }
+.reference-catalog-menu .reference-belts[open] > summary { color: #ba4b0b; background: #fff4ec; }
+.reference-catalog-menu .reference-belts > ul {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.reference-catalog-menu .reference-view-all {
+  min-height: 42px;
+  border-radius: 7px;
+  padding-inline: 8px;
+}
+.reference-menu-promo {
+  background: linear-gradient(145deg, #f2f5f6 0%, #fff8f2 100%);
+  border-color: #e7e1dc;
+}
+.reference-menu-promo > a { min-height: 44px; font-weight: 800; }
+@media (min-width: 1280px) {
+  .reference-catalog-menu {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 210px;
+    gap: 2px;
+    padding: 20px 14px;
+    top: 138px;
+  }
+  .reference-catalog-menu > section { padding-inline: 12px; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .reference-catalog-menu {
+    top: 132px;
+    right: 16px;
+    width: calc(100vw - 32px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 16px 8px;
+  }
+  .reference-catalog-menu .reference-menu-promo { display: none; }
+  .reference-catalog-menu > section { padding-inline: 8px; }
+  .reference-catalog-menu h3 { font-size: 11px; }
+  .reference-catalog-menu .reference-belts > ul { width: min(280px, calc(100vw - 48px)); }
+}
+@media (max-width: 1023px) {
+  .reference-catalog-menu { display: none; }
+}
+@media (hover: none) {
+  .reference-catalog-menu .reference-category-links a > svg { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reference-catalog-menu *,
+  .reference-catalog-mobile * { transition: none !important; animation: none !important; }
+}
