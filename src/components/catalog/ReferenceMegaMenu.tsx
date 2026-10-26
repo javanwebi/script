@@ -1,13 +1,71 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, ArrowUpLeft, ChevronLeft, LayoutGrid, PackageSearch } from 'lucide-react';
-import { CATEGORIES, resolveCategorySlug } from '../../data/categories';
-import { CategoryNavigation } from './CategoryNavigation';
-
-/**
- * All primary categories and their complete A/B/C navigation hierarchy are
- * taken from the PostgreSQL-hydrated catalogue. No hard-coded category list.
- */
+import React from "react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowUpLeft, Layers, Move, Link2, Box } from "lucide-react";
+import { CATEGORIES, resolveCategorySlug } from "../../data/categories";
+import { STORE_ASSETS as A } from "../../assets/images";
+import { CategoryNavigation } from "./CategoryNavigation";
+const pillars = [
+  {
+    title: "انتقال قدرت و مکانیکی",
+    Icon: Layers,
+    image: A.categories.pulleys,
+    names: [
+      "تسمه و انتقال نیرو",
+      "پولی و انتقال نیرو",
+      "زنجیر و چرخ‌زنجیر",
+      "قطعات مکانیکی",
+      "انتقال قدرت مکانیکی",
+    ],
+    labels: [
+      "تسمه‌های انتقال نیرو",
+      "پولی‌های صنعتی",
+      "زنجیر صنعتی",
+      "قطعات مکانیکی",
+      "انتقال قدرت مکانیکی",
+    ],
+  },
+  {
+    title: "تجهیزات حرکت و هدایت",
+    Icon: Move,
+    image: A.categories.transmission,
+    names: ["ریل و تجهیزات هدایت", "چرخ و رولر"],
+    labels: ["ریل‌های راهنما", "چرخ و رولر صنعتی"],
+  },
+  {
+    title: "شیلنگ، لاستیک و آب‌بندی",
+    Icon: Link2,
+    image: A.products.ceramicParts,
+    names: [
+      "شیلنگ و اتصالات",
+      "آب‌بندی و قطعات لاستیکی",
+      "آب‌بندی و درزگیری",
+      "تجهیزات وکیوم",
+    ],
+    labels: [
+      "شیلنگ‌های صنعتی",
+      "قطعات لاستیکی",
+      "آب‌بندی و درزگیری",
+      "وکیوم و مکنده",
+    ],
+  },
+  {
+    title: "پروفیل و قطعات مهندسی",
+    Icon: Box,
+    image: A.categories.ceramic,
+    names: [
+      "پروفیل و سازه آلومینیوم",
+      "مواد و ورق صنعتی",
+      "اتصالات و نگهدارنده",
+      "برس و ابزار پرداخت",
+    ],
+    labels: [
+      "پروفیل آلومینیوم",
+      "قطعات و مواد مهندسی",
+      "اتصالات و نگهدارنده",
+      "برس و ابزار پرداخت",
+    ],
+  },
+];
 export function ReferenceMegaMenu({
   onNavigate,
   compact = false,
@@ -15,89 +73,93 @@ export function ReferenceMegaMenu({
   onNavigate?: () => void;
   compact?: boolean;
 }) {
-  const categories = CATEGORIES.filter(category => category.active !== false);
-  const [selectedSlug, setSelectedSlug] = useState('');
-  const current = categories.find(category => category.slug === selectedSlug) || categories[0];
-
-  if (!categories.length) {
-    return <div className={compact ? 'reference-catalog-mobile' : 'reference-catalog-menu'} dir="rtl">
-      <p className="reference-empty">فهرست دسته‌بندی‌ها در حال دریافت از پایگاه داده است.</p>
-    </div>;
-  }
-
-  if (compact) {
-    return (
-      <div className="reference-catalog-mobile" dir="rtl">
-        <Link to="/categories" className="reference-mobile-all" onClick={onNavigate}>
-          <LayoutGrid size={17} /> مشاهده همه دسته‌بندی‌ها <ArrowLeft size={15} />
-        </Link>
-        {categories.map(category => (
-          <details key={category.slug} className="reference-mobile-category">
-            <summary>
-              {category.image ? <img src={category.image} alt="" loading="lazy" /> : <LayoutGrid size={19} />}
-              <span>{category.name}</span>
-              <ChevronLeft size={14} />
-            </summary>
-            <Link to={'/category/' + resolveCategorySlug(category.slug)} onClick={onNavigate} className="reference-mobile-category-link">
-              مشاهده همه محصولات {category.name}
-            </Link>
-            <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} onNavigate={onNavigate} />
-          </details>
-        ))}
-      </div>
-    );
-  }
-
+  // Keep the original four-column design, but never omit new database categories.
+  const visible = CATEGORIES.filter(category => category.active !== false);
+  const assigned = new Set<string>();
+  const columns = pillars.map(group => ({
+    ...group,
+    categories: group.names.flatMap((name, i) => {
+      const category = visible.find(c => c.name === name);
+      if (!category || assigned.has(category.slug)) return [];
+      assigned.add(category.slug);
+      return [{ category, label: group.labels[i] }];
+    }),
+  }));
+  // Distribute new/renamed categories across the same four original columns.
+  visible.filter(category => !assigned.has(category.slug)).forEach((category, index) => {
+    columns[index % columns.length].categories.push({ category, label: category.name });
+  });
   return (
-    <div className="reference-catalog-menu" dir="rtl" role="region" aria-label="تمام دسته‌بندی‌های محصولات">
-      <aside className="reference-catalog-sidebar">
-        <div className="reference-catalog-heading">
-          <LayoutGrid size={18} /> دسته‌بندی‌های اصلی <span>{categories.length.toLocaleString('fa-IR')}</span>
-        </div>
-        <div className="reference-catalog-category-list">
-          {categories.map(category => (
-            <button
-              key={category.slug}
-              type="button"
-              className={'reference-catalog-category' + (current?.slug === category.slug ? ' is-selected' : '')}
-              onMouseEnter={() => setSelectedSlug(category.slug)}
-              onFocus={() => setSelectedSlug(category.slug)}
-              onClick={() => setSelectedSlug(category.slug)}
-              aria-current={current?.slug === category.slug ? 'true' : undefined}
-            >
-              {category.image ? <img src={category.image} alt="" loading="lazy" /> : <LayoutGrid size={17} />}
-              <span>{category.name}</span><ChevronLeft size={15} />
-            </button>
-          ))}
-        </div>
-        <Link className="reference-catalog-all" to="/categories" onClick={onNavigate}>
-          مشاهده صفحه تمام دسته‌بندی‌ها <ArrowLeft size={16} />
-        </Link>
-      </aside>
-      {current && <section className="reference-catalog-content" key={current.slug}>
-        <div className="reference-catalog-content-heading">
-          <div>
-            <span className="reference-catalog-eyebrow">صنعت پیش / کاتالوگ تخصصی</span>
-            <h3>{current.name}</h3>
-            <p>{current.description || 'زیرگروه‌ها و انواع قطعات صنعتی این دسته را انتخاب کنید.'}</p>
-            <Link to={'/category/' + resolveCategorySlug(current.slug)} onClick={onNavigate}>
-              مشاهده تمام محصولات این دسته <ArrowUpLeft size={15} />
-            </Link>
-          </div>
-          <div className="reference-catalog-cover">
-            {current.image ? <img src={current.image} alt={current.name} /> : <PackageSearch size={52} />}
-          </div>
-        </div>
-        <div className="reference-catalog-submenus">
-          {(current.children || []).length ? (
-            <CategoryNavigation nodes={current.children || []} categorySlug={current.slug} onNavigate={onNavigate} expanded />
-          ) : (
-            <Link to={'/category/' + resolveCategorySlug(current.slug)} onClick={onNavigate}>
-              مشاهده محصولات موجود در این دسته
-            </Link>
+    <div
+      className={
+        compact ? "reference-catalog-mobile" : "reference-catalog-menu"
+      }
+    >
+      {columns.map(({ title, Icon, image, categories }) => (
+        <section key={title}>
+          <h3>
+            <Icon size={17} />
+            {title}
+          </h3>
+          {!compact && (
+            <img className="reference-category-art" src={image} alt="" />
           )}
-        </div>
-      </section>}
+          <div className="reference-category-links">
+            {categories.map(
+              ({ category: c, label }) =>
+                c && (
+                  <div key={c.slug}>
+                    {c.children?.some(node => !node.hidden) ? (
+                      <details className="reference-belts">
+                        <summary>{label}</summary>
+                        <Link
+                          to={`/category/${resolveCategorySlug(c.slug)}`}
+                          onClick={onNavigate}
+                        >
+                          همه محصولات {c.name} <ArrowUpLeft size={13} />
+                        </Link>
+                        <CategoryNavigation
+                          nodes={c.children || []}
+                          categorySlug={c.slug}
+                          onNavigate={onNavigate}
+                        />
+                      </details>
+                    ) : (
+                      <Link
+                        to={`/category/${resolveCategorySlug(c.slug)}`}
+                        onClick={onNavigate}
+                      >
+                        {label}
+                        <ArrowUpLeft size={12} />
+                      </Link>
+                    )}
+                  </div>
+                ),
+            )}
+          </div>
+          <Link
+            className="reference-view-all"
+            to="/categories"
+            onClick={onNavigate}
+          >
+            مشاهده همه <ArrowLeft size={14} />
+          </Link>
+        </section>
+      ))}
+      {!compact && (
+        <aside className="reference-menu-promo">
+          <img src={A.categories.transmission} alt="تجهیزات انتقال قدرت" />
+          <span>از کد دقیق تا انتخاب قطعه</span>
+          <strong>
+            قطعات صنعتی،
+            <br />
+            در یک مسیر روشن.
+          </strong>
+          <Link to="/products" onClick={onNavigate}>
+            مشاهده محصولات <ArrowLeft size={15} />
+          </Link>
+        </aside>
+      )}
     </div>
   );
 }
