@@ -972,7 +972,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [onClose, stopAudio]);
 
   const submitUserText = (text: string) => {
-    if (greetingFinishedRef.current) void handleUserFinishedSpeaking(text);
+    if (!greetingFinishedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return false;
+    void handleUserFinishedSpeaking(text);
+    return true;
   };
 
   const toFarsiDigits = (n: number | string) => {
@@ -1280,9 +1282,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               e.preventDefault();
               if (customInput.trim()) {
                 const text = customInput.trim();
-                setCustomInput('');
-                setShowTextInput(false);
-                submitUserText(text);
+                if (submitUserText(text)) {
+                  setCustomInput('');
+                  setShowTextInput(false);
+                }
               }
             }}
             className="flex items-center gap-2 p-1.5 rounded-xl bg-black/90 border border-[#E06518]/60 backdrop-blur-md shadow-2xl pointer-events-auto animate-fadeInCard"
@@ -1297,7 +1300,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             />
             <button
               type="submit"
-              disabled={!customInput.trim()}
+              disabled={!customInput.trim() || greetingPhase !== 'complete' || status === 'thinking' || status === 'speaking'}
               className="p-2 rounded-lg bg-[#E06518] hover:bg-[#C95210] disabled:opacity-40 text-white transition-all cursor-pointer"
               title="ارسال به هوش مصنوعی"
             >
