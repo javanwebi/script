@@ -19,13 +19,14 @@ import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/fo
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
 import { playForzaStreamingAudio } from '../../utils/forzaStreamingAudio';
+import { chooseForzaVoiceStart } from '../../utils/forzaVoiceStartup';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
   onClose?: () => void;
 }
 
-type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
+type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'preparing-voice' | 'speaking';
 
 const GREETING_TEXT = FORZA_GREETING_TEXT;
 
@@ -97,6 +98,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const ttsRequestsRef = useRef(new Map<string, Promise<{ audioBase64?: string; useClientSpeech?: boolean }>>());
   const ttsReadyRef = useRef(new Map<string, { audioBase64?: string; useClientSpeech?: boolean }>());
   const activeStreamControllerRef = useRef<AbortController | null>(null);
+  const streamUnavailableUntilRef = useRef(0);
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -154,7 +156,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Start/Stop voice listening helpers
   const startListening = useCallback(() => {
-    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
+    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current || isAiSpeakingRef.current || (statusRef.current === 'thinking' || statusRef.current === 'preparing-voice') || isProcessingTurnRef.current) {
       return;
     }
 
@@ -423,7 +425,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Sound playback and microphone ownership are deliberately independent.
   // Listening starts ONLY after the real audio ended event, never on HTTP 200.
-  const playDataUrl = useCallback((url: string): Promise<void> => new Promise((resolve,reject) => {
+  const playDataUrl = useCallback((url: string, onStarted?: () => void): Promise<void> => new Promise((resolve,reject) => {
     if (!url) return reject(new Error('audio_missing'));
     stopAudio();
     let audio = audioElRef.current;
@@ -455,6 +457,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setTurn('ai');
       setAutoplayBlocked(false);
       setPendingAudioUrl(null);
+      onStarted?.();
     };
     const ended=()=>finish();
     const failed=()=>finish(new Error('audio-playback-failed'));
@@ -474,7 +477,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }),[isSpeakerMuted,setStatus,stopAudio]);
 
   // Browser speech fallback must be observable, not a silently resolved Promise.
-  const speakBrowserFallback = useCallback((text:string):Promise<void> => new Promise((resolve,reject)=>{
+  const speakBrowserFallback = useCallback((text:string, onStarted?: () => void):Promise<void> => new Promise((resolve,reject)=>{
     if(!('speechSynthesis' in window))return reject(new Error('browser_tts_unavailable'));
     const spoken=new SpeechSynthesisUtterance(verbalizeForzaTechnicalTerms(text));
     spoken.lang='fa-IR';
@@ -501,6 +504,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setStatus('speaking');
       setTurn('ai');
       setAutoplayBlocked(false);
+      onStarted?.();
     };
     spoken.onend=()=>finish();
     spoken.onerror=()=>finish(new Error('browser_tts_failed'));
@@ -547,8 +551,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Fast-path only for conversational replies: retain the prewarmed greeting
   // and the full-file TTS fallback for browsers without MP3 MediaSource.
-  const playStreamingText = useCallback(async (text: string): Promise<boolean> => {
-    if (typeof MediaSource === 'undefined' || !MediaSource.isTypeSupported('audio/mpeg')) return false;
+  const playStreamingText = useCallback(async (text: string, onStarted?: () => void): Promise<boolean> => {
+    if (Date.now() < streamUnavailableUntilRef.current ||
+        typeof MediaSource === 'undefined' || !MediaSource.isTypeSupported('audio/mpeg')) return false;
     stopAudio();
     const controller = new AbortController();
     activeStreamControllerRef.current = controller;
@@ -565,9 +570,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setStatus('speaking');
         setTurn('ai');
         setAutoplayBlocked(false);
+        onStarted?.();
       });
       return true;
     } catch (error: any) {
+      if (error?.message === 'stream_unavailable' || error?.message === 'stream_start_timeout' ||
+          error?.message === 'stream_decode_failed' || error?.message === 'stream_audio_error') {
+        streamUnavailableUntilRef.current = Date.now() + 120_000;
+      }
       if (error?.message === 'autoplay_permission_required' ||
           error?.message === 'stream_interrupted_after_start' ||
           error?.message === 'stream_cancelled') throw error;
@@ -582,39 +592,70 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speakText = useCallback(async (text:string) => {
     stopListening();
     setVoiceOutputError(null);
-    setStatus('thinking');
+    // A reply that already arrived is no longer being processed by the AI.
+    setStatus('preparing-voice');
     setTurn('ai');
     const chunks = forzaFastStartSpeechChunks(text);
     for (let index = 0; index < chunks.length; index++) {
       if (callClosedRef.current) return;
       const chunk = chunks[index];
-      // Build the following phrase while the current one is audible.
       const nextChunk = chunks[index + 1];
-      if (nextChunk) void requestSpeechAudio(nextChunk).catch(() => {});
+      let didPrefetch = false;
+      const prefetchNext = () => {
+        if (didPrefetch || !nextChunk) return;
+        didPrefetch = true;
+        void requestSpeechAudio(nextChunk).catch(() => {});
+      };
+
       if (index === 0 && text !== GREETING_TEXT) {
-        try {
-          if (await playStreamingText(chunk)) continue;
-        } catch (error: any) {
-          if (callClosedRef.current || error?.message === 'stream_cancelled') return;
-          throw error;
+        // Start the streaming voice and the full-file fallback together.
+        // Production streaming returns 503 on some turns: do not wait for
+        // that failed request before asking for an alternative voice.
+        let notifyStreamStarted!: () => void;
+        const streamStarted = new Promise<void>(resolve => { notifyStreamStarted = resolve; });
+        const audioReady = requestSpeechAudio(chunk);
+        const streamFinished = playStreamingText(chunk, () => {
+          prefetchNext();
+          notifyStreamStarted();
+        });
+        const selected = await chooseForzaVoiceStart(streamStarted, streamFinished, audioReady);
+        if (callClosedRef.current) { stopAudio(); return; }
+        if (selected.kind === 'stream') {
+          try { await streamFinished; }
+          catch (error: any) {
+            if (callClosedRef.current || error?.message === 'stream_cancelled') return;
+            throw error;
+          }
+          continue;
         }
+        // Never let two voices speak over each other.
+        stopAudio();
+        if (selected.kind === 'audio') {
+          lastPlayableVoiceRef.current = {text: chunk, audioUrl: selected.audioUrl};
+          await playDataUrl(selected.audioUrl, prefetchNext);
+        } else {
+          await speakBrowserFallback(chunk, prefetchNext);
+        }
+        continue;
       }
+
       let speech: {audioBase64?: string} = {};
-      try { speech = await requestSpeechAudio(chunk); } catch { /* Try the supported browser voice for this chunk only. */ }
+      try { speech = await requestSpeechAudio(chunk); }
+      catch { /* Use the supported browser voice if all providers fail. */ }
       if (callClosedRef.current) return;
       if (speech.audioBase64) {
         lastPlayableVoiceRef.current = {text: chunk, audioUrl: speech.audioBase64};
         try {
-          await playDataUrl(speech.audioBase64);
+          await playDataUrl(speech.audioBase64, prefetchNext);
           continue;
         } catch (error: any) {
           if (callClosedRef.current) return;
           if (error?.message === 'autoplay_permission_required') throw error;
         }
       }
-      if (!callClosedRef.current) await speakBrowserFallback(chunk);
+      if (!callClosedRef.current) await speakBrowserFallback(chunk, prefetchNext);
     }
-  },[playDataUrl,playStreamingText,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
+  },[playDataUrl,playStreamingText,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening,stopAudio]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -676,7 +717,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const q = (textToSend || '').trim();
       if (!q && !audioBlob) return;
       if (!greetingFinishedRef.current) return;
-      if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
+      if (isAiSpeakingRef.current || (statusRef.current === 'thinking' || statusRef.current === 'preparing-voice') || isProcessingTurnRef.current) return;
 
       isProcessingTurnRef.current = true;
       stopListening();
@@ -847,7 +888,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onresult = (event: any) => {
-        if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
+        if (isAiSpeakingRef.current || (statusRef.current === 'thinking' || statusRef.current === 'preparing-voice') || isProcessingTurnRef.current) return;
 
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
@@ -1041,7 +1082,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [onClose, stopAudio]);
 
   const submitUserText = (text: string) => {
-    if (!greetingFinishedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return false;
+    if (!greetingFinishedRef.current || isAiSpeakingRef.current || (statusRef.current === 'thinking' || statusRef.current === 'preparing-voice') || isProcessingTurnRef.current) return false;
     void handleUserFinishedSpeaking(text);
     return true;
   };
@@ -1243,13 +1284,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
+              : status === 'preparing-voice'
+              ? 'AI FORZA در حال آماده‌سازی صدا...'
               : 'AI FORZA در حال صحبت...'}
           </span>
           <span
             className={`w-2 h-2 rounded-full ${
               turn === 'user'
                 ? 'bg-white shadow-[0_0_8px_#ffffff]'
-                : status === 'thinking'
+                : status === 'thinking' || status === 'preparing-voice'
                 ? 'bg-[#e06518] shadow-[0_0_8px_#e06518] animate-pulse'
                 : 'bg-[#e06518] shadow-[0_0_8px_#e06518]'
             }`}
