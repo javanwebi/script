@@ -5788,21 +5788,19 @@ async function synthesizeSingleEdgeChunk(tts: MsEdgeTTS, chunkText: string, time
   });
 }
 
-// Timestamp until which Gemini TTS is skipped due to 429 quota exhaustion
-let geminiTtsCooldownUntil = 0;
+// Keep cooldowns per model so one model's quota limit does not disable every voice.
+const geminiTtsModelCooldowns = new Map<string, number>();
 
-// List of official Gemini TTS models
+// These TTS models support the generateContent endpoint used by this helper.
 const GEMINI_TTS_MODELS = [
-  'gemini-3.8-flash-lite-tts',
-  'gemini-3.8-flash-tts',
+  'gemini-3.1-flash-tts-preview',
+  'gemini-2.5-flash-preview-tts',
 ];
 
 // Helper: Synthesize speech directly using Gemini Audio TTS
 async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): Promise<Buffer | null> {
   const cleanKey = (text || '').trim();
   if (!cleanKey) return null;
-  if (Date.now() < geminiTtsCooldownUntil) return null;
-
   const apiKey = getGeminiKey();
   if (!apiKey) return null;
 
@@ -5814,6 +5812,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
   const selectedVoice = voiceName === 'Puck' ? 'Puck' : 'Charon';
 
   for (const model of GEMINI_TTS_MODELS) {
+    if ((geminiTtsModelCooldowns.get(model) || 0) > Date.now()) continue;
     try {
       const response = await ai.models.generateContent({
         model,
@@ -5840,10 +5839,18 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
     } catch (err: any) {
       const msg = err?.message || String(err);
       if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota exceeded') || err?.status === 429) {
-        // Quota reached on Gemini TTS; set 10-minute cooldown and stop iteration across TTS models
-        geminiTtsCooldownUntil = Date.now() + 10 * 60 * 1000;
-        break;
+        const retry = Number.parseFloat((msg.match(/retry(?: in)?\\s+([0-9.]+)s/i) || [])[1] || '0');
+        const cooldownMs = Math.max(30000, Math.min(300000, retry * 1000 || 60000));
+        geminiTtsModelCooldowns.set(model, Date.now() + cooldownMs);
+        console.warn('[FORZA TTS] direct Gemini model quota limited', { model, cooldownMs });
+        continue;
       }
+      if (err?.status === 404 || /not found|model.*not available/i.test(msg)) {
+        geminiTtsModelCooldowns.set(model, Date.now() + 30 * 60 * 1000);
+        console.warn('[FORZA TTS] direct Gemini model unavailable', { model });
+        continue;
+      }
+      console.warn('[FORZA TTS] direct Gemini model failed', { model, status: err?.status || null, type: err?.name || 'error' });
     }
   }
 
@@ -5854,9 +5861,10 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
 async function generatePersianMaleSpeechEdge(text: string, skipGemini = false): Promise<Buffer | null> {
   const cleanKey = (text || '').trim();
   if (!cleanKey) return null;
-
-  if (ttsBufferCache.has(cleanKey)) {
-    return ttsBufferCache.get(cleanKey)!;
+  // Never reuse Gemini WAV bytes as Edge MP3 (or vice versa) for the same text.
+  const cacheKey = `${skipGemini ? 'edge-fa-IR-FaridNeural' : 'auto-charon-edge'}:${cleanKey}`;
+  if (ttsBufferCache.has(cacheKey)) {
+    return ttsBufferCache.get(cacheKey)!;
   }
 
   // 1. Try Gemini Audio TTS (instant, crystal-clear male neural voice Charon)
@@ -5866,7 +5874,7 @@ async function generatePersianMaleSpeechEdge(text: string, skipGemini = false): 
       const firstKey = ttsBufferCache.keys().next().value;
       if (firstKey) ttsBufferCache.delete(firstKey);
     }
-    ttsBufferCache.set(cleanKey, geminiBuffer);
+    ttsBufferCache.set(cacheKey, geminiBuffer);
     return geminiBuffer;
   }
 
@@ -5896,10 +5904,11 @@ async function generatePersianMaleSpeechEdge(text: string, skipGemini = false): 
         const firstKey = ttsBufferCache.keys().next().value;
         if (firstKey) ttsBufferCache.delete(firstKey);
       }
-      ttsBufferCache.set(cleanKey, combined);
+      ttsBufferCache.set(cacheKey, combined);
       return combined;
     }
   } catch (err: any) {
+    console.warn('[FORZA TTS] Edge provider failed', { type: err?.name || 'error', message: String(err?.message || '').slice(0, 160) });
     if (tts) {
       try {
         tts.close();
@@ -5998,20 +6007,13 @@ app.post('/api/ai/tts', async (req, res) => {
       });
     }
 
-    // Start the local Persian Farid voice and the Worker in parallel. Prefer
-    // the clean local reading when it is ready promptly: the Worker can be slow
-    // or prepend an audible voice-style instruction instead of just the answer.
+    // Keep Charon as the stable primary voice. Do not race Edge/Farid against
+    // Gemini/Charon, which made identical replies randomly switch voices.
     type FastForzaAudio = {
       audio: Buffer;
-      provider: 'edge-farid-neural' | 'cloudflare-gemini-persian-tts';
+      provider: 'cloudflare-gemini-persian-tts';
       mimeType: 'audio/mp3' | 'audio/wav';
     };
-    const edgeAudioPromise: Promise<FastForzaAudio | null> =
-      generatePersianMaleSpeechEdge(cleanedText, true)
-        .then((audio): FastForzaAudio | null => audio?.length
-          ? { audio, provider: 'edge-farid-neural', mimeType: 'audio/mp3' }
-          : null)
-        .catch(() => null);
     const workerAudioPromise: Promise<FastForzaAudio | null> = configuredForzaWorkerUrl()
       ? generateForzaWorkerPersianVoice(cleanedText)
           .then((audio): FastForzaAudio | null => audio?.length
@@ -6019,23 +6021,7 @@ app.post('/api/ai/tts', async (req, res) => {
             : null)
           .catch(() => null)
       : Promise.resolve(null);
-
-    // A brief grace period favors predictable Persian reading without
-    // waiting for the full, potentially slow Worker timeout.
-    const preferredEdge = await Promise.race([
-      edgeAudioPromise,
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 1300)),
-    ]);
-    const fastAudio = preferredEdge || await Promise.any([
-      edgeAudioPromise.then(audio => {
-        if (!audio) throw new Error('edge_tts_unavailable');
-        return audio;
-      }),
-      workerAudioPromise.then(audio => {
-        if (!audio) throw new Error('worker_tts_unavailable');
-        return audio;
-      }),
-    ]).catch(() => null);
+    const fastAudio = await workerAudioPromise.catch(() => null);
     if (fastAudio) {
       reportProvider(fastAudio.provider);
       const dataUrl = `data:${fastAudio.mimeType};base64,${fastAudio.audio.toString('base64')}`;
