@@ -923,12 +923,26 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           const found=categories.find(c=>c.name===name);
           if(found)handleOpenCategoryModal(found,candidateImage);
         }}
-        onEditFamily={(code,file,imageUrl,imageTitle)=>{
+        onEditFamily={(code,file,imageUrl,imageTitle,upload)=>{
           const product=products.find(p=>p.code===code);
           if(!product)return;
           handleOpenEditFamily(product,'family');
+          setPendingFamilyUpload(upload||null);
+          setPendingFamilyImageTitle(imageTitle||'');
           setNewImgTitle(imageTitle||'');
           setNewImgScope('family');
+          const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
+          if(persistedUrl)setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.url===persistedUrl))return previous;
+            const nextGallery=[...gallery,{
+              id:'review-selected-'+Date.now(),url:persistedUrl,fileName:file,scope:'family' as const,
+              identityVerified:false,title:imageTitle||'تصویر انتخاب‌شده از بانک تصاویر',
+              order:gallery.length+1
+            }];
+            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+          });
         }}
         onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload)=>{
           handleOpenNewFamily();
