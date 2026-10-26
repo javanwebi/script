@@ -876,19 +876,34 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   return (
     <div className="space-y-6 text-right" dir="rtl">
       <ProductImageAudit products={products} categories={categories}
-        onCreateCategory={()=>handleOpenCategoryModal()}
-        onCreateFamily={(file,category,subcategory,imageUrl,imageTitle)=>{
+        onCreateCategory={candidateImage=>handleOpenCategoryModal(undefined,candidateImage)}
+        onEditCategory={(name,candidateImage)=>{
+          const found=categories.find(c=>c.name===name);
+          if(found)handleOpenCategoryModal(found,candidateImage);
+        }}
+        onEditFamily={(code,file,imageUrl,imageTitle)=>{
+          const product=products.find(p=>p.code===code);
+          if(!product)return;
+          handleOpenEditFamily(product,'family');
+          setNewImgTitle(imageTitle||'');
+          setNewImgScope('family');
+        }}
+        onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload)=>{
           handleOpenNewFamily();
-          const url=imageUrl||getProductImageUrl(file);
+          const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
+          setPendingFamilyUpload(upload||null);
+          setPendingFamilyImageTitle(imageTitle||'');
           setDraftFamily(previous=>previous?{
             ...previous,
             categoryName:category||previous.categoryName,
+            categorySlug:categories.find(c=>c.name===category)?.slug||previous.categorySlug,
+            submenu:submenu||previous.submenu,
             subcategory:subcategory||previous.subcategory,
-            images:[...(previous.images||[]),url],
-            galleryImages:[...(previous.galleryImages||[]),{
-              id:`review-new-${file}`,url,fileName:file,scope:'family',
+            images:persistedUrl?[persistedUrl]:[],
+            galleryImages:persistedUrl?[{
+              id:'review-new-'+file,url:persistedUrl,fileName:file,scope:'family',
               identityVerified:false,title:imageTitle?.trim()||'تصویر نیازمند بررسی مشخصات',order:1
-            }]
+            }]:[]
           }:previous);
           setEditorTab('family');
         }}
