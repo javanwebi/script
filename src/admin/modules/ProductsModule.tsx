@@ -563,12 +563,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       const data=await response.json().catch(()=>({success:false,message:'پاسخ پایگاه داده معتبر نیست.'}));
       if(!response.ok||!data.success)throw new Error(data.message||'ذخیره خانواده در دیتابیس انجام نشد.');
       let imageWarning='';
+      let storedFamilyImage:{id:string;url:string;fileName:string}|undefined;
       if(pendingFamilyUpload){
         try{
-          await uploadProductImage(pendingFamilyUpload,{
+          const stored=await uploadProductImage(pendingFamilyUpload,{
             familyCode:payload.code,title:pendingFamilyImageTitle||pendingFamilyUpload.name
           });
+          storedFamilyImage=stored;
           setPendingFamilyUpload(null);
+          setDraftFamily(previous=>{
+            if(!previous)return previous;
+            const gallery=previous.galleryImages||[];
+            if(gallery.some(image=>image.id===stored.id))return previous;
+            const nextGallery=[...gallery,{
+              id:stored.id,url:stored.url,fileName:stored.fileName,scope:'family' as const,
+              title:pendingFamilyImageTitle||stored.fileName,identityVerified:false,order:gallery.length+1
+            }];
+            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+          });
         }catch(error){
           imageWarning=error instanceof Error?error.message:'بارگذاری تصویر انجام نشد.';
         }
@@ -577,7 +589,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       refreshProducts();
       setIsCreatingNewFamily(false);
       window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{
-        detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code}
+        detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code,imageUrl:storedFamilyImage?.url,imageFileName:storedFamilyImage?.fileName}
       }));
       if(imageWarning){
         setEditorTab('images');
