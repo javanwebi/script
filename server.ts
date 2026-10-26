@@ -6008,13 +6008,13 @@ app.post('/api/ai/tts', async (req, res) => {
     };
     const edgeAudioPromise: Promise<FastForzaAudio | null> =
       generatePersianMaleSpeechEdge(cleanedText, true)
-        .then(audio => audio?.length
+        .then((audio): FastForzaAudio | null => audio?.length
           ? { audio, provider: 'edge-farid-neural', mimeType: 'audio/mp3' }
           : null)
         .catch(() => null);
     const workerAudioPromise: Promise<FastForzaAudio | null> = configuredForzaWorkerUrl()
       ? generateForzaWorkerPersianVoice(cleanedText)
-          .then(audio => audio?.length
+          .then((audio): FastForzaAudio | null => audio?.length
             ? { audio, provider: 'cloudflare-gemini-persian-tts', mimeType: 'audio/wav' }
             : null)
           .catch(() => null)
