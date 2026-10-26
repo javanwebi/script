@@ -17,6 +17,8 @@ import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, verbalizeForzaT
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
+import { forzaSpeechChunks } from '../../utils/forzaSpeechChunks';
+import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
   onClose?: () => void;
@@ -57,6 +59,8 @@ function getSupportedAudioMimeType(): string {
 
 export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ onClose }) => {
   // Visual scene & humanoid character states
+  const callClosedRef = useRef(false);
+  useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
 
@@ -66,6 +70,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [clean, setClean] = useState(false);
   const [quality, setQuality] = useState('high');
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [showImageSearch, setShowImageSearch] = useState(false);
   const [showTextInput, setShowTextInput] = useState<boolean>(false);
   const [customInput, setCustomInput] = useState<string>('');
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
@@ -510,6 +515,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text}),
+      signal: AbortSignal.timeout(25000),
     }).then(async res=>{
       if(!res.ok)throw new Error('tts_http_'+res.status);
       const data=await res.json();
@@ -524,27 +530,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setVoiceOutputError(null);
     setStatus('thinking');
     setTurn('ai');
-    try {
-      const speech=await requestSpeechAudio(text);
-      if(speech.audioBase64) {
-        lastPlayableVoiceRef.current = {text,audioUrl:speech.audioBase64};
+    const chunks = forzaSpeechChunks(text);
+    for (const chunk of chunks) {
+      if (callClosedRef.current) return;
+      let speech: {audioBase64?: string} = {};
+      try { speech = await requestSpeechAudio(chunk); } catch { /* Try the supported browser voice for this chunk only. */ }
+      if (callClosedRef.current) return;
+      if (speech.audioBase64) {
+        lastPlayableVoiceRef.current = {text: chunk, audioUrl: speech.audioBase64};
         try {
           await playDataUrl(speech.audioBase64);
-          return;
-        } catch (e:any) {
-          if(e?.message==='autoplay_permission_required') throw e;
-          console.warn('[FORZA Voice] Neural audio playback failed; using supported browser voice');
+          continue;
+        } catch (error: any) {
+          if (callClosedRef.current) return;
+          if (error?.message === 'autoplay_permission_required') throw error;
         }
       }
-      await speakBrowserFallback(text);
-    } catch(error:any) {
-      if(error?.message==='autoplay_permission_required')throw error;
-      // Browser fallback is also attempted if the server cannot generate audio.
-      if(!activeUtteranceRef.current && !String(error?.message||'').startsWith('browser_tts_')) {
-        await speakBrowserFallback(text);
-        return;
-      }
-      throw error;
+      if (!callClosedRef.current) await speakBrowserFallback(chunk);
     }
   },[playDataUrl,requestSpeechAudio,setStatus,speakBrowserFallback,stopListening]);
 
@@ -626,7 +628,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       try {
         const payload: any = {
-          history: historyRef.current.slice(-8),
+          history: historyRef.current.slice(-24),
           // First deliver the exact AI words; synthesize audio as a second step.
           deferAudio: true,
         };
@@ -956,6 +958,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[particlesFormed]);
 
   const endCall = useCallback(() => {
+    callClosedRef.current = true;
     stopAudio();
     if (recognitionRef.current) {
       try {
@@ -1262,6 +1265,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             </button>
           </div>
         )}
+        <button type="button" onClick={() => { micMutedRef.current = true; setIsMicMuted(true); stopListening(); setShowImageSearch(true); }}
+          className="pointer-events-auto self-end flex items-center gap-3 rounded-2xl border border-orange-400/60 bg-gradient-to-l from-orange-950/95 to-slate-950/95 px-5 py-3 text-white shadow-xl backdrop-blur-xl"
+          aria-label="شناسایی تصویر قطعه با فورزا">
+          <Eye size={22} className="text-orange-400" />
+          <span className="forza-persian-label">اسکن تصویر قطعه</span>
+        </button>
         {/* Browser Autoplay Unblock Badge */}
         {autoplayBlocked && (
           <button
@@ -1368,8 +1377,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           >
             ✕
           </button>
-        </div>
+    </div>
       )}
+      {showImageSearch && <AiVisualPartSearchModal isOpen onClose={() => setShowImageSearch(false)} />}
     </main>
   );
 };

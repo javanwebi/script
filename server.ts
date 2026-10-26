@@ -6253,7 +6253,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       ];
 
       if (Array.isArray(history) && history.length > 0) {
-        for (const h of history.slice(-6)) {
+        for (const h of history.slice(-24)) {
           const role =
             h.role === 'model' || h.role === 'assistant' || h.sender === 'ai'
               ? 'assistant'
@@ -6321,7 +6321,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
         // Append recent conversational context
         if (Array.isArray(history) && history.length > 0) {
-          for (const h of history.slice(-6)) {
+          for (const h of history.slice(-24)) {
             if (h.role === 'user' || h.sender === 'user') {
               contents.push({ role: 'user', parts: [{ text: h.text }] });
             } else if (h.role === 'model' || h.role === 'assistant' || h.sender === 'ai') {
