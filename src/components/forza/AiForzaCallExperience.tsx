@@ -475,7 +475,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const spoken=new SpeechSynthesisUtterance(verbalizeForzaTechnicalTerms(text));
     spoken.lang='fa-IR';
     spoken.rate=0.95;
-    spoken.volume=isSpeakerMuted?0:1;
     const voices=window.speechSynthesis.getVoices();
     spoken.voice=voices.find(v=>v.lang.toLowerCase()==='fa-ir')
       || voices.find(v=>v.lang.toLowerCase().startsWith('fa')) || null;
@@ -483,7 +482,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     let finished=false;
     const stopGuard=window.setTimeout(()=>{
       if(!started) finish(new Error('browser_tts_permission_required'));
-    },7000);
+    },3200);
     function finish(error?:Error) {
       if(finished)return;
       finished=true;
@@ -508,12 +507,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch {
       finish(new Error('browser_tts_failed'));
     }
-  }),[isSpeakerMuted,setStatus]);
+  }),[setStatus]);
 
   const requestSpeechAudio = useCallback((text:string) => {
     const ready = ttsReadyRef.current.get(text);
-    // Do not re-query a provider that has already reported no available voice.
-    if (ready?.audioBase64 || ready?.useClientSpeech) return Promise.resolve(ready);
+    if (ready?.audioBase64) return Promise.resolve(ready);
     const inFlight=ttsRequestsRef.current.get(text);
     if(inFlight)return inFlight;
     const promise=fetch('/api/ai/tts', {
@@ -524,7 +522,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }).then(async res=>{
       if(!res.ok)throw new Error('tts_http_'+res.status);
       const data=await res.json() as {audioBase64?:string;useClientSpeech?:boolean};
-      if (data.audioBase64 || data.useClientSpeech) {
+      if (data.audioBase64) {
         const cache = ttsReadyRef.current;
         cache.set(text, data);
         if (cache.size > 24) {
@@ -615,26 +613,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } else {
       setAutoplayBlocked(false);
       if(!greetingFinishedRef.current) {
-        // On a user click, attempt native Persian speech immediately, rather
-        // than waiting for another quota-exhausted server TTS request.
-        stopListening();
-        void speakBrowserFallback(GREETING_TEXT).then(()=>{
+        void speakText(GREETING_TEXT).then(()=>{
           greetingFinishedRef.current=true;
           setGreetingPhase('complete');
-          setVoiceOutputError(null);
           setStatus('listening');
           setTurn('user');
           startListening();
-        }).catch((error:any)=>{
-          setGreetingPhase('needs-permission');
-          setAutoplayBlocked(true);
-          setVoiceOutputError(error?.message==='browser_tts_unavailable'
-            ?'این مرورگر موتور گفتار ندارد. صدای فارسی سیستم را فعال کنید یا از مرورگر دیگری استفاده کنید.'
-            :'صدای خوشامدگویی شروع نشد. صدای فارسی و مجوز پخش مرورگر را بررسی کنید و دوباره بزنید.');
-        });
+        }).catch(()=>{setGreetingPhase('needs-permission');setAutoplayBlocked(true)});
       }
     }
-  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startListening,speakBrowserFallback,stopListening]);
+  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startListening,speakText]);
 
   // Turn management: send speech/query to AI & worker
   const handleUserFinishedSpeaking = useCallback(
@@ -973,7 +961,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       console.warn('[FORZA] Greeting playback blocked',e?.message||'audio_error');
       setGreetingPhase('needs-permission');
       setAutoplayBlocked(true);
-      setVoiceOutputError('صدای خوشامدگویی پخش نشد. روی دکمه بلندگو بزنید تا صدای فارسی مرورگر فعال شود.');
     });
     return ()=>{
       active=false;
@@ -1313,26 +1300,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             title="فعال‌سازی پخش صدا در مرورگر"
           >
             <Volume2 size={16} />
-            <span>🔊 فعال‌کردن صدا و شنیدن خوشامدگویی فورزا</span>
+            <span>🔊 برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید</span>
           </button>
         )}
 
-        {greetingPhase === 'needs-permission' && (
-          <button type="button"
-            onClick={() => {
-              // The user explicitly chooses to continue without an audio engine.
-              greetingFinishedRef.current=true;
-              setGreetingPhase('complete');
-              setAutoplayBlocked(false);
-              setVoiceOutputError('در حالت متنی ادامه می‌دهید؛ برای شنیدن پاسخ‌ها صدای فارسی مرورگر را فعال کنید.');
-              setStatus('listening');
-              setTurn('user');
-              startListening();
-            }}
-            className="pointer-events-auto self-end rounded-xl border border-white/30 bg-black/85 px-4 py-2 text-xs text-white hover:border-orange-400">
-            ادامه مکالمه بدون صدا
-          </button>
-        )}
         {/* Text Input Drawer (for typing without microphone) */}
         {showTextInput && (
           <form
