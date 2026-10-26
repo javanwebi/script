@@ -5839,7 +5839,7 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
     } catch (err: any) {
       const msg = err?.message || String(err);
       if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota exceeded') || err?.status === 429) {
-        const retry = Number.parseFloat((msg.match(/retry(?: in)?\\s+([0-9.]+)s/i) || [])[1] || '0');
+        const retry = Number.parseFloat((msg.match(/retry(?: in)?\s+([0-9.]+)s/i) || [])[1] || '0');
         const cooldownMs = Math.max(30000, Math.min(300000, retry * 1000 || 60000));
         geminiTtsModelCooldowns.set(model, Date.now() + cooldownMs);
         console.warn('[FORZA TTS] direct Gemini model quota limited', { model, cooldownMs });
