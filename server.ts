@@ -4255,6 +4255,10 @@ async function analyzePartOffline(req:express.Request,body:any,stage:'quick'|'re
     customerImageUrl:uploaded.imageUrl
   };
   const finalized=finalizeRecognition(base,CATALOG_ITEMS as ReturnType<typeof recognitionCatalog>,{},false);
+  if(finalized.matchedProducts.length){
+    finalized.summary.detectedPartType=finalized.matchedProducts[0].name;
+    finalized.summary.partFamilyFarsi=familyNames.get(String(finalized.matchedProducts[0].familyCode||'')) || 'قطعه شناسایی‌شده از عکس تأییدشده';
+  }
   if(!finalized.matchedProducts.length){
     finalized.summary.catalogAvailability={
       status:finalized.similarCandidates.length || images.length ? 'similar_in_catalog':'custom_order_available',
