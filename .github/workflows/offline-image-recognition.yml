@@ -1,0 +1,31 @@
+name: Offline image recognition verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server.ts'
+      - 'src/services/offlineCatalogPhotoIndex.ts'
+      - 'src/components/search/AiVisualPartSearchModal.tsx'
+      - 'tests/offline-catalog-photo-index.test.ts'
+      - '.github/workflows/offline-image-recognition.yml'
+  push:
+    branches: [feature/offline-image-recognition-20261027]
+permissions:
+  contents: read
+jobs:
+  offline-image-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript typecheck
+        run: npm run lint
+      - name: Offline image recognition tests
+        run: node --import tsx --test tests/offline-catalog-photo-index.test.ts
+      - name: Full production build
+        run: npm run build
