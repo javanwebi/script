@@ -139,7 +139,7 @@ export class OfflineCatalogPhotoIndex {
     let completed=images.length-missing.length;
     let failed=0;
     const task=(async()=>{
-      await Promise.all(Array.from({length:Math.min(6,missing.length)},async()=>{
+      await Promise.all(Array.from({length:Math.min(2,missing.length)},async()=>{
         while(next<missing.length){
           const row=missing[next++];
           try {
@@ -159,6 +159,15 @@ export class OfflineCatalogPhotoIndex {
     })();
     this.building=task;
     try{await task;}finally{if(this.building===task)this.building=undefined;}
+  }
+  async coverage(images:CatalogImageRecord[]){
+    await this.load();
+    const indexed=images.filter(row=>this.entries.get(row.id)?.key===imageKey(row)).length;
+    return {mode:'offline-local',total:images.length,indexed,ready:indexed===images.length};
+  }
+  async prepare(images:CatalogImageRecord[],read:(row:CatalogImageRecord)=>Promise<Buffer|null>){
+    await this.ensure(images,read);
+    return this.coverage(images);
   }
   async search(query:Buffer,images:CatalogImageRecord[],read:(row:CatalogImageRecord)=>Promise<Buffer|null>,
     options:{limit?:number;progress?:(state:OfflinePhotoProgress)=>void}={}):Promise<OfflinePhotoResult> {

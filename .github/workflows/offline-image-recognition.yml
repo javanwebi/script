@@ -7,9 +7,12 @@ on:
       - 'src/services/offlineCatalogPhotoIndex.ts'
       - 'src/components/search/AiVisualPartSearchModal.tsx'
       - 'tests/offline-catalog-photo-index.test.ts'
+      - 'tests/visual-search-acceptance-hardening.test.ts'
+      - 'src/services/recognitionJobs.ts'
+      - 'src/services/offlineTechnicalMatch.ts'
       - '.github/workflows/offline-image-recognition.yml'
   push:
-    branches: [feature/offline-image-recognition-20261027]
+    branches: [fix/visual-search-acceptance-hardening-20261027]
 permissions:
   contents: read
 jobs:
@@ -26,6 +29,6 @@ jobs:
       - name: TypeScript typecheck
         run: npm run lint
       - name: Offline image recognition tests
-        run: node --import tsx --test tests/offline-catalog-photo-index.test.ts
+        run: node --import tsx --test tests/offline-catalog-photo-index.test.ts tests/visual-search-acceptance-hardening.test.ts
       - name: Full production build
         run: npm run build
