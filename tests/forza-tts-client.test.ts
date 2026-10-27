@@ -33,6 +33,31 @@ test('valid voice and input are sent to local API with a secret header', async (
   assert.equal(body.input, 'سلام صنعت پیش');
 });
 
+test('ParSiGo Pocket Farsi v2 API requests audio by generation ID', async () => {
+  const requests: string[] = [];
+  const result = await synthesizeLocalPersianSpeech('سلام صنعت پیش', {
+    env: {
+      FORZA_TTS_BASE_URL:'http://pocket-tts.railway.internal:8000',
+      FORZA_TTS_PROTOCOL:'parsigo',
+      FORZA_TTS_VOICE:'male_hello.wav',
+    },
+    fetchImpl: (async (input, init) => {
+      const req=new Request(input,init);
+      requests.push(req.url);
+      if(req.url.endsWith('/api/tts')) {
+        const body=await req.json();
+        assert.equal(body.text,'سلام صنعت پیش');
+        assert.equal(body.voice,'male_hello.wav');
+        return new Response(JSON.stringify({id:'abc12345',duration:1.2}),{status:200});
+      }
+      return new Response(new Uint8Array(wav),{status:200});
+    }) as typeof fetch,
+  });
+  assert.deepEqual(result,wav);
+  assert.equal(requests.length,2);
+  assert.ok(requests[1].endsWith('/api/audio/abc12345'));
+});
+
 test('invalid origin and non-WAV audio never return synthesized speech', async () => {
   const deny = await synthesizeLocalPersianSpeech('سلام', {
     env: {FORZA_TTS_BASE_URL:'javascript:alert(1)'},
