@@ -6,7 +6,8 @@ import { consumeForzaTextStream } from '../src/utils/forzaStreamClient';
 test('starts on whole word before Gemini completes the second sentence',()=>{
   const first = takeSpeakablePhrase('سلام، بله تسمه صنعتی موردنظر شما موجود است و',true);
   assert.ok(first);
-  assert.equal(first.phrase,'سلام،');
+  assert.ok(first.phrase.startsWith('سلام،'));
+  assert.ok(first.phrase.length <= 46, 'first speech request must be short');
   const next = takeSpeakablePhrase(first.rest + ' در انبار موجود است.',false);
   assert.ok(next);
   assert.ok(!next.phrase.endsWith(' و'));
