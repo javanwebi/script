@@ -18,6 +18,8 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
+import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
+import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -646,36 +648,82 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setMicrophoneError(null);
         }
 
-        const res = await fetch('/api/ai/forza-live', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data?.success) throw new Error(data?.error || 'server-error');
-
-        const resolvedUserQuery = (data.userTranscript || q || '').trim();
+        // Direct Gemini SSE starts speaking on the FIRST complete, speakable
+        // phrase. The speech engine receives phrases while the model is still
+        // writing the rest of its answer; output playback is strictly ordered.
+        const resolvedUserQuery = String(payload.query || q).trim();
         if (resolvedUserQuery) {
           setUserText(resolvedUserQuery);
-          historyRef.current.push({ role: 'user', text: resolvedUserQuery });
+          historyRef.current.push({role:'user',text:resolvedUserQuery});
         }
-
-        const reply = data.text || '';
+        let reply = '';
+        let speechBuffer = '';
+        let phraseCount = 0;
+        let playbackChain: Promise<void> = Promise.resolve();
+        let playbackFailure = false;
+        const queuePhrase = (phrase: string) => {
+          if (!phrase.trim()) return;
+          phraseCount++;
+          const speechRequest = requestSpeechAudio(phrase);
+          playbackChain = playbackChain.then(async () => {
+            if (callClosedRef.current) return;
+            const speech = await speechRequest;
+            if (!speech.audioBase64) throw new Error('tts_unavailable');
+            lastPlayableVoiceRef.current = {text:phrase,audioUrl:speech.audioBase64};
+            await playDataUrl(speech.audioBase64);
+          }).catch(error => {
+            playbackFailure = true;
+            console.warn('[FORZA Voice] streaming speech failed',error?.message||'unknown');
+          });
+        };
+        const onTextChunk = (chunk: string, fullText: string) => {
+          reply = fullText;
+          setAiText(fullText);
+          speechBuffer += chunk;
+          while (true) {
+            const ready = takeSpeakablePhrase(speechBuffer, phraseCount === 0);
+            if (!ready) break;
+            speechBuffer = ready.rest;
+            queuePhrase(ready.phrase);
+          }
+        };
+        try {
+          const streamRes = await fetch('/api/ai/consult-stream', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              query:resolvedUserQuery,
+              history:historyRef.current.slice(-24),
+              includeAudio:false,
+              mode:'forza',
+            }),
+          });
+          reply = await consumeForzaTextStream(streamRes, onTextChunk);
+          if (!reply) throw new Error('forza_empty_stream');
+        } catch(streamError) {
+          // Keep the existing complete-response route as a compatibility
+          // fallback when streaming has not begun at all.
+          if (reply) throw streamError;
+          const res = await fetch('/api/ai/forza-live',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(payload),
+          });
+          const data = await res.json().catch(()=>null);
+          if (!res.ok || !data?.success) throw new Error(data?.error||'server-error');
+          reply = String(data.text||'').trim();
+          if (!reply) throw new Error('forza_empty_response');
+          onTextChunk(reply,reply);
+        }
+        if (speechBuffer.trim()) queuePhrase(speechBuffer.trim());
         if (reply) {
-          historyRef.current.push({ role: 'model', text: reply });
+          historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
-
-          // Text arrives first; audio has its own failure state. A TTS error
-          // must never be misreported as an AI conversation failure.
-          try {
-            await speakText(reply);
-          } catch (voiceError: any) {
-            const blocked = voiceError?.message === 'autoplay_permission_required';
-            setVoiceOutputError(blocked
-              ? 'مرورگر پخش خودکار صدا را محدود کرده است. برای ادامه، یک بار روی صفحه لمس یا کلیک کنید.'
-              : 'موتور تولید گفتار در دسترس نیست؛ پاسخ متنی همچنان نمایش داده می‌شود.');
-            console.warn('[FORZA Voice] Reply audio was not played',voiceError?.message || 'unknown');
+          await playbackChain;
+          if (playbackFailure) {
+            setVoiceOutputError('صدای پاسخ کامل پخش نشد؛ سرویس TTS را بررسی کنید.');
+          } else {
+            setVoiceOutputError(null);
           }
         }
       } catch (err: any) {
@@ -691,7 +739,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, speakText, startListening, stopListening]
+    [setStatus, startListening, stopListening, requestSpeechAudio, playDataUrl]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
