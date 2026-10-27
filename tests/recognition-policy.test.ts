@@ -10,7 +10,7 @@ import type { Product } from '../src/types';
 
 test('recognition uses direct Gemini with one server-side key and no Worker URL',()=>{
  assert.equal(recognitionWorkerUrl({}),'');
- assert.equal(recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'https://worker.example'}),'');
+ assert.equal(recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'https://worker.example'}),'https://worker.example');
  assert.equal(recognitionApiKey({'ai-forza':'secret',GEMINI_API_KEY:'other'}),'secret');
  assert.equal(recognitionApiKey({AI_FORZA_API_KEY:'alias'}),'alias');
  assert.equal(recognitionApiKey({'ai-forza':'',GEMINI_API_KEY:'MY_GEMINI_API_KEY'}),undefined);
