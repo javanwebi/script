@@ -18,22 +18,37 @@ export async function synthesizeLocalPersianSpeech(
     const timeout = AbortSignal.timeout(3500);
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
     const bearer = String(env.FORZA_TTS_TOKEN || '').trim();
-    const response = await (options.fetchImpl ?? fetch)(new URL('/v1/audio/speech', base), {
+    const network = options.fetchImpl ?? fetch;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(bearer ? {Authorization: `Bearer ${bearer}`} : {}),
+    };
+    const parsigo = env.FORZA_TTS_PROTOCOL === 'parsigo';
+    const response = await network(new URL(parsigo ? '/api/tts' : '/v1/audio/speech',base), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(bearer ? {Authorization: `Bearer ${bearer}`} : {}),
-      },
-      body: JSON.stringify({
-        model: env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2',
-        voice: env.FORZA_TTS_VOICE || 'male_01',
-        input: text.slice(0, 1800),
-        response_format: 'wav',
-      }),
+      headers,
+      body: JSON.stringify(parsigo
+        ? { text: text.slice(0, 1800), voice: env.FORZA_TTS_VOICE || 'male_hello.wav', mode: 'pack' }
+        : { model: env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2',
+            voice: env.FORZA_TTS_VOICE || 'male_01',
+            input: text.slice(0, 1800), response_format: 'wav' }),
       signal,
     });
     if (!response.ok) return null;
-    const buffer = Buffer.from(await response.arrayBuffer());
+    let audioResponse = response;
+    if (parsigo) {
+      const payload = await response.json().catch(() => null) as {id?:string} | null;
+      // Only IDs from the self-hosted TTS response can be used to retrieve audio.
+      const id = String(payload?.id || '');
+      if (!/^[A-Za-z0-9_-]{6,90}$/.test(id)) return null;
+      audioResponse = await network(new URL('/api/audio/' + encodeURIComponent(id),base), {
+        method:'GET',
+        headers: bearer ? {Authorization: `Bearer ${bearer}`} : {},
+        signal,
+      });
+      if (!audioResponse.ok) return null;
+    }
+    const buffer = Buffer.from(await audioResponse.arrayBuffer());
     if (buffer.length < 44 || buffer.length > 6_000_000) return null;
     if (buffer.toString('ascii', 0, 4) !== 'RIFF' ||
         buffer.toString('ascii', 8, 12) !== 'WAVE') return null;
