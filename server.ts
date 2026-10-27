@@ -2909,6 +2909,9 @@ async function resolveCustomerImageBufferAndInfo(
   // 3. HTTP or HTTPS Image URL link
   try {
     const url = new URL(trimmed);
+    if(url.protocol!=='https:' || url.username || url.password || url.port && url.port!=='443'){
+      throw new Error('فقط لینک HTTPS عمومی تصویر پذیرفته می‌شود.');
+    }
     const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
     if(OFFLINE_VISION_MODE && OFFLINE_CUSTOMER_FILE.test(fileName) &&
        /^\/(?:imageai|imagemoshtari)\//.test(url.pathname)){
@@ -2930,15 +2933,17 @@ async function resolveCustomerImageBufferAndInfo(
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 6000);
+      const addresses=await lookup(url.hostname,{all:true});
+      if(!addresses.length || addresses.some(({address})=>/^(127\.|10\.|192\.168\.|169\.254\.|0\.|172\.(1[6-9]|2[0-9]|3[01])\.|::|f[cd]|fe80)/i.test(address)))
+        throw new Error('لینک تصویر عمومی معتبر نیست.');
       const fetchResp = await fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'image/jpeg,image/png,image/webp,*/*' },
+        method: 'GET',redirect:'error',
+        headers: { Accept: 'image/jpeg,image/png,image/webp' },
         signal: controller.signal,
       }).finally(() => clearTimeout(timer));
-
       if (fetchResp.ok) {
-        const arrayBuf = await fetchResp.arrayBuffer();
-        const rawBuffer = Buffer.from(arrayBuf);
+        const rawBuffer = await readResponseBufferLimited(fetchResp,CUSTOMER_IMAGE_MAX_BYTES);
+        await sharp(rawBuffer,{limitInputPixels:40_000_000}).metadata();
         if (rawBuffer.length > 0) {
           let previewBuf = rawBuffer;
           try {
