@@ -15,6 +15,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
+import {OfflineCatalogPhotoIndex} from './src/services/offlineCatalogPhotoIndex';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -4193,12 +4194,85 @@ function retrievePartPhotos(imageKey:string,buffer:Buffer,corpus:ReturnType<type
  return promise;
 }
 const partObservationCache=new Map<string,{raw:any;model:string;expires:number}>();
+
+const offlinePhotoIndex=new OfflineCatalogPhotoIndex(
+  process.env.OFFLINE_IMAGE_INDEX_FILE || path.join(process.cwd(),'.cache','catalog-offline-photo-index-v1.json')
+);
+
+/** Image-only offline route. Uses local photograph signatures and real catalogue bindings.
+ * Never calls a hosted AI provider, invents a SKU, or changes stock/price records.
+ */
+async function analyzePartOffline(req:express.Request,body:any,stage:'quick'|'refined',onProgress?:(state:ScanProgress)=>void){
+  refreshRecognitionCatalog();
+  const uploaded=await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(),req);
+  if(!uploaded.buffer.length)throw new Error('تصویر مشتری قابل خواندن نیست.');
+  const products=recognitionProducts();
+  const familyNames=new Map(products.map(product=>[product.code,product.name]));
+  const corpus=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+  const result=await offlinePhotoIndex.search(uploaded.buffer,corpus,
+    image=>getCatalogImageBuffer(image.url,image.revision),{limit:12,progress:onProgress});
+  const images=result.hits.map(hit=>({
+    imageId:hit.image.id,image:hit.image.url,label:hit.image.label,score:hit.score,
+    relation:hit.identicalPhotograph ? 'very_similar' as const : 'related' as const,
+    reason:hit.identicalPhotograph
+      ? 'همین عکس کاتالوگ پیدا شد؛ فقط تصویر اختصاصی تأییدشده می‌تواند به شناسایی کد کمک کند.'
+      : 'از نزدیک‌ترین تصاویر طبق الگوی روشنایی، لبه‌ها و شکل ظاهری است؛ انطباق قطعه و سازگاری فنی تأیید نشده.',
+    bindings:hit.image.bindings,
+    familyNames:[...new Set(hit.image.bindings.map(binding=>familyNames.get(binding.familyCode)).filter((value):value is string=>!!value))]
+  }));
+  const allowed=new Set(CATALOG_ITEMS.map(item=>String(item.code).toLowerCase()));
+  const candidates=new Map<string,any>();
+  for(const hit of result.hits)for(const binding of hit.image.bindings){
+    const code=String(binding.code||'').trim();
+    if(!code||!allowed.has(code.toLowerCase())||candidates.has(code.toLowerCase()))continue;
+    candidates.set(code.toLowerCase(),{
+      code,matchedImageId:hit.image.id,similarityScore:hit.score,
+      visualVerdict:'very_similar',dimensionMismatch:false,
+      ...(hit.identicalPhotograph && binding.verified ? {visualDistance:0}:{}),
+      matchReason:hit.identicalPhotograph ? 'عین عکس کاتالوگ؛ تعلق دقیق به SKU نیازمند تصویر اختصاصی تأییدشده است.' : 'پیشنهاد بر اساس شباهت تصویر؛ تطبیق دقیق SKU تأیید نشده.'
+    });
+  }
+  const ranked=[...candidates.values()].slice(0,20);
+  const possibleExact=ranked.filter(candidate=>typeof candidate.visualDistance==='number');
+  const tentative=ranked.filter(candidate=>typeof candidate.visualDistance!=='number');
+  const base={
+    success:true,isAiGenerated:false,stage,model:'Local CPU photo retrieval',
+    summary:{
+      whatYouSee:'بررسی الگوریتمی تصاویر ثبت‌شده کاتالوگ',
+      detectedPartType:'قطعه صنعتی؛ نوع دقیق از روی شباهت تصویر تأیید نشده',
+      partFamilyFarsi:'قطعات صنعتی',
+      detectedProfile:'نامشخص؛ برای تشخیص قطعی کد و ابعاد لازم است',
+      visualAnalysis:'تصویر مشتری با عکس‌های واقعی کاتالوگ از نظر روشنایی، لبه‌ها و الگوی هندسی مقایسه شد. نتیجه فقط رتبه‌بندی عکس‌هاست و تشخیص قطعی جنس، ابعاد یا مدل نیست.',
+      confidence:0
+    },
+    matchedProducts:possibleExact,similarCandidates:tentative,
+    catalogImageMatches:images,scanCoverage:result.coverage,
+    retrieval:{mode:'offline-local',total:result.coverage.total,indexed:result.coverage.compared,
+      ready:result.coverage.complete,verifiedPool:images.length},
+    fallbackNotice:'جست‌وجو کاملاً روی سرور خود صنعت پیش، بدون مصرف API و توکن انجام شد؛ شباهت ظاهری به معنی یکسان بودن قطعه نیست.',
+    catalogSearchWarning:!result.coverage.complete ? 'برخی تصاویر کاتالوگ خوانده نشدند؛ نتایج پوشش کامل ندارند.' : undefined,
+    technicalAdvice:'برای خرید، کد حک‌شده و ابعاد اصلی قطعه را با مشخصات کاتالوگ کنترل کنید.',
+    customerImageUrl:uploaded.imageUrl
+  };
+  const finalized=finalizeRecognition(base,CATALOG_ITEMS as ReturnType<typeof recognitionCatalog>,{},false);
+  if(!finalized.matchedProducts.length){
+    finalized.summary.catalogAvailability={
+      status:finalized.similarCandidates.length || images.length ? 'similar_in_catalog':'custom_order_available',
+      statusFarsiTitle:'نزدیک‌ترین تصاویر کاتالوگ؛ کد دقیق هنوز تأیید نشده',
+      statusFarsiMessage:'عکس‌های نزدیک از نظر ظاهر نمایش داده شده‌اند. ممکن است مدل، اندازه یا کاربرد آنها متفاوت باشد؛ قبل از سفارش کد و اندازه را کنترل کنید.'
+    };
+  }
+  return publicCatalog(finalized);
+}
+
 async function analyzePartWithWorker(
   req: express.Request,
   body: any,
   stage: 'quick' | 'refined',
   onProgress?: (state:ScanProgress)=>void
 ): Promise<any> {
+  if(process.env.PART_RECOGNITION_MODE?.toLowerCase()==='offline')
+    return analyzePartOffline(req,body,stage,onProgress);
   refreshRecognitionCatalog();
   const publishImage=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
   void cleanVisionImageLinks(IMAGE_AI_DIR);
