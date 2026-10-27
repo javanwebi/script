@@ -5905,10 +5905,10 @@ function cleanPersianTextForVoice(raw: string): string {
   return verbalizeForzaTechnicalTerms(t);
 }
 
-// Gemini-only TTS cascade. Current models use Interactions; legacy models use generateContent.
+// Only the configured self-hosted TTS provider generates speech. Gemini remains text/STT only.
 async function generateForzaSpeech(text: string): Promise<Buffer | null> {
   if (!process.env.FORZA_TTS_BASE_URL) return null;
-  const voice = 'pocket-only:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2')
+  const voice = (process.env.FORZA_TTS_PROTOCOL || 'pocket-only') + ':' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2')
     + ':' + (process.env.FORZA_TTS_VOICE || 'male_hello.wav');
   const cached = await readForzaTtsDiskCache(text, voice);
   if (cached) return cached;
@@ -5929,33 +5929,35 @@ app.post('/api/ai/tts', async (req, res) => {
     if (!process.env.FORZA_TTS_BASE_URL) {
       return res.status(503).json({
         success:false,useClientSpeech:false,
-        error:{type:'pocket_tts_not_configured',message:'موتور Pocket TTS روی سرور تنظیم نشده است.'},
+        error:{type:'pocket_tts_not_configured',message:'موتور صوتی FORZA روی سرور تنظیم نشده است.'},
       });
     }
     const cleanedText = cleanPersianTextForVoice(text);
     if (!cleanedText) return res.status(400).json({success:false,error:{type:'invalid_text'}});
+    const moss = process.env.FORZA_TTS_PROTOCOL === 'moss-realtime';
+    const speechProvider = moss ? 'moss-realtime' : 'pocket-tts';
     const voice = process.env.FORZA_TTS_VOICE || 'male_hello.wav';
-    const cacheKey = 'pocket-only-v1:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2') + ':' + voice + ':' + cleanedText;
+    const cacheKey = speechProvider + ':v1:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2') + ':' + voice + ':' + cleanedText;
     const fromCache = ttsAudioCache.get(cacheKey);
-    if (fromCache) return res.json({success:true,provider:'pocket-cache',audioBase64:fromCache,mimeType:'audio/wav',cleanedText});
+    if (fromCache) return res.json({success:true,provider:speechProvider+'-cache',audioBase64:fromCache,mimeType:'audio/wav',cleanedText});
     const audio = await generateForzaSpeech(cleanedText);
     if (!audio) {
-      console.warn('[FORZA TTS] private Pocket engine unavailable', {elapsedMs:Date.now()-startedAt});
+      console.warn('[FORZA TTS] configured speech engine unavailable', {elapsedMs:Date.now()-startedAt});
       return res.status(503).json({
         success:false,useClientSpeech:false,
-        error:{type:'pocket_tts_unavailable',message:'موتور اختصاصی Pocket TTS پاسخ صوتی معتبر نداد.'},
+        error:{type:'pocket_tts_unavailable',message:'موتور انتخاب‌شده FORZA پاسخ صوتی معتبر نداد.'},
       });
     }
     const audioBase64 = 'data:audio/wav;base64,' + audio.toString('base64');
     ttsAudioCache.set(cacheKey,audioBase64);
     if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
-    console.info('[FORZA TTS] provider=pocket-only', {elapsedMs:Date.now()-startedAt,audioBytes:audio.length});
-    return res.json({success:true,provider:'pocket-tts',audioBase64,mimeType:'audio/wav',cleanedText});
+    console.info('[FORZA TTS] provider=' + speechProvider, {elapsedMs:Date.now()-startedAt,audioBytes:audio.length});
+    return res.json({success:true,provider:speechProvider,audioBase64,mimeType:'audio/wav',cleanedText});
   } catch(err:any) {
     console.warn('[FORZA TTS] failed', {type:String(err?.name||'error')});
     return res.status(503).json({
       success:false,useClientSpeech:false,
-      error:{type:'pocket_tts_unavailable',message:'سرویس صوتی Pocket TTS در دسترس نیست.'},
+      error:{type:'pocket_tts_unavailable',message:'سرویس صوتی انتخاب‌شده FORZA در دسترس نیست.'},
     });
   }
 });
