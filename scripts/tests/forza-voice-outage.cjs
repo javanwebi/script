@@ -37,7 +37,7 @@ const assert=require('node:assert/strict');
    });
    await page.goto('http://127.0.0.1:4173/ai-forza');
    await page.waitForFunction(()=>window.__micRequests>0,{},{timeout:15000});
-   await page.getByText('موتور Pocket TTS در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.').waitFor({timeout:20000});
+   await page.getByText('موتور صوتی FORZA در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.').waitFor({timeout:20000});
    assert.equal(await page.evaluate(()=>window.__nativeSpeechUsed),false);
    assert.equal(await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').count(),0);
    assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
