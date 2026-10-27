@@ -1,0 +1,29 @@
+name: FORZA MOSS realtime protocol contract
+on:
+  pull_request:
+    paths:
+      - 'src/services/forzaMossRealtimeClient.ts'
+      - 'src/services/forzaTtsClient.ts'
+      - 'tests/forza-moss-realtime.test.ts'
+      - 'services/forza-moss-realtime/**'
+      - '.github/workflows/forza-moss-adapter.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  moss-protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run lint
+      - run: node --import tsx --test tests/forza-moss-realtime.test.ts tests/forza-tts-client.test.ts
+      - run: python -m compileall -q services/forza-moss-realtime/
