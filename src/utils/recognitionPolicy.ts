@@ -1,11 +1,13 @@
 import type { Product } from '../types';
 
+/** Worker transport is retired in production. No default URL is ever used.
+ * Explicit URLs remain testable for old gateway protocol fixtures only. */
 export function recognitionWorkerUrl(env: Record<string, string | undefined>): string {
-  const value = (env.PART_RECOGNITION_WORKER_URL ?? 'https://atlas-aishenasaei.javanwebio.workers.dev').trim();
+  const value = (env.PART_RECOGNITION_WORKER_URL || '').trim();
   if (!value) return '';
   const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !['','/'].includes(url.pathname))
-    throw new Error('PART_RECOGNITION_WORKER_URL must be an HTTPS origin.');
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+      !['', '/'].includes(url.pathname)) throw new Error('Invalid legacy worker origin');
   return url.origin;
 }
 export function recognitionApiKey(env: Record<string, string | undefined>): string | undefined {

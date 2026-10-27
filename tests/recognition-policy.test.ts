@@ -8,11 +8,9 @@ import { getManagedCatalogProducts } from '../src/data/mockGenerator';
 import inventorySource from './fixtures/catalogueSource.json';
 import type { Product } from '../src/types';
 
-test('worker is default, explicit empty disables it, and direct key aliases remain server-side',()=>{
- assert.equal(recognitionWorkerUrl({}),'https://atlas-aishenasaei.javanwebio.workers.dev');
- assert.equal(recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'  '}),'');
- assert.throws(()=>recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'http://example.com'}));
- assert.throws(()=>recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'https://example.com/path'}));
+test('recognition uses direct Gemini with one server-side key and no Worker URL',()=>{
+ assert.equal(recognitionWorkerUrl({}),'');
+ assert.equal(recognitionWorkerUrl({PART_RECOGNITION_WORKER_URL:'https://worker.example'}),'https://worker.example');
  assert.equal(recognitionApiKey({'ai-forza':'secret',GEMINI_API_KEY:'other'}),'secret');
  assert.equal(recognitionApiKey({AI_FORZA_API_KEY:'alias'}),'alias');
  assert.equal(recognitionApiKey({'ai-forza':'',GEMINI_API_KEY:'MY_GEMINI_API_KEY'}),undefined);
@@ -58,7 +56,7 @@ test('worker multimodal transport sends images and prompt, never direct keys or 
 });
 test('worker malformed reply and HTTP failure are not successful recognition',async()=>{
  for (const response of [new Response('bad',{status:502}),new Response('{"success":true}',{status:200})])
-  await assert.rejects(()=>workerVision([],{env:{},fetch:(async()=>response) as typeof fetch}));
+  await assert.rejects(()=>workerVision([],{env:{PART_RECOGNITION_WORKER_URL:'https://custom-worker.example'},fetch:(async()=>response) as typeof fetch}));
 });
 
 test('only an explicitly reviewed dedicated photo can support image identity',()=>{
@@ -75,14 +73,14 @@ test('legacy Worker wrapping is unwrapped for one image and rejected for multi-i
  const data={recognition:{detected_part_type:'فنر'},choices:[{message:{content:'{"recognition":{"detected_part_type":"فنر"}}'}}]};
  const fetchMock=(async()=>new Response(JSON.stringify(data),{status:200})) as typeof fetch;
  const part={inlineData:{mimeType:'image/png',data:'YQ=='}};
- const result=await workerVision([{role:'user',parts:[part]}],{env:{},fetch:fetchMock});
+ const result=await workerVision([{role:'user',parts:[part]}],{env:{PART_RECOGNITION_WORKER_URL:'https://custom-worker.example'},fetch:fetchMock});
  assert.equal(JSON.parse(result.text).detected_part_type,'فنر');
- await assert.rejects(()=>workerVision([{role:'user',parts:[part,part]}],{env:{},fetch:fetchMock}),/upgrade required/);
+ await assert.rejects(()=>workerVision([{role:'user',parts:[part,part]}],{env:{PART_RECOGNITION_WORKER_URL:'https://custom-worker.example'},fetch:fetchMock}),/upgrade required/);
 });
 
 test('the supplied Worker host never receives a source-default credential',async()=>{
  let headers:any;
- await workerVision([{role:'user',parts:[{text:'test'}]}],{env:{},fetch:(async(_url,options)=>{
+ await workerVision([{role:'user',parts:[{text:'test'}]}],{env:{PART_RECOGNITION_WORKER_URL:'https://custom-worker.example'},fetch:(async(_url,options)=>{
   headers=options?.headers;return new Response('{"choices":[{"message":{"content":"{}"}}]}',{status:200});
  }) as typeof fetch});
  assert.equal(headers.Authorization,undefined);
@@ -98,7 +96,7 @@ test('Workers reject requests without a configured access secret, even with a pr
 
 test('Worker authentication, missing provider key and inaccessible images have actionable safe errors',async()=>{
  for(const [status,type,expected] of [[401,'unauthorized','APP_WORKER_TOKEN'],[503,'ai_not_configured','GEMINI_API_KEY'],[400,'invalid_image','HTTPS']]){
-  await assert.rejects(()=>workerVision([],{env:{},fetch:async()=>new Response(JSON.stringify({error:{type,message:'provider-private-detail'}}),{status:Number(status)})}),error=>{
+  await assert.rejects(()=>workerVision([],{env:{PART_RECOGNITION_WORKER_URL:'https://custom-worker.example'},fetch:async()=>new Response(JSON.stringify({error:{type,message:'provider-private-detail'}}),{status:Number(status)})}),error=>{
    assert.ok(error instanceof Error);assert.ok(error.message.includes(String(expected)));assert.ok(!error.message.includes('provider-private-detail'));return true;
   });
  }

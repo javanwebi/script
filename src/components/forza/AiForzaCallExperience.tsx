@@ -18,6 +18,8 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
+import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
+import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -90,6 +92,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [particlesFormed, setParticlesFormed] = useState(false);
   const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
   const greetingStartedRef = useRef(false);
+  const micAutoStartedRef = useRef(false);
   const greetingFinishedRef = useRef(false);
   const micMutedRef = useRef(false);
   const speechInterimRef = useRef(false);
@@ -509,12 +512,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatus('thinking');
     setTurn('ai');
     const chunks = forzaFastStartSpeechChunks(text);
+    // Prepare the next phrase while playing the current one; keep audio ordered.
+    let pendingSpeech: Promise<ForzaSpeechResponse> | undefined =
+      chunks.length ? requestSpeechAudio(chunks[0]) : undefined;
     for (let index = 0; index < chunks.length; index++) {
       if (callClosedRef.current) return;
       const chunk = chunks[index];
       let speech: ForzaSpeechResponse;
       try {
-        speech = await requestSpeechAudio(chunk);
+        speech = await pendingSpeech!;
+        pendingSpeech = chunks[index + 1] ? requestSpeechAudio(chunks[index + 1]) : undefined;
       } catch (error: any) {
         console.warn('[FORZA Voice] Gemini TTS request failed', error?.message || 'unknown');
         throw new Error('gemini_tts_unavailable');
@@ -542,7 +549,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
-        ? 'مرورگر به اجازه پخش صدا نیاز دارد؛ گزینه فعال‌کردن صدا را بزنید.'
+        ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
         : 'صدای Gemini ساخته یا پخش نشد؛ سهمیه و لاگ‌های TTS را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
@@ -599,7 +606,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (q) {
         setUserText(q);
       } else {
-        setUserText('در حال تبدیل صدای شما به متن و استعلام از ورکر...');
+        setUserText('در حال تبدیل صدای شما به متن و ارسال به سرور...');
       }
 
       try {
@@ -641,36 +648,83 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setMicrophoneError(null);
         }
 
-        const res = await fetch('/api/ai/forza-live', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data?.success) throw new Error(data?.error || 'server-error');
-
-        const resolvedUserQuery = (data.userTranscript || q || '').trim();
+        // Direct Gemini SSE starts speaking on the FIRST complete, speakable
+        // phrase. The speech engine receives phrases while the model is still
+        // writing the rest of its answer; output playback is strictly ordered.
+        const previousHistory = historyRef.current.slice(-24);
+        const resolvedUserQuery = String(payload.query || q).trim();
         if (resolvedUserQuery) {
           setUserText(resolvedUserQuery);
-          historyRef.current.push({ role: 'user', text: resolvedUserQuery });
+          historyRef.current.push({role:'user',text:resolvedUserQuery});
         }
-
-        const reply = data.text || '';
+        let reply = '';
+        let speechBuffer = '';
+        let phraseCount = 0;
+        let playbackChain: Promise<void> = Promise.resolve();
+        let playbackFailure = false;
+        const queuePhrase = (phrase: string) => {
+          if (!phrase.trim()) return;
+          phraseCount++;
+          const speechRequest = requestSpeechAudio(phrase);
+          playbackChain = playbackChain.then(async () => {
+            if (callClosedRef.current) return;
+            const speech = await speechRequest;
+            if (!speech.audioBase64) throw new Error('tts_unavailable');
+            lastPlayableVoiceRef.current = {text:phrase,audioUrl:speech.audioBase64};
+            await playDataUrl(speech.audioBase64);
+          }).catch(error => {
+            playbackFailure = true;
+            console.warn('[FORZA Voice] streaming speech failed',error?.message||'unknown');
+          });
+        };
+        const onTextChunk = (chunk: string, fullText: string) => {
+          reply = fullText;
+          setAiText(fullText);
+          speechBuffer += chunk;
+          while (true) {
+            const ready = takeSpeakablePhrase(speechBuffer, phraseCount === 0);
+            if (!ready) break;
+            speechBuffer = ready.rest;
+            queuePhrase(ready.phrase);
+          }
+        };
+        try {
+          const streamRes = await fetch('/api/ai/consult-stream', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              query:resolvedUserQuery,
+              history:previousHistory,
+              includeAudio:false,
+              mode:'forza',
+            }),
+          });
+          reply = await consumeForzaTextStream(streamRes, onTextChunk);
+          if (!reply) throw new Error('forza_empty_stream');
+        } catch(streamError) {
+          // Keep the existing complete-response route as a compatibility
+          // fallback when streaming has not begun at all.
+          if (reply) throw streamError;
+          const res = await fetch('/api/ai/forza-live',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(payload),
+          });
+          const data = await res.json().catch(()=>null);
+          if (!res.ok || !data?.success) throw new Error(data?.error||'server-error');
+          reply = String(data.text||'').trim();
+          if (!reply) throw new Error('forza_empty_response');
+          onTextChunk(reply,reply);
+        }
+        if (speechBuffer.trim()) queuePhrase(speechBuffer.trim());
         if (reply) {
-          historyRef.current.push({ role: 'model', text: reply });
+          historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
-
-          // Text arrives first; audio has its own failure state. A TTS error
-          // must never be misreported as an AI conversation failure.
-          try {
-            await speakText(reply);
-          } catch (voiceError: any) {
-            const blocked = voiceError?.message === 'autoplay_permission_required';
-            setVoiceOutputError(blocked
-              ? 'مرورگر جلوی پخش صدا را گرفت. روی «فعال‌کردن صدا» بزنید.'
-              : 'تولید صدای Gemini در دسترس نیست. پس از رفع خطا، «خواندن دوباره پاسخ» را امتحان کنید.');
-            console.warn('[FORZA Voice] Reply audio was not played',voiceError?.message || 'unknown');
+          await playbackChain;
+          if (playbackFailure) {
+            setVoiceOutputError('صدای پاسخ کامل پخش نشد؛ سرویس TTS را بررسی کنید.');
+          } else {
+            setVoiceOutputError(null);
           }
         }
       } catch (err: any) {
@@ -686,7 +740,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, speakText, startListening, stopListening]
+    [setStatus, startListening, stopListening, requestSpeechAudio, playDataUrl]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -795,7 +849,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
           recognitionFailedRef.current=true;
-          setMicrophoneError('تشخیص گفتار مرورگر فعال نیست؛ تبدیل گفتار توسط Worker امتحان می‌شود.');
+          setMicrophoneError('تشخیص گفتار مرورگر در دسترس نیست؛ پردازش صوتی سرور امتحان می‌شود.');
         }
       };
 
@@ -821,9 +875,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus]);
 
-  // This gesture-based retry is necessary after a declined browser permission.
-  // getUserMedia() is never replaced with simulated audio input.
-  const retryMicrophone = useCallback(async () => {
+  // Request mic access on entry; only start active transcription after greeting.
+  const initializeMicrophone = useCallback(async () => {
     setMicrophoneError(null);
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
@@ -838,7 +891,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       micContextWarningRef.current=false;
       vadRef.current.reset();
       for (const track of stream.getAudioTracks()) {
-        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از اتصال مجدد، «تلاش مجدد» را بزنید.');
+        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
       }
       if(ctx){
         micSourceNodeRef.current?.disconnect();
@@ -856,10 +909,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
       setMicrophoneError(error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
-        ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس «تلاش مجدد» را بزنید.'
+        ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening]);
+
+  // Acquire permission while the particle animation forms; audio input stays
+  // muted for transcription until the greeting has finished.
+  useEffect(() => {
+    if (micAutoStartedRef.current) return;
+    micAutoStartedRef.current = true;
+    void initializeMicrophone();
+  }, [initializeMicrophone]);
 
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
@@ -870,42 +931,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatus('idle'); setTurn('ai'); setGreetingPhase('preparing');
     setDisplayedAi(GREETING_TEXT);
     if(!historyRef.current.length)historyRef.current.push({role:'model',text:GREETING_TEXT});
-    const prepareMicrophone=async()=>{
-      try {
-        if(!navigator.mediaDevices?.getUserMedia)throw new Error('microphone_unsupported');
-        const stream=await navigator.mediaDevices.getUserMedia({audio:{
-          echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
-        }});
-        if(!active){stream.getTracks().forEach(track=>track.stop());return;}
-        streamRef.current=stream;
-        micContextWarningRef.current=false;
-        setMicrophoneError(null);
-        for (const track of stream.getAudioTracks()) {
-          track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. برای فعال‌سازی دوباره تلاش کنید.');
-        }
-        try {
-          const ctx=ensureCtx();
-          if(ctx){
-            const node=ctx.createMediaStreamSource(stream);
-            const analyser=ctx.createAnalyser();
-            analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
-            node.connect(analyser);
-            micAnalyserRef.current=analyser;
-            micSourceNodeRef.current=node;
-          }
-        }catch{}
-        setupMediaRecorder(stream);
-        recognitionRef.current=initSpeechRecognition();
-        if(greetingFinishedRef.current)startListening();
-      }catch(e:any){
-        if(!active)return;
-        recognitionRef.current=initSpeechRecognition();
-        setMicrophoneError(e?.name==='NotAllowedError'
-          ?'مجوز میکروفون داده نشده است؛ آن را در مرورگر فعال کنید.'
-          :'میکروفون در دسترس نیست؛ مجوز و اتصال آن را بررسی کنید.');
-      }
-    };
-    void prepareMicrophone();
     void speakText(GREETING_TEXT).then(()=>{
       if(!active)return;
       greetingFinishedRef.current=true;
@@ -1215,10 +1240,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {microphoneError && (
           <div role="alert" className="pointer-events-auto self-end flex max-w-sm flex-col gap-2 rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-right text-xs text-amber-200">
             <span>{microphoneError}</span>
-            <button type="button" onClick={() => void retryMicrophone()}
-              className="rounded-lg bg-[#E06518] px-3 py-2 font-semibold text-white hover:bg-[#c9540d]">
-              <Mic size={14} className="ml-1 inline" /> تلاش مجدد برای فعال‌کردن میکروفون
-            </button>
+
           </div>
         )}
         {greetingPhase === 'forming' && (
@@ -1247,19 +1269,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           <Eye size={22} className="text-orange-400" />
           <span className="forza-persian-label">اسکن تصویر قطعه</span>
         </button>
-        {/* Browser Autoplay Unblock Badge */}
-        {autoplayBlocked && (
-          <button
-            type="button"
-            onClick={unlockAudio}
-            className="pointer-events-auto self-end flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#e06518] hover:bg-[#c95210] text-white text-xs sm:text-sm font-bold shadow-xl shadow-[#e06518]/30 animate-pulse border border-white/20 cursor-pointer transition-all active:scale-95"
-            title="فعال‌سازی پخش صدا در مرورگر"
-          >
-            <Volume2 size={16} />
-            <span>🔊 برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید</span>
-          </button>
-        )}
-
+        {/* No extra audio-unlock button. The existing stage gesture handler
+            may resume playback when the browser enforces autoplay policy. */}
         {/* Text Input Drawer (for typing without microphone) */}
         {showTextInput && (
           <form
