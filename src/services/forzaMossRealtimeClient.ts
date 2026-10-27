@@ -119,7 +119,7 @@ export async function synthesizeMossRealtimeWav(
         if (data.length) options.onPcmChunk?.(data, rate);
       }
     } finally {
-      if (!reader.closed) void reader.cancel().catch(() => {});
+      void reader.cancel().catch(() => {});
       reader.releaseLock();
     }
     if (total < 256 || total % 2 !== 0) return null;
