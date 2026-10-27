@@ -6175,8 +6175,16 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
 /** Keep the existing speech API intact; optionally use a locally hosted
  * Pocket-compatible WAV TTS engine, falling back to existing Gemini TTS. */
 async function generateForzaSpeech(text: string, voiceName = 'Charon'): Promise<Buffer | null> {
-  const local = await synthesizeLocalPersianSpeech(text);
-  if (local) return local;
+  if (process.env.FORZA_TTS_BASE_URL) {
+    const localVoice = 'local:' + (process.env.FORZA_TTS_VOICE || 'male_hello.wav');
+    const cached = await readForzaTtsDiskCache(text, localVoice);
+    if (cached) return cached;
+    const local = await synthesizeLocalPersianSpeech(text);
+    if (local) {
+      await writeForzaTtsDiskCache(text, local, localVoice);
+      return local;
+    }
+  }
   return generatePersianSpeechGemini(text, voiceName);
 }
 
