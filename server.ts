@@ -451,7 +451,7 @@ app.get('/api/admin/ai-provider-status', (req,res) => {
     res.json({
       image: {enabled: Boolean(getGeminiKey()), transport:'direct-gemini'},
       forza: {enabled: Boolean(getGeminiKey()), transport:'direct-gemini'},
-      tts: {enabled:Boolean(process.env.FORZA_TTS_BASE_URL),transport:process.env.FORZA_TTS_BASE_URL?'private-tts':'gemini-fallback'},
+      tts: {enabled:Boolean(process.env.FORZA_TTS_BASE_URL),transport:'pocket-tts-only'},
     });
   });
 });
@@ -5906,477 +5906,56 @@ function cleanPersianTextForVoice(raw: string): string {
 }
 
 // Gemini-only TTS cascade. Current models use Interactions; legacy models use generateContent.
-const GEMINI_TTS_MODELS = [
-  { id: 'gemini-3.8-flash-lite-tts', transport: 'interactions' },
-  { id: 'gemini-3.8-flash-tts', transport: 'interactions' },
-  { id: 'gemini-3.1-flash-tts-preview', transport: 'generateContent' },
-  { id: 'gemini-2.5-pro-preview-tts', transport: 'generateContent' },
-  { id: 'gemini-2.5-flash-preview-tts', transport: 'generateContent' },
-] as const;
-const GEMINI_TTS_REST_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const geminiTtsModelCooldowns = new Map<string, number>();
-const geminiTtsModelCooldownReasons = new Map<string, 'quota' | 'unavailable'>();
-let geminiTtsGlobalCooldownUntil = 0;
-const geminiTtsInflight = new Map<string, Promise<Buffer | null>>();
-
-async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): Promise<Buffer | null> {
-  const cleanKey = String(text || '').trim();
-  if (!cleanKey) return null;
-  const apiKey = getGeminiKey();
-  if (!apiKey) return null;
-
-  const selectedVoice = voiceName === 'Puck' ? 'Puck' : 'Charon';
-  const cacheKey = 'gemini-only:' + selectedVoice + ':' + cleanKey;
-  const cached = ttsBufferCache.get(cacheKey);
-  if (cached?.length) return cached;
-  const pending = geminiTtsInflight.get(cacheKey);
-  if (pending) return pending;
-
-  const work = (async (): Promise<Buffer | null> => {
-    const diskCached = await readForzaTtsDiskCache(cleanKey, selectedVoice);
-    if (diskCached?.length) {
-      console.info('[FORZA TTS] persistent audio cache hit', { audioBytes: diskCached.length });
-      return diskCached;
-    }
-    if (geminiTtsGlobalCooldownUntil > Date.now()) {
-      console.warn('[FORZA TTS] direct Gemini cascade paused after quota exhaustion', {
-        cooldownSeconds: Math.ceil((geminiTtsGlobalCooldownUntil - Date.now()) / 1000),
-      });
-      return null;
-    }
-
-    const startedAt = Date.now();
-    const deadline = startedAt + 10000;
-    const attempts: Array<{
-      model: string;
-      category: string;
-      status?: number;
-      quotaMetric?: string;
-      quotaId?: string;
-      retryAfterSeconds?: number;
-      cooldownMs?: number;
-      providerMessage?: string;
-    }> = [];
-    let lastCategory = 'speech_unavailable';
-
-    for (const model of GEMINI_TTS_MODELS) {
-      const now = Date.now();
-      if (deadline - now < 500) break;
-
-      const coolingUntil = geminiTtsModelCooldowns.get(model.id) || 0;
-      if (coolingUntil > now) {
-        const reason = geminiTtsModelCooldownReasons.get(model.id) || 'quota';
-        attempts.push({ model: model.id, category: 'cooldown', cooldownMs: coolingUntil - now });
-        if (reason === 'quota') lastCategory = 'tts_quota_exhausted';
-        else if (lastCategory === 'speech_unavailable') lastCategory = 'model_not_available';
-        continue;
-      }
-
-      const timeoutMs = Math.max(500, Math.min(2300, deadline - now));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const isInteractions = model.transport === 'interactions';
-        const endpoint = isInteractions
-          ? GEMINI_TTS_REST_BASE + '/interactions'
-          : GEMINI_TTS_REST_BASE + '/models/' + encodeURIComponent(model.id) + ':generateContent';
-        const requestBody = isInteractions
-          ? {
-              model: model.id,
-              input: [{
-                type: 'user_input',
-                content: [{ type: 'text', text: cleanKey }],
-              }],
-              response_format: { type: 'audio' },
-              generation_config: { speech_config: [{ voice: selectedVoice }] },
-            }
-          : {
-              contents: [{ role: 'user', parts: [{ text: cleanKey }] }],
-              generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                  voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-                },
-              },
-            };
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-        const result: any = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          const details: any[] = Array.isArray(result?.error?.details) ? result.error.details : [];
-          const violations = details
-            .filter((detail: any) => String(detail?.['@type'] || '').includes('QuotaFailure'))
-            .flatMap((detail: any) => (detail.violations || []).map((item: any) => ({
-              quotaMetric: String(item.quotaMetric || '').slice(0, 100),
-              quotaId: String(item.quotaId || '').slice(0, 100),
-            }))).slice(0, 2);
-          const quotaMetric = violations[0]?.quotaMetric || '';
-          const quotaId = violations[0]?.quotaId || '';
-          const retryText = details.find((detail: any) => String(detail?.['@type'] || '').includes('RetryInfo'))?.retryDelay || '';
-          const retrySeconds = Number.parseFloat(String(retryText).match(/[0-9.]+/)?.[0] || '0');
-          const providerMessage = String(result?.error?.message || '').replace(/\s+/g, ' ').slice(0, 160);
-
-          if (response.status === 429 || String(result?.error?.status || '') === 'RESOURCE_EXHAUSTED') {
-            const dailyQuota = /day|daily/i.test(quotaMetric + ' ' + quotaId);
-            const cooldownMs = dailyQuota
-              ? Math.max(60 * 60 * 1000, retrySeconds * 1000)
-              : Math.max(60000, Math.min(300000, retrySeconds * 1000 || 60000));
-            geminiTtsModelCooldowns.set(model.id, Date.now() + cooldownMs);
-            geminiTtsModelCooldownReasons.set(model.id, 'quota');
-            lastCategory = 'tts_quota_exhausted';
-            attempts.push({ model: model.id, category: 'quota', status: response.status, quotaMetric, quotaId, retryAfterSeconds: retrySeconds || undefined, cooldownMs, providerMessage });
-            console.warn('[FORZA TTS] Gemini model quota limited', {
-              model: model.id, status: response.status, quotaMetric, quotaId,
-              retryAfterSeconds: retrySeconds || null, cooldownMs,
-            });
-            continue;
-          }
-
-          if (response.status === 404) {
-            geminiTtsModelCooldowns.set(model.id, Date.now() + 30 * 60 * 1000);
-            geminiTtsModelCooldownReasons.set(model.id, 'unavailable');
-            lastCategory = 'model_not_available';
-            attempts.push({ model: model.id, category: 'unavailable', status: response.status });
-            console.warn('[FORZA TTS] Gemini TTS model unavailable', { model: model.id, status: response.status });
-            continue;
-          }
-
-          lastCategory = (response.status === 401 || response.status === 403) ? 'gemini_auth_error' : 'tts_provider_error';
-          attempts.push({ model: model.id, category: lastCategory, status: response.status, providerMessage });
-          console.warn('[FORZA TTS] Gemini model rejected', {
-            model: model.id, status: response.status, category: lastCategory, providerMessage,
-          });
-          if (response.status === 401 || response.status === 403) break;
-          continue;
-        }
-
-        let audioData: string | undefined;
-        let audioMimeType = isInteractions ? 'audio/wav' : 'audio/L16;rate=24000';
-        if (isInteractions) {
-          audioData = typeof result?.output_audio?.data === 'string' ? result.output_audio.data : undefined;
-          audioMimeType = String(result?.output_audio?.mime_type || result?.output_audio?.mimeType || audioMimeType);
-          if (!audioData) {
-            const audioPart = (Array.isArray(result?.steps) ? result.steps : [])
-              .filter((step: any) => step?.type === 'model_output')
-              .flatMap((step: any) => Array.isArray(step?.content) ? step.content : [])
-              .reverse()
-              .find((part: any) => part?.type === 'audio' && typeof part?.data === 'string');
-            if (audioPart) {
-              audioData = audioPart.data;
-              audioMimeType = String(audioPart.mime_type || audioPart.mimeType || 'audio/wav');
-            }
-          }
-        } else {
-          const parts = result?.candidates?.[0]?.content?.parts || [];
-          const inlineData = parts.find((part: any) => typeof part?.inlineData?.data === 'string')?.inlineData;
-          if (inlineData) {
-            audioData = inlineData.data;
-            audioMimeType = String(inlineData.mimeType || 'audio/L16;rate=24000');
-          }
-        }
-
-        if (!audioData) {
-          lastCategory = 'no_audio_generated';
-          attempts.push({ model: model.id, category: 'no_audio_generated', status: response.status });
-          console.warn('[FORZA TTS] Gemini model returned no audio', { model: model.id });
-          continue;
-        }
-
-        const audioBytes = Buffer.from(audioData, 'base64');
-        const audioKind = classifyForzaAudio(audioBytes, audioMimeType);
-        if (audioKind === 'wav') {
-          geminiTtsModelCooldowns.delete(model.id);
-          geminiTtsModelCooldownReasons.delete(model.id);
-          console.info('[FORZA TTS] Gemini audio generated', {
-            model: model.id, transport: model.transport, audioKind, audioBytes: audioBytes.length,
-            durationMs: Date.now() - startedAt,
-          });
-          return audioBytes;
-        }
-        if (audioKind === 'pcm16') {
-          const wav = pcmToWav(audioBytes, 24000, 1, 16);
-          geminiTtsModelCooldowns.delete(model.id);
-          geminiTtsModelCooldownReasons.delete(model.id);
-          console.info('[FORZA TTS] Gemini audio generated', {
-            model: model.id, transport: model.transport, audioKind, audioBytes: wav.length,
-            durationMs: Date.now() - startedAt,
-          });
-          return wav;
-        }
-
-        lastCategory = 'unsupported_audio_format';
-        attempts.push({ model: model.id, category: lastCategory, status: response.status });
-        console.warn('[FORZA TTS] Gemini model returned unsupported audio format', {
-          model: model.id, mimeType: audioMimeType, audioBytes: audioBytes.length,
-        });
-      } catch (error: any) {
-        lastCategory = error?.name === 'AbortError' || error?.name === 'TimeoutError'
-          ? 'tts_timeout_or_network'
-          : 'tts_provider_error';
-        attempts.push({ model: model.id, category: lastCategory });
-        console.warn('[FORZA TTS] Gemini model request failed', {
-          model: model.id, type: error?.name || 'error',
-        });
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-
-    const quotaAttempts = attempts.filter((attempt) => attempt.category === 'quota').length;
-    if (
-      quotaAttempts > 0 &&
-      attempts.length === GEMINI_TTS_MODELS.length &&
-      attempts.every((attempt) => attempt.category === 'quota' || attempt.category === 'cooldown')
-    ) {
-      const now = Date.now();
-      const longestModelCooldownUntil = Math.max(...GEMINI_TTS_MODELS.map((model) => geminiTtsModelCooldowns.get(model.id) || 0));
-      geminiTtsGlobalCooldownUntil = Math.max(now + 5 * 60 * 1000, longestModelCooldownUntil);
-      console.warn('[FORZA TTS] all Gemini models quota-limited; pausing repeat attempts', {
-        cooldownMs: geminiTtsGlobalCooldownUntil - now, modelsChecked: attempts.length,
-      });
-    }
-
-    console.warn('[FORZA TTS] Gemini model cascade exhausted', {
-      category: lastCategory, modelsChecked: attempts.length,
-      attempts: attempts.slice(0, 5).map((attempt) => ({
-        model: attempt.model, category: attempt.category, status: attempt.status,
-        quotaMetric: attempt.quotaMetric, quotaId: attempt.quotaId,
-        retryAfterSeconds: attempt.retryAfterSeconds, cooldownMs: attempt.cooldownMs,
-        providerMessage: attempt.providerMessage,
-      })),
-      durationMs: Date.now() - startedAt,
-    });
-    return null;
-  })();
-
-  geminiTtsInflight.set(cacheKey, work);
-  try {
-    const audio = await work;
-    if (audio?.length) {
-      if (ttsBufferCache.size >= 200) {
-        const firstKey = ttsBufferCache.keys().next().value;
-        if (firstKey) ttsBufferCache.delete(firstKey);
-      }
-      ttsBufferCache.set(cacheKey, audio);
-      await writeForzaTtsDiskCache(cleanKey, audio, selectedVoice);
-    }
-    return audio;
-  } finally {
-    if (geminiTtsInflight.get(cacheKey) === work) geminiTtsInflight.delete(cacheKey);
-  }
-}
-
-/** Keep the existing speech API intact; optionally use a locally hosted
- * Pocket-compatible WAV TTS engine, falling back to existing Gemini TTS. */
-async function generateForzaSpeech(text: string, voiceName = 'Charon'): Promise<Buffer | null> {
-  if (process.env.FORZA_TTS_BASE_URL) {
-    const localVoice = 'local:' + (process.env.FORZA_TTS_VOICE || 'male_hello.wav');
-    const cached = await readForzaTtsDiskCache(text, localVoice);
-    if (cached) return cached;
-    const local = await synthesizeLocalPersianSpeech(text);
-    if (local) {
-      await writeForzaTtsDiskCache(text, local, localVoice);
-      return local;
-    }
-  }
-  return generatePersianSpeechGemini(text, voiceName);
-}
-
-type ForzaWorkerTtsResult = { audio: Buffer | null; errorType?: string };
-
-async function generateForzaWorkerPersianVoice(text: string): Promise<ForzaWorkerTtsResult> {
-  const cleanSpeech = String(text || '').trim().slice(0, 1000);
-  if (!cleanSpeech) return { audio: null, errorType: 'invalid_text' };
-  const diskCached = await readForzaTtsDiskCache(cleanSpeech, 'Charon');
-  if (diskCached?.length) {
-    console.info('[FORZA TTS] persistent audio cache hit', { audioBytes: diskCached.length });
-    return { audio: diskCached };
-  }
-  const workerUrl = configuredForzaWorkerUrl();
-  if (!workerUrl) return { audio: null, errorType: 'worker_not_configured' };
-  const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
-  const workerToken = (sameRecognitionOrigin
-    ? process.env.PART_RECOGNITION_WORKER_TOKEN
-    : process.env.FORZA_WORKER_TOKEN) || '';
-  const controller = new AbortController();
-  // The Cloudflare TTS call has a 12.5 s per-model ceiling and may retry an
-  // alternate model after a fast 429 quota response. Aborting at 8.5 s
-  // prematurely discarded valid Persian audio during production warmup.
-  // Keep an upper bound, but allow a normal TTS attempt to finish.
-  const timer = setTimeout(() => controller.abort(), 17000);
-  try {
-    const response = await fetch(workerUrl + '/v1/forza/tts', {
-      method:'POST',
-      headers: {
-        'Content-Type':'application/json',
-        ...(workerToken ? { Authorization: 'Bearer ' + workerToken.trim() } : {}),
-      },
-      body: JSON.stringify({ text: cleanSpeech }),
-      signal:controller.signal,
-    });
-    const data = await response.json().catch(()=>null) as any;
-    if (!response.ok || !data?.success || typeof data.audioBase64 !== 'string') {
-      const attempts = Array.isArray(data?.diagnostics?.attempts)
-        ? data.diagnostics.attempts.slice(0, 5).map((item: any) => ({
-            model: String(item?.model || '').slice(0, 80),
-            category: String(item?.category || '').slice(0, 40),
-            status: Number.isFinite(item?.status) ? item.status : undefined,
-            quotaMetric: String(item?.quotaMetric || '').slice(0, 100),
-            quotaId: String(item?.quotaId || '').slice(0, 100),
-            providerMessage: String(item?.providerMessage || '').slice(0, 160),
-            cooldownMs: Number.isFinite(item?.cooldownMs) ? item.cooldownMs : undefined,
-          }))
-        : [];
-      console.warn('[FORZA TTS] Worker unavailable', {
-        status:response.status,
-        type:String(data?.error?.type || 'no_audio').slice(0,60),
-        cooldownSeconds: Number.isFinite(data?.diagnostics?.cooldownSeconds) ? data.diagnostics.cooldownSeconds : undefined,
-        attempts,
-      });
-      return { audio: null, errorType: String(data?.error?.type || 'worker_http_error').slice(0, 60) };
-    }
-    const raw = data.audioBase64;
-    if (raw.length > 8000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return { audio: null, errorType: 'invalid_audio_payload' };
-    const bytes = Buffer.from(raw,'base64');
-    if (!bytes.length || bytes.length > 6000000) return { audio: null, errorType: 'invalid_audio_size' };
-    // Gemini 3.8 TTS returns a complete RIFF/WAVE file by default; older
-    // models can return headerless PCM. Never double-encode WAV as PCM.
-    const audioKind = classifyForzaAudio(bytes, data.mimeType);
-    if (audioKind === 'wav') {
-      await writeForzaTtsDiskCache(cleanSpeech, bytes, 'Charon');
-      return { audio: bytes };
-    }
-    if (audioKind !== 'pcm16') {
-      console.warn('[FORZA TTS] Worker returned an unsupported audio container');
-      return { audio: null, errorType: 'unsupported_audio_format' };
-    }
-    const rateMatch = /rate=(\d{4,6})/.exec(String(data.mimeType || ''));
-    const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
-    if (sampleRate < 8000 || sampleRate > 48000) return { audio: null, errorType: 'invalid_sample_rate' };
-    const wav = pcmToWav(bytes, sampleRate, 1, 16);
-    await writeForzaTtsDiskCache(cleanSpeech, wav, 'Charon');
-    return { audio: wav };
-  } catch (error:any) {
-    console.warn('[FORZA TTS] Worker speech endpoint failure', error?.name || 'network');
-    return { audio: null, errorType: 'worker_network_error' };
-  } finally {
-    clearTimeout(timer);
-  }
+async function generateForzaSpeech(text: string): Promise<Buffer | null> {
+  if (!process.env.FORZA_TTS_BASE_URL) return null;
+  const voice = 'pocket-only:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2')
+    + ':' + (process.env.FORZA_TTS_VOICE || 'male_hello.wav');
+  const cached = await readForzaTtsDiskCache(text, voice);
+  if (cached) return cached;
+  const audio = await synthesizeLocalPersianSpeech(text);
+  if (audio) await writeForzaTtsDiskCache(text, audio, voice);
+  return audio;
 }
 
 // POST: /api/ai/tts - Convert AI engineering response to fluent male Persian speech
 app.post('/api/ai/tts', async (req, res) => {
   const startedAt = Date.now();
-  const reportProvider = (provider: string) => {
-    // Never log the customer's question, generated text, or audio payload.
-    console.info(`[FORZA TTS] provider=${provider}; durationMs=${Date.now() - startedAt}`);
-  };
   try {
-    const { text, voice } = req.body;
-
+    const text = req.body?.text;
     if (typeof text !== 'string' || !text.trim() || text.length > 1800) {
-      return res.status(400).json({ error: 'متن برای خواندن معتبر نیست' });
+      return res.status(400).json({success:false,error:{type:'invalid_text',message:'متن معتبر نیست.'}});
     }
-
-    // Clean and comprehend text for fluent speech reading
-    const cleanedText = cleanPersianTextForVoice(text);
-    if (!cleanedText) {
-      return res.status(400).json({ error: 'متن پس از پالایش خالی شد' });
-    }
-
-    // Check in-memory cache first
-    const cacheKey = 'male-fa:local-first-v1:' + (process.env.FORZA_TTS_VOICE || 'male_01') + ':' + cleanedText;
-    if (ttsAudioCache.has(cacheKey)) {
-      reportProvider('memory-cache');
-      return res.json({
-        success: true,
-        provider: 'memory-cache',
-        audioBase64: ttsAudioCache.get(cacheKey),
-        mimeType: 'audio/wav',
-        cleanedText,
-      });
-    }
-
-    // Charon remains the only voice. Do not repeat the Gemini cascade
-    // when the Worker already reports provider quota exhaustion.
-    type FastForzaAudio = {
-      audio: Buffer;
-      provider: 'cloudflare-gemini-persian-tts';
-      mimeType: 'audio/wav';
-    };
-    const workerResult: ForzaWorkerTtsResult = configuredForzaWorkerUrl()
-      ? await generateForzaWorkerPersianVoice(cleanedText).catch(() => ({ audio: null, errorType: 'worker_network_error' }))
-      : { audio: null, errorType: 'worker_not_configured' };
-    const fastAudio: FastForzaAudio | null = workerResult.audio?.length
-      ? { audio: workerResult.audio, provider: 'cloudflare-gemini-persian-tts', mimeType: 'audio/wav' }
-      : null;
-    if (fastAudio) {
-      reportProvider(fastAudio.provider);
-      const dataUrl = 'data:audio/wav;base64,' + fastAudio.audio.toString('base64');
-      if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
-      ttsAudioCache.set(cacheKey, dataUrl);
-      return res.json({
-        success: true,
-        audioBase64: dataUrl,
-        mimeType: 'audio/wav',
-        provider: fastAudio.provider,
-        cleanedText,
-      });
-    }
-
-    const directGeminiAllowed = ['worker_network_error', 'worker_not_configured', 'unauthorized', 'ai_not_configured'].includes(workerResult.errorType || '');
-    if (!directGeminiAllowed) {
-      reportProvider(workerResult.errorType === 'tts_quota_exhausted' ? 'gemini-quota-exhausted' : 'gemini-provider-unavailable');
+    // No Gemini TTS, Worker TTS, browser TTS, or other provider is allowed.
+    if (!process.env.FORZA_TTS_BASE_URL) {
       return res.status(503).json({
-        success: false,
-        useClientSpeech: false,
-        error: { type: workerResult.errorType || 'gemini_tts_unavailable', message: 'تولید صدای Gemini فعلاً در دسترس نیست.' },
-        cleanedText,
+        success:false,useClientSpeech:false,
+        error:{type:'pocket_tts_not_configured',message:'موتور Pocket TTS روی سرور تنظیم نشده است.'},
       });
     }
-
-    // Direct Gemini is only a network/configuration fallback; it is not retried
-    // after a provider quota response, to avoid spending more quota needlessly.
-    const maleVoice = 'Charon';
-    const audioBuf = await generateForzaSpeech(cleanedText, maleVoice);
-    if (audioBuf && audioBuf.length > 0) {
-      reportProvider('gemini-neural');
-      const dataUrl = `data:audio/wav;base64,${audioBuf.toString('base64')}`;
-      if (ttsAudioCache.size > 100) {
-        const firstKey = ttsAudioCache.keys().next().value;
-        if (firstKey) ttsAudioCache.delete(firstKey);
-      }
-      ttsAudioCache.set(cacheKey, dataUrl);
-
-      return res.json({
-        success: true,
-        audioBase64: dataUrl,
-        mimeType: 'audio/wav',
-        cleanedText,
+    const cleanedText = cleanPersianTextForVoice(text);
+    if (!cleanedText) return res.status(400).json({success:false,error:{type:'invalid_text'}});
+    const voice = process.env.FORZA_TTS_VOICE || 'male_hello.wav';
+    const cacheKey = 'pocket-only-v1:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2') + ':' + voice + ':' + cleanedText;
+    const fromCache = ttsAudioCache.get(cacheKey);
+    if (fromCache) return res.json({success:true,provider:'pocket-cache',audioBase64:fromCache,mimeType:'audio/wav',cleanedText});
+    const audio = await generateForzaSpeech(cleanedText);
+    if (!audio) {
+      console.warn('[FORZA TTS] private Pocket engine unavailable', {elapsedMs:Date.now()-startedAt});
+      return res.status(503).json({
+        success:false,useClientSpeech:false,
+        error:{type:'pocket_tts_unavailable',message:'موتور اختصاصی Pocket TTS پاسخ صوتی معتبر نداد.'},
       });
     }
-
-    reportProvider('gemini-unavailable');
+    const audioBase64 = 'data:audio/wav;base64,' + audio.toString('base64');
+    ttsAudioCache.set(cacheKey,audioBase64);
+    if (ttsAudioCache.size > 100) ttsAudioCache.delete(ttsAudioCache.keys().next().value!);
+    console.info('[FORZA TTS] provider=pocket-only', {elapsedMs:Date.now()-startedAt,audioBytes:audio.length});
+    return res.json({success:true,provider:'pocket-tts',audioBase64,mimeType:'audio/wav',cleanedText});
+  } catch(err:any) {
+    console.warn('[FORZA TTS] failed', {type:String(err?.name||'error')});
     return res.status(503).json({
-      success: false,
-      useClientSpeech: false,
-      error: { type: 'gemini_tts_unavailable', message: 'تولید صدای Gemini فعلاً در دسترس نیست.' },
-      cleanedText,
-    });
-  } catch (err: any) {
-    reportProvider('error');
-    console.warn('[FORZA TTS] request handler failed', { type: err?.name || 'error', message: String(err?.message || '').slice(0, 160) });
-    return res.status(503).json({
-      success: false,
-      useClientSpeech: false,
-      error: { type: 'gemini_tts_error', message: 'تولید صدای Gemini با خطا مواجه شد.' },
-      cleanedText: '',
+      success:false,useClientSpeech:false,
+      error:{type:'pocket_tts_unavailable',message:'سرویس صوتی Pocket TTS در دسترس نیست.'},
     });
   }
 });
@@ -7047,14 +6626,16 @@ async function start() {
   }
 
   const server = http.createServer(app);
-  setupGeminiLiveWebSocket(server);
+  // The legacy Gemini Live Audio endpoint is intentionally NOT registered.
+  // FORZA now owns one STT -> Gemini text -> Pocket TTS speech pipeline.
+  // Registering the old WebSocket would violate the Pocket-only voice policy.
 
   server.listen(PORT, '0.0.0.0', () => {
     const keyStatus = getGeminiKey()
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
+    console.log('[Server] FORZA voice transport: Pocket-only via /api/ai/tts; legacy Gemini Live Audio disabled');
     console.log(`[Server] Gemini key: ${keyStatus}`);
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
