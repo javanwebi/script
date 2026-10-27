@@ -435,6 +435,15 @@ function cleanCustomerImageMemoryCache() {
   for (const [key, val] of customerImageMemoryCache.entries()) {
     if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
   }
+  let memoryBytes=0;
+  for(const value of customerImageMemoryCache.values())memoryBytes+=value.buffer.length;
+  // The persistent upload mirror backs the offline search; keep RAM bounded.
+  while(customerImageMemoryCache.size>32 || memoryBytes>30*1024*1024){
+    const oldest=customerImageMemoryCache.keys().next().value;
+    if(!oldest)break;
+    memoryBytes-=customerImageMemoryCache.get(oldest)?.buffer.length||0;
+    customerImageMemoryCache.delete(oldest);
+  }
 }
 
 // Serve customer images directly from memory cache (no disk folder needed)
