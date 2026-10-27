@@ -7178,9 +7178,14 @@ async function start() {
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
-  if(OFFLINE_VISION_MODE)recognitionJobs.resumePending();
-  void buildImageFeatureIndex();
-  void buildImageEmbeddingIndex();
+  if(OFFLINE_VISION_MODE){
+    recognitionJobs.resumePending();
+    // Offline recognition must not trigger legacy Jina API calls or automatic
+    // catalog feature writes during boot: only the local photo cache warms up.
+  }else{
+    void buildImageFeatureIndex();
+    void buildImageEmbeddingIndex();
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
