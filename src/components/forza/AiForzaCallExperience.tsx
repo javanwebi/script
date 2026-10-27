@@ -651,6 +651,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Direct Gemini SSE starts speaking on the FIRST complete, speakable
         // phrase. The speech engine receives phrases while the model is still
         // writing the rest of its answer; output playback is strictly ordered.
+        const previousHistory = historyRef.current.slice(-24);
         const resolvedUserQuery = String(payload.query || q).trim();
         if (resolvedUserQuery) {
           setUserText(resolvedUserQuery);
@@ -693,7 +694,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
               query:resolvedUserQuery,
-              history:historyRef.current.slice(-24),
+              history:previousHistory,
               includeAudio:false,
               mode:'forza',
             }),
