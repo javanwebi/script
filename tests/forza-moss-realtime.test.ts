@@ -44,7 +44,7 @@ test('MOSS native session start/push/stream/close yields playable WAV without an
     }
     if(p.endsWith('/audio')) {
       assert.equal(p, '/tts/session/'+sessionId+'/audio');
-      return new Response(pcmFixture(),{headers:{
+      return new Response(new Uint8Array(pcmFixture()),{headers:{
         'X-Audio-Codec':'pcm_s16le','X-Audio-Sample-Rate':'24000','X-Audio-Channels':'1',
       }});
     }
