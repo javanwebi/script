@@ -74,3 +74,35 @@ test('an empty catalogue returns no guessed part code or image',async()=>{
  assert.equal(result.hits.length,0);
  assert.equal(result.coverage.complete,true);
 });
+
+test('rotated customer photo retrieves the registered photo, without mistaking a new angle for exact image identity',async()=>{
+ const original=await sharp({create:{width:180,height:180,channels:3,background:'white'}})
+  .composite([{input:Buffer.from('<svg width="180" height="180"><path d="M35 30 H145 V75 H90 V145 H35 Z" fill="black"/></svg>')}])
+  .png().toBuffer();
+ const rotated=await sharp(original).rotate(90).png().toBuffer();
+ const other=await circle();
+ const images=[row('registered'),row('other')];
+ const source=new Map([['registered',original],['other',other]]);
+ const out=await new OfflineCatalogPhotoIndex().search(rotated,images,async p=>source.get(p.id)!,{limit:2});
+ assert.equal(out.hits[0].image.id,'registered');
+ assert.equal(out.hits[0].identicalPhotograph,false);
+});
+test('novel geometry is not misrepresented as a verified exact photograph',async()=>{
+ const known=await square('black');
+ const novel=await sharp({create:{width:128,height:128,channels:3,background:'white'}})
+   .composite([{input:Buffer.from('<svg width="128" height="128"><path d="M64 5 L120 110 L10 110 Z" fill="black"/></svg>')}]).png().toBuffer();
+ const out=await new OfflineCatalogPhotoIndex().search(novel,[row('registered')],async()=>known);
+ assert.equal(out.hits.length,1);
+ assert.equal(out.hits[0].identicalPhotograph,false);
+ // All non-identical returned photos must be treated as provisional visually-ranked candidates.
+});
+test('a customer photo with mild simulated dirt ranks the same industrial silhouette first',async()=>{
+ const clean=await sharp({create:{width:128,height:128,channels:3,background:'white'}})
+  .composite([{input:Buffer.from('<svg width="128" height="128"><path d="M15 25 H112 V43 H72 V110 H52 V43 H15 Z" fill="#333"/></svg>')}]).png().toBuffer();
+ const worn=await sharp(clean).composite([{input:Buffer.from('<svg width="128" height="128"><path d="M23 50 L90 89 M18 90 L110 51" stroke="#dddddd" stroke-width="2"/></svg>')}]).png().toBuffer();
+ const dissimilar=await circle();
+ const result=await new OfflineCatalogPhotoIndex().search(worn,[row('part'),row('other')],
+  async image=>image.id==='part'?clean:dissimilar,{limit:2});
+ assert.equal(result.hits[0].image.id,'part');
+ assert.equal(result.hits[0].identicalPhotograph,false);
+});
