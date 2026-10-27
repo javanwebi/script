@@ -2,7 +2,7 @@
  * Server-only TTS transport. An OpenAI-compatible local engine can serve
  * /v1/audio/speech on a Railway private URL. Never expose its URL/token in Vite.
  *
- * Returns a valid WAV buffer or null; caller chooses the next provider.
+ * Returns a valid WAV buffer or null. FORZA never falls back to another voice provider.
  */
 export async function synthesizeLocalPersianSpeech(
   text: string,
@@ -15,7 +15,8 @@ export async function synthesizeLocalPersianSpeech(
     const base = new URL(raw);
     if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password ||
         base.search || base.hash) return null;
-    const timeout = AbortSignal.timeout(3500);
+    const timeoutMs = Math.max(1500,Math.min(30000,Number(env.FORZA_TTS_TIMEOUT_MS || 12000) || 12000));
+    const timeout = AbortSignal.timeout(timeoutMs);
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
     const bearer = String(env.FORZA_TTS_TOKEN || '').trim();
     const network = options.fetchImpl ?? fetch;
@@ -29,8 +30,8 @@ export async function synthesizeLocalPersianSpeech(
       headers,
       body: JSON.stringify(parsigo
         ? { text: text.slice(0, 1800), voice: env.FORZA_TTS_VOICE || 'male_hello.wav', mode: 'pack' }
-        : { model: env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2',
-            voice: env.FORZA_TTS_VOICE || 'male_01',
+        : { model: env.FORZA_TTS_MODEL || 'mana-piper-fa',
+            voice: env.FORZA_TTS_VOICE || 'mana-fa-ir',
             input: text.slice(0, 1800), response_format: 'wav' }),
       signal,
     });
