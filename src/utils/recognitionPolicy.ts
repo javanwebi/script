@@ -1,8 +1,14 @@
 import type { Product } from '../types';
 
-/** All recognition is processed directly by Express; no Worker default URL. */
-export function recognitionWorkerUrl(_env: Record<string, string | undefined>): string {
-  return '';
+/** Worker transport is retired in production. No default URL is ever used.
+ * Explicit URLs remain testable for old gateway protocol fixtures only. */
+export function recognitionWorkerUrl(env: Record<string, string | undefined>): string {
+  const value = (env.PART_RECOGNITION_WORKER_URL || '').trim();
+  if (!value) return '';
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+      !['', '/'].includes(url.pathname)) throw new Error('Invalid legacy worker origin');
+  return url.origin;
 }
 export function recognitionApiKey(env: Record<string, string | undefined>): string | undefined {
   for (const value of [env['ai-forza'], env.AI_FORZA_API_KEY, env.GEMINI_API_KEY]) {
