@@ -60,7 +60,9 @@ export function HomeCategoryStrip() {
             to={`/category/${c.slug}`}
           >
             <ProductImage
-              src={c.image || categoryArtwork[c.name]}
+              // Prefer the bundled category artwork over sparse/legacy SKU URLs from the database.
+              // ProductImage still falls back to the original catalog photo when its thumbnail is missing.
+              src={categoryArtwork[c.name] || c.image}
               alt={c.name}
               loading="lazy"
             />
