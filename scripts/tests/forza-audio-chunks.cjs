@@ -1,3 +1,67 @@
-const {chromium}=require('playwright');const assert=require('node:assert/strict');
-const wave=Buffer.alloc(44+4800);wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);wave.writeUInt32LE(24000,24);wave.writeUInt32LE(48000,28);wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);wave.write('data',36);wave.writeUInt32LE(4800,40);
-(async()=>{const b=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});try{const p=await b.newPage();const texts=[];const reply=('برای انتخاب تسمه گام و عرض را بررسی کنید. ').repeat(50).trim();await p.route('**/api/ai/tts',async r=>{texts.push(r.request().postDataJSON().text);await r.fulfill({json:{success:true,audioBase64:'data:audio/wav;base64,'+wave.toString('base64')}})});await p.route('**/api/ai/forza-live',r=>r.fulfill({json:{success:true,text:reply,userTranscript:'تسمه'}}));await p.goto('http://127.0.0.1:4173/ai-forza');await p.getByRole('button',{name:'تایپ پیام متنی',exact:true}).click();await p.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه');const send=p.getByRole('button',{name:'ارسال به هوش مصنوعی',exact:true});await send.waitFor();await p.waitForFunction(()=>!document.querySelector('button[title="ارسال به هوش مصنوعی"]')?.disabled,{},{timeout:60000});assert.equal(texts[0],'هوش مصنوعی فورزا، مشاور صنعت پیش.');await send.click();await p.waitForFunction(()=>document.body.innerText.includes('در حال شنیدن'),{},{timeout:30000}).catch(()=>{});await p.waitForTimeout(5000);assert.ok(texts.length>2);assert.ok(texts.every(x=>x.length<=240));assert.equal(texts.slice(1).join(' '),reply);console.log('PASS short greeting and complete long reply played as bounded TTS chunks (mock provider/silent WAV): '+texts.length);}finally{await b.close()}})().catch(e=>{console.error(e);process.exitCode=1});
+// Browser control-flow smoke only. Uses fake microphones and mocked WAV audio.
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const wave=Buffer.alloc(44+9600);
+wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);
+wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);
+wave.writeUInt32LE(24000,24);wave.writeUInt32LE(48000,28);
+wave.writeUInt16LE(2,32);wave.writeUInt16LE(16,34);
+wave.write('data',36);wave.writeUInt32LE(9600,40);
+(async()=>{
+  const browser=await chromium.launch({headless:true,args:[
+    '--no-sandbox','--autoplay-policy=no-user-gesture-required',
+    '--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream',
+  ]});
+  try {
+    const page=await browser.newPage();
+    const ttsTexts=[];
+    const greeting='سلام، به صنعت پیش خوش آمدید. من فورزا هستم و برای راهنمایی شما آماده‌ام.';
+    const fullAnswer='سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است. لطفاً کد فنی را بفرمایید.';
+    let streamCalls=0;
+    await page.addInitScript(()=>{
+      window.__micRequested=false;
+      const original=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+      if(original)navigator.mediaDevices.getUserMedia=async(...args)=>{
+        window.__micRequested=true;
+        return original(...args);
+      };
+    });
+    await page.route('**/api/ai/tts',async route=>{
+      ttsTexts.push(route.request().postDataJSON().text);
+      await route.fulfill({json:{success:true,audioBase64:'data:audio/wav;base64,'+wave.toString('base64')}});
+    });
+    await page.route('**/api/ai/consult-stream',async route=>{
+      streamCalls++;
+      const request=route.request().postDataJSON();
+      assert.equal(request.mode,'forza');
+      const answer=[
+        {type:'start',responseId:'mock-1'},
+        {type:'text_chunk',responseId:'mock-1',chunk:'سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است.'},
+        {type:'text_chunk',responseId:'mock-1',chunk:' لطفاً کد فنی را بفرمایید.'},
+        {type:'done',responseId:'mock-1',fullText:fullAnswer},
+      ];
+      await route.fulfill({status:200,contentType:'text/event-stream; charset=utf-8',
+        body:answer.map(x=>'data: '+JSON.stringify(x)+'\n\n').join('')});
+    });
+    await page.route('**/api/ai/forza-live',route=>route.fulfill({
+      json:{success:true,userTranscript:'تسمه',text:fullAnswer}
+    }));
+    await page.goto('http://127.0.0.1:4173/ai-forza');
+    assert.equal(await page.getByText('برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید').count(),0);
+    assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
+    await page.waitForFunction(()=>window.__micRequested===true,{},{timeout:15000});
+    await page.waitForFunction((expected)=>window.__ttsSent===true || !!document.querySelector('.forza-stage'),{},{timeout:15000});
+    await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:80000});
+    assert.equal(ttsTexts[0],greeting);
+    await page.getByRole('button',{name:'تایپ پیام متنی',exact:true}).click();
+    await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه');
+    const send=page.getByRole('button',{name:'ارسال به هوش مصنوعی',exact:true});
+    await send.click();
+    await page.waitForFunction(()=>document.body.innerText.includes('لطفاً کد فنی'),{},{timeout:20000});
+    await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
+    assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
+    assert.ok(ttsTexts.length>1,'must synthesize response through independent TTS');
+    assert.ok(ttsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
+    console.log('PASS: automatic mic acquisition; no retry/unlock buttons; greeting and streamed reply TTS (mock audio).');
+  } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});
