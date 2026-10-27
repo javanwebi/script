@@ -8,9 +8,16 @@ test('starts on whole word before Gemini completes the second sentence',()=>{
   assert.ok(first);
   assert.ok(first.phrase.startsWith('سلام،'));
   assert.ok(first.phrase.length <= 46, 'first speech request must be short');
-  const next = takeSpeakablePhrase(first.rest + ' در انبار موجود است.',false);
-  assert.ok(next);
-  assert.ok(!next.phrase.endsWith(' و'));
+  const continuation = first.rest + ' در انبار موجود است.';
+  const next = takeSpeakablePhrase(continuation,false);
+  // Short trailing text is deliberately held until the stream finishes.
+  if (next) {
+    assert.ok(!next.phrase.endsWith(' و'));
+    assert.equal((first.phrase + ' ' + next.phrase + ' ' + next.rest).replace(/\s+/g,' ').trim(),
+      ('سلام، بله تسمه صنعتی موردنظر شما موجود است و' + ' در انبار موجود است.').trim());
+  } else {
+    assert.ok(continuation.length < 24 || !/[.!?؟،؛:\n]/.test(continuation));
+  }
 });
 
 test('never cuts a word mid-token',()=>{
