@@ -41,8 +41,9 @@ export class RecognitionJobs<T> {
     this.jobs.set(id,job);
    }
   }catch{/* Nothing to restore on first deploy or corrupt cache. */}
-  this.pump();
  }
+ /** Called after database and image catalogue bootstrapping has completed. */
+ resumePending(){this.pump();}
  private persist(force=false){
   if(!this.stateFile)return;
   if(!force && Date.now()-this.lastPersist<750){
