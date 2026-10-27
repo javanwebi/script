@@ -5,7 +5,11 @@ on:
       - 'src/components/forza/**'
       - 'src/utils/forzaStreamClient.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaBootPolicy.ts'
+      - 'src/utils/forzaBrowserSpeech.ts'
+      - 'src/main.tsx'
       - 'scripts/tests/forza-audio-chunks.cjs'
+      - 'scripts/tests/forza-voice-outage.cjs'
       - '.github/workflows/forza-browser-smoke.yml'
   workflow_dispatch:
 permissions:
@@ -33,3 +37,4 @@ jobs:
           cat /tmp/forza-preview.log
           exit 1
       - run: node scripts/tests/forza-audio-chunks.cjs
+      - run: node scripts/tests/forza-voice-outage.cjs
