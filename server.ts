@@ -409,8 +409,11 @@ registerProductImageStorage(app,async()=>{
   primePublicCatalogCache(fresh);
   refreshRecognitionCatalog();
   // New admin uploads are also indexed without requiring the next deployment.
-  void buildImageFeatureIndex();
-  void buildImageEmbeddingIndex();
+  buildCatalogImageAliases();
+  if(!OFFLINE_VISION_MODE){
+    void buildImageFeatureIndex();
+    void buildImageEmbeddingIndex();
+  }
 });
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
@@ -4709,9 +4712,10 @@ const recognitionJobs=new RecognitionJobs<any>(
     (payload as any)?.stage==='quick'?'quick':'refined',progress) : undefined
 );
 app.get('/api/ai/visual-index-status',async (_req,res)=>{
- await catalogVisualIndex.load();
  const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
- res.json(catalogVisualIndex.coverage(corpus));
+ if(OFFLINE_VISION_MODE)return res.json(await offlinePhotoIndex.coverage(corpus));
+ await catalogVisualIndex.load();
+ return res.json(catalogVisualIndex.coverage(corpus));
 });
 app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
   const job=recognitionJobs.get(req.params.id);
@@ -7257,7 +7261,14 @@ start().catch(error=>{
 });
 
 setTimeout(()=>{
+ if(OFFLINE_VISION_MODE){
+   const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+   void offlinePhotoIndex.prepare(corpus,image=>getCatalogImageBuffer(image.url,image.revision))
+     .then(coverage=>console.info('[Offline visual index]',JSON.stringify(coverage)))
+     .catch(error=>console.warn('[Offline visual index] initialization failed',String(error?.message||error).slice(0,140)));
+   return;
+ }
  const origin=String(process.env.VISION_IMAGE_PUBLIC_ORIGIN || process.env.APP_URL || '').replace(/\/$/,'');
  if(!origin.startsWith('https://'))return;
  warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),createVisionImagePublisher(IMAGE_AI_DIR,origin));
-},10000).unref();
+},20000).unref();
