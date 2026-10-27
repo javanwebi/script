@@ -1,12 +1,8 @@
 import type { Product } from '../types';
 
-export function recognitionWorkerUrl(env: Record<string, string | undefined>): string {
-  const value = (env.PART_RECOGNITION_WORKER_URL ?? 'https://atlas-aishenasaei.javanwebio.workers.dev').trim();
-  if (!value) return '';
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !['','/'].includes(url.pathname))
-    throw new Error('PART_RECOGNITION_WORKER_URL must be an HTTPS origin.');
-  return url.origin;
+/** All recognition is processed directly by Express; no Worker default URL. */
+export function recognitionWorkerUrl(_env: Record<string, string | undefined>): string {
+  return '';
 }
 export function recognitionApiKey(env: Record<string, string | undefined>): string | undefined {
   for (const value of [env['ai-forza'], env.AI_FORZA_API_KEY, env.GEMINI_API_KEY]) {
