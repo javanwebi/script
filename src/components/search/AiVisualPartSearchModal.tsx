@@ -1541,9 +1541,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>
-                          {analysisResult.retrieval?.mode === "offline-local"
-                            ? "جست‌وجوی تصویری محلی؛ هویت کالا نیازمند تأیید"
-                            : <>اطمینان تحلیل تصویری:{" "}{toPersianDigits(analysisResult.summary.confidence)}٪</>}
+                          اطمینان تحلیل تصویری:{" "}
+                          {toPersianDigits(analysisResult.summary.confidence)}٪
                         </span>
                       </span>
 
@@ -1700,7 +1699,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 {!!analysisResult.summary.observedSpecifications?.length && <div className="grid grid-cols-2 gap-2">{analysisResult.summary.observedSpecifications.map((spec,i)=><div key={i} className="rounded-xl border border-slate-200 p-3 text-xs"><span className="text-slate-500">{spec.name}: </span><span dir="auto">{spec.value}</span><p className="text-slate-400 mt-1">خوانده‌شده از نوشتهٔ تصویر</p></div>)}</div>}
                 {analysisResult.scanCoverage && (
                   <p role="status" className="text-xs text-slate-600 leading-6 border border-slate-200 rounded-xl p-3">
-                    {toPersianDigits(analysisResult.scanCoverage.compared)} از {toPersianDigits(analysisResult.scanCoverage.total)} تصویر {analysisResult.retrieval?.mode === "offline-local" ? "با الگوریتم محلی مقایسه شد." : "با هوش مصنوعی بررسی شد."}
+                    {toPersianDigits(analysisResult.scanCoverage.compared)} از {toPersianDigits(analysisResult.scanCoverage.total)} تصویر با هوش مصنوعی بررسی شد.
                     {analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
@@ -1712,7 +1711,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                         <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
                           <img src={photo.image} alt={photo.label} className="w-full h-36 object-contain" loading="lazy" />
                           <p className="text-xs font-bold text-slate-700">{photo.label}</p>
-                          <p className="text-xs text-orange-700">{analysisResult.retrieval?.mode === "offline-local" ? "نزدیک‌ترین تصویر؛ کد و سازگاری باید کنترل شود" : photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
+                          <p className="text-xs text-orange-700">{photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
                           {!!photo.familyNames?.length && <p className="text-xs text-slate-600">خانواده: {photo.familyNames.join("، ")}</p>}
                           <p className="text-xs leading-6 text-slate-500">{photo.reason}</p>
                           {photo.bindings.some(binding=>binding.code) && !photo.bindings.some(binding=>binding.verified) && <p className="text-xs text-slate-500">کدهای متصل به عکس؛ تعلق دقیق تصویر به این کدها هنوز تأیید نشده است.</p>}
