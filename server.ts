@@ -16,6 +16,7 @@ import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import {OfflineCatalogPhotoIndex} from './src/services/offlineCatalogPhotoIndex';
+import {checkOfflineTechnicalSpecs} from './src/services/offlineTechnicalMatch';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -4210,29 +4211,52 @@ async function analyzePartOffline(req:express.Request,body:any,stage:'quick'|'re
   const familyNames=new Map(products.map(product=>[product.code,product.name]));
   const corpus=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
   const result=await offlinePhotoIndex.search(uploaded.buffer,corpus,
-    image=>getCatalogImageBuffer(image.url,image.revision),{limit:12,progress:onProgress});
-  const images=result.hits.map(hit=>({
+    image=>getCatalogImageBuffer(image.url,image.revision),{limit:24,progress:onProgress});
+  const measurementFields={
+    ...(body?.measurements && typeof body.measurements==='object' && !Array.isArray(body.measurements) ? body.measurements : {}),
+    ...Object.fromEntries(['length','width','pitch'].filter(field=>Number.isFinite(Number(body?.[field])) && Number(body[field])>0).map(field=>[field,String(body[field])]))
+  };
+  const specsByCode=new Map(CATALOG_ITEMS.map(item=>[item.code.toLowerCase(),item]));
+  const technicalCheckFor=(code:string)=>{
+    const item=specsByCode.get(code.toLowerCase());
+    return checkOfflineTechnicalSpecs(measurementFields,item?.specs || [],code);
+  };
+  const rankedHits=result.hits.map(hit=>{
+    const candidateCodes=hit.image.bindings.map(binding=>binding.code).filter((code):code is string=>!!code);
+    const checks=candidateCodes.map(technicalCheckFor);
+    const knownMismatch=checks.length>0 && checks.every(check=>check.mismatches.length>0);
+    const hasMatch=checks.some(check=>check.matches.length>0);
+    return {...hit,knownMismatch,hasMatch};
+  }).sort((a,b)=>Number(a.knownMismatch)-Number(b.knownMismatch)||Number(b.hasMatch)-Number(a.hasMatch)||b.score-a.score);
+
+  const images=rankedHits.slice(0,12).map(hit=>({
     imageId:hit.image.id,image:hit.image.url,label:hit.image.label,score:hit.score,
     relation:hit.identicalPhotograph ? 'very_similar' as const : 'related' as const,
     reason:hit.identicalPhotograph
       ? 'همین عکس کاتالوگ پیدا شد؛ فقط تصویر اختصاصی تأییدشده می‌تواند به شناسایی کد کمک کند.'
-      : 'از نزدیک‌ترین تصاویر طبق الگوی روشنایی، لبه‌ها و شکل ظاهری است؛ انطباق قطعه و سازگاری فنی تأیید نشده.',
+      : (hit.knownMismatch ? 'تصویر از نظر ظاهر نزدیک است، اما با اندازه یا کد اعلام‌شده مغایرت ثبت‌شده دارد؛ انتخاب این قطعه توصیه نمی‌شود.' : 'از نزدیک‌ترین تصاویر طبق الگوی روشنایی، لبه‌ها و شکل ظاهری است؛ انطباق قطعه و سازگاری فنی تأیید نشده.'),
     bindings:hit.image.bindings,
     familyNames:[...new Set(hit.image.bindings.map(binding=>familyNames.get(binding.familyCode)).filter((value):value is string=>!!value))]
   }));
   const allowed=new Set(CATALOG_ITEMS.map(item=>String(item.code).toLowerCase()));
   const candidates=new Map<string,any>();
-  for(const hit of result.hits)for(const binding of hit.image.bindings){
+  for(const hit of rankedHits)for(const binding of hit.image.bindings){
     const code=String(binding.code||'').trim();
-    if(!code||!allowed.has(code.toLowerCase())||candidates.has(code.toLowerCase()))continue;
+    if(!code||!allowed.has(code.toLowerCase()))continue;
+    const technical=technicalCheckFor(code);
+    if(technical.mismatches.length)continue;
+    const previous=candidates.get(code.toLowerCase());
+    if(previous && (previous.visualDistance===0 || (previous.similarityScore>=hit.score && !hit.identicalPhotograph)))continue;
     candidates.set(code.toLowerCase(),{
       code,matchedImageId:hit.image.id,similarityScore:hit.score,
       visualVerdict:'very_similar',dimensionMismatch:false,
+      technicalEvidence:technical.matches,
+      technicalMatchScore:technical.compared ? Math.round(100*technical.matches.length/technical.compared) : undefined,
       ...(hit.identicalPhotograph && binding.verified ? {visualDistance:0}:{}),
       matchReason:hit.identicalPhotograph ? 'عین عکس کاتالوگ؛ تعلق دقیق به SKU نیازمند تصویر اختصاصی تأییدشده است.' : 'پیشنهاد بر اساس شباهت تصویر؛ تطبیق دقیق SKU تأیید نشده.'
     });
   }
-  const ranked=[...candidates.values()].slice(0,20);
+  const ranked=[...candidates.values()].sort((a,b)=>Number(b.visualDistance===0)-Number(a.visualDistance===0)||(b.technicalEvidence?.length||0)-(a.technicalEvidence?.length||0)||b.similarityScore-a.similarityScore).slice(0,20);
   const possibleExact=ranked.filter(candidate=>typeof candidate.visualDistance==='number');
   const tentative=ranked.filter(candidate=>typeof candidate.visualDistance!=='number');
   const base={
