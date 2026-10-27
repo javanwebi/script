@@ -18,7 +18,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
-
+import { findPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
@@ -106,7 +106,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechSegmentStartedRef = useRef(false);
   const ttsRequestsRef = useRef(new Map<string, Promise<ForzaSpeechResponse>>());
   const ttsProviderCooldownRef = useRef(0);
-
+  const browserUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const ttsReadyRef = useRef(new Map<string, ForzaSpeechResponse>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
@@ -413,6 +413,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const stopAudio = useCallback(() => {
+    try { window.speechSynthesis?.cancel(); } catch {}
+    browserUtteranceRef.current = null;
     isAiSpeakingRef.current = false;
     const a = audioElRef.current;
     if (a) {
@@ -510,20 +512,74 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Synthesize the greeting while the particle scene is forming, not after it finishes.
   useEffect(() => {
-    const firstPhrase = forzaFastStartSpeechChunks(GREETING_TEXT)[0];
-    if (firstPhrase) void requestSpeechAudio(firstPhrase).catch(() => {});
+    void requestSpeechAudio(GREETING_TEXT).catch(() => {});
   }, [requestSpeechAudio]);
 
-  // The only permitted speech engine is Pocket TTS on the private server.
-  // A failure remains visible; no Gemini or browser-native voice fallback.
+  // Native speech is an emergency path when the configured server TTS has
+  // failed or timed out. Use only a locally installed Persian language voice.
+  const speakWithBrowserPersianVoice = useCallback((text: string): Promise<void> => new Promise((resolve,reject) => {
+    const synthesis = window.speechSynthesis;
+    if (!synthesis || typeof SpeechSynthesisUtterance === 'undefined') {
+      reject(new Error('browser_tts_unsupported')); return;
+    }
+    const voice = findPersianSpeechVoice(synthesis.getVoices());
+    if (!voice) { reject(new Error('no_persian_browser_voice')); return; }
+    const utterance = new SpeechSynthesisUtterance(text);
+    browserUtteranceRef.current = utterance;
+    utterance.lang = 'fa-IR';
+    utterance.voice = voice;
+    utterance.rate = 1.05;
+    let finished = false;
+    const finish = (error?: Error) => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      browserUtteranceRef.current = null;
+      isAiSpeakingRef.current = false;
+      if (error) reject(error); else resolve();
+    };
+    const timeout = window.setTimeout(() => {
+      if (!finished) { synthesis.cancel(); finish(new Error('browser_tts_timeout')); }
+    }, Math.max(13000, Math.min(60000, text.length * 330)));
+    utterance.onstart = () => {
+      isAiSpeakingRef.current = true;
+      setStatus('speaking');
+      setTurn('ai');
+    };
+    utterance.onend = () => finish();
+    utterance.onerror = () => finish(new Error('browser_tts_failed'));
+    try { synthesis.cancel(); synthesis.speak(utterance); }
+    catch { finish(new Error('browser_tts_failed')); }
+  }), [setStatus]);
+
+  // Server voice takes priority, but cannot hold up a live conversation while
+  // quota errors and network timeouts exhaust a whole TTS model cascade.
   const playSpeechPhrase = useCallback(async (
-    phrase: string, serverSpeech: Promise<ForzaSpeechResponse>,
+    phrase: string, serverSpeech: Promise<ForzaSpeechResponse>
   ): Promise<void> => {
+    const browserAvailable = Boolean(
+      window.speechSynthesis && findPersianSpeechVoice(window.speechSynthesis.getVoices())
+    );
+    if (browserAvailable) {
+      const earliest = await Promise.race([
+        serverSpeech.then(data => ({kind:'server' as const,data}))
+          .catch(() => ({kind:'failed' as const})),
+        new Promise<{kind:'slow'}>(resolve =>
+          window.setTimeout(() => resolve({kind:'slow'}), 1100)),
+      ]);
+      if (earliest.kind !== 'server' || !earliest.data.audioBase64) {
+        await speakWithBrowserPersianVoice(phrase);
+        return;
+      }
+      lastPlayableVoiceRef.current = {text:phrase,audioUrl:earliest.data.audioBase64};
+      await playDataUrl(earliest.data.audioBase64);
+      return;
+    }
     const speech = await serverSpeech;
-    if (!speech.audioBase64) throw new Error('pocket_tts_unavailable');
+    if (!speech.audioBase64) throw new Error('tts_unavailable');
     lastPlayableVoiceRef.current = {text:phrase,audioUrl:speech.audioBase64};
     await playDataUrl(speech.audioBase64);
-  }, [playDataUrl]);
+  }, [playDataUrl, speakWithBrowserPersianVoice]);
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
@@ -547,7 +603,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const text = aiText.trim();
     if (!text) return;
     setVoiceOutputError(null);
-    // Reuse already-generated Pocket audio when possible; no secondary voice provider.
+    // The previously synthesized audio is reused immediately on a real user
+    // gesture: no extra Gemini quota or network round-trip.
     try {
       const existing = lastPlayableVoiceRef.current;
       if (existing?.text === text && existing.audioUrl) {
@@ -559,7 +616,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
-        : 'موتور اختصاصی Pocket TTS صدا تولید نکرد؛ وضعیت سرویس را بررسی کنید.');
+        : 'صدای Gemini ساخته یا پخش نشد؛ سهمیه و لاگ‌های TTS را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
     }
@@ -946,7 +1003,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       startListening();
     }).catch((e:any)=>{
       if(!active)return;
-      const autoplayDenied = e?.message === 'autoplay_permission_required';
+      const autoplayDenied = e?.message === 'autoplay_permission_required' ||
+        e?.message === 'browser_tts_failed';
       console.warn('[FORZA] Greeting audio unavailable',e?.message||'audio_error');
       if (autoplayDenied) {
         setGreetingPhase('needs-permission');
@@ -954,13 +1012,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setVoiceOutputError('مرورگر پخش خودکار را محدود کرده است؛ برای ادامه یک بار روی صفحه کلیک کنید.');
         return;
       }
-      // Without Pocket audio the requested greeting has NOT played.
-      // Do not fake its completion and never record the customer mid-error.
-      setVoiceOutputError('موتور Pocket TTS در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.');
-      greetingFinishedRef.current=false;
+      // A missing TTS provider must not leave FORZA locked in "thinking".
+      // Keep the existing STT and text consultation usable with a clear warning.
+      setVoiceOutputError('صدای خوشامدگویی در دسترس نیست؛ میکروفون و مشاوره متنی فعال هستند. موتور TTS باید روی سرور نصب شود.');
+      greetingFinishedRef.current=true;
       setGreetingPhase('error');
-      setStatus('idle');
-      setTurn('ai');
+      setStatus('listening');
+      setTurn('user');
+      startListening();
     });
     return ()=>{
       active=false;
@@ -1193,17 +1252,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {/* Turn Status Pill & Mic / Speaker Controls */}
         <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
-            {greetingPhase === 'error'
-              ? 'موتور گفتار Pocket TTS در دسترس نیست'
-              : greetingPhase === 'needs-permission'
-              ? 'مرورگر پخش خودکار را محدود کرده است'
-              : turn === 'user'
+            {turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
-              : status === 'speaking'
-              ? 'AI FORZA در حال صحبت...'
-              : 'FORZA در حال آماده‌سازی تماس...'}
+              : 'AI FORZA در حال صحبت...'}
           </span>
           <span
             className={`w-2 h-2 rounded-full ${

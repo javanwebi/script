@@ -1,6 +1,5 @@
-// Verifies a real Pocket-only failure mode: /api/ai/tts returns HTTP 503.
-// The page must NOT fall back to browser speech and must NOT pretend the
-// greeting finished or start transcription without audible introduction.
+// Verifies a real production failure mode: /api/ai/tts returns HTTP 503.
+// Headless browser uses fake mic, fake native Persian voice and no real Gemini.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{
@@ -20,30 +19,35 @@ const assert=require('node:assert/strict');
        window.__micRequests++;
        return original(...args);
      };
-     // Any call to native browser speech is a contract violation.
-     window.__nativeSpeechUsed=false;
-     Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{
-       getVoices:()=>[{name:'Mock Farsi',lang:'fa-IR'}],
+     const fakeSynth={
+       getVoices:()=>[{name:'Mock Farsi',lang:'fa-IR',voiceURI:'fake-persian',localService:true}],
        cancel:()=>{},
-       speak:()=>{window.__nativeSpeechUsed=true;},
+       speak(utterance) {
+         window.__spoken.push(utterance.text);
+         queueMicrotask(()=>utterance.onstart?.());
+         setTimeout(()=>utterance.onend?.(),70);
+       },
+     };
+     Object.defineProperty(window,'speechSynthesis',{configurable:true,value:fakeSynth});
+     Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:class{
+       constructor(text){this.text=text;this.lang='';this.voice=null;}
      }});
-     Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:class{}});
    });
    let ttsCalls=0;
    await page.route('**/api/ai/tts',async route=>{
      ttsCalls++;
      await route.fulfill({status:503,json:{success:false,
-       error:{type:'pocket_tts_unavailable',message:'Pocket not configured'}}});
+       error:{type:'gemini_tts_unavailable',message:'Provider quota or timeout'}}});
    });
    await page.goto('http://127.0.0.1:4173/ai-forza');
    await page.waitForFunction(()=>window.__micRequests>0,{},{timeout:15000});
-   await page.getByText('موتور Pocket TTS در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.').waitFor({timeout:20000});
-   assert.equal(await page.evaluate(()=>window.__nativeSpeechUsed),false);
-   assert.equal(await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').count(),0);
+   await page.waitForFunction(()=>window.__spoken.length>0,{},{timeout:20000});
+   assert.ok((await page.evaluate(()=>window.__spoken[0])).includes('به صنعت پیش خوش آمدید'));
+   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:15000});
    assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
    assert.equal(await page.getByText('برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید').count(),0);
    assert.ok(ttsCalls>=1);
    assert.equal(errors.length,0,errors.join('; '));
-   console.log('PASS 503 TTS outage: no browser/Gemini fallback; explicit unavailable state; no false live listening.');
+   console.log('PASS 503 TTS outage: Persian greeting still spoken through native fallback, mic listening, no stuck processing.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
