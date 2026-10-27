@@ -24,6 +24,7 @@ import { installTimingReferenceRows } from './src/data/imperialTimingReference';
 import { scanEveryCatalogImage, type ScanProgress } from './src/services/exhaustiveImageScan';
 import { RecognitionJobs } from './src/services/recognitionJobs';
 import { workerVision } from './src/services/partRecognitionGateway';
+import { synthesizeLocalPersianSpeech } from './src/services/forzaTtsClient';
 import { recognitionWorkerUrl, recognitionApiKey, recognitionCatalog, finalizeRecognition } from './src/utils/recognitionPolicy';
 import {findCatalogKnowledge,catalogFallback} from './src/utils/catalogKnowledge';
 import {publicCatalog} from './src/utils/catalogPrivacy';
@@ -163,18 +164,14 @@ if (!fs.existsSync(IMAGE_AI_DIR)) {
 }
 const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-function getPartRecognitionWorkerUrl(): string { return recognitionWorkerUrl(process.env); }
+function getPartRecognitionWorkerUrl(): string { return ''; /* Direct vision: Worker retired. */ }
 
 // User-provided Cloudflare Worker for AI Forza Call & General AI REST requests
 // A Worker is optional. Never silently use a hard-coded Worker when ENV is empty.
 // FORZA_WORKER_URL takes priority; ATLAS_AI_WORKER_URL remains backward compatible.
 function configuredForzaWorkerUrl(): string {
-  const configured = (process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim();
-  if (!configured) return '';
-  const url = new URL(configured);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash)
-    throw new Error('FORZA_WORKER_URL must be a valid HTTPS URL without credentials, query or fragment.');
-  return url.href.replace(/\/+$/, '');
+  // Cloudflare transport retired. Gemini is called from Express with one private API key.
+  return '';
 }
 
 export async function callAtlasAiWorkerChat(
@@ -447,6 +444,18 @@ app.use(
 );
 
 // Health Check
+// Minimal safe telemetry for admin UI. Never send any private API key to clients.
+app.get('/api/admin/ai-provider-status', (req,res) => {
+  void requirePortalAdmin(req,res,() => {
+    res.setHeader('Cache-Control','no-store');
+    res.json({
+      image: {enabled: Boolean(getGeminiKey()), transport:'direct-gemini'},
+      forza: {enabled: Boolean(getGeminiKey()), transport:'direct-gemini'},
+      tts: {enabled:Boolean(process.env.FORZA_TTS_BASE_URL),transport:process.env.FORZA_TTS_BASE_URL?'private-tts':'gemini-fallback'},
+    });
+  });
+});
+
 app.get('/api/health', async (req, res) => {
   res.setHeader('Cache-Control','no-store');
   try{
@@ -2097,7 +2106,7 @@ async function verifySingleCandidate(
       text: `تصویر شماره ۱: عکس واقعی ارسالی کاربر از یک قطعه صنعتی (ممکن است روی دستگاه یا در کارگاه باشد).
 توضیح آنچه کاربر فرستاده: ${whatYouSee || 'قطعه صنعتی'}
 
-تصویر شماره ۲: عکس رسمی یکی از کالاهای کاتالوگ هایپر صنعت اطلس
+تصویر شماره ۲: عکس رسمی یکی از کالاهای کاتالوگ صنعت پیش
 
 شما سیستم راستی‌آزمایی بصری تخصصی اطلس هستید. سیاست ما «تطابق صددرصدی» است:
 - "exact_match": فقط وقتی که در تصویر ۲ «عیناً همان قطعه فیزیکی» تصویر ۱ است؛ فرم هندسی، تعداد و الگوی دندانه/شیار/پره/سوراخ، نسبت‌های ابعادی و جزئیات ساختاری کاملاً منطبق (زاویه دوربین، نور و پس‌زمینه ممکن است فرق کند، ولی خود جسم یکی است).
@@ -2324,7 +2333,7 @@ async function browseOneMontageGrid(
       text: `تصویر شماره ۱: عکس واقعی ارسالی مشتری از یک قطعه صنعتی (ممکن است در کارگاه، با نور و زاویه نامناسب گرفته شده باشد).
 توضیح مشتری/هوش مصنوعی از قطعه: ${whatYouSee || detectedPartType || 'قطعه صنعتی'}
 
-تصویر شماره ۲: شبکه ${MONTAGE_GRID_ROWS}×${MONTAGE_GRID_COLS} از عکس‌های رسمی کاتالوگ هایپر صنعت اطلس — هر خانه یک کالا و شماره خانه در گوشه بالا-چپ همان خانه نوشته شده (۱ تا ${cellCount}).
+تصویر شماره ۲: شبکه ${MONTAGE_GRID_ROWS}×${MONTAGE_GRID_COLS} از عکس‌های رسمی کاتالوگ صنعت پیش — هر خانه یک کالا و شماره خانه در گوشه بالا-چپ همان خانه نوشته شده (۱ تا ${cellCount}).
 
 وظیفه تو: مثل یک کارشناس، کاتالوگ را «چشمی» مرور کن و خانه‌هایی را پیدا کن که محصول آن خانه از نظر ظاهری به قطعه تصویر ۱ مربوط است:
 - "same_product": عین همان مدل است — طراحی، فرم هندسی، الگوی دندانه/شیار/پره و نسبت‌ها کاملاً منطبق (زاویه، نور، رنگ نورپردازی و پس‌زمینه می‌تواند فرق کند).
@@ -2601,7 +2610,7 @@ async function verifyCandidatesVisually(
         : 'عین این قطعه در کاتالوگ فعلی موجود نیست — می‌توانیم برایتان بسازیم',
       statusFarsiMessage: hasExact
         ? 'راستی‌آزمایی تصویری مستقیم هوش مصنوعی تأیید کرد که این کالا در کاتالوگ اطلس موجود و آماده سفارش است.'
-        : 'هیچ‌کدام از تصاویر کاتالوگ انطباق صددرصدی با عکس شما نداشت؛ کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
+        : 'هیچ‌کدام از تصاویر کاتالوگ انطباق صددرصدی با عکس شما نداشت؛ کارگاه تخصصی صنعت پیش توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
     };
 
     console.log(`[Visual Verification] Done: ${verdicts.filter(v => v.verdict === 'exact_match').length} exact, ${verdicts.filter(v => v.verdict === 'very_similar').length} similar, ${verdicts.filter(v => v.verdict === 'different').length} different`);
@@ -3720,7 +3729,7 @@ function buildCatalogSearchMatch(
 
   const exactReason = technical.exactCode
     ? 'کد قطعه از روی تصویر خوانده شد و مستقیماً با رکورد این محصول در کاتالوگ اطلس مطابقت دارد.'
-    : 'ظاهر فیزیکی، فرم هندسی و تصویر این قطعه عیناً با عکس کاتالوگ هایپر صنعت اطلس تطبیق دارد.';
+    : 'ظاهر فیزیکی، فرم هندسی و تصویر این قطعه عیناً با عکس کاتالوگ صنعت پیش تطبیق دارد.';
   const similarReason = evidence.length > 0
     ? evidence.join('؛ ')
     : 'محصول با تطبیق دقیق فرم هندسی، شیارها و مشخصات فنی در کاتالوگ اطلس.';
@@ -3966,7 +3975,7 @@ async function verifyCandidatesVisuallyWithGemini(
     candidatePrompts += `تصویر شماره ${idx + 2}: کالای کاتالوگ با کد «${cand.code}» و نام «${cand.name}»\n`;
   });
 
-  const promptText = `شما سیستم هوش مصنوعی فوق پیشرفته بینایی ماشین و تطبیق تصویری هایپر صنعت اطلس هستید.
+  const promptText = `شما سیستم هوش مصنوعی فوق پیشرفته بینایی ماشین و تطبیق تصویری صنعت پیش هستید.
 قانون اول و اولویت مطلق سیستم:
 «تطبیق ۱۰۰٪ باید بر اساس شکل، فرم هندسی، ظاهر فیزیکی و تصویر واقعی قطعه در عکس مشتری انجام شود».
 
@@ -4242,7 +4251,7 @@ async function analyzePartWithWorker(
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
       });
-      const promptText = `${prompt}\nنقش شما: مهندس ارشد و کارشناس ارشد بینایی ماشین و قطعات صنعتی هایپر صنعت اطلس (نمایندگی انحصاری تسمه، پولی، چرخ‌دنده، بلبرینگ و تجهیزات فورزا FORZA و SWR).
+      const promptText = `${prompt}\nنقش شما: مهندس ارشد و کارشناس ارشد بینایی ماشین و قطعات صنعتی صنعت پیش (نمایندگی انحصاری تسمه، پولی، چرخ‌دنده، بلبرینگ و تجهیزات فورزا FORZA و SWR).
 وظیفه: تحلیل فوق‌العاده دقیق و تصویری این قطعه صنعتی آپلودشده توسط مشتری با بالاترین تفکیک فنی و بصری.
 
 قوانین حیاتی تفکیک قطعات (عدم رعایت = رد کامل):
@@ -4456,18 +4465,18 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     ? {
         status: 'confirmed_in_catalog',
         statusFarsiTitle: 'تأیید شد: عین همین قطعه در کاتالوگ اطلس موجود است (همونه)',
-        statusFarsiMessage: 'عکس ارسالی مشتری با موفقیت در کاتالوگ هایپر صنعت اطلس شناسایی شد و عین این محصول آماده سفارش است.',
+        statusFarsiMessage: 'عکس ارسالی مشتری با موفقیت در کاتالوگ صنعت پیش شناسایی شد و عین این محصول آماده سفارش است.',
       }
     : hasProducts
     ? {
         status: 'similar_in_catalog',
         statusFarsiTitle: 'محصولات با بیشترین تشابه شکل و شمایل در کاتالوگ پیدا شدند',
-        statusFarsiMessage: 'کالاهای زیر بر اساس تطبیق فرم ظاهری، هندسه و مشخصات تصویر مشتری در کاتالوگ هایپر صنعت اطلس پیدا شدند و آماده سفارش هستند.',
+        statusFarsiMessage: 'کالاهای زیر بر اساس تطبیق فرم ظاهری، هندسه و مشخصات تصویر مشتری در کاتالوگ صنعت پیش پیدا شدند و آماده سفارش هستند.',
       }
     : {
         status: 'custom_order_available',
         statusFarsiTitle: 'هیچ قطعه‌ای با شکل و شمایل مشابه در کاتالوگ فعلی یافت نشد — ساخت سفارشی در کارگاه اطلس',
-        statusFarsiMessage: 'بررسی تصاویر کاتالوگ نشان داد که قطعه‌ای با این فرم و ساختار در کاتالوگ موجود نیست؛ کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت دقیق همین قطعه را دارد.',
+        statusFarsiMessage: 'بررسی تصاویر کاتالوگ نشان داد که قطعه‌ای با این فرم و ساختار در کاتالوگ موجود نیست؛ کارگاه تخصصی صنعت پیش توانایی ساخت دقیق همین قطعه را دارد.',
       };
 
   return publicCatalog(finalizeRecognition({
@@ -4686,7 +4695,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         distinction: 'عیناً همان تصویر کاتالوگ',
         visualVerdict: 'exact_match' as const,
         visualVerdictFarsi: 'همونه (انطباق مستقیم قطعی)',
-        visualExplanation: 'تصویر ارسالی شما عیناً با تصویر این کالا در کاتالوگ هایپر صنعت اطلس مطابقت دارد.',
+        visualExplanation: 'تصویر ارسالی شما عیناً با تصویر این کالا در کاتالوگ صنعت پیش مطابقت دارد.',
       }));
 
       return res.json({
@@ -4717,7 +4726,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
             : {
                 status: 'custom_order_available',
                 statusFarsiTitle: 'عین این قطعه در کاتالوگ فعلی موجود نیست — می‌توانیم برایتان بسازیم',
-                statusFarsiMessage: 'موتور تطبیق تصویری، هیچ انطباق قطعی با کالاهای کاتالوگ پیدا نکرد. کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
+                statusFarsiMessage: 'موتور تطبیق تصویری، هیچ انطباق قطعی با کالاهای کاتالوگ پیدا نکرد. کارگاه تخصصی صنعت پیش توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
               },
         },
         matchedProducts: mappedNoKey,
@@ -4741,7 +4750,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       : 'حالت تحلیل دقیق نهایی: کاربر علاوه بر تصویر، ابعاد و مشخصات فنی هم وارد کرده است. این اعداد اعلامی را در اولویت تطبیق قرار بده و نتیجه تصویر را با آن‌ها راستی‌آزمایی کن؛ در صورت مغایرت، مغایرت را صریحاً در visualAnalysis ذکر کن.';
 
     const promptText = `
-شما مهندس ارشد متالورژی و بینایی ماشین هایپر صنعت اطلس هستید.
+شما مهندس ارشد متالورژی و بینایی ماشین صنعت پیش هستید.
 کاربر تصویری از یک قطعه صنعتی بارگذاری کرده است.
 هدف اساسی و اولویت مطلق سیستم:
 «تطبیق باید دقیقاً بر اساس ظاهر فیزیکی، فرم، شکل هندسی، دندانه و عکس خود کالا در کاتالوگ انجام شود؛ نه بر اساس عناوین یا متون کلی».
@@ -4883,18 +4892,18 @@ ${stageInstruction}
       ? {
           status: 'confirmed_in_catalog',
           statusFarsiTitle: 'تأیید شد: عین همین قطعه در کاتالوگ اطلس موجود است (همونه)',
-          statusFarsiMessage: 'عکس ارسالی شما دقیقاً با تصویر این محصول در کاتالوگ هایپر صنعت اطلس تطبیق دارد و آماده سفارش است.',
+          statusFarsiMessage: 'عکس ارسالی شما دقیقاً با تصویر این محصول در کاتالوگ صنعت پیش تطبیق دارد و آماده سفارش است.',
         }
       : hasProducts
       ? {
           status: 'similar_in_catalog',
           statusFarsiTitle: 'محصولات با بیشترین تشابه شکل و شمایل در کاتالوگ پیدا شدند',
-          statusFarsiMessage: 'کالاهای زیر بر اساس تطبیق فرم ظاهری، هندسه و مشخصات تصویر مشتری در کاتالوگ هایپر صنعت اطلس پیدا شدند و آماده سفارش هستند.',
+          statusFarsiMessage: 'کالاهای زیر بر اساس تطبیق فرم ظاهری، هندسه و مشخصات تصویر مشتری در کاتالوگ صنعت پیش پیدا شدند و آماده سفارش هستند.',
         }
       : {
           status: 'custom_order_available',
           statusFarsiTitle: 'هیچ قطعه‌ای با شکل و شمایل مشابه در کاتالوگ فعلی یافت نشد — ساخت سفارشی در کارگاه اطلس',
-          statusFarsiMessage: 'بررسی تصاویر کاتالوگ نشان داد که قطعه‌ای با این فرم و ساختار در کاتالوگ موجود نیست؛ کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت دقیق یا تأمین سفارشی همین قطعه را دارد.',
+          statusFarsiMessage: 'بررسی تصاویر کاتالوگ نشان داد که قطعه‌ای با این فرم و ساختار در کاتالوگ موجود نیست؛ کارگاه تخصصی صنعت پیش توانایی ساخت دقیق یا تأمین سفارشی همین قطعه را دارد.',
         };
 
     // Validate bounding box (normalized 0..1000) if the model returned one
@@ -5031,8 +5040,8 @@ ${stageInstruction}
           statusFarsiMessage: catchExact
             ? 'تصویر ارسالی عیناً با عکس ثبت‌شده این کالا در کاتالوگ اطلس مطابقت دارد.'
             : similarFallback.length > 0
-            ? 'عینِ همین قطعه به‌صورت قطعی تأیید نشد؛ اما شبیه‌ترین کالاهای کاتالوگ از نظر ظاهری در بخش مشابه‌ها قابل سفارش هستند. اگر عین همین قطعه را می‌خواهید، کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت یا تأمین سفارشی آن را دارد.'
-            : 'هیچ انطباق قطعی با کالاهای کاتالوگ یافت نشد؛ کارگاه تخصصی هایپر صنعت اطلس توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
+            ? 'عینِ همین قطعه به‌صورت قطعی تأیید نشد؛ اما شبیه‌ترین کالاهای کاتالوگ از نظر ظاهری در بخش مشابه‌ها قابل سفارش هستند. اگر عین همین قطعه را می‌خواهید، کارگاه تخصصی صنعت پیش توانایی ساخت یا تأمین سفارشی آن را دارد.'
+            : 'هیچ انطباق قطعی با کالاهای کاتالوگ یافت نشد؛ کارگاه تخصصی صنعت پیش توانایی ساخت یا تأمین سفارشی همین قطعه را دارد.',
         },
       },
       matchedProducts: mergedFallback,
@@ -5048,7 +5057,7 @@ function getOfflineReply(q: string) {
   const lower = (q || '').toLowerCase();
   if (lower.includes('کوره') || lower.includes('کاشی') || lower.includes('سرامیک') || lower.includes('حرارت')) {
     return {
-      reply: `### راهنمای مهندسی خطوط کاشی و سرامیک (کوره‌های رولری و خطوط پخت):\n\n۱. **تسمه‌های تایمینگ حرارتی و جوشی:** برای خطوط لعاب و کوره‌های رولری کاشی و سرامیک، تسمه‌های پلی‌یورتان (PU) مقاوم به حرارت با مغزی کورد استیل تقویت‌شده برندهای **SWR آلمان** و **FORZA ایتالیا** مناسب‌ترین گزینه هستند که تا دمای ۲۰۰ درجه سانتی‌گراد را بدون افت گشتاور و کشسانی تحمل می‌کنند.\n\n۲. **رولیک‌ها و قطعات سرامیکی:** رولیک‌های سرامیکی مقاوم به شوک‌های دمایی شدید و رولیک‌های تفلونی ضدسایش در ابعاد استاندارد خطوط ساکمی (Sacmi)، سیستم (System) و نانچانگ در انبار مرکزی هایپر صنعت اطلس یزد موجود می‌باشد.\n\n۳. **تسمه‌های وی‌بلت مقطع SPB و SPC:** برای الکتروموتورهای فن کوره و درایوهای سنگین با مقاطع روکش‌دار ضدروغن و ضداستاتیک توصیه می‌گردد.`,
+      reply: `### راهنمای مهندسی خطوط کاشی و سرامیک (کوره‌های رولری و خطوط پخت):\n\n۱. **تسمه‌های تایمینگ حرارتی و جوشی:** برای خطوط لعاب و کوره‌های رولری کاشی و سرامیک، تسمه‌های پلی‌یورتان (PU) مقاوم به حرارت با مغزی کورد استیل تقویت‌شده برندهای **SWR آلمان** و **FORZA ایتالیا** مناسب‌ترین گزینه هستند که تا دمای ۲۰۰ درجه سانتی‌گراد را بدون افت گشتاور و کشسانی تحمل می‌کنند.\n\n۲. **رولیک‌ها و قطعات سرامیکی:** رولیک‌های سرامیکی مقاوم به شوک‌های دمایی شدید و رولیک‌های تفلونی ضدسایش در ابعاد استاندارد خطوط ساکمی (Sacmi)، سیستم (System) و نانچانگ در انبار مرکزی صنعت پیش یزد موجود می‌باشد.\n\n۳. **تسمه‌های وی‌بلت مقطع SPB و SPC:** برای الکتروموتورهای فن کوره و درایوهای سنگین با مقاطع روکش‌دار ضدروغن و ضداستاتیک توصیه می‌گردد.`,
       suggestedAction: {
         label: 'مشاهده محصولات صنایع کاشی و سرامیک',
         link: '/category/ceramic-tiles',
@@ -5066,7 +5075,7 @@ function getOfflineReply(q: string) {
     };
   } else if (lower.includes('forza') || lower.includes('swr') || lower.includes('نمایندگی') || lower.includes('قیمت') || lower.includes('پیش‌فاکتور')) {
     return {
-      reply: `### نمایندگی رسمی و استعلام قیمت برندهای انحصاری اطلس:\n\nشرکت بازرگانی و هایپر صنعت اطلس **نماینده رسمی و انحصاری برند SWR آلمان** (انواع تسمه‌های تایمینگ، وی‌بلت روکش‌دار و شیاردار PK/PJ) و **برند FORZA ایتالیا** (پولی‌های چدنی، تفلونی، بوش‌های مخروطی تیپرلاک و اتصالات) در ایران است.\n\n- **مزایای خرید سازمانی:** صدور رسمی فاکتور مودیان با احتساب ارزش افزوده، ارائه سرتیفیکیت اصالت کالا، تحویل سریع از انبار یزد و تخفیف‌های تیراژ بالا برای کارخانجات تولیدی.\n- برای صدور فوری پیش‌فاکتور رسمی، می‌توانید از دکمه درخواست پیش‌فاکتور استفاده کرده یا لیست اقلام خود را از طریق واتس‌اپ برای واحد فروش ارسال فرمایید.`,
+      reply: `### نمایندگی رسمی و استعلام قیمت برندهای انحصاری اطلس:\n\nشرکت بازرگانی و صنعت پیش **نماینده رسمی و انحصاری برند SWR آلمان** (انواع تسمه‌های تایمینگ، وی‌بلت روکش‌دار و شیاردار PK/PJ) و **برند FORZA ایتالیا** (پولی‌های چدنی، تفلونی، بوش‌های مخروطی تیپرلاک و اتصالات) در ایران است.\n\n- **مزایای خرید سازمانی:** صدور رسمی فاکتور مودیان با احتساب ارزش افزوده، ارائه سرتیفیکیت اصالت کالا، تحویل سریع از انبار یزد و تخفیف‌های تیراژ بالا برای کارخانجات تولیدی.\n- برای صدور فوری پیش‌فاکتور رسمی، می‌توانید از دکمه درخواست پیش‌فاکتور استفاده کرده یا لیست اقلام خود را از طریق واتس‌اپ برای واحد فروش ارسال فرمایید.`,
       suggestedAction: {
         label: 'مشاهده محصولات انحصاری SWR و FORZA',
         link: '/category/swr-forza-exclusive',
@@ -5120,14 +5129,14 @@ app.post('/api/ai/consult', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    const systemPrompt = `شما مشاور فنی و مهندسی تخصصی هایپر صنعت اطلس (اطلس صنعت) هستید.
+    const systemPrompt = `شما مشاور فنی و مهندسی تخصصی صنعت پیش (اطلس صنعت) هستید.
 حیطه تخصص شما: تسمه‌های انتقال قدرت و نوار نقاله، پولی‌ها، بلبرینگ‌ها و یاتاقان‌های صنعتی.
 پاسخ‌های شما فنی، دقیق، مستند به استانداردهای صنعتی DIN و ISO و به زبان فارسی سلیس و محترمانه است.`;
 
     let replyText = '';
 
     // 1. Configured Worker only. Empty Worker ENV -> direct internal Gemini key.
-    const hasForzaWorker = Boolean((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim());
+    const hasForzaWorker = Boolean(configuredForzaWorkerUrl());
     if (hasForzaWorker) try {
       const workerMessages: Array<{ role: string; content: any }> = [
         { role: 'system', content: systemPrompt+catalogContext },
@@ -5323,7 +5332,7 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
 app.post('/api/ai/consult-stream', async (req, res) => {
-  const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio } = req.body;
+  const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
   const catalogContext=consultantCatalogContext(String(query||''));
   const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -5375,7 +5384,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     sendEvent({ type: 'text_chunk', responseId, chunk: textToDeliver, textSoFar: textToDeliver });
     if (includeAudio) {
       try {
-        const audioBuf = await generatePersianSpeechGemini(cleanPersianTextForVoice(textToDeliver));
+        const audioBuf = await generateForzaSpeech(cleanPersianTextForVoice(textToDeliver));
         if (audioBuf) {
           sendEvent({
             type: 'audio_chunk',
@@ -5406,7 +5415,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
     });
 
-    const systemPrompt = `شما «مشاور ارشد مهندسی و بازرگانی هایپر صنعت اطلس» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
+    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی، مختصر و دقیق پاسخ بدهید. پاسخ را با جمله‌ای کوتاه شروع کنید تا تبدیل به گفتار سریع آغاز شود. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
 
 دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
 ۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
@@ -5473,7 +5482,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       });
       if (includeAudio) {
         try {
-          const audioBuf = await generatePersianSpeechGemini(cleanPersianTextForVoice(off.reply));
+          const audioBuf = await generateForzaSpeech(cleanPersianTextForVoice(off.reply));
           if (audioBuf) {
             sendEvent({
               type: 'audio_chunk',
@@ -5522,7 +5531,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
             try {
               const cleaned = cleanPersianTextForVoice(phraseToSpeak);
               if (cleaned) {
-                const audioBuf = await generatePersianSpeechGemini(cleaned);
+                const audioBuf = await generateForzaSpeech(cleaned);
                 if (audioBuf && audioBuf.length > 0) {
                   sendEvent({
                     type: 'audio_chunk',
@@ -5551,7 +5560,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         try {
           const cleaned = cleanPersianTextForVoice(remainingPhrase);
           if (cleaned) {
-            const audioBuf = await generatePersianSpeechGemini(cleaned);
+            const audioBuf = await generateForzaSpeech(cleaned);
             if (audioBuf && audioBuf.length > 0) {
               sendEvent({
                 type: 'audio_chunk',
@@ -6163,6 +6172,14 @@ async function generatePersianSpeechGemini(text: string, voiceName = 'Charon'): 
   }
 }
 
+/** Keep the existing speech API intact; optionally use a locally hosted
+ * Pocket-compatible WAV TTS engine, falling back to existing Gemini TTS. */
+async function generateForzaSpeech(text: string, voiceName = 'Charon'): Promise<Buffer | null> {
+  const local = await synthesizeLocalPersianSpeech(text);
+  if (local) return local;
+  return generatePersianSpeechGemini(text, voiceName);
+}
+
 type ForzaWorkerTtsResult = { audio: Buffer | null; errorType?: string };
 
 async function generateForzaWorkerPersianVoice(text: string): Promise<ForzaWorkerTtsResult> {
@@ -6266,7 +6283,7 @@ app.post('/api/ai/tts', async (req, res) => {
     }
 
     // Check in-memory cache first
-    const cacheKey = 'male-fa:gemini-only-v3:Charon:' + cleanedText;
+    const cacheKey = 'male-fa:local-first-v1:' + (process.env.FORZA_TTS_VOICE || 'male_01') + ':' + cleanedText;
     if (ttsAudioCache.has(cacheKey)) {
       reportProvider('memory-cache');
       return res.json({
@@ -6319,7 +6336,7 @@ app.post('/api/ai/tts', async (req, res) => {
     // Direct Gemini is only a network/configuration fallback; it is not retried
     // after a provider quota response, to avoid spending more quota needlessly.
     const maleVoice = 'Charon';
-    const audioBuf = await generatePersianSpeechGemini(cleanedText, maleVoice);
+    const audioBuf = await generateForzaSpeech(cleanedText, maleVoice);
     if (audioBuf && audioBuf.length > 0) {
       reportProvider('gemini-neural');
       const dataUrl = `data:audio/wav;base64,${audioBuf.toString('base64')}`;
@@ -6421,7 +6438,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       return res.status(400).json({ error: 'صوت، متن یا تصویر قطعه برای مشاوره الزامی است' });
     }
 
-    const forzaSystemInstruction = `شما «AI FORZA» (هوش سایبرنتیک صنعتی و مشاور ارشد هایپر صنعت اطلس) هستید. شما در حال مکالمه صوتی و تصویری رو در رو با مدیر یا مهندس کارخانه هستید.
+    const forzaSystemInstruction = `شما «AI FORZA» (هوش سایبرنتیک صنعتی و مشاور ارشد صنعت پیش) هستید. شما در حال مکالمه صوتی و تصویری رو در رو با مدیر یا مهندس کارخانه هستید.
 حیطه تخصص شما:
 ۱. شناسایی تخصصی قطعات صنعتی از روی تصویر (تسمه‌های تایمینگ، شیاردار، وی‌بلت، پولی‌ها، بلبرینگ‌ها، رولیک کانوایر و قطعات خطوط کاشی و سرامیک، نساجی و صنایع سنگین).
 ۲. خواندن دقیق پلاک‌های فنی، شماره فنی، گام و مشخصات استاندارد DIN و ISO (مانند HTD 8M, SPB, 6205, 14M, PK, PJ).
@@ -6528,7 +6545,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     let replyText = '';
 
     // 1. Use only a configured Worker. When blank, use the internal key.
-    const hasForzaWorker = Boolean((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim());
+    const hasForzaWorker = Boolean(configuredForzaWorkerUrl());
     if (hasForzaWorker) try {
       const workerMessages: Array<{ role: string; content: any }> = [
         { role: 'system', content: forzaSystemInstruction },
@@ -6702,7 +6719,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       mimeType = audioDataUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mp3';
     } else {
       try {
-        const audioBuffer = await generatePersianSpeechGemini(cleanedVoiceText);
+        const audioBuffer = await generateForzaSpeech(cleanedVoiceText);
         if (audioBuffer && audioBuffer.length > 0) {
           const isWav = audioBuffer.slice(0, 4).toString() === 'RIFF';
           mimeType = isWav ? 'audio/wav' : 'audio/mp3';
@@ -6759,7 +6776,7 @@ function setupGeminiLiveWebSocket(server: http.Server) {
     }
   });
 
-  const FORZA_SYSTEM_INSTRUCTION = `شما «AI FORZA» هستید؛ مشاور ارشد و مهندس هوشمند فنی و بازرگانی هایپرصنعت بلبرینگ و تجهیزات انتقال قدرت صنعتی (فروشگاه آنلاین انواع بلبرینگ، رولبرینگ، یاتاقان، کاسه نمد، تسمه، کوپلینگ، زنجیر صنعتی، گریس نسوز، روغن‌های صنعتی، شیرآلات صنعتی، اتصالات و پمپ).
+  const FORZA_SYSTEM_INSTRUCTION = `شما «AI FORZA» هستید؛ مشاور ارشد و مهندس هوشمند فنی و بازرگانی صنعت پیش؛ تأمین‌کننده قطعات صنعتی و خطوط تولید (فروشگاه آنلاین انواع بلبرینگ، رولبرینگ، یاتاقان، کاسه نمد، تسمه، کوپلینگ، زنجیر صنعتی، گریس نسوز، روغن‌های صنعتی، شیرآلات صنعتی، اتصالات و پمپ).
 هدف شما مکالمه صوتی دوطرفه زنده (Real-time Live Voice Conversation)، کاملاً طبیعی، روان، گرم، مؤدبانه و حرفه‌ای به زبان شیرین فارسی است.
 
 دستورالعمل‌های حیاتی مکالمه صوتی:
@@ -6772,7 +6789,7 @@ function setupGeminiLiveWebSocket(server: http.Server) {
     // Preserve FORZA provider priority: a configured Worker uses the existing
     // HTTP route until that Worker implements a compatible bidirectional Live WS.
     // Never bypass a configured Worker by silently using the internal Gemini key.
-    if ((process.env.FORZA_WORKER_URL || process.env.ATLAS_AI_WORKER_URL || '').trim()) {
+    if (configuredForzaWorkerUrl()) {
       clientWs.send(JSON.stringify({
         type: 'fallback_required',
         reasonCode: 'worker_configured',
