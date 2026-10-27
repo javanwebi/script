@@ -164,6 +164,22 @@ if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
 const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
+const OFFLINE_VISION_MODE=process.env.PART_RECOGNITION_MODE?.toLowerCase()==='offline';
+const OFFLINE_VISION_ROOT=path.dirname(process.env.OFFLINE_IMAGE_INDEX_FILE || path.join(process.cwd(),'.cache','catalog-offline-photo-index-v1.json'));
+const OFFLINE_CUSTOMER_DIR=path.join(OFFLINE_VISION_ROOT,'visual-customer-uploads');
+const OFFLINE_JOB_STATE=path.join(OFFLINE_VISION_ROOT,'visual-recognition-jobs-v1.json');
+const OFFLINE_CUSTOMER_FILE=/^vision-[0-9a-f-]{36}\.jpg$/i;
+async function cleanupOfflineCustomerImages(){
+ if(!OFFLINE_VISION_MODE)return;
+ try{
+  for(const name of await fs.promises.readdir(OFFLINE_CUSTOMER_DIR)){
+   if(!OFFLINE_CUSTOMER_FILE.test(name))continue;
+   const full=path.join(OFFLINE_CUSTOMER_DIR,name);
+   const stat=await fs.promises.stat(full);
+   if(Date.now()-stat.mtimeMs>2*60*60*1000)await fs.promises.unlink(full);
+  }
+ }catch{}
+}
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return recognitionWorkerUrl(process.env); }
 
@@ -429,6 +445,14 @@ app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     return res.end(cached.buffer);
+  }
+  if(OFFLINE_VISION_MODE && OFFLINE_CUSTOMER_FILE.test(fileName)){
+    const persisted=path.join(OFFLINE_CUSTOMER_DIR,fileName);
+    if(fs.existsSync(persisted)){
+      res.setHeader('Cache-Control','private,max-age=600');
+      res.setHeader('X-Content-Type-Options','nosniff');
+      return res.type('image/jpeg').sendFile(persisted);
+    }
   }
   next();
 });
@@ -2690,6 +2714,11 @@ async function persistCustomerImage(
 
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
   await fs.promises.writeFile(path.join(IMAGE_AI_DIR,fileName),optimized,{mode:0o600});
+  if(OFFLINE_VISION_MODE){
+    await fs.promises.mkdir(OFFLINE_CUSTOMER_DIR,{recursive:true});
+    await fs.promises.writeFile(path.join(OFFLINE_CUSTOMER_DIR,fileName),optimized,{mode:0o600});
+    void cleanupOfflineCustomerImages();
+  }
   const base64 = optimized.toString('base64');
   const dataUrl = `data:image/jpeg;base64,${base64}`;
 
@@ -2881,6 +2910,13 @@ async function resolveCustomerImageBufferAndInfo(
   try {
     const url = new URL(trimmed);
     const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
+    if(OFFLINE_VISION_MODE && OFFLINE_CUSTOMER_FILE.test(fileName) &&
+       /^\/(?:imageai|imagemoshtari)\//.test(url.pathname)){
+      try{
+        const buffer=await fs.promises.readFile(path.join(OFFLINE_CUSTOMER_DIR,fileName));
+        return {imageUrl:url.toString(),fileName,buffer};
+      }catch{}
+    }
     const cached = customerImageMemoryCache.get(fileName);
     if (cached && cached.buffer && cached.buffer.length > 0) {
       return {
@@ -4654,7 +4690,12 @@ app.get('/api/ai/catalog-images/:id',async(req,res)=>{
     res.setHeader('Cache-Control','public,max-age=60');res.setHeader('X-Content-Type-Options','nosniff');return res.type('image/jpeg').send(jpeg);
   }catch{return res.status(404).end();}
 });
-const recognitionJobs=new RecognitionJobs<any>();
+const recognitionJobs=new RecognitionJobs<any>(
+  OFFLINE_VISION_MODE ? 1 : 2,OFFLINE_VISION_MODE ? 24 : 8,30*60*1000,
+  OFFLINE_VISION_MODE ? OFFLINE_JOB_STATE : undefined,
+  OFFLINE_VISION_MODE ? payload=>progress=>analyzePartOffline({} as express.Request,payload,
+    (payload as any)?.stage==='quick'?'quick':'refined',progress) : undefined
+);
 app.get('/api/ai/visual-index-status',async (_req,res)=>{
  await catalogVisualIndex.load();
  const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
@@ -4673,11 +4714,17 @@ app.post('/api/ai/analyze-part', async (req, res) => {
   if(req.body?.imageUrl || req.body?.imageBase64){
     try{
       const body={...req.body};
-      const jobId=recognitionJobs.start(async progress=>{
-        if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
-        const result=await analyzePartWithWorker(req,body,body.stage==='quick' ? 'quick' : 'refined',progress);
-        return publicCatalog(result);
-      });
+      if(OFFLINE_VISION_MODE && !body.imageUrl){
+        const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);
+        body.imageUrl=saved.imageUrl;
+      }
+      const jobId=OFFLINE_VISION_MODE
+        ? recognitionJobs.startTask({...body,imageBase64:undefined,mimeType:undefined})
+        : recognitionJobs.start(async progress=>{
+            if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
+            const result=await analyzePartWithWorker(req,body,body.stage==='quick' ? 'quick' : 'refined',progress);
+            return publicCatalog(result);
+          });
       return res.status(202).json({jobId,status:'queued'});
     }catch{return res.status(429).json({error:{message:'صف بررسی تصاویر پر است؛ کمی بعد دوباره تلاش کنید.'}});}
   }
@@ -7106,6 +7153,7 @@ async function start() {
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
+  if(OFFLINE_VISION_MODE)recognitionJobs.resumePending();
   void buildImageFeatureIndex();
   void buildImageEmbeddingIndex();
 
