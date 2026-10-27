@@ -5906,22 +5906,6 @@ function cleanPersianTextForVoice(raw: string): string {
 }
 
 // Gemini-only TTS cascade. Current models use Interactions; legacy models use generateContent.
-const GEMINI_TTS_MODELS = [
-  { id: 'gemini-3.8-flash-lite-tts', transport: 'interactions' },
-  { id: 'gemini-3.8-flash-tts', transport: 'interactions' },
-  { id: 'gemini-3.1-flash-tts-preview', transport: 'generateContent' },
-  { id: 'gemini-2.5-pro-preview-tts', transport: 'generateContent' },
-  { id: 'gemini-2.5-flash-preview-tts', transport: 'generateContent' },
-] as const;
-const GEMINI_TTS_REST_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const geminiTtsModelCooldowns = new Map<string, number>();
-const geminiTtsModelCooldownReasons = new Map<string, 'quota' | 'unavailable'>();
-let geminiTtsGlobalCooldownUntil = 0;
-const geminiTtsInflight = new Map<string, Promise<Buffer | null>>();
-
-// Voice synthesis is deliberately restricted to the configured private
-// Pocket TTS instance. Gemini may produce response TEXT and perform STT but
-// must never synthesize FORZA audio.
 async function generateForzaSpeech(text: string): Promise<Buffer | null> {
   if (!process.env.FORZA_TTS_BASE_URL) return null;
   const voice = 'pocket-only:' + (process.env.FORZA_TTS_MODEL || 'pocket-tts-farsi-v2')
@@ -6642,14 +6626,16 @@ async function start() {
   }
 
   const server = http.createServer(app);
-  setupGeminiLiveWebSocket(server);
+  // The legacy Gemini Live Audio endpoint is intentionally NOT registered.
+  // FORZA now owns one STT -> Gemini text -> Pocket TTS speech pipeline.
+  // Registering the old WebSocket would violate the Pocket-only voice policy.
 
   server.listen(PORT, '0.0.0.0', () => {
     const keyStatus = getGeminiKey()
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
+    console.log('[Server] FORZA voice transport: Pocket-only via /api/ai/tts; legacy Gemini Live Audio disabled');
     console.log(`[Server] Gemini key: ${keyStatus}`);
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
