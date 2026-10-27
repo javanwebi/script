@@ -1,0 +1,53 @@
+// Verifies a real production failure mode: /api/ai/tts returns HTTP 503.
+// Headless browser uses fake mic, fake native Persian voice and no real Gemini.
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:[
+   '--no-sandbox','--autoplay-policy=no-user-gesture-required',
+   '--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream',
+ ]});
+ try {
+   const page=await browser.newPage();
+   const errors=[];
+   page.on('pageerror',err=>errors.push(err.message));
+   await page.addInitScript(()=>{
+     window.__spoken=[];
+     window.__micRequests=0;
+     const original=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+     if(original) navigator.mediaDevices.getUserMedia=async(...args)=>{
+       window.__micRequests++;
+       return original(...args);
+     };
+     const fakeSynth={
+       getVoices:()=>[{name:'Mock Farsi',lang:'fa-IR',voiceURI:'fake-persian',localService:true}],
+       cancel:()=>{},
+       speak(utterance) {
+         window.__spoken.push(utterance.text);
+         queueMicrotask(()=>utterance.onstart?.());
+         setTimeout(()=>utterance.onend?.(),70);
+       },
+     };
+     Object.defineProperty(window,'speechSynthesis',{configurable:true,value:fakeSynth});
+     Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:class{
+       constructor(text){this.text=text;this.lang='';this.voice=null;}
+     }});
+   });
+   let ttsCalls=0;
+   await page.route('**/api/ai/tts',async route=>{
+     ttsCalls++;
+     await route.fulfill({status:503,json:{success:false,
+       error:{type:'gemini_tts_unavailable',message:'Provider quota or timeout'}}});
+   });
+   await page.goto('http://127.0.0.1:4173/ai-forza');
+   await page.waitForFunction(()=>window.__micRequests>0,{},{timeout:15000});
+   await page.waitForFunction(()=>window.__spoken.length>0,{},{timeout:20000});
+   assert.ok((await page.evaluate(()=>window.__spoken[0])).includes('به صنعت پیش خوش آمدید'));
+   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:15000});
+   assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
+   assert.equal(await page.getByText('برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید').count(),0);
+   assert.ok(ttsCalls>=1);
+   assert.equal(errors.length,0,errors.join('; '));
+   console.log('PASS 503 TTS outage: Persian greeting still spoken through native fallback, mic listening, no stuck processing.');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});
