@@ -1,14 +1,19 @@
+import {synthesizeMossRealtimeWav} from './forzaMossRealtimeClient';
+
 /**
  * Server-only TTS transport. An OpenAI-compatible local engine can serve
  * /v1/audio/speech on a Railway private URL. Never expose its URL/token in Vite.
  *
- * Returns a valid WAV buffer or null; caller chooses the next provider.
+ * Returns a WAV buffer or null; no Gemini/browser TTS fallback is permitted.
  */
 export async function synthesizeLocalPersianSpeech(
   text: string,
   options: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; signal?: AbortSignal } = {},
 ): Promise<Buffer | null> {
   const env = options.env ?? process.env;
+  if (env.FORZA_TTS_PROTOCOL === 'moss-realtime') {
+    return synthesizeMossRealtimeWav(text, options);
+  }
   const raw = String(env.FORZA_TTS_BASE_URL || '').trim();
   if (!raw || !text.trim()) return null;
   try {
