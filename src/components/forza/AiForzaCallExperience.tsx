@@ -514,7 +514,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if (firstPhrase) void requestSpeechAudio(firstPhrase).catch(() => {});
   }, [requestSpeechAudio]);
 
-  // The only permitted speech engine is Pocket TTS on the private server.
+  // The only permitted speech engine is موتور صوتی FORZA on the private server.
   // A failure remains visible; no Gemini or browser-native voice fallback.
   const playSpeechPhrase = useCallback(async (
     phrase: string, serverSpeech: Promise<ForzaSpeechResponse>,
@@ -559,7 +559,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
-        : 'موتور اختصاصی Pocket TTS صدا تولید نکرد؛ وضعیت سرویس را بررسی کنید.');
+        : 'موتور اختصاصی موتور صوتی FORZA صدا تولید نکرد؛ وضعیت سرویس را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
     }
@@ -956,7 +956,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       // Without Pocket audio the requested greeting has NOT played.
       // Do not fake its completion and never record the customer mid-error.
-      setVoiceOutputError('موتور Pocket TTS در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.');
+      setVoiceOutputError('موتور موتور صوتی FORZA در دسترس نیست. خوشامدگویی پخش نشد و مکالمه آغاز نشده است.');
       greetingFinishedRef.current=false;
       setGreetingPhase('error');
       setStatus('idle');
@@ -1194,7 +1194,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
             {greetingPhase === 'error'
-              ? 'موتور گفتار Pocket TTS در دسترس نیست'
+              ? 'موتور گفتار موتور صوتی FORZA در دسترس نیست'
               : greetingPhase === 'needs-permission'
               ? 'مرورگر پخش خودکار را محدود کرده است'
               : turn === 'user'
