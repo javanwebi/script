@@ -22,6 +22,8 @@ export class RecognitionJobs<T> {
  constructor(private concurrency=2,private capacity=8,private ttl=30*60*1000,
              private stateFile?:string,private recover?:Handler<T>){
   if(this.stateFile)this.restore();
+  const cleanup=setInterval(()=>this.clean(),10*60*1000);
+  cleanup.unref?.();
  }
  private restore(){
   try{
