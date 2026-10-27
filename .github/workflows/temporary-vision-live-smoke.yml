@@ -1,0 +1,24 @@
+name: Temporary live visual recognition smoke test
+on:
+  push:
+    branches:
+      - test/vision-live-smoke-20261027
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies for JPEG conversion
+        run: npm ci
+      - name: Real Railway API read/upload/search/queue verification
+        env:
+          VISION_SMOKE_ORIGIN: https://sanatpish-production.up.railway.app
+        run: node scripts/vision-production-smoke.mjs
