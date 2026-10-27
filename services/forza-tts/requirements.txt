@@ -1,0 +1,5 @@
+fastapi==0.118.0
+uvicorn==0.37.0
+pydantic>=2.9,<3
+piper-tts==1.8.0
+huggingface_hub>=0.35,<2
