@@ -4302,6 +4302,13 @@ async function analyzePartOffline(req:express.Request,body:any,stage:'quick'|'re
   const tentative=ranked.filter(candidate=>typeof candidate.visualDistance!=='number');
   const base={
     success:true,isAiGenerated:false,stage,model:'Local CPU photo retrieval',
+    requiredMeasurements:stage==='quick' ? [
+      {id:'partCode',label:'کد حک‌شده روی قطعه',hint:'اگر کد خوانا نیست مشخص نیست را انتخاب کنید.',unit:'',kind:'text'},
+      {id:'width',label:'عرض قطعه',hint:'در صورت امکان با کولیس اندازه‌گیری کنید.',unit:'میلی‌متر',kind:'number'},
+      {id:'length',label:'طول قطعه',hint:'طول واقعی را اندازه بگیرید؛ عدد را حدس نزنید.',unit:'میلی‌متر',kind:'number'},
+      {id:'outerDiameter',label:'قطر خارجی',hint:'اگر قطعه دایره‌ای نیست مشخص نیست را انتخاب کنید.',unit:'میلی‌متر',kind:'number'},
+      {id:'toothCount',label:'تعداد دندانه',hint:'برای قطعات دندانه‌دار؛ در سایر موارد مشخص نیست.',unit:'عدد',kind:'number'}
+    ] : undefined,
     summary:{
       whatYouSee:'بررسی الگوریتمی تصاویر ثبت‌شده کاتالوگ',
       detectedPartType:'قطعه صنعتی؛ نوع دقیق از روی شباهت تصویر تأیید نشده',
