@@ -15,8 +15,6 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {OfflineCatalogPhotoIndex} from './src/services/offlineCatalogPhotoIndex';
-import {checkOfflineTechnicalSpecs} from './src/services/offlineTechnicalMatch';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -164,22 +162,6 @@ if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
 const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
-const OFFLINE_VISION_MODE=process.env.PART_RECOGNITION_MODE?.toLowerCase()==='offline';
-const OFFLINE_VISION_ROOT=path.dirname(process.env.OFFLINE_IMAGE_INDEX_FILE || path.join(process.cwd(),'.cache','catalog-offline-photo-index-v1.json'));
-const OFFLINE_CUSTOMER_DIR=path.join(OFFLINE_VISION_ROOT,'visual-customer-uploads');
-const OFFLINE_JOB_STATE=path.join(OFFLINE_VISION_ROOT,'visual-recognition-jobs-v1.json');
-const OFFLINE_CUSTOMER_FILE=/^vision-[0-9a-f-]{36}\.jpg$/i;
-async function cleanupOfflineCustomerImages(){
- if(!OFFLINE_VISION_MODE)return;
- try{
-  for(const name of await fs.promises.readdir(OFFLINE_CUSTOMER_DIR)){
-   if(!OFFLINE_CUSTOMER_FILE.test(name))continue;
-   const full=path.join(OFFLINE_CUSTOMER_DIR,name);
-   const stat=await fs.promises.stat(full);
-   if(Date.now()-stat.mtimeMs>2*60*60*1000)await fs.promises.unlink(full);
-  }
- }catch{}
-}
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return recognitionWorkerUrl(process.env); }
 
@@ -409,11 +391,8 @@ registerProductImageStorage(app,async()=>{
   primePublicCatalogCache(fresh);
   refreshRecognitionCatalog();
   // New admin uploads are also indexed without requiring the next deployment.
-  buildCatalogImageAliases();
-  if(!OFFLINE_VISION_MODE){
-    void buildImageFeatureIndex();
-    void buildImageEmbeddingIndex();
-  }
+  void buildImageFeatureIndex();
+  void buildImageEmbeddingIndex();
 });
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
@@ -435,15 +414,6 @@ function cleanCustomerImageMemoryCache() {
   for (const [key, val] of customerImageMemoryCache.entries()) {
     if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
   }
-  let memoryBytes=0;
-  for(const value of customerImageMemoryCache.values())memoryBytes+=value.buffer.length;
-  // The persistent upload mirror backs the offline search; keep RAM bounded.
-  while(customerImageMemoryCache.size>32 || memoryBytes>30*1024*1024){
-    const oldest=customerImageMemoryCache.keys().next().value;
-    if(!oldest)break;
-    memoryBytes-=customerImageMemoryCache.get(oldest)?.buffer.length||0;
-    customerImageMemoryCache.delete(oldest);
-  }
 }
 
 // Serve customer images directly from memory cache (no disk folder needed)
@@ -457,14 +427,6 @@ app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     return res.end(cached.buffer);
-  }
-  if(OFFLINE_VISION_MODE && OFFLINE_CUSTOMER_FILE.test(fileName)){
-    const persisted=path.join(OFFLINE_CUSTOMER_DIR,fileName);
-    if(fs.existsSync(persisted)){
-      res.setHeader('Cache-Control','private,max-age=600');
-      res.setHeader('X-Content-Type-Options','nosniff');
-      return res.type('image/jpeg').sendFile(persisted);
-    }
   }
   next();
 });
@@ -2726,11 +2688,6 @@ async function persistCustomerImage(
 
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
   await fs.promises.writeFile(path.join(IMAGE_AI_DIR,fileName),optimized,{mode:0o600});
-  if(OFFLINE_VISION_MODE){
-    await fs.promises.mkdir(OFFLINE_CUSTOMER_DIR,{recursive:true});
-    await fs.promises.writeFile(path.join(OFFLINE_CUSTOMER_DIR,fileName),optimized,{mode:0o600});
-    void cleanupOfflineCustomerImages();
-  }
   const base64 = optimized.toString('base64');
   const dataUrl = `data:image/jpeg;base64,${base64}`;
 
@@ -2921,17 +2878,7 @@ async function resolveCustomerImageBufferAndInfo(
   // 3. HTTP or HTTPS Image URL link
   try {
     const url = new URL(trimmed);
-    if(url.protocol!=='https:' || url.username || url.password || url.port && url.port!=='443'){
-      throw new Error('فقط لینک HTTPS عمومی تصویر پذیرفته می‌شود.');
-    }
     const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    if(OFFLINE_VISION_MODE && OFFLINE_CUSTOMER_FILE.test(fileName) &&
-       /^\/(?:imageai|imagemoshtari)\//.test(url.pathname)){
-      try{
-        const buffer=await fs.promises.readFile(path.join(OFFLINE_CUSTOMER_DIR,fileName));
-        return {imageUrl:url.toString(),fileName,buffer};
-      }catch{}
-    }
     const cached = customerImageMemoryCache.get(fileName);
     if (cached && cached.buffer && cached.buffer.length > 0) {
       return {
@@ -2945,17 +2892,15 @@ async function resolveCustomerImageBufferAndInfo(
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 6000);
-      const addresses=await lookup(url.hostname,{all:true});
-      if(!addresses.length || addresses.some(({address})=>/^(127\.|10\.|192\.168\.|169\.254\.|0\.|172\.(1[6-9]|2[0-9]|3[01])\.|::|f[cd]|fe80)/i.test(address)))
-        throw new Error('لینک تصویر عمومی معتبر نیست.');
       const fetchResp = await fetch(url.toString(), {
-        method: 'GET',redirect:'error',
-        headers: { Accept: 'image/jpeg,image/png,image/webp' },
+        method: 'GET',
+        headers: { Accept: 'image/jpeg,image/png,image/webp,*/*' },
         signal: controller.signal,
       }).finally(() => clearTimeout(timer));
+
       if (fetchResp.ok) {
-        const rawBuffer = await readResponseBufferLimited(fetchResp,CUSTOMER_IMAGE_MAX_BYTES);
-        await sharp(rawBuffer,{limitInputPixels:40_000_000}).metadata();
+        const arrayBuf = await fetchResp.arrayBuffer();
+        const rawBuffer = Buffer.from(arrayBuf);
         if (rawBuffer.length > 0) {
           let previewBuf = rawBuffer;
           try {
@@ -4248,119 +4193,12 @@ function retrievePartPhotos(imageKey:string,buffer:Buffer,corpus:ReturnType<type
  return promise;
 }
 const partObservationCache=new Map<string,{raw:any;model:string;expires:number}>();
-
-const offlinePhotoIndex=new OfflineCatalogPhotoIndex(
-  process.env.OFFLINE_IMAGE_INDEX_FILE || path.join(process.cwd(),'.cache','catalog-offline-photo-index-v1.json')
-);
-
-/** Image-only offline route. Uses local photograph signatures and real catalogue bindings.
- * Never calls a hosted AI provider, invents a SKU, or changes stock/price records.
- */
-async function analyzePartOffline(req:express.Request,body:any,stage:'quick'|'refined',onProgress?:(state:ScanProgress)=>void){
-  refreshRecognitionCatalog();
-  const uploaded=await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(),req);
-  if(!uploaded.buffer.length)throw new Error('تصویر مشتری قابل خواندن نیست.');
-  const products=recognitionProducts();
-  const familyNames=new Map(products.map(product=>[product.code,product.name]));
-  const corpus=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
-  const result=await offlinePhotoIndex.search(uploaded.buffer,corpus,
-    image=>getCatalogImageBuffer(image.url,image.revision),{limit:24,progress:onProgress});
-  const measurementFields={
-    ...(body?.measurements && typeof body.measurements==='object' && !Array.isArray(body.measurements) ? body.measurements : {}),
-    ...Object.fromEntries(['length','width','pitch'].filter(field=>Number.isFinite(Number(body?.[field])) && Number(body[field])>0).map(field=>[field,String(body[field])]))
-  };
-  const specsByCode=new Map(CATALOG_ITEMS.map(item=>[item.code.toLowerCase(),item]));
-  const technicalCheckFor=(code:string)=>{
-    const item=specsByCode.get(code.toLowerCase());
-    return checkOfflineTechnicalSpecs(measurementFields,item?.specs || [],code);
-  };
-  const rankedHits=result.hits.map(hit=>{
-    const candidateCodes=hit.image.bindings.map(binding=>binding.code).filter((code):code is string=>!!code);
-    const checks=candidateCodes.map(technicalCheckFor);
-    const knownMismatch=checks.length>0 && checks.every(check=>check.mismatches.length>0);
-    const hasMatch=checks.some(check=>check.matches.length>0);
-    return {...hit,knownMismatch,hasMatch};
-  }).sort((a,b)=>Number(a.knownMismatch)-Number(b.knownMismatch)||Number(b.hasMatch)-Number(a.hasMatch)||b.score-a.score);
-
-  const images=rankedHits.slice(0,12).map(hit=>({
-    imageId:hit.image.id,image:hit.image.url,label:hit.image.label,score:hit.score,
-    relation:hit.identicalPhotograph ? 'very_similar' as const : 'related' as const,
-    reason:hit.identicalPhotograph
-      ? 'همین عکس کاتالوگ پیدا شد؛ فقط تصویر اختصاصی تأییدشده می‌تواند به شناسایی کد کمک کند.'
-      : (hit.knownMismatch ? 'تصویر از نظر ظاهر نزدیک است، اما با اندازه یا کد اعلام‌شده مغایرت ثبت‌شده دارد؛ انتخاب این قطعه توصیه نمی‌شود.' : 'از نزدیک‌ترین تصاویر طبق الگوی روشنایی، لبه‌ها و شکل ظاهری است؛ انطباق قطعه و سازگاری فنی تأیید نشده.'),
-    bindings:hit.image.bindings,
-    familyNames:[...new Set(hit.image.bindings.map(binding=>familyNames.get(binding.familyCode)).filter((value):value is string=>!!value))]
-  }));
-  const allowed=new Set(CATALOG_ITEMS.map(item=>String(item.code).toLowerCase()));
-  const candidates=new Map<string,any>();
-  for(const hit of rankedHits)for(const binding of hit.image.bindings){
-    const code=String(binding.code||'').trim();
-    if(!code||!allowed.has(code.toLowerCase()))continue;
-    const technical=technicalCheckFor(code);
-    if(technical.mismatches.length)continue;
-    const previous=candidates.get(code.toLowerCase());
-    if(previous && (previous.visualDistance===0 || (previous.similarityScore>=hit.score && !hit.identicalPhotograph)))continue;
-    candidates.set(code.toLowerCase(),{
-      code,matchedImageId:hit.image.id,similarityScore:hit.score,
-      visualVerdict:'very_similar',dimensionMismatch:false,
-      technicalEvidence:technical.matches,
-      technicalMatchScore:technical.compared ? Math.round(100*technical.matches.length/technical.compared) : undefined,
-      ...(hit.identicalPhotograph && binding.verified ? {visualDistance:0}:{}),
-      matchReason:hit.identicalPhotograph ? 'عین عکس کاتالوگ؛ تعلق دقیق به SKU نیازمند تصویر اختصاصی تأییدشده است.' : 'پیشنهاد بر اساس شباهت تصویر؛ تطبیق دقیق SKU تأیید نشده.'
-    });
-  }
-  const ranked=[...candidates.values()].sort((a,b)=>Number(b.visualDistance===0)-Number(a.visualDistance===0)||(b.technicalEvidence?.length||0)-(a.technicalEvidence?.length||0)||b.similarityScore-a.similarityScore).slice(0,20);
-  const possibleExact=ranked.filter(candidate=>typeof candidate.visualDistance==='number');
-  const tentative=ranked.filter(candidate=>typeof candidate.visualDistance!=='number');
-  const base={
-    success:true,isAiGenerated:false,stage,model:'Local CPU photo retrieval',
-    requiredMeasurements:stage==='quick' ? [
-      {id:'partCode',label:'کد حک‌شده روی قطعه',hint:'اگر کد خوانا نیست مشخص نیست را انتخاب کنید.',unit:'',kind:'text'},
-      {id:'width',label:'عرض قطعه',hint:'در صورت امکان با کولیس اندازه‌گیری کنید.',unit:'میلی‌متر',kind:'number'},
-      {id:'length',label:'طول قطعه',hint:'طول واقعی را اندازه بگیرید؛ عدد را حدس نزنید.',unit:'میلی‌متر',kind:'number'},
-      {id:'outerDiameter',label:'قطر خارجی',hint:'اگر قطعه دایره‌ای نیست مشخص نیست را انتخاب کنید.',unit:'میلی‌متر',kind:'number'},
-      {id:'toothCount',label:'تعداد دندانه',hint:'برای قطعات دندانه‌دار؛ در سایر موارد مشخص نیست.',unit:'عدد',kind:'number'}
-    ] : undefined,
-    summary:{
-      whatYouSee:'بررسی الگوریتمی تصاویر ثبت‌شده کاتالوگ',
-      detectedPartType:'قطعه صنعتی؛ نوع دقیق از روی شباهت تصویر تأیید نشده',
-      partFamilyFarsi:'قطعات صنعتی',
-      detectedProfile:'نامشخص؛ برای تشخیص قطعی کد و ابعاد لازم است',
-      visualAnalysis:'تصویر مشتری با عکس‌های واقعی کاتالوگ از نظر روشنایی، لبه‌ها و الگوی هندسی مقایسه شد. نتیجه فقط رتبه‌بندی عکس‌هاست و تشخیص قطعی جنس، ابعاد یا مدل نیست.',
-      confidence:0
-    },
-    matchedProducts:possibleExact,similarCandidates:tentative,
-    catalogImageMatches:images,scanCoverage:result.coverage,
-    retrieval:{mode:'offline-local',total:result.coverage.total,indexed:result.coverage.compared,
-      ready:result.coverage.complete,verifiedPool:images.length},
-    fallbackNotice:'جست‌وجو کاملاً روی سرور خود صنعت پیش، بدون مصرف API و توکن انجام شد؛ شباهت ظاهری به معنی یکسان بودن قطعه نیست.',
-    catalogSearchWarning:!result.coverage.complete ? 'برخی تصاویر کاتالوگ خوانده نشدند؛ نتایج پوشش کامل ندارند.' : undefined,
-    technicalAdvice:'برای خرید، کد حک‌شده و ابعاد اصلی قطعه را با مشخصات کاتالوگ کنترل کنید.',
-    customerImageUrl:uploaded.imageUrl
-  };
-  const finalized=finalizeRecognition(base,CATALOG_ITEMS as ReturnType<typeof recognitionCatalog>,{},false);
-  if(finalized.matchedProducts.length){
-    finalized.summary.detectedPartType=finalized.matchedProducts[0].name;
-    finalized.summary.partFamilyFarsi=familyNames.get(String(finalized.matchedProducts[0].familyCode||'')) || 'قطعه شناسایی‌شده از عکس تأییدشده';
-  }
-  if(!finalized.matchedProducts.length){
-    finalized.summary.catalogAvailability={
-      status:finalized.similarCandidates.length || images.length ? 'similar_in_catalog':'custom_order_available',
-      statusFarsiTitle:'نزدیک‌ترین تصاویر کاتالوگ؛ کد دقیق هنوز تأیید نشده',
-      statusFarsiMessage:'عکس‌های نزدیک از نظر ظاهر نمایش داده شده‌اند. ممکن است مدل، اندازه یا کاربرد آنها متفاوت باشد؛ قبل از سفارش کد و اندازه را کنترل کنید.'
-    };
-  }
-  return publicCatalog(finalized);
-}
-
 async function analyzePartWithWorker(
   req: express.Request,
   body: any,
   stage: 'quick' | 'refined',
   onProgress?: (state:ScanProgress)=>void
 ): Promise<any> {
-  if(process.env.PART_RECOGNITION_MODE?.toLowerCase()==='offline')
-    return analyzePartOffline(req,body,stage,onProgress);
   refreshRecognitionCatalog();
   const publishImage=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
   void cleanVisionImageLinks(IMAGE_AI_DIR);
@@ -4714,17 +4552,11 @@ app.get('/api/ai/catalog-images/:id',async(req,res)=>{
     res.setHeader('Cache-Control','public,max-age=60');res.setHeader('X-Content-Type-Options','nosniff');return res.type('image/jpeg').send(jpeg);
   }catch{return res.status(404).end();}
 });
-const recognitionJobs=new RecognitionJobs<any>(
-  OFFLINE_VISION_MODE ? 1 : 2,OFFLINE_VISION_MODE ? 24 : 8,30*60*1000,
-  OFFLINE_VISION_MODE ? OFFLINE_JOB_STATE : undefined,
-  OFFLINE_VISION_MODE ? payload=>progress=>analyzePartOffline({} as express.Request,payload,
-    (payload as any)?.stage==='quick'?'quick':'refined',progress) : undefined
-);
+const recognitionJobs=new RecognitionJobs<any>();
 app.get('/api/ai/visual-index-status',async (_req,res)=>{
- const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
- if(OFFLINE_VISION_MODE)return res.json(await offlinePhotoIndex.coverage(corpus));
  await catalogVisualIndex.load();
- return res.json(catalogVisualIndex.coverage(corpus));
+ const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+ res.json(catalogVisualIndex.coverage(corpus));
 });
 app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
   const job=recognitionJobs.get(req.params.id);
@@ -4739,17 +4571,11 @@ app.post('/api/ai/analyze-part', async (req, res) => {
   if(req.body?.imageUrl || req.body?.imageBase64){
     try{
       const body={...req.body};
-      if(OFFLINE_VISION_MODE && !body.imageUrl){
-        const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);
-        body.imageUrl=saved.imageUrl;
-      }
-      const jobId=OFFLINE_VISION_MODE
-        ? recognitionJobs.startTask({...body,imageBase64:undefined,mimeType:undefined})
-        : recognitionJobs.start(async progress=>{
-            if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
-            const result=await analyzePartWithWorker(req,body,body.stage==='quick' ? 'quick' : 'refined',progress);
-            return publicCatalog(result);
-          });
+      const jobId=recognitionJobs.start(async progress=>{
+        if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
+        const result=await analyzePartWithWorker(req,body,body.stage==='quick' ? 'quick' : 'refined',progress);
+        return publicCatalog(result);
+      });
       return res.status(202).json({jobId,status:'queued'});
     }catch{return res.status(429).json({error:{message:'صف بررسی تصاویر پر است؛ کمی بعد دوباره تلاش کنید.'}});}
   }
@@ -7178,14 +7004,8 @@ async function start() {
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
-  if(OFFLINE_VISION_MODE){
-    recognitionJobs.resumePending();
-    // Offline recognition must not trigger legacy Jina API calls or automatic
-    // catalog feature writes during boot: only the local photo cache warms up.
-  }else{
-    void buildImageFeatureIndex();
-    void buildImageEmbeddingIndex();
-  }
+  void buildImageFeatureIndex();
+  void buildImageEmbeddingIndex();
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -7275,14 +7095,7 @@ start().catch(error=>{
 });
 
 setTimeout(()=>{
- if(OFFLINE_VISION_MODE){
-   const corpus=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
-   void offlinePhotoIndex.prepare(corpus,image=>getCatalogImageBuffer(image.url,image.revision))
-     .then(coverage=>console.info('[Offline visual index]',JSON.stringify(coverage)))
-     .catch(error=>console.warn('[Offline visual index] initialization failed',String(error?.message||error).slice(0,140)));
-   return;
- }
  const origin=String(process.env.VISION_IMAGE_PUBLIC_ORIGIN || process.env.APP_URL || '').replace(/\/$/,'');
  if(!origin.startsWith('https://'))return;
  warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),createVisionImagePublisher(IMAGE_AI_DIR,origin));
-},20000).unref();
+},10000).unref();
