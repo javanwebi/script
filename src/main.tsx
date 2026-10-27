@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {refreshDurableStorage} from './services/durableStorage';
 import {installDatabaseReferences} from './data/databaseReferences';
 import {installDatabaseProducts} from './data/mockGenerator';
+import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
 import './index.css';
 
 function showBackendUnavailable(){
@@ -30,7 +31,15 @@ async function boot(){
       document.getElementById('sanat-backend-status')?.remove();
       // The initial shell rendered without legacy JSON; remount once after DB hydration
       // so category menus created on mount pick up real PostgreSQL values.
-      if (!hydratedOnce){ hydratedOnce=true; rerenderOnFirstDatabaseHydration?.(); }
+      if (!hydratedOnce){
+        hydratedOnce=true;
+        // FORZA holds a live microphone, ongoing TTS playback and a 4-second
+        // particle animation. Mounting a new App key mid-call destroys all three.
+        // Catalog pages still retain their existing hydration remount behavior.
+        if (shouldRemountAfterCatalogHydration(window.location.pathname)) {
+          rerenderOnFirstDatabaseHydration?.();
+        }
+      }
     }
   });
   // Start React before awaiting a potentially slow cross-region database read.
