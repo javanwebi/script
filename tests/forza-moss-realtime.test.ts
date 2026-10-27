@@ -86,7 +86,7 @@ test('no PCM audio and malformed sample rate never produce a false successful gr
   const net=(async (url:RequestInfo|URL)=>{
     const p=new URL(String(url)).pathname;
     if(p.endsWith('/close')){closed++;return Response.json({ok:true})}
-    if(p.endsWith('/audio'))return new Response(pcmFixture(),{headers:{
+    if(p.endsWith('/audio'))return new Response(new Uint8Array(pcmFixture()),{headers:{
       'X-Audio-Codec':'mp3','X-Audio-Sample-Rate':'24000','X-Audio-Channels':'1',
     }});
     return Response.json({ok:true});
