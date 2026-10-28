@@ -15,8 +15,15 @@ export async function refreshDurableStorage(){
  return data;
 }
 export const durableStorage={
- getItem(key:string):string|null{if(!enabled&&!ephemeral(key))return null;return memory.get(key) ?? (ephemeral(key) || /settings|club_config|stock_v2|layout_configs/.test(key)?null:'[]');},
- setItem(key:string,value:string){if(ephemeral(key)){memory.set(key,value);return;}if(!enabled)throw new Error('پایگاه داده هنوز آماده نیست؛ داده به صورت محلی ذخیره نشد.');if(memory.get(key)===value)return;memory.set(key,value);if(hydrating || portalOwned.has(key) || ephemeral(key) || readOnly.has(key))return;
+ getItem(key:string):string|null{if(!enabled&&!ephemeral(key)&&!hydrating)return null;return memory.get(key) ?? (ephemeral(key) || /settings|club_config|stock_v2|layout_configs/.test(key)?null:'[]');},
+ setItem(key:string,value:string){
+  // Hydration copies authenticated server data into a volatile rendering cache.
+  // Never block that copy on the separate /api/runtime bootstrap; no DB write occurs.
+  if(hydrating || ephemeral(key)){memory.set(key,value);return;}
+  if(!enabled)throw new Error('پایگاه داده هنوز آماده نیست؛ داده به صورت محلی ذخیره نشد.');
+  if(memory.get(key)===value)return;
+  memory.set(key,value);
+  if(portalOwned.has(key) || readOnly.has(key))return;
   const actor=userId;
   const previous=queues.get(key) || Promise.resolve();
   const pending=previous.then(async()=>{emit('saving');const res=await fetch('/api/runtime',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,value:JSON.parse(value),version:versions.get(key) || 0,userId:actor})});const data=await res.json();if(!res.ok || !data.success)throw new Error(data.message || 'ذخیره در دیتابیس انجام نشد.');versions.set(key,data.version);emit('saved');}).catch(error=>{failure=error;emit('error',error.message);throw error;});
