@@ -1,19 +1,23 @@
-/** Extract only whole-word, ready-to-speak phrases from live Persian text. */
-export function takeSpeakablePhrase(buffer: string, first: boolean): { phrase: string; rest: string } | null {
-  if (!buffer.trim()) return null;
-  const min = first ? 16 : 30;
-  const target = first ? 28 : 92;
-  // Natural pause marks avoid chopping a Persian technical term in half.
-  const boundary = /[.!?؟،؛:\n]/g;
-  let match: RegExpExecArray | null;
-  while ((match = boundary.exec(buffer))) {
-    if (match.index + 1 >= min) {
-      return {phrase: buffer.slice(0, match.index + 1).trim(), rest: buffer.slice(match.index + 1).trimStart()};
+/** Extract whole-word phrases in order, keeping every character of the answer.
+ * Phrases are short enough for the offline Amir engine, even if the model
+ * streams a very long sentence with no punctuation.
+ */
+export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:string;rest:string}|null{
+  if(!buffer.trim())return null;
+  const min=first?14:30;
+  const target=first?28:100;
+  const max=first?76:150;
+  const pause=/[.!?؟،؛:\n]/g;
+  let match:RegExpExecArray|null;
+  while((match=pause.exec(buffer))){
+    const end=match.index+1;
+    if(end>=min && end<=max){
+      return {phrase:buffer.slice(0,end).trim(),rest:buffer.slice(end).trimStart()};
     }
+    if(end>max)break;
   }
-  if (buffer.length < target) return null;
-  const max = Math.min(buffer.length, first ? 72 : 150);
-  let index = buffer.lastIndexOf(' ', max);
-  if (index < min) return null;
+  if(buffer.length<target)return null;
+  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,max));
+  if(index<min)return null;
   return {phrase:buffer.slice(0,index).trim(),rest:buffer.slice(index).trimStart()};
 }
