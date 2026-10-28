@@ -30,6 +30,14 @@ jobs:
       - run: npm ci
       - name: Install pinned FORZA browser voice dependencies
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
+      - name: Stage the same WASM files as the production Dockerfile
+        run: |
+          mkdir -p public/forza-runtime/ort public/forza-runtime/piper public/forza-runtime/stt
+          cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
+          cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.data public/forza-runtime/piper/
+          cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.wasm public/forza-runtime/piper/
+          cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
+          file public/forza-runtime/ort/ort-wasm-simd.wasm
       - run: npm run build
       - run: npm install --no-save --ignore-scripts playwright@1.56.1
       - run: npx playwright install --with-deps chromium
