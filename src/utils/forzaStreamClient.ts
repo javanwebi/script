@@ -25,7 +25,17 @@ export async function consumeForzaTextStream(
       fullText += msg.chunk;
       onChunk(msg.chunk, fullText);
     } else if (msg.type === 'done' && typeof msg.fullText === 'string') {
-      fullText = msg.fullText;
+      // A provider/proxy can deliver its final fullText without having sent
+      // every delta frame. Feed any missing suffix to both subtitles and TTS.
+      const finalText=msg.fullText;
+      if(finalText.startsWith(fullText) && finalText.length>fullText.length){
+        const remaining=finalText.slice(fullText.length);
+        fullText=finalText;
+        onChunk(remaining,fullText);
+      } else if(!fullText){
+        fullText=finalText;
+        if(fullText)onChunk(fullText,fullText);
+      }
     }
   };
   try {
