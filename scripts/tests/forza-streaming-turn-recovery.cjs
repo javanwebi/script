@@ -22,6 +22,7 @@ function silentWav(){
  try{
   const page=await browser.newPage();
   const errors=[],synthRequests=[],sseRequests=[];
+  const fullAnswer='برای بررسی تسمه مورد نظر، ابتدا کد فنی آن را اعلام کنید. سپس می‌توانیم ابعاد، جنس و استاندارد تسمه را با اطلاعات کاتالوگ صنعت پیش مقایسه کنیم. در صورت نامشخص بودن کد، تصویر واضحی از قطعه بفرستید.';
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/assets/piper-tts-web-*.js',route=>route.fulfill({
    status:200,contentType:'text/javascript',
@@ -39,7 +40,7 @@ function silentWav(){
   });
   await page.route('**/api/ai/consult-stream',async route=>{
    sseRequests.push(route.request().postDataJSON().query);
-   const text='اطلاعات تسمه در کاتالوگ صنعت پیش قابل بررسی است.';
+   const text=fullAnswer;
    const frame=msg=>'data: '+JSON.stringify(msg)+'\n\n';
    await route.fulfill({status:200,contentType:'text/event-stream',
      headers:{'cache-control':'no-cache'},
@@ -60,14 +61,18 @@ function silentWav(){
     },{timeout:12000});
     await page.getByTitle('ارسال به هوش مصنوعی').click();
     await requested;
-    await page.waitForFunction(()=>window.document.body.innerText.includes('اطلاعات تسمه در کاتالوگ')&&
+    await page.waitForFunction(()=>window.document.body.innerText.includes('در صورت نامشخص بودن کد')&&
       window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
       null,{timeout:16000});
     // Ensure the next turn has actually been submitted.
     assert.equal(sseRequests.at(-1),prompt);
   }
   assert.equal(sseRequests.length,2);
-  assert.ok(synthRequests.length>=2,'same-origin Amir speech should be requested while browser Piper is pending');
+  assert.ok(synthRequests.length>=6,'long replies must generate multiple same-origin Amir segments');
+  const firstTurn=synthRequests.slice(0,synthRequests.length/2);
+  const secondTurn=synthRequests.slice(synthRequests.length/2);
+  assert.equal(firstTurn.join(' '),fullAnswer,'Amir must receive every word of the first reply');
+  assert.equal(secondTurn.join(' '),fullAnswer,'Amir must receive every word of the second reply');
   assert.equal(errors.length,0,errors.join('; '));
   console.log('PASS: consecutive streaming turns recover in <=16s with same-voice Piper Amir and no processing lock');
  }finally{await browser.close();}
