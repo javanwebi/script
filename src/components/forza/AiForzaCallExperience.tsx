@@ -864,6 +864,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'user',text:resolvedUserQuery});
         }
         let reply = '';
+        let firstTextDelivered = false;
         let speechBuffer = '';
         let phraseCount = 0;
         let spokenCount = 0;
@@ -899,12 +900,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           });
         };
         const onTextChunk = (chunk: string, fullText: string) => {
-          const isFirstText = !reply;
           reply = fullText;
-          if (isFirstText) {
+          // This must not depend on 'reply' being empty: the compatibility
+          // fallback sets reply before calling onTextChunk, otherwise the UI
+          // stays in "receiving response" for the entire TTS playback.
+          if (!firstTextDelivered && fullText.trim()) {
+            firstTextDelivered = true;
             console.info('[FORZA_LATENCY] phase=first-text clientMs=' + Math.round(performance.now() - turnStartedAt));
-            // The AI has answered; do not keep showing "receiving response"
-            // just because spoken output is not ready yet.
             setVoicePending(true);
           }
           // Render the words first; audio generation is independent of text.
