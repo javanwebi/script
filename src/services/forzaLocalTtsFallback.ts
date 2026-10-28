@@ -21,6 +21,14 @@ export function synthesizeLocalPersianFallback(text: string, timeoutMs = 3500): 
       return;
     }
 
+    const stdout = child.stdout;
+    const stdin = child.stdin;
+    if (!stdout || !stdin) {
+      child.kill('SIGKILL');
+      reject(new Error('local_tts_pipe_unavailable'));
+      return;
+    }
+
     const chunks: Buffer[] = [];
     let byteLength = 0;
     let settled = false;
@@ -37,7 +45,7 @@ export function synthesizeLocalPersianFallback(text: string, timeoutMs = 3500): 
       finish(new Error('local_tts_timeout'));
     }, Math.max(250, timeoutMs));
 
-    child.stdout.on('data', (chunk: Buffer) => {
+    stdout.on('data', (chunk: Buffer) => {
       byteLength += chunk.length;
       if (byteLength > MAX_AUDIO_BYTES) {
         child.kill('SIGKILL');
@@ -61,7 +69,7 @@ export function synthesizeLocalPersianFallback(text: string, timeoutMs = 3500): 
       }
       finish(undefined, audio);
     });
-    child.stdin.once('error', () => {});
-    child.stdin.end(phrase);
+    stdin.once('error', () => {});
+    stdin.end(phrase);
   });
 }
