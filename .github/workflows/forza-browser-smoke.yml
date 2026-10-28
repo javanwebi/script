@@ -7,6 +7,9 @@ on:
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaBootPolicy.ts'
       - 'src/utils/forzaBrowserSpeech.ts'
+      - 'src/utils/forzaLocalSpeech.ts'
+      - 'scripts/tests/forza-amir-real-browser.cjs'
+      - 'scripts/tests/forza-browser-voice-mock.cjs'
       - 'src/main.tsx'
       - 'scripts/tests/forza-audio-chunks.cjs'
       - 'scripts/tests/forza-voice-outage.cjs'
@@ -25,6 +28,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install pinned FORZA browser voice dependencies
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - run: npm run build
       - run: npm install --no-save --ignore-scripts playwright@1.56.1
       - run: npx playwright install --with-deps chromium
@@ -38,3 +43,6 @@ jobs:
           exit 1
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
+      - name: Actual Persian Amir voice synthesis in Chromium
+        run: node scripts/tests/forza-amir-real-browser.cjs
+        timeout-minutes: 7
