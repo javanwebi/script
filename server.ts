@@ -45,6 +45,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
+import { synthesizeServerAmir } from './src/services/forzaAmirServerSpeech';
 
 dotenv.config();
 // Example configuration is documentation only; never load placeholder defaults into runtime.
@@ -5394,6 +5395,38 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
   }
 }
 
+
+// Short, rate-limited, SAME-VOICE Piper Amir fallback while a customer's
+// browser is loading the first 63 MB local model. No paid/cloud TTS is used.
+const amirTtsBudget=new Map<string,{count:number;until:number}>();
+app.post('/api/ai/amir-speech',async(req,res)=>{
+  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'amir_invalid_text'});
+  const key=String(req.ip||req.socket.remoteAddress||'unknown');
+  const now=Date.now();
+  let budget=amirTtsBudget.get(key);
+  if(!budget || now>=budget.until){
+    budget={count:0,until:now+60_000};amirTtsBudget.set(key,budget);
+  }
+  if(budget.count>=24)return res.status(429).json({error:'amir_rate_limited'});
+  budget.count++;
+  if(amirTtsBudget.size>500)for(const [ip,item] of amirTtsBudget){
+    if(item.until<now)amirTtsBudget.delete(ip);
+  }
+  const started=Date.now();
+  try{
+    const wav=await synthesizeServerAmir(phrase);
+    if(res.headersSent)return;
+    res.setHeader('Content-Type','audio/wav');
+    res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Forza-Voice','piper-amir');
+    console.info('[FORZA_LATENCY] phase=amir-server-tts ms='+ (Date.now()-started));
+    return res.send(wav);
+  }catch(error:any){
+    console.warn('[FORZA Amir Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
+    if(!res.headersSent)return res.status(503).json({error:'amir_server_unavailable'});
+  }
+});
 
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
 // Avoid repeatedly choosing a temporarily overloaded model for every voice turn.
