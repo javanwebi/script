@@ -44,9 +44,9 @@ function ensureWorker():Promise<void>{
     // Keep the model resident while the HTTP server is alive, but do not
     // prevent a standalone CLI/test process from exiting after its last job.
     instance.unref();
-    instance.stdin.unref();
-    instance.stdout.unref();
-    instance.stderr.unref();
+    for (const pipe of [instance.stdin, instance.stdout, instance.stderr]) {
+      (pipe as unknown as { unref?: () => void }).unref?.();
+    }
     let ready=false;
     let output='';
     let errorOutput='';
