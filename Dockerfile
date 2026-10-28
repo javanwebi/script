@@ -3,6 +3,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 COPY . .
+# Install offline Persian speech for instant greeting and runtime TTS fallback.
+# Piper Amir remains primary; espeak-ng is used only when the local model is unavailable.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends espeak-ng \
+ && node scripts/generate-forza-greeting.mjs \
+ && rm -rf /var/lib/apt/lists/*
 # Install pinned browser runtimes at build time (none execute on Railway).
 RUN npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
  @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 \

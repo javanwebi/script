@@ -20,6 +20,7 @@ import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
 import { loadDibaSttModel, synthesizeAmir, subscribeAmirStatus, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { waitForPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
+import { prepareAmirSpeechText } from '../../utils/forzaPersianVoiceQuality';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
@@ -98,6 +99,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micMutedRef = useRef(false);
   const speechInterimRef = useRef(false);
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
+  const fallbackAudioUrlsRef = useRef<string[]>([]);
+  const fallbackVoiceNoticeRef = useRef(false);
   const recognitionFailedRef = useRef(false);
   const vadRef = useRef(new ForzaVoiceActivity());
   const micContextWarningRef = useRef(false);
@@ -166,6 +169,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const setStatus = useCallback((s: ForzaStatus) => {
     statusRef.current = s;
     setStatusState(s);
+  }, []);
+
+  // Download the small offline greeting while the particles form, not after.
+  useEffect(() => {
+    const audio = new Audio('/forza-greeting-bootstrap.wav');
+    audio.preload = 'auto';
+    audioElRef.current = audio;
+    audio.load();
+    return () => {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      if (audioElRef.current === audio) audioElRef.current = null;
+      for (const url of fallbackAudioUrlsRef.current) URL.revokeObjectURL(url);
+      fallbackAudioUrlsRef.current = [];
+    };
   }, []);
 
   // Diba runs in the visitor's browser; no Railway inference.
@@ -626,6 +645,31 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }, [setStatus]);
 
+  const playServerFallbackSpeech = useCallback(async (phrase: string): Promise<void> => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 4200);
+    try {
+      const response = await fetch('/api/ai/tts-local-fallback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: prepareAmirSpeechText(phrase) }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error('local_tts_http_' + response.status);
+      const blob = await response.blob();
+      if (blob.size < 44) throw new Error('local_tts_empty_audio');
+      const audioUrl = URL.createObjectURL(blob);
+      fallbackAudioUrlsRef.current.push(audioUrl);
+      while (fallbackAudioUrlsRef.current.length > 24) {
+        URL.revokeObjectURL(fallbackAudioUrlsRef.current.shift()!);
+      }
+      lastPlayableVoiceRef.current = { text: phrase, audioUrl };
+      await playDataUrl(audioUrl);
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }, [playDataUrl]);
+
   const playSpeechPhrase = useCallback(async (
     phrase: string,
     request: Promise<ForzaSpeechResponse>,
@@ -635,10 +679,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const speech = await Promise.race([
         request,
         new Promise<ForzaSpeechResponse>((_, reject) => {
-          // Never block a spoken turn for tens of seconds on local model setup.
+          // Keep the user's turn moving even if the model download is slow.
           timeoutId = window.setTimeout(
             () => reject(new Error('amir_loading_timeout')),
-            amirStatus === 'ready' ? 5500 : 1800,
+            amirStatus === 'ready' ? 2200 : 650,
           );
         }),
       ]);
@@ -647,25 +691,43 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       await playDataUrl(speech.audioBase64);
     } catch (error: any) {
       if (error?.message === 'autoplay_permission_required') throw error;
-      console.warn('[FORZA Amir] Falling back after failed speech', error?.message || 'audio_error');
-      setVoiceOutputError('صدای محلی امیر آماده نشد؛ صدای فارسی مرورگر به‌عنوان جایگزین استفاده می‌شود.');
-      await speakEmergencyPersian(phrase);
+      console.warn('[FORZA Amir] Local synthesis/playback failed', error?.message || 'audio_error');
+      try {
+        if (!fallbackVoiceNoticeRef.current) {
+          fallbackVoiceNoticeRef.current = true;
+          setVoiceOutputError('مدل امیر هنوز آماده نیست؛ صدای فارسی پشتیبان موقتاً فعال است.');
+        }
+        await playServerFallbackSpeech(phrase);
+        return;
+      } catch (fallbackError: any) {
+        if (fallbackError?.message === 'autoplay_permission_required') throw fallbackError;
+        console.warn('[FORZA TTS fallback] Offline voice failed', fallbackError?.message || 'audio_error');
+      }
+      try {
+        await speakEmergencyPersian(phrase);
+      } catch (browserError: any) {
+        console.warn('[FORZA TTS fallback] Browser Persian voice unavailable', browserError?.message || 'voice_unavailable');
+        throw browserError;
+      }
     } finally {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     }
-  }, [playDataUrl, speakEmergencyPersian, amirStatus]);
+  }, [playDataUrl, playServerFallbackSpeech, speakEmergencyPersian, amirStatus]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
     setVoiceOutputError(null);
-    setStatus('thinking');
+    const isGreeting = text === GREETING_TEXT;
+    if (isGreeting) fallbackVoiceNoticeRef.current = false;
+    setStatus(isGreeting ? 'idle' : 'thinking');
     setTurn('ai');
 
-    if (text === GREETING_TEXT) {
-      // The greeting audio is preloaded while particles form. If Amir is not
-      // ready at 100%, speak immediately with a real Persian browser voice
-      // while the local Piper request continues in the background.
+    if (isGreeting) {
+      // Start Amir synthesis during the particle animation. Never await that
+      // model indefinitely after the avatar is formed.
       const greetingRequest = requestSpeechAudio(GREETING_TEXT);
+      void greetingRequest.catch(error =>
+        console.warn('[FORZA Amir] Greeting preload failed', error?.message || 'unavailable'));
       const fastResult = await Promise.race([
         greetingRequest
           .then(speech => ({ kind: 'ready' as const, speech }))
@@ -674,22 +736,58 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           window.setTimeout(() => resolve({ kind: 'pending' }), 220)),
       ]);
       if (fastResult.kind === 'ready') {
-        await playSpeechPhrase(GREETING_TEXT, Promise.resolve(fastResult.speech));
-        return;
+        try {
+          await playSpeechPhrase(GREETING_TEXT, Promise.resolve(fastResult.speech));
+          return;
+        } catch (error: any) {
+          if (error?.message === 'autoplay_permission_required') throw error;
+          console.warn('[FORZA greeting] Amir playback failed; switching to offline greeting', error?.message || 'audio_error');
+        }
       }
+
+      // This small WAV is generated locally at image build time. It is served
+      // by the same origin, so the greeting does not depend on HuggingFace,
+      // Piper model downloads, Gemini quota, or a browser-installed fa voice.
+      const bootstrapUrl = '/forza-greeting-bootstrap.wav';
+      try {
+        lastPlayableVoiceRef.current = { text: GREETING_TEXT, audioUrl: bootstrapUrl };
+        await playDataUrl(bootstrapUrl);
+        console.info('[FORZA greeting] Offline bootstrap greeting played');
+        return;
+      } catch (error: any) {
+        if (error?.message === 'autoplay_permission_required') throw error;
+        console.warn('[FORZA greeting] Offline WAV unavailable; trying local Persian server voice', error?.message || 'audio_error');
+      }
+
+      try {
+        await playServerFallbackSpeech(GREETING_TEXT);
+        return;
+      } catch (error: any) {
+        if (error?.message === 'autoplay_permission_required') throw error;
+        console.warn('[FORZA greeting] Offline server TTS unavailable', error?.message || 'audio_error');
+      }
+
       try {
         await speakEmergencyPersian(GREETING_TEXT);
         return;
       } catch (error: any) {
-        console.info('[FORZA greeting] Fast Persian voice unavailable; giving Piper a short final window', error?.message || 'voice_unavailable');
+        console.warn('[FORZA greeting] Browser Persian voice unavailable', error?.message || 'voice_unavailable');
       }
-      // If this browser has no installed Persian speech voice, let the
-      // already-running local Amir synthesis finish instead of failing after
-      // an arbitrary short timer. Piper has its own bounded initialization
-      // and inference timeouts, and the user still sees the preparing state.
-      const speech = await greetingRequest;
-      await playSpeechPhrase(GREETING_TEXT, Promise.resolve(speech));
-      return;
+
+      // A final short wait is bounded. A failed model can never leave the UI
+      // stuck in "processing" forever.
+      const lateResult = await Promise.race([
+        greetingRequest
+          .then(speech => ({ kind: 'ready' as const, speech }))
+          .catch(() => ({ kind: 'failed' as const })),
+        new Promise<{ kind: 'pending' }>(resolve =>
+          window.setTimeout(() => resolve({ kind: 'pending' }), 900)),
+      ]);
+      if (lateResult.kind === 'ready') {
+        await playSpeechPhrase(GREETING_TEXT, Promise.resolve(lateResult.speech));
+        return;
+      }
+      throw new Error('greeting_audio_not_ready');
     }
 
     const chunks = forzaFastStartSpeechChunks(text);
@@ -702,7 +800,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       pendingSpeech = chunks[index + 1] ? requestSpeechAudio(chunks[index + 1]) : undefined;
       await playSpeechPhrase(chunk, currentSpeech);
     }
-  }, [playSpeechPhrase, requestSpeechAudio, setStatus, stopListening, speakEmergencyPersian]);
+  }, [playSpeechPhrase, playServerFallbackSpeech, requestSpeechAudio, setStatus, stopListening, speakEmergencyPersian]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -1410,9 +1508,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
+              : status === 'speaking'
+              ? 'AI FORZA در حال صحبت...'
+              : greetingPhase === 'preparing'
+              ? 'در حال شروع خوشامدگویی فورزا...'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
-              : 'AI FORZA در حال صحبت...'}
+              : 'AI FORZA آماده می‌شود...'}
           </span>
           <span
             className={`w-2 h-2 rounded-full ${

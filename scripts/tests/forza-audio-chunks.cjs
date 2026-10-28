@@ -15,7 +15,7 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
   ]});
   try {
     const page=await browser.newPage();
-    const greeting='سلام، به صنعت پیش خوش آمدید. من فورزا هستم و برای راهنمایی شما آماده‌ام.';
+    const greeting='سَلام، بِه صَنعَت پیش خُوش آمَدید. مَن فورزا هَستَم وَ بَرایِ رَهنَمایی شُما آمادِه‌اَم.';
     const fullAnswer='سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است. لطفاً کد فنی را بفرمایید.';
     let streamCalls=0;
     await page.addInitScript(()=>{
