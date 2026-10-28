@@ -1,8 +1,8 @@
 /** Extract only whole-word, ready-to-speak phrases from live Persian text. */
 export function takeSpeakablePhrase(buffer: string, first: boolean): { phrase: string; rest: string } | null {
   if (!buffer.trim()) return null;
-  const min = first ? 10 : 24;
-  const target = first ? 28 : 100;
+  const min = first ? 16 : 36;
+  const target = first ? 48 : 135;
   // Natural pause marks avoid chopping a Persian technical term in half.
   const boundary = /[.!?؟،؛:\n]/g;
   let match: RegExpExecArray | null;
@@ -12,7 +12,7 @@ export function takeSpeakablePhrase(buffer: string, first: boolean): { phrase: s
     }
   }
   if (buffer.length < target) return null;
-  const max = Math.min(buffer.length, first ? 46 : 180);
+  const max = Math.min(buffer.length, first ? 92 : 185);
   let index = buffer.lastIndexOf(' ', max);
   if (index < min) return null;
   return {phrase:buffer.slice(0,index).trim(),rest:buffer.slice(index).trimStart()};
