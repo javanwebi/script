@@ -1,6 +1,7 @@
 // Browser control-flow smoke only. Uses fake microphones and mocked WAV audio.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
+const {mockLocalVoice}=require('./forza-browser-voice-mock.cjs');
 const wave=Buffer.alloc(44+9600);
 wave.write('RIFF');wave.writeUInt32LE(wave.length-8,4);wave.write('WAVEfmt ',8);
 wave.writeUInt32LE(16,16);wave.writeUInt16LE(1,20);wave.writeUInt16LE(1,22);
@@ -14,7 +15,6 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
   ]});
   try {
     const page=await browser.newPage();
-    const ttsTexts=[];
     const greeting='سلام، به صنعت پیش خوش آمدید. من فورزا هستم و برای راهنمایی شما آماده‌ام.';
     const fullAnswer='سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است. لطفاً کد فنی را بفرمایید.';
     let streamCalls=0;
@@ -26,10 +26,7 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
         return original(...args);
       };
     });
-    await page.route('**/api/ai/tts',async route=>{
-      ttsTexts.push(route.request().postDataJSON().text);
-      await route.fulfill({json:{success:true,audioBase64:'data:audio/wav;base64,'+wave.toString('base64')}});
-    });
+    await mockLocalVoice(page,wave);
     await page.route('**/api/ai/consult-stream',async route=>{
       streamCalls++;
       const request=route.request().postDataJSON();
@@ -52,7 +49,8 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction(()=>window.__micRequested===true,{},{timeout:15000});
     await page.waitForFunction((expected)=>window.__ttsSent===true || !!document.querySelector('.forza-stage'),{},{timeout:15000});
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:80000});
-    assert.equal(ttsTexts[0],greeting);
+    const greetingSpoken=await page.evaluate(()=>window.__forzaAmirSpoken);
+    assert.equal(greetingSpoken[0],greeting);
     await page.getByRole('button',{name:'تایپ پیام متنی',exact:true}).click();
     await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه');
     const send=page.getByRole('button',{name:'ارسال به هوش مصنوعی',exact:true});
@@ -60,7 +58,8 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction(()=>document.body.innerText.includes('لطفاً کد فنی'),{},{timeout:20000});
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
     assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
-    assert.ok(ttsTexts.length>1,'must synthesize response through independent TTS');
+    const ttsTexts=await page.evaluate(()=>window.__forzaAmirSpoken);
+    assert.ok(ttsTexts.length>1,'must synthesize speech locally with Amir');
     assert.ok(ttsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
     console.log('PASS: automatic mic acquisition; no retry/unlock buttons; greeting and streamed reply TTS (mock audio).');
   } finally {await browser.close();}
