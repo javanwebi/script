@@ -43,6 +43,7 @@ import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaA
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
+import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 
 dotenv.config();
@@ -4576,6 +4577,68 @@ app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
 // stage: 'quick'   = image-only instant identification (step 1)
 //        'refined' = image + dimensions + application (steps 2-3)
 app.post('/api/ai/analyze-part', async (req, res) => {
+  if(process.env.PART_RECOGNITION_MODE==='read-only-agent' && (req.body?.imageUrl || req.body?.imageBase64)){
+    try{
+      const body={...req.body};
+      const jobId=recognitionJobs.start(async progress=>{
+        if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
+        const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
+        const customerUrl=uploaded.imageUrl.startsWith('https://') ? uploaded.imageUrl
+          : await createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req))(uploaded.buffer,'image/jpeg');
+        if(!databaseEnabled())throw new Error('Catalog database unavailable');
+        refreshRecognitionCatalog();
+        const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+        const apiKey=getGeminiKey();
+        if(!apiKey)throw new Error('Vision API key not configured');
+        progress({stage:'preparing',total:images.length,compared:0,failed:0});
+        const model=process.env.FORZA_VISION_AGENT_MODEL?.trim() || 'gemini-flash-latest';
+        const result=await runReadOnlyVisionCatalogAgent({
+          client:new GoogleGenAI({apiKey}),model,customerImageUrl:customerUrl,
+          catalogImageOrigin:visionImagePublicOrigin(req),images,
+          products:CATALOG_ITEMS.map(item=>({code:item.code,name:item.name,familyCode:item.familyCode,specs:item.specs,image:item.image})),
+          maxModelCalls:Number(process.env.FORZA_VISION_AGENT_MAX_CALLS||5),deadlineMs:55000
+        });
+        progress({stage:'complete',total:images.length,compared:result.inspectedImages,failed:0});
+        const imagesById=new Map(images.map(image=>[image.id,image]));
+        const photoMatches=result.matches.flatMap(match=>{
+          const row=imagesById.get(match.imageId);if(!row)return [];
+          return [{imageId:row.id,image:row.url,label:row.label,score:match.relation==='similar'?80:60,
+            reason:match.reason,relation:match.relation==='similar'?'very_similar':'related',
+            bindings:row.bindings,familyNames:row.bindings.map(binding=>binding.familyCode)}];
+        });
+        const codes=new Set<string>();const similarCandidates:any[]=[];
+        for(const match of result.matches){
+          const row=imagesById.get(match.imageId);
+          const code=match.code;if(!code||codes.has(code)||!row?.bindings.some(binding=>binding.code===code && binding.verified))continue;
+          const item=CATALOG_ITEMS.find(product=>product.code===code);
+          if(!item)continue;codes.add(code);
+          similarCandidates.push({code:item.code,name:item.name,image:row.url,matchedImageId:row.id,
+            similarityScore:match.relation==='similar'?80:60,matchReason:match.reason,
+            visualVerdict:'very_similar',matchRelation:match.relation==='similar'?'very_similar':'related'});
+        }
+        return publicCatalog({
+          success:true,isAiGenerated:true,stage:body.stage==='quick'?'quick':'refined',model,
+          summary:{
+            whatYouSee:result.summary,detectedPartType:'قطعه صنعتی',partFamilyFarsi:'شناسایی تصویری',
+            detectedProfile:'مدل و ابعاد تنها با تصویر تأیید نمی‌شوند',visualAnalysis:result.summary,
+            confidence:0,exactVisualMatch:false,verifiedCandidateCount:photoMatches.length,
+            catalogAvailability:photoMatches.length
+              ? {status:'similar_in_catalog',statusFarsiTitle:'تصاویر مرتبط کاتالوگ',statusFarsiMessage:'تطبیق تصویری اولیه است؛ قبل از سفارش مشخصات فنی را بررسی کنید.'}
+              : {status:'custom_order_available',statusFarsiTitle:'تطبیق قابل تأیید پیدا نشد',statusFarsiMessage:'این نتیجه به معنای نبودن کالا نیست؛ اطلاعات یا عکس بیشتری لازم است.'}
+          },
+          matchedProducts:[],similarCandidates,rejectedCandidates:[],
+          catalogImageMatches:photoMatches,
+          scanCoverage:{total:images.length,compared:result.inspectedImages,failed:0,complete:result.complete,providerAvailable:true,failedImageIds:[]},
+          retrieval:{mode:'read-only-vision-agent',total:images.length,indexed:0,ready:true,verifiedPool:result.inspectedImages},
+          catalogSearchWarning:result.warning,
+          technicalAdvice:'انطباق دقیق مدل، ابعاد، گام و جنس را قبل از سفارش تأیید کنید.',
+          customerImageUrl:customerUrl,
+          visionAgentMetrics:{modelCalls:result.modelCalls,imagesInspected:result.inspectedImages}
+        });
+      });
+      return res.status(202).json({jobId,status:'queued'});
+    }catch(error){console.warn('[FORZA agent request failed]',(error as Error)?.name||'error');return res.status(429).json({error:{message:'شروع جست‌وجوی تصویری ممکن نشد.'}});}
+  }
   if(req.body?.imageUrl || req.body?.imageBase64){
     try{
       const body={...req.body};
