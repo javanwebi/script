@@ -3,13 +3,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 COPY . .
-# Generate a small offline Persian greeting before Vite copies public assets.
-# espeak-ng is removed in the same layer; only the generated WAV ships in the app.
+# Install offline Persian speech for instant greeting and runtime TTS fallback.
+# Piper Amir remains primary; espeak-ng is used only when the local model is unavailable.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends espeak-ng \
  && node scripts/generate-forza-greeting.mjs \
- && apt-get purge -y espeak-ng \
- && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 # Install pinned browser runtimes at build time (none execute on Railway).
 RUN npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
