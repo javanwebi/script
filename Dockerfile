@@ -11,7 +11,7 @@ RUN apt-get update \
  && /tmp/forza-piper-build/bin/pip install --no-cache-dir piper-tts==1.3.0 \
  && node scripts/download-forza-amir.mjs \
  && node scripts/generate-forza-greeting.mjs \
- && rm -rf /tmp/forza-piper-build /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 # Install pinned browser runtimes at build time (none execute on Railway).
 RUN npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
  @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 \
