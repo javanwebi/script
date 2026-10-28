@@ -54,7 +54,7 @@ const PERSIAN_SPEECH_DIACRITICS: Record<string,string> = {
 };
 
 function addPersianSpeechDiacritics(text: string): string {
-  return text.replace(/[\u0600-\u06FF]+(?:\u200c[\u0600-\u06FF]+)*/gu, word => {
+  return text.replace(/[\u0621-\u064A\u067E-\u06D3]+(?:\u200c[\u0621-\u064A\u067E-\u06D3]+)*/gu, word => {
     const key = word.replace(/\u200c/g, '');
     return PERSIAN_SPEECH_DIACRITICS[key] || word;
   });
