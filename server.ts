@@ -5474,7 +5474,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           ...(lowLatencyVoice ? {
             config: {
               thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? 'low' : 'minimal' },
-              maxOutputTokens: 340,
+              maxOutputTokens: 768,
             },
           } : {}),
         });
