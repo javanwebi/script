@@ -27,7 +27,7 @@ export function forzaFastStartSpeechChunks(text: string): string[] {
   if (!normalized) return [];
   // The first chunk must be short enough to play promptly and later requests
   // must stay within the bounded local TTS server payload.
-  const first = forzaSpeechChunks(normalized, 88)[0];
+  const first = forzaSpeechChunks(normalized, 128)[0];
   if (!first) return [];
   return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 240)];
 }
