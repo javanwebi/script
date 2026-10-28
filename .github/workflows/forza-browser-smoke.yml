@@ -17,6 +17,7 @@ on:
       - 'tests/forzaAmirServerSpeech.test.ts'
       - 'scripts/tests/forza-streaming-turn-recovery.cjs'
       - 'scripts/tests/forza-reply-before-audio.cjs'
+      - 'tests/forzaSseImmediateCompletion.test.ts'
       - 'src/utils/forzaPersianVoiceQuality.ts'
       - 'src/utils/forzaSpeechChunks.ts'
       - 'tests/forzaPersianVoiceQuality.test.ts'
@@ -57,6 +58,8 @@ jobs:
         run: node --import tsx --test tests/forzaAmirServerSpeech.test.ts
       - name: Validate complete Persian streaming and speech chunk integrity
         run: node --import tsx --test tests/forzaCompleteSpeech.test.ts tests/forza-speech-chunks.test.ts
+      - name: Validate immediate SSE completion through slow proxies
+        run: node --import tsx --test tests/forzaSseImmediateCompletion.test.ts
       - name: Install pinned FORZA browser voice dependencies
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Stage the same WASM files as the production Dockerfile
