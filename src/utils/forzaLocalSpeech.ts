@@ -4,7 +4,7 @@
  */
 export const FORZA_AMIR_VOICE_ID='fa_IR-amir-medium';
 export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
-const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.min.js';
+const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
   acceptWaveform(samples:AudioBuffer):void;
