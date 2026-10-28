@@ -1,10 +1,58 @@
-/** Client-side Persian STT & TTS. Browser runtimes are served from this site,
- * preventing an esm.sh/CDN runtime failure from stalling the greeting.
- * Voice weights remain model-provider downloads, cached in origin private storage.
+/** Client-side Persian STT & TTS. Piper Amir weights, config and WASM are all
+ * served by Sanat Pish. Hugging Face is used by the Docker build only.
+ * The customer's browser reuses its origin-private file cache on later visits.
  */
 import { prepareAmirSpeechText, balanceAmirWavVolume } from './forzaPersianVoiceQuality';
 
 export const FORZA_AMIR_VOICE_ID='fa_IR-amir-medium';
+const LOCAL_AMIR_DIR='/forza-models/amir';
+let stagedAmirModel:Promise<void>|undefined;
+
+/** Piper's upstream library looks in OPFS under /piper/<filename> before it
+ * attempts a HuggingFace download. Fill exactly these two files from our own
+ * domain FIRST, so the production client never needs HuggingFace for TTS.
+ */
+async function stageAmirModelFromOrigin():Promise<void>{
+  if(!navigator.storage?.getDirectory)throw new Error('amir_browser_opfs_unavailable');
+  const root=await navigator.storage.getDirectory();
+  const directory=await root.getDirectoryHandle('piper',{create:true});
+  const assets=[
+    {name:'fa_IR-amir-medium.onnx.json',min:1000},
+    {name:'fa_IR-amir-medium.onnx',min:60_000_000},
+  ];
+  for(const asset of assets){
+    const file=await directory.getFileHandle(asset.name,{create:true});
+    const existing=await file.getFile();
+    if(existing.size>=asset.min)continue;
+    const response=await fetch(LOCAL_AMIR_DIR+'/'+asset.name,{cache:'force-cache'});
+    if(!response.ok || !response.body || response.redirected ||
+       response.url && new URL(response.url).origin!==location.origin){
+      throw new Error('amir_local_model_http_'+response.status);
+    }
+    const size=Number(response.headers.get('Content-Length')||0);
+    if(size>0 && size<asset.min)throw new Error('amir_local_model_truncated');
+    const writer=await file.createWritable();
+    try {
+      await response.body.pipeTo(writer);
+    }catch(error){
+      try {await writer.abort();}catch{}
+      throw error;
+    }
+    const received=await file.getFile();
+    if(received.size<asset.min)throw new Error('amir_local_model_incomplete');
+    console.info('[FORZA Amir] same-origin model prepared',asset.name,received.size);
+  }
+}
+
+function prepareOriginAmirModel():Promise<void>{
+  if(!stagedAmirModel){
+    stagedAmirModel=stageAmirModelFromOrigin().catch(error=>{
+      stagedAmirModel=undefined;
+      throw error;
+    });
+  }
+  return stagedAmirModel;
+}
 export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
@@ -85,6 +133,9 @@ async function loadAmir():Promise<PiperSession>{
   if(!runtimePromise){
     setStage('downloading');
     runtimePromise=(async()=>{
+      // Never create TtsSession before our same-origin OPFS files are ready.
+      // This also prevents the library's otherwise implicit external model fetch.
+      await within(prepareOriginAmirModel(),150000,'amir_local_model_timeout');
       const lib=await import('@mintplex-labs/piper-tts-web') as unknown as PiperLibrary;
       const runtime=new lib.TtsSession({
         voiceId:FORZA_AMIR_VOICE_ID,
