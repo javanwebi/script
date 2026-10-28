@@ -647,12 +647,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // First load: the user's 63 MB Amir ONNX is preparing. Server-side
       // Piper has the SAME model warm-installed. Race them; use whichever
       // finishes first without switching voices or introducing an API bill.
-      const serverSpeech=requestQuickAmirSpeech(phrase,controller.signal).then(data=>{
-        serverAudioUrl=data.audioBase64;
-        return data;
-      });
+      const serverSpeech=()=>{
+        return requestQuickAmirSpeech(phrase,controller.signal).then(data=>{
+          serverAudioUrl=data.audioBase64;
+          return data;
+        });
+      };
+      const voiceRequest=amirStatus==='ready'
+        ? request.catch(()=>serverSpeech())
+        : Promise.any([request,serverSpeech()]);
       const speech=await Promise.race([
-        Promise.any([request,serverSpeech]),
+        voiceRequest,
         new Promise<ForzaSpeechResponse>((_,reject)=>{
           timer=window.setTimeout(()=>reject(new Error('amir_tts_timeout')),14500);
         }),
@@ -672,7 +677,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }finally{
       if(timer!==undefined)window.clearTimeout(timer);
     }
-  },[playDataUrl,requestQuickAmirSpeech]);
+  },[playDataUrl,requestQuickAmirSpeech,amirStatus]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
