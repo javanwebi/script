@@ -50,7 +50,7 @@ const {mockLocalVoice}=require('./forza-browser-voice-mock.cjs');
    await page.goto('http://127.0.0.1:4173/ai-forza');
    await page.waitForFunction(()=>window.__micRequests>0,{},{timeout:15000});
    await page.waitForFunction(()=>window.__forzaAmirSpoken.length>0,{},{timeout:20000});
-   assert.ok((await page.evaluate(()=>window.__forzaAmirSpoken[0])).includes('به صنعت پیش خوش آمدید'));
+   assert.ok((await page.evaluate(()=>window.__forzaAmirSpoken[0])).includes('بِه صَنعَت پیش خُوش آمَدید'));
    await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:15000});
    assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
    assert.equal(await page.getByText('برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید').count(),0);
