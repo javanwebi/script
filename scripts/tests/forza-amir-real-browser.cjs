@@ -12,6 +12,15 @@ const assert=require('node:assert/strict');
     page=await browser.newPage();
     const events=[];
     const failure=[];
+    const voiceModelRequests=[];
+    const externalVoiceRequests=[];
+    page.on('request',request=>{
+      const url=request.url();
+      if(url.includes('/forza-models/amir/'))voiceModelRequests.push(url);
+      if(url.includes('piper-voices/resolve/') || url.includes('diffusionstudio/piper-voices')){
+        externalVoiceRequests.push(url);
+      }
+    });
     page.on('pageerror',err=>failure.push('PAGE ERROR: '+err.message));
     page.on('console',msg=>{
       const text=msg.text();
@@ -36,6 +45,8 @@ const assert=require('node:assert/strict');
       },{}, {timeout:210000});
       const playback=await page.evaluate(()=>window.__actualVoicePlayback);
       assert.ok(playback>0,'at least one real browser audio playback');
+      assert.ok(voiceModelRequests.length>=2,'Amir .onnx and .json are downloaded from the Sanat Pish origin');
+      assert.deepEqual(externalVoiceRequests,[],'no external Piper TTS model requests are allowed');
       assert.equal(failure.length,0,'no uncaught browser errors: '+failure.join(';'));
       console.log('REAL AMIR PASS: actual Piper WASM ONNX, complete spoken greeting, listening activated');
       // Validate the actual Vosk/Diba browser model loads after the greeting.
