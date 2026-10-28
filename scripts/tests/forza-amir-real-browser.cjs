@@ -38,8 +38,15 @@ const assert=require('node:assert/strict');
       assert.ok(playback>0,'at least one real browser audio playback');
       assert.equal(failure.length,0,'no uncaught browser errors: '+failure.join(';'));
       console.log('REAL AMIR PASS: actual Piper WASM ONNX, complete spoken greeting, listening activated');
+      // Validate the actual Vosk/Diba browser model loads after the greeting.
+      // This is not just a mocked recognizer: it downloads the 53 MB Farsi model.
+      await page.waitForFunction(
+        ()=>document.body.innerText.includes('تشخیص گفتار: دیبا'),
+        {},{timeout:150000}
+      );
+      console.log('REAL DIBA PASS: Persian STT WASM model loaded and audio bridge active');
     }catch(error){
-      console.error('REAL AMIR FAIL:',error.message);
+      console.error('REAL VOICE PIPELINE FAIL:',error.message);
       console.error('PAGE:',(await page.locator('body').innerText()).slice(-2200));
       console.error('NETWORK / CONSOLE:',events.slice(-60).join('\n'));
       console.error('PAGE ERRORS:',failure.join('\n'));
