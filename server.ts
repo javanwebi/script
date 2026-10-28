@@ -5407,7 +5407,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-  console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=desk endpoint=/api/ai/consult-stream model=gemini-3.8-flash timestamp=${new Date().toISOString()}`);
+  console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=${mode || 'desk'} endpoint=/api/ai/consult-stream timestamp=${new Date().toISOString()}`);
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -5484,7 +5484,8 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       apiKey,
       httpOptions: {
         headers: { 'User-Agent': 'aistudio-build' },
-        timeout: lowLatencyVoice ? 18000 : 35000,
+        // Voice turns should fail over quickly instead of waiting 18s per model.
+        timeout: lowLatencyVoice ? 15000 : 35000,
       },
     });
 
@@ -5540,7 +5541,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           ...(lowLatencyVoice ? {
             config: {
               thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
-              maxOutputTokens: 768,
+              maxOutputTokens: 256,
             },
           } : {}),
         });
