@@ -648,47 +648,42 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const playSpeechPhrase = useCallback(async (
     phrase: string, request: Promise<ForzaSpeechResponse>,
   ): Promise<void> => {
-    let timer: number | undefined;
-    const controller=new AbortController();
     try {
-      // The caller prefetches one Amir WAV per spoken phrase. If it fails,
-      // retry once with the warmed server Piper; never silently skip a phrase.
-      const audio=await Promise.race([
-        request.catch(async()=>requestQuickAmirSpeech(phrase,controller.signal)),
-        new Promise<ForzaSpeechResponse>((_,reject)=>{
-          timer=window.setTimeout(()=>reject(new Error('amir_tts_timeout')),18000);
-        }),
-      ]);
-      if(!audio.audioBase64)throw new Error('amir_voice_unavailable');
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:audio.audioBase64};
-      await playDataUrl(audio.audioBase64);
-      setVoiceOutputError(null);
-    }catch(error:any){
-      controller.abort();
-      if(error?.message!=='autoplay_permission_required'){
-        console.warn('[FORZA Amir] TTS failed; retrying the SAME missing phrase',error?.message||'voice_error');
-        try{
-          const fresh=new AbortController();
-          const timer2=window.setTimeout(()=>fresh.abort(),17000);
-          try {
-            const retry=await requestQuickAmirSpeech(phrase,fresh.signal);
-            if(!retry.audioBase64)throw new Error('amir_retry_empty');
-            lastPlayableVoiceRef.current={text:phrase,audioUrl:retry.audioBase64};
-            await playDataUrl(retry.audioBase64);
-            setVoiceOutputError(null);
-            return;
-          } finally {window.clearTimeout(timer2);}
-        }catch(retryError:any){
-          if(retryError?.message==='autoplay_permission_required')throw retryError;
-          setVoiceOutputError('خواندن تمام پاسخ کامل نشد. متن کامل نمایش داده شده است؛ برای پخش مجدد تلاش کنید.');
+      // The server request is already time-bounded by queuePhrase. If it
+      // fails, use the exact same offline Amir model inside the browser once.
+      // Never submit two sequential 18-second server retries.
+      let speech: ForzaSpeechResponse;
+      try {
+        speech = await request;
+      } catch (serverError: any) {
+        console.warn('[FORZA Amir] warmed server voice unavailable', serverError?.message || 'tts_error');
+        if (amirStatus !== 'ready') {
+          throw new Error('amir_voice_not_ready');
+        }
+        let timer: number | undefined;
+        try {
+          speech = await Promise.race([
+            requestSpeechAudio(phrase),
+            new Promise<ForzaSpeechResponse>((_, reject) => {
+              timer = window.setTimeout(() => reject(new Error('amir_browser_tts_timeout')), 7000);
+            }),
+          ]);
+        } finally {
+          if (timer !== undefined) window.clearTimeout(timer);
         }
       }
+      if (!speech.audioBase64) throw new Error('amir_voice_unavailable');
+      lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
+      await playDataUrl(speech.audioBase64);
+      setVoiceOutputError(null);
+    } catch (error: any) {
+      if (error?.message !== 'autoplay_permission_required') {
+        setVoiceOutputError('پاسخ متنی دریافت شد، اما بخشی از صدای امیر آماده نشد. می‌توانید آن را دوباره پخش کنید.');
+        console.warn('[FORZA Amir] phrase playback failed', error?.message || 'unknown');
+      }
       throw error;
-    }finally{
-      controller.abort();
-      if(timer!==undefined)window.clearTimeout(timer);
     }
-  },[playDataUrl,requestQuickAmirSpeech]);
+  }, [playDataUrl, requestSpeechAudio, amirStatus]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
