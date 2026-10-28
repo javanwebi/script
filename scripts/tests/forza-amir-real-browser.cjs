@@ -45,7 +45,7 @@ const assert=require('node:assert/strict');
         {type:'done',fullText:answer},
       ];
       await route.fulfill({status:200,contentType:'text/event-stream',
-        body:frames.map(x=>'data: '+JSON.stringify(x)+'\\n\\n').join('')});
+        body:frames.map(x=>'data: '+JSON.stringify(x)+'\n\n').join('')});
     });
     await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded'});
     try{
