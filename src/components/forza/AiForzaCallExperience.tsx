@@ -590,7 +590,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       throw new Error('browser_speech_unavailable');
     }
     // Chrome may populate its voice list only after voiceschanged.
-    const voice = await waitForPersianSpeechVoice(synth, 650);
+    const voice = await waitForPersianSpeechVoice<SpeechSynthesisVoice>(synth, 650);
     if (!voice) throw new Error('no_local_persian_voice');
     const utterance = new SpeechSynthesisUtterance(phrase);
     utterance.voice = voice;
