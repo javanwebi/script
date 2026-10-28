@@ -11,6 +11,9 @@ on:
       - 'scripts/download-forza-amir.mjs'
       - 'scripts/generate-forza-greeting.mjs'
       - 'scripts/tests/forza-greeting-fallback.cjs'
+      - 'src/services/forzaAmirServerSpeech.ts'
+      - 'tests/forzaAmirServerSpeech.test.ts'
+      - 'scripts/tests/forza-streaming-turn-recovery.cjs'
       - 'src/utils/forzaPersianVoiceQuality.ts'
       - 'src/utils/forzaSpeechChunks.ts'
       - 'tests/forzaPersianVoiceQuality.test.ts'
@@ -47,6 +50,8 @@ jobs:
         run: |
           node scripts/download-forza-amir.mjs
           node scripts/generate-forza-greeting.mjs
+      - name: Validate first-visit same-voice Amir server TTS
+        run: node --import tsx --test tests/forzaAmirServerSpeech.test.ts
       - name: Install pinned FORZA browser voice dependencies
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Stage the same WASM files as the production Dockerfile
@@ -71,6 +76,7 @@ jobs:
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
       - run: node scripts/tests/forza-greeting-fallback.cjs
+      - run: node scripts/tests/forza-streaming-turn-recovery.cjs
       - name: Actual Persian Amir voice synthesis in Chromium
         run: node scripts/tests/forza-amir-real-browser.cjs
         timeout-minutes: 7
