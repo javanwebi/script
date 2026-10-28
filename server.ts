@@ -5330,8 +5330,13 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 
 
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
+// Avoid repeatedly choosing a temporarily overloaded model for every voice turn.
+// The cooldown is per Node process, does not cache user content, and expires.
+const forzaStreamModelCooldowns=new Map<string,number>();
 app.post('/api/ai/consult-stream', async (req, res) => {
+  const startedAt=Date.now();
   const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
+  const lowLatencyVoice=mode==='forza';
   const catalogContext=consultantCatalogContext(String(query||''));
   const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -5411,10 +5416,13 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   try {
     const ai = new GoogleGenAI({
       apiKey,
-      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      httpOptions: {
+        headers: { 'User-Agent': 'aistudio-build' },
+        timeout: lowLatencyVoice ? 18000 : 35000,
+      },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی، مختصر و دقیق پاسخ بدهید. پاسخ را با جمله‌ای کوتاه شروع کنید تا تبدیل به گفتار سریع آغاز شود. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
+    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
 
 دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
 ۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
@@ -5448,25 +5456,38 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     let phraseIndex = 0;
     const speechPromises: Promise<any>[] = [];
 
-    const streamCandidateModels = [
-      'gemini-3.1-flash-lite',
-      'gemini-3.8-flash',
-      'gemini-flash-latest',
-    ];
+    // Flash-Lite has a minimal-thinking low-latency path. Keep the stronger
+    // model as fallback rather than spending every voice turn on it.
+    const streamCandidateModels = lowLatencyVoice
+      ? ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash']
+      : ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
     let stream: any = null;
     let activeStreamModel = '';
     for (const modelCandidate of streamCandidateModels) {
+      const cooldownUntil=forzaStreamModelCooldowns.get(modelCandidate)||0;
+      if(lowLatencyVoice && cooldownUntil>Date.now())continue;
       try {
         const testStream = await ai.models.generateContentStream({
           model: modelCandidate,
           contents,
+          ...(lowLatencyVoice ? {
+            config: {
+              thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? 'low' : 'minimal' },
+              maxOutputTokens: 340,
+            },
+          } : {}),
         });
         stream = testStream;
         activeStreamModel = modelCandidate;
+        forzaStreamModelCooldowns.delete(modelCandidate);
         break;
       } catch (streamErr: any) {
-        console.warn(`[AI Consult Stream] Model ${modelCandidate} unavailable (${streamErr?.status || streamErr?.message || 'busy'}), trying next model...`);
+        const code=Number(streamErr?.status||streamErr?.code||0);
+        if(lowLatencyVoice && (code===503 || code===429)){
+          forzaStreamModelCooldowns.set(modelCandidate,Date.now()+(code===503?60_000:30_000));
+        }
+        console.warn(`[AI Consult Stream] model=${modelCandidate} status=${code||'unknown'} failedMs=${Date.now()-startedAt}; attempting next`);
       }
     }
 
@@ -5503,10 +5524,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       return res.end();
     }
 
+    let firstTextAt=0;
     for await (const chunk of stream) {
       const chunkText = chunk.text || '';
       if (!chunkText) continue;
-
+      if(!firstTextAt){
+        firstTextAt=Date.now();
+        console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
+      }
       fullAccumulatedText += chunkText;
       speechBuffer += chunkText;
 
@@ -5614,6 +5639,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       };
     }
 
+    if(lowLatencyVoice){
+      console.info(`[FORZA_LATENCY] phase=done model=${activeStreamModel} ttftMs=${firstTextAt?firstTextAt-startedAt:-1} totalMs=${Date.now()-startedAt} chars=${fullAccumulatedText.length}`);
+    }
     sendEvent({
       type: 'done',
       responseId,
