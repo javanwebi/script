@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import type {CatalogImageRecord} from './catalogImageCorpus';
 
-type Part = {text?:string;fileData?:{fileUri:string;mimeType:string};functionCall?:{name:string;args?:Record<string,unknown>};functionResponse?:{name:string;response:Record<string,unknown>}};
+type Part = {text?:string;fileData?:{fileUri:string;mimeType:string};inlineData?:{mimeType:string;data:string};functionCall?:{name:string;args?:Record<string,unknown>};functionResponse?:{name:string;response:Record<string,unknown>}};
 export interface CatalogAgentProduct {code:string;name:string;familyCode?:string;specs?:unknown;image?:string}
 export interface AgentModel {models:{generateContent:(args:any)=>Promise<any>}}
 export interface VisionAgentInput {
