@@ -4594,7 +4594,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         const model=process.env.FORZA_VISION_AGENT_MODEL?.trim() || 'gemini-flash-latest';
         const result=await runReadOnlyVisionCatalogAgent({
           client:new GoogleGenAI({apiKey}),model,customerImageUrl:customerUrl,
+          customerImageBuffer:uploaded.buffer,
           catalogImageOrigin:visionImagePublicOrigin(req),images,
+          loadCatalogImage:async image=>getCatalogImageBuffer(image.url,image.revision),
+          onProgress:state=>progress({stage:state.stage,total:state.total,compared:state.compared,failed:state.failed}),
           products:CATALOG_ITEMS.map(item=>({code:item.code,name:item.name,familyCode:item.familyCode,specs:item.specs,image:item.image})),
           maxModelCalls:Number(process.env.FORZA_VISION_AGENT_MAX_CALLS||5),deadlineMs:55000
         });
