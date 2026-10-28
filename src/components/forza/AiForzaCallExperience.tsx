@@ -683,18 +683,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       } catch (error: any) {
         console.info('[FORZA greeting] Fast Persian voice unavailable; giving Piper a short final window', error?.message || 'voice_unavailable');
       }
-      const lateResult = await Promise.race([
-        greetingRequest
-          .then(speech => ({ kind: 'ready' as const, speech }))
-          .catch(() => ({ kind: 'failed' as const })),
-        new Promise<{ kind: 'pending' }>(resolve =>
-          window.setTimeout(() => resolve({ kind: 'pending' }), 1000)),
-      ]);
-      if (lateResult.kind === 'ready') {
-        await playSpeechPhrase(GREETING_TEXT, Promise.resolve(lateResult.speech));
-        return;
-      }
-      throw new Error('greeting_audio_not_ready');
+      // If this browser has no installed Persian speech voice, let the
+      // already-running local Amir synthesis finish instead of failing after
+      // an arbitrary short timer. Piper has its own bounded initialization
+      // and inference timeouts, and the user still sees the preparing state.
+      const speech = await greetingRequest;
+      await playSpeechPhrase(GREETING_TEXT, Promise.resolve(speech));
+      return;
     }
 
     const chunks = forzaFastStartSpeechChunks(text);
