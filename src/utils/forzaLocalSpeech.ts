@@ -158,7 +158,9 @@ async function loadAmir():Promise<PiperSession>{
 }
 
 export function prepareAmirVoice():Promise<void>{
-  return loadAmir().then(()=>undefined);
+  // The model and WASM are ready for local inference. The greeting is already
+  // a verified Amir WAV built on Railway; it needs no duplicate synthesis.
+  return loadAmir().then(()=>{setStage('ready');});
 }
 
 export function synthesizeAmir(text:string):Promise<Blob>{
