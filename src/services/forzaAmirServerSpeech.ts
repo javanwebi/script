@@ -41,6 +41,12 @@ function ensureWorker():Promise<void>{
       env:{...process.env,PYTHONUNBUFFERED:'1',ONNXRUNTIME_LOG_SEVERITY_LEVEL:'3'},
     });
     child=instance;
+    // Keep the model resident while the HTTP server is alive, but do not
+    // prevent a standalone CLI/test process from exiting after its last job.
+    instance.unref();
+    instance.stdin.unref();
+    instance.stdout.unref();
+    instance.stderr.unref();
     let ready=false;
     let output='';
     let errorOutput='';
