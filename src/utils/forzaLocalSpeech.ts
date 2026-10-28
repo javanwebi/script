@@ -40,6 +40,8 @@ function setStage(stage:VoiceStage){
   for(const callback of subscribers)callback(stage);
 }
 let runtimePromise:Promise<PiperSession>|undefined;
+// Piper's phonemizer is not reentrant. Serialize ALL inference requests.
+let synthesisTail:Promise<void>=Promise.resolve();
 let dibaPromise:Promise<LocalSttModel>|undefined;
 let voskPromise:Promise<void>|undefined;
 const speechCache=new Map<string,Promise<Blob>>();
@@ -90,8 +92,7 @@ async function loadAmir():Promise<PiperSession>{
           piperWasm:'/forza-runtime/piper/piper_phonemize.wasm',
         },
       });
-      await runtime.waitReady;
-      setStage('ready');
+      await within(Promise.resolve(runtime.waitReady),120000,'amir_model_download_timeout');
       return runtime;
     })().catch(error=>{
       console.warn('[FORZA Amir] Model initialization failed',error);
@@ -112,12 +113,27 @@ export function synthesizeAmir(text:string):Promise<Blob>{
   if(!phrase||phrase.length>750)return Promise.reject(new Error('invalid_amir_text'));
   const cached=speechCache.get(phrase);
   if(cached)return cached;
-  const promise=(async()=>{
-    const runtime=await loadAmir();
-    const audio=await within(runtime.predict(phrase),60000,'amir_inference_timeout');
-    if(!(audio instanceof Blob)||audio.size<44)throw new Error('amir_empty_audio');
-    return audio;
-  })().catch(error=>{speechCache.delete(phrase);throw error;});
+  const run=async()=>{
+    const started=performance.now();
+    try{
+      const runtime=await loadAmir();
+      // Avoid concurrent WASM phonemizer runs: its callbacks are global.
+      const audio=await within(runtime.predict(phrase),45000,'amir_inference_timeout');
+      if(!(audio instanceof Blob)||audio.size<44)throw new Error('amir_empty_audio');
+      setStage('ready'); // Model loaded is not proof synthesis works.
+      console.info('[FORZA Amir] WAV generated', {bytes:audio.size,ms:Math.round(performance.now()-started)});
+      return audio;
+    }catch(error){
+      setStage('failed');
+      console.error('[FORZA Amir] Inference error',error);
+      throw error;
+    }
+  };
+  const promise=synthesisTail.catch(()=>undefined).then(run).catch(error=>{
+    speechCache.delete(phrase);
+    throw error;
+  });
+  synthesisTail=promise.then(()=>undefined,()=>undefined);
   speechCache.set(phrase,promise);
   if(speechCache.size>12){
     const first=speechCache.keys().next().value;
