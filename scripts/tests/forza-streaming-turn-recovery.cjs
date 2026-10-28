@@ -54,8 +54,13 @@ function silentWav(){
     const opened=await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').isVisible();
     if(!opened)await page.getByTitle('تایپ پیام متنی').click();
     await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').fill(prompt);
+    const requested=page.waitForRequest(request=>{
+      if(!request.url().includes('/api/ai/consult-stream'))return false;
+      try{return request.postDataJSON().query===prompt;}catch{return false;}
+    },{timeout:12000});
     await page.getByTitle('ارسال به هوش مصنوعی').click();
-    await page.waitForFunction(n=>window.document.body.innerText.includes('اطلاعات تسمه در کاتالوگ')&&
+    await requested;
+    await page.waitForFunction(()=>window.document.body.innerText.includes('اطلاعات تسمه در کاتالوگ')&&
       window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
       null,{timeout:16000});
     // Ensure the next turn has actually been submitted.
