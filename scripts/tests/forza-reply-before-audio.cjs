@@ -32,7 +32,7 @@ function wav(){
    const answer='سلام، درخواست شما دریافت شد. کد تسمه را بفرمایید تا مشخصات فنی آن بررسی شود.';
    const frames=[{type:'start'},{type:'text_chunk',chunk:answer,textSoFar:answer},{type:'done',fullText:answer}];
    return r.fulfill({status:200,contentType:'text/event-stream',
-    body:frames.map(v=>'data: '+JSON.stringify(v)+'\\n\\n').join('')});
+    body:frames.map(v=>'data: '+JSON.stringify(v)+'\n\n').join('')});
   });
   await page.route('**/api/ai/amir-speech',async r=>{
    speechCalls++;
