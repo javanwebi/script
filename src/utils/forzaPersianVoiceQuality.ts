@@ -34,7 +34,7 @@ export function prepareAmirSpeechText(input:string):string {
     .replace(/\r?\n+/g,'، ')
     .replace(/\s+/g,' ')
     .trim();
-  text=text.replace(/\bV[\s-]*belts?\b/gi,'تسمه وی بِلْت');
+  text=text.replace(/(?:تسمه\s+)?\bV[\s-]*belts?\b/gi,'تسمه وی بِلْت');
   text=text.replace(/\b([0-9۰-۹٠-٩]+(?:[.,٫][0-9۰-۹٠-٩]+)?)\s*(mm|cm|rpm|kw|hz)\b/gi,
     (_match,value:string,unit:string)=>value+' '+UNITS[unit.toLowerCase()]);
   text=text.replace(/\b(FORZA|SWR|HTD|SPA|SPB|SPC|SPZ|PK|PJ|PU|PLC|PTFE|SKU|DIN|ISO|SKF|C3)\b/gi,
