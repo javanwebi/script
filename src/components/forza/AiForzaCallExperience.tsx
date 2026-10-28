@@ -648,47 +648,42 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const playSpeechPhrase = useCallback(async (
     phrase: string, request: Promise<ForzaSpeechResponse>,
   ): Promise<void> => {
-    let timer: number | undefined;
-    const controller=new AbortController();
     try {
-      // The caller prefetches one Amir WAV per spoken phrase. If it fails,
-      // retry once with the warmed server Piper; never silently skip a phrase.
-      const audio=await Promise.race([
-        request.catch(async()=>requestQuickAmirSpeech(phrase,controller.signal)),
-        new Promise<ForzaSpeechResponse>((_,reject)=>{
-          timer=window.setTimeout(()=>reject(new Error('amir_tts_timeout')),18000);
-        }),
-      ]);
-      if(!audio.audioBase64)throw new Error('amir_voice_unavailable');
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:audio.audioBase64};
-      await playDataUrl(audio.audioBase64);
-      setVoiceOutputError(null);
-    }catch(error:any){
-      controller.abort();
-      if(error?.message!=='autoplay_permission_required'){
-        console.warn('[FORZA Amir] TTS failed; retrying the SAME missing phrase',error?.message||'voice_error');
-        try{
-          const fresh=new AbortController();
-          const timer2=window.setTimeout(()=>fresh.abort(),17000);
-          try {
-            const retry=await requestQuickAmirSpeech(phrase,fresh.signal);
-            if(!retry.audioBase64)throw new Error('amir_retry_empty');
-            lastPlayableVoiceRef.current={text:phrase,audioUrl:retry.audioBase64};
-            await playDataUrl(retry.audioBase64);
-            setVoiceOutputError(null);
-            return;
-          } finally {window.clearTimeout(timer2);}
-        }catch(retryError:any){
-          if(retryError?.message==='autoplay_permission_required')throw retryError;
-          setVoiceOutputError('خواندن تمام پاسخ کامل نشد. متن کامل نمایش داده شده است؛ برای پخش مجدد تلاش کنید.');
+      // The server request is already time-bounded by queuePhrase. If it
+      // fails, use the exact same offline Amir model inside the browser once.
+      // Never submit two sequential 18-second server retries.
+      let speech: ForzaSpeechResponse;
+      try {
+        speech = await request;
+      } catch (serverError: any) {
+        console.warn('[FORZA Amir] warmed server voice unavailable', serverError?.message || 'tts_error');
+        if (amirStatus !== 'ready') {
+          throw new Error('amir_voice_not_ready');
+        }
+        let timer: number | undefined;
+        try {
+          speech = await Promise.race([
+            requestSpeechAudio(phrase),
+            new Promise<ForzaSpeechResponse>((_, reject) => {
+              timer = window.setTimeout(() => reject(new Error('amir_browser_tts_timeout')), 7000);
+            }),
+          ]);
+        } finally {
+          if (timer !== undefined) window.clearTimeout(timer);
         }
       }
+      if (!speech.audioBase64) throw new Error('amir_voice_unavailable');
+      lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
+      await playDataUrl(speech.audioBase64);
+      setVoiceOutputError(null);
+    } catch (error: any) {
+      if (error?.message !== 'autoplay_permission_required') {
+        setVoiceOutputError('پاسخ متنی دریافت شد، اما بخشی از صدای امیر آماده نشد. می‌توانید آن را دوباره پخش کنید.');
+        console.warn('[FORZA Amir] phrase playback failed', error?.message || 'unknown');
+      }
       throw error;
-    }finally{
-      controller.abort();
-      if(timer!==undefined)window.clearTimeout(timer);
     }
-  },[playDataUrl,requestQuickAmirSpeech]);
+  }, [playDataUrl, requestSpeechAudio, amirStatus]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
@@ -798,6 +793,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // while the customer's recording is being submitted.
       setStatus('thinking');
       setTurn('ai');
+      // Never display the previous answer as if it belonged to this turn.
+      // As soon as the first SSE token arrives, it replaces this empty area.
+      setAiText('');
+      setDisplayedAi('');
       activeTranscriptRef.current = '';
 
       if (q) {
@@ -865,19 +864,31 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'user',text:resolvedUserQuery});
         }
         let reply = '';
+        let firstTextDelivered = false;
         let speechBuffer = '';
         let phraseCount = 0;
         let spokenCount = 0;
         let playbackChain: Promise<void> = Promise.resolve();
+        let synthesisChain: Promise<void> = Promise.resolve();
         const queuePhrase = (phrase: string) => {
           if (!phrase.trim()) return;
           phraseCount++;
+          const phraseIndex = phraseCount;
+          // The server runs a SINGLE Piper neural worker. Do not flood it with
+          // concurrent jobs, which made later fragments time out and hold the UI.
+          // Each next WAV can be generated while the previous one is playing.
           const ttsStartedAt = performance.now();
-          // The server's Amir ONNX is already warm. Prefetch ALL fragments
-          // while Gemini streams; browser WASM is used when locally ready.
-          const speechRequest = amirStatus === 'ready'
-            ? requestSpeechAudio(phrase)
-            : requestQuickAmirSpeech(phrase,new AbortController().signal);
+          const speechRequest = synthesisChain.then(async () => {
+            if (callClosedRef.current) throw new Error('forza_call_closed');
+            const controller = new AbortController();
+            const timer = window.setTimeout(() => controller.abort(), 8500);
+            try {
+              return await requestQuickAmirSpeech(phrase, controller.signal);
+            } finally {
+              window.clearTimeout(timer);
+            }
+          });
+          synthesisChain = speechRequest.then(() => {}, () => {});
           void speechRequest.then(() => {
             console.info('[FORZA_LATENCY] phase=tts-ready ms=' + Math.round(performance.now() - ttsStartedAt) + ' chars=' + phrase.length);
           }).catch(() => {});
@@ -885,17 +896,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if (callClosedRef.current) return;
             await playSpeechPhrase(phrase, speechRequest);
             spokenCount++;
-            console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + spokenCount + '/' + phraseCount);
+            console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + phraseIndex + '/' + phraseCount);
           });
         };
         const onTextChunk = (chunk: string, fullText: string) => {
-          const isFirstText = !reply;
           reply = fullText;
-          if (isFirstText) {
+          // This must not depend on 'reply' being empty: the compatibility
+          // fallback sets reply before calling onTextChunk, otherwise the UI
+          // stays in "receiving response" for the entire TTS playback.
+          if (!firstTextDelivered && fullText.trim()) {
+            firstTextDelivered = true;
             console.info('[FORZA_LATENCY] phase=first-text clientMs=' + Math.round(performance.now() - turnStartedAt));
-            // Gemini already replied; waiting now is for the offline Amir voice.
             setVoicePending(true);
           }
+          // Render the words first; audio generation is independent of text.
           setAiText(fullText);
           speechBuffer += chunk;
           while (true) {
@@ -907,7 +921,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         try {
           const streamController=new AbortController();
-          const streamTimer=window.setTimeout(()=>streamController.abort(),16000);
+          const streamTimer=window.setTimeout(()=>streamController.abort(),8500);
           try{
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
@@ -932,7 +946,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.warn('[FORZA] Stream ended after partial reply; preserving first text');
           } else {
           const fallbackAbort=new AbortController();
-          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(),10000);
+          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(),4500);
           let res:Response;
           let data:any;
           try {
@@ -1465,9 +1479,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
               : status === 'thinking' && voicePending
-              ? 'پاسخ آماده است؛ امیر در حال تولید صدا...'
+              ? 'پاسخ فورزا دریافت شد؛ امیر در حال آماده‌کردن صدا...'
               : status === 'thinking'
-              ? 'AI FORZA در حال دریافت پاسخ...'
+              ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
           </span>
           <span
