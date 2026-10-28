@@ -16,6 +16,7 @@ on:
       - 'tests/forzaCompleteSpeech.test.ts'
       - 'tests/forzaAmirServerSpeech.test.ts'
       - 'scripts/tests/forza-streaming-turn-recovery.cjs'
+      - 'scripts/tests/forza-reply-before-audio.cjs'
       - 'src/utils/forzaPersianVoiceQuality.ts'
       - 'src/utils/forzaSpeechChunks.ts'
       - 'tests/forzaPersianVoiceQuality.test.ts'
@@ -81,6 +82,7 @@ jobs:
       - run: node scripts/tests/forza-voice-outage.cjs
       - run: node scripts/tests/forza-greeting-fallback.cjs
       - run: node scripts/tests/forza-streaming-turn-recovery.cjs
+      - run: node scripts/tests/forza-reply-before-audio.cjs
       - name: Actual Persian Amir voice synthesis in Chromium
         run: node scripts/tests/forza-amir-real-browser.cjs
         timeout-minutes: 7
