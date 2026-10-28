@@ -45,7 +45,6 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
-import { synthesizeLocalPersianFallback } from './src/services/forzaLocalTtsFallback';
 
 dotenv.config();
 // Example configuration is documentation only; never load placeholder defaults into runtime.
@@ -5395,47 +5394,6 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
   }
 }
 
-
-// Offline Persian TTS fallback. Used only when browser-local Piper Amir is not ready.
-const localFallbackTtsRate = new Map<string, { count: number; resetAt: number }>();
-app.post('/api/ai/tts-local-fallback', async (req, res) => {
-  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
-  if (!text || text.length > 240) {
-    return res.status(400).json({ success: false, error: { type: 'invalid_text' } });
-  }
-  const now = Date.now();
-  const key = String(req.ip || req.socket.remoteAddress || 'unknown');
-  let rate = localFallbackTtsRate.get(key);
-  if (!rate || rate.resetAt <= now) {
-    rate = { count: 0, resetAt: now + 60_000 };
-    localFallbackTtsRate.set(key, rate);
-  }
-  if (rate.count >= 30) {
-    return res.status(429).json({ success: false, error: { type: 'rate_limited' } });
-  }
-  rate.count += 1;
-  if (localFallbackTtsRate.size > 2000) {
-    for (const [ip, item] of localFallbackTtsRate) {
-      if (item.resetAt <= now) localFallbackTtsRate.delete(ip);
-    }
-  }
-
-  const startedAt = Date.now();
-  try {
-    const audio = await synthesizeLocalPersianFallback(text, 3500);
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Forza-TTS-Provider', 'offline-persian-fallback');
-    console.info('[FORZA TTS fallback] offline-fa ms=' + (Date.now() - startedAt) + ' bytes=' + audio.length);
-    return res.send(audio);
-  } catch (error: any) {
-    console.warn('[FORZA TTS fallback] unavailable', error?.message || 'local_tts_error');
-    return res.status(503).json({
-      success: false,
-      error: { type: 'local_tts_unavailable', message: 'صدای پشتیبان فارسی در دسترس نیست.' },
-    });
-  }
-});
 
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
 // Avoid repeatedly choosing a temporarily overloaded model for every voice turn.

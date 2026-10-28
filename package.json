@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "optimize:images": "node scripts/optimize-images.mjs",
-    "predev": "node scripts/optimize-images.mjs && node scripts/generate-forza-greeting.mjs",
+    "predev": "node scripts/optimize-images.mjs",
     "dev": "node --import tsx server.ts",
-    "prebuild": "node scripts/optimize-images.mjs && node scripts/generate-forza-greeting.mjs",
+    "prebuild": "node scripts/optimize-images.mjs",
     "build": "vite build",
     "start": "node --import tsx server.ts",
     "preview": "vite preview",
