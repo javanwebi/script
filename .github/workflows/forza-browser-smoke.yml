@@ -8,6 +8,10 @@ on:
       - 'src/utils/forzaBootPolicy.ts'
       - 'src/utils/forzaBrowserSpeech.ts'
       - 'src/utils/forzaLocalSpeech.ts'
+      - 'src/services/forzaLocalTtsFallback.ts'
+      - 'scripts/generate-forza-greeting.mjs'
+      - 'tests/forzaLocalTtsFallback.test.ts'
+      - 'scripts/tests/forza-greeting-fallback.cjs'
       - 'src/utils/forzaPersianVoiceQuality.ts'
       - 'src/utils/forzaSpeechChunks.ts'
       - 'tests/forzaPersianVoiceQuality.test.ts'
@@ -27,6 +31,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Install offline Persian TTS for smoke tests
+        run: sudo apt-get update && sudo apt-get install -y espeak-ng
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -34,6 +40,8 @@ jobs:
       - run: npm ci
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
+      - name: Validate offline Persian speech fallback
+        run: node --import tsx --test tests/forzaLocalTtsFallback.test.ts
       - name: Install pinned FORZA browser voice dependencies
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Stage the same WASM files as the production Dockerfile
@@ -57,6 +65,7 @@ jobs:
           exit 1
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
+      - run: node scripts/tests/forza-greeting-fallback.cjs
       - name: Actual Persian Amir voice synthesis in Chromium
         run: node scripts/tests/forza-amir-real-browser.cjs
         timeout-minutes: 7
