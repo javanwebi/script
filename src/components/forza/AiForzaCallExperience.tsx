@@ -650,42 +650,45 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   ): Promise<void> => {
     let timer: number | undefined;
     const controller=new AbortController();
-    let serverAudioUrl:string|null=null;
     try {
-      // First load: the user's 63 MB Amir ONNX is preparing. Server-side
-      // Piper has the SAME model warm-installed. Race them; use whichever
-      // finishes first without switching voices or introducing an API bill.
-      const serverSpeech=()=>{
-        return requestQuickAmirSpeech(phrase,controller.signal).then(data=>{
-          serverAudioUrl=data.audioBase64 ?? null;
-          return data;
-        });
-      };
-      const voiceRequest=amirStatus==='ready'
-        ? request.catch(()=>serverSpeech())
-        : Promise.any([request,serverSpeech()]);
-      const speech=await Promise.race([
-        voiceRequest,
+      // The caller prefetches one Amir WAV per spoken phrase. If it fails,
+      // retry once with the warmed server Piper; never silently skip a phrase.
+      const audio=await Promise.race([
+        request.catch(async()=>requestQuickAmirSpeech(phrase,controller.signal)),
         new Promise<ForzaSpeechResponse>((_,reject)=>{
-          timer=window.setTimeout(()=>reject(new Error('amir_tts_timeout')),14500);
+          timer=window.setTimeout(()=>reject(new Error('amir_tts_timeout')),18000);
         }),
       ]);
-      if(!speech.audioBase64)throw new Error('amir_voice_unavailable');
-      if(speech.audioBase64!==serverAudioUrl)controller.abort();
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
-      await playDataUrl(speech.audioBase64);
+      if(!audio.audioBase64)throw new Error('amir_voice_unavailable');
+      lastPlayableVoiceRef.current={text:phrase,audioUrl:audio.audioBase64};
+      await playDataUrl(audio.audioBase64);
       setVoiceOutputError(null);
     }catch(error:any){
       controller.abort();
       if(error?.message!=='autoplay_permission_required'){
-        console.warn('[FORZA Amir] TTS playback failed',error?.message||'voice_error');
-        setVoiceOutputError('صدای امیر برای این پاسخ آماده نشد؛ متن پاسخ نمایش داده شده و می‌توانید دوباره پخش کنید.');
+        console.warn('[FORZA Amir] TTS failed; retrying the SAME missing phrase',error?.message||'voice_error');
+        try{
+          const fresh=new AbortController();
+          const timer2=window.setTimeout(()=>fresh.abort(),17000);
+          try {
+            const retry=await requestQuickAmirSpeech(phrase,fresh.signal);
+            if(!retry.audioBase64)throw new Error('amir_retry_empty');
+            lastPlayableVoiceRef.current={text:phrase,audioUrl:retry.audioBase64};
+            await playDataUrl(retry.audioBase64);
+            setVoiceOutputError(null);
+            return;
+          } finally {window.clearTimeout(timer2);}
+        }catch(retryError:any){
+          if(retryError?.message==='autoplay_permission_required')throw retryError;
+          setVoiceOutputError('خواندن تمام پاسخ کامل نشد. متن کامل نمایش داده شده است؛ برای پخش مجدد تلاش کنید.');
+        }
       }
       throw error;
     }finally{
+      controller.abort();
       if(timer!==undefined)window.clearTimeout(timer);
     }
-  },[playDataUrl,requestQuickAmirSpeech,amirStatus]);
+  },[playDataUrl,requestQuickAmirSpeech]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
@@ -864,22 +867,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let reply = '';
         let speechBuffer = '';
         let phraseCount = 0;
+        let spokenCount = 0;
         let playbackChain: Promise<void> = Promise.resolve();
-        let playbackFailure = false;
         const queuePhrase = (phrase: string) => {
           if (!phrase.trim()) return;
           phraseCount++;
           const ttsStartedAt = performance.now();
-          const speechRequest = requestSpeechAudio(phrase);
+          // The server's Amir ONNX is already warm. Prefetch ALL fragments
+          // while Gemini streams; browser WASM is used when locally ready.
+          const speechRequest = amirStatus === 'ready'
+            ? requestSpeechAudio(phrase)
+            : requestQuickAmirSpeech(phrase,new AbortController().signal);
           void speechRequest.then(() => {
             console.info('[FORZA_LATENCY] phase=tts-ready ms=' + Math.round(performance.now() - ttsStartedAt) + ' chars=' + phrase.length);
           }).catch(() => {});
           playbackChain = playbackChain.then(async () => {
             if (callClosedRef.current) return;
             await playSpeechPhrase(phrase, speechRequest);
-          }).catch(error => {
-            playbackFailure = true;
-            console.warn('[FORZA Voice] streaming speech failed',error?.message||'unknown');
+            spokenCount++;
+            console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + spokenCount + '/' + phraseCount);
           });
         };
         const onTextChunk = (chunk: string, fullText: string) => {
@@ -951,11 +957,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           await playbackChain;
-          if (playbackFailure) {
-            setVoiceOutputError('بخشی از صدای امیر روی دستگاه شما تولید یا پخش نشد.');
-          } else {
-            setVoiceOutputError(null);
+          if (!callClosedRef.current && spokenCount !== phraseCount) {
+            throw new Error('amir_incomplete_spoken_reply');
           }
+          console.info('[FORZA_LATENCY] phase=all-phrases-spoken count=' + spokenCount);
+          setVoiceOutputError(null);
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
@@ -971,7 +977,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening, requestSpeechAudio, playSpeechPhrase]
+    [setStatus, startListening, stopListening, requestSpeechAudio, requestQuickAmirSpeech, playSpeechPhrase, amirStatus]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
