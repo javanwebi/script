@@ -649,7 +649,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // finishes first without switching voices or introducing an API bill.
       const serverSpeech=()=>{
         return requestQuickAmirSpeech(phrase,controller.signal).then(data=>{
-          serverAudioUrl=data.audioBase64;
+          serverAudioUrl=data.audioBase64 ?? null;
           return data;
         });
       };
