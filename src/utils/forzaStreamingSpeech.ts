@@ -17,7 +17,7 @@ export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:str
     if(end>max)break;
   }
   if(buffer.length<target)return null;
-  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,max));
+  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,first?40:max));
   if(index<min)return null;
   return {phrase:buffer.slice(0,index).trim(),rest:buffer.slice(index).trimStart()};
 }
