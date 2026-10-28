@@ -2,6 +2,8 @@
  * preventing an esm.sh/CDN runtime failure from stalling the greeting.
  * Voice weights remain model-provider downloads, cached in origin private storage.
  */
+import { prepareAmirSpeechText, balanceAmirWavVolume } from './forzaPersianVoiceQuality';
+
 export const FORZA_AMIR_VOICE_ID='fa_IR-amir-medium';
 export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
@@ -109,7 +111,7 @@ export function prepareAmirVoice():Promise<void>{
 }
 
 export function synthesizeAmir(text:string):Promise<Blob>{
-  const phrase=text.trim();
+  const phrase=prepareAmirSpeechText(text);
   if(!phrase||phrase.length>750)return Promise.reject(new Error('invalid_amir_text'));
   const cached=speechCache.get(phrase);
   if(cached)return cached;
@@ -118,8 +120,9 @@ export function synthesizeAmir(text:string):Promise<Blob>{
     try{
       const runtime=await loadAmir();
       // Avoid concurrent WASM phonemizer runs: its callbacks are global.
-      const audio=await within(runtime.predict(phrase),45000,'amir_inference_timeout');
-      if(!(audio instanceof Blob)||audio.size<44)throw new Error('amir_empty_audio');
+      const raw=await within(runtime.predict(phrase),45000,'amir_inference_timeout');
+      if(!(raw instanceof Blob)||raw.size<44)throw new Error('amir_empty_audio');
+      const audio=await balanceAmirWavVolume(raw);
       setStage('ready'); // Model loaded is not proof synthesis works.
       console.info('[FORZA Amir] WAV generated', {bytes:audio.size,ms:Math.round(performance.now()-started)});
       return audio;

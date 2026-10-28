@@ -8,6 +8,10 @@ on:
       - 'src/utils/forzaBootPolicy.ts'
       - 'src/utils/forzaBrowserSpeech.ts'
       - 'src/utils/forzaLocalSpeech.ts'
+      - 'src/utils/forzaPersianVoiceQuality.ts'
+      - 'src/utils/forzaSpeechChunks.ts'
+      - 'tests/forzaPersianVoiceQuality.test.ts'
+      - 'server.ts'
       - 'scripts/tests/forza-amir-real-browser.cjs'
       - 'scripts/tests/forza-browser-voice-mock.cjs'
       - 'src/main.tsx'
@@ -28,6 +32,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate Persian voice text normalization and WAV leveling
+        run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Install pinned FORZA browser voice dependencies
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Stage the same WASM files as the production Dockerfile
