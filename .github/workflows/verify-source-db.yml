@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - name: Install exact dependencies
         run: npm ci
+      - name: Install pinned FORZA browser voice dependencies
+        run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Check TypeScript
         run: npm run lint
       - name: Database tests (isolated PGlite)
