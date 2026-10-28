@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import type {CatalogImageRecord} from './catalogImageCorpus';
+import {RecognitionServiceError} from './recognitionErrors';
 
 type Part = {text?:string;fileData?:{fileUri:string;mimeType:string};inlineData?:{mimeType:string;data:string};functionCall?:{name:string;args?:Record<string,unknown>};functionResponse?:{name:string;response:Record<string,unknown>}};
 export interface CatalogAgentProduct {code:string;name:string;familyCode?:string;specs?:unknown;image?:string}
@@ -45,11 +46,32 @@ export async function runReadOnlyVisionCatalogAgent(input:VisionAgentInput):Prom
   {inlineData:{mimeType:'image/jpeg',data:(await sharp(input.customerImageBuffer!).rotate().resize(1400,1400,{fit:'inside',withoutEnlargement:true}).jpeg({quality:90}).toBuffer()).toString('base64')}}
  ]}];
  let calls=0,summary='تطبیق تصویری قابل تأیید پیدا نشد.',matches:VisionAgentMatch[]=[];
+ const modelCandidates=[...new Set([input.model,'gemini-2.5-flash','gemini-2.0-flash'].filter(Boolean))];
+ let modelIndex=0;
  while(calls<maxCalls && Date.now()-started<deadline){
-   const response=await input.client.models.generateContent({model:input.model,contents,config:{
-     temperature:0.1,maxOutputTokens:1300,tools:[{functionDeclarations:declarations}]
-   }});
+   const activeModel=modelCandidates[Math.min(modelIndex,modelCandidates.length-1)];
+   const timeoutMs=Math.max(1000,Math.min(12000,deadline-(Date.now()-started)));
+   let timeout:ReturnType<typeof setTimeout>|undefined;
+   let response:any;
    calls++;
+   try{
+     response=await Promise.race([
+       input.client.models.generateContent({model:activeModel,contents,config:{
+         temperature:0.1,maxOutputTokens:1300,tools:[{functionDeclarations:declarations}]
+       }}),
+       new Promise<never>((_,reject)=>{timeout=setTimeout(()=>reject(new Error('VISION_MODEL_TIMEOUT')),timeoutMs);})
+     ]);
+   }catch(error){
+     const err=error as any;
+     const description=String(err?.status||err?.statusCode||err?.message||'');
+     const rateLimited=/429|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(description);
+     if(calls<maxCalls && modelIndex<modelCandidates.length-1 && Date.now()-started<deadline){
+       modelIndex++;
+       console.warn('[FORZA vision agent] provider call failed; trying configured fallback model', {code:rateLimited?'rate_limit':'unavailable',model:activeModel});
+       continue;
+     }
+     throw new RecognitionServiceError(rateLimited?'rate_limit':'unavailable');
+   }finally{if(timeout)clearTimeout(timeout);}
    const responseContent=response?.candidates?.[0]?.content;
    const actions=(response?.functionCalls || responseContent?.parts?.filter((p:any)=>p.functionCall).map((p:any)=>p.functionCall) || []) as Array<{name:string;args?:Record<string,unknown>}>;
    if(!actions.length){
