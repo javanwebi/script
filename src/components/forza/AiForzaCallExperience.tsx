@@ -1508,12 +1508,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
+              : status === 'speaking'
+              ? 'AI FORZA در حال صحبت...'
               : greetingPhase === 'preparing'
               ? 'در حال شروع خوشامدگویی فورزا...'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
-              : status === 'speaking'
-              ? 'AI FORZA در حال صحبت...'
               : 'AI FORZA آماده می‌شود...'}
           </span>
           <span
