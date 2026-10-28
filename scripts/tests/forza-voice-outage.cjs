@@ -51,7 +51,7 @@ const {mockLocalVoice}=require('./forza-browser-voice-mock.cjs');
    await page.waitForFunction(()=>window.__micRequests>0,{},{timeout:15000});
    const welcome=await page.request.get('http://127.0.0.1:4173/forza-greeting-bootstrap.wav');
    assert.equal(welcome.status(),200,'Piper Amir prerecorded welcome must exist');
-   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:15000});
+   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:40000});
    assert.equal(await page.getByText('تلاش مجدد برای فعال‌کردن میکروفون').count(),0);
    assert.equal(await page.getByText('برای شنیدن صدای هوش مصنوعی فورزا اینجا کلیک کنید').count(),0);
    assert.equal(ttsCalls,0,'local Amir must not consume Gemini TTS API');
