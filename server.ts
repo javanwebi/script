@@ -37,7 +37,7 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
-import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, type LiveServerMessage } from '@google/genai';
+import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandling, ThinkingLevel, type LiveServerMessage } from '@google/genai';
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
@@ -5473,7 +5473,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           contents,
           ...(lowLatencyVoice ? {
             config: {
-              thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? 'low' : 'minimal' },
+              thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
               maxOutputTokens: 768,
             },
           } : {}),
