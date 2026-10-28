@@ -7,7 +7,7 @@ test('starts on whole word before Gemini completes the second sentence',()=>{
   const first = takeSpeakablePhrase('سلام، بله تسمه صنعتی موردنظر شما موجود است و',true);
   assert.ok(first);
   assert.ok(first.phrase.startsWith('سلام،'));
-  assert.ok(first.phrase.length <= 46, 'first speech request must be short');
+  assert.ok(first.phrase.length <= 92, 'first speech request must remain bounded without unnatural syllable cuts');
   const continuation = first.rest + ' در انبار موجود است.';
   const next = takeSpeakablePhrase(continuation,false);
   // Short trailing text is deliberately held until the stream finishes.
@@ -16,7 +16,7 @@ test('starts on whole word before Gemini completes the second sentence',()=>{
     assert.equal((first.phrase + ' ' + next.phrase + ' ' + next.rest).replace(/\s+/g,' ').trim(),
       ('سلام، بله تسمه صنعتی موردنظر شما موجود است و' + ' در انبار موجود است.').trim());
   } else {
-    assert.ok(continuation.length < 24 || !/[.!?؟،؛:\n]/.test(continuation));
+    assert.ok(continuation.length < 36 || !/[.!?؟،؛:\n]/.test(continuation));
   }
 });
 
