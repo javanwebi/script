@@ -585,7 +585,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const speech=await Promise.race([
         request,
         new Promise<ForzaSpeechResponse>((_,reject)=>
-          window.setTimeout(()=>reject(new Error('amir_loading_timeout')),14000)),
+          window.setTimeout(()=>reject(new Error('amir_loading_timeout')),amirStatus==='ready'?18000:40000)),
       ]);
       if(!speech.audioBase64)throw new Error('amir_voice_unavailable');
       lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
@@ -596,14 +596,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoiceOutputError('صدای امیر هنوز آماده نیست؛ صدای فارسی مرورگر به‌عنوان جایگزین استفاده می‌شود.');
       await speakEmergencyPersian(phrase);
     }
-  },[playDataUrl,speakEmergencyPersian]);
+  },[playDataUrl,speakEmergencyPersian,amirStatus]);
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
     setVoiceOutputError(null);
     setStatus('thinking');
     setTurn('ai');
-    const chunks = forzaFastStartSpeechChunks(text);
+    // Intro must share exactly one cached speech request; don't overlap prefetch.
+    const chunks = text===GREETING_TEXT ? [GREETING_TEXT] : forzaFastStartSpeechChunks(text);
     // Pipeline TTS generation while preceding phrases are spoken.
     let pendingSpeech: Promise<ForzaSpeechResponse> | undefined =
       chunks.length ? requestSpeechAudio(chunks[0]) : undefined;
@@ -642,6 +643,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // A user gesture permits browser audio, but it never skips the greeting.
   const unlockAudio = useCallback(() => {
     ensureCtx();
+    setVoiceOutputError(null);
+    setGreetingPhase('preparing');
     const url=pendingAudioUrl;
     if(url) {
       setPendingAudioUrl(null);
@@ -655,7 +658,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setTurn('user');
           startListening();
         })
-        .catch(()=>{setGreetingPhase('needs-permission');setAutoplayBlocked(true)});
+        .catch((error:any)=>{
+          console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
+          setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
+          setVoiceOutputError('پخش صدای خوشامدگویی انجام نشد؛ لطفاً مجدداً تلاش کنید.');
+        });
     } else {
       setAutoplayBlocked(false);
       if(!greetingFinishedRef.current) {
@@ -665,7 +672,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setStatus('listening');
           setTurn('user');
           startListening();
-        }).catch(()=>{setGreetingPhase('needs-permission');setAutoplayBlocked(true)});
+        }).catch((error:any)=>{
+          console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
+          setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
+          setVoiceOutputError('پخش صدای خوشامدگویی انجام نشد؛ لطفاً مجدداً تلاش کنید.');
+        });
       }
     }
   },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startListening,speakText]);
@@ -1005,11 +1016,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(!active)return;
       localSttModelRef.current=model;
       attachLocalStt();
+      // Activates a late-arriving local STT even during an active listening turn.
+      if(greetingFinishedRef.current && statusRef.current==='listening' &&
+         !isAiSpeakingRef.current && !isProcessingTurnRef.current){
+        if(startDibaTurn()){
+          try{recognitionRef.current?.stop();}catch{}
+          isRecognitionActiveRef.current=false;
+        }
+      }
     }).catch(error=>{
       if(active){setLocalSttStatus('fallback');console.warn('[FORZA Diba] Existing STT fallback active',error?.message);}
     });
     return ()=>{active=false;};
-  },[attachLocalStt,greetingPhase]);
+  },[attachLocalStt,greetingPhase,startDibaTurn]);
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
@@ -1030,6 +1049,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(!historyRef.current.length)historyRef.current.push({role:'model',text:GREETING_TEXT});
     void speakText(GREETING_TEXT).then(()=>{
       if(!active)return;
+      setVoiceOutputError(null);
       greetingFinishedRef.current=true;
       setGreetingPhase('complete');
       setStatus('listening');setTurn('user');
@@ -1045,14 +1065,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setVoiceOutputError('مرورگر پخش خودکار را محدود کرده است؛ برای ادامه یک بار روی صفحه کلیک کنید.');
         return;
       }
-      // A missing TTS provider must not leave FORZA locked in "thinking".
-      // Keep the existing STT and text consultation usable with a clear warning.
-      setVoiceOutputError('مدل صدای امیر در مرورگر بارگذاری نشد؛ میکروفون و مشاوره متنی همچنان فعال هستند.');
-      greetingFinishedRef.current=true;
-      setGreetingPhase('error');
-      setStatus('listening');
-      setTurn('user');
-      startListening();
+      // Do not listen before a complete audible greeting.
+      greetingFinishedRef.current=false;
+      setGreetingPhase('needs-permission');
+      setStatus('idle');
+      setTurn('ai');
+      setVoiceOutputError('صدای خوشامدگویی امیر پخش نشد. روی «شروع مکالمه» بزنید تا دوباره امتحان شود.');
     });
     return ()=>{
       active=false;
@@ -1294,6 +1312,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
             {turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
+              : greetingPhase === 'needs-permission'
+              ? 'برای شروع باید صدای خوشامدگویی پخش شود'
               : status === 'thinking'
               ? 'AI FORZA در حال پردازش...'
               : 'AI FORZA در حال صحبت...'}
@@ -1325,7 +1345,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </button>
           <button
             type="button"
-            onClick={() => { void replayAiVoice(); }}
+            onClick={() => { if(greetingPhase==='complete')void replayAiVoice(); else unlockAudio(); }}
             disabled={!aiText.trim() || status === 'speaking'}
             className="p-1 rounded-md text-[#dee2e5]/70 hover:text-white hover:bg-white/10 disabled:opacity-40"
             title="خواندن دوباره پاسخ فورزا"
@@ -1377,10 +1397,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </div>
         )}
 
+        {greetingPhase === 'needs-permission' && (
+          <button type="button" onClick={unlockAudio}
+            className="pointer-events-auto self-end rounded-xl border-2 border-orange-400 bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-orange-500"
+            aria-label="شروع مکالمه و پخش خوشامدگویی فورزا">
+            <Volume2 size={17} className="ml-2 inline-block" /> شروع مکالمه و پخش خوشامدگویی
+          </button>
+        )}
         {voiceOutputError && (
           <div role="alert" className="pointer-events-auto self-end max-w-sm rounded-xl border border-orange-400/50 bg-black/90 px-3 py-2 text-xs text-orange-100">
             {voiceOutputError}
-            <button type="button" onClick={() => { void replayAiVoice(); }}
+            <button type="button" onClick={() => { if(greetingPhase==='complete')void replayAiVoice();else unlockAudio(); }}
               className="mt-2 block rounded-md border border-orange-400/50 px-2 py-1 font-bold text-white hover:bg-orange-600/30">
               خواندن دوباره پاسخ
             </button>
