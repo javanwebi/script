@@ -5485,7 +5485,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       httpOptions: {
         headers: { 'User-Agent': 'aistudio-build' },
         // Voice turns should fail over quickly instead of waiting 18s per model.
-        timeout: lowLatencyVoice ? 6500 : 35000,
+        timeout: lowLatencyVoice ? 15000 : 35000,
       },
     });
 
