@@ -18,7 +18,8 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
-import { loadDibaSttModel, synthesizeAmir, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { loadDibaSttModel, synthesizeAmir, subscribeAmirStatus, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { findPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
@@ -111,6 +112,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const localSttSinkRef=useRef<GainNode|null>(null);
   const localSttFinalRef=useRef('');
   const [localSttStatus,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('loading');
+  const [amirStatus,setAmirStatus]=useState<'downloading'|'ready'|'failed'>('downloading');
+  useEffect(()=>subscribeAmirStatus(setAmirStatus),[]);
   const ttsReadyRef = useRef(new Map<string, ForzaSpeechResponse>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
@@ -461,6 +464,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const stopAudio = useCallback(() => {
+    try { window.speechSynthesis?.cancel(); } catch {}
     isAiSpeakingRef.current = false;
     const a = audioElRef.current;
     if (a) {
@@ -551,14 +555,48 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(()=>{void requestSpeechAudio(GREETING_TEXT).catch(error=>
     console.warn('[FORZA Amir] Preload failed',error?.message||'unavailable'));},[requestSpeechAudio]);
 
-  const playSpeechPhrase = useCallback(async (
+  // Never leave the microphone blocked by a model/CDN download.
+  // Amir is primary; a genuinely Persian OS/browser voice is the emergency
+  // fallback and is never labeled "Amir".
+  const speakEmergencyPersian=useCallback((phrase:string):Promise<void>=>new Promise((resolve,reject)=>{
+    const synth=window.speechSynthesis;
+    const voice=synth&&findPersianSpeechVoice(synth.getVoices());
+    if(!voice||typeof SpeechSynthesisUtterance==='undefined'){
+      reject(new Error('no_local_persian_voice'));return;
+    }
+    const utterance=new SpeechSynthesisUtterance(phrase);
+    utterance.voice=voice;utterance.lang='fa-IR';utterance.rate=1.04;
+    let done=false;
+    const finish=(error?:Error)=>{if(done)return;done=true;clearTimeout(timer);
+      isAiSpeakingRef.current=false;
+      if(error)reject(error);else resolve();};
+    const timer=window.setTimeout(()=>{synth.cancel();finish(new Error('browser_speech_timeout'));},
+      Math.max(15000,Math.min(45000,phrase.length*300)));
+    utterance.onstart=()=>{isAiSpeakingRef.current=true;setStatus('speaking');setTurn('ai');};
+    utterance.onerror=()=>finish(new Error('browser_speech_failed'));
+    utterance.onend=()=>finish();
+    try {synth.cancel();synth.speak(utterance);}catch{finish(new Error('browser_speech_failed'));}
+  }),[setStatus]);
+
+  const playSpeechPhrase=useCallback(async(
     phrase:string, request:Promise<ForzaSpeechResponse>
   ):Promise<void>=>{
-    const speech=await request;
-    if(!speech.audioBase64)throw new Error('amir_voice_unavailable');
-    lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
-    await playDataUrl(speech.audioBase64);
-  },[playDataUrl]);
+    try{
+      const speech=await Promise.race([
+        request,
+        new Promise<ForzaSpeechResponse>((_,reject)=>
+          window.setTimeout(()=>reject(new Error('amir_loading_timeout')),14000)),
+      ]);
+      if(!speech.audioBase64)throw new Error('amir_voice_unavailable');
+      lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
+      await playDataUrl(speech.audioBase64);
+    }catch(error:any){
+      if(error?.message==='autoplay_permission_required')throw error;
+      console.warn('[FORZA Amir] Falling back after failed speech',error?.message);
+      setVoiceOutputError('صدای امیر هنوز آماده نیست؛ صدای فارسی مرورگر به‌عنوان جایگزین استفاده می‌شود.');
+      await speakEmergencyPersian(phrase);
+    }
+  },[playDataUrl,speakEmergencyPersian]);
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
@@ -961,6 +999,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
 
   useEffect(()=>{
+    if(greetingPhase!=='complete'&&greetingPhase!=='error')return;
     let active=true;
     void loadDibaSttModel().then(model=>{
       if(!active)return;
@@ -970,7 +1009,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(active){setLocalSttStatus('fallback');console.warn('[FORZA Diba] Existing STT fallback active',error?.message);}
     });
     return ()=>{active=false;};
-  },[attachLocalStt]);
+  },[attachLocalStt,greetingPhase]);
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
@@ -1318,7 +1357,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای خروجی: امیر · تشخیص گفتار: {localSttStatus==='ready'?'دیبا (روی دستگاه)':localSttStatus==='loading'?'در حال بارگذاری دیبا':'حالت پشتیبان'}
+            صدای امیر: {amirStatus==='ready'?'آماده':amirStatus==='failed'?'خطا در بارگذاری':'در حال دانلود مدل'} · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
           </div>
         )}
         {microphoneError && (
