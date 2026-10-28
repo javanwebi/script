@@ -166,6 +166,49 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatusState(s);
   }, []);
 
+  // Diba runs in the visitor's browser; no Railway inference.
+  const attachLocalStt=useCallback(()=>{
+    const ctx=ctxRef.current,source=micSourceNodeRef.current;
+    if(!ctx||!source||!localSttModelRef.current||localSttNodeRef.current)return;
+    try{
+      const node=ctx.createScriptProcessor(4096,1,1),sink=ctx.createGain();
+      sink.gain.value=0;
+      node.onaudioprocess=(event:AudioProcessingEvent)=>{
+        if(statusRef.current!=='listening'||micMutedRef.current||isProcessingTurnRef.current||isAiSpeakingRef.current)return;
+        try{localSttRecognizerRef.current?.acceptWaveform(event.inputBuffer);}
+        catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
+      };
+      source.connect(node);node.connect(sink);sink.connect(ctx.destination);
+      localSttNodeRef.current=node;localSttSinkRef.current=sink;
+      setLocalSttStatus('ready');
+    }catch(error){console.warn('[FORZA Diba] Audio bridge error',error);setLocalSttStatus('fallback');}
+  },[]);
+
+  const startDibaTurn=useCallback(()=>{
+    const model=localSttModelRef.current;
+    if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
+    try{
+      localSttRecognizerRef.current?.remove?.();
+      const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
+      localSttFinalRef.current='';
+      const update=(value:string,isFinal:boolean)=>{
+        if(localSttRecognizerRef.current!==recognizer||isAiSpeakingRef.current||
+           isProcessingTurnRef.current||statusRef.current!=='listening')return;
+        const words=value.trim();
+        if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
+        const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
+        if(!transcript)return;
+        activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
+        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
+      };
+      recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
+      recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
+      recognizer.on('error',()=>setLocalSttStatus('fallback'));
+      localSttRecognizerRef.current=recognizer;
+      return true;
+    }catch(error){console.warn('[FORZA Diba] Recognizer failed',error);setLocalSttStatus('fallback');return false;}
+  },[]);
+
   // Start/Stop voice listening helpers
   const startListening = useCallback(() => {
     if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
@@ -178,9 +221,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     hasSpeechSoundRef.current = false;
     audioChunksRef.current = [];
 
-    // Prefer fast WebSpeech; simultaneously capture actual microphone audio
-    // so the Cloudflare STT route works when Chrome recognition fails.
-    if (!micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
+    const localReady=startDibaTurn();
+    if (!localReady && !micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
       try {
         recognitionRef.current.start();
         isRecognitionActiveRef.current = true;
@@ -205,9 +247,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
-  }, [isCallActive, setStatus]);
+  }, [isCallActive, setStatus, startDibaTurn]);
 
   const stopListening = useCallback(() => {
+    localSttRecognizerRef.current?.remove?.();
+    localSttRecognizerRef.current=null;
     if (recognitionRef.current && isRecognitionActiveRef.current) {
       try {
         recognitionRef.current.stop();
@@ -855,9 +899,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isRecognitionActiveRef.current = false;
         if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
         // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+        if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
           window.setTimeout(() => {
-            if (isCallActive && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+            if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
               try {
                 rec.start();
                 isRecognitionActiveRef.current = true;
@@ -902,6 +946,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         micAnalyserRef.current=analyser;
       }
       if(mediaRecorderRef.current?.state==='recording') mediaRecorderRef.current.stop();
+      localSttNodeRef.current?.disconnect();localSttSinkRef.current?.disconnect();
+      localSttNodeRef.current=null;localSttSinkRef.current=null;
+      attachLocalStt();
       setupMediaRecorder(stream);
       recognitionFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
@@ -911,7 +958,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening]);
+  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
+
+  useEffect(()=>{
+    let active=true;
+    void loadDibaSttModel().then(model=>{
+      if(!active)return;
+      localSttModelRef.current=model;
+      attachLocalStt();
+    }).catch(error=>{
+      if(active){setLocalSttStatus('fallback');console.warn('[FORZA Diba] Existing STT fallback active',error?.message);}
+    });
+    return ()=>{active=false;};
+  },[attachLocalStt]);
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
@@ -964,6 +1023,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       stopListening();
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=null;
+      localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
+      localSttNodeRef.current?.disconnect();localSttSinkRef.current?.disconnect();
+      localSttNodeRef.current=null;localSttSinkRef.current=null;
+      ttsReadyRef.current.forEach(speech=>{
+        if(speech.audioBase64?.startsWith('blob:'))URL.revokeObjectURL(speech.audioBase64);
+      });
+      ttsReadyRef.current.clear();
       stopAudio();
     };
   // A scene starts once. Changing TTS/recognition callbacks must not tear down
@@ -1250,6 +1316,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </button>
         </div>
 
+        {!clean && (
+          <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
+            صدای خروجی: امیر · تشخیص گفتار: {localSttStatus==='ready'?'دیبا (روی دستگاه)':localSttStatus==='loading'?'در حال بارگذاری دیبا':'حالت پشتیبان'}
+          </div>
+        )}
         {microphoneError && (
           <div role="alert" className="pointer-events-auto self-end flex max-w-sm flex-col gap-2 rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-right text-xs text-amber-200">
             <span>{microphoneError}</span>
