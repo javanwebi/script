@@ -18,7 +18,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
-import { findPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
+import { loadDibaSttModel, synthesizeAmir, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
@@ -105,8 +105,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const ttsRequestsRef = useRef(new Map<string, Promise<ForzaSpeechResponse>>());
-  const ttsProviderCooldownRef = useRef(0);
-  const browserUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const localSttModelRef=useRef<LocalSttModel|null>(null);
+  const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
+  const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
+  const localSttSinkRef=useRef<GainNode|null>(null);
+  const localSttFinalRef=useRef('');
+  const [localSttStatus,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('loading');
   const ttsReadyRef = useRef(new Map<string, ForzaSpeechResponse>());
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
@@ -413,8 +417,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const stopAudio = useCallback(() => {
-    try { window.speechSynthesis?.cancel(); } catch {}
-    browserUtteranceRef.current = null;
     isAiSpeakingRef.current = false;
     const a = audioElRef.current;
     if (a) {
@@ -477,31 +479,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }),[isSpeakerMuted,setStatus,stopAudio]);
 
-  const requestSpeechAudio = useCallback((text:string) => {
-    const ready = ttsReadyRef.current.get(text);
-    if (ready?.audioBase64) return Promise.resolve(ready);
-    if (Date.now() < ttsProviderCooldownRef.current) {
-      return Promise.reject(new Error('tts_provider_temporarily_unavailable'));
-    }
+  // Browser-local Piper Amir replaces billable Gemini TTS.
+  const requestSpeechAudio = useCallback((text:string):Promise<ForzaSpeechResponse> => {
+    const ready=ttsReadyRef.current.get(text);
+    if(ready?.audioBase64) return Promise.resolve(ready);
     const inFlight=ttsRequestsRef.current.get(text);
-    if(inFlight)return inFlight;
-    const promise=fetch('/api/ai/tts', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text}),
-      signal: AbortSignal.timeout(25000),
-    }).then(async res=>{
-      const data=await res.json().catch(()=>null) as ForzaSpeechResponse | null;
-      if (!res.ok || data?.success !== true || typeof data.audioBase64 !== 'string' || !data.audioBase64.startsWith('data:audio/')) {
-        if (res.status === 503 || res.status === 429) ttsProviderCooldownRef.current = Date.now() + 15000;
-        throw new Error(data?.error?.type || 'tts_provider_unavailable');
-      }
-      if (data.audioBase64) {
-        const cache = ttsReadyRef.current;
-        cache.set(text, data);
-        if (cache.size > 24) {
-          const oldest = cache.keys().next().value;
-          if (oldest) cache.delete(oldest);
+    if(inFlight) return inFlight;
+    const promise=synthesizeAmir(text).then(blob=>{
+      const audioUrl=URL.createObjectURL(blob);
+      const data:ForzaSpeechResponse={success:true,audioBase64:audioUrl};
+      const cache=ttsReadyRef.current;
+      cache.set(text,data);
+      if(cache.size>12){
+        const first=cache.keys().next().value;
+        if(first){
+          const old=cache.get(first)?.audioBase64;
+          if(old?.startsWith('blob:'))URL.revokeObjectURL(old);
+          cache.delete(first);
         }
       }
       return data;
@@ -510,76 +504,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return promise;
   },[]);
 
-  // Synthesize the greeting while the particle scene is forming, not after it finishes.
-  useEffect(() => {
-    void requestSpeechAudio(GREETING_TEXT).catch(() => {});
-  }, [requestSpeechAudio]);
+  useEffect(()=>{void requestSpeechAudio(GREETING_TEXT).catch(error=>
+    console.warn('[FORZA Amir] Preload failed',error?.message||'unavailable'));},[requestSpeechAudio]);
 
-  // Native speech is an emergency path when the configured server TTS has
-  // failed or timed out. Use only a locally installed Persian language voice.
-  const speakWithBrowserPersianVoice = useCallback((text: string): Promise<void> => new Promise((resolve,reject) => {
-    const synthesis = window.speechSynthesis;
-    if (!synthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-      reject(new Error('browser_tts_unsupported')); return;
-    }
-    const voice = findPersianSpeechVoice(synthesis.getVoices());
-    if (!voice) { reject(new Error('no_persian_browser_voice')); return; }
-    const utterance = new SpeechSynthesisUtterance(text);
-    browserUtteranceRef.current = utterance;
-    utterance.lang = 'fa-IR';
-    utterance.voice = voice;
-    utterance.rate = 1.05;
-    let finished = false;
-    const finish = (error?: Error) => {
-      if (finished) return;
-      finished = true;
-      window.clearTimeout(timeout);
-      browserUtteranceRef.current = null;
-      isAiSpeakingRef.current = false;
-      if (error) reject(error); else resolve();
-    };
-    const timeout = window.setTimeout(() => {
-      if (!finished) { synthesis.cancel(); finish(new Error('browser_tts_timeout')); }
-    }, Math.max(13000, Math.min(60000, text.length * 330)));
-    utterance.onstart = () => {
-      isAiSpeakingRef.current = true;
-      setStatus('speaking');
-      setTurn('ai');
-    };
-    utterance.onend = () => finish();
-    utterance.onerror = () => finish(new Error('browser_tts_failed'));
-    try { synthesis.cancel(); synthesis.speak(utterance); }
-    catch { finish(new Error('browser_tts_failed')); }
-  }), [setStatus]);
-
-  // Server voice takes priority, but cannot hold up a live conversation while
-  // quota errors and network timeouts exhaust a whole TTS model cascade.
   const playSpeechPhrase = useCallback(async (
-    phrase: string, serverSpeech: Promise<ForzaSpeechResponse>
-  ): Promise<void> => {
-    const browserAvailable = Boolean(
-      window.speechSynthesis && findPersianSpeechVoice(window.speechSynthesis.getVoices())
-    );
-    if (browserAvailable) {
-      const earliest = await Promise.race([
-        serverSpeech.then(data => ({kind:'server' as const,data}))
-          .catch(() => ({kind:'failed' as const})),
-        new Promise<{kind:'slow'}>(resolve =>
-          window.setTimeout(() => resolve({kind:'slow'}), 1100)),
-      ]);
-      if (earliest.kind !== 'server' || !earliest.data.audioBase64) {
-        await speakWithBrowserPersianVoice(phrase);
-        return;
-      }
-      lastPlayableVoiceRef.current = {text:phrase,audioUrl:earliest.data.audioBase64};
-      await playDataUrl(earliest.data.audioBase64);
-      return;
-    }
-    const speech = await serverSpeech;
-    if (!speech.audioBase64) throw new Error('tts_unavailable');
-    lastPlayableVoiceRef.current = {text:phrase,audioUrl:speech.audioBase64};
+    phrase:string, request:Promise<ForzaSpeechResponse>
+  ):Promise<void>=>{
+    const speech=await request;
+    if(!speech.audioBase64)throw new Error('amir_voice_unavailable');
+    lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
     await playDataUrl(speech.audioBase64);
-  }, [playDataUrl, speakWithBrowserPersianVoice]);
+  },[playDataUrl]);
 
   const speakText = useCallback(async (text:string) => {
     stopListening();
@@ -616,7 +551,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
-        : 'صدای Gemini ساخته یا پخش نشد؛ سهمیه و لاگ‌های TTS را بررسی کنید.');
+        : 'صدای امیر در مرورگر آماده نشد؛ اتصال اینترنت و پشتیبانی WebAssembly را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
     }
@@ -785,7 +720,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           await playbackChain;
           if (playbackFailure) {
-            setVoiceOutputError('صدای پاسخ کامل پخش نشد؛ سرویس TTS را بررسی کنید.');
+            setVoiceOutputError('بخشی از صدای امیر روی دستگاه شما تولید یا پخش نشد.');
           } else {
             setVoiceOutputError(null);
           }
@@ -1014,7 +949,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       // A missing TTS provider must not leave FORZA locked in "thinking".
       // Keep the existing STT and text consultation usable with a clear warning.
-      setVoiceOutputError('صدای خوشامدگویی در دسترس نیست؛ میکروفون و مشاوره متنی فعال هستند. موتور TTS باید روی سرور نصب شود.');
+      setVoiceOutputError('مدل صدای امیر در مرورگر بارگذاری نشد؛ میکروفون و مشاوره متنی همچنان فعال هستند.');
       greetingFinishedRef.current=true;
       setGreetingPhase('error');
       setStatus('listening');
