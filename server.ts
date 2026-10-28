@@ -45,7 +45,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
-import { synthesizeServerAmir } from './src/services/forzaAmirServerSpeech';
+import { synthesizeServerAmir, warmServerAmir } from './src/services/forzaAmirServerSpeech';
 
 dotenv.config();
 // Example configuration is documentation only; never load placeholder defaults into runtime.
@@ -7172,6 +7172,10 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
+    // Load Piper Amir ONNX once at startup, off the request path.
+    // The healthcheck remains independent of audio model availability.
+    void warmServerAmir().catch(error=>
+      console.warn('[FORZA Amir] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
     if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
