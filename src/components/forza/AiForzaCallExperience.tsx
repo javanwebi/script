@@ -847,7 +847,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (!phrase.trim()) return;
           phraseCount++;
           const phraseIndex = phraseCount;
-          // The server runs a SINGLE Piper neural worker. Do not flood it with
+          // The server runs a SINGLE Pocket neural worker. Do not flood it with
           // concurrent jobs, which made later fragments time out and hold the UI.
           // Each next WAV can be generated while the previous one is playing.
           const ttsStartedAt = performance.now();
