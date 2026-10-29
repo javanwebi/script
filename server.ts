@@ -48,6 +48,11 @@ import portalHandler, { requirePortalAdmin } from './api/portal';
 import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
 
 dotenv.config();
+// Optional VPS-only private FORZA voice configuration. This file is ignored by
+// Git and mounted into the existing /app container on the self-hosted server.
+// Explicit environment variables continue to take precedence; Railway is
+// unaffected when the file is absent.
+dotenv.config({ path: path.resolve(process.cwd(), '.env.forza-voice'), quiet: true });
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key
@@ -5432,7 +5437,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
             ? {'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN}:{}),
         },
         body:JSON.stringify({text:phrase}),
-        signal:AbortSignal.timeout(14500),
+        signal:AbortSignal.timeout(30000),
       });
       if(!response.ok)throw new Error('remote_voice_http_'+response.status);
       const voiceType=response.headers.get('content-type')||'';
