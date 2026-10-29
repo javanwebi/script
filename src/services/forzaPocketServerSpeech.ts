@@ -138,12 +138,19 @@ async function render(text:string):Promise<Buffer>{
 
 export function synthesizeServerPocket(text:string):Promise<Buffer>{
   const cleaned=String(text||'').replace(/[\u200e\u200f]/g,'').replace(/[*#\x60_]+/g,' ').replace(/\s+/g,' ').trim();
-  if(!cleaned || cleaned.length>240)return Promise.reject(errorOf('pocket_server_invalid_text'));
+  if(!cleaned || cleaned.length>220)return Promise.reject(errorOf('pocket_server_invalid_text'));
   const cached=cache.get(cleaned);
   if(cached)return Promise.resolve(cached);
   const active=inflight.get(cleaned);
   if(active)return active;
-  const task=serialQueue.then(()=>render(cleaned)).then(audio=>{
+  // Count waiting jobs as well as the active job. pending.size only counts
+  // the active Python request and cannot bound a serialized promise queue.
+  if(inflight.size>=MAX_QUEUED)return Promise.reject(errorOf('pocket_worker_busy'));
+  const queuedAt=Date.now();
+  const task=serialQueue.then(()=>{
+    if(Date.now()-queuedAt>PHRASE_TIMEOUT_MS)throw errorOf('pocket_queue_timeout');
+    return render(cleaned);
+  }).then(audio=>{
     cache.set(cleaned,audio);
     if(cache.size>12)cache.delete(cache.keys().next().value!);
     return audio;

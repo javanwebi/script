@@ -594,7 +594,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }), [ensureCtx, isSpeakerMuted, setStatus, stopAudio]);
 
-  // Pocket TTS Farsi v2 is the only FORZA voice. Never synthesize Pocket Farsi v2.
+  // Pocket TTS Farsi v2 is the only FORZA voice.
   // Keep small, bounded per-session cache to avoid re-synthesizing repeated phrases.
   const requestSpeechAudio = useCallback((text:string):Promise<ForzaSpeechResponse> => {
     const cached=ttsReadyRef.current.get(text);
@@ -604,7 +604,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const task=(async()=>{
       const response=await fetch('/api/ai/forza-speech',{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text}),
+        body:JSON.stringify({text}),signal:AbortSignal.timeout(20000),
       });
       if(!response.ok)throw new Error('pocket_http_'+response.status);
       if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')throw new Error('unexpected_tts_provider');

@@ -23,6 +23,16 @@ s=p.read_text()
 a='opts.intra_op_num_threads = 2'
 assert a in s, 'upstream changed: review low-memory patch'
 s=s.replace(a,'opts.intra_op_num_threads = 1\n        opts.enable_cpu_mem_arena = False\n        opts.enable_mem_pattern = False')
+# The voice encoder is only needed by the build-time greeting/cache job.
+old='self.s_enc = ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)'
+assert old in s
+s=s.replace(old, 'self.s_enc = None if os.environ.get("FORZA_POCKET_PRECOMPUTED_VOICE") == "1" else ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)')
+p.write_text(s)
+p=Path('vendor/persian_tts/scripts/g2p_onnx.py')
+s=p.read_text()
+a='opts = ort.SessionOptions()'
+assert a in s
+s=s.replace(a, a + '\n        opts.intra_op_num_threads = 1\n        opts.inter_op_num_threads = 1\n        opts.enable_cpu_mem_arena = False\n        opts.enable_mem_pattern = False')
 p.write_text(s)
 PY
 ENV HF_HUB_DOWNLOAD_TIMEOUT=240 HF_HUB_ETAG_TIMEOUT=90

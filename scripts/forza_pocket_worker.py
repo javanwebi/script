@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import gc
+import numpy as np
 from pathlib import Path
 
 ROOT = Path.cwd()
@@ -28,6 +29,7 @@ import soundfile as sf
 
 REFERENCE = ROOT / "public" / "forza-pocket-reference.wav"
 GREETING = ROOT / "public" / "forza-greeting-bootstrap.wav"
+VOICE_STATE = ENGINE_ROOT / "forza_voice_state.npz"
 WELCOME = "سلام، به صنعت پیش خوش آمدید. من فورزا هستم و برای راهنمایی شما آماده‌ام."
 
 
@@ -53,12 +55,24 @@ def render(engine, text):
 def main():
     if not REFERENCE.is_file():
         raise RuntimeError("missing_pocket_voice_reference")
+    building = "--greeting" in sys.argv
+    if not building:
+        if not VOICE_STATE.is_file():
+            raise RuntimeError("missing_precomputed_voice_state")
+        os.environ["FORZA_POCKET_PRECOMPUTED_VOICE"] = "1"
     engine = OnnxTts()
     engine.VOICE_MEMO_MAX = 1
-    if "--greeting" in sys.argv:
+    if building:
+        # Persist only this selected voice's conditioning; never user speech.
+        with contextlib.redirect_stdout(sys.stderr):
+            cache, offset = engine.voice_cache(str(REFERENCE))
+        np.savez(VOICE_STATE, cache=cache, offset=np.array(offset))
         GREETING.write_bytes(render(engine, WELCOME))
         print("Pocket FORZA greeting generated:", GREETING.stat().st_size, file=sys.stderr)
         return
+    with np.load(VOICE_STATE, allow_pickle=False) as state:
+        key = (str(REFERENCE.resolve()), REFERENCE.stat().st_mtime)
+        engine._voice_memo[key] = (state["cache"], int(state["offset"]))
     # Load Persian G2P before accepting requests; avoid a first-turn cold start.
     from g2p_onnx import OnnxG2P
     engine._g2p = OnnxG2P(engine.dir)
