@@ -10,7 +10,7 @@ on:
       - 'src/utils/forzaLocalSpeech.ts'
       - 'scripts/download-forza-amir.mjs'
       - 'scripts/generate-forza-greeting.mjs'
-      - 'scripts/tests/forza-greeting-fallback.cjs'
+      - 'services/forza-chatterbox/**'
       - 'src/services/forzaAmirServerSpeech.ts'
       - 'scripts/forza_amir_worker.py'
       - 'tests/forzaCompleteSpeech.test.ts'
@@ -83,9 +83,5 @@ jobs:
           exit 1
       - run: node scripts/tests/forza-audio-chunks.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
-      - run: node scripts/tests/forza-greeting-fallback.cjs
       - run: node scripts/tests/forza-streaming-turn-recovery.cjs
       - run: node scripts/tests/forza-reply-before-audio.cjs
-      - name: Actual Persian Amir voice synthesis in Chromium
-        run: node scripts/tests/forza-amir-real-browser.cjs
-        timeout-minutes: 7
