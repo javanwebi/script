@@ -78,7 +78,8 @@ export function prepareAmirSpeechText(input:string):string {
     .replace(/([،؛.!؟])(?=\S)/g,'$1 ')
     .replace(/\s+/g,' ')
     .trim();
-  // Keep contextual words unmarked: forced vowels can create robotic prosody.\n  return addPersianSpeechDiacritics(text);
+  // Keep contextual words unmarked: forced vowels can create robotic prosody.
+  return addPersianSpeechDiacritics(text);
 }
 
 /**
