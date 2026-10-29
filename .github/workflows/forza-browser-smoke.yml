@@ -10,7 +10,7 @@ on:
       - 'src/utils/forzaLocalSpeech.ts'
       - 'scripts/download-forza-amir.mjs'
       - 'scripts/generate-forza-greeting.mjs'
-      - 'services/forza-chatterbox/**'
+      - 'services/forza-pocket/**'
       - 'src/services/forzaAmirServerSpeech.ts'
       - 'scripts/forza_amir_worker.py'
       - 'tests/forzaCompleteSpeech.test.ts'
@@ -48,8 +48,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Validate Persian Chatterbox sidecar Python syntax
-        run: python3 -m py_compile services/forza-chatterbox/server.py
+      - name: Validate Persian Pocket TTS sidecar Python syntax
+        run: python3 -m py_compile services/forza-pocket/server.py
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Verify self-hosted Amir weights and generate original Piper greeting
