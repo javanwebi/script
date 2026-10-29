@@ -68,6 +68,9 @@ class MemoryBoundTts(OnnxTts):
     # Opt-in benchmark. Avoid acoustic ONNX teardown/reload before every
     # Persian utterance, but only when explicitly enabled and memory-tested.
     KEEP_ACOUSTIC = os.environ.get("FORZA_TTS_RESIDENT_ACOUSTIC") == "1"
+    # Experimental: retain Persian grapheme-to-phoneme ONNX sessions between
+    # phrases. Enable only in a disposable benchmark; it can increase peak RAM.
+    KEEP_G2P = os.environ.get("FORZA_TTS_RESIDENT_G2P") == "1"
 
     def synthesize_text(self, text, *args, **kwargs):
         started = time.monotonic()
@@ -85,7 +88,7 @@ class MemoryBoundTts(OnnxTts):
             print("[FORZA voice profile] total_ms=%d resident=%s text_chars=%d" % (
                 (time.monotonic() - started) * 1000, int(self.KEEP_ACOUSTIC), len(text)),
                 file=sys.stderr, flush=True)
-            if hasattr(self, "_g2p"):
+            if not self.KEEP_G2P and hasattr(self, "_g2p"):
                 del self._g2p
                 release_unused_memory()
 
@@ -93,7 +96,7 @@ class MemoryBoundTts(OnnxTts):
         started = time.monotonic()
         # synthesize_text has phonemised every sentence; release its ONNX
         # sessions BEFORE materialising the acoustic model's KV state.
-        if hasattr(self, "_g2p"):
+        if not self.KEEP_G2P and hasattr(self, "_g2p"):
             del self._g2p
             release_unused_memory()
         if hasattr(self, "s_flow") and self.s_flow is None:
