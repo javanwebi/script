@@ -7,9 +7,9 @@ import { resolve } from 'node:path';
 
 type Task={resolve:(audio:Buffer)=>void;reject:(err:Error)=>void;timer:NodeJS.Timeout};
 const MAX_AUDIO_BYTES=5_000_000;
-const WORKER_STARTUP_MS=60000;
-const PHRASE_TIMEOUT_MS=60000;
-const MAX_QUEUED=8;
+const WORKER_STARTUP_MS=30000;
+const PHRASE_TIMEOUT_MS=16000;
+const MAX_QUEUED=4;
 // Single-flight synthesis: upstream ONNX retains hundreds of MB per inference.
 // Parallel requests must not share a Python worker on a 1GB Railway service.
 let serialQueue:Promise<void>=Promise.resolve();
@@ -40,7 +40,7 @@ function ensureWorker():Promise<void>{
     const binary=process.env.FORZA_POCKET_PYTHON||'/opt/forza-pocket/bin/python';
     const instance=spawn(binary,['-u',resolve('scripts/forza_pocket_worker.py')],{
       stdio:['pipe','pipe','pipe'],windowsHide:true,cwd:process.cwd(),
-      env:{...process.env,PYTHONUNBUFFERED:'1',ONNXRUNTIME_LOG_SEVERITY_LEVEL:'3'},
+      env:{...process.env,PYTHONUNBUFFERED:'1',ONNXRUNTIME_LOG_SEVERITY_LEVEL:'3',OMP_NUM_THREADS:'1',OPENBLAS_NUM_THREADS:'1',MKL_NUM_THREADS:'1',NUMEXPR_NUM_THREADS:'1'},
     });
     child=instance;
     // Keep the model resident while the HTTP server is alive, but do not
@@ -55,14 +55,14 @@ function ensureWorker():Promise<void>{
     const startupTimer=setTimeout(()=>{
       if(!ready){rejectBoot(errorOf('pocket_worker_start_timeout'));destroyWorker('pocket_worker_start_timeout');}
     },WORKER_STARTUP_MS);
-    const onExit=(code:number|null)=>{
+    const onExit=(code:number|null,signal:NodeJS.Signals|null)=>{
       clearTimeout(startupTimer);
       if(child!==instance)return;
       if(!ready)rejectBoot(errorOf('pocket_worker_failed_to_start'));
-      console.warn('[FORZA Pocket] worker stopped',code,errorOutput.slice(-120));
+      console.warn('[FORZA Pocket] worker stopped',code,signal,errorOutput.slice(-200));
       destroyWorker('pocket_worker_stopped');
     };
-    instance.on('error',()=>onExit(null));
+    instance.on('error',()=>onExit(null,null));
     instance.on('exit',onExit);
     instance.stderr.on('data',(buf:Buffer)=>{
       errorOutput=(errorOutput+buf.toString('utf8')).slice(-500);
