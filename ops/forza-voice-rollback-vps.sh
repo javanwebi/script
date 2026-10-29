@@ -17,16 +17,18 @@ case "$PREVIOUS" in
 esac
 test "$(docker inspect --format '{{.State.Running}}' "$PREVIOUS")" = false
 test "$(docker inspect --format '{{.State.Running}}' forza-voice)" = true
-SWAPPED=0
+CHANGED=0
 SUCCESS=0
 CURRENT_BACKUP="forza-voice-resident-replaced-$(date -u +%Y%m%d%H%M%S)"
 on_exit() {
   rc=$1
   trap - EXIT ERR INT TERM
-  if [ "$SWAPPED" = 1 ] && [ "$SUCCESS" != 1 ]; then
+  if [ "$CHANGED" = 1 ] && [ "$SUCCESS" != 1 ]; then
     echo "Voice rollback verification failed; attempting to restore newer worker." >&2
-    docker rm -f forza-voice >/dev/null 2>&1 || true
-    docker rename "$CURRENT_BACKUP" forza-voice >/dev/null 2>&1 || true
+    if docker container inspect "$CURRENT_BACKUP" >/dev/null 2>&1; then
+      docker rm -f forza-voice >/dev/null 2>&1 || true
+      docker rename "$CURRENT_BACKUP" forza-voice >/dev/null 2>&1 || true
+    fi
     docker start forza-voice >/dev/null 2>&1 || true
   fi
   exit "$rc"
@@ -36,7 +38,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 echo "[1/2] Restoring the previously tested private TTS container."
-SWAPPED=1
+CHANGED=1
 docker stop -t 15 forza-voice >/dev/null
 docker rename forza-voice "$CURRENT_BACKUP"
 docker rename "$PREVIOUS" forza-voice
