@@ -21,6 +21,7 @@ import { forzaFastStartSpeechChunks } from '../../utils/forzaSpeechChunks';
 import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
+import { waitForPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -640,23 +641,81 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return {success:true,audioBase64:URL.createObjectURL(audio)};
   },[]);
 
+  // Last-resort recovery when the local neural model exceeds Railway's
+  // 1 GB limit: keep speaking the SAME response, without paid TTS or a
+  // second AI request. Prefer a Persian voice; if none is installed, ask
+  // Chrome to resolve fa-IR rather than abandoning the entire turn.
+  const speakInBrowser = useCallback(async (phrase: string): Promise<void> => {
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      throw new Error('browser_speech_unavailable');
+    }
+    stopAudio();
+    const synth = window.speechSynthesis;
+    const voice = await waitForPersianSpeechVoice<SpeechSynthesisVoice>(synth, 400);
+    if (callClosedRef.current) return;
+    const utterance = new SpeechSynthesisUtterance(phrase);
+    utterance.lang = 'fa-IR';
+    if (voice) utterance.voice = voice;
+    utterance.rate = 1.06;
+    await new Promise<void>((resolve, reject) => {
+      let finished = false;
+      const finish = (error?: Error) => {
+        if (finished) return;
+        finished = true;
+        window.clearTimeout(watchdog);
+        if (pendingAudioResolveRef.current === cancel) pendingAudioResolveRef.current = null;
+        isAiSpeakingRef.current = false;
+        if (error) reject(error);
+        else resolve();
+      };
+      const cancel = () => finish();
+      pendingAudioResolveRef.current = cancel;
+      utterance.onstart = () => {
+        isAiSpeakingRef.current = true;
+        setVoicePending(false);
+        setStatus('speaking');
+        setTurn('ai');
+      };
+      utterance.onend = () => finish();
+      utterance.onerror = () => finish(new Error('browser_speech_failed'));
+      const watchdog = window.setTimeout(() => {
+        synth.cancel();
+        finish(new Error('browser_speech_timeout'));
+      }, Math.min(18000, Math.max(6500, phrase.length * 320)));
+      try { synth.speak(utterance); }
+      catch { finish(new Error('browser_speech_failed')); }
+    });
+  }, [setStatus, stopAudio]);
+
   const playSpeechPhrase = useCallback(async (
     phrase: string, request: Promise<ForzaSpeechResponse>,
   ): Promise<void> => {
     try {
-      const speech=await request;
-      if(!speech.audioBase64)throw new Error('pocket_voice_unavailable');
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
-      await playDataUrl(speech.audioBase64);
+      let speech: ForzaSpeechResponse;
+      try {
+        speech = await request;
+      } catch (error) {
+        console.warn('[FORZA Pocket] switching to browser speech for this phrase',error);
+        speech = {useClientSpeech: true};
+      }
+      if (speech.audioBase64) {
+        lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
+        await playDataUrl(speech.audioBase64);
+      } else if (speech.useClientSpeech) {
+        lastPlayableVoiceRef.current=null;
+        await speakInBrowser(phrase);
+      } else {
+        throw new Error('pocket_voice_unavailable');
+      }
       setVoiceOutputError(null);
     }catch(error:any){
       if(error?.message!=='autoplay_permission_required'){
-        setVoiceOutputError('پاسخ متنی دریافت شد، اما صدای فورزا آماده نشد. دوباره تلاش کنید.');
-        console.warn('[FORZA Pocket] phrase playback failed',error?.message||'unknown');
+        setVoiceOutputError('صدای فورزا از سرور و مرورگر پخش نشد؛ برای بررسی، صدای فارسی مرورگر را فعال کنید.');
+        console.warn('[FORZA] phrase playback failed',error?.message||'unknown');
       }
       throw error;
     }
-  },[playDataUrl]);
+  },[playDataUrl,speakInBrowser]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
@@ -843,9 +902,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let spokenCount = 0;
         let playbackChain: Promise<void> = Promise.resolve();
         let synthesisChain: Promise<void> = Promise.resolve();
-        let ttsUnavailable = false;
+        let pocketUnavailable = false;
         const queuePhrase = (phrase: string) => {
-          if (!phrase.trim() || ttsUnavailable) return;
+          if (!phrase.trim()) return;
           phraseCount++;
           const phraseIndex = phraseCount;
           // The server runs a SINGLE Pocket neural worker. Do not flood it with
@@ -853,16 +912,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Each next WAV can be generated while the previous one is playing.
           const ttsStartedAt = performance.now();
           const speechRequest = synthesisChain.then(async () => {
-            if (callClosedRef.current || ttsUnavailable) throw new Error('forza_speech_cancelled');
+            if (callClosedRef.current) throw new Error('forza_speech_cancelled');
+            if (pocketUnavailable) return {useClientSpeech:true};
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(new Error('مهلت تولید صدا تمام شد؛ متن پاسخ حفظ شده است.')), 25000);
+            const timer = window.setTimeout(() => controller.abort(new Error('pocket_tts_timeout')), 9000);
             try {
               return await requestQuickPocketSpeech(phrase, controller.signal);
+            } catch (error) {
+              // Do not let one failed synthesis silence the remaining answer.
+              // Skip more network attempts for this turn and speak subsequent
+              // phrases locally, in order, with the browser fallback.
+              pocketUnavailable = true;
+              console.warn('[FORZA Pocket] server voice unavailable; using browser recovery',error);
+              return {useClientSpeech:true};
             } finally {
               window.clearTimeout(timer);
             }
           });
-          synthesisChain = speechRequest.then(() => {}, () => { ttsUnavailable = true; });
+          synthesisChain = speechRequest.then(() => {}, () => {});
           void speechRequest.then(() => {
             console.info('[FORZA_LATENCY] phase=tts-ready ms=' + Math.round(performance.now() - ttsStartedAt) + ' chars=' + phrase.length);
           }).catch(() => {});
@@ -873,8 +940,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               spokenCount++;
               console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + phraseIndex + '/' + phraseCount);
             } catch (error) {
-              ttsUnavailable = true;
-              console.warn('[FORZA Pocket] speech turn stopped after bounded failure',error);
+              console.warn('[FORZA speech] phrase playback failed; continuing turn',error);
             }
           });
         };
