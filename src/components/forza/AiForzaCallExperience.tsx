@@ -237,7 +237,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     hasSpeechSoundRef.current = false;
     audioChunksRef.current = [];
 
-    const localReady=startDibaTurn();
+    // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
+    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
+    const localReady=browserAvailable ? false : startDibaTurn();
     if (!localReady && !micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
       try {
         recognitionRef.current.start();

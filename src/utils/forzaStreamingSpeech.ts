@@ -4,9 +4,9 @@
  */
 export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:string;rest:string}|null{
   if(!buffer.trim())return null;
-  const min=first?14:30;
-  const target=first?28:100;
-  const max=first?76:150;
+  const min=first?8:30;
+  const target=first?16:100;
+  const max=first?54:150;
   const pause=/[.!?؟،؛:\n]/g;
   let match:RegExpExecArray|null;
   while((match=pause.exec(buffer))){
@@ -17,7 +17,7 @@ export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:str
     if(end>max)break;
   }
   if(buffer.length<target)return null;
-  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,first?40:max));
+  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,first?30:max));
   if(index<min)return null;
   return {phrase:buffer.slice(0,index).trim(),rest:buffer.slice(index).trimStart()};
 }
