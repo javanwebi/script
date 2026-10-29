@@ -9,7 +9,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv git curl ca-certificates libsndfile1 \
  && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/forza-pocket \
- && /opt/forza-pocket/bin/pip install --no-cache-dir onnxruntime numpy scipy soundfile sentencepiece "huggingface_hub[cli]"
+ && /opt/forza-pocket/bin/pip install --no-cache-dir onnxruntime numpy scipy soundfile sentencepiece typer "huggingface_hub[cli]"
 RUN mkdir -p vendor/persian_tts \
  && git init vendor/persian_tts \
  && git -C vendor/persian_tts remote add origin https://github.com/nimaone/persian_tts.git \
