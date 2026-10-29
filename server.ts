@@ -45,7 +45,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
-import { synthesizeServerAmir, warmServerAmir } from './src/services/forzaAmirServerSpeech';
+import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
 
 dotenv.config();
 // Example configuration is documentation only; never load placeholder defaults into runtime.
@@ -5396,35 +5396,34 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 }
 
 
-// Short, rate-limited, SAME-VOICE Piper Amir fallback while a customer's
-// browser is loading the first 63 MB local model. No paid/cloud TTS is used.
-const amirTtsBudget=new Map<string,{count:number;until:number}>();
-app.post('/api/ai/amir-speech',async(req,res)=>{
+// Short, rate-limited, SAME-VOICE Pocket TTS Farsi v2 fallback with the selected voice; inference remains on Railway. No paid/cloud TTS is used.
+const pocketTtsBudget=new Map<string,{count:number;until:number}>();
+app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>220)return res.status(400).json({error:'amir_invalid_text'});
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
   const now=Date.now();
-  let budget=amirTtsBudget.get(key);
+  let budget=pocketTtsBudget.get(key);
   if(!budget || now>=budget.until){
-    budget={count:0,until:now+60_000};amirTtsBudget.set(key,budget);
+    budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
   }
-  if(budget.count>=24)return res.status(429).json({error:'amir_rate_limited'});
+  if(budget.count>=24)return res.status(429).json({error:'pocket_rate_limited'});
   budget.count++;
-  if(amirTtsBudget.size>500)for(const [ip,item] of amirTtsBudget){
-    if(item.until<now)amirTtsBudget.delete(ip);
+  if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
+    if(item.until<now)pocketTtsBudget.delete(ip);
   }
   const started=Date.now();
   try{
-    const wav=await synthesizeServerAmir(phrase);
+    const wav=await synthesizeServerPocket(phrase);
     if(res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Forza-Voice','piper-amir');
-    console.info('[FORZA_LATENCY] phase=amir-server-tts ms='+ (Date.now()-started));
+    res.setHeader('X-Forza-Voice','pocket-farsi-v2');
+    console.info('[FORZA_LATENCY] phase=pocket-server-tts ms='+ (Date.now()-started));
     return res.send(wav);
   }catch(error:any){
-    console.warn('[FORZA Amir Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
-    if(!res.headersSent)return res.status(503).json({error:'amir_server_unavailable'});
+    console.warn('[FORZA Pocket Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
+    if(!res.headersSent)return res.status(503).json({error:'pocket_server_unavailable'});
   }
 });
 
@@ -7172,10 +7171,10 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    // Load Piper Amir ONNX once at startup, off the request path.
+    // Load Pocket Farsi ONNX once at startup, off the request path.
     // The healthcheck remains independent of audio model availability.
-    void warmServerAmir().catch(error=>
-      console.warn('[FORZA Amir] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
+    void warmServerPocket().catch(error=>
+      console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
     if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
