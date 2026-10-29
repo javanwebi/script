@@ -48,6 +48,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate Persian Chatterbox sidecar Python syntax
+        run: python3 -m py_compile services/forza-chatterbox/server.py
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Verify self-hosted Amir weights and generate original Piper greeting
