@@ -1,0 +1,42 @@
+name: FORZA dedicated Pocket voice (1GB test)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile.forza-voice'
+      - 'scripts/forza_voice_http.py'
+      - 'scripts/forza_pocket_worker.py'
+      - '.github/workflows/forza-private-voice-smoke.yml'
+  workflow_dispatch:
+jobs:
+  real-speech:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact dedicated voice image
+        run: docker build --progress=plain -f Dockerfile.forza-voice -t forza-private-voice:test .
+      - name: Real Persian audio under Railway 1GB ceiling
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name forza-voice-smoke --memory=1000m --memory-swap=1000m --cpus=1 -p 127.0.0.1:8765:8080 forza-private-voice:test
+          trap 'docker logs --tail 100 forza-voice-smoke || true; docker rm -f forza-voice-smoke || true' EXIT
+          healthy=0
+          for i in $(seq 1 90); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8765/health; then healthy=1; break; fi
+            if ! docker ps --format '{{.Names}}' | grep -qx forza-voice-smoke; then
+              echo "Voice container terminated before ready, likely OOM"; exit 1
+            fi
+            sleep 2
+          done
+          test "$healthy" -eq 1
+          # Real neural inference, NOT the prerecorded welcome.
+          code=$(curl -sS -m 28 -o /tmp/forza-voice-smoke.wav -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"سلام من فورزا هستم"}' \
+            http://127.0.0.1:8765/speak)
+          test "$code" = "200"
+          test "$(head -c 4 /tmp/forza-voice-smoke.wav)" = "RIFF"
+          test "$(stat -c %s /tmp/forza-voice-smoke.wav)" -gt 2000
+          echo "PASS: generated $(stat -c %s /tmp/forza-voice-smoke.wav) WAV bytes under a 1 GB memory cgroup"
