@@ -9,7 +9,10 @@ type Task={resolve:(audio:Buffer)=>void;reject:(err:Error)=>void;timer:NodeJS.Ti
 const MAX_AUDIO_BYTES=5_000_000;
 const WORKER_STARTUP_MS=60000;
 const PHRASE_TIMEOUT_MS=60000;
-const MAX_QUEUED=12;
+const MAX_QUEUED=8;
+// Single-flight synthesis: upstream ONNX retains hundreds of MB per inference.
+// Parallel requests must not share a Python worker on a 1GB Railway service.
+let serialQueue:Promise<void>=Promise.resolve();
 const inflight=new Map<string,Promise<Buffer>>();
 const cache=new Map<string,Buffer>();
 const pending=new Map<number,Task>();
@@ -140,11 +143,12 @@ export function synthesizeServerPocket(text:string):Promise<Buffer>{
   if(cached)return Promise.resolve(cached);
   const active=inflight.get(cleaned);
   if(active)return active;
-  const task=render(cleaned).then(audio=>{
+  const task=serialQueue.then(()=>render(cleaned)).then(audio=>{
     cache.set(cleaned,audio);
-    if(cache.size>48)cache.delete(cache.keys().next().value!);
+    if(cache.size>12)cache.delete(cache.keys().next().value!);
     return audio;
   }).finally(()=>inflight.delete(cleaned));
+  serialQueue=task.then(()=>undefined,()=>undefined);
   inflight.set(cleaned,task);
   return task;
 }
