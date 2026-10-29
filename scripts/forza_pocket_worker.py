@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import gc
+import ctypes
 import numpy as np
 from pathlib import Path
 
@@ -52,6 +53,25 @@ def render(engine, text):
     return result
 
 
+def release_unused_memory():
+    gc.collect()
+    try:
+        ctypes.CDLL(None).malloc_trim(0)
+    except (AttributeError, OSError):
+        pass
+
+
+class MemoryBoundTts(OnnxTts):
+    def synthesize(self, *args, **kwargs):
+        # synthesize_text has already phonemised every sentence. Release G2P
+        # sessions BEFORE waveform generation, whose KV state peaks here.
+        # Keeping both resident exceeds the shared 1 GB service on long turns.
+        if hasattr(self, "_g2p"):
+            del self._g2p
+            release_unused_memory()
+        return super().synthesize(*args, **kwargs)
+
+
 def main():
     if not REFERENCE.is_file():
         raise RuntimeError("missing_pocket_voice_reference")
@@ -60,7 +80,7 @@ def main():
         if not VOICE_STATE.is_file():
             raise RuntimeError("missing_precomputed_voice_state")
         os.environ["FORZA_POCKET_PRECOMPUTED_VOICE"] = "1"
-    engine = OnnxTts()
+    engine = MemoryBoundTts()
     engine.VOICE_MEMO_MAX = 1
     if building:
         # Persist only this selected voice's conditioning; never user speech.
@@ -73,9 +93,7 @@ def main():
     with np.load(VOICE_STATE, allow_pickle=False) as state:
         key = (str(REFERENCE.resolve()), REFERENCE.stat().st_mtime)
         engine._voice_memo[key] = (state["cache"], int(state["offset"]))
-    # Load Persian G2P before accepting requests; avoid a first-turn cold start.
-    from g2p_onnx import OnnxG2P
-    engine._g2p = OnnxG2P(engine.dir)
+    # G2P is loaded on demand and released before waveform generation.
     emit({"type": "ready", "model": "pocket-tts-farsi-v2-onnx"})
     for line in sys.stdin:
         request = None
@@ -89,7 +107,7 @@ def main():
             wav = render(engine, phrase.strip())
             emit({"id": rid, "audio": base64.b64encode(wav).decode("ascii")})
             del wav
-            gc.collect()
+            release_unused_memory()
         except Exception as exc:
             print("[FORZA Pocket] synthesis error:", repr(exc)[:240], file=sys.stderr)
             emit({"id": request.get("id") if isinstance(request, dict) else None, "error": "synthesis_failed"})

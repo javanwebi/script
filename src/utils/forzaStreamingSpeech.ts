@@ -4,9 +4,9 @@
  */
 export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:string;rest:string}|null{
   if(!buffer.trim())return null;
-  const min=first?12:28;
-  const target=first?28:90;
-  const max=first?52:135;
+  const min=12;
+  const target=first?28:36;
+  const max=52;
   const pause=/[.!?؟،؛:\n]/g;
   let match:RegExpExecArray|null;
   while((match=pause.exec(buffer))){

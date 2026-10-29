@@ -800,7 +800,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Transcribe speech first so the customer's exact words appear
           // immediately, before waiting on AI generation and spoken output.
           const sttAbort=new AbortController();
-          const sttTimer=window.setTimeout(()=>sttAbort.abort(),12000);
+          const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید؛ لطفاً سؤال را تایپ کنید.')),15000);
           let sttResponse:Response;
           let sttData:any;
           try {
@@ -853,9 +853,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Each next WAV can be generated while the previous one is playing.
           const ttsStartedAt = performance.now();
           const speechRequest = synthesisChain.then(async () => {
-            if (callClosedRef.current) throw new Error('forza_call_closed');
+            if (callClosedRef.current || ttsUnavailable) throw new Error('forza_speech_cancelled');
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(), 18000);
+            const timer = window.setTimeout(() => controller.abort(new Error('مهلت تولید صدا تمام شد؛ متن پاسخ حفظ شده است.')), 25000);
             try {
               return await requestQuickPocketSpeech(phrase, controller.signal);
             } finally {
@@ -867,7 +867,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=tts-ready ms=' + Math.round(performance.now() - ttsStartedAt) + ' chars=' + phrase.length);
           }).catch(() => {});
           playbackChain = playbackChain.then(async () => {
-            if (callClosedRef.current || ttsUnavailable) return;
+            if (callClosedRef.current) return;
             try {
               await playSpeechPhrase(phrase, speechRequest);
               spokenCount++;
@@ -900,7 +900,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         try {
           const streamController=new AbortController();
-          const streamTimer=window.setTimeout(()=>streamController.abort(),8500);
+          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),25000);
+          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('مهلت دریافت پاسخ تمام شد.')),60000);
           try{
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
@@ -913,10 +914,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               }),
               signal:streamController.signal,
             });
-            reply=await consumeForzaTextStream(streamRes,onTextChunk);
+            reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
+              window.clearTimeout(streamTimer);
+              streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط هنگام دریافت پاسخ قطع شد.')),15000);
+              onTextChunk(chunk,fullText);
+            });
             if(!reply)throw new Error('forza_empty_stream');
           }finally{
             window.clearTimeout(streamTimer);
+            window.clearTimeout(totalTimer);
           }
         } catch(streamError) {
           // Keep the existing complete-response route as a compatibility
@@ -925,7 +931,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.warn('[FORZA] Stream ended after partial reply; preserving first text');
           } else {
           const fallbackAbort=new AbortController();
-          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(),4500);
+          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);
           let res:Response;
           let data:any;
           try {
@@ -952,9 +958,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           await playbackChain;
           if (!callClosedRef.current && spokenCount !== phraseCount) {
             setVoiceOutputError('تولید صدای زنده در این نوبت کامل نشد. متن پاسخ در دسترس است.');
+          } else if (!callClosedRef.current) {
+            setVoiceOutputError(null);
           }
           console.info('[FORZA_LATENCY] phase=all-phrases-spoken count=' + spokenCount);
-          setVoiceOutputError(null);
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');

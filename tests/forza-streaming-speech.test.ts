@@ -55,3 +55,18 @@ test('fails closed when an SSE stream reports an error',async()=>{
   });
   await assert.rejects(consumeForzaTextStream(new Response(stream),()=>{}),/down/);
 });
+
+test('long replies retain every word while bounding every synthesis phrase',()=>{
+  const text='برای انتخاب تسمه مناسب لطفاً طول و عرض تسمه و نوع دستگاه و کد نوشته شده روی قطعه را اعلام کنید تا بتوانم مشخصات محصول را بررسی کنم.';
+  let rest=text;
+  const phrases:string[]=[];
+  while(true){
+    const next=takeSpeakablePhrase(rest,phrases.length===0);
+    if(!next)break;
+    assert.ok(next.phrase.length<=52);
+    phrases.push(next.phrase);rest=next.rest;
+  }
+  if(rest)phrases.push(rest);
+  assert.ok(phrases.length>=3);
+  assert.equal(phrases.join(' '),text);
+});
