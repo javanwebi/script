@@ -659,15 +659,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         speech = await request;
       } catch (serverError: any) {
         console.warn('[FORZA Amir] warmed server voice unavailable', serverError?.message || 'tts_error');
-        if (amirStatus !== 'ready') {
-          throw new Error('amir_voice_not_ready');
-        }
+        // Attempt browser Amir even when the warm-up status has not yet updated.
+        // Its local loader can become ready during the server timeout.
         let timer: number | undefined;
         try {
           speech = await Promise.race([
             requestSpeechAudio(phrase),
             new Promise<ForzaSpeechResponse>((_, reject) => {
-              timer = window.setTimeout(() => reject(new Error('amir_browser_tts_timeout')), 7000);
+              timer = window.setTimeout(() => reject(new Error('amir_browser_tts_timeout')), 18000);
             }),
           ]);
         } finally {
@@ -883,7 +882,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const speechRequest = synthesisChain.then(async () => {
             if (callClosedRef.current) throw new Error('forza_call_closed');
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(), 8500);
+            const timer = window.setTimeout(() => controller.abort(), 18000);
             try {
               return await requestQuickAmirSpeech(phrase, controller.signal);
             } finally {
