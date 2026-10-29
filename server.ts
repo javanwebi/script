@@ -5400,7 +5400,7 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 // In production, forward to the dedicated PRIVATE Pocket voice service to keep
 // ONNX inference away from the catalog / Gemini process. No new provider or
 // voice is introduced; both services use the same selected reference WAV.
-const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/\\/$/, '') || '';
+const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
 
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
 app.post('/api/ai/forza-speech',async(req,res)=>{
