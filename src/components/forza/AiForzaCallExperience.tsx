@@ -915,7 +915,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if (callClosedRef.current) throw new Error('forza_speech_cancelled');
             if (pocketUnavailable) return {useClientSpeech:true};
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(new Error('pocket_tts_timeout')), 9000);
+            // Private VPS speech can be slower on the first uncached phrase.
+            // Wait longer than the server's 30s upper bound before switching voices.
+            const timer = window.setTimeout(() => controller.abort(new Error('pocket_tts_timeout')), 33000);
             try {
               return await requestQuickPocketSpeech(phrase, controller.signal);
             } catch (error) {
