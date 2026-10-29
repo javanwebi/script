@@ -1,0 +1,34 @@
+name: Verify VPS frontend build before deployment
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "server.ts"
+      - "vite.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/verify-vps-build.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exactly as VPS candidate
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run lint
+      - name: Build as VPS
+        run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
+      - name: Print focused Vite failure
+        if: failure()
+        run: |
+          grep -n -E 'error|Error|Could not|Cannot|failed|Failed|resolve|Build' /tmp/forza-vps-build.log | tail -n 90 || true
