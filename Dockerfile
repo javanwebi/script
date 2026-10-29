@@ -15,6 +15,17 @@ RUN mkdir -p vendor/persian_tts \
  && git -C vendor/persian_tts remote add origin https://github.com/nimaone/persian_tts.git \
  && git -C vendor/persian_tts fetch --depth 1 origin e834bd65ac622f376c4d2050821decf5eb95241c \
  && git -C vendor/persian_tts checkout --detach FETCH_HEAD
+# Reduce peak ONNX memory: no CPU tensor arena or memory-pattern preallocation,
+# and avoid two CPU threads per graph on Railway's 1GB RAM service.
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('vendor/persian_tts/scripts/tts_onnx.py')
+s=p.read_text()
+a='opts.intra_op_num_threads = 2'
+assert a in s, 'upstream changed: review low-memory patch'
+s=s.replace(a,'opts.intra_op_num_threads = 1\n        opts.enable_cpu_mem_arena = False\n        opts.enable_mem_pattern = False')
+p.write_text(s)
+PY
 ENV HF_HUB_DOWNLOAD_TIMEOUT=240 HF_HUB_ETAG_TIMEOUT=90
 RUN /opt/forza-pocket/bin/hf download Nimaone/pocket-tts-farsi-v2-onnx --local-dir /app/vendor/persian_tts/model/onnx \
  && mkdir -p /app/vendor/persian_tts/model/v2 \
