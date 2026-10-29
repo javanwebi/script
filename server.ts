@@ -5396,7 +5396,12 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 }
 
 
-// Short, rate-limited, SAME-VOICE Pocket TTS Farsi v2 fallback with the selected voice; inference remains on Railway. No paid/cloud TTS is used.
+// All browser audio requests go through the existing rate-limited Node API.
+// In production, forward to the dedicated PRIVATE Pocket voice service to keep
+// ONNX inference away from the catalog / Gemini process. No new provider or
+// voice is introduced; both services use the same selected reference WAV.
+const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/\\/$/, '') || '';
+
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
 app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
@@ -5414,12 +5419,39 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   }
   const started=Date.now();
   try{
-    const wav=await synthesizeServerPocket(phrase);
+    let wav:Buffer;
+    if(internalForzaVoiceUrl){
+      // Never fall back to in-process ONNX on remote failure: it previously
+      // OOM-killed the main 1 GB application. The client retains its browser
+      // TTS recovery while the private worker becomes healthy again.
+      const response=await fetch(internalForzaVoiceUrl+'/speak',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          ...(process.env.FORZA_VOICE_TOKEN
+            ? {'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN}:{}),
+        },
+        body:JSON.stringify({text:phrase}),
+        signal:AbortSignal.timeout(14500),
+      });
+      if(!response.ok)throw new Error('remote_voice_http_'+response.status);
+      const voiceType=response.headers.get('content-type')||'';
+      if(!voiceType.includes('audio/wav'))throw new Error('remote_voice_invalid_type');
+      const payload=await response.arrayBuffer();
+      if(payload.byteLength<44||payload.byteLength>5_000_000)
+        throw new Error('remote_voice_invalid_length');
+      wav=Buffer.from(payload);
+      if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
+        throw new Error('remote_voice_invalid_wav');
+    }else{
+      wav=await synthesizeServerPocket(phrase);
+    }
     if(res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Forza-Voice','pocket-farsi-v2');
-    console.info('[FORZA_LATENCY] phase=pocket-server-tts ms='+ (Date.now()-started));
+    res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
+    console.info('[FORZA_LATENCY] phase=pocket-server-tts backend='+(internalForzaVoiceUrl?'private':'local')+' ms='+(Date.now()-started));
     return res.send(wav);
   }catch(error:any){
     console.warn('[FORZA Pocket Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
@@ -7173,8 +7205,12 @@ async function start() {
     console.log(`[Server] Gemini key: ${keyStatus}`);
     // Load Pocket Farsi ONNX once at startup, off the request path.
     // The healthcheck remains independent of audio model availability.
-    void warmServerPocket().catch(error=>
-      console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
+    if(internalForzaVoiceUrl){
+      console.info('[FORZA Pocket] using isolated private speech service (no local ONNX warmup)');
+    }else{
+      void warmServerPocket().catch(error=>
+        console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
+    }
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
     if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
