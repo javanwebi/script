@@ -11,6 +11,7 @@ import os
 import sys
 import gc
 import ctypes
+import time
 import numpy as np
 from pathlib import Path
 
@@ -62,23 +63,32 @@ def release_unused_memory():
 
 
 class MemoryBoundTts(OnnxTts):
+    # Opt-in benchmark. Avoid acoustic ONNX teardown/reload before every
+    # Persian utterance, but only when explicitly enabled and memory-tested.
+    KEEP_ACOUSTIC = os.environ.get("FORZA_TTS_RESIDENT_ACOUSTIC") == "1"
+
     def synthesize_text(self, text, *args, **kwargs):
+        started = time.monotonic()
         # The G2P encoder/decoder and the acoustic decoder do not need to
         # coexist. Railway caps this whole Node + Python service at 1 GB.
         # Unload the acoustic sessions BEFORE loading the Persian G2P models,
         # rather than waiting until their allocations have already overlapped.
-        if any("\u0600" <= char <= "\u06FF" for char in text):
+        if not self.KEEP_ACOUSTIC and any("\u0600" <= char <= "\u06FF" for char in text):
             self.s_flow = None
             self.s_dec = None
             release_unused_memory()
         try:
             return super().synthesize_text(text, *args, **kwargs)
         finally:
+            print("[FORZA voice profile] total_ms=%d resident=%s text_chars=%d" % (
+                (time.monotonic() - started) * 1000, int(self.KEEP_ACOUSTIC), len(text)),
+                file=sys.stderr, flush=True)
             if hasattr(self, "_g2p"):
                 del self._g2p
                 release_unused_memory()
 
     def synthesize(self, *args, **kwargs):
+        started = time.monotonic()
         # synthesize_text has phonemised every sentence; release its ONNX
         # sessions BEFORE materialising the acoustic model's KV state.
         if hasattr(self, "_g2p"):
@@ -96,7 +106,11 @@ class MemoryBoundTts(OnnxTts):
                 str(self.dir / "flow_lm_step.onnx"), options, providers=["CPUExecutionProvider"])
             self.s_dec = ort.InferenceSession(
                 str(self.dir / "mimi_decoder_step_kv.onnx"), options, providers=["CPUExecutionProvider"])
-        return super().synthesize(*args, **kwargs)
+        try:
+            return super().synthesize(*args, **kwargs)
+        finally:
+            print("[FORZA voice profile] synthesis_ms=%d" % (
+                (time.monotonic() - started) * 1000), file=sys.stderr, flush=True)
 
 
 def main():
