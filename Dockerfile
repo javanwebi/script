@@ -3,15 +3,27 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 COPY . .
-# All Piper model downloads happen DURING THE BUILD, not in production.
-# Generate the welcome with the same Amir neural model as later responses.
+# FORZA's selected voice is Pocket TTS Farsi v2, not Piper Amir.
+# Fetch and bundle ONNX weights at build time; production inference is offline.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-venv \
- && python3 -m venv /tmp/forza-piper-build \
- && /tmp/forza-piper-build/bin/pip install --no-cache-dir piper-tts==1.3.0 \
- && node scripts/download-forza-amir.mjs \
- && node scripts/generate-forza-greeting.mjs \
+ && apt-get install -y --no-install-recommends python3 python3-venv git curl ca-certificates libsndfile1 \
  && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /opt/forza-pocket \
+ && /opt/forza-pocket/bin/pip install --no-cache-dir onnxruntime numpy scipy soundfile sentencepiece "huggingface_hub[cli]"
+RUN mkdir -p vendor/persian_tts \
+ && git init vendor/persian_tts \
+ && git -C vendor/persian_tts remote add origin https://github.com/nimaone/persian_tts.git \
+ && git -C vendor/persian_tts fetch --depth 1 origin e834bd65ac622f376c4d2050821decf5eb95241c \
+ && git -C vendor/persian_tts checkout --detach FETCH_HEAD
+ENV HF_HUB_DOWNLOAD_TIMEOUT=240 HF_HUB_ETAG_TIMEOUT=90
+RUN /opt/forza-pocket/bin/hf download Nimaone/pocket-tts-farsi-v2-onnx --local-dir /app/vendor/persian_tts/model/onnx \
+ && mkdir -p /app/vendor/persian_tts/model/v2 \
+ && curl -fL --retry 3 --connect-timeout 30 https://huggingface.co/mehdi-hf/pocket-tts-farsi-v2/resolve/main/tokenizer_ph.model -o /app/vendor/persian_tts/model/v2/tokenizer_ph.model \
+ && curl -fL --retry 3 --connect-timeout 30 https://huggingface.co/mehdi-hf/pocket-tts-farsi-v2/resolve/main/normalize_fa.py -o /app/vendor/persian_tts/model/v2/normalize_fa.py \
+ && curl -fL --retry 3 --connect-timeout 30 https://huggingface.co/mehdi-hf/pocket-tts-farsi-v2/resolve/main/samples/hello.wav -o /tmp/forza-selected-hello.wav \
+ && /opt/forza-pocket/bin/python -c "import soundfile as sf; a,sr=sf.read('/tmp/forza-selected-hello.wav'); assert sr==24000 and len(a)/sr>=4; sf.write('public/forza-pocket-reference.wav',a[:5*sr],sr,subtype='PCM_16')" \
+ && /opt/forza-pocket/bin/python scripts/forza_pocket_worker.py --greeting \
+ && test -s public/forza-greeting-bootstrap.wav
 # Install pinned browser runtimes at build time (none execute on Railway).
 RUN npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
  @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 \
