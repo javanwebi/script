@@ -19,14 +19,16 @@ ROOT = Path.cwd()
 ENGINE_ROOT = ROOT / "vendor" / "persian_tts"
 sys.path.insert(0, str(ENGINE_ROOT / "scripts"))
 from tts_onnx import OnnxTts
-# Railway's 1 GB RAM cannot accommodate upstream's 4-way synthesis.
-# Force strictly serial generation before constructing any ONNX sessions.
+# Keep Railway and production one-worker behaviour by default.
+# Explicitly permit two independent phoneme chunks to render concurrently
+# only in resource-limited, isolated VPS benchmark containers.
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor as _OriginalPool
-class _SerialPool(_OriginalPool):
+PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", "1"))))
+class _LimitedPool(_OriginalPool):
     def __init__(self, max_workers=None, *args, **kwargs):
-        super().__init__(max_workers=1, *args, **kwargs)
-concurrent.futures.ThreadPoolExecutor = _SerialPool
+        super().__init__(max_workers=PARALLEL_CHUNKS, *args, **kwargs)
+concurrent.futures.ThreadPoolExecutor = _LimitedPool
 import soundfile as sf
 
 REFERENCE = ROOT / "public" / "forza-pocket-reference.wav"
