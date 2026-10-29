@@ -593,17 +593,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }), [ensureCtx, isSpeakerMuted, setStatus, stopAudio]);
 
-  // Chatterbox Persian is rendered by the dedicated, self-hosted voice service.
+  // Pocket TTS Persian is rendered by the dedicated, self-hosted voice service.
   // Keep an origin-local blob cache so replays do not incur another inference.
-  const requestChatterboxSpeech = useCallback(async (phrase:string, signal?:AbortSignal):Promise<ForzaSpeechResponse> => {
+  const requestPocket TTSSpeech = useCallback(async (phrase:string, signal?:AbortSignal):Promise<ForzaSpeechResponse> => {
     const response=await fetch('/api/ai/forza-speech',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text:phrase}),signal,
     });
-    if(!response.ok)throw new Error('chatterbox_server_http_'+response.status);
-    if(response.headers.get('X-Forza-Voice')!=='chatterbox-persian')throw new Error('unexpected_tts_provider');
+    if(!response.ok)throw new Error('pocket_server_http_'+response.status);
+    if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2-male')throw new Error('unexpected_tts_provider');
     const audio=await response.blob();
-    if(audio.size<44 || audio.size>5_000_000)throw new Error('chatterbox_invalid_server_audio');
+    if(audio.size<44 || audio.size>5_000_000)throw new Error('pocket_invalid_server_audio');
     return {success:true,audioBase64:URL.createObjectURL(audio)};
   },[]);
 
@@ -612,7 +612,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(ready?.audioBase64)return Promise.resolve(ready);
     const inFlight=ttsRequestsRef.current.get(text);
     if(inFlight)return inFlight;
-    const promise=requestChatterboxSpeech(text).then(data=>{
+    const promise=requestPocket TTSSpeech(text).then(data=>{
       const cache=ttsReadyRef.current;
       cache.set(text,data);
       if(cache.size>12){
@@ -627,13 +627,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }).finally(()=>ttsRequestsRef.current.delete(text));
     ttsRequestsRef.current.set(text,promise);
     return promise;
-  },[requestChatterboxSpeech]);
+  },[requestPocket TTSSpeech]);
 
-  // Prefetch the Chatterbox welcome before the particle animation completes.
+  // Prefetch the Pocket TTS welcome before the particle animation completes.
   // The sidecar pre-renders this exact phrase once at startup.
   useEffect(()=>{
     void requestSpeechAudio(GREETING_TEXT).catch(error=>
-      console.warn('[FORZA Chatterbox] greeting preload unavailable',error?.message||'tts_error'));
+      console.warn('[FORZA Pocket TTS] greeting preload unavailable',error?.message||'tts_error'));
   },[requestSpeechAudio]);
 
   const playSpeechPhrase = useCallback(async (
@@ -641,14 +641,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   ): Promise<void> => {
     try {
       const speech=await request;
-      if(!speech.audioBase64)throw new Error('chatterbox_voice_unavailable');
+      if(!speech.audioBase64)throw new Error('pocket_voice_unavailable');
       lastPlayableVoiceRef.current={text:phrase,audioUrl:speech.audioBase64};
       await playDataUrl(speech.audioBase64);
       setVoiceOutputError(null);
     }catch(error:any){
       if(error?.message!=='autoplay_permission_required'){
-        setVoiceOutputError('پاسخ متنی دریافت شد، اما صدای Chatterbox آماده نشد. لطفاً دوباره تلاش کنید.');
-        console.warn('[FORZA Chatterbox] phrase playback failed',error?.message||'unknown');
+        setVoiceOutputError('پاسخ متنی دریافت شد، اما صدای Pocket TTS آماده نشد. لطفاً دوباره تلاش کنید.');
+        console.warn('[FORZA Pocket TTS] phrase playback failed',error?.message||'unknown');
       }
       throw error;
     }
@@ -661,12 +661,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setTurn('ai');
 
     if (text === GREETING_TEXT) {
-      // The greeting uses the same Chatterbox Persian voice as later answers.
+      // The greeting uses the same Pocket TTS Persian voice as later answers.
       const speech=await requestSpeechAudio(GREETING_TEXT);
-      if(!speech.audioBase64)throw new Error('chatterbox_greeting_unavailable');
+      if(!speech.audioBase64)throw new Error('pocket_greeting_unavailable');
       lastPlayableVoiceRef.current={text:GREETING_TEXT,audioUrl:speech.audioBase64};
       await playDataUrl(speech.audioBase64);
-      console.info('[FORZA greeting] Chatterbox Persian welcome finished');
+      console.info('[FORZA greeting] Pocket TTS Persian welcome finished');
       return;
     }
 
@@ -843,7 +843,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (!phrase.trim()) return;
           phraseCount++;
           const phraseIndex = phraseCount;
-          // The Chatterbox service serializes GPU/CPU inference; keep phrases ordered.
+          // The Pocket TTS service serializes GPU/CPU inference; keep phrases ordered.
           // Each next WAV can be generated while the previous one is playing.
           const ttsStartedAt = performance.now();
           const speechRequest = synthesisChain.then(async () => {
@@ -851,7 +851,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             const controller = new AbortController();
             const timer = window.setTimeout(() => controller.abort(), 60000);
             try {
-              return await requestChatterboxSpeech(phrase, controller.signal);
+              return await requestPocket TTSSpeech(phrase, controller.signal);
             } finally {
               window.clearTimeout(timer);
             }
@@ -940,7 +940,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           await playbackChain;
           if (!callClosedRef.current && spokenCount !== phraseCount) {
-            throw new Error('chatterbox_incomplete_spoken_reply');
+            throw new Error('pocket_incomplete_spoken_reply');
           }
           console.info('[FORZA_LATENCY] phase=all-phrases-spoken count=' + spokenCount);
           setVoiceOutputError(null);
@@ -959,7 +959,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening, requestSpeechAudio, requestChatterboxSpeech, playSpeechPhrase]
+    [setStatus, startListening, stopListening, requestSpeechAudio, requestPocket TTSSpeech, playSpeechPhrase]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -1511,7 +1511,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدا: Chatterbox فارسی · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
+            صدا: Pocket TTS فارسی · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
           </div>
         )}
         {microphoneError && (
