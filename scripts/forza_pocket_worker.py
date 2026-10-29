@@ -62,13 +62,40 @@ def release_unused_memory():
 
 
 class MemoryBoundTts(OnnxTts):
+    def synthesize_text(self, text, *args, **kwargs):
+        # The G2P encoder/decoder and the acoustic decoder do not need to
+        # coexist. Railway caps this whole Node + Python service at 1 GB.
+        # Unload the acoustic sessions BEFORE loading the Persian G2P models,
+        # rather than waiting until their allocations have already overlapped.
+        if any("\u0600" <= char <= "\u06FF" for char in text):
+            self.s_flow = None
+            self.s_dec = None
+            release_unused_memory()
+        try:
+            return super().synthesize_text(text, *args, **kwargs)
+        finally:
+            if hasattr(self, "_g2p"):
+                del self._g2p
+                release_unused_memory()
+
     def synthesize(self, *args, **kwargs):
-        # synthesize_text has already phonemised every sentence. Release G2P
-        # sessions BEFORE waveform generation, whose KV state peaks here.
-        # Keeping both resident exceeds the shared 1 GB service on long turns.
+        # synthesize_text has phonemised every sentence; release its ONNX
+        # sessions BEFORE materialising the acoustic model's KV state.
         if hasattr(self, "_g2p"):
             del self._g2p
             release_unused_memory()
+        if getattr(self, "s_flow", None) is None:
+            import onnxruntime as ort
+            options = ort.SessionOptions()
+            options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            options.intra_op_num_threads = 1
+            options.inter_op_num_threads = 1
+            options.enable_cpu_mem_arena = False
+            options.enable_mem_pattern = False
+            self.s_flow = ort.InferenceSession(
+                str(self.dir / "flow_lm_step.onnx"), options, providers=["CPUExecutionProvider"])
+            self.s_dec = ort.InferenceSession(
+                str(self.dir / "mimi_decoder_step_kv.onnx"), options, providers=["CPUExecutionProvider"])
         return super().synthesize(*args, **kwargs)
 
 
