@@ -9,12 +9,21 @@ import io
 import json
 import os
 import sys
+import gc
 from pathlib import Path
 
 ROOT = Path.cwd()
 ENGINE_ROOT = ROOT / "vendor" / "persian_tts"
 sys.path.insert(0, str(ENGINE_ROOT / "scripts"))
 from tts_onnx import OnnxTts
+# Railway's 1 GB RAM cannot accommodate upstream's 4-way synthesis.
+# Force strictly serial generation before constructing any ONNX sessions.
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor as _OriginalPool
+class _SerialPool(_OriginalPool):
+    def __init__(self, max_workers=None, *args, **kwargs):
+        super().__init__(max_workers=1, *args, **kwargs)
+concurrent.futures.ThreadPoolExecutor = _SerialPool
 import soundfile as sf
 
 REFERENCE = ROOT / "public" / "forza-pocket-reference.wav"
@@ -45,6 +54,7 @@ def main():
     if not REFERENCE.is_file():
         raise RuntimeError("missing_pocket_voice_reference")
     engine = OnnxTts()
+    engine.VOICE_MEMO_MAX = 1
     if "--greeting" in sys.argv:
         GREETING.write_bytes(render(engine, WELCOME))
         print("Pocket FORZA greeting generated:", GREETING.stat().st_size, file=sys.stderr)
@@ -64,6 +74,8 @@ def main():
                 continue
             wav = render(engine, phrase.strip())
             emit({"id": rid, "audio": base64.b64encode(wav).decode("ascii")})
+            del wav
+            gc.collect()
         except Exception as exc:
             print("[FORZA Pocket] synthesis error:", repr(exc)[:240], file=sys.stderr)
             emit({"id": request.get("id") if isinstance(request, dict) else None, "error": "synthesis_failed"})
