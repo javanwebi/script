@@ -106,7 +106,7 @@ status=$(curl -sS --max-time 48 -w '%{http_code}' \
   -D "$STAGE/headers" \
   -o "$STAGE/speech.wav" \
   -H 'Content-Type: application/json' \
-  --data '{"text":"سلام، پشتیبانی صنعت پیش آماده است."}' \
+  --data '{"text":"درود، فورزا آماده است."}' \
   http://127.0.0.1:3001/api/ai/forza-speech)
 backend=$(grep -i '^x-forza-voice-backend:' "$STAGE/headers" | tr -d '\r' | awk '{print $2}' | tail -n 1)
 bytes=$(wc -c < "$STAGE/speech.wav")
