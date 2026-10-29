@@ -11,7 +11,7 @@ on:
 jobs:
   real-speech:
     runs-on: ubuntu-latest
-    timeout-minutes: 22
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Build exact dedicated voice image
@@ -40,3 +40,35 @@ jobs:
           test "$(head -c 4 /tmp/forza-voice-smoke.wav)" = "RIFF"
           test "$(stat -c %s /tmp/forza-voice-smoke.wav)" -gt 2000
           echo "PASS: generated $(stat -c %s /tmp/forza-voice-smoke.wav) WAV bytes under a 1 GB memory cgroup"
+      - name: Real Persian speed/memory benchmark with resident acoustic sessions (1.5 GiB)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name forza-voice-resident-test \
+            --memory=1536m --memory-swap=1536m --cpus=1 \
+            -e FORZA_TTS_RESIDENT_ACOUSTIC=1 \
+            -p 127.0.0.1:8766:8080 forza-private-voice:test
+          trap 'docker logs --tail 160 forza-voice-resident-test || true; docker rm -f forza-voice-resident-test || true' EXIT
+          for i in $(seq 1 90); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8766/health >/dev/null; then break; fi
+            if ! docker ps --format '{{.Names}}' | grep -qx forza-voice-resident-test; then
+              echo "Resident voice container stopped before ready"; exit 1
+            fi
+            sleep 2
+          done
+          for phrase in 'سلام، من فورزا هستم.' \
+                        'برای انتخاب تسمه مناسب، مشخصات دستگاه را بفرمایید.' \
+                        'من آماده پاسخگویی به سوالات فنی شما هستم.'; do
+            echo "REAL_VOICE_BENCHMARK length=${#phrase}"
+            code=$(curl -sS --max-time 65 -o /tmp/forza-resident-speech.wav \
+              -w ' HTTP=%{http_code} TOTAL=%{time_total}s' \
+              -H 'Content-Type: application/json' \
+              --data "$(printf '{"text":"%s"}' "$phrase")" \
+              http://127.0.0.1:8766/speak)
+            echo "$code"
+            test "$(head -c 4 /tmp/forza-resident-speech.wav)" = "RIFF"
+            test "$(stat -c %s /tmp/forza-resident-speech.wav)" -gt 2000
+            docker stats --no-stream --format 'CURRENT_CPU={{.CPUPerc}} CURRENT_MEM={{.MemUsage}}' forza-voice-resident-test
+          done
+          docker inspect --format 'OOM_KILLED={{.State.OOMKilled}} EXIT_CODE={{.State.ExitCode}}' forza-voice-resident-test
+          test "$(docker inspect --format '{{.State.OOMKilled}}' forza-voice-resident-test)" = false
