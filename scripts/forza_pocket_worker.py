@@ -84,7 +84,7 @@ class MemoryBoundTts(OnnxTts):
         if hasattr(self, "_g2p"):
             del self._g2p
             release_unused_memory()
-        if getattr(self, "s_flow", None) is None:
+        if hasattr(self, "s_flow") and self.s_flow is None:
             import onnxruntime as ort
             options = ort.SessionOptions()
             options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
