@@ -854,7 +854,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const speechRequest = synthesisChain.then(async () => {
             if (callClosedRef.current) throw new Error('forza_call_closed');
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(), 65000);
+            const timer = window.setTimeout(() => controller.abort(), 19000);
             try {
               return await requestQuickPocketSpeech(phrase, controller.signal);
             } finally {
