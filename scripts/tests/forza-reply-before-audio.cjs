@@ -1,4 +1,4 @@
-// Regression: Gemini SSE finishes immediately but Piper Amir spends seconds
+// Regression: Gemini SSE finishes immediately but Chatterbox spends seconds
 // synthesizing the first sentence. Text and progress must appear without
 // awaiting TTS and the assistant must eventually unlock the next turn.
 const {chromium} = require('playwright');
@@ -34,11 +34,11 @@ function wav(){
    return r.fulfill({status:200,contentType:'text/event-stream',
     body:frames.map(v=>'data: '+JSON.stringify(v)+'\n\n').join('')});
   });
-  await page.route('**/api/ai/amir-speech',async r=>{
+  await page.route('**/api/ai/forza-speech',async r=>{
    speechCalls++;
    await new Promise(resolve=>setTimeout(resolve,4000));
    await r.fulfill({status:200,contentType:'audio/wav',
-    headers:{'X-Forza-Voice':'piper-amir'},body:wav()}).catch(()=>{});
+    headers:{'X-Forza-Voice':'chatterbox-persian'},body:wav()}).catch(()=>{});
   });
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded'});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
@@ -55,6 +55,6 @@ function wav(){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:23000});
   assert.ok(speechCalls>=1);
   assert.deepEqual(errors,[]);
-  console.log('PASS: immediate visible AI text while local Amir speech is delayed for 4 seconds');
+  console.log('PASS: immediate visible AI text while Chatterbox speech is delayed for 4 seconds');
  } finally {await browser.close();}
 })().catch(e=>{console.error('FORZA RESPONSE FIRST TEST FAIL',e);process.exitCode=1;});

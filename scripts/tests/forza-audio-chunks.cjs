@@ -50,7 +50,7 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction((expected)=>window.__ttsSent===true || !!document.querySelector('.forza-stage'),{},{timeout:15000});
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:80000});
     const greetingSpoken=await page.evaluate(()=>window.__forzaAmirSpoken);
-    assert.equal(greetingSpoken.length,0,'prerecorded Amir greeting must not be synthesized twice');
+    assert.equal(greetingSpoken.length,1,'Chatterbox greeting should be preloaded exactly once');
     await page.getByRole('button',{name:'تایپ پیام متنی',exact:true}).click();
     await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه');
     const send=page.getByRole('button',{name:'ارسال به هوش مصنوعی',exact:true});
@@ -59,7 +59,7 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
     assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
     const ttsTexts=await page.evaluate(()=>window.__forzaAmirSpoken);
-    assert.ok(ttsTexts.length>=1,'must synthesize reply speech locally with Amir');
+    assert.ok(ttsTexts.length>=2,'must synthesize greeting and reply with Chatterbox');
     assert.ok(ttsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
     console.log('PASS: automatic mic acquisition; no retry/unlock buttons; greeting and streamed reply TTS (mock audio).');
   } finally {await browser.close();}

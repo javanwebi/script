@@ -45,7 +45,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
-import { synthesizeServerAmir, warmServerAmir } from './src/services/forzaAmirServerSpeech';
+import { synthesizeServerAmir } from './src/services/forzaAmirServerSpeech';
 
 dotenv.config();
 // Example configuration is documentation only; never load placeholder defaults into runtime.
@@ -5428,6 +5428,51 @@ app.post('/api/ai/amir-speech',async(req,res)=>{
   }
 });
 
+// Chatterbox Persian is hosted as a separate local inference service. The web
+// server is the only public entry point; no Chatterbox URL or token is exposed.
+app.post('/api/ai/forza-speech', async (req, res) => {
+  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'chatterbox_invalid_text'});
+  const base=process.env.FORZA_CHATTERBOX_URL?.trim();
+  if(!base)return res.status(503).json({error:'chatterbox_not_configured'});
+  const key=String(req.ip||req.socket.remoteAddress||'unknown');
+  const now=Date.now();
+  let budget=amirTtsBudget.get(key);
+  if(!budget || now>=budget.until){
+    budget={count:0,until:now+60_000};amirTtsBudget.set(key,budget);
+  }
+  if(budget.count>=24)return res.status(429).json({error:'chatterbox_rate_limited'});
+  budget.count++;
+  const started=Date.now();
+  try{
+    const upstream=await fetch(new URL('/synthesize',base),{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        ...(process.env.FORZA_CHATTERBOX_TOKEN?{Authorization:'Bearer '+process.env.FORZA_CHATTERBOX_TOKEN}:{}),
+      },
+      body:JSON.stringify({text:phrase}),
+      signal:AbortSignal.timeout(60_000),
+    });
+    if(!upstream.ok)throw new Error('chatterbox_upstream_http_'+upstream.status);
+    if(!String(upstream.headers.get('content-type')||'').includes('audio/wav'))throw new Error('chatterbox_invalid_content_type');
+    const size=Number(upstream.headers.get('content-length')||0);
+    if(size>5_000_000)throw new Error('chatterbox_audio_too_large');
+    const wav=Buffer.from(await upstream.arrayBuffer());
+    if(wav.length<44 || wav.length>5_000_000 || wav.toString('ascii',0,4)!=='RIFF' || wav.toString('ascii',8,12)!=='WAVE'){
+      throw new Error('chatterbox_invalid_wav');
+    }
+    res.setHeader('Content-Type','audio/wav');
+    res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Forza-Voice','chatterbox-persian');
+    console.info('[FORZA_LATENCY] phase=chatterbox-server-tts ms='+(Date.now()-started));
+    return res.send(wav);
+  }catch(error:any){
+    console.warn('[FORZA Chatterbox] synthesis unavailable',String(error?.message||'tts_error').slice(0,120));
+    if(!res.headersSent)return res.status(503).json({error:'chatterbox_unavailable'});
+  }
+});
+
 // POST: /api/ai/consult-stream - Real-time progressive streaming SSE endpoint for Engineering Desk & Voice Audio
 // Avoid repeatedly choosing a temporarily overloaded model for every voice turn.
 // The cooldown is per Node process, does not cache user content, and expires.
@@ -7172,10 +7217,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    // Load Piper Amir ONNX once at startup, off the request path.
-    // The healthcheck remains independent of audio model availability.
-    void warmServerAmir().catch(error=>
-      console.warn('[FORZA Amir] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
+    // Chatterbox weights live in the dedicated inference service, not in this web process.
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
     if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
