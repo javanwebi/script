@@ -9,8 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     NUMEXPR_NUM_THREADS=1 \
     ONNXRUNTIME_LOG_SEVERITY_LEVEL=3 \
     HF_HUB_DOWNLOAD_TIMEOUT=240 \
-    HF_HUB_ETAG_TIMEOUT=90 \
-    FORZA_POCKET_PRECOMPUTED_VOICE=1
+    HF_HUB_ETAG_TIMEOUT=90
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git curl ca-certificates libsndfile1 \
  && rm -rf /var/lib/apt/lists/*
