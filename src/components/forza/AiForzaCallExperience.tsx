@@ -93,6 +93,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [particlesFormed, setParticlesFormed] = useState(false);
   const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
   const [voicePending, setVoicePending] = useState(false);
+  const [voiceWaitSeconds, setVoiceWaitSeconds] = useState(0);
   const greetingStartedRef = useRef(false);
   const micAutoStartedRef = useRef(false);
   const greetingFinishedRef = useRef(false);
@@ -447,6 +448,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setDisplayedAi(aiText || '');
   }, [aiText]);
 
+  // Keep the first-audio wait observable instead of showing an indefinitely
+  // frozen spinner while the CPU-based Pocket model is synthesizing speech.
+  useEffect(() => {
+    if (!voicePending) {
+      setVoiceWaitSeconds(0);
+      return;
+    }
+    const started = Date.now();
+    setVoiceWaitSeconds(0);
+    const timer = window.setInterval(() => {
+      setVoiceWaitSeconds(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [voicePending]);
+
   // Call duration timer
   useEffect(() => {
     if (!isCallActive) return;
@@ -734,15 +750,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
 
     const chunks = forzaFastStartSpeechChunks(text);
-    let pendingSpeech: Promise<ForzaSpeechResponse> | undefined =
-      chunks.length ? requestSpeechAudio(chunks[0]) : undefined;
-    for (let index = 0; index < chunks.length; index++) {
-      if (callClosedRef.current) return;
-      const current = pendingSpeech!;
-      pendingSpeech = chunks[index + 1]
-        ? requestSpeechAudio(chunks[index + 1]) : undefined;
-      await playSpeechPhrase(chunks[index], current);
+    // The dedicated Pocket service has only one inference slot. Replaying a
+    // reply must not fire the next request until the preceding WAV is ready;
+    // otherwise the worker answers 503 voice_busy and the voice changes.
+    let synthesisChain: Promise<void> = Promise.resolve();
+    let playbackChain: Promise<void> = Promise.resolve();
+    for (const chunk of chunks) {
+      const speechRequest = synthesisChain.then(() => {
+        if (callClosedRef.current) throw new Error('forza_speech_cancelled');
+        return requestSpeechAudio(chunk);
+      });
+      synthesisChain = speechRequest.then(() => {}, () => {});
+      playbackChain = playbackChain.then(async () => {
+        if (!callClosedRef.current) await playSpeechPhrase(chunk, speechRequest);
+      });
     }
+    await playbackChain;
   }, [playSpeechPhrase, requestSpeechAudio, setStatus, stopListening]);
 
   const replayAiVoice = useCallback(async () => {
@@ -1533,7 +1556,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
               : status === 'thinking' && voicePending
-              ? 'پاسخ دریافت شد؛ در حال ساخت نخستین قطعه صوت...'
+              ? (voiceWaitSeconds >= 25
+                ? `متن آماده است؛ ساخت صدا طول کشیده (${voiceWaitSeconds} ثانیه)`
+                : `پاسخ آماده است؛ در حال تولید صدا (${voiceWaitSeconds} ثانیه)` )
               : status === 'thinking'
               ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
