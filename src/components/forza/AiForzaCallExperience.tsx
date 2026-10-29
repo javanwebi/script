@@ -843,8 +843,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let spokenCount = 0;
         let playbackChain: Promise<void> = Promise.resolve();
         let synthesisChain: Promise<void> = Promise.resolve();
+        let ttsUnavailable = false;
         const queuePhrase = (phrase: string) => {
-          if (!phrase.trim()) return;
+          if (!phrase.trim() || ttsUnavailable) return;
           phraseCount++;
           const phraseIndex = phraseCount;
           // The server runs a SINGLE Pocket neural worker. Do not flood it with
@@ -854,22 +855,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const speechRequest = synthesisChain.then(async () => {
             if (callClosedRef.current) throw new Error('forza_call_closed');
             const controller = new AbortController();
-            const timer = window.setTimeout(() => controller.abort(), 65000);
+            const timer = window.setTimeout(() => controller.abort(), 18000);
             try {
               return await requestQuickPocketSpeech(phrase, controller.signal);
             } finally {
               window.clearTimeout(timer);
             }
           });
-          synthesisChain = speechRequest.then(() => {}, () => {});
+          synthesisChain = speechRequest.then(() => {}, () => { ttsUnavailable = true; });
           void speechRequest.then(() => {
             console.info('[FORZA_LATENCY] phase=tts-ready ms=' + Math.round(performance.now() - ttsStartedAt) + ' chars=' + phrase.length);
           }).catch(() => {});
           playbackChain = playbackChain.then(async () => {
-            if (callClosedRef.current) return;
-            await playSpeechPhrase(phrase, speechRequest);
-            spokenCount++;
-            console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + phraseIndex + '/' + phraseCount);
+            if (callClosedRef.current || ttsUnavailable) return;
+            try {
+              await playSpeechPhrase(phrase, speechRequest);
+              spokenCount++;
+              console.info('[FORZA_LATENCY] phase=phrase-spoken index=' + phraseIndex + '/' + phraseCount);
+            } catch (error) {
+              ttsUnavailable = true;
+              console.warn('[FORZA Pocket] speech turn stopped after bounded failure',error);
+            }
           });
         };
         const onTextChunk = (chunk: string, fullText: string) => {
@@ -945,7 +951,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           await playbackChain;
           if (!callClosedRef.current && spokenCount !== phraseCount) {
-            throw new Error('amir_incomplete_spoken_reply');
+            setVoiceOutputError('تولید صدای زنده در این نوبت کامل نشد. متن پاسخ در دسترس است.');
           }
           console.info('[FORZA_LATENCY] phase=all-phrases-spoken count=' + spokenCount);
           setVoiceOutputError(null);
@@ -1452,7 +1458,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
               : status === 'thinking' && voicePending
-              ? 'پاسخ فورزا دریافت شد؛ موتور صدا در حال آماده‌سازی...'
+              ? 'پاسخ دریافت شد؛ در حال ساخت نخستین قطعه صوت...'
               : status === 'thinking'
               ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
