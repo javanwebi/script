@@ -1,5 +1,5 @@
-// Regression: Gemini SSE delivers text quickly but browser Piper is still
-// loading 63 MB. Server same-voice Amir must play and release the turn.
+// Regression: Gemini SSE delivers text quickly but Pocket TTS TTS may be
+// slow. Pocket TTS must play and release the turn.
 // Two consecutive turns prove the status cannot remain "processing".
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
@@ -32,11 +32,11 @@ function silentWav(){
    status:200,contentType:'application/javascript',
    body:'window.Vosk={createModel:async()=>({KaldiRecognizer:class{on(){} acceptWaveform(){} remove(){}}})};',
   }));
-  await page.route('**/api/ai/amir-speech',async route=>{
+  await page.route('**/api/ai/forza-speech',async route=>{
    const req=route.request().postDataJSON();
    synthRequests.push(req.text);
    await route.fulfill({status:200,contentType:'audio/wav',
-     headers:{'X-Forza-Voice':'piper-amir'},body:silentWav()});
+     headers:{'X-Forza-Voice':'pocket-farsi-v2-male'},body:silentWav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
    sseRequests.push(route.request().postDataJSON().query);
