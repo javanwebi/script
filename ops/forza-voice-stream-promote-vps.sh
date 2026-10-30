@@ -59,7 +59,7 @@ docker image inspect "$IMAGE" >/dev/null || {
   echo "Missing candidate image $IMAGE. Run ops/forza-voice-stream-benchmark-vps.sh first." >&2
   exit 1
 }
-docker exec sanatpish-new node - <<'JS'
+docker exec -i sanatpish-new node - <<'JS'
 (async()=>{
   const r=await fetch('http://127.0.0.1:3000/api/ai/forza-speech-stream',{
     method:'POST',headers:{'Content-Type':'application/json'},body:'{}',
