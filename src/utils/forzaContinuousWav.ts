@@ -15,7 +15,7 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   const maxTrim=Math.min(Math.round(buffer.sampleRate*0.24),Math.floor(length*0.24));
   let begin=0,finish=length;
   const audible=(a:number,b:number)=>{
-    for(let i=a;i<b;i+=step)if(Math.abs(pcm[i])>=threshold)return true;
+    for(let i=a;i<b;i+=4)if(Math.abs(pcm[i])>=threshold)return true;
     return false;
   };
   while(begin+step<maxTrim&&!audible(begin,Math.min(begin+step,length)))begin+=step;
