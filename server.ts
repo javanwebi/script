@@ -47,6 +47,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
+import {allowInProcessPocket} from './src/utils/forzaPocketRuntimePolicy';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 
 dotenv.config();
@@ -5420,6 +5421,7 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 // ONNX inference away from the catalog / Gemini process. No new provider or
 // voice is introduced; both services use the same selected reference WAV.
 const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
+const allowLocalPocketInference = allowInProcessPocket(process.env);
 
 async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   let wav:Buffer;
@@ -5447,6 +5449,9 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
       if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
         throw new Error('remote_voice_invalid_wav');
     }else{
+      // Keep this 1 GB Railway service alive even when users request audio.
+      // The browser already has a local speech fallback for unavailable Pocket.
+      if(!allowLocalPocketInference)throw new Error('pocket_requires_isolated_voice_service');
       wav=await synthesizeServerPocket(phrase);
     }
   return wav;
@@ -7306,10 +7311,12 @@ async function start() {
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void getForzaGreeting().catch(()=>{});
-    // Load Pocket Farsi ONNX once at startup, off the request path.
-    // The healthcheck remains independent of audio model availability.
+    // The same build-time greeting WAV is served without Python inference.
+    // On Railway 1 GB, Pocket previously OOM-killed the entire catalog app.
     if(internalForzaVoiceUrl){
-      console.info('[FORZA Pocket] using isolated private speech service (no local ONNX warmup)');
+      console.info('[FORZA Pocket] isolated private speech service configured');
+    }else if(!allowLocalPocketInference){
+      console.info('[FORZA Pocket] local ONNX worker disabled on Railway to prevent 502/OOM');
     }else{
       void warmServerPocket().catch(error=>
         console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
