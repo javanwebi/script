@@ -24,6 +24,8 @@ jobs:
         run: npm run lint
       - name: B.AI and xKiro FORZA stream and fallback regressions
         run: node --import tsx --test tests/bai-consult.test.ts
+      - name: Device-local Persian voice and low-latency speech regressions
+        run: node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts
       - name: Database tests (isolated PGlite)
         run: npm run test:database
       - name: Portal tests
