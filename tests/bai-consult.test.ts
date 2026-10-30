@@ -114,9 +114,9 @@ test('xKiro streams OpenAI-compatible SSE through the same FORZA contract', asyn
       assert.equal((options?.headers as Record<string, string>)?.Authorization, 'Bearer secret-placeholder');
       requestBody = JSON.parse(String(options?.body));
       return fakeStream([
-        'data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n',
-        'data: {"choices":[{"delta":{"content":" فورزا"}}]}\\n\\n',
-        'data: [DONE]\\n\\n',
+        'data: {"choices":[{"delta":{"content":"سلام"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":" فورزا"}}]}\n\n',
+        'data: [DONE]\n\n',
       ]);
     }) as typeof fetch,
     onDelta: chunk => chunks.push(chunk),
