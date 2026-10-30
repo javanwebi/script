@@ -7184,7 +7184,17 @@ async function start() {
   void buildImageFeatureIndex();
   void buildImageEmbeddingIndex();
 
-  if (process.env.NODE_ENV !== 'production') {
+  // The self-hosted VPS uses a private Docker-network PostgreSQL connection
+  // (DATABASE_SSL=disable). It can safely serve the already-built production
+  // React assets without pretending that its database uses Railway's TLS setup.
+  // Keep the strict NODE_ENV=production database gate unchanged; this is only
+  // a narrowly opt-in frontend serving mode, never a database-mode override.
+  const serveBuiltFrontend = process.env.NODE_ENV === 'production' || (
+    process.env.SANATPISH_SERVE_DIST === '1' &&
+    process.env.DATA_BACKEND === 'postgres' &&
+    process.env.DATABASE_SCHEMA === 'adopted'
+  );
+  if (!serveBuiltFrontend) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
