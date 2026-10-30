@@ -56,7 +56,15 @@ function wav(durationMs=180){
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
   assert.ok(voiceCalls.length>=2,'Pocket must receive multiple phrases of a streamed reply');
   assert.ok(voiceCalls.every(s=>s.length>0&&s.length<=220));
+  // Replaying the complete answer must use the same PCM queue, not one
+  // HTMLAudioElement.play() per phrase. Cached WAVs must not hit Pocket again.
+  const initialVoiceCalls=voiceCalls.length;
+  const replay=page.getByRole('button',{name:'خواندن دوباره پاسخ فورزا'});
+  await replay.click();
+  await page.getByText('AI FORZA در حال صحبت...').waitFor({timeout:8000});
+  await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:15000});
+  assert.equal(voiceCalls.length,initialVoiceCalls,'replay should reuse cached Pocket WAV segments');
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS audio_chunks='+voiceCalls.length+' bytes_model_downloaded=0');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS audio_chunks='+voiceCalls.length+' replay_cached=true bytes_model_downloaded=0');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});
