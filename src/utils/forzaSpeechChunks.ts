@@ -1,5 +1,5 @@
 /** Bounded speech chunks preserve word order and technical identifiers. */
-export function forzaSpeechChunks(text: string, limit = 240): string[] {
+export function forzaSpeechChunks(text: string, limit = 220): string[] {
   if (!Number.isInteger(limit) || limit < 32) throw new Error('Invalid speech chunk limit');
   const words = text.trim().split(/\s+/).filter(Boolean);
   const chunks: string[] = [];
@@ -29,5 +29,5 @@ export function forzaFastStartSpeechChunks(text: string): string[] {
   // must stay within the bounded local TTS server payload.
   const first = forzaSpeechChunks(normalized, 96)[0];
   if (!first) return [];
-  return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 240)];
+  return [first, ...forzaSpeechChunks(normalized.slice(first.length).trim(), 220)];
 }
