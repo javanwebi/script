@@ -17,7 +17,7 @@ import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, extractForzaAud
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
+import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
@@ -103,7 +103,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
   const localSttFinalRef=useRef('');
-  const [localSttStatus,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('loading');
+  const [,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('fallback');
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -813,6 +813,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const audioBase64 = extractForzaAudioBase64(await base64Promise);
           // Transcribe speech first so the customer's exact words appear
           // immediately, before waiting on AI generation and spoken output.
+          const sttStartedAt=performance.now();
           const sttAbort=new AbortController();
           const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید؛ لطفاً سؤال را تایپ کنید.')),15000);
           let sttResponse:Response;
@@ -833,8 +834,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             window.clearTimeout(sttTimer);
           }
           if(!sttResponse.ok || !sttData?.success || !String(sttData.userTranscript||'').trim()){
-            throw new Error(sttData?.error||'گفتار واضحی دریافت نشد؛ لطفاً دوباره صحبت کنید.');
+            console.warn('[FORZA_STT] source=server failure status='+sttResponse.status+
+              ' code='+String(sttData?.errorCode||'unknown').slice(0,60)+
+              ' duration_ms='+Math.round(performance.now()-sttStartedAt));
+            throw new Error(sttData?.error||'سرویس تشخیص گفتار پاسخ نداد؛ لطفاً سؤال را تایپ کنید.');
           }
+          console.info('[FORZA_STT] source=server duration_ms='+
+            Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
+            String(sttData.userTranscript).trim().length);
           payload.query = String(sttData.userTranscript).trim();
           setUserText(payload.query);
           setMicrophoneError(null);
@@ -990,7 +997,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
-        if (!q) setUserText('پاسخ صوتی دریافت نشد؛ لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.');
+        // A speech-recognition failure is not a TTS/playback failure.
+        if (!q) setUserText(previous=>previous.trim());
         setErrorNotice(
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
@@ -1114,11 +1122,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
           recognitionFailedRef.current=true;
-          setMicrophoneError(null);
-          // Diba can continue producing live partials if its local model
-          // is ready. If neither realtime recognizer is available the
-          // existing recorded-audio endpoint is still the final fallback.
-          startDibaTurn();
+          // Preserve the existing provider behind /api/ai/forza-live.
+          // The microphone recorder continues; only its finalized audio
+          // will be sent if the browser recognizer is unavailable.
+          setMicrophoneError('تشخیص زنده مرورگر در دسترس نیست؛ درخواست پس از ضبط صدا به سرویس فعلی تشخیص گفتار ارسال می‌شود.');
         }
       };
 
@@ -1148,6 +1155,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const initializeMicrophone = useCallback(async () => {
     setMicrophoneError(null);
     try {
+      if (!window.isSecureContext) throw new Error('insecure_origin');
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
       // Resuming AudioContext from an explicit click also unlocks analyser VAD.
       // Never await AudioContext.resume() before getUserMedia: Chrome can
@@ -1181,35 +1189,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionRef.current=initSpeechRecognition();
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
-      setMicrophoneError(error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
-        ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس صفحه را بازخوانی کنید.'
+      setMicrophoneError(error?.message==='insecure_origin'
+        ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
+        : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
+        ? 'اجازه میکروفون رد شده است. Microphone را در تنظیمات سایت Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
 
-  useEffect(()=>{
-    if(greetingPhase!=='complete'&&greetingPhase!=='error')return;
-    let active=true;
-    void loadDibaSttModel().then(model=>{
-      if(!active)return;
-      localSttModelRef.current=model;
-      attachLocalStt();
-      // Activates a late-arriving local STT even during an active listening turn.
-      if(greetingFinishedRef.current && statusRef.current==='listening' &&
-         !isAiSpeakingRef.current && !isProcessingTurnRef.current){
-        // Do NOT interrupt a working browser interim transcript when Diba
-        // finishes downloading; use the offline recognizer only when the
-        // browser recognizer actually failed or is unsupported.
-        if((recognitionFailedRef.current || !recognitionRef.current) && startDibaTurn()){
-          try{recognitionRef.current?.stop();}catch{}
-          isRecognitionActiveRef.current=false;
-        }
-      }
-    }).catch(error=>{
-      if(active){setLocalSttStatus('fallback');console.warn('[FORZA Diba] Existing STT fallback active',error?.message);}
-    });
-    return ()=>{active=false;};
-  },[attachLocalStt,greetingPhase,startDibaTurn]);
+  // STT uses the existing browser recognizer with the current server-side
+  // fallback. No Diba model download or browser-side model startup occurs.
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
@@ -1562,7 +1551,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای فورزا: Pocket TTS فارسی v2 (سرور صوتی) · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
+            صدای فورزا: Pocket TTS فارسی v2 · تشخیص گفتار: مرورگر / سرویس فعلی سرور
           </div>
         )}
         {microphoneError && (
