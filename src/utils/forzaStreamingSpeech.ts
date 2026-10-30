@@ -1,25 +1,32 @@
-/** Extract whole-word phrases in order, keeping every character of the answer.
- * Phrases are short enough for the Pocket Farsi v2 engine, even if the model
- * streams a very long sentence with no punctuation.
+/** Read complete Persian phrases from streaming Gemini text without fragmenting
+ * a spoken sentence into tiny word groups. First phrase is shorter to start
+ * promptly; later phrases run longer so Pocket's prosody sounds natural.
  */
-export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:string;rest:string}|null{
+export function takeSpeakablePhrase(buffer:string,first:boolean):{phrase:string;rest:string}|null{
   if(!buffer.trim())return null;
-  // The first local speech utterance can start on a shorter complete phrase.
-  // Never pass raw partial tokens (e.g. «فور» before «فورزا»).
-  const min=first?10:12;
-  const target=first?20:36;
-  const max=52;
-  const pause=/[.!?؟،؛:\n]/g;
-  let match:RegExpExecArray|null;
-  while((match=pause.exec(buffer))){
-    const end=match.index+1;
-    if(end>=min && end<=max){
+  const min=first?14:36;
+  const target=first?40:100;
+  const max=first?72:150;
+  const boundary=/[.!?؟؛:\n]/g;
+  let found:RegExpExecArray|null;
+  while((found=boundary.exec(buffer))){
+    const end=found.index+1;
+    if(end>=min&&end<=max)
       return {phrase:buffer.slice(0,end).trim(),rest:buffer.slice(end).trimStart()};
-    }
+    if(end>max)break;
+  }
+  // A comma is a natural clause boundary only when the phrase is not tiny.
+  const comma=/[،,]/g;
+  while((found=comma.exec(buffer))){
+    const end=found.index+1;
+    if(end>=(first?30:65)&&end<=max)
+      return {phrase:buffer.slice(0,end).trim(),rest:buffer.slice(end).trimStart()};
     if(end>max)break;
   }
   if(buffer.length<target)return null;
-  const index=buffer.lastIndexOf(' ',Math.min(buffer.length,first?32:max));
-  if(index<min)return null;
-  return {phrase:buffer.slice(0,index).trim(),rest:buffer.slice(index).trimStart()};
+  // Ensure a complete word is released: never consume a partial network token.
+  const end=Math.min(buffer.length-1,max);
+  const cut=buffer.lastIndexOf(' ',end);
+  if(cut<min)return null;
+  return {phrase:buffer.slice(0,cut).trim(),rest:buffer.slice(cut).trimStart()};
 }
