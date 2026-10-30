@@ -12,6 +12,7 @@ export type BaiConsultOptions = {
   voice?: boolean;
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
+  firstTokenTimeoutMs?: number;
   onDelta: (delta: string, textSoFar: string) => void;
 };
 
@@ -52,7 +53,7 @@ export function providerStreamTimeouts(provider: 'xkiro' | 'bai', voice: boolean
 async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string): Promise<{ text: string; model: string; firstTokenMs: number }> {
   const {
     apiKey, model, query, history = [], catalogContext = '',
-    voice = false, signal, fetchImpl = fetch, onDelta,
+    voice = false, signal, fetchImpl = fetch, onDelta, firstTokenTimeoutMs,
   } = options;
   const started = Date.now();
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
@@ -60,7 +61,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), budgets.totalMs);
   let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
-    setTimeout(() => controller.abort(), budgets.firstTokenMs);
+    setTimeout(() => controller.abort(), firstTokenTimeoutMs ?? budgets.firstTokenMs);
   const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
