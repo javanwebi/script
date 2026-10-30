@@ -80,17 +80,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  const [quality] = useState(() => {
-    if (typeof navigator === 'undefined') return 'high';
-    const device = navigator as Navigator & {deviceMemory?:number;connection?:{saveData?:boolean}};
-    const lowPower = (device.deviceMemory != null && device.deviceMemory <= 4)
-      || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
-      || device.connection?.saveData === true
-      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-      || (window.matchMedia?.('(pointer: coarse)').matches === true &&
-          window.matchMedia?.('(max-width: 900px)').matches === true);
-    return lowPower ? 'low' : 'high';
-  });
+  // Preserve the original high-fidelity avatar on every device.
+  // Audio uses local hardware independently; never degrade the user's design.
+  const [quality] = useState('high');
   const localPersianVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [localVoiceReady,setLocalVoiceReady] = useState(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
@@ -1049,11 +1041,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             queuePhrase(ready.phrase);
           }
         };
-        try {
+        const requestLiveStream = async (attempt: number): Promise<string> => {
           const streamController=new AbortController();
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),25000);
           const totalTimer=window.setTimeout(()=>streamController.abort(new Error('مهلت دریافت پاسخ تمام شد.')),60000);
-          try{
+          try {
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
@@ -1065,15 +1057,30 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               }),
               signal:streamController.signal,
             });
-            reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
+            const streamed=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط هنگام دریافت پاسخ قطع شد.')),15000);
               onTextChunk(chunk,fullText);
             });
-            if(!reply)throw new Error('forza_empty_stream');
-          }finally{
+            if(!streamed)throw new Error('forza_empty_stream');
+            if(attempt>0)console.info('[FORZA] SSE retry succeeded');
+            return streamed;
+          } finally {
             window.clearTimeout(streamTimer);
             window.clearTimeout(totalTimer);
+          }
+        };
+        try {
+          // Retry a dropped/empty SSE request once; only if zero text arrived.
+          // Never replay a partially delivered reply or repeat speech.
+          for(let attempt=0;attempt<2;attempt++){
+            try {
+              reply=await requestLiveStream(attempt);
+              break;
+            } catch(error:any) {
+              if(reply || attempt===1)throw error;
+              console.warn('[FORZA] SSE failed before first text; one retry',String(error?.name||'network_error').slice(0,60));
+            }
           }
         } catch(streamError) {
           // Keep the existing complete-response route as a compatibility
