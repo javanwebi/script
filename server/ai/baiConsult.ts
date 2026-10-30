@@ -34,7 +34,19 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
   const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
   if (provider !== 'xkiro' || !env.XKIRO_API_KEY?.trim()) return null;
   // The free Qwen model ID is vendor-qualified and carries the :free access tier suffix.
-  return String((voice ? env.XKIRO_MODEL_VOICE : env.XKIRO_MODEL_DESK) || 'qwen/qwen3.7-flash:free').trim();
+  return String((voice ? env.XKIRO_MODEL_VOICE : env.XKIRO_MODEL_DESK) || 'qwen/qwen3.5-flash:free').trim();
+}
+
+/**
+ * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
+ * Keep B.AI budgets unchanged and allow xKiro enough time to deliver the
+ * first chunk before falling back to a different provider.
+ */
+export function providerStreamTimeouts(provider: 'xkiro' | 'bai', voice: boolean) {
+  return {
+    firstTokenMs: provider === 'xkiro' ? (voice ? 22000 : 24000) : (voice ? 10000 : 15000),
+    totalMs: provider === 'xkiro' && voice ? 38000 : (voice ? 30000 : 45000),
+  };
 }
 
 async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string): Promise<{ text: string; model: string; firstTokenMs: number }> {
@@ -43,10 +55,12 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     voice = false, signal, fetchImpl = fetch, onDelta,
   } = options;
   const started = Date.now();
+  const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
+  const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), voice ? 30000 : 45000);
+  const timeout = setTimeout(() => controller.abort(), budgets.totalMs);
   let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
-    setTimeout(() => controller.abort(), voice ? 10000 : 15000);
+    setTimeout(() => controller.abort(), budgets.firstTokenMs);
   const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -103,6 +117,9 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       body: JSON.stringify({
         model,
         stream: true,
+        // Confirmed effective for xKiro's Qwen 3.5 Flash: avoid long reasoning
+        // before speaking. Do not send provider-specific options to B.AI.
+        ...(isXkiro && model === 'qwen/qwen3.5-flash:free' ? { reasoning_effort: 'none' } : {}),
         max_tokens: voice ? 256 : 768,
         messages: [
           { role: 'system', content: systemMessage + String(catalogContext).slice(0, 5000) },
