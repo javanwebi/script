@@ -103,7 +103,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
   const localSttFinalRef=useRef('');
-  const [localSttStatus,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('loading');
+  const [,setLocalSttStatus]=useState<'loading'|'ready'|'fallback'>('fallback');
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
@@ -813,6 +813,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const audioBase64 = extractForzaAudioBase64(await base64Promise);
           // Transcribe speech first so the customer's exact words appear
           // immediately, before waiting on AI generation and spoken output.
+          const sttStartedAt=performance.now();
           const sttAbort=new AbortController();
           const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید؛ لطفاً سؤال را تایپ کنید.')),15000);
           let sttResponse:Response;
@@ -833,8 +834,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             window.clearTimeout(sttTimer);
           }
           if(!sttResponse.ok || !sttData?.success || !String(sttData.userTranscript||'').trim()){
-            throw new Error(sttData?.error||'گفتار واضحی دریافت نشد؛ لطفاً دوباره صحبت کنید.');
+            console.warn('[FORZA_STT] source=server failure status='+sttResponse.status+
+              ' code='+String(sttData?.errorCode||'unknown').slice(0,60)+
+              ' duration_ms='+Math.round(performance.now()-sttStartedAt));
+            throw new Error(sttData?.error||'سرویس تشخیص گفتار پاسخ نداد؛ لطفاً سؤال را تایپ کنید.');
           }
+          console.info('[FORZA_STT] source=server duration_ms='+
+            Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
+            String(sttData.userTranscript).trim().length);
           payload.query = String(sttData.userTranscript).trim();
           setUserText(payload.query);
           setMicrophoneError(null);
@@ -1115,7 +1122,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
           recognitionFailedRef.current=true;
-          setMicrophoneError(null);
           // Preserve the existing provider behind /api/ai/forza-live.
           // The microphone recorder continues; only its finalized audio
           // will be sent if the browser recognizer is unavailable.
