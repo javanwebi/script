@@ -5967,6 +5967,26 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitDep
   return wavBuffer;
 }
 
+// Local browser STT model is stored on the VPS, never fetched from the
+// international CDN during a customer call. The small (~53 MiB) model is
+// public Apache-2.0 data; no user audio or tokens are exposed by this route.
+// The file is intentionally outside dist so every Vite deploy preserves it.
+app.get('/api/ai/stt-local-model',(_req,res)=>{
+  const modelFile=path.resolve(process.cwd(),'runtime-models','diba-stt-fa-small.tar.gz');
+  try{
+    const info=fs.statSync(modelFile);
+    if(!info.isFile() || info.size<50_000_000 || info.size>60_000_000)
+      return res.status(503).json({error:'local_stt_model_incomplete'});
+    res.setHeader('Content-Type','application/gzip');
+    res.setHeader('Cache-Control','public, max-age=604800');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    return res.sendFile(modelFile);
+  }catch{
+    res.setHeader('Cache-Control','no-store');
+    return res.status(404).json({error:'local_stt_model_not_installed'});
+  }
+});
+
 // POST: /api/ai/stt - Transcribe user voice audio into text using Gemini Multimodal Speech
 app.post('/api/ai/stt', async (req, res) => {
   try {
@@ -6707,6 +6727,8 @@ app.post('/api/ai/forza-live', async (req, res) => {
 - اگر تصویر ناواضح است یا اطلاعات کافی نیست، به طور محترمانه از کاربر بخواهید زاویه دیگر، پلاک یا ابعاد قطعه را مشخص نماید.`;
 
     let userQuery = normalizePersianTranscript(String(query || '')).slice(0, 2500);
+    let voiceSttProviderFailure = false;
+    let voiceSttNoProvider = false;
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && apiKey) {
@@ -6741,8 +6763,12 @@ app.post('/api/ai/forza-live', async (req, res) => {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
           console.info('[AI FORZA STT] Transcript available; chars=' + userQuery.length);
         }
-      } catch (sttErr) {
-        console.warn('[AI FORZA] Audio STT error:', sttErr);
+      } catch (sttErr: any) {
+        voiceSttProviderFailure = true;
+        const message=String(sttErr?.message||'unknown');
+        const status=Number(sttErr?.status)||(/\\b403\\b|Forbidden|PERMISSION_DENIED/i.test(message)?403:0);
+        console.warn('[AI FORZA STT] Gemini transcription failed status='+
+          (status||'unknown')+' reason='+(/timeout|abort/i.test(message)?'timeout':'provider_error'));
       }
     }
 
@@ -6782,10 +6808,22 @@ app.post('/api/ai/forza-live', async (req, res) => {
       }
     }
     if (!userQuery && audioBase64 && !image) {
-      // Do not hallucinate an answer to words we could not transcribe.
+      // Distinguish genuinely silent/unclear audio from an upstream 403/timeout.
+      // The previous blanket 422 hid provider failures as microphone errors.
+      voiceSttNoProvider = !apiKey && !configuredForzaWorkerUrl();
+      if (voiceSttProviderFailure || voiceSttNoProvider) {
+        return res.status(503).json({
+          success:false,
+          errorCode:voiceSttNoProvider?'stt_not_configured':'stt_provider_unavailable',
+          error:voiceSttNoProvider
+            ? 'سرویس تشخیص گفتار روی سرور تنظیم نشده است. لطفاً سؤال را تایپ کنید.'
+            : 'سرویس تشخیص گفتار Gemini از سرور پاسخ نداد. اتصال یا دسترسی API باید بررسی شود.',
+        });
+      }
       return res.status(422).json({
-        success: false,
-        error: 'صدای شما به متن تبدیل نشد. لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.',
+        success:false,
+        errorCode:'stt_no_speech',
+        error:'گفتار قابل تشخیص در صدای ضبط‌شده پیدا نشد. میکروفون را بررسی کنید یا سؤال را تایپ کنید.',
       });
     }
 
