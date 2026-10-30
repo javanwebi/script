@@ -29,8 +29,8 @@ PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", 
 # phoneme boundary rules, preserving the original model/voice reference.
 # Upstream Pocket was trained near ~11 phoneme tokens per unit; short
 # chunks can start earlier but may worsen phrase joins or total speed.
-STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "0"))
-if STREAM_FIRST_TOKENS not in (0, 10, 12, 14):
+STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "18"))
+if STREAM_FIRST_TOKENS not in (0, 18, 22, 26):
     raise ValueError("invalid_stream_first_tokens")
 class _LimitedPool(_OriginalPool):
     def __init__(self, max_workers=None, *args, **kwargs):
@@ -188,10 +188,12 @@ def render_chunks(engine, text):
 
     def generate(index):
         phonemes, gap = jobs[index]
+        synthesis_started = time.monotonic()
         speech = engine._generate_with_retry(
             voice_cache, voice_offset, phonemes,
             rng=np.random.default_rng(int(seeds[index])),
         )
+        synthesis_ms = int((time.monotonic() - synthesis_started) * 1000)
         # Chunk-local declick fades and explicit breathing gaps; unlike
         # /speak this cannot calculate median loudness across future chunks.
         audio = engine._stitch([(speech, gap)])
@@ -200,9 +202,9 @@ def render_chunks(engine, text):
         stream = io.BytesIO()
         sf.write(stream, audio, engine.sample_rate, format="WAV", subtype="PCM_16")
         wav = stream.getvalue()
-        print("[FORZA voice stream profile] job=%d tokens=%d wav_ms=%d wav_bytes=%d" % (
+        print("[FORZA voice stream profile] job=%d tokens=%d synthesis_ms=%d audio_ms=%d wav_bytes=%d" % (
             index + 1, len(engine.sp.encode(phonemes, out_type=int)),
-            len(audio) * 1000 / engine.sample_rate, len(wav)),
+            synthesis_ms, int(len(audio) * 1000 / engine.sample_rate), len(wav)),
             file=sys.stderr, flush=True)
         if not (44 <= len(wav) <= 5_000_000):
             raise RuntimeError("invalid_wav_chunk")
