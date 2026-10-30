@@ -40,6 +40,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 echo '[1/4] Building test-only image from the existing Pocket model.'
+case "${FORZA_STREAM_FIRST_TOKENS:-10}" in 0|10|12|14) ;; *) echo "Invalid first-chunk budget" >&2; exit 1;; esac
 git -C "$APP" fetch --quiet origin "$REF"
 REV=$(git -C "$APP" rev-parse FETCH_HEAD)
 git -C "$APP" archive "$REV" scripts/forza_pocket_worker.py scripts/forza_voice_http.py | tar -xf - -C "$STAGE"
@@ -53,6 +54,7 @@ docker run -d --name "$NAME" --restart no \
  --network "$NETWORK" --cpus=1.75 --memory=1536m --memory-swap=1536m \
  --pids-limit=128 --env-file "$SECRETS" -e PORT=8080 \
  -e FORZA_TTS_RESIDENT_ACOUSTIC=1 -e FORZA_TTS_PARALLEL_CHUNKS=2 \
+ -e FORZA_TTS_STREAM_FIRST_TOKENS="${FORZA_STREAM_FIRST_TOKENS:-10}" \
  "$TAG" >/dev/null
 ready=0
 for i in $(seq 1 45); do
@@ -65,7 +67,7 @@ for i in $(seq 1 45); do
 done
 if [ "$ready" != 1 ];then docker logs --tail 60 "$NAME"; exit 1;fi
 
-echo '[3/4] Measuring first *valid playable* WAV frame, not HTTP headers.'
+echo "[3/4] Measuring first *valid playable* WAV frame (first phoneme budget=${FORZA_STREAM_FIRST_TOKENS:-10})."
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" sanatpish-new node - <<'JS'
 (async()=>{
  const texts=[
@@ -117,6 +119,6 @@ fi
 test "$(docker inspect -f '{{.State.OOMKilled}}' "$NAME")" = false
 test "$(docker inspect -f '{{.State.Running}}' "$LIVE")" = true
 test "$(docker inspect -f '{{.State.Running}}' sanatpish-new)" = true
-docker logs --tail 40 "$NAME" 2>&1 | grep -E 'FORZA voice stream|error=' || true
+docker logs --tail 50 "$NAME" 2>&1 | grep -E 'FORZA voice stream|error=' || true
 echo "FORZA_STREAM_BENCH_PASS revision=$REV image=$TAG"
 echo 'This script changed no production service.'
