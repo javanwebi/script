@@ -17,7 +17,7 @@ export type BaiConsultOptions = {
 };
 
 export class BaiConsultError extends Error {
-  constructor(public readonly code: string) {
+  constructor(public readonly code: string, public readonly retryAfterMs?: number) {
     super(code);
     this.name = 'BaiConsultError';
   }
@@ -137,7 +137,17 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         providerCode = String(payload?.error?.code || payload?.error?.type || '')
           .replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
       } catch {}
-      throw new BaiConsultError('http_' + response.status + (providerCode ? '_' + providerCode : ''));
+      const retryAfter = response.headers.get('retry-after');
+      const retrySeconds = retryAfter && /^\d+(?:\.\d+)?$/.test(retryAfter)
+        ? Number(retryAfter) : null;
+      const retryDate = retryAfter && retrySeconds === null ? Date.parse(retryAfter) : NaN;
+      const retryAfterMs = retrySeconds !== null
+        ? Math.max(0, retrySeconds * 1000)
+        : Number.isFinite(retryDate) ? Math.max(0, retryDate - Date.now()) : undefined;
+      throw new BaiConsultError(
+        'http_' + response.status + (providerCode ? '_' + providerCode : ''),
+        retryAfterMs,
+      );
     }
     if (!(response.headers.get('content-type') || '').includes('text/event-stream')) {
       throw new BaiConsultError('unexpected_content_type');
