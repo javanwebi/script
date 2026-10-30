@@ -93,3 +93,19 @@ test('partial text from first free model is not duplicated in a retry',async()=>
   assert.deepEqual(attempts,['vendor/partial']);
   assert.deepEqual(chunks,['سلام']);
 });
+
+test('Retry-After on 429 stops switching all models while the account is throttled',async()=>{
+  let generations=0;
+  const fetchImpl=(async(url:string | URL | Request)=>{
+    if(String(url).endsWith('/v1/models'))return catalog([free('vendor/retry-a'),free('vendor/retry-b')]);
+    if(String(url).endsWith('/v1/usage'))return new Response(JSON.stringify({free_tokens:{remaining:5000}}));
+    generations++;
+    return new Response('{"error":{"code":"rate_limit_exceeded"}}',{
+      status:429,headers:{'Retry-After':'1'},
+    });
+  }) as typeof fetch;
+  await assert.rejects(streamXkiroFreePool({
+    apiKey:'not-a-real-secret',model:'vendor/retry-a',query:'سلام',voice:true,fetchImpl,onDelta:()=>{},
+  }),(e:unknown)=>e instanceof BaiConsultError&&e.code==='xkiro_rate_limited_retry_later');
+  assert.equal(generations,1);
+});
