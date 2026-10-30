@@ -653,23 +653,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return pending;
   },[]);
 
-  const playSpeechPhrase=useCallback(async(phrase:string,audioRequest?:Promise<string>):Promise<void>=>{
-    try{
-      const url=await (audioRequest||requestPocketAudio(phrase));
-      if(callClosedRef.current)return;
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
-      await playDataUrl(url);
-      if(!callClosedRef.current)setVoiceOutputError(null);
-    }catch(error:any){
-      if(!callClosedRef.current)setVoiceOutputError(
-        error?.message==='autoplay_permission_required'
-          ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-          :'صدای Pocket از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
-      console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
-      throw error;
-    }
-  },[playDataUrl,requestPocketAudio]);
-
   const speakText = useCallback(async (text: string) => {
     stopListening();
     setVoiceOutputError(null);
