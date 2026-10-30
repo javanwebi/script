@@ -25,6 +25,13 @@ from tts_onnx import OnnxTts
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor as _OriginalPool
 PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", "1"))))
+# Opt-in only: test a shorter FIRST chunk with the upstream Persian
+# phoneme boundary rules, preserving the original model/voice reference.
+# Upstream Pocket was trained near ~11 phoneme tokens per unit; short
+# chunks can start earlier but may worsen phrase joins or total speed.
+STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "0"))
+if STREAM_FIRST_TOKENS not in (0, 10, 12, 14):
+    raise ValueError("invalid_stream_first_tokens")
 class _LimitedPool(_OriginalPool):
     def __init__(self, max_workers=None, *args, **kwargs):
         super().__init__(max_workers=PARALLEL_CHUNKS, *args, **kwargs)
@@ -150,7 +157,12 @@ def render_chunks(engine, text):
     jobs = []
     for sentence_index, plan in enumerate(plans):
         for phrase_index, (phonemes, phrase_gap) in enumerate(plan):
-            chunks = engine.chunk_phonemes(phonemes)
+            # Only the first planned phrase gets the shorter chunk budget.
+            # chunk_phonemes uses Pocket's own Persian-boundary safeguards
+            # (ezafe, prepositions and bound verb groups), never raw
+            # character splitting. Default 0 preserves existing behavior.
+            target = STREAM_FIRST_TOKENS if not jobs and STREAM_FIRST_TOKENS else 18
+            chunks = engine.chunk_phonemes(phonemes, max_tokens=target)
             for chunk_index, chunk in enumerate(chunks):
                 if not jobs:
                     gap = 0.0
@@ -188,6 +200,10 @@ def render_chunks(engine, text):
         stream = io.BytesIO()
         sf.write(stream, audio, engine.sample_rate, format="WAV", subtype="PCM_16")
         wav = stream.getvalue()
+        print("[FORZA voice stream profile] job=%d tokens=%d wav_ms=%d wav_bytes=%d" % (
+            index + 1, len(engine.sp.encode(phonemes, out_type=int)),
+            len(audio) * 1000 / engine.sample_rate, len(wav)),
+            file=sys.stderr, flush=True)
         if not (44 <= len(wav) <= 5_000_000):
             raise RuntimeError("invalid_wav_chunk")
         return wav
