@@ -262,6 +262,23 @@ function buildLayers(data: Uint8Array): CachedLayers {
   return cachedLayers;
 }
 
+// Reduce GPU vertex count evenly across the picture on entry-level phones.
+function sampleLayer(layer: LayerArrays, stride: number): LayerArrays {
+  if (stride <= 1) return layer;
+  const count = Math.ceil(layer.count / stride);
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
+  const start = new Float32Array(count * 3), seed = new Float32Array(count), lum = new Float32Array(count);
+  for (let target = 0; target < count; target++) {
+    const source = target * stride;
+    pos.set(layer.pos.subarray(source * 3, source * 3 + 3), target * 3);
+    col.set(layer.col.subarray(source * 3, source * 3 + 3), target * 3);
+    start.set(layer.start.subarray(source * 3, source * 3 + 3), target * 3);
+    seed[target] = layer.seed[source];
+    lum[target] = layer.lum[source];
+  }
+  return {pos, col, start, seed, lum, count};
+}
+
 function makePoints(
   L: LayerArrays,
   uniforms: Record<string, { value: any }>,
@@ -370,12 +387,13 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       const el = mount.current;
       if (!el) return;
 
+      const lowDetail = quality === 'low';
       let renderer: THREE.WebGLRenderer;
       try {
         renderer = new THREE.WebGLRenderer({
           antialias: false,
-          preserveDrawingBuffer: true,
-          powerPreference: 'high-performance',
+          preserveDrawingBuffer: !lowDetail,
+          powerPreference: lowDetail ? 'low-power' : 'high-performance',
           depth: false,
           stencil: false,
         });
@@ -386,7 +404,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         return;
       }
 
-      const pr = Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1.5);
+      const pr = Math.min(window.devicePixelRatio || 1, lowDetail ? 1 : quality === 'high' ? 2 : 1.5);
       renderer.setPixelRatio(pr);
       renderer.setClearColor(0x080402, 1);
       renderer.domElement.style.width = '100%';
@@ -406,12 +424,14 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       };
 
       const layers = buildLayers(decode(B64));
-      const { pts: glowPts, mat: glowMat } = makePoints(layers.glow, shared, CELL * 4 * 3.0, 0.1, 1);
-      const { pts: sharpPts, mat: sharpMat } = makePoints(layers.sharp, shared, CELL * 0.75, 1.55, 0.7);
+      const glowLayer = lowDetail ? sampleLayer(layers.glow, 3) : layers.glow;
+      const sharpLayer = lowDetail ? sampleLayer(layers.sharp, 4) : layers.sharp;
+      const { pts: glowPts, mat: glowMat } = makePoints(glowLayer, shared, CELL * 4 * 3.0, 0.1, 1);
+      const { pts: sharpPts, mat: sharpMat } = makePoints(sharpLayer, shared, CELL * 0.75, 1.55, 0.7);
       scene.add(glowPts, sharpPts);
 
       // Embers floating layer
-      const N = 900;
+      const N = lowDetail ? 120 : 900;
       const ep = new Float32Array(N * 3);
       const es = new Float32Array(N);
       for (let i = 0; i < N; i++) {
@@ -462,16 +482,23 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let raf = 0;
       let frameCount = 0;
       let lastFpsTime = performance.now();
+      let lastFrameAt = 0;
 
       const loop = () => {
         const now = performance.now();
+        // 24 fps is sufficient for decorative particles on weak devices.
+        if (lowDetail && lastFrameAt && now - lastFrameAt < 1000 / 24) {
+          raf = requestAnimationFrame(loop);
+          return;
+        }
+        lastFrameAt = now;
         const dt = Math.min((now - last) / 1000, 0.05);
         last = now;
 
         if (!props.current.paused) {
           t += dt;
           shared.uTime.value = t;
-          shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 4);
+          shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / (lowDetail ? 1.5 : 4));
           // Notify only after the actual particle formation reaches 100%.
           if (!formationReported && shared.uProgress.value >= 1) {
             formationReported = true;
@@ -520,9 +547,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           lastFpsTime = now;
           props.current.onStats?.({
             fps,
-            tier: 'ULTRA',
+            tier: lowDetail ? 'LOW' : 'ULTRA',
             renderMs: Math.round(renderMs * 10) / 10,
-            particles: layers.totalCount + N,
+            particles: sharpLayer.count + glowLayer.count + N,
           });
         }
 
@@ -553,7 +580,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         },
         getStats: () => ({
           time: t,
-          particles: layers.totalCount + N,
+          particles: sharpLayer.count + glowLayer.count + N,
           backgroundParticles: N,
           width: el.clientWidth,
           height: el.clientHeight,
