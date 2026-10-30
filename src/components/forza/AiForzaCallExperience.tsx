@@ -686,16 +686,45 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return;
     }
 
-    // Replays also use WAVs from the private Ubuntu Pocket service.
+    // Replays must have the same sample-clock continuity as live SSE turns.
+    // The old playSpeechPhrase() path reopened HTMLAudioElement after EVERY
+    // sentence and reintroduced audible gaps on a full-answer replay.
+    stopAudio();
+    const player=new ForzaContinuousWav(ensureCtx,()=>{
+      isAiSpeakingRef.current=true;
+      setVoicePending(false);
+      setStatus('speaking');
+      setTurn('ai');
+    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] replay_wait_ms='+ms));
+    player.setMuted(isSpeakerMuted);
+    continuousVoiceRef.current=player;
     let rest=text.trim(),first=true;
-    while(rest&&!callClosedRef.current){
-      const ready=takeSpeakablePhrase(rest,first);
-      const phrase=ready?.phrase||rest;
-      rest=ready?.rest||'';
-      await playSpeechPhrase(phrase);
-      first=false;
+    let synthesisTail:Promise<void>=Promise.resolve();
+    let playbackTail:Promise<void>=Promise.resolve();
+    try{
+      while(rest&&!callClosedRef.current){
+        const ready=takeSpeakablePhrase(rest,first);
+        const phrase=ready?.phrase||rest;
+        rest=ready?.rest||'';
+        // Keep only one inference in flight on the small Ubuntu CPU, but
+        // synthesize the next phrase while the previous WAV is playing.
+        const request=synthesisTail.then(()=>requestPocketAudio(phrase));
+        synthesisTail=request.then(()=>{},()=>{});
+        const playback=request.then(url=>{
+          if(callClosedRef.current)return;
+          return player.enqueue(url);
+        });
+        playbackTail=playbackTail.then(()=>playback);
+        first=false;
+      }
+      await playbackTail;
+      if(!callClosedRef.current)setVoiceOutputError(null);
+    }finally{
+      player.cancel();
+      if(continuousVoiceRef.current===player)continuousVoiceRef.current=null;
+      isAiSpeakingRef.current=false;
     }
-  }, [playSpeechPhrase,setStatus,stopListening]);
+  }, [ensureCtx,isSpeakerMuted,requestPocketAudio,setStatus,stopAudio,stopListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
