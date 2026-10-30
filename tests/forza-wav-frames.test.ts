@@ -52,7 +52,7 @@ test('rejects truncated or invalid Pocket WAV frame streams',async()=>{
     new ReadableStream<Uint8Array>({start(c){c.enqueue(broken);c.close();}}),
     ()=>{},
   ),/forza_wav_stream_truncated/);
-  const invalid=new Uint8Array(48);
+  const invalid=new Uint8Array(52);
   new DataView(invalid.buffer).setUint32(0,48,true);
   await assert.rejects(readForzaWavFrames(
     new ReadableStream<Uint8Array>({start(c){c.enqueue(invalid);c.close();}}),
