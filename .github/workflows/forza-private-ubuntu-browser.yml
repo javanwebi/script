@@ -5,6 +5,8 @@ on:
       - 'src/components/forza/**'
       - 'src/services/forzaGreetingAudio.ts'
       - 'server.ts'
+      - 'src/utils/forzaLocalSpeech.ts'
+      - 'ops/forza-stt-install-local-model-vps.sh'
       - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
       - '.github/workflows/forza-private-ubuntu-browser.yml'
       - 'tests/forza-boot-speech.test.ts'
@@ -26,6 +28,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate offline STT install script syntax
+        run: bash -n ops/forza-stt-install-local-model-vps.sh
       - name: Validate source and private TTS contract
         run: |
           npm run lint
