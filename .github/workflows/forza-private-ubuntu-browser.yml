@@ -31,7 +31,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Validate progressive Python worker syntax
-        run: python3 -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+        run: |
+          python3 -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+          bash -n ops/forza-voice-stream-benchmark-vps.sh
       - name: Validate source and private TTS contract
         run: |
           npm run lint
