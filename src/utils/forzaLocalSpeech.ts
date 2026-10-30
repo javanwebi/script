@@ -4,7 +4,10 @@
  * build cannot resolve its optional, intentionally uninstalled dependency.
  * Keeping it here silently bundled a second, unwanted voice engine.
  */
-export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
+// Prefer the stable self-hosted, browser-ready 53 MB Vosk model. The
+// international CDN is a last-resort fallback only at model load time.
+export const FORZA_DIBA_MODEL_URL='/api/ai/stt-local-model';
+export const FORZA_DIBA_CDN_FALLBACK_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
@@ -45,9 +48,20 @@ export async function loadDibaSttModel():Promise<LocalSttModel>{
   if(!dibaPromise){
     dibaPromise=(async()=>{
       await within(loadVoskScript(),15000,'vosk_runtime_timeout');
-      return await within(
-        ((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL),
-        90000,'diba_model_timeout');
+      const vosk=(window as any).Vosk as BrowserVosk;
+      // Preflight keeps the browser from treating a 404 JSON body as the
+      // 53 MB compressed Vosk model. Never block >90s on a missing file.
+      try{
+        const head=await within(fetch(FORZA_DIBA_MODEL_URL,{method:'HEAD'}),5000,'local_model_head_timeout');
+        if(head.ok && Number(head.headers.get('content-length')||'0')>=50_000_000){
+          return await within(vosk.createModel(FORZA_DIBA_MODEL_URL),90000,'local_diba_model_timeout');
+        }
+        throw new Error('local_model_not_ready');
+      }catch(error:any){
+        console.warn('[FORZA Diba] Local model unavailable',String(error?.message||'not_ready').slice(0,60));
+      }
+      // Avoid losing an otherwise usable model during gradual VPS rollout.
+      return await within(vosk.createModel(FORZA_DIBA_CDN_FALLBACK_URL),90000,'remote_diba_model_timeout');
     })().catch(error=>{dibaPromise=undefined;throw error;});
   }
   return dibaPromise;
