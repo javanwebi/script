@@ -12,7 +12,13 @@ test('FORZA active session does not remount during catalog hydration',()=>{
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
 test('Pocket Farsi v2 response phrases are always produced by Ubuntu private worker',()=>{
-  assert.match(frontend,/fetch\s*\(\s*['"]\/api\/ai\/forza-speech/);
+  assert.match(frontend,/fetch\s*\(\s*['"]\/api\/ai\/forza-speech-stream/);
+  assert.match(frontend,/readForzaWavFrames/);
+  assert.match(frontend,/phase=first-pocket-stream-wav/);
+  assert.match(backend,/app\.post\('\/api\/ai\/forza-speech-stream'/);
+  assert.match(backend,/\/speak-stream/);
+  assert.match(backend,/application\/x-forza-wav-frames/);
+  assert.match(backend,/X-Forza-Voice-Token/);
   assert.match(frontend,/X-Forza-Voice/);
   assert.match(frontend,/takeSpeakablePhrase\(speechBuffer/);
   assert.match(frontend,/synthesisChain=audioRequest/);
