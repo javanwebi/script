@@ -1,0 +1,52 @@
+name: FORZA real Chromium shell boot diagnostic
+on:
+  pull_request:
+    paths:
+      - 'src/components/forza/**'
+      - 'src/main.tsx'
+      - 'server.ts'
+      - 'src/utils/forzaPocketRuntimePolicy.ts'
+      - 'Dockerfile'
+      - 'tests/forza-pocket-runtime-policy.test.ts'
+      - 'scripts/tests/forza-shell-smoke.cjs'
+      - '.github/workflows/forza-shell-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Install pinned runtime assets
+        run: |
+          npm pkg set overrides.tslib=2.8.1
+          npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
+          mkdir -p public/forza-runtime/{ort,piper,stt}
+          cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
+          cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.{data,wasm} public/forza-runtime/piper/
+          cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
+      - run: npm run lint
+      - name: Verify Railway memory guard and Ubuntu policy
+        run: node --import tsx --test tests/forza-pocket-runtime-policy.test.ts
+      - run: npm run build
+      - run: npm install --no-save --ignore-scripts --legacy-peer-deps playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Serve exact PR static bundle
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/forza-preview.log 2>&1 &
+          for i in $(seq 1 40); do curl -fs http://127.0.0.1:4173/ai-forza >/dev/null && exit 0; sleep 1; done
+          cat /tmp/forza-preview.log; exit 1
+      - name: Real browser startup (database healthy and unavailable)
+        run: node scripts/tests/forza-shell-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forza-browser-snapshots
+          path: /tmp/forza-*.png
+          if-no-files-found: ignore

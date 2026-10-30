@@ -80,17 +80,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  const [quality] = useState(() => {
-    if (typeof navigator === 'undefined') return 'high';
-    const device = navigator as Navigator & {deviceMemory?:number;connection?:{saveData?:boolean}};
-    const lowPower = (device.deviceMemory != null && device.deviceMemory <= 4)
-      || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
-      || device.connection?.saveData === true
-      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-      || (window.matchMedia?.('(pointer: coarse)').matches === true &&
-          window.matchMedia?.('(max-width: 900px)').matches === true);
-    return lowPower ? 'low' : 'high';
-  });
+  // Original visual quality. Never lower particle density based on device
+  // detection: preserve the pre-optimization FORZA appearance.
+  const quality = 'high' as const;
   const localPersianVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [localVoiceReady,setLocalVoiceReady] = useState(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
