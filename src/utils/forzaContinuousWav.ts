@@ -9,6 +9,8 @@ export class ForzaContinuousWav {
   private sources = new Set<AudioBufferSourceNode>();
   private pending = new Set<() => void>();
   private closed = false;
+  private gain: GainNode | null = null;
+  private muted = false;
   private underflows = 0;
   constructor(
     private readonly getContext: () => AudioContext | null,
@@ -48,7 +50,12 @@ export class ForzaContinuousWav {
         throw new Error('forza_wav_empty');
       const source=ctx.createBufferSource();
       source.buffer=decoded;
-      source.connect(ctx.destination);
+      if(!this.gain){
+        this.gain=ctx.createGain();
+        this.gain.gain.value=this.muted?0:1;
+        this.gain.connect(ctx.destination);
+      }
+      source.connect(this.gain);
       this.sources.add(source);
       const earliest=ctx.currentTime+0.025;
       // Count genuine starvation only if audio was already scheduled.
@@ -70,6 +77,10 @@ export class ForzaContinuousWav {
   }
 
   get underrunCount(){return this.underflows;}
+  setMuted(muted:boolean):void {
+    this.muted=muted;
+    if(this.gain)this.gain.gain.value=muted?0:1;
+  }
 
   cancel():void {
     if(this.closed)return;
@@ -80,6 +91,8 @@ export class ForzaContinuousWav {
       try{source.disconnect();}catch{}
     }
     this.sources.clear();
+    try{this.gain?.disconnect();}catch{}
+    this.gain=null;
     for(const resolve of [...this.pending])resolve();
     this.pending.clear();
   }
