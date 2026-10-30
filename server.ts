@@ -321,7 +321,19 @@ app.use((req, res, next) => {
     const origin = normalizeBrowserOrigin(originHeader);
     let sameOrigin = false;
     try {
-      sameOrigin = origin === normalizeBrowserOrigin(getPublicAppBaseUrl(req));
+      // APP_URL/PUBLIC_APP_URL is useful for public links, but may still point
+      // at Railway while this request is served by the self-hosted HTTPS IP.
+      // Never deny a browser's genuinely same-origin request just because a
+      // configured canonical URL differs from its actual Nginx Host header.
+      const requestedHost = String(req.get('host') || '').trim();
+      const forwardedProtocol = String(req.get('x-forwarded-proto') || '')
+        .split(',')[0].trim().toLowerCase();
+      const requestProtocol = forwardedProtocol === 'https' || req.secure ? 'https' : 'http';
+      const effectiveOrigin = requestedHost
+        ? normalizeBrowserOrigin(`${requestProtocol}://${requestedHost}`)
+        : null;
+      sameOrigin = origin === effectiveOrigin ||
+        origin === normalizeBrowserOrigin(getPublicAppBaseUrl(req));
     } catch {
       // The request host could not be derived; configured CORS origins still work.
     }
