@@ -46,7 +46,6 @@ import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 
 dotenv.config();
@@ -5422,34 +5421,43 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
 
 async function renderPocketSpeech(phrase:string):Promise<Buffer>{
-  let wav:Buffer;
-    if(internalForzaVoiceUrl){
-      // Never fall back to in-process ONNX on remote failure: it previously
-      // OOM-killed the main 1 GB application. The client retains its browser
-      // TTS recovery while the private worker becomes healthy again.
-      const response=await fetch(internalForzaVoiceUrl+'/speak',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          ...(process.env.FORZA_VOICE_TOKEN
-            ? {'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN}:{}),
-        },
-        body:JSON.stringify({text:phrase}),
-        signal:AbortSignal.timeout(30000),
-      });
-      if(!response.ok)throw new Error('remote_voice_http_'+response.status);
-      const voiceType=response.headers.get('content-type')||'';
-      if(!voiceType.includes('audio/wav'))throw new Error('remote_voice_invalid_type');
-      const payload=await response.arrayBuffer();
-      if(payload.byteLength<44||payload.byteLength>5_000_000)
-        throw new Error('remote_voice_invalid_length');
-      wav=Buffer.from(payload);
-      if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
-        throw new Error('remote_voice_invalid_wav');
-    }else{
-      wav=await synthesizeServerPocket(phrase);
+  // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
+  // does all synthesis. No downloaded neural model is sent to visitors.
+  if(!internalForzaVoiceUrl)throw new Error('private_voice_not_configured');
+  if(!process.env.FORZA_VOICE_TOKEN)throw new Error('private_voice_token_missing');
+  const started=Date.now();
+  for(let attempt=0;attempt<8;attempt++){
+    const response=await fetch(internalForzaVoiceUrl+'/speak',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
+      },
+      body:JSON.stringify({text:phrase}),
+      signal:AbortSignal.timeout(30000),
+    });
+    // One inference slot across visitors. Brief backoff on BUSY only;
+    // never retry a 403 token mismatch or an unavailable worker.
+    if(response.status===503){
+      const reason=await response.json().catch(()=>null) as {error?:string}|null;
+      if(reason?.error==='voice_busy'&&attempt<7&&Date.now()-started<20000){
+        await new Promise(resolve=>setTimeout(resolve,Math.min(1800,180*(attempt+1))));
+        continue;
+      }
+      throw new Error('private_voice_'+(reason?.error||'unavailable'));
     }
-  return wav;
+    if(!response.ok)throw new Error('private_voice_http_'+response.status);
+    if(!(response.headers.get('content-type')||'').includes('audio/wav'))
+      throw new Error('private_voice_invalid_type');
+    const payload=await response.arrayBuffer();
+    if(payload.byteLength<44||payload.byteLength>5_000_000)
+      throw new Error('private_voice_invalid_length');
+    const wav=Buffer.from(payload);
+    if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
+      throw new Error('private_voice_invalid_wav');
+    return wav;
+  }
+  throw new Error('private_voice_busy_timeout');
 }
 
 // VPS builds do not run the Docker greeting-generation layer. Serve a validated
@@ -7306,19 +7314,11 @@ async function start() {
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void getForzaGreeting().catch(()=>{});
-    // FORZA now speaks new replies on the visitor's CPU. The prerecorded
-    // greeting is bundled at build time; loading a resident ONNX worker on
-    // every Railway boot wastes RAM and previously led to SIGKILL on 1GB.
-    // Keep on-demand Pocket endpoints available for other clients, and allow
-    // explicit warmup only for legacy deployments that still need them.
-    if(internalForzaVoiceUrl){
-      console.info('[FORZA Pocket] separate private voice service configured');
-    }else if(process.env.FORZA_WARM_LOCAL_POCKET_ON_BOOT==='true'){
-      void warmServerPocket().catch(error=>
-        console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
-    }else{
-      console.info('[FORZA Pocket] local model warmup disabled; browser TTS uses visitor CPU');
-    }
+    // No resident ONNX worker runs in the app container. Pocket lives in the
+    // private Ubuntu Docker network and is already warmed by its own process.
+    console.info(internalForzaVoiceUrl
+      ? '[FORZA Pocket] private Ubuntu voice service configured'
+      : '[FORZA Pocket] private voice URL missing; voice requests will fail closed');
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
     if (process.env.FORZA_PROVIDER_PROBE_ON_BOOT === 'true' && configuredForzaWorkerUrl()) {
