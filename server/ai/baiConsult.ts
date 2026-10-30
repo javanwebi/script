@@ -29,7 +29,15 @@ export function configuredBaiModel(env: NodeJS.ProcessEnv, voice: boolean): stri
   return String((voice ? env.BAI_MODEL_VOICE : env.BAI_MODEL_DESK) || 'qwen3.7-flash').trim();
 }
 
-export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ text: string; model: string; firstTokenMs: number }> {
+
+export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
+  const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  if (provider !== 'xkiro' || !env.XKIRO_API_KEY?.trim()) return null;
+  // The free Qwen model ID is vendor-qualified and carries the :free access tier suffix.
+  return String((voice ? env.XKIRO_MODEL_VOICE : env.XKIRO_MODEL_DESK) || 'qwen/qwen3.7-flash:free').trim();
+}
+
+async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string): Promise<{ text: string; model: string; firstTokenMs: number }> {
   const {
     apiKey, model, query, history = [], catalogContext = '',
     voice = false, signal, fetchImpl = fetch, onDelta,
@@ -85,7 +93,7 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
   };
 
   try {
-    response = await fetchImpl('https://api.b.ai/v1/chat/completions', {
+    response = await fetchImpl(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + apiKey,
@@ -104,7 +112,15 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
       }),
       signal: upstreamSignal,
     });
-    if (!response.ok) throw new BaiConsultError('http_' + response.status);
+    if (!response.ok) {
+      let providerCode = '';
+      try {
+        const payload = await response.clone().json();
+        providerCode = String(payload?.error?.code || payload?.error?.type || '')
+          .replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+      } catch {}
+      throw new BaiConsultError('http_' + response.status + (providerCode ? '_' + providerCode : ''));
+    }
     if (!(response.headers.get('content-type') || '').includes('text/event-stream')) {
       throw new BaiConsultError('unexpected_content_type');
     }
@@ -142,4 +158,12 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
     await reader?.cancel().catch(() => {});
     reader?.releaseLock();
   }
+}
+
+export function streamBaiConsult(options: BaiConsultOptions) {
+  return streamOpenAiCompatible(options, 'https://api.b.ai/v1/chat/completions');
+}
+
+export function streamXkiroConsult(options: BaiConsultOptions) {
+  return streamOpenAiCompatible(options, 'https://api.xkiro.com/v1/chat/completions');
 }
