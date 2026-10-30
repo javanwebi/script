@@ -4,8 +4,10 @@
  */
 export function takeSpeakablePhrase(buffer: string, first: boolean): {phrase:string;rest:string}|null{
   if(!buffer.trim())return null;
-  const min=12;
-  const target=first?28:36;
+  // The first local speech utterance can start on a shorter complete phrase.
+  // Never pass raw partial tokens (e.g. «فور» before «فورزا»).
+  const min=first?10:12;
+  const target=first?20:36;
   const max=52;
   const pause=/[.!?؟،؛:\n]/g;
   let match:RegExpExecArray|null;
