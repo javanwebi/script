@@ -153,7 +153,7 @@ test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro mod
   const bodies: any[] = [];
   const fetchImpl = (async (_url: string | URL | Request, options?: RequestInit) => {
     bodies.push(JSON.parse(String(options?.body)));
-    return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n', 'data: [DONE]\\n\\n']);
+    return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"}}]}\n\n', 'data: [DONE]\n\n']);
   }) as typeof fetch;
   for (const [model, stream] of [
     ['qwen3.7-flash', streamBaiConsult],
