@@ -19,7 +19,7 @@ function wav(durationMs=180){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-  const errors=[],voiceCalls=[],streamCalls=[];
+  const errors=[],voiceCalls=[],streamCalls=[],streamVoiceCalls=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     window.__speechSynthesisCalls=0;
@@ -41,6 +41,19 @@ function wav(durationMs=180){
     return route.fulfill({status:200,contentType:'text/event-stream',
       headers:{'Cache-Control':'no-cache'},body:frames.map(f=>'data: '+JSON.stringify(f)+'\n\n').join('')});
   });
+  await page.route('**/api/ai/forza-speech-stream',route=>{
+    const {text}=route.request().postDataJSON();
+    streamVoiceCalls.push(text);
+    const chunk=wav(),header=Buffer.alloc(4);
+    header.writeUInt32LE(chunk.length,0);
+    // The actual Python endpoint sends these packets incrementally.
+    // Playwright delivers the same framing here in one mocked HTTP body.
+    const body=Buffer.concat([header,chunk,header,chunk]);
+    return route.fulfill({status:200,
+      contentType:'application/x-forza-wav-frames',
+      headers:{'X-Forza-Voice':'pocket-farsi-v2'},
+      body});
+  });
   await page.route('**/api/ai/forza-speech',route=>{
     const {text}=route.request().postDataJSON();
     voiceCalls.push(text);
@@ -54,9 +67,10 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
-  assert.ok(voiceCalls.length>=2,'Pocket must receive multiple phrases of a streamed reply');
-  assert.ok(voiceCalls.every(s=>s.length>0&&s.length<=220));
+  assert.ok(streamVoiceCalls.length>=2,'Pocket must receive multiple progressive phrases');
+  assert.equal(voiceCalls.length,0,'streaming must not fetch full WAVs when supported');
+  assert.ok(streamVoiceCalls.every(s=>s.length>0&&s.length<=220));
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS audio_chunks='+voiceCalls.length+' bytes_model_downloaded=0');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS progressive_phrases='+streamVoiceCalls.length+' bytes_model_downloaded=0');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});
