@@ -20,6 +20,7 @@ function wav(){
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1180,height:750}});
   const errors=[];
   let serverTranscriptions=0;
+  let externalModelDownloads=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     class FakePersianRecognition{
@@ -29,6 +30,10 @@ function wav(){
     }
     window.SpeechRecognition=FakePersianRecognition;
     window.webkitSpeechRecognition=FakePersianRecognition;
+  });
+  await page.route('**/huggingface.co/Dibachain/**',route=>{
+    externalModelDownloads++;
+    return route.abort();
   });
   await page.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
@@ -47,6 +52,7 @@ function wav(){
   await page.getByText('می خواهم مشخصات تسمه صنعتی را',{exact:false}).waitFor({timeout:950});
   assert.ok(Date.now()-started<1000,'interim words must be visible immediately');
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
+  assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
   assert.deepEqual(errors,[]);
   console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+(Date.now()-started));
