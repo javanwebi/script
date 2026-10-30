@@ -7306,13 +7306,18 @@ async function start() {
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void getForzaGreeting().catch(()=>{});
-    // Load Pocket Farsi ONNX once at startup, off the request path.
-    // The healthcheck remains independent of audio model availability.
+    // FORZA now speaks new replies on the visitor's CPU. The prerecorded
+    // greeting is bundled at build time; loading a resident ONNX worker on
+    // every Railway boot wastes RAM and previously led to SIGKILL on 1GB.
+    // Keep on-demand Pocket endpoints available for other clients, and allow
+    // explicit warmup only for legacy deployments that still need them.
     if(internalForzaVoiceUrl){
-      console.info('[FORZA Pocket] using isolated private speech service (no local ONNX warmup)');
-    }else{
+      console.info('[FORZA Pocket] separate private voice service configured');
+    }else if(process.env.FORZA_WARM_LOCAL_POCKET_ON_BOOT==='true'){
       void warmServerPocket().catch(error=>
         console.warn('[FORZA Pocket] startup warmup unavailable',String(error?.message||'worker_error').slice(0,120)));
+    }else{
+      console.info('[FORZA Pocket] local model warmup disabled; browser TTS uses visitor CPU');
     }
     // One-time opt-in smoke check: exercise the REAL configured Cloudflare
     // Worker with its bound Gemini secret, without exposing credentials.
