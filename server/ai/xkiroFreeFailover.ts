@@ -24,6 +24,7 @@ const catalogs = new WeakMap<typeof fetch, PoolCache>();
 const pending = new WeakMap<typeof fetch, Promise<string[]>>();
 const cooldowns = new Map<string, number>();
 let roundRobin = 0;
+let accountRateLimitUntil = 0;
 
 function freeChatModel(entry: CatalogRecord): entry is CatalogRecord & { id: string } {
   if (typeof entry.id !== 'string' || !/^[a-z0-9_.-]+\/[a-z0-9_.:-]+$/i.test(entry.id)) return false;
@@ -90,6 +91,7 @@ export async function streamXkiroFreePool(
   options: BaiConsultOptions,
 ): Promise<FreeXkiroResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  if (accountRateLimitUntil > Date.now()) throw new BaiConsultError('xkiro_rate_limited_retry_later');
   const verified = await listVerifiedXkiroFreeChatModels(fetchImpl);
   const preferred = verified.includes(options.model) ? options.model : null;
   const rotated = verified.slice(roundRobin % verified.length).concat(verified.slice(0, roundRobin % verified.length));
@@ -126,8 +128,16 @@ export async function streamXkiroFreePool(
       // general 400 errors are not fixed by moving to another model.
       if (/^http_(400|401|402)(_|$)/.test(code)) throw error;
       cooldowns.set(model, Date.now() + (/^http_403/.test(code) ? 15 * 60_000 : MODEL_COOLDOWN_MS));
-      if (/^http_429/.test(code) && await exhaustedFreeAllowance(options.apiKey, fetchImpl)) {
-        throw new BaiConsultError('xkiro_account_free_quota_exhausted');
+      if (/^http_429/.test(code)) {
+        if (await exhaustedFreeAllowance(options.apiKey, fetchImpl)) {
+          throw new BaiConsultError('xkiro_account_free_quota_exhausted');
+        }
+        // A Retry-After response may reflect an account-wide RPM restriction.
+        // Respect it instead of hammering the other 44 free models.
+        if (error instanceof BaiConsultError && error.retryAfterMs && error.retryAfterMs > 0) {
+          accountRateLimitUntil = Date.now() + Math.min(error.retryAfterMs, 5 * 60_000);
+          throw new BaiConsultError('xkiro_rate_limited_retry_later');
+        }
       }
       console.warn('[FORZA XKIRO FREE] model=' + model + ' unavailable code=' + code + ' tried=' + attempted);
     }
