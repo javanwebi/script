@@ -46,6 +46,7 @@ import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
+import {configuredBaiModel, streamBaiConsult} from './server/ai/baiConsult';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5505,6 +5506,50 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   };
 
   sendEvent({ type: 'start', responseId, timestamp: Date.now() });
+
+  // Optional B.AI text-only SSE path. The browser continues to handle STT/TTS.
+  // Each mode is independently enabled by its Railway environment switch.
+  // Gemini/Worker below remains the no-key, quota and timeout fallback.
+  const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
+  if (baiModel && includeAudio !== true) {
+    const clientAbort = new AbortController();
+    const onDisconnect = () => clientAbort.abort();
+    res.once('close', onDisconnect);
+    try {
+      const result = await streamBaiConsult({
+        apiKey: process.env.BAI_API_KEY!,
+        model: baiModel,
+        voice: lowLatencyVoice,
+        query: String(query || ''),
+        history: Array.isArray(history) ? history : [],
+        catalogContext,
+        signal: clientAbort.signal,
+        onDelta: (chunk, textSoFar) => {
+          sendEvent({ type: 'text_chunk', responseId, chunk, textSoFar });
+        },
+      });
+      console.info('[FORZA_LATENCY] phase=bai-complete mode=' +
+        (lowLatencyVoice ? 'voice' : 'desk') + ' model=' + result.model +
+        ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt));
+      sendEvent({
+        type: 'done',
+        responseId,
+        fullText: result.text,
+        suggestedAction: {
+          label: 'مشاهده محصولات و کاتالوگ',
+          link: '/category/تسمه-و-انتقال-نیرو',
+        },
+      });
+      return res.end();
+    } catch (error: any) {
+      if (clientAbort.signal.aborted) return;
+      // Intentionally do not log provider response bodies or credentials.
+      console.warn('[AI Consult Stream] B.AI unavailable; using Gemini fallback: ' +
+        String(error?.code || 'provider_failure').slice(0, 40));
+    } finally {
+      res.off('close', onDisconnect);
+    }
+  }
 
   const apiKey = getGeminiKey();
   if (!apiKey) {
