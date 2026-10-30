@@ -609,12 +609,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Greeting is a static prerecording. Subsequent phrases use the visitor's
   // installed Persian voice only, with ZERO inference on Railway.
   useEffect(()=>{
-    if(!('speechSynthesis' in window)){
+    if(!('speechSynthesis' in window)||typeof window.speechSynthesis?.getVoices!=='function'){
       setOfflinePersianVoiceAvailable(false);
       return;
     }
     const synth=window.speechSynthesis;
-    const update=()=>setOfflinePersianVoiceAvailable(Boolean(findLocalPersianSpeechVoice(synth.getVoices())));
+    const update=()=>{
+      try{setOfflinePersianVoiceAvailable(Boolean(findLocalPersianSpeechVoice(synth.getVoices())));}
+      catch{setOfflinePersianVoiceAvailable(false);}
+    };
     update();
     synth.addEventListener?.('voiceschanged',update);
     return ()=>synth.removeEventListener?.('voiceschanged',update);
@@ -962,7 +965,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           await playbackChain;
           if (!callClosedRef.current && spokenCount !== phraseCount) {
-            setVoiceOutputError('تولید صدای زنده در این نوبت کامل نشد. متن پاسخ در دسترس است.');
+            setVoiceOutputError(previous=>previous||'خواندن بخشی از پاسخ در دستگاه ممکن نشد؛ متن کامل نمایش داده شده است.');
           } else if (!callClosedRef.current) {
             setVoiceOutputError(null);
           }
