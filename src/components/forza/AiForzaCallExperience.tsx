@@ -700,6 +700,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // second AI request. Prefer a Persian voice; if none is installed, ask
   // Chrome to resolve fa-IR rather than abandoning the entire turn.
   const speakInBrowser = useCallback(async (phrase: string): Promise<void> => {
+    const speechStartedAt = performance.now();
     if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
       throw new Error('browser_speech_unavailable');
     }
@@ -728,7 +729,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       pendingAudioResolveRef.current = cancel;
       utterance.onstart = () => {
         beganSpeaking = true;
-        console.info('[FORZA_LATENCY] phase=local-browser-tts-start');
+        console.info('[FORZA_LATENCY] phase=local-browser-tts-start ms=' + Math.round(performance.now() - speechStartedAt) + ' chars=' + phrase.length);
         isAiSpeakingRef.current = true;
         setVoicePending(false);
         setStatus('speaking');
