@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Promote only the benchmarked progressive Pocket TTS worker.
-# Requires the matching main-branch Express streaming route to be deployed first.
+# The worker keeps /speak compatible, so it can be promoted before the app update.
 # Website, Nginx, Supabase and xKiro settings are never modified.
 set -Eeuo pipefail
 umask 077
