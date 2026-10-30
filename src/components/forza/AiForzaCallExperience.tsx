@@ -563,9 +563,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const ctx = ensureCtx();
       if (!ctx) throw new Error('audio_context_unavailable');
       if (ctx.state === 'suspended') await ctx.resume();
+      if (settled) return;
       const response = await fetch(url);
       if (!response.ok) throw new Error('audio_blob_unreadable');
       const decoded = await ctx.decodeAudioData(await response.arrayBuffer());
+      if (settled) return;
       const source = ctx.createBufferSource();
       source.buffer = decoded;
       source.connect(ctx.destination);
@@ -579,6 +581,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     };
     const failed = () => {
       if (settled || fallbackStarted) return;
+      audio.pause();
       fallbackStarted = true;
       cleanup();
       void playViaWebAudio().catch((error: any) => {
@@ -600,6 +603,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     }, 6500);
     void audio.play().then(playing).catch((error: any) => {
+      if (settled) return;
       if (error?.name === 'NotAllowedError') {
         // Respect browser autoplay policy; the visible CTA is only used when required.
         setAutoplayBlocked(true);

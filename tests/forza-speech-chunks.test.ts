@@ -7,13 +7,13 @@ import { FORZA_GREETING_TEXT } from '../src/utils/forzaGreeting';
 test('long Persian replies preserve all words and technical codes within request bounds',()=>{
  const text=('برای تسمه 8M و بلبرینگ 6205-2RS ابعاد و شرایط نصب را بررسی کنید. ').repeat(80).trim();
  const chunks=forzaSpeechChunks(text);
- assert.ok(chunks.length>1); assert.ok(chunks.every(c=>c.length<=240));
+ assert.ok(chunks.length>1); assert.ok(chunks.every(c=>c.length<=220));
  assert.equal(chunks.join(' '),text);
 });
 test('empty text and pathological unbroken tokens are bounded',()=>{
  assert.deepEqual(forzaSpeechChunks('  '),[]);
  const chunks=forzaSpeechChunks('x'.repeat(2000));
- assert.equal(chunks.join(''),'x'.repeat(2000));assert.ok(chunks.every(c=>c.length<=240));
+ assert.equal(chunks.join(''),'x'.repeat(2000));assert.ok(chunks.every(c=>c.length<=220));
  assert.throws(()=>forzaSpeechChunks('text',0));
 });
 
@@ -22,7 +22,7 @@ test('short opening speech is prioritized while preserving longer reply wording'
  const chunks = forzaFastStartSpeechChunks(answer);
  assert.ok(chunks.length > 1);
  assert.ok(chunks[0].length <= 96, 'first TTS payload should be short');
- assert.ok(chunks.slice(1).every(chunk => chunk.length <= 240));
+ assert.ok(chunks.slice(1).every(chunk => chunk.length <= 220));
  assert.equal(chunks.join(' '), answer);
  assert.deepEqual(forzaFastStartSpeechChunks('   '), []);
 });

@@ -45,6 +45,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
+import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
 import {configuredBaiModel, streamBaiConsult} from './server/ai/baiConsult';
 
@@ -5420,24 +5421,8 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 // voice is introduced; both services use the same selected reference WAV.
 const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
 
-const pocketTtsBudget=new Map<string,{count:number;until:number}>();
-app.post('/api/ai/forza-speech',async(req,res)=>{
-  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
-  const key=String(req.ip||req.socket.remoteAddress||'unknown');
-  const now=Date.now();
-  let budget=pocketTtsBudget.get(key);
-  if(!budget || now>=budget.until){
-    budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
-  }
-  if(budget.count>=24)return res.status(429).json({error:'pocket_rate_limited'});
-  budget.count++;
-  if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
-    if(item.until<now)pocketTtsBudget.delete(ip);
-  }
-  const started=Date.now();
-  try{
-    let wav:Buffer;
+async function renderPocketSpeech(phrase:string):Promise<Buffer>{
+  let wav:Buffer;
     if(internalForzaVoiceUrl){
       // Never fall back to in-process ONNX on remote failure: it previously
       // OOM-killed the main 1 GB application. The client retains its browser
@@ -5464,6 +5449,43 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
     }else{
       wav=await synthesizeServerPocket(phrase);
     }
+  return wav;
+}
+
+// VPS builds do not run the Docker greeting-generation layer. Serve a validated
+// WAV explicitly so a missing file can never fall through to the SPA HTML.
+const getForzaGreeting=createForzaGreeting(renderPocketSpeech);
+app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
+  try {
+    const audio=await getForzaGreeting();
+    res.setHeader('Content-Type','audio/wav');
+    res.setHeader('Cache-Control','public, max-age=3600');
+    res.send(audio);
+  } catch(error:any) {
+    console.warn('[FORZA greeting] unavailable',String(error?.message||'voice_error').slice(0,120));
+    res.setHeader('Cache-Control','no-store');
+    res.status(503).json({error:'forza_greeting_unavailable'});
+  }
+});
+
+const pocketTtsBudget=new Map<string,{count:number;until:number}>();
+app.post('/api/ai/forza-speech',async(req,res)=>{
+  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+  const key=String(req.ip||req.socket.remoteAddress||'unknown');
+  const now=Date.now();
+  let budget=pocketTtsBudget.get(key);
+  if(!budget || now>=budget.until){
+    budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
+  }
+  if(budget.count>=24)return res.status(429).json({error:'pocket_rate_limited'});
+  budget.count++;
+  if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
+    if(item.until<now)pocketTtsBudget.delete(ip);
+  }
+  const started=Date.now();
+  try{
+    const wav=await renderPocketSpeech(phrase);
     if(res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
@@ -7275,6 +7297,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
+    void getForzaGreeting().catch(()=>{});
     // Load Pocket Farsi ONNX once at startup, off the request path.
     // The healthcheck remains independent of audio model availability.
     if(internalForzaVoiceUrl){
