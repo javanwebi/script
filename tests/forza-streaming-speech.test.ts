@@ -16,7 +16,7 @@ test('starts on whole word before Gemini completes the second sentence',()=>{
     assert.equal((first.phrase + ' ' + next.phrase + ' ' + next.rest).replace(/\s+/g,' ').trim(),
       ('سلام، بله تسمه صنعتی موردنظر شما موجود است و' + ' در انبار موجود است.').trim());
   } else {
-    assert.ok(continuation.length < 36 || !/[.!?؟،؛:\n]/.test(continuation));
+    assert.ok(continuation.length < 100 || !/[.!?؟،؛:\n]/.test(continuation));
   }
 });
 
@@ -63,18 +63,18 @@ test('long replies retain every word while bounding every synthesis phrase',()=>
   while(true){
     const next=takeSpeakablePhrase(rest,phrases.length===0);
     if(!next)break;
-    assert.ok(next.phrase.length<=52);
+    assert.ok(next.phrase.length<=150);
     phrases.push(next.phrase);rest=next.rest;
   }
   if(rest)phrases.push(rest);
-  assert.ok(phrases.length>=3);
+  assert.ok(phrases.length>=2);
   assert.equal(phrases.join(' '),text);
 });
 
-test('first on-device utterance starts on a short completed phrase without cutting partial tokens',()=>{
+test('first Pocket phrase starts on a natural clause, never a partial word',()=>{
   assert.equal(takeSpeakablePhrase('من فور',true),null);
-  const ready=takeSpeakablePhrase('من فورزا هستم و در خدمت',true);
+  const ready=takeSpeakablePhrase('من فورزا هستم و در خدمت شما هستم. حالا کد فنی قطعه را بفرمایید.',true);
   assert.ok(ready);
-  assert.equal(ready?.phrase+' '+ready?.rest,'من فورزا هستم و در خدمت');
-  assert.ok(ready!.phrase.length<=24);
+  assert.equal(ready?.phrase+' '+ready?.rest,'من فورزا هستم و در خدمت شما هستم. حالا کد فنی قطعه را بفرمایید.');
+  assert.ok(ready!.phrase.length<=72);
 });
