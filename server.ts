@@ -47,6 +47,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
+import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5552,7 +5553,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     const onDisconnect = () => clientAbort.abort();
     res.once('close', onDisconnect);
     try {
-      const streamProvider = textProvider === 'xkiro' ? streamXkiroConsult : streamBaiConsult;
+      const streamProvider = textProvider === 'xkiro' ? streamXkiroFreePool : streamBaiConsult;
       const result = await streamProvider({
         apiKey: textApiKey.trim(),
         model: textModel,
@@ -5580,10 +5581,23 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       return res.end();
     } catch (error: any) {
       if (clientAbort.signal.aborted) return;
-      // Log only sanitized provider/status codes; never log response bodies or credentials.
-      console.warn('[AI Consult Stream] ' + textProvider +
-        ' unavailable; using Gemini fallback: ' +
-        String(error?.code || 'provider_failure').slice(0, 80));
+      const code=String(error?.code || 'provider_failure').slice(0, 80);
+      // Log only the sanitized status code, not private upstream errors.
+      console.warn('[AI Consult Stream] ' + textProvider + ' unavailable code=' + code);
+      if (textProvider === 'xkiro') {
+        // User opted in to free xKiro. Do not silently spend money on paid
+        // models or switch to a blocked Gemini key after free-tier exhaustion.
+        sendEvent({
+          type: 'error',
+          responseId,
+          errorCode: code,
+          message: code === 'xkiro_account_free_quota_exhausted'
+            ? 'سهمیه رایگان روزانه حساب xKiro تمام شده است. با تغییر مدل رایگان قابل دور زدن نیست.'
+            : 'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند. لطفاً بعداً دوباره تلاش کنید.',
+        });
+        return res.end();
+      }
+      console.info('[AI Consult Stream] B.AI unavailable; trying configured fallback.');
     } finally {
       res.off('close', onDisconnect);
     }
