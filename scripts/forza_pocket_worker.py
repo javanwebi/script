@@ -118,6 +118,86 @@ class MemoryBoundTts(OnnxTts):
                 (time.monotonic() - started) * 1000), file=sys.stderr, flush=True)
 
 
+
+def render_chunks(engine, text):
+    """Generate independently voiced WAV frames in playback order.
+
+    This is real server-side progressive synthesis, not splitting an already
+    completed WAV. The full-text /speak route remains unchanged for fallback.
+    The existing Pocket model, selected reference and quality retry are kept.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from tts_onnx import (
+        split_sentences, plan_phrases, pack_phrases, _CHUNK_GAP,
+        _PHRASE_GAP, SENTENCE_GAP,
+    )
+    from g2p_onnx import OnnxG2P
+
+    if not engine.KEEP_ACOUSTIC:
+        raise RuntimeError("progressive_stream_requires_resident_acoustic")
+    if not any("\u0600" <= char <= "\u06FF" for char in text):
+        # The public API primarily accepts Persian; phonemes still work.
+        plans = [[(text, 0.0)]]
+    else:
+        if not hasattr(engine, "_g2p"):
+            engine._g2p = OnnxG2P(engine.dir)
+        plans = []
+        for sentence in split_sentences(text):
+            plan = pack_phrases(plan_phrases(sentence, engine._g2p, engine.sp))
+            if plan:
+                plans.append(plan)
+
+    jobs = []
+    for sentence_index, plan in enumerate(plans):
+        for phrase_index, (phonemes, phrase_gap) in enumerate(plan):
+            chunks = engine.chunk_phonemes(phonemes)
+            for chunk_index, chunk in enumerate(chunks):
+                if not jobs:
+                    gap = 0.0
+                elif phrase_index == 0 and chunk_index == 0:
+                    gap = SENTENCE_GAP
+                elif chunk_index == 0:
+                    gap = phrase_gap if phrase_gap is not None else _PHRASE_GAP
+                else:
+                    gap = _CHUNK_GAP
+                jobs.append((chunk, gap))
+    if not jobs:
+        raise ValueError("empty_phoneme_plan")
+    if len(jobs) > 64:
+        raise ValueError("too_many_speech_chunks")
+
+    # Release the sizeable ONNX G2P graphs before acoustic inference, as in
+    # the existing full-WAV path. Avoid overlapping their RAM on 1.5 GiB.
+    if not engine.KEEP_G2P and hasattr(engine, "_g2p"):
+        del engine._g2p
+        release_unused_memory()
+    voice_cache, voice_offset = engine.voice_cache(str(REFERENCE))
+    seeds = engine.rng.integers(0, 2**63, size=len(jobs))
+
+    def generate(index):
+        phonemes, gap = jobs[index]
+        speech = engine._generate_with_retry(
+            voice_cache, voice_offset, phonemes,
+            rng=np.random.default_rng(int(seeds[index])),
+        )
+        # Chunk-local declick fades and explicit breathing gaps; unlike
+        # /speak this cannot calculate median loudness across future chunks.
+        audio = engine._stitch([(speech, gap)])
+        if not len(audio):
+            raise RuntimeError("empty_audio_chunk")
+        stream = io.BytesIO()
+        sf.write(stream, audio, engine.sample_rate, format="WAV", subtype="PCM_16")
+        wav = stream.getvalue()
+        if not (44 <= len(wav) <= 5_000_000):
+            raise RuntimeError("invalid_wav_chunk")
+        return wav
+
+    # Start up to PARALLEL_CHUNKS ONNX jobs, but yield only finished
+    # WAVs in their original text order. No entire-answer WAV is buffered.
+    with ThreadPoolExecutor(max_workers=PARALLEL_CHUNKS) as pool:
+        for wav in pool.map(generate, range(len(jobs))):
+            yield wav
+
 def main():
     if not REFERENCE.is_file():
         raise RuntimeError("missing_pocket_voice_reference")
