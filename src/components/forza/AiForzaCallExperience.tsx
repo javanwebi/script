@@ -86,7 +86,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const lowPower = (device.deviceMemory != null && device.deviceMemory <= 4)
       || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
       || device.connection?.saveData === true
-      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+      || (window.matchMedia?.('(pointer: coarse)').matches === true &&
+          window.matchMedia?.('(max-width: 900px)').matches === true);
     return lowPower ? 'low' : 'high';
   });
   const localPersianVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
