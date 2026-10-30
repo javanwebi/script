@@ -16,6 +16,8 @@ test('Pocket Farsi v2 response phrases are always produced by Ubuntu private wor
   assert.match(frontend,/X-Forza-Voice/);
   assert.match(frontend,/takeSpeakablePhrase\(speechBuffer/);
   assert.match(frontend,/synthesisChain=audioRequest/);
+  assert.match(frontend,/new ForzaContinuousWav/);
+  assert.doesNotMatch(frontend,/در حال تبدیل صدای شما به متن و ارسال به سرور/);
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
   assert.doesNotMatch(frontend,/waitForLocalPersianSpeechVoice/);
 });
