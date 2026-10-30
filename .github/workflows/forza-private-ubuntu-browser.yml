@@ -10,6 +10,10 @@ on:
       - 'tests/forza-boot-speech.test.ts'
       - 'src/utils/forzaStreamingSpeech.ts'
       - 'src/utils/forzaContinuousWav.ts'
+      - 'src/utils/forzaWavFrames.ts'
+      - 'tests/forza-wav-frames.test.ts'
+      - 'scripts/forza_pocket_worker.py'
+      - 'scripts/forza_voice_http.py'
       - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'tests/forza-continuous-wav.test.ts'
   workflow_dispatch:
@@ -26,10 +30,14 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate progressive Python worker syntax
+        run: |
+          python3 -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+          bash -n ops/forza-voice-stream-benchmark-vps.sh
       - name: Validate source and private TTS contract
         run: |
           npm run lint
-          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
+          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts tests/forza-wav-frames.test.ts
       - name: Prepare Vite runtime
         run: |
           npm pkg set overrides.tslib=2.8.1

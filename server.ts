@@ -5477,20 +5477,25 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 });
 
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
-app.post('/api/ai/forza-speech',async(req,res)=>{
-  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+const consumePocketVoiceBudget=(req:any):boolean=>{
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
   const now=Date.now();
   let budget=pocketTtsBudget.get(key);
   if(!budget || now>=budget.until){
     budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
   }
-  if(budget.count>=24)return res.status(429).json({error:'pocket_rate_limited'});
+  if(budget.count>=24)return false;
   budget.count++;
   if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
     if(item.until<now)pocketTtsBudget.delete(ip);
   }
+  return true;
+};
+
+app.post('/api/ai/forza-speech',async(req,res)=>{
+  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
   const started=Date.now();
   try{
     const wav=await renderPocketSpeech(phrase);
@@ -5504,6 +5509,80 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   }catch(error:any){
     console.warn('[FORZA Pocket Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
     if(!res.headersSent)return res.status(503).json({error:'pocket_server_unavailable'});
+  }
+});
+
+// Progressive binary frames: uint32 little-endian WAV length + standalone WAV.
+// Unlike /api/ai/forza-speech this proxies the first finished ONNX chunk
+// immediately, without building a full answer into a single Buffer.
+app.post('/api/ai/forza-speech-stream',async(req,res)=>{
+  const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
+  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+  if(!internalForzaVoiceUrl || !process.env.FORZA_VOICE_TOKEN)
+    return res.status(503).json({error:'private_voice_not_configured'});
+  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  const controller=new AbortController();
+  const onDisconnect=()=>controller.abort();
+  req.on('aborted',onDisconnect);
+  res.on('close',onDisconnect);
+  const timeout=setTimeout(()=>controller.abort(),90000);
+  const started=Date.now();
+  try{
+    let upstream:Response|null=null;
+    for(let attempt=0;attempt<4;attempt++){
+      upstream=await fetch(internalForzaVoiceUrl+'/speak-stream',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
+        },
+        body:JSON.stringify({text:phrase}),
+        signal:controller.signal,
+      });
+      if(upstream.status!==503)break;
+      const reason=await upstream.json().catch(()=>null) as {error?:string}|null;
+      if(reason?.error!=='voice_busy'||attempt===3)
+        throw new Error('private_voice_'+(reason?.error||'unavailable'));
+      await new Promise(resolve=>setTimeout(resolve,300*(attempt+1)));
+    }
+    if(!upstream?.ok)throw new Error('private_voice_http_'+upstream?.status);
+    if(!upstream.body || !(upstream.headers.get('content-type')||'').includes('application/x-forza-wav-frames'))
+      throw new Error('private_voice_invalid_stream');
+    if(upstream.headers.get('x-forza-voice')!=='pocket-farsi-v2')
+      throw new Error('private_voice_wrong_model');
+    res.setHeader('Content-Type','application/x-forza-wav-frames');
+    res.setHeader('Cache-Control','no-store, no-transform');
+    res.setHeader('X-Accel-Buffering','no');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('X-Forza-Voice','pocket-farsi-v2');
+    res.setHeader('X-Forza-Voice-Backend','private-service');
+    res.flushHeaders?.();
+    let bytes=0;
+    for await(const chunk of upstream.body as any){
+      if(controller.signal.aborted)break;
+      bytes+=chunk.length;
+      if(bytes>5_000_000)throw new Error('private_voice_stream_too_large');
+      if(!res.write(chunk)){
+        await new Promise<void>((resolve,reject)=>{
+          const drained=()=>{res.off('close',closed);resolve();};
+          const closed=()=>{res.off('drain',drained);reject(new Error('client_disconnected'));};
+          res.once('drain',drained);
+          res.once('close',closed);
+        });
+      }
+    }
+    if(!controller.signal.aborted){
+      console.info('[FORZA_LATENCY] phase=pocket-server-stream ms='+(Date.now()-started)+' bytes='+bytes);
+      res.end();
+    }
+  }catch(error:any){
+    console.warn('[FORZA Pocket Stream] unavailable',String(error?.message||'stream_error').slice(0,90));
+    if(!res.headersSent)res.status(503).json({error:'pocket_stream_unavailable'});
+    else res.destroy(error instanceof Error?error:undefined);
+  }finally{
+    clearTimeout(timeout);
+    req.off('aborted',onDisconnect);
+    res.off('close',onDisconnect);
   }
 });
 
