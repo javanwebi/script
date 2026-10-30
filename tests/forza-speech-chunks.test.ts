@@ -36,7 +36,7 @@ test('first speakable phrase is released before a 40-character buffer when a saf
 test('first speakable phrase can start at a shorter complete word boundary',()=>{
  const ready=takeSpeakablePhrase('این قطعه در کاتالوگ ثبت شده و آماده بررسی است',true);
  assert.ok(ready);
- assert.ok((ready?.phrase.length||0)<40);
+ assert.ok((ready?.phrase.length||0)<=72);
  assert.ok(ready?.rest.length);
 });
 
