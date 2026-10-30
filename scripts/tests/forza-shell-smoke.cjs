@@ -3,20 +3,20 @@ const {chromium} = require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--disable-dev-shm-usage']});
  let failed=false;
- for(const mode of ['database-online','database-offline']){
+ for(const mode of ['database-online','database-offline','production-remote']){
   const context=await browser.newContext({viewport:{width:1280,height:800},permissions:[]});
   const page=await context.newPage();
   const errors=[], network=[];
   page.on('pageerror',error=>errors.push(String(error.stack||error).slice(0,1000)));
   page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text().slice(0,500));});
   page.on('requestfailed',r=>network.push(r.url().slice(0,180)+' '+r.failure()?.errorText));
-  await page.route('**/api/runtime',route=>mode==='database-online'
+  if(mode!=='production-remote') await page.route('**/api/runtime',route=>mode==='database-online'
     ?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})})
     :route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,message:'database not available'})}));
-  await page.route('**/api/portal',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,user:null})}));
+  if(mode!=='production-remote') await page.route('**/api/portal',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,user:null})}));
   try{
-   const result=await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
-   await page.waitForTimeout(12000);
+   const result=await page.goto(mode==='production-remote'?'https://sanatpish-production.up.railway.app/ai-forza':'http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
+   await page.waitForTimeout(mode==='production-remote'?20000:12000);
    const body=await page.locator('body').innerText();
    const stage=await page.locator('.forza-stage').count();
    const hud=await page.locator('.forza-hud').count();
