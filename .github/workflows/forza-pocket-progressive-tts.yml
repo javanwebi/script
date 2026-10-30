@@ -1,5 +1,17 @@
 name: FORZA progressive Pocket TTS safety
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'server.ts'
+      - 'scripts/forza_pocket_worker.py'
+      - 'scripts/forza_voice_http.py'
+      - 'src/components/forza/AiForzaCallExperience.tsx'
+      - 'src/utils/forzaWavFrames.ts'
+      - 'tests/forza-boot-speech.test.ts'
+      - 'tests/forza-wav-frames.test.ts'
+      - 'ops/forza-voice-stream-*.sh'
+      - '.github/workflows/forza-pocket-progressive-tts.yml'
   pull_request:
     paths:
       - 'server.ts'
