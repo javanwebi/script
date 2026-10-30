@@ -51,7 +51,7 @@ test "$(df -Pk / | awk 'NR==2 {print $4}')" -ge 1048576
 TOKEN=$(sed -n 's/^FORZA_VOICE_TOKEN=//p' "$TOKENFILE" | head -1)
 test "\${#TOKEN}" -eq 64 || { echo "Invalid private voice token" >&2; exit 1; }
 
-echo "[1/4] Checking matching app route and benchmarked image."
+echo "[1/4] Checking benchmarked image. Worker-first promotion preserves the old /speak API."
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
 IMAGE="sanatpish/forza-voice:stream-test-\${REV:0:12}"
@@ -59,16 +59,8 @@ docker image inspect "$IMAGE" >/dev/null || {
   echo "Missing candidate image $IMAGE. Run ops/forza-voice-stream-benchmark-vps.sh first." >&2
   exit 1
 }
-docker exec -i sanatpish-new node - <<'JS'
-(async()=>{
-  const r=await fetch('http://127.0.0.1:3000/api/ai/forza-speech-stream',{
-    method:'POST',headers:{'Content-Type':'application/json'},body:'{}',
-    signal:AbortSignal.timeout(4000)
-  });
-  if(r.status!==400)throw Error('stream_route_not_deployed_http_'+r.status);
-  console.log('FORZA_STREAM_ROUTE=READY');
-})().catch(e=>{console.error(e.message);process.exit(1)});
-JS
+# Do not require the new Express route yet. The upgraded worker keeps /speak
+# fully compatible, so the existing live app continues speaking during rollout.
 
 NETWORK=$(docker inspect --format '{{range $name, $conf := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$LIVE" | grep -Fx supabase_default | head -1 || true)
 if [ -z "$NETWORK" ]; then
@@ -101,17 +93,20 @@ for i in $(seq 1 45); do
 done
 test "$ready" -eq 1 || { docker logs --tail 60 "$LIVE" >&2; exit 1; }
 
-echo "[4/4] Testing first playable WAV frame through the real Express proxy."
+echo "[4/4] Testing first playable WAV frame directly from the private worker."
 docker exec -i sanatpish-new node - <<'JS'
 (async()=>{
+  require('dotenv').config({path:'/app/.env.forza-voice',quiet:true});
+  const token=process.env.FORZA_VOICE_TOKEN;
+  if(!token)throw Error('private_voice_token_missing');
   const start=performance.now();
-  const r=await fetch('http://127.0.0.1:3000/api/ai/forza-speech-stream',{
+  const r=await fetch('http://forza-voice:8080/speak-stream',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{'Content-Type':'application/json','X-Forza-Voice-Token':token},
     body:JSON.stringify({text:'سلام، من فورزا هستم و برای راهنمایی انتخاب قطعات صنعتی در خدمت شما هستم.'}),
     signal:AbortSignal.timeout(90000)
   });
-  if(!r.ok||!r.body)throw Error('express_stream_http_'+r.status);
+  if(!r.ok||!r.body)throw Error('private_stream_http_'+r.status);
   if(!(r.headers.get('content-type')||'').includes('application/x-forza-wav-frames'))
     throw Error('invalid_stream_content_type');
   if(r.headers.get('x-forza-voice')!=='pocket-farsi-v2')
@@ -157,5 +152,6 @@ echo "FORZA_PROGRESSIVE_POCKET_LIVE_OK"
 echo "Image=$IMAGE"
 echo "CPU=1.75 RAM=1.5GiB parallel_chunks=2 first_tokens=10"
 echo "Stopped rollback container retained: $BACKUP"
+echo "Existing /speak remains available; deploy the app afterward to enable progressive browser playback."
 echo "Website, Nginx, Supabase, xKiro and STT were not changed."
 echo "Rollback if needed: sudo bash ops/forza-voice-rollback-vps.sh"
