@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - name: Install pinned runtime assets
         run: |
+          npm pkg set overrides.tslib=2.8.1
           npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
           mkdir -p public/forza-runtime/{ort,piper,stt}
           cp node_modules/onnxruntime-web/dist/ort-wasm*.wasm public/forza-runtime/ort/
