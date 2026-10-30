@@ -8,6 +8,10 @@ on:
       - 'scripts/tests/forza-pocket-ubuntu-browser.cjs'
       - '.github/workflows/forza-private-ubuntu-browser.yml'
       - 'tests/forza-boot-speech.test.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaContinuousWav.ts'
+      - 'scripts/tests/forza-live-stt-browser.cjs'
+      - 'tests/forza-continuous-wav.test.ts'
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,7 +29,7 @@ jobs:
       - name: Validate source and private TTS contract
         run: |
           npm run lint
-          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts
+          node --import tsx --test tests/forza-boot-speech.test.ts tests/forza-streaming-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-speech-chunks.test.ts
       - name: Prepare Vite runtime
         run: |
           npm pkg set overrides.tslib=2.8.1
@@ -43,4 +47,6 @@ jobs:
           for i in $(seq 1 40); do curl -fsS http://127.0.0.1:4173/ai-forza >/dev/null && exit 0; sleep 1; done
           cat /tmp/forza-preview.log; exit 1
       - name: Exercise SSE to private Pocket WAV playback in real Chromium
-        run: node scripts/tests/forza-pocket-ubuntu-browser.cjs
+        run: |
+          node scripts/tests/forza-pocket-ubuntu-browser.cjs
+          node scripts/tests/forza-live-stt-browser.cjs
