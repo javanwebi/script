@@ -70,3 +70,11 @@ test('long replies retain every word while bounding every synthesis phrase',()=>
   assert.ok(phrases.length>=3);
   assert.equal(phrases.join(' '),text);
 });
+
+test('first on-device utterance starts on a short completed phrase without cutting partial tokens',()=>{
+  assert.equal(takeSpeakablePhrase('من فور',true),null);
+  const ready=takeSpeakablePhrase('من فورزا هستم و در خدمت',true);
+  assert.ok(ready);
+  assert.equal(ready?.phrase+' '+ready?.rest,'من فورزا هستم و در خدمت');
+  assert.ok(ready!.phrase.length<=24);
+});
