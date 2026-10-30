@@ -5,6 +5,7 @@ Only the public Node API may proxy to this service. Do not create a public domai
 Serve one synthesis at a time to keep ONNX KV allocations bounded on small instances.
 """
 import json
+import struct
 import os
 import socket
 import sys
@@ -16,13 +17,15 @@ from pathlib import Path
 
 import numpy as np
 from forza_pocket_worker import (
-    MemoryBoundTts, REFERENCE, VOICE_STATE, render, release_unused_memory,
+    MemoryBoundTts, REFERENCE, VOICE_STATE, render, render_chunks, release_unused_memory,
 )
 
 MAX_TEXT_CHARS = 220
 MAX_REQUEST_BYTES = 2048
 MAX_CACHED_RESPONSES = 8
 synthesis_slot = threading.BoundedSemaphore(value=1)
+# One active synthesis plus one bounded waiting request; reject excess load cleanly.
+synthesis_queue = threading.BoundedSemaphore(value=2)
 audio_cache = OrderedDict()
 cache_lock = threading.Lock()
 engine = None
@@ -44,7 +47,8 @@ def start_engine():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ForzaVoice/1.0"
+    server_version = "ForzaVoice/1.1"
+    protocol_version = "HTTP/1.1"
 
     def log_message(self, format, *args):
         print("[FORZA voice HTTP]", format % args, file=sys.stderr, flush=True)
@@ -74,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(404, {"error": "not_found"})
 
     def do_POST(self):
-        if self.path != "/speak":
+        if self.path not in ("/speak", "/speak-stream"):
             self.reply(404, {"error": "not_found"})
             return
         expected = os.environ.get("FORZA_VOICE_TOKEN", "")
@@ -106,6 +110,65 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(400, {"error": "invalid_text"})
             return
 
+        # An uncached stream holds the same single-inference semaphore as
+        # /speak. Existing clients keep receiving the original full WAV.
+        if self.path == "/speak-stream":
+            if not synthesis_queue.acquire(blocking=False):
+                self.reply(503, {"error": "voice_busy"})
+                return
+            if not synthesis_slot.acquire(timeout=90):
+                synthesis_queue.release()
+                self.reply(503, {"error": "voice_queue_timeout"})
+                return
+            started = time.monotonic()
+            headers_sent = False
+            frames = None
+            try:
+                frames = render_chunks(engine, phrase)
+                first = next(frames)
+                # Wait for a *real* generated chunk before sending headers,
+                # so FIRST_BYTE measures audible ready-to-play data.
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-forza-wav-frames")
+                self.send_header("Transfer-Encoding", "chunked")
+                self.send_header("Cache-Control", "no-store, no-transform")
+                self.send_header("X-Forza-Voice", "pocket-farsi-v2")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                headers_sent = True
+                count = 0
+                import itertools
+                for wav in itertools.chain((first,), frames):
+                    frame = struct.pack("<I", len(wav)) + wav
+                    self.wfile.write(("%x\r\n" % len(frame)).encode("ascii"))
+                    self.wfile.write(frame + b"\r\n")
+                    self.wfile.flush()
+                    count += 1
+                    if count == 1:
+                        print("[FORZA voice stream] first_chunk_ms=%s bytes=%s" %
+                              (int((time.monotonic() - started) * 1000), len(wav)), flush=True)
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+                print("[FORZA voice stream] chunks=%s total_ms=%s" %
+                      (count, int((time.monotonic() - started) * 1000)), flush=True)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
+            except Exception as exc:
+                print("[FORZA voice stream] error=%s" % type(exc).__name__,
+                      file=sys.stderr, flush=True)
+                if not headers_sent:
+                    self.reply(503, {"error": "voice_unavailable"})
+                else:
+                    # A truncated framed response must fail client decoding.
+                    self.close_connection = True
+            finally:
+                if frames is not None:
+                    frames.close()
+                synthesis_slot.release()
+                synthesis_queue.release()
+                release_unused_memory()
+            return
+
         with cache_lock:
             cached = audio_cache.get(phrase)
             if cached:
@@ -113,8 +176,12 @@ class Handler(BaseHTTPRequestHandler):
         if cached:
             self.reply(200, cached, "audio/wav")
             return
-        if not synthesis_slot.acquire(blocking=False):
+        if not synthesis_queue.acquire(blocking=False):
             self.reply(503, {"error": "voice_busy"})
+            return
+        if not synthesis_slot.acquire(timeout=90):
+            synthesis_queue.release()
+            self.reply(503, {"error": "voice_queue_timeout"})
             return
         started = time.monotonic()
         try:
@@ -137,6 +204,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(503, {"error": "voice_unavailable"})
         finally:
             synthesis_slot.release()
+            synthesis_queue.release()
             release_unused_memory()
 
 
