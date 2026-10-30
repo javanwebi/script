@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ForzaContinuousWav} from '../src/utils/forzaContinuousWav';
+import {ForzaContinuousWav,pocketWavWindow} from '../src/utils/forzaContinuousWav';
 
 test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart',async()=>{
   const originalFetch=globalThis.fetch;
@@ -65,4 +65,16 @@ test('interruption clears already queued speech without leaving a blocked promis
     assert.equal(sources.length,1);
     await queue.enqueue('blob:after-cancel');
   } finally{globalThis.fetch=originalFetch;}
+});
+
+test('trims isolated WAV leading/trailing silence but keeps breath margins',()=>{
+  const pcm=new Float32Array(24000);
+  pcm.fill(0.035,4800,19200);
+  const decoded={length:24000,sampleRate:24000,duration:1,
+    getChannelData:()=>pcm};
+  const window=pocketWavWindow(decoded as unknown as AudioBuffer);
+  assert.ok(window.offset>0.15&&window.offset<0.21,JSON.stringify(window));
+  assert.ok(window.duration>0.58&&window.duration<0.72,JSON.stringify(window));
+  const silent={...decoded,getChannelData:()=>new Float32Array(24000)};
+  assert.deepEqual(pocketWavWindow(silent as unknown as AudioBuffer),{offset:0,duration:1});
 });
