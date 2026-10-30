@@ -22,6 +22,8 @@ jobs:
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Check TypeScript
         run: npm run lint
+      - name: B.AI FORZA stream and fallback regressions
+        run: node --import tsx --test tests/bai-consult.test.ts
       - name: Database tests (isolated PGlite)
         run: npm run test:database
       - name: Portal tests
