@@ -80,7 +80,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  const [quality, setQuality] = useState('high');
+  const [quality] = useState(() => {
+    if (typeof navigator === 'undefined') return 'high';
+    const device = navigator as Navigator & {deviceMemory?:number;connection?:{saveData?:boolean}};
+    const lowPower = (device.deviceMemory != null && device.deviceMemory <= 4)
+      || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
+      || device.connection?.saveData === true
+      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    return lowPower ? 'low' : 'high';
+  });
   const localPersianVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [localVoiceReady,setLocalVoiceReady] = useState(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
@@ -175,11 +183,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // The visitor's already-installed Persian voice gets priority over server
   // synthesis. No neural model is downloaded or loaded in this fast path.
   useEffect(() => {
-    const device = navigator as Navigator & {deviceMemory?:number;connection?:{saveData?:boolean}};
-    if ((device.deviceMemory != null && device.deviceMemory <= 4)
-      || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
-      || device.connection?.saveData === true
-      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) setQuality('low');
     if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
     const synth = window.speechSynthesis;
     const refresh = () => {
