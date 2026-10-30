@@ -24,6 +24,8 @@ MAX_TEXT_CHARS = 220
 MAX_REQUEST_BYTES = 2048
 MAX_CACHED_RESPONSES = 8
 synthesis_slot = threading.BoundedSemaphore(value=1)
+# One active synthesis plus one bounded waiting request; reject excess load cleanly.
+synthesis_queue = threading.BoundedSemaphore(value=2)
 audio_cache = OrderedDict()
 cache_lock = threading.Lock()
 engine = None
@@ -111,8 +113,12 @@ class Handler(BaseHTTPRequestHandler):
         # An uncached stream holds the same single-inference semaphore as
         # /speak. Existing clients keep receiving the original full WAV.
         if self.path == "/speak-stream":
-            if not synthesis_slot.acquire(blocking=False):
+            if not synthesis_queue.acquire(blocking=False):
                 self.reply(503, {"error": "voice_busy"})
+                return
+            if not synthesis_slot.acquire(timeout=90):
+                synthesis_queue.release()
+                self.reply(503, {"error": "voice_queue_timeout"})
                 return
             started = time.monotonic()
             headers_sent = False
@@ -159,6 +165,7 @@ class Handler(BaseHTTPRequestHandler):
                 if frames is not None:
                     frames.close()
                 synthesis_slot.release()
+                synthesis_queue.release()
                 release_unused_memory()
             return
 
@@ -169,8 +176,12 @@ class Handler(BaseHTTPRequestHandler):
         if cached:
             self.reply(200, cached, "audio/wav")
             return
-        if not synthesis_slot.acquire(blocking=False):
+        if not synthesis_queue.acquire(blocking=False):
             self.reply(503, {"error": "voice_busy"})
+            return
+        if not synthesis_slot.acquire(timeout=90):
+            synthesis_queue.release()
+            self.reply(503, {"error": "voice_queue_timeout"})
             return
         started = time.monotonic()
         try:
@@ -193,6 +204,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(503, {"error": "voice_unavailable"})
         finally:
             synthesis_slot.release()
+            synthesis_queue.release()
             release_unused_memory()
 
 
