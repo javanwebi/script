@@ -990,7 +990,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
       } catch (err: any) {
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
-        if (!q) setUserText('پاسخ صوتی دریافت نشد؛ لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.');
+        // Do not mislabel an STT provider 503 as a TTS playback failure.
+        if (!q) setUserText(previous=>previous.trim());
         setErrorNotice(
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
@@ -1114,7 +1115,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
           recognitionFailedRef.current=true;
-          setMicrophoneError(null);
+          setMicrophoneError(localSttModelRef.current
+            ? null
+            : 'تشخیص زنده گفتار Chrome در دسترس نیست؛ مدل فارسی محلی باید بارگذاری شود. تا آن زمان می‌توانید سؤال را تایپ کنید.');
           // Diba can continue producing live partials if its local model
           // is ready. If neither realtime recognizer is available the
           // existing recorded-audio endpoint is still the final fallback.
@@ -1148,6 +1151,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const initializeMicrophone = useCallback(async () => {
     setMicrophoneError(null);
     try {
+      if (!window.isSecureContext) throw new Error('forza_insecure_origin');
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
       // Resuming AudioContext from an explicit click also unlocks analyser VAD.
       // Never await AudioContext.resume() before getUserMedia: Chrome can
@@ -1181,8 +1185,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionRef.current=initSpeechRecognition();
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
-      setMicrophoneError(error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
-        ? 'اجازه میکروفون رد شده است. روی قفل کنار آدرس سایت کلیک کرده و Microphone را Allow کنید؛ سپس صفحه را بازخوانی کنید.'
+      setMicrophoneError(error?.message==='forza_insecure_origin'
+        ? 'میکروفون برای آدرس HTTP با IP عمومی قابل‌اعتماد نیست. فورزا را با آدرس HTTPS معتبر باز کنید.'
+        : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
+        ? 'اجازه میکروفون رد شده است. از تنظیمات سایت در Chrome گزینه Microphone را Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
