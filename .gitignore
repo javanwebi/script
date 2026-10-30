@@ -21,3 +21,6 @@ src/data/smsLogsDb.json
 
 # Product uploads belong to the persistent Railway volume, never Git/Docker builds.
 storage/
+
+# Local browser STT model is a persistent VPS artifact, never a git binary.
+runtime-models/
