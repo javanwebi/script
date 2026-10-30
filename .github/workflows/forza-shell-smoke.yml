@@ -4,6 +4,10 @@ on:
     paths:
       - 'src/components/forza/**'
       - 'src/main.tsx'
+      - 'server.ts'
+      - 'src/utils/forzaPocketRuntimePolicy.ts'
+      - 'Dockerfile'
+      - 'tests/forza-pocket-runtime-policy.test.ts'
       - 'scripts/tests/forza-shell-smoke.cjs'
       - '.github/workflows/forza-shell-smoke.yml'
   workflow_dispatch:
@@ -28,6 +32,8 @@ jobs:
           cp node_modules/@diffusionstudio/piper-wasm/build/piper_phonemize.{data,wasm} public/forza-runtime/piper/
           cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/
       - run: npm run lint
+      - name: Verify Railway memory guard and Ubuntu policy
+        run: node --import tsx --test tests/forza-pocket-runtime-policy.test.ts
       - run: npm run build
       - run: npm install --no-save --ignore-scripts --legacy-peer-deps playwright@1.56.1
       - run: npx playwright install --with-deps chromium
