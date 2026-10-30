@@ -47,7 +47,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import { synthesizeServerPocket, warmServerPocket } from './src/services/forzaPocketServerSpeech';
-import {configuredBaiModel, streamBaiConsult} from './server/ai/baiConsult';
+import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5529,18 +5529,25 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
   sendEvent({ type: 'start', responseId, timestamp: Date.now() });
 
-  // Optional B.AI text-only SSE path. The browser continues to handle STT/TTS.
-  // Each mode is independently enabled by its Railway environment switch.
-  // Gemini/Worker below remains the no-key, quota and timeout fallback.
+  // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
+  // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
+  // B.AI remains available as an alternative. Gemini/Worker below is the existing fallback.
+  const xkiroModel = configuredXkiroModel(process.env, lowLatencyVoice);
   const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
-  if (baiModel && includeAudio !== true) {
+  const textProvider = xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
+  const textModel = xkiroModel || baiModel;
+  const textApiKey = textProvider === 'xkiro'
+    ? process.env.XKIRO_API_KEY
+    : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
+  if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
     const clientAbort = new AbortController();
     const onDisconnect = () => clientAbort.abort();
     res.once('close', onDisconnect);
     try {
-      const result = await streamBaiConsult({
-        apiKey: process.env.BAI_API_KEY!,
-        model: baiModel,
+      const streamProvider = textProvider === 'xkiro' ? streamXkiroConsult : streamBaiConsult;
+      const result = await streamProvider({
+        apiKey: textApiKey.trim(),
+        model: textModel,
         voice: lowLatencyVoice,
         query: String(query || ''),
         history: Array.isArray(history) ? history : [],
@@ -5550,7 +5557,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           sendEvent({ type: 'text_chunk', responseId, chunk, textSoFar });
         },
       });
-      console.info('[FORZA_LATENCY] phase=bai-complete mode=' +
+      console.info('[FORZA_LATENCY] phase=' + textProvider + '-complete mode=' +
         (lowLatencyVoice ? 'voice' : 'desk') + ' model=' + result.model +
         ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt));
       sendEvent({
@@ -5565,9 +5572,10 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       return res.end();
     } catch (error: any) {
       if (clientAbort.signal.aborted) return;
-      // Intentionally do not log provider response bodies or credentials.
-      console.warn('[AI Consult Stream] B.AI unavailable; using Gemini fallback: ' +
-        String(error?.code || 'provider_failure').slice(0, 40));
+      // Log only sanitized provider/status codes; never log response bodies or credentials.
+      console.warn('[AI Consult Stream] ' + textProvider +
+        ' unavailable; using Gemini fallback: ' +
+        String(error?.code || 'provider_failure').slice(0, 80));
     } finally {
       res.off('close', onDisconnect);
     }
