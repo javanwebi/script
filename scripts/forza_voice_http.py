@@ -19,6 +19,7 @@ import numpy as np
 from forza_pocket_worker import (
     MemoryBoundTts, REFERENCE, VOICE_STATE, render, render_chunks, release_unused_memory,
 )
+from g2p_onnx import OnnxG2P
 
 MAX_TEXT_CHARS = 220
 MAX_REQUEST_BYTES = 2048
@@ -41,9 +42,32 @@ def start_engine():
     with np.load(VOICE_STATE, allow_pickle=False) as state:
         key = (str(REFERENCE.resolve()), REFERENCE.stat().st_mtime)
         instance._voice_memo[key] = (state["cache"], int(state["offset"]))
+
+    # Keep Persian G2P sessions resident on the 2-GiB VPS profile. The old
+    # path unloaded them after every phrase and paid the ONNX load cost again.
+    if instance.KEEP_G2P:
+        g2p_started = time.monotonic()
+        instance._g2p = OnnxG2P(instance.dir)
+        print("[FORZA voice profile] g2p_ready_ms=%d resident=1" % (
+            (time.monotonic() - g2p_started) * 1000), flush=True)
+
+    # Warm the same progressive path before /health becomes ready. Cold
+    # ONNX/G2P initialization is paid at container startup, not on first call.
+    if os.environ.get("FORZA_TTS_WARMUP") == "1":
+        if not instance.KEEP_ACOUSTIC:
+            raise RuntimeError("forza_warmup_requires_resident_acoustic")
+        warm_started = time.monotonic()
+        for _ in render_chunks(instance, "سلام، من فورزا هستم."):
+            pass
+        print("[FORZA voice profile] warmup_ms=%d resident_g2p=%d" % (
+            (time.monotonic() - warm_started) * 1000, int(instance.KEEP_G2P)),
+            flush=True)
+
     engine = instance
     release_unused_memory()
-    print("[FORZA voice] Pocket Farsi v2 engine and selected voice ready", flush=True)
+    print("[FORZA voice] Pocket Farsi v2 engine and selected voice ready resident_g2p=%d" %
+          int(instance.KEEP_G2P), flush=True)
+
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -137,16 +161,22 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 headers_sent = True
                 count = 0
+                last_frame_sent = None
                 import itertools
                 for wav in itertools.chain((first,), frames):
                     frame = struct.pack("<I", len(wav)) + wav
-                    self.wfile.write(("%x\r\n" % len(frame)).encode("ascii"))
-                    self.wfile.write(frame + b"\r\n")
+                    self.wfile.write(("%x\\r\\n" % len(frame)).encode("ascii"))
+                    self.wfile.write(frame + b"\\r\\n")
                     self.wfile.flush()
-                    count += 1
-                    if count == 1:
+                    now = time.monotonic()
+                    if count == 0:
                         print("[FORZA voice stream] first_chunk_ms=%s bytes=%s" %
-                              (int((time.monotonic() - started) * 1000), len(wav)), flush=True)
+                              (int((now - started) * 1000), len(wav)), flush=True)
+                    else:
+                        print("[FORZA voice stream] inter_chunk_gap_ms=%s index=%s" %
+                              (int((now - last_frame_sent) * 1000), count + 1), flush=True)
+                    last_frame_sent = now
+                    count += 1
                 self.wfile.write(b"0\r\n\r\n")
                 self.wfile.flush()
                 print("[FORZA voice stream] chunks=%s total_ms=%s" %
