@@ -6766,7 +6766,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
       } catch (sttErr: any) {
         voiceSttProviderFailure = true;
         const message=String(sttErr?.message||'unknown');
-        const status=Number(sttErr?.status)||(/\\b403\\b|Forbidden|PERMISSION_DENIED/i.test(message)?403:0);
+        const status=Number(sttErr?.status)||(/\b403\b|Forbidden|PERMISSION_DENIED/i.test(message)?403:0);
         console.warn('[AI FORZA STT] Gemini transcription failed status='+
           (status||'unknown')+' reason='+(/timeout|abort/i.test(message)?'timeout':'provider_error'));
       }
