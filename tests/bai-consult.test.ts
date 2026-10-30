@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BaiConsultError, configuredBaiModel, streamBaiConsult } from '../server/ai/baiConsult';
+import { BaiConsultError, configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -90,4 +90,53 @@ test('reject an empty answer so the existing Gemini fallback remains available',
     fetchImpl: (async () => fakeStream(['data: [DONE]\n\n'])) as typeof fetch,
     onDelta: () => {},
   }), (error: unknown) => error instanceof BaiConsultError && error.code === 'empty_completion');
+});
+
+
+test('xKiro is opt-in, uses the exact free Qwen model ID, and requires its own key', () => {
+  assert.equal(configuredXkiroModel({}, false), null);
+  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro' }, false), null);
+  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example' }, false), 'qwen/qwen3.7-flash:free');
+  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example', XKIRO_MODEL_DESK: 'qwen/qwen3.8-omni-flash:free' }, false), 'qwen/qwen3.8-omni-flash:free');
+  assert.equal(configuredXkiroModel({ FORZA_VOICE_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example' }, true), 'qwen/qwen3.7-flash:free');
+  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'bai', XKIRO_API_KEY: 'example' }, false), null);
+});
+
+test('xKiro streams OpenAI-compatible SSE through the same FORZA contract', async () => {
+  let requestBody: any;
+  const chunks: string[] = [];
+  const result = await streamXkiroConsult({
+    apiKey: 'secret-placeholder',
+    model: 'qwen/qwen3.7-flash:free',
+    query: 'سلام فورزا',
+    fetchImpl: (async (url: string | URL | Request, options?: RequestInit) => {
+      assert.equal(String(url), 'https://api.xkiro.com/v1/chat/completions');
+      assert.equal((options?.headers as Record<string, string>)?.Authorization, 'Bearer secret-placeholder');
+      requestBody = JSON.parse(String(options?.body));
+      return fakeStream([
+        'data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n',
+        'data: {"choices":[{"delta":{"content":" فورزا"}}]}\\n\\n',
+        'data: [DONE]\\n\\n',
+      ]);
+    }) as typeof fetch,
+    onDelta: chunk => chunks.push(chunk),
+  });
+  assert.deepEqual(chunks, ['سلام', ' فورزا']);
+  assert.equal(result.text, 'سلام فورزا');
+  assert.equal(requestBody.model, 'qwen/qwen3.7-flash:free');
+  assert.equal(requestBody.stream, true);
+});
+
+test('provider error code is preserved without logging provider response bodies', async () => {
+  await assert.rejects(streamXkiroConsult({
+    apiKey: 'secret-placeholder',
+    model: 'qwen/qwen3.7-flash:free',
+    query: 'سلام',
+    fetchImpl: (async () => new Response(JSON.stringify({
+      error: { code: 'insufficient_user_quota', message: 'private provider details' },
+    }), { status: 400, headers: { 'Content-Type': 'application/json' } })) as typeof fetch,
+    onDelta: () => {},
+  }), (error: unknown) => error instanceof BaiConsultError &&
+    error.code === 'http_400_insufficient_user_quota' &&
+    !error.message.includes('private provider details'));
 });
