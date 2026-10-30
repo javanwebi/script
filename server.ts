@@ -6707,6 +6707,11 @@ app.post('/api/ai/forza-live', async (req, res) => {
 - اگر تصویر ناواضح است یا اطلاعات کافی نیست، به طور محترمانه از کاربر بخواهید زاویه دیگر، پلاک یا ابعاد قطعه را مشخص نماید.`;
 
     let userQuery = normalizePersianTranscript(String(query || '')).slice(0, 2500);
+    // STT transport diagnostics are deliberately provider-independent:
+    // we do not select a different speech model or change any API credentials.
+    let sttProviderError = false;
+    let sttProviderStatus = 0;
+
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && apiKey) {
@@ -6741,8 +6746,14 @@ app.post('/api/ai/forza-live', async (req, res) => {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
           console.info('[AI FORZA STT] Transcript available; chars=' + userQuery.length);
         }
-      } catch (sttErr) {
-        console.warn('[AI FORZA] Audio STT error:', sttErr);
+      } catch (sttErr: any) {
+        sttProviderError = true;
+        const message=String(sttErr?.message||'');
+        sttProviderStatus=Number(sttErr?.status||0) ||
+          (/\b403\b|FORBIDDEN|PERMISSION_DENIED/i.test(message)?403:0);
+        // Don't accidentally print response bodies, voice data or API tokens.
+        console.warn('[AI FORZA STT] provider_failure status='+
+          (sttProviderStatus||'unknown')+' duration_ms='+(Date.now()-turnStartedAt));
       }
     }
 
@@ -6783,9 +6794,21 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
     if (!userQuery && audioBase64 && !image) {
       // Do not hallucinate an answer to words we could not transcribe.
+      const missingProvider=!apiKey && !configuredForzaWorkerUrl();
+      if(sttProviderError||missingProvider){
+        return res.status(503).json({
+          success:false,
+          errorCode:missingProvider?'stt_not_configured':'stt_provider_unavailable',
+          error:missingProvider
+            ? 'سرویس تشخیص گفتار سرور تنظیم نشده است. لطفاً سؤال را تایپ کنید.'
+            : 'سرویس تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره تلاش کنید یا سؤال را تایپ کنید.',
+        });
+      }
+      // Speech was received, but the configured recognizer found no words.
       return res.status(422).json({
-        success: false,
-        error: 'صدای شما به متن تبدیل نشد. لطفاً دوباره صحبت کنید یا سؤال را تایپ کنید.',
+        success:false,
+        errorCode:'stt_no_transcript',
+        error:'گفتار قابل تشخیص پیدا نشد. میکروفون و صدای محیط را بررسی کنید.',
       });
     }
 
