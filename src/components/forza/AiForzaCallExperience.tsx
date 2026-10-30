@@ -21,6 +21,7 @@ import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../.
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { readForzaWavFrames } from '../../utils/forzaWavFrames';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -653,6 +654,49 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return pending;
   },[]);
 
+
+  // Produce playable WAVs while the same Pocket model is still generating
+  // later phoneme chunks; fall back to the existing full-WAV endpoint when
+  // Python / Express have not yet been upgraded together.
+  const streamPocketPhrase=useCallback(async(
+    phrase:string,
+    onWav:(url:string,temporary:boolean)=>void,
+  ):Promise<void>=>{
+    const text=phrase.trim();
+    const cached=voiceCacheRef.current.get(text);
+    if(cached){onWav(cached,false);return;}
+    const startedAt=performance.now();
+    const response=await fetch('/api/ai/forza-speech-stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text}),
+      signal:AbortSignal.timeout(90000),
+    });
+    const valid=response.ok &&
+      response.headers.get('X-Forza-Voice')==='pocket-farsi-v2' &&
+      (response.headers.get('Content-Type')||'').includes('application/x-forza-wav-frames') &&
+      Boolean(response.body);
+    if(!valid){
+      if(response.status===404 || response.status===503){
+        onWav(await requestPocketAudio(text),false);
+        return;
+      }
+      throw new Error('pocket_stream_http_'+response.status);
+    }
+    let frameCount=0;
+    await readForzaWavFrames(response.body!,wav=>{
+      if(callClosedRef.current)throw new Error('forza_call_closed');
+      const audioUrl=URL.createObjectURL(
+        new Blob([wav.slice().buffer],{type:'audio/wav'}),
+      );
+      frameCount++;
+      if(frameCount===1)console.info(
+        '[FORZA_LATENCY] phase=first-pocket-stream-wav clientMs='+Math.round(performance.now()-startedAt)
+      );
+      onWav(audioUrl,true);
+    });
+  },[requestPocketAudio]);
+
   const playSpeechPhrase=useCallback(async(phrase:string,audioRequest?:Promise<string>):Promise<void>=>{
     try{
       const url=await (audioRequest||requestPocketAudio(phrase));
@@ -876,20 +920,34 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!phrase.trim())return;
           phraseCount++;
           const index=phraseCount;
-          // One resident inference slot. Next WAV is synthesized while
-          // the preceding WAV plays; playback always stays ordered.
-          const audioRequest=synthesisChain.then(()=>{
+          // One synthesis request holds the private worker's inference
+          // slot; the first WAV frame is played while later chunks generate.
+          const framePlaybacks:Promise<void>[]=[];
+          let playbackFailure:Error|null=null;
+          const audioRequest=synthesisChain.then(async()=>{
             if(callClosedRef.current)throw new Error('forza_call_closed');
-            return requestPocketAudio(phrase);
+            await streamPocketPhrase(phrase,(url,temporary)=>{
+              if(callClosedRef.current){
+                if(temporary)URL.revokeObjectURL(url);
+                return;
+              }
+              if(!temporary)lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
+              const playback=continuousPlayer.enqueue(url).then(
+                ()=>{if(temporary)URL.revokeObjectURL(url);},
+                error=>{
+                  if(temporary)URL.revokeObjectURL(url);
+                  playbackFailure=error instanceof Error?error:new Error(String(error));
+                },
+              );
+              framePlaybacks.push(playback);
+            });
           });
           synthesisChain=audioRequest.then(()=>{},()=>{});
-          // Schedule the next decoded PCM buffer as soon as it is ready.
-          // Do not wait for the preceding file's ended event or reopen
-          // HTMLAudioElement between Persian clauses.
-          const scheduled=audioRequest.then(url=>{
-            if(callClosedRef.current)return;
-            lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
-            return continuousPlayer.enqueue(url);
+          // Playback promises have failure handlers immediately, while
+          // further frames are still arriving across the network.
+          const scheduled=audioRequest.then(async()=>{
+            await Promise.all(framePlaybacks);
+            if(playbackFailure)throw playbackFailure;
           });
           playbackChain=playbackChain.then(async()=>{
             try{
@@ -1005,7 +1063,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,requestPocketAudio,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, stopListening,streamPocketPhrase,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
