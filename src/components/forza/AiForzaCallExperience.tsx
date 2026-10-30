@@ -20,7 +20,6 @@ import './style.css';
 import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { takeSpeakablePhrase } from '../../utils/forzaStreamingSpeech';
-import { findLocalPersianSpeechVoice, waitForLocalPersianSpeechVoice } from '../../utils/forzaBrowserSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -114,7 +113,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   });
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
-  const [offlinePersianVoiceAvailable,setOfflinePersianVoiceAvailable]=useState<boolean|null>(null);
+  const voiceCacheRef=useRef(new Map<string,string>());
+  const voiceRequestsRef=useRef(new Map<string,Promise<string>>());
   const lastPlayableVoiceRef = useRef<{ text:string; audioUrl:string } | null>(null);
   const [fullscreenError, setFullscreenError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -606,86 +606,61 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
   }), [ensureCtx, isSpeakerMuted, setStatus, stopAudio]);
 
-  // Greeting is a static prerecording. Subsequent phrases use the visitor's
-  // installed Persian voice only, with ZERO inference on Railway.
-  useEffect(()=>{
-    if(!('speechSynthesis' in window)||typeof window.speechSynthesis?.getVoices!=='function'){
-      setOfflinePersianVoiceAvailable(false);
-      return;
-    }
-    const synth=window.speechSynthesis;
-    const update=()=>{
-      try{setOfflinePersianVoiceAvailable(Boolean(findLocalPersianSpeechVoice(synth.getVoices())));}
-      catch{setOfflinePersianVoiceAvailable(false);}
-    };
-    update();
-    synth.addEventListener?.('voiceschanged',update);
-    return ()=>synth.removeEventListener?.('voiceschanged',update);
+
+  // The private Ubuntu Pocket voice worker synthesizes WAVs; the browser
+  // simply receives/plays them, with no installed voice or model download.
+  const requestPocketAudio=useCallback((phrase:string):Promise<string>=>{
+    const text=phrase.trim();
+    const cached=voiceCacheRef.current.get(text);
+    if(cached)return Promise.resolve(cached);
+    const inFlight=voiceRequestsRef.current.get(text);
+    if(inFlight)return inFlight;
+    const pending=(async()=>{
+      const response=await fetch('/api/ai/forza-speech',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text}),signal:AbortSignal.timeout(30000),
+      });
+      if(!response.ok)throw new Error('pocket_http_'+response.status);
+      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+        throw new Error('unexpected_tts_provider');
+      const blob=await response.blob();
+      if(blob.size<44||blob.size>5_000_000||!blob.type.includes('audio/wav'))
+        throw new Error('invalid_pocket_audio');
+      if(callClosedRef.current)throw new Error('forza_call_closed');
+      const url=URL.createObjectURL(blob);
+      const cache=voiceCacheRef.current;
+      cache.set(text,url);
+      if(cache.size>12){
+        const oldest=cache.keys().next().value;
+        if(oldest){
+          const old=cache.get(oldest);
+          cache.delete(oldest);
+          if(old && old!==lastPlayableVoiceRef.current?.audioUrl &&
+             old!==audioElRef.current?.src)URL.revokeObjectURL(old);
+        }
+      }
+      return url;
+    })().finally(()=>voiceRequestsRef.current.delete(text));
+    voiceRequestsRef.current.set(text,pending);
+    return pending;
   },[]);
 
-  // Local-only client speech. Never silently use a nonlocal/default voice.
-  const speakInBrowser = useCallback(async (phrase: string): Promise<void> => {
-    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
-      throw new Error('browser_speech_unavailable');
-    }
-    stopAudio();
-    const synth = window.speechSynthesis;
-    const requestedAt=performance.now();
-    const voice = await waitForLocalPersianSpeechVoice<SpeechSynthesisVoice>(synth, 650);
-    if(!voice){
-      setOfflinePersianVoiceAvailable(false);
-      throw new Error('local_persian_voice_unavailable');
-    }
-    setOfflinePersianVoiceAvailable(true);
-    if (callClosedRef.current) return;
-    const utterance = new SpeechSynthesisUtterance(phrase);
-    utterance.lang = 'fa-IR';
-    utterance.voice = voice;
-    utterance.rate = 1.06;
-    utterance.volume = isSpeakerMuted ? 0 : 1;
-    await new Promise<void>((resolve, reject) => {
-      let finished = false;
-      const finish = (error?: Error) => {
-        if (finished) return;
-        finished = true;
-        window.clearTimeout(watchdog);
-        if (pendingAudioResolveRef.current === cancel) pendingAudioResolveRef.current = null;
-        isAiSpeakingRef.current = false;
-        if (error) reject(error);
-        else resolve();
-      };
-      const cancel = () => finish();
-      pendingAudioResolveRef.current = cancel;
-      utterance.onstart = () => {
-        console.info('[FORZA_LATENCY] phase=device-tts-start ms='+Math.round(performance.now()-requestedAt)+' chars='+phrase.length);
-        isAiSpeakingRef.current = true;
-        setVoicePending(false);
-        setStatus('speaking');
-        setTurn('ai');
-      };
-      utterance.onend = () => finish();
-      utterance.onerror = () => finish(new Error('browser_speech_failed'));
-      const watchdog = window.setTimeout(() => {
-        synth.cancel();
-        finish(new Error('browser_speech_timeout'));
-      }, Math.min(18000, Math.max(6500, phrase.length * 320)));
-      try { synth.speak(utterance); }
-      catch { finish(new Error('browser_speech_failed')); }
-    });
-  }, [isSpeakerMuted,setStatus, stopAudio]);
-
-  const playSpeechPhrase = useCallback(async(phrase:string):Promise<void>=>{
+  const playSpeechPhrase=useCallback(async(phrase:string,audioRequest?:Promise<string>):Promise<void>=>{
     try{
-      await speakInBrowser(phrase);
-      setVoiceOutputError(null);
+      const url=await (audioRequest||requestPocketAudio(phrase));
+      if(callClosedRef.current)return;
+      lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
+      await playDataUrl(url);
+      if(!callClosedRef.current)setVoiceOutputError(null);
     }catch(error:any){
-      setVoiceOutputError(error?.message==='local_persian_voice_unavailable'
-        ? 'صدای فارسی آفلاین روی این دستگاه در مرورگر موجود نیست؛ صدای فارسی سیستم را فعال کنید.'
-        : 'پخش صدای فارسی دستگاه انجام نشد؛ تنظیمات صدای مرورگر را بررسی کنید.');
-      console.warn('[FORZA local TTS] playback unavailable',String(error?.message||'unknown').slice(0,80));
+      if(!callClosedRef.current)setVoiceOutputError(
+        error?.message==='autoplay_permission_required'
+          ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
+          :'صدای Pocket از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
+      console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
       throw error;
     }
-  },[speakInBrowser]);
+  },[playDataUrl,requestPocketAudio]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
@@ -703,7 +678,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return;
     }
 
-    // Replays are also spoken only on the visitor's device.
+    // Replays also use WAVs from the private Ubuntu Pocket service.
     let rest=text.trim(),first=true;
     while(rest&&!callClosedRef.current){
       const ready=takeSpeakablePhrase(rest,first);
@@ -731,7 +706,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
-        : 'صدای فورزا در مرورگر آماده نشد؛ اتصال اینترنت و پشتیبانی WebAssembly را بررسی کنید.');
+        : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
     } finally {
       if (greetingFinishedRef.current) startListening();
     }
@@ -870,19 +845,26 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let phraseCount = 0;
         let spokenCount = 0;
         let playbackChain: Promise<void> = Promise.resolve();
+        let synthesisChain: Promise<void> = Promise.resolve();
         const queuePhrase=(phrase:string)=>{
           if(!phrase.trim())return;
           phraseCount++;
           const index=phraseCount;
-          // Text SSE runs concurrently with serialized OS TTS; no server WAV.
+          // One resident inference slot. Next WAV is synthesized while
+          // the preceding WAV plays; playback always stays ordered.
+          const audioRequest=synthesisChain.then(()=>{
+            if(callClosedRef.current)throw new Error('forza_call_closed');
+            return requestPocketAudio(phrase);
+          });
+          synthesisChain=audioRequest.then(()=>{},()=>{});
           playbackChain=playbackChain.then(async()=>{
             if(callClosedRef.current)return;
             try{
-              await playSpeechPhrase(phrase);
+              await playSpeechPhrase(phrase,audioRequest);
               spokenCount++;
-              console.info('[FORZA_LATENCY] phase=device-phrase-spoken index='+index+'/'+phraseCount);
+              console.info('[FORZA_LATENCY] phase=pocket-wav-played index='+index+'/'+phraseCount);
             }catch(error:any){
-              console.warn('[FORZA local TTS] phrase failed',String(error?.message||'unknown').slice(0,80));
+              console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'unknown').slice(0,80));
             }
           });
         };
@@ -965,7 +947,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           await playbackChain;
           if (!callClosedRef.current && spokenCount !== phraseCount) {
-            setVoiceOutputError(previous=>previous||'خواندن بخشی از پاسخ در دستگاه ممکن نشد؛ متن کامل نمایش داده شده است.');
+            setVoiceOutputError(previous=>previous||'بخشی از پاسخ از سرور صوتی دریافت نشد؛ متن کامل نمایش داده شده است.');
           } else if (!callClosedRef.current) {
             setVoiceOutputError(null);
           }
@@ -985,7 +967,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening, playSpeechPhrase]
+    [setStatus, startListening, stopListening, playSpeechPhrase,requestPocketAudio]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -1535,7 +1517,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای پاسخ: {offlinePersianVoiceAvailable===true?'فارسی محلی دستگاه':offlinePersianVoiceAvailable===false?'صدای فارسی محلی موجود نیست':'بررسی صدای دستگاه'} · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
+            صدای فورزا: Pocket TTS فارسی v2 (سرور صوتی) · تشخیص گفتار: {localSttStatus==='ready'?'دیبا':localSttStatus==='loading'?'در حال آماده‌سازی':'پشتیبان'}
           </div>
         )}
         {microphoneError && (
