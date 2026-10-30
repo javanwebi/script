@@ -41,6 +41,7 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
     setTimeout(() => controller.abort(), voice ? 10000 : 15000);
   const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let response: Response | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let textSoFar = '';
   let firstTokenMs = -1;
   let finished = false;
@@ -110,7 +111,7 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
     if (!response.body) throw new BaiConsultError('missing_stream_body');
 
     const decoder = new TextDecoder();
-    const reader = response.body.getReader();
+    reader = response.body.getReader();
     let buffer = '';
     while (!finished) {
       const { value, done } = await reader.read();
@@ -138,6 +139,7 @@ export async function streamBaiConsult(options: BaiConsultOptions): Promise<{ te
   } finally {
     clearTimeout(timeout);
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
-    await response?.body?.cancel().catch(() => {});
+    await reader?.cancel().catch(() => {});
+    reader?.releaseLock();
   }
 }
