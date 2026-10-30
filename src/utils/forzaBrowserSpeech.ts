@@ -6,13 +6,6 @@ export function findPersianSpeechVoice<T extends {lang?: string; name?: string}>
     null;
 }
 
-/** Select an *installed* Persian voice only: no model downloads or
- * undocumented cloud speech synthesis in the default low-latency path.
- * Browsers that omit localService cannot certify a voice as local. */
-export function findLocalPersianSpeechVoice<T extends {lang?: string; name?: string; localService?: boolean}>(voices: T[]): T | null {
-  return findPersianSpeechVoice(voices.filter(voice => voice.localService === true));
-}
-
 /** Browser voice lists are often empty during the first page-load tick.
  * Wait briefly for voiceschanged instead of failing the greeting immediately. */
 export function waitForPersianSpeechVoice<T extends {lang?: string; name?: string}>(
