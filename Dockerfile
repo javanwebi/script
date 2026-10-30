@@ -45,7 +45,10 @@ RUN /opt/forza-pocket/bin/hf download Nimaone/pocket-tts-farsi-v2-onnx --local-d
  && /opt/forza-pocket/bin/python scripts/forza_pocket_worker.py --greeting \
  && test -s public/forza-greeting-bootstrap.wav
 # Install pinned browser runtimes at build time (none execute on Railway).
-RUN npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
+# npm's transient resolution of nonexistent tslib@2.9.1 breaks clean builds.
+# Force the published 2.8.1 for the one-off browser runtime installation.
+RUN npm pkg set overrides.tslib=2.8.1 \
+ && npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund \
  @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 \
  @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8 \
  && echo 'FORZA_RUNTIMES_INSTALLED'
