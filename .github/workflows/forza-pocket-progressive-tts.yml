@@ -1,0 +1,38 @@
+name: FORZA progressive Pocket TTS safety
+on:
+  pull_request:
+    paths:
+      - 'server.ts'
+      - 'scripts/forza_pocket_worker.py'
+      - 'scripts/forza_voice_http.py'
+      - 'src/components/forza/AiForzaCallExperience.tsx'
+      - 'src/utils/forzaWavFrames.ts'
+      - 'tests/forza-boot-speech.test.ts'
+      - 'tests/forza-wav-frames.test.ts'
+      - 'ops/forza-voice-stream-*.sh'
+      - '.github/workflows/forza-pocket-progressive-tts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run lint
+      - name: Progressive WAV framing and voice path tests
+        run: node --import tsx --test tests/forza-wav-frames.test.ts tests/forza-boot-speech.test.ts tests/forza-continuous-wav.test.ts
+      - name: Python syntax check
+        run: python -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+      - name: VPS script syntax check
+        run: bash -n ops/forza-voice-stream-benchmark-vps.sh ops/forza-voice-stream-promote-vps.sh
