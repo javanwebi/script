@@ -3,6 +3,33 @@
  * HTMLAudioElement pause/reopen gaps by scheduling decoded buffers against one
  * AudioContext clock. A slow synthesizer may still cause buffer underrun.
  */
+/** Clip only quiet leading/trailing padding generated around isolated WAV
+ * clauses. Keep a 30 ms safety margin to protect weak Persian consonants. */
+export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:number}{
+  const entire={offset:0,duration:buffer.duration};
+  if(!buffer.length||!buffer.sampleRate||typeof buffer.getChannelData!=='function'||buffer.duration<0.35)return entire;
+  const pcm=buffer.getChannelData(0);
+  const length=pcm.length;
+  const step=Math.max(1,Math.round(buffer.sampleRate/200));
+  const threshold=0.0015;
+  const maxTrim=Math.min(Math.round(buffer.sampleRate*0.24),Math.floor(length*0.24));
+  let begin=0,finish=length;
+  const audible=(a:number,b:number)=>{
+    for(let i=a;i<b;i+=step)if(Math.abs(pcm[i])>=threshold)return true;
+    return false;
+  };
+  while(begin+step<maxTrim&&!audible(begin,Math.min(begin+step,length)))begin+=step;
+  while(finish-step>length-maxTrim&&!audible(finish-step,finish))finish-=step;
+  if(begin===0&&finish===length)return entire;
+  // If the sample is effectively silent, do not shrink it into zero duration.
+  if(!audible(begin,finish))return entire;
+  const padding=Math.round(buffer.sampleRate*0.03);
+  begin=Math.max(0,begin-padding);
+  finish=Math.min(length,finish+padding);
+  if(finish-begin<buffer.sampleRate*0.15)return entire;
+  return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
+}
+
 export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
@@ -50,6 +77,7 @@ export class ForzaContinuousWav {
         throw new Error('forza_wav_empty');
       const source=ctx.createBufferSource();
       source.buffer=decoded;
+      const trimmed=pocketWavWindow(decoded);
       if(!this.gain){
         this.gain=ctx.createGain();
         this.gain.gain.value=this.muted?0:1;
@@ -64,13 +92,13 @@ export class ForzaContinuousWav {
         this.onUnderrun?.(Math.round((earliest-this.nextStart)*1000));
       }
       const startAt=Math.max(earliest,this.nextStart);
-      this.nextStart=startAt+decoded.duration;
+      this.nextStart=startAt+trimmed.duration;
       source.onended=()=>{
         this.sources.delete(source);
         source.disconnect();
         finish();
       };
-      source.start(startAt);
+      source.start(startAt,trimmed.offset,trimmed.duration);
       this.onPlaying();
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
     return finished;
