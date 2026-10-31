@@ -12,6 +12,26 @@ from pathlib import Path
 import sys
 
 
+def resolve_int4_quantizer():
+    """Support both documented ONNX Runtime 4-bit module names."""
+    import importlib
+    for module_name, class_name in (
+        ("onnxruntime.quantization.matmul_nbits_quantizer", "MatMulNBitsQuantizer"),
+        ("onnxruntime.quantization.matmul_4bits_quantizer", "MatMul4BitsQuantizer"),
+    ):
+        try:
+            module = importlib.import_module(module_name)
+        except ModuleNotFoundError as exc:
+            if exc.name != module_name:
+                raise
+            continue
+        quantizer_class = getattr(module, class_name, None)
+        if quantizer_class is None or not hasattr(module, "DefaultWeightOnlyQuantConfig"):
+            raise RuntimeError("installed_onnxruntime_int4_api_incomplete")
+        return module, quantizer_class, module_name.rpartition(".")[2]
+    raise RuntimeError("onnxruntime_int4_quantizer_unavailable")
+
+
 def quantize_original_flow(model_dir: Path, block_size: int = 128) -> dict:
     if block_size not in (32, 64, 128):
         raise ValueError("invalid_int4_block_size")
@@ -30,7 +50,12 @@ def quantize_original_flow(model_dir: Path, block_size: int = 128) -> dict:
 
     import onnx
     import onnxruntime as ort
-    from onnxruntime.quantization import matmul_4bits_quantizer, quant_utils
+    from onnxruntime.quantization import quant_utils
+    # ONNX Runtime renamed matmul_4bits_quantizer to matmul_nbits_quantizer.
+    # Resolve exact known API without changing models or the selected speaker.
+    quantizer_module, quantizer_class, api_name = resolve_int4_quantizer()
+    print("FORZA_INT4_BACKEND ort_version=%s module=%s class=%s" %
+          (ort.__version__, api_name, quantizer_class.__name__), flush=True)
 
     # This pinned FlowLM graph previously failed ONNX shape inference for
     # dynamic INT8. Weight-only quantization does not calibrate activations;
@@ -45,7 +70,7 @@ def quantize_original_flow(model_dir: Path, block_size: int = 128) -> dict:
         model = ONNXModel(onnx.load(str(source), load_external_data=True))
 
     # MatMul ONLY, no quantized Gather or changes to KV state, Mimi or G2P.
-    config = matmul_4bits_quantizer.DefaultWeightOnlyQuantConfig(
+    config = quantizer_module.DefaultWeightOnlyQuantConfig(
         block_size=block_size,
         is_symmetric=True,
         accuracy_level=4,
@@ -53,7 +78,7 @@ def quantize_original_flow(model_dir: Path, block_size: int = 128) -> dict:
         op_types_to_quantize=("MatMul",),
         quant_axes=(("MatMul", 0),),
     )
-    quantizer = matmul_4bits_quantizer.MatMul4BitsQuantizer(
+    quantizer = quantizer_class(
         model,
         nodes_to_exclude=None,
         nodes_to_include=None,
