@@ -802,7 +802,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             className="font-mono font-bold text-slate-800"
                             dir="ltr"
                           >
-                            {order.trackingCode}
+                            {order.trackingCode || "—"}
                           </span>
                         </div>
                       </div>
@@ -988,7 +988,7 @@ export const ConsumerDashboardPage: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="font-black text-base text-slate-800">
-                  {portalLabel("رسیدهای پرداخت و فاکتورهای رسمی سفارشات من")}
+                  {portalLabel("فاکتورها و رسیدهای سفارشات من")}
                 </h3>
                 {resolvedConfig.permissions.allowExcelPriceListDownload && (
                   <button
@@ -1211,7 +1211,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 <div className="flex justify-between pb-3 border-b border-slate-200">
                   <div>
                     <div className="font-black text-sm text-slate-900">
-                      {portalLabel("فروشگاه و بازرگانی هایپرصنعت اطلس یزد")}
+                      {portalLabel("صنعت پیش")}
                     </div>
                     <div className="text-slate-500 mt-0.5">
                       {portalLabel("خریدار:")}
@@ -1223,7 +1223,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                       {portalLabel("تاریخ:")}
                       {selectedReceiptOrder.date}
                     </div>
-                    <div className="text-emerald-700 font-bold mt-0.5">
+                    <div className={`font-bold mt-0.5 ${selectedReceiptOrder.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
                       {selectedReceiptOrder.paymentStatus === "paid" ? portalLabel("پرداخت تأییدشده")
                                         : portalLabel("پرداخت در انتظار تأیید")}
                     </div>
@@ -1266,7 +1266,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </tbody>
                 </table>
 
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between font-black text-sm text-emerald-950">
+                <div className={`p-3.5 rounded-2xl border flex items-center justify-between font-black text-sm ${selectedReceiptOrder.paymentStatus === "paid" ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
                   <span>{portalLabel("مبلغ کل سفارش:")}</span>
                   <span className="font-mono">
                     {formatPrice(selectedReceiptOrder.totalAmount)}
