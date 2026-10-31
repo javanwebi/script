@@ -22,7 +22,7 @@ jobs:
           s=Path("ops/forza-pocket-cpu-gate-after-amir-vps.sh").read_text()
           p=Path("docs/forza/POCKET_CPU_ONE_SECOND_PLAN.md").read_text()
           assert "forza-amir-rollback-container" in s
-          assert "docker inspect" in s and 'BACKUP=$(sed' in s
+          assert "docker inspect" in s and 'SOURCE_KIND=verified-live-pocket' in s
           assert "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833" in s
           assert "FORZA_POCKET_ONE_SECOND_GATE" in s
           assert "pass_1000ms" in s
@@ -38,13 +38,16 @@ jobs:
           assert "2.45 GiB" in s
           assert "p95" in p
           assert 'mapfile -t BACKUPS' in s
-          assert "unique-stopped-container" in s
-          assert '[[ "$BACKUP" =~ ^forza-voice-before-amir-' in s
+          assert "verified-stopped-pocket" in s
+          assert "forza-voice-previous" in s
           assert 'BACKUP_SHA=$(docker run --rm --network none' in s
-          assert 'test "$BACKUP_SHA" = "$EXPECTED_SHA"' in s
+          assert 'if [ "$BACKUP_SHA" = "$EXPECTED_SHA" ]' in s
           assert 'CANDIDATE_STARTED=0' in s
           assert 'if [ "$CANDIDATE_STARTED" = 1 ]' in s
           assert 'test -r "$MARKER"' not in s
+          assert 'SOURCE_CONTAINER="$LIVE"' in s
+          assert "FORZA_POCKET_SOURCE_VERIFIED" in s
+          assert 'test "$IMAGE_SHA" = "$EXPECTED_SHA"' in s
           assert '\\${#BACKUPS' not in s
           print("FORZA_POCKET_ONE_SECOND_PLAN_SAFE")
           PY
