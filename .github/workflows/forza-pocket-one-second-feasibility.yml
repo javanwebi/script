@@ -17,6 +17,8 @@ on:
       - ops/forza-voice-faststart-benchmark-vps.sh
       - ops/forza-pocket-single-wav-cpu-canary-vps.sh
       - ops/forza-pocket-g2p-kv-architecture-probe-vps.sh
+      - ops/forza-pocket-flow-mimi-ab-vps.sh
+      - tests/test_forza_cpu_probe_safety.py
       - scripts/forza_g2p_kv_cpu_probe.py
       - tests/test_forza_g2p_kv_architecture_safety.py
       - scripts/forza_voice_http.py
@@ -75,6 +77,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/forza_g2p_kv_cpu_probe.py
           python3 tests/test_forza_g2p_kv_architecture_safety.py
+          python3 tests/test_forza_cpu_probe_safety.py
       - name: Verify original Pocket full-WAV resident canary is isolated and has no audio files
         run: |
           bash -n ops/forza-pocket-single-wav-cpu-canary-vps.sh
