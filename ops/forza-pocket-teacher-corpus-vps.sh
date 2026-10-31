@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FORZA licensed Pocket teacher: 5-clips pilot, then opt-in full private corpus.
+# FORZA licensed Pocket teacher: single WAV smoke test, 5-clip pilot, then full corpus.
 # Uses the EXACT selected Pocket reference, in a separate offline 1-vCPU Docker
 # process. Production app, active voice, database, ports and credentials untouched.
 set -Eeuo pipefail
@@ -7,7 +7,12 @@ umask 077
 abort(){ echo "FORZA_TEACHER_ABORT $*" >&2; exit 1; }
 test "$EUID" = 0 || abort "run_with_sudo"
 test "${FORZA_TEACHER_TRAINING_RIGHTS:-}" = yes || abort "training_and_distillation_rights_not_confirmed"
-case "${1:-}" in --pilot) LIMIT=5; MODE=pilot ;; --full) LIMIT=368; MODE=full ;; *) abort "usage: sudo FORZA_TEACHER_TRAINING_RIGHTS=yes bash ops/forza-pocket-teacher-corpus-vps.sh --pilot [or --full]" ;; esac
+case "${1:-}" in
+  --one) LIMIT=1; MODE=one ;;
+  --pilot) LIMIT=5; MODE=pilot ;;
+  --full) LIMIT=368; MODE=full ;;
+  *) abort "usage: sudo env FORZA_TEACHER_TRAINING_RIGHTS=yes bash ops/forza-pocket-teacher-corpus-vps.sh --one|--pilot|--full" ;;
+esac
 test "$#" -eq 1 || abort "unexpected_arguments"
 APP=/opt/sanatpish
 SITE=sanatpish-new
@@ -84,7 +89,8 @@ docker run --rm --name "$CANDIDATE" --restart no \
 
 python3 "$APP/scripts/forza_custom_voice_dataset_gate.py" \
   --csv "$WORK/$MODE/metadata.csv" --audio-dir "$WORK/$MODE/wav" \
-  --min-clips "$LIMIT" --min-minutes "$([ "$MODE" = pilot ] && echo 0 || echo 30)"
+  --min-clips "$LIMIT" --min-minutes "$([ "$MODE" = full ] && echo 30 || echo 0)"
 for name in "$SITE" "$LIVE"; do test "$(docker inspect -f '{{.State.Running}}' "$name")" = true || abort "live_container_stopped_$name"; done
 echo "FORZA_TEACHER_VPS_PASS mode=$MODE path=$WORK/$MODE wav_count=$LIMIT original_voice=1 production_deployed=0"
-echo "These are private intentionally stored TRAINING WAVs, not customer speech. Listen to the pilot files before permitting --full."
+echo "This is a PRIVATE teacher-synthesized WAV, NOT a fast Piper student inference test. Original Pocket latency is expected." 
+echo "These are private intentionally stored TRAINING WAVs, not customer speech. Review pilot quality before permitting --full."

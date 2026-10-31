@@ -12,6 +12,29 @@ The owner explicitly confirmed that the selected Pocket output is permitted for 
 - 2.45 GiB available host RAM minimum to begin; isolated candidate limited to 1 CPU and 2 GiB memory. **Running 5 phrases may take minutes**, not milliseconds. The longer corpus could take hours; run only after pilot listening approval.
 - Pocket image must have `numpy`, `soundfile` and `scipy.signal.resample_poly` installed. If scipy is not present, it fails safely without touching production and needs a *separate* research image; do not install anything into the live container.
 
+## Step 0 — exactly ONE isolated voice check
+
+Before generating five samples, produce exactly the **first** synthetic sentence with the original selected Pocket voice in a dedicated private output folder:
+
+```bash
+cd /opt/sanatpish
+git fetch origin main && git pull --ff-only origin main
+python3 tests/test_forza_teacher_dataset.py
+sudo chmod 700 /opt/forza-custom-work
+sudo env FORZA_TEACHER_TRAINING_RIGHTS=yes \
+  bash ops/forza-pocket-teacher-corpus-vps.sh --one
+```
+
+Expected success marker: `FORZA_TEACHER_VPS_PASS mode=one ... wav_count=1`.
+
+```bash
+wc -l /opt/forza-custom-work/one/metadata.csv
+file /opt/forza-custom-work/one/wav/forza_0001.wav
+ls -lh /opt/forza-custom-work/one/wav/forza_0001.wav
+```
+
+The resulting audio is a **teacher sample** with 22,050 Hz mono PCM16, not evidence that the future Piper model is trained or fast. Listen to this sample privately before doing more. The `--one` mode does not unlock the full corpus: the separate 5-sample listening gate remains mandatory before `--full`.
+
 ## Step 1 — 5-clip listen-first pilot
 
 ```bash
