@@ -30,7 +30,7 @@ class TeacherCorpusTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "full_requires_728"):
             teacher.read_prompts(self.prompts, 728)
         self.prompts.write_text(
-            "\\n".join("سلام این یک متن آزمایش شماره " + str(i) for i in range(728)) + "\\n",
+            "\n".join("سلام این یک متن آزمایش شماره " + str(i) for i in range(728)) + "\n",
             encoding="utf-8"
         )
         self.assertEqual(len(teacher.read_prompts(self.prompts, 728)), 728)
