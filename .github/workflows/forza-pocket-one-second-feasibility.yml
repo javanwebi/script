@@ -23,6 +23,8 @@ on:
       - tests/forzaPocketZeroFrameRecovery.test.ts
       - src/components/forza/AiForzaCallExperience.tsx
       - tests/forzaEarlySpeech.test.ts
+      - src/utils/forzaUnbrokenText.ts
+      - tests/forzaUnbrokenFullAnswer.test.ts
       - scripts/forza_quantize_original_flow_int4.py
       - scripts/forza_patch_int4_parent.py
       - tests/test_forza_int4_parent_patch.py
@@ -55,6 +57,8 @@ jobs:
           node-version: '22'
       - name: Verify conservative SSE early-speech selector (disabled by default)
         run: node --experimental-strip-types --test tests/forzaEarlySpeech.test.ts
+      - name: Verify single uninterrupted final-answer Pocket WAV and spoken words
+        run: node --experimental-strip-types --test tests/forzaUnbrokenFullAnswer.test.ts
       - name: Verify live SSE-to-original-Pocket speech queue and no skipped words
         run: node --experimental-strip-types --test tests/forzaLiveSpeechQueue.test.ts
       - name: Validate in-memory Pocket live VPS first-WAV timing instrumentation
