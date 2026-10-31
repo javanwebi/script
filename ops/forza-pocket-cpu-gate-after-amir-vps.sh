@@ -5,7 +5,7 @@ set -Eeuo pipefail
 umask 077
 export GIT_TERMINAL_PROMPT=0
 test "$EUID" -eq 0 || { echo "Run with sudo" >&2; exit 1; }
-for name in docker git awk node; do command -v "$name" >/dev/null || { echo "Missing $name" >&2; exit 1; }; done
+for name in docker git awk; do command -v "$name" >/dev/null || { echo "Missing $name" >&2; exit 1; }; done
 APP=/opt/sanatpish
 SITE=sanatpish-new
 LIVE=forza-voice
