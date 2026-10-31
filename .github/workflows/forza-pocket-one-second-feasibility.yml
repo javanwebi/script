@@ -14,6 +14,8 @@ on:
       - scripts/tests/forza-pocket-vps-ttfb.cjs
       - tests/forza-pocket-vps-ttfb.test.cjs
       - tests/forza-pocket-legacy-stream-compat.test.cjs
+      - ops/forza-voice-faststart-benchmark-vps.sh
+      - ops/forza-voice-faststart-promote-vps.sh
       - server.ts
       - scripts/tests/forza-pocket-vps-private-ttfb.py
       - tests/test_forza_private_vps_first_wav.py
@@ -59,6 +61,8 @@ jobs:
           node --test tests/forza-pocket-vps-ttfb.test.cjs
       - name: Verify old private Pocket 404 stream compatibility has same-voice guard
         run: |
+          bash -n ops/forza-voice-faststart-benchmark-vps.sh
+          bash -n ops/forza-voice-faststart-promote-vps.sh
           node --test tests/forza-pocket-legacy-stream-compat.test.cjs
           python3 tests/test_forza_private_vps_first_wav.py
           python3 -m py_compile scripts/tests/forza-pocket-vps-private-ttfb.py
