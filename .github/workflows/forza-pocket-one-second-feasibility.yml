@@ -58,7 +58,8 @@ jobs:
           bash -n ops/forza-pocket-live-ttfb-vps.sh
           node --test tests/forza-pocket-vps-ttfb.test.cjs
       - name: Verify old private Pocket 404 stream compatibility has same-voice guard
-        run: node --test tests/forza-pocket-legacy-stream-compat.test.cjs
+        run: |
+          node --test tests/forza-pocket-legacy-stream-compat.test.cjs
           python3 tests/test_forza_private_vps_first_wav.py
           python3 -m py_compile scripts/tests/forza-pocket-vps-private-ttfb.py
       - name: Verify original Pocket zero-frame fallback and 15-second timeout regression
