@@ -58,7 +58,7 @@ def render(engine, text):
     stream = io.BytesIO()
     sf.write(stream, audio, engine.sample_rate, format="WAV", subtype="PCM_16")
     result = stream.getvalue()
-    if len(result) > 5_000_000:
+    if len(result) > 8_000_000:
         raise ValueError("audio_too_large")
     return result
 
