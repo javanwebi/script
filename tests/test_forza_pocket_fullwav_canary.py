@@ -53,6 +53,11 @@ class FullWavCanaryTest(unittest.TestCase):
         self.assertIn('FORZA_FULLWAV_RESULT',SCRIPT)
         self.assertIn('FORZA_FULLWAV_COMPARE',SCRIPT)
         self.assertIn('FORZA_FULLWAV_CANARY_PEAK_BYTES',SCRIPT)
+        self.assertIn('FORZA_FULLWAV_CANARY_CURRENT_BYTES',SCRIPT)
+        self.assertIn('FORZA_FULLWAV_CANARY_MEMORY_GATE=inconclusive',SCRIPT)
+        self.assertIn('FORZA_FULLWAV_CANARY_MEMORY_GATE=passed',SCRIPT)
+        self.assertIn('Candidate current RAM exceeded 1.9GB',SCRIPT)
+        self.assertNotIn('test "$PEAK" -gt 0',SCRIPT)
     def test_worker_sources_parse_and_never_change_model_parameters(self):
         ast.parse(HTTP)
         ast.parse(WORKER)
