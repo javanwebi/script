@@ -6,6 +6,9 @@ on:
       - ops/forza-pocket-cpu-gate-after-amir-vps.sh
       - ops/forza-pocket-q4-cpu-probe-vps.sh
       - scripts/forza_pocket_worker.py
+      - scripts/forza_pocket_overlap.py
+      - tests/test_forza_mimi_overlap.py
+      - Dockerfile.forza-voice
       - .github/workflows/forza-pocket-one-second-feasibility.yml
   workflow_dispatch:
 permissions:
@@ -20,6 +23,7 @@ jobs:
         run: |
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
           bash -n ops/forza-pocket-q4-cpu-probe-vps.sh
+          python3 -m py_compile scripts/forza_pocket_overlap.py scripts/forza_pocket_worker.py tests/test_forza_mimi_overlap.py
           python3 - <<'PY'
           from pathlib import Path
           s=Path("ops/forza-pocket-cpu-gate-after-amir-vps.sh").read_text()
@@ -52,6 +56,13 @@ jobs:
           assert 'counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)' in worker
           assert 'attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d' in worker
           assert "FORZA_TTS_STAGE_PROFILE=1" in s
+          assert "FORZA_GATE_OVERLAP_MIMI" in s
+          assert 'case "$FORZA_GATE_OVERLAP_MIMI" in 0|1)' in s
+          assert "type=bind,src=$STAGE/scripts/forza_pocket_overlap.py" in s
+          assert 'TTS_OVERLAP_MIMI = os.environ.get("FORZA_TTS_OVERLAP_MIMI", "0") == "1"' in worker
+          assert 'from forza_pocket_overlap import MimiOverlap' in worker
+          dockerfile=Path("Dockerfile.forza-voice").read_text()
+          assert "COPY scripts/forza_pocket_overlap.py" in dockerfile
           assert "FORZA voice CPU stages" in s
           assert 'TTS_ATTEMPTS not in (1, 2, 3)' in worker
           assert "customer_wav_saved=0" in s
@@ -79,3 +90,7 @@ jobs:
           assert '\\${#BACKUPS' not in s
           print("FORZA_POCKET_ONE_SECOND_PLAN_SAFE")
           PY
+      - name: Prove byte-for-byte equivalent Mimi PCM on synthetic latent sequences
+        run: |
+          python3 -m pip install --quiet numpy
+          python3 tests/test_forza_mimi_overlap.py
