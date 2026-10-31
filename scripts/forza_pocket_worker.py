@@ -8,6 +8,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 import gc
 import ctypes
@@ -30,6 +31,14 @@ PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", 
 # Upstream Pocket was trained near ~11 phoneme tokens per unit; short
 # chunks can start earlier but may worsen phrase joins or total speed.
 STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "18"))
+# Progressive speech mode: keep the full-text, single-request contract,
+# but do not treat punctuation as a demand for silence. Can be disabled
+# without touching the chosen voice or rolling back the entire service.
+UNBROKEN_SPEECH = os.environ.get("FORZA_TTS_UNBROKEN", "1") == "1"
+# Preserve decimal points, product codes and hyphens; suppress sentence/
+# clause punctuation for the spoken form only (the UI retains original text).
+_SENTENCE_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
+_FLOW_PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]")
 # CPU-only ORT session threads: default remains the tested 1-thread baseline.
 # Two threads are opt-in and must be verified on this specific Xeon CPU.
 CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
@@ -147,6 +156,14 @@ class MemoryBoundTts(OnnxTts):
 
 
 
+def continuous_persian_speech_text(text):
+    """Remove punctuation-induced pauses ONLY in Pocket's spoken text.
+    Protect the decimal dot in technical measurements and retain hyphenated
+    industrial part codes (e.g. SPA-1250).
+    """
+    return " ".join(_FLOW_PUNCTUATION.sub(" ", _SENTENCE_DOT.sub(" ", text)).split())
+
+
 def render_chunks(engine, text):
     """Generate independently voiced WAV frames in playback order.
 
@@ -171,8 +188,14 @@ def render_chunks(engine, text):
         if not hasattr(engine, "_g2p"):
             engine._g2p = OnnxG2P(engine.dir)
         plans = []
+        # Split the original text to bound Persian G2P model input size; then
+        # remove punctuation only within each unit. The original punctuation
+        # never generates a sentence/phrase silence in unbroken mode.
         for sentence in split_sentences(text):
-            plan = pack_phrases(plan_phrases(sentence, engine._g2p, engine.sp))
+            spoken = continuous_persian_speech_text(sentence) if UNBROKEN_SPEECH else sentence
+            if not spoken:
+                continue
+            plan = pack_phrases(plan_phrases(spoken, engine._g2p, engine.sp))
             if plan:
                 plans.append(plan)
 
@@ -196,16 +219,16 @@ def render_chunks(engine, text):
                     gap = phrase_gap if phrase_gap is not None else _PHRASE_GAP
                 else:
                     gap = _CHUNK_GAP
-                jobs.append((chunk, gap))
+                jobs.append((chunk, 0.0 if UNBROKEN_SPEECH else gap))
     if not jobs:
         raise ValueError("empty_phoneme_plan")
     # One full answer may require many short acoustic units; only two
     # units are ever rendered ahead, so job metadata remains small in RAM.
     if len(jobs) > 256:
         raise ValueError("too_many_speech_chunks")
-    print("[FORZA voice stream plan] ms=%d jobs=%d first_tokens=%d parallel=%d" % (
+    print("[FORZA voice stream plan] ms=%d jobs=%d first_tokens=%d parallel=%d unbroken=%d" % (
         (time.monotonic() - planning_started) * 1000, len(jobs),
-        STREAM_FIRST_TOKENS, PARALLEL_CHUNKS), file=sys.stderr, flush=True)
+        STREAM_FIRST_TOKENS, PARALLEL_CHUNKS, int(UNBROKEN_SPEECH)), file=sys.stderr, flush=True)
 
     # Release the sizeable ONNX G2P graphs before acoustic inference, as in
     # the existing full-WAV path. Avoid overlapping their RAM on 1.5 GiB.
@@ -226,6 +249,12 @@ def render_chunks(engine, text):
         # Chunk-local declick fades and explicit breathing gaps; unlike
         # /speak this cannot calculate median loudness across future chunks.
         audio = engine._stitch([(speech, gap)])
+        # Pocket can synthesize silence inside an acoustic chunk, unrelated
+        # to punctuation or our zero-gap stitching. Tighten long *detected*
+        # dead-air regions only in opt-in unbroken mode; do not speed up,
+        # cut, or omit spoken words.
+        if UNBROKEN_SPEECH:
+            audio = engine._compress_pauses(audio, max_pause=0.16, keep=0.035)
         if not len(audio):
             raise RuntimeError("empty_audio_chunk")
         stream = io.BytesIO()
