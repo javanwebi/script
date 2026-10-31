@@ -6,6 +6,7 @@ The reference is the first 5 seconds of the user-selected generated hello.wav.
 import base64
 import contextlib
 import io
+import wave
 import json
 import os
 import re
@@ -66,7 +67,8 @@ def emit(data):
 def render(engine, text):
     # Upstream synthesize_text prints phonemes: stdout is reserved for JSON frames.
     with contextlib.redirect_stdout(sys.stderr):
-        audio = engine.synthesize_text(text, str(REFERENCE), mode="pack")
+        spoken = continuous_persian_speech_text(text) if UNBROKEN_SPEECH else text
+        audio = engine.synthesize_text(spoken, str(REFERENCE), mode="pack")
     if len(audio) < 100:
         raise ValueError("empty_audio")
     stream = io.BytesIO()
@@ -164,6 +166,49 @@ def continuous_persian_speech_text(text):
     return " ".join(_FLOW_PUNCTUATION.sub(" ", _SENTENCE_DOT.sub(" ", text)).split())
 
 
+def continuous_sentence_units(text, split_sentences):
+    """Normalize the COMPLETE assistant reply before ANY punctuation splitting.
+
+    The old flow split on '.' and '?' first and only then removed punctuation
+    from each segment. That still forced sentence boundaries in the TTS plan,
+    even with FORZA_TTS_UNBROKEN=1.
+    """
+    source = continuous_persian_speech_text(text) if UNBROKEN_SPEECH else text
+    return split_sentences(source)
+
+
+def render_full_answer_wav(engine, text):
+    """Optional complete-answer one-frame WAV. RAM only, no inter-frame starvation.
+
+    Waiting for the entire utterance has a latency cost on slow CPUs. Do NOT
+    enable this until the full-answer CPU gate has passed for representative
+    unseen Persian replies. Keep the default progressive mode.
+    """
+    output = io.BytesIO()
+    total_pcm = 0
+    frames = 0
+    with wave.open(output, "wb") as target:
+        target.setnchannels(1)
+        target.setsampwidth(2)
+        target.setframerate(engine.sample_rate)
+        for packet in render_chunks(engine, text):
+            with wave.open(io.BytesIO(packet), "rb") as part:
+                if part.getnchannels() != 1 or part.getsampwidth() != 2 or part.getframerate() != engine.sample_rate:
+                    raise ValueError("forza_pcm_frame_mismatch")
+                pcm = part.readframes(part.getnframes())
+            total_pcm += len(pcm)
+            if total_pcm + 44 > 8_000_000:
+                raise ValueError("forza_full_audio_too_large")
+            target.writeframesraw(pcm)
+            frames += 1
+    if not frames or total_pcm < 100:
+        raise ValueError("forza_full_audio_empty")
+    full_wav = output.getvalue()
+    if len(full_wav) > 8_000_000:
+        raise ValueError("forza_full_audio_too_large")
+    return full_wav
+
+
 def render_chunks(engine, text):
     """Generate independently voiced WAV frames in playback order.
 
@@ -188,14 +233,13 @@ def render_chunks(engine, text):
         if not hasattr(engine, "_g2p"):
             engine._g2p = OnnxG2P(engine.dir)
         plans = []
-        # Split the original text to bound Persian G2P model input size; then
-        # remove punctuation only within each unit. The original punctuation
-        # never generates a sentence/phrase silence in unbroken mode.
-        for sentence in split_sentences(text):
-            spoken = continuous_persian_speech_text(sentence) if UNBROKEN_SPEECH else sentence
-            if not spoken:
+        # Normalize ONCE before splitting so periods, commas and question
+        # marks cannot introduce artificial sentence boundaries or pauses.
+        # split_sentences still bounds very long input independent of marks.
+        for sentence in continuous_sentence_units(text, split_sentences):
+            if not sentence:
                 continue
-            plan = pack_phrases(plan_phrases(spoken, engine._g2p, engine.sp))
+            plan = pack_phrases(plan_phrases(sentence, engine._g2p, engine.sp))
             if plan:
                 plans.append(plan)
 
