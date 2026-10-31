@@ -73,9 +73,11 @@ jobs:
           assert "audio_cache" not in s
           s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
           assert "voiceCacheRef" not in s
-          assert "URL.revokeObjectURL(url)" in s
-          assert "readForzaWavFrames" in s
-          assert "playPocketProgressive" in s
+          assert "await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal)" in s
+          assert "await player.enqueueWav(audio)" in s
+          assert "readForzaWavFrames" not in s
+          assert "ForzaLiveSpeechQueue" not in s
+          assert "playPocketProgressive" not in s
           amir=Path("ops/forza-amir-inmemory-smoke-vps.sh").read_text()
           assert "fa_IR-amir-medium.onnx" in amir
           assert "FORZA_AMIR_RESULT" in amir
