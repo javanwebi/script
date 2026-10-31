@@ -3,28 +3,24 @@ import assert from 'node:assert/strict';
 import { takeSpeakablePhrase } from '../src/utils/forzaStreamingSpeech';
 import { consumeForzaTextStream } from '../src/utils/forzaStreamClient';
 
-test('starts on whole word before Gemini completes the second sentence',()=>{
-  const first = takeSpeakablePhrase('سلام، بله تسمه صنعتی موردنظر شما موجود است و',true);
+test('waits for a natural first clause instead of sending a two-word Pocket request',()=>{
+  const answer='سلام، بله تسمه صنعتی موردنظر شما موجود است و کد فنی آن را می‌توانم بررسی کنم. برای ادامه شماره دستگاه را بفرمایید.';
+  const first=takeSpeakablePhrase(answer,true);
   assert.ok(first);
   assert.ok(first.phrase.startsWith('سلام،'));
-  assert.ok(first.phrase.length <= 92, 'first speech request must remain bounded without unnatural syllable cuts');
-  const continuation = first.rest + ' در انبار موجود است.';
-  const next = takeSpeakablePhrase(continuation,false);
-  // Short trailing text is deliberately held until the stream finishes.
-  if (next) {
-    assert.ok(!next.phrase.endsWith(' و'));
-    assert.equal((first.phrase + ' ' + next.phrase + ' ' + next.rest).replace(/\s+/g,' ').trim(),
-      ('سلام، بله تسمه صنعتی موردنظر شما موجود است و' + ' در انبار موجود است.').trim());
-  } else {
-    assert.ok(continuation.length < 100 || !/[.!?؟،؛:\n]/.test(continuation));
-  }
+  assert.ok(first.phrase.length>=28);
+  assert.ok(first.phrase.length<=120);
+  assert.ok(first.phrase.endsWith('.'));
+  assert.equal(first.phrase+' '+first.rest,answer);
 });
 
-test('never cuts a word mid-token',()=>{
+test('never cuts a word mid-token and waits for a useful first phrase',()=>{
   assert.equal(takeSpeakablePhrase('سلام',true),null);
-  const candidate=takeSpeakablePhrase('قطعه اصلی شما مطابق سفارش آماده دریافت خواهد بود',true);
+  const input='قطعه اصلی شما مطابق سفارش آماده دریافت خواهد بود و پس از بررسی ارسال می‌شود. اطلاعات تکمیلی در ادامه ارائه می‌شود.';
+  const candidate=takeSpeakablePhrase(input,true);
   assert.ok(candidate);
   assert.ok(!candidate.phrase.endsWith('آما'));
+  assert.ok(candidate.phrase.length>=28);
   assert.ok(candidate.rest.length>0);
 });
 
@@ -63,18 +59,17 @@ test('long replies retain every word while bounding every synthesis phrase',()=>
   while(true){
     const next=takeSpeakablePhrase(rest,phrases.length===0);
     if(!next)break;
-    assert.ok(next.phrase.length<=150);
+    assert.ok(next.phrase.length<=180);
     phrases.push(next.phrase);rest=next.rest;
   }
   if(rest)phrases.push(rest);
-  assert.ok(phrases.length>=2);
   assert.equal(phrases.join(' '),text);
 });
 
-test('first Pocket phrase starts on a natural clause, never a partial word',()=>{
+test('first Pocket phrase starts on a complete natural sentence',()=>{
   assert.equal(takeSpeakablePhrase('من فور',true),null);
   const ready=takeSpeakablePhrase('من فورزا هستم و در خدمت شما هستم. حالا کد فنی قطعه را بفرمایید.',true);
   assert.ok(ready);
   assert.equal(ready?.phrase+' '+ready?.rest,'من فورزا هستم و در خدمت شما هستم. حالا کد فنی قطعه را بفرمایید.');
-  assert.ok(ready!.phrase.length<=72);
+  assert.ok(ready!.phrase.length>=28);
 });

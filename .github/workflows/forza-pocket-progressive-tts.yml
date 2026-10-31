@@ -8,9 +8,15 @@ on:
       - 'scripts/forza_voice_http.py'
       - 'src/components/forza/AiForzaCallExperience.tsx'
       - 'src/utils/forzaWavFrames.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaContinuousWav.ts'
       - 'tests/forza-boot-speech.test.ts'
       - 'tests/forza-wav-frames.test.ts'
+      - 'tests/forza-continuous-wav.test.ts'
+      - 'tests/forza-streaming-speech.test.ts'
+      - 'tests/forza-speech-chunks.test.ts'
       - 'ops/forza-voice-stream-*.sh'
+      - 'ops/forza-voice-faststart-*.sh'
       - '.github/workflows/forza-pocket-progressive-tts.yml'
   pull_request:
     paths:
@@ -19,9 +25,15 @@ on:
       - 'scripts/forza_voice_http.py'
       - 'src/components/forza/AiForzaCallExperience.tsx'
       - 'src/utils/forzaWavFrames.ts'
+      - 'src/utils/forzaStreamingSpeech.ts'
+      - 'src/utils/forzaContinuousWav.ts'
       - 'tests/forza-boot-speech.test.ts'
       - 'tests/forza-wav-frames.test.ts'
+      - 'tests/forza-continuous-wav.test.ts'
+      - 'tests/forza-streaming-speech.test.ts'
+      - 'tests/forza-speech-chunks.test.ts'
       - 'ops/forza-voice-stream-*.sh'
+      - 'ops/forza-voice-faststart-*.sh'
       - '.github/workflows/forza-pocket-progressive-tts.yml'
   workflow_dispatch:
 permissions:
@@ -43,8 +55,8 @@ jobs:
       - name: TypeScript check
         run: npm run lint
       - name: Progressive WAV framing and voice path tests
-        run: node --import tsx --test tests/forza-wav-frames.test.ts tests/forza-boot-speech.test.ts tests/forza-continuous-wav.test.ts
+        run: node --import tsx --test tests/forza-wav-frames.test.ts tests/forza-boot-speech.test.ts tests/forza-continuous-wav.test.ts tests/forza-streaming-speech.test.ts tests/forza-speech-chunks.test.ts
       - name: Python syntax check
         run: python -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
       - name: VPS script syntax check
-        run: bash -n ops/forza-voice-stream-benchmark-vps.sh ops/forza-voice-stream-promote-vps.sh
+        run: bash -n ops/forza-voice-stream-benchmark-vps.sh ops/forza-voice-stream-promote-vps.sh ops/forza-voice-faststart-benchmark-vps.sh ops/forza-voice-faststart-promote-vps.sh ops/forza-voice-faststart-rollback-vps.sh

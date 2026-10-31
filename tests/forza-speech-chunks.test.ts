@@ -27,16 +27,18 @@ test('short opening speech is prioritized while preserving longer reply wording'
  assert.deepEqual(forzaFastStartSpeechChunks('   '), []);
 });
 
-test('first speakable phrase is released before a 40-character buffer when a safe boundary exists',()=>{
+test('short opening clause is joined to the next clause instead of becoming a tiny TTS request',()=>{
  const ready=takeSpeakablePhrase('سلام، قطعه شما پیدا شد. برای بررسی کد فنی را بفرمایید.',true);
- assert.equal(ready?.phrase,'سلام، قطعه شما پیدا شد.');
- assert.equal(ready?.rest,'برای بررسی کد فنی را بفرمایید.');
+ assert.equal(ready?.phrase,'سلام، قطعه شما پیدا شد. برای بررسی کد فنی را بفرمایید.');
+ assert.equal(ready?.rest,'');
 });
 
-test('first speakable phrase can start at a shorter complete word boundary',()=>{
- const ready=takeSpeakablePhrase('این قطعه در کاتالوگ ثبت شده و آماده بررسی است',true);
+test('first speakable phrase waits for a substantial complete word boundary',()=>{
+ const input='این قطعه در کاتالوگ ثبت شده و آماده بررسی است و کد فنی آن با مشخصات سفارش شما مطابقت دارد';
+ const ready=takeSpeakablePhrase(input,true);
  assert.ok(ready);
- assert.ok((ready?.phrase.length||0)<=72);
+ assert.ok((ready?.phrase.length||0)>=28);
+ assert.ok((ready?.phrase.length||0)<=120);
  assert.ok(ready?.rest.length);
 });
 

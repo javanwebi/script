@@ -5,6 +5,8 @@ import {shouldRemountAfterCatalogHydration} from '../src/utils/forzaBootPolicy';
 
 const frontend=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+const pocketWorker=readFileSync(new URL('../scripts/forza_pocket_worker.py',import.meta.url),'utf8');
+const pocketHttp=readFileSync(new URL('../scripts/forza_voice_http.py',import.meta.url),'utf8');
 
 test('FORZA active session does not remount during catalog hydration',()=>{
   for(const path of ['/ai-forza','/ai-forza/','/ai-forza/session'])
@@ -23,6 +25,11 @@ test('Pocket Farsi v2 response phrases are always produced by Ubuntu private wor
   assert.match(frontend,/takeSpeakablePhrase\(speechBuffer/);
   assert.match(frontend,/synthesisChain=audioRequest/);
   assert.match(frontend,/new ForzaContinuousWav/);
+  assert.match(frontend,/continuousPlayer\.enqueueWav\(audio\.wav\)/);
+  assert.match(pocketWorker,/STREAM_FIRST_TOKENS.*"18"/);
+  assert.match(pocketHttp,/OnnxG2P\(instance\.dir\)/);
+  assert.match(pocketHttp,/FORZA_TTS_WARMUP/);
+  assert.match(pocketHttp,/inter_chunk_gap_ms/);
   assert.doesNotMatch(frontend,/در حال تبدیل صدای شما به متن و ارسال به سرور/);
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
   assert.doesNotMatch(frontend,/waitForLocalPersianSpeechVoice/);
