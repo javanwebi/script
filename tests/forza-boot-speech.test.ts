@@ -37,6 +37,26 @@ test('FORZA speaks one complete AI reply as a single Pocket WAV, never phrase ch
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
   assert.doesNotMatch(frontend,/waitForLocalPersianSpeechVoice/);
 });
+test('customer WAV output is never cached on the browser or Pocket backend',()=>{
+  assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
+  assert.match(frontend,/URL\.createObjectURL\(blob\)/);
+  assert.match(frontend,/URL\.revokeObjectURL\(audioUrl\)/);
+  assert.match(frontend,/URL\.revokeObjectURL\(url\)/);
+  assert.match(frontend,/await requestPocketAudio\(reply\.trim\(\)\)/);
+  assert.doesNotMatch(pocketHttp,/audio_cache|MAX_CACHED_RESPONSES|OrderedDict/);
+  assert.match(pocketHttp,/audio = render\(engine, phrase\)/);
+  assert.match(pocketHttp,/self\.reply\(200, audio, "audio\/wav"\)/);
+  assert.match(backend,/Cache-Control','no-store'/);
+});
+test('CPU 1 or 2 intra-op threads are opt-in, with FP32 as safe default',()=>{
+  assert.match(pocketWorker,/CPU_INTRA = int\(os\.environ\.get\("FORZA_CPU_INTRA", "1"\)\)/);
+  assert.match(pocketWorker,/FORZA_ONNX_INT8/);
+  assert.match(pocketWorker,/flow_lm_step\.int8\.onnx/);
+  const dockerfile=readFileSync(new URL('../Dockerfile.forza-voice',import.meta.url),'utf8');
+  assert.match(dockerfile,/FORZA_CPU_INTRA/);
+  assert.match(dockerfile,/FORZA_ONNX_INT8/);
+  assert.match(dockerfile,/flow_lm_step\.int8\.onnx/);
+});
 test('existing prerecorded greeting is preserved and there is no client TTS model download',()=>{
   assert.match(frontend,/\/forza-greeting-bootstrap\.wav/);
   assert.doesNotMatch(frontend,/pocket-tts-farsi-v2-onnx/);

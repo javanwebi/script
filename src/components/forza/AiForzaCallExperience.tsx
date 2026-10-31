@@ -114,9 +114,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
   const continuousVoiceRef=useRef<ForzaContinuousWav|null>(null);
-  const voiceCacheRef=useRef(new Map<string,string>());
-  const voiceRequestsRef=useRef(new Map<string,Promise<string>>());
-  const lastPlayableVoiceRef = useRef<{ text:string; audioUrl:string } | null>(null);
   const [fullscreenError, setFullscreenError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -616,47 +613,28 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // The private Ubuntu Pocket voice worker synthesizes WAVs; the browser
   // simply receives/plays them, with no installed voice or model download.
-  const requestPocketAudio=useCallback((phrase:string):Promise<string>=>{
+  // Do not cache customer answer WAVs. Blob URL lives until playback finishes.
+  const requestPocketAudio=useCallback(async(phrase:string):Promise<string>=>{
     const text=phrase.trim();
-    const cached=voiceCacheRef.current.get(text);
-    if(cached)return Promise.resolve(cached);
-    const inFlight=voiceRequestsRef.current.get(text);
-    if(inFlight)return inFlight;
-    const pending=(async()=>{
-      const response=await fetch('/api/ai/forza-speech',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text}),signal:AbortSignal.timeout(420000),
-      });
-      if(!response.ok)throw new Error('pocket_http_'+response.status);
-      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
-        throw new Error('unexpected_tts_provider');
-      const blob=await response.blob();
-      if(blob.size<44||blob.size>8_000_000||!blob.type.includes('audio/wav'))
-        throw new Error('invalid_pocket_audio');
-      if(callClosedRef.current)throw new Error('forza_call_closed');
-      const url=URL.createObjectURL(blob);
-      const cache=voiceCacheRef.current;
-      cache.set(text,url);
-      if(cache.size>12){
-        const oldest=cache.keys().next().value;
-        if(oldest){
-          const old=cache.get(oldest);
-          cache.delete(oldest);
-          if(old && old!==lastPlayableVoiceRef.current?.audioUrl &&
-             old!==audioElRef.current?.src)URL.revokeObjectURL(old);
-        }
-      }
-      return url;
-    })().finally(()=>voiceRequestsRef.current.delete(text));
-    voiceRequestsRef.current.set(text,pending);
-    return pending;
+    const response=await fetch('/api/ai/forza-speech',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text}),signal:AbortSignal.timeout(420000),
+    });
+    if(!response.ok)throw new Error('pocket_http_'+response.status);
+    if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+      throw new Error('unexpected_tts_provider');
+    const blob=await response.blob();
+    if(blob.size<44||blob.size>8_000_000||!blob.type.includes('audio/wav'))
+      throw new Error('invalid_pocket_audio');
+    if(callClosedRef.current)throw new Error('forza_call_closed');
+    return URL.createObjectURL(blob);
   },[]);
 
   const playSpeechPhrase=useCallback(async(phrase:string,audioRequest?:Promise<string>):Promise<void>=>{
+    let url:string|null=null;
     try{
-      const url=await (audioRequest||requestPocketAudio(phrase));
+      url=await (audioRequest||requestPocketAudio(phrase));
       if(callClosedRef.current)return;
-      lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
       await playDataUrl(url);
       if(!callClosedRef.current)setVoiceOutputError(null);
     }catch(error:any){
@@ -666,6 +644,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           :'صدای Pocket از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
       console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
       throw error;
+    }finally{
+      if(url?.startsWith('blob:'))URL.revokeObjectURL(url);
     }
   },[playDataUrl,requestPocketAudio]);
 
@@ -679,7 +659,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // The exact greeting was synthesized by Pocket Farsi v2 at image build time.
       // No model download or inference is needed at the 100% particle event.
       const url = '/forza-greeting-bootstrap.wav';
-      lastPlayableVoiceRef.current = { text: GREETING_TEXT, audioUrl: url };
       await playDataUrl(url);
       console.info('[FORZA greeting] Pocket Farsi v2 prerecorded welcome finished');
       return;
@@ -694,16 +673,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const text = aiText.trim();
     if (!text) return;
     setVoiceOutputError(null);
-    // The previously synthesized audio is reused immediately on a real user
-    // gesture: no extra Gemini quota or network round-trip.
+    // Replay triggers fresh synthesis. Customer audio never remains cached.
     try {
-      const existing = lastPlayableVoiceRef.current;
-      if (existing?.text === text && existing.audioUrl) {
-        stopListening();
-        await playDataUrl(existing.audioUrl);
-      } else {
-        await speakText(text);
-      }
+      await speakText(text);
     } catch (error:any) {
       setVoiceOutputError(error?.message === 'autoplay_permission_required'
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
@@ -931,14 +903,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setAiText(reply);
           try {
             const audioUrl=await requestPocketAudio(reply.trim());
-            if(!callClosedRef.current){
-              // Exactly one fully generated WAV is enqueued; browser playback
-              // cannot underrun waiting for later synthesis chunks.
-              lastPlayableVoiceRef.current={text:reply.trim(),audioUrl};
-              await continuousPlayer.enqueue(audioUrl);
-              if(!callClosedRef.current)setVoiceOutputError(null);
-              console.info('[FORZA_LATENCY] phase=single-pocket-wav-played chars='+reply.length+
-                ' underruns='+continuousPlayer.underrunCount);
+            try{
+              if(!callClosedRef.current){
+                // Exactly one fully generated WAV, no persistent local/server cache.
+                await continuousPlayer.enqueue(audioUrl);
+                if(!callClosedRef.current)setVoiceOutputError(null);
+                console.info('[FORZA_LATENCY] phase=single-pocket-wav-played chars='+reply.length+
+                  ' underruns='+continuousPlayer.underrunCount);
+              }
+            }finally{
+              URL.revokeObjectURL(audioUrl);
             }
           }catch(error:any){
             console.warn('[FORZA Pocket Ubuntu] full-answer synthesis failed',String(error?.message||'unknown').slice(0,100));
