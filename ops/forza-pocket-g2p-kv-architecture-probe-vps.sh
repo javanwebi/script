@@ -66,7 +66,11 @@ docker run --rm --network bridge --cpus=1 --memory=1g \
   -e HF_HOME=/probe/hf_cache -e HF_HUB_DOWNLOAD_TIMEOUT=240 \
   --mount "type=bind,src=$STAGE,dst=/probe" \
   --entrypoint hf "$PARENT" \
-  download "$MODEL" --include 'onnx/g2p_encoder_kv.onnx*' 'onnx/g2p_decoder_kv.onnx*' \
+  # When using --include, supply NO positional file names. Otherwise hf CLI
+  # ignores --include and treats shell-quoted glob literals as file names,
+  # causing the reported File not found ...onnx%2A error.
+  # This single glob selects BOTH cached G2P graphs and external .onnx.data.
+  download "$MODEL" --include 'onnx/g2p_*_kv.onnx*' \
   --local-dir /probe/hf
 
 test -s "$STAGE/hf/onnx/g2p_encoder_kv.onnx" || { echo "FORZA_KV_ABORT encoder missing" >&2; exit 1; }
