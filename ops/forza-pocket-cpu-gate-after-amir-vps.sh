@@ -130,6 +130,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e FORZA_CPU_INTRA=1 -e FORZA_ONNX_INT8=0 \
   -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
+  -e FORZA_TTS_STAGE_PROFILE=1 \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
   --entrypoint python "$PARENT" -u scripts/forza_voice_http.py >/dev/null
@@ -217,7 +218,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
 JS
 docker stats --no-stream --format 'FORZA_POCKET_PROFILE_RESOURCES memory={{.MemUsage}} cpu={{.CPUPerc}}' "$CANDIDATE"
 docker logs "$CANDIDATE" 2>&1 |
-  grep -E 'FORZA voice stream (plan|profile)|FORZA voice stream] (first_chunk_ms|inter_chunk_gap_ms)' |
+  grep -E 'FORZA voice stream (plan|profile)|FORZA voice CPU stages|FORZA voice stream] (first_chunk_ms|inter_chunk_gap_ms)' |
   tail -50 || true
 for name in "$LIVE" "$SITE"; do test "$(docker inspect -f '{{.State.Running}}' "$name")" = true; done
 echo "FORZA_POCKET_GATE_DONE live_unchanged=1 customer_wav_saved=0"
