@@ -15,6 +15,9 @@ on:
       - tests/forza-pocket-vps-ttfb.test.cjs
       - tests/forza-pocket-legacy-stream-compat.test.cjs
       - ops/forza-voice-faststart-benchmark-vps.sh
+      - ops/forza-pocket-single-wav-cpu-canary-vps.sh
+      - scripts/forza_voice_http.py
+      - tests/test_forza_pocket_fullwav_canary.py
       - ops/forza-voice-faststart-promote-vps.sh
       - server.ts
       - scripts/tests/forza-pocket-vps-private-ttfb.py
@@ -65,6 +68,10 @@ jobs:
         run: |
           bash -n ops/forza-pocket-live-ttfb-vps.sh
           node --test tests/forza-pocket-vps-ttfb.test.cjs
+      - name: Verify original Pocket full-WAV resident canary is isolated and has no audio files
+        run: |
+          bash -n ops/forza-pocket-single-wav-cpu-canary-vps.sh
+          python3 tests/test_forza_pocket_fullwav_canary.py
       - name: Verify old private Pocket 404 stream compatibility has same-voice guard
         run: |
           bash -n ops/forza-voice-faststart-benchmark-vps.sh
