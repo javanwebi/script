@@ -46,6 +46,16 @@ const customer = {
         viewport: document.documentElement.clientWidth,
         page: document.documentElement.scrollWidth,
       }));
+      if (scroll.page > scroll.viewport + 3) {
+        const offenders = await page.evaluate(() =>
+          [...document.querySelectorAll("body *")].map(el => {
+            const b = el.getBoundingClientRect();
+            return { tag: el.tagName, className: typeof el.className === "string" ? el.className.slice(0, 110) : "",
+              left: Math.round(b.left), right: Math.round(b.right), width: Math.round(b.width) };
+          }).filter(b => b.left < -3 || b.right > document.documentElement.clientWidth + 3)
+            .slice(0, 25));
+        console.error("OVERFLOW DIAGNOSTICS", width, JSON.stringify(offenders));
+      }
       assert.ok(scroll.page <= scroll.viewport + 3,
         `horizontal overflow at ${width}px: ${JSON.stringify(scroll)}`);
 
