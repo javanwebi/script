@@ -143,7 +143,10 @@ async function main() {
   if (!['both', 'proxy', 'private'].includes(mode)) throw new Error('invalid_mode');
   const privateBase = (process.env.FORZA_VOICE_INTERNAL_URL || '').trim().replace(/\/$/, '');
   const token = process.env.FORZA_VOICE_TOKEN || '';
-  const proxyBase = process.env.FORZA_PROBE_PROXY_URL || 'http://127.0.0.1:3001';
+  // Probe runs INSIDE sanatpish-new, where Express normally listens on
+  // 3000; host VPS maps 3001 to that port. Never assume host-port == app-port.
+  const proxyBase = process.env.FORZA_PROBE_PROXY_URL ||
+    'http://127.0.0.1:' + (process.env.PORT || '3000');
   const samples = [{ name: 'short', text: SHORT }];
   if (process.env.FORZA_PROBE_EXTENDED === '1')
     samples.push({ name: 'medium', text: MEDIUM });
@@ -151,7 +154,8 @@ async function main() {
   let errors = 0;
 
   console.log('FORZA_POCKET_VPS_START mode=' + mode + ' samples=' + samples.length +
-    ' no_disk_audio=1 voice=' + EXPECTED_VOICE);
+    ' no_disk_audio=1 voice=' + EXPECTED_VOICE +
+    ' proxy_url=' + (mode === 'private' ? 'n/a' : proxyBase));
   if (mode !== 'proxy' && (!privateBase || !token)) {
     console.log('FORZA_POCKET_VPS_NOTICE private_service_env_not_in_app_container=1');
   }
