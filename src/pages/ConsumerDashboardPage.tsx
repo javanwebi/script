@@ -51,7 +51,8 @@ interface CustomerOrderItem {
   id: string;
   orderNumber: string;
   date: string;
-  status: "processing" | "shipped" | "delivered";
+  status: "registered" | "processing" | "shipped" | "delivered" | "cancelled";
+  paymentStatus: string;
   paymentMethod: string;
   paymentRef: string;
   shippingMethod: string;
@@ -142,12 +143,8 @@ export const ConsumerDashboardPage: React.FC = () => {
       id: o.id,
       orderNumber: o.orderNumber,
       date: o.createdAt,
-      status:
-        o.status === "delivered"
-          ? "delivered"
-          : o.status === "shipped"
-            ? "shipped"
-            : "processing",
+      status: o.status,
+      paymentStatus: o.paymentStatus || "pending_review",
       paymentMethod: o.paymentMethod || "",
       paymentRef: "",
       shippingMethod: o.shippingMethod || "",
@@ -327,7 +324,13 @@ export const ConsumerDashboardPage: React.FC = () => {
     showToast("آدرس جدید تحویل مرسوله ثبت شد.");
   };
 
-  const totalSpent = orders.reduce((acc, o) => acc + o.totalAmount, 0);
+  const totalSpent = orders.filter((o) => o.paymentStatus === "paid")
+    .reduce((acc, o) => acc + o.totalAmount, 0);
+  const activeOrder = orders.find((o) => o.status !== "cancelled");
+  const trackingStage = activeOrder?.status === "delivered" ? 4
+    : activeOrder?.status === "shipped" ? 3
+    : activeOrder?.status === "processing" ? 2
+    : activeOrder?.status === "registered" ? 1 : 0;
 
   return (
     <div dir="rtl">
@@ -340,6 +343,7 @@ export const ConsumerDashboardPage: React.FC = () => {
       )}
 
       <PortalShell
+        variant="consumer"
         user={user!}
         menus={enabledMenus}
         activeTab={activeTab}
@@ -481,24 +485,27 @@ export const ConsumerDashboardPage: React.FC = () => {
                   />
                 )}
               {/* Active Shipment Live Tracker */}
-              {orders[0] && (
+              {activeOrder && (
                 <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                     <div>
                       <div className="flex items-center gap-2 text-xs">
                         <span className="font-bold text-emerald-700">
-                          {portalLabel("تأیید و تسویه‌شده")}
+                          {activeOrder?.status === "delivered" ? portalLabel("تحویل‌شده")
+                            : activeOrder?.status === "shipped" ? portalLabel("ارسال‌شده")
+                            : activeOrder?.status === "processing" ? portalLabel("در حال آماده‌سازی")
+                            : portalLabel("سفارش ثبت‌شده")}
                         </span>
                         <span className="text-slate-300">•</span>
                         <span
                           className="font-mono font-black text-sm text-slate-900"
                           dir="ltr"
                         >
-                          {orders[0]?.orderNumber}
+                          {activeOrder?.orderNumber}
                         </span>
                       </div>
                       <h2 className="text-base font-black text-slate-800 mt-1">
-                        {portalLabel("وضعیت لحظه‌ای آخرین سفارش شما")}
+                        {portalLabel("آخرین وضعیت ثبت‌شده سفارش شما")}
                       </h2>
                     </div>
 
@@ -519,7 +526,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                       {resolvedConfig.permissions.allowInvoicePrint && (
                         <button
                           type="button"
-                          onClick={() => setSelectedReceiptOrder(orders[0])}
+                          onClick={() => setSelectedReceiptOrder(activeOrder)}
                           className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                         >
                           <Printer className="w-3.5 h-3.5" />
@@ -529,7 +536,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                       {resolvedConfig.permissions.allowQuickReorder && (
                         <button
                           type="button"
-                          onClick={() => handleReorderItems(orders[0])}
+                          onClick={() => activeOrder && handleReorderItems(activeOrder)}
                           className="px-3.5 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
@@ -539,57 +546,35 @@ export const ConsumerDashboardPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Visual Stepper */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  {/* Progress is derived from the recorded order status, never a fixed completed timeline. */}
+                  <ol className="consumer-order-steps grid grid-cols-2 sm:grid-cols-4 gap-3"
+                    aria-label="مراحل سفارش">
                     {[
-                      {
-                        step: "۱. ثبت و تأیید سفارش",
-                        desc: "تأیید نهایی در سیستم",
-                        done: true,
-                      },
-                      {
-                        step: "۲. کنترل کیفی و بسته‌بندی",
-                        desc: "تست اصالت در انبار مرکزی",
-                        done: true,
-                      },
-                      {
-                        step: "۳. تحویل به تیپاکس / باربری",
-                        desc: `کد رهگیری: ${orders[0]?.trackingCode}`,
-                        done: true,
-                        active: true,
-                      },
-                      {
-                        step: "۴. تحویل به آدرس شما",
-                        desc: "در مسیر ارسال به مقصد",
-                        done: false,
-                      },
-                    ].map((st, idx) => (
-                      <div
-                        key={idx}
-                        className={`p-3.5 rounded-2xl border text-xs ${
-                          st.active
-                            ? "border-[#E06518] bg-orange-50/70"
-                            : st.done
-                              ? "border-emerald-200 bg-emerald-50/50"
-                              : "border-slate-200 bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-black text-slate-800">
-                            {st.step}
-                          </span>
-                          {st.done ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-slate-400" />
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-600">
-                          {st.desc}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      { step: "۱. ثبت سفارش", desc: "سفارش ثبت‌شده" },
+                      { step: "۲. آماده‌سازی", desc: "در حال پردازش" },
+                      { step: "۳. ارسال", desc: activeOrder?.trackingCode
+                        ? `کد رهگیری: ${activeOrder.trackingCode}` : "در انتظار کد رهگیری" },
+                      { step: "۴. تحویل", desc: "تحویل به گیرنده" },
+                    ].map((st, idx) => {
+                      const done = idx < trackingStage;
+                      const active = idx === trackingStage - 1 && trackingStage < 4;
+                      return (
+                        <li key={idx} aria-current={active ? "step" : undefined}
+                          className={`p-3.5 rounded-2xl border text-xs ${
+                            active ? "border-[#E06518] bg-orange-50/70"
+                              : done ? "border-emerald-200 bg-emerald-50/50"
+                                : "border-slate-200 bg-slate-50"
+                          }`}>
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <span className="font-black text-slate-800">{st.step}</span>
+                            {done ? <CheckCircle2 aria-label="ثبت شده" className="w-4 h-4 text-emerald-600 shrink-0" />
+                              : <Clock aria-label="در انتظار" className="w-4 h-4 text-slate-400 shrink-0" />}
+                          </div>
+                          <div className="text-[11px] text-slate-600 break-words">{st.desc}</div>
+                        </li>
+                      );
+                    })}
+                  </ol>
 
                   {/* Order Items Summary */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
@@ -597,19 +582,19 @@ export const ConsumerDashboardPage: React.FC = () => {
                       <span>
                         {portalLabel("روش ارسال:")}
                         <strong className="text-slate-900">
-                          {orders[0]?.shippingMethod}
+                          {activeOrder?.shippingMethod || "ثبت نشده"}
                         </strong>
                       </span>
                       <span>
                         {portalLabel("مبلغ کل سفارش:")}{" "}
                         <strong className="text-emerald-700 font-mono text-sm">
-                          {formatPrice(orders[0]?.totalAmount)}
+                          {formatPrice(activeOrder?.totalAmount)}
                           {portalLabel("تومان")}
                         </strong>
                       </span>
                     </div>
                     <div className="divide-y divide-slate-200/60">
-                      {orders[0]?.items.map((item, i) => (
+                      {activeOrder?.items.map((item, i) => (
                         <div
                           key={i}
                           className="py-2 flex items-center justify-between"
@@ -803,9 +788,10 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 : "text-amber-700"
                             }`}
                           >
-                            {order.status === "delivered"
-                              ? "تحویل‌شده به مشتری"
-                              : "تحویل تیپاکس / در مسیر ارسال"}
+                            {order.status === "delivered" ? "تحویل‌شده"
+                              : order.status === "shipped" ? "در مسیر ارسال"
+                              : order.status === "processing" ? "در حال آماده‌سازی"
+                              : order.status === "cancelled" ? "لغوشده" : "ثبت‌شده"}
                           </span>
                         </div>
                         <div className="text-xs text-slate-500">
@@ -816,7 +802,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             className="font-mono font-bold text-slate-800"
                             dir="ltr"
                           >
-                            {order.trackingCode}
+                            {order.trackingCode || "—"}
                           </span>
                         </div>
                       </div>
@@ -985,7 +971,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                           onClick={() => handleQuickAddProduct(prod)}
                           className="px-3 py-1.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold cursor-pointer transition"
                         >
-                          {portalLabel("+ افزودن به سبد")}
+                          {portalLabel("انتخاب کد و سفارش")}
                         </button>
                       </div>
                     </div>
@@ -1002,7 +988,7 @@ export const ConsumerDashboardPage: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="font-black text-base text-slate-800">
-                  {portalLabel("رسیدهای پرداخت و فاکتورهای رسمی سفارشات من")}
+                  {portalLabel("فاکتورها و رسیدهای سفارشات من")}
                 </h3>
                 {resolvedConfig.permissions.allowExcelPriceListDownload && (
                   <button
@@ -1049,7 +1035,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">{o.date}</td>
                         <td className="py-3 px-4 font-mono text-slate-600">
-                          {o.paymentRef}
+                          {o.paymentRef || "—"}
                         </td>
                         <td className="py-3 px-4 font-mono font-black text-emerald-700">
                           {formatPrice(o.totalAmount)}
@@ -1129,6 +1115,15 @@ export const ConsumerDashboardPage: React.FC = () => {
                       }
                       className="px-3 py-2 rounded-xl border border-slate-300 bg-white font-mono"
                     />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" required placeholder="شهر" value={newAddress.city}
+                      onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white" />
+                    <input type="text" inputMode="numeric" placeholder="کد پستی"
+                      value={newAddress.postalCode}
+                      onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
+                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white" />
                   </div>
                   <input
                     type="text"
@@ -1216,7 +1211,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 <div className="flex justify-between pb-3 border-b border-slate-200">
                   <div>
                     <div className="font-black text-sm text-slate-900">
-                      {portalLabel("فروشگاه و بازرگانی هایپرصنعت اطلس یزد")}
+                      {portalLabel("صنعت پیش")}
                     </div>
                     <div className="text-slate-500 mt-0.5">
                       {portalLabel("خریدار:")}
@@ -1228,8 +1223,9 @@ export const ConsumerDashboardPage: React.FC = () => {
                       {portalLabel("تاریخ:")}
                       {selectedReceiptOrder.date}
                     </div>
-                    <div className="text-emerald-700 font-bold mt-0.5">
-                      {portalLabel("وضعیت: تسویه کامل")}
+                    <div className={`font-bold mt-0.5 ${selectedReceiptOrder.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
+                      {selectedReceiptOrder.paymentStatus === "paid" ? portalLabel("پرداخت تأییدشده")
+                                        : portalLabel("پرداخت در انتظار تأیید")}
                     </div>
                   </div>
                 </div>
@@ -1270,8 +1266,8 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </tbody>
                 </table>
 
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between font-black text-sm text-emerald-950">
-                  <span>{portalLabel("جمع کل پرداخت‌شده:")}</span>
+                <div className={`p-3.5 rounded-2xl border flex items-center justify-between font-black text-sm ${selectedReceiptOrder.paymentStatus === "paid" ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-slate-50 border-slate-200 text-slate-900"}`}>
+                  <span>{portalLabel("مبلغ کل سفارش:")}</span>
                   <span className="font-mono">
                     {formatPrice(selectedReceiptOrder.totalAmount)}
                     {portalLabel("تومان")}
