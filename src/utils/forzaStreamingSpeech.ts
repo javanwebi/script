@@ -8,7 +8,7 @@ export function takeSpeakablePhrase(buffer:string,first:boolean):{phrase:string;
   const min=first?28:55;
   const target=first?72:130;
   const max=first?120:180;
-  const boundary=/[.!?؟؛:\n]/g;
+  // Never treat a decimal point in a bearing/belt dimension as a pause.\n  const boundary=/(?<!\\d)\\.(?!\\d)|[!?؟؛:\\n]/g;
   let found:RegExpExecArray|null;
   while((found=boundary.exec(buffer))){
     const end=found.index+1;
@@ -17,7 +17,7 @@ export function takeSpeakablePhrase(buffer:string,first:boolean):{phrase:string;
     if(end>max)break;
   }
   // Commas are weaker boundaries; do not send a short greeting fragment.
-  const comma=/[،,]/g;
+  const comma=/[،]|(?<!\\d),(?!\\d)/g;
   while((found=comma.exec(buffer))){
     const end=found.index+1;
     if(end>=(first?48:75)&&end<=max)
