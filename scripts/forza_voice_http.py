@@ -21,9 +21,9 @@ from forza_pocket_worker import (
 )
 from g2p_onnx import OnnxG2P
 
-MAX_TEXT_CHARS = 220
-MAX_REQUEST_BYTES = 2048
-MAX_CACHED_RESPONSES = 8
+MAX_TEXT_CHARS = 1000
+MAX_REQUEST_BYTES = 8192
+MAX_CACHED_RESPONSES = 4
 synthesis_slot = threading.BoundedSemaphore(value=1)
 # One active synthesis plus one bounded waiting request; reject excess load cleanly.
 synthesis_queue = threading.BoundedSemaphore(value=2)
@@ -222,7 +222,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             audio = render(engine, phrase)
             with cache_lock:
-                audio_cache[phrase] = audio
+                # Keep short repeated phrases cached; do not pin many multi-minute WAVs in RAM.
+                if len(phrase) <= 220:
+                    audio_cache[phrase] = audio
                 if len(audio_cache) > MAX_CACHED_RESPONSES:
                     audio_cache.popitem(last=False)
             self.reply(200, audio, "audio/wav")
