@@ -29,6 +29,10 @@ s = s.replace(old, 'opts.intra_op_num_threads = int(os.environ.get("FORZA_CPU_IN
 old = 'self.s_enc = ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)'
 assert old in s
 s = s.replace(old, 'self.s_enc = None if os.environ.get("FORZA_POCKET_PRECOMPUTED_VOICE") == "1" else ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)')
+# Optional, tested-only INT8 flow graph. Original FP32 is the default.
+old = 'str(self.dir / "flow_lm_step.onnx")'
+assert s.count(old) == 1
+s = s.replace(old, 'str(self.dir / ("flow_lm_step.int8.onnx" if os.environ.get("FORZA_ONNX_INT8") == "1" else "flow_lm_step.onnx"))')
 p.write_text(s)
 p = Path('vendor/persian_tts/scripts/g2p_onnx.py')
 s = p.read_text()
