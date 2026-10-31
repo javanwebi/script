@@ -22,8 +22,8 @@ SELECTED_REFERENCE_SHA = "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f223679
 
 
 def read_prompts(path: Path, limit: int):
-    if limit not in (5, 368):
-        raise ValueError("limit_must_be_5_or_368")
+    if limit not in (1, 5, 368):
+        raise ValueError("limit_must_be_1_5_or_368")
     if not path.is_file() or path.is_symlink():
         raise ValueError("prompts_file_not_regular")
     texts = path.read_text(encoding="utf-8-sig").splitlines()
@@ -120,7 +120,8 @@ def run(args):
         raise ValueError("output_symlink")
     output = args.output.resolve()
     root = Path("/work").resolve()
-    if output != root / ("pilot" if args.limit == 5 else "full"):
+    expected_folder = {1: "one", 5: "pilot", 368: "full"}[args.limit]
+    if output != root / expected_folder:
         raise ValueError("invalid_output_path")
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     wav_dir = output / "wav"
@@ -182,7 +183,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--limit", type=int, choices=[5, 368], required=True)
+    parser.add_argument("--limit", type=int, choices=[1, 5, 368], required=True)
     parser.add_argument("--rights-confirmed", default="")
     args = parser.parse_args()
     try:
