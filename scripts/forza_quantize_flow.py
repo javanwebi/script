@@ -13,9 +13,15 @@ def main():
     ap.add_argument("--model-dir", type=Path, default=Path("/app/vendor/persian_tts/model/onnx"))
     args=ap.parse_args()
     src=args.model_dir/"flow_lm_step.onnx"
+    src_data=args.model_dir/"flow_lm_step.onnx.data"
     dest=args.model_dir/"flow_lm_step.int8.onnx"
-    if not src.is_file() or src.stat().st_size < 1_000_000:
-        raise SystemExit("FORZA_QUANT_FAIL missing_or_invalid_float_model")
+    # Pocket's graph protobuf is about 850 KB; the actual FP32 weights are
+    # in the adjacent 341 MB external-data file. Reject a missing weights
+    # sidecar rather than incorrectly rejecting a valid sub-1 MB graph.
+    if not src.is_file() or src.stat().st_size < 100_000:
+        raise SystemExit("FORZA_QUANT_FAIL missing_or_invalid_float_graph")
+    if not src_data.is_file() or src_data.stat().st_size < 1_000_000:
+        raise SystemExit("FORZA_QUANT_FAIL missing_or_invalid_float_weights")
     if dest.exists():
         raise SystemExit("FORZA_QUANT_FAIL refusing_to_overwrite_candidate")
     # Quantize only matrix multiplications. Conv, layer normalization, KV
@@ -28,6 +34,9 @@ def main():
         op_types_to_quantize=["MatMul","Gemm"],
         per_channel=False,
         reduce_range=False,
+        # Keep the quantized graph's weight tensors in an ONNX sidecar.
+        # ONNX Runtime resolves the adjacent .data file automatically.
+        use_external_data_format=True,
     )
     import onnxruntime as ort
     opts=ort.SessionOptions()
