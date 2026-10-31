@@ -26,6 +26,13 @@ jobs:
           assert "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833" in s
           assert "FORZA_POCKET_ONE_SECOND_GATE" in s
           assert "pass_1000ms" in s
+          assert "FORZA_GATE_RETRY_ATTEMPTS" in s
+          assert 'case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3)' in s
+          assert '-e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS"' in s
+          worker=Path("scripts/forza_pocket_worker.py").read_text()
+          assert 'TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))' in worker
+          assert 'attempts=TTS_ATTEMPTS' in worker
+          assert 'TTS_ATTEMPTS not in (1, 2, 3)' in worker
           assert "customer_wav_saved=0" in s
           assert "--read-only" in s
           assert "--mount" in s
