@@ -42,6 +42,7 @@ s = s.replace(old, old + '\n        opts.intra_op_num_threads = 1\n        opts.
 p.write_text(s)
 PY
 COPY scripts/forza_pocket_worker.py scripts/forza_pocket_worker.py
+COPY scripts/forza_pocket_overlap.py scripts/forza_pocket_overlap.py
 COPY scripts/forza_voice_http.py scripts/forza_voice_http.py
 RUN mkdir -p public vendor/persian_tts/model/v2 \
  && hf download Nimaone/pocket-tts-farsi-v2-onnx --local-dir /app/vendor/persian_tts/model/onnx \
