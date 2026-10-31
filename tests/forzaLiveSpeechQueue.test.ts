@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ForzaLiveSpeechQueue } from '../src/utils/forzaLiveSpeechQueue';
-import { consumeForzaTextStream } from '../src/utils/forzaStreamClient';
+import { ForzaLiveSpeechQueue } from '../src/utils/forzaLiveSpeechQueue.ts';
+import { consumeForzaTextStream } from '../src/utils/forzaStreamClient.ts';
 
 const first='برای انتخاب تسمه مناسب، کد روی قطعه را بفرمایید.';
 const second=' سپس مشخصات فنی دستگاه را بررسی می‌کنم.';
