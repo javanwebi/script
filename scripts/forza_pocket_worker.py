@@ -120,7 +120,7 @@ class MemoryBoundTts(OnnxTts):
             options.enable_cpu_mem_arena = False
             options.enable_mem_pattern = False
             self.s_flow = ort.InferenceSession(
-                str(self.dir / "flow_lm_step.onnx"), options, providers=["CPUExecutionProvider"])
+                str(self.dir / ("flow_lm_step.int8.onnx" if os.environ.get("FORZA_ONNX_INT8") == "1" else "flow_lm_step.onnx")), options, providers=["CPUExecutionProvider"])
             self.s_dec = ort.InferenceSession(
                 str(self.dir / "mimi_decoder_step_kv.onnx"), options, providers=["CPUExecutionProvider"])
         try:
