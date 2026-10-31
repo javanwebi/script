@@ -49,7 +49,10 @@ def start_engine():
 
     # Warm the same progressive path before /health becomes ready. Cold
     # ONNX/G2P initialization is paid at container startup, not on first call.
-    if os.environ.get("FORZA_TTS_WARMUP") == "1":
+    warmup_setting = os.environ.get("FORZA_TTS_WARMUP")
+    if warmup_setting == "1" or (
+        warmup_setting is None and instance.KEEP_ACOUSTIC and instance.KEEP_G2P
+    ):
         if not instance.KEEP_ACOUSTIC:
             raise RuntimeError("forza_warmup_requires_resident_acoustic")
         warm_started = time.monotonic()

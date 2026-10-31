@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - ops/forza-onnx-cpu-quant-benchmark-vps.sh
+      - ops/forza-progressive-stream-smoke-vps.sh
       - scripts/forza_quantize_flow.py
       - scripts/forza_voice_http.py
       - scripts/forza_pocket_worker.py
@@ -22,6 +23,7 @@ jobs:
       - name: Lint shell, Python and embedded Node
         run: |
           bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
+          bash -n ops/forza-progressive-stream-smoke-vps.sh
           python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
           python3 - <<'PY'
           from pathlib import Path
@@ -54,6 +56,8 @@ jobs:
           assert "audio_cache" not in s
           s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
           assert "voiceCacheRef" not in s
-          assert "URL.revokeObjectURL(audioUrl)" in s
+          assert "URL.revokeObjectURL(url)" in s
+          assert "readForzaWavFrames" in s
+          assert "playPocketProgressive" in s
           print("FORZA_NO_PERSISTENT_WAV_OK")
           PY

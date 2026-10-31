@@ -13,41 +13,40 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA speaks one complete AI reply as a single Pocket WAV, never phrase chunks',()=>{
-  assert.match(frontend,/const onTextChunk=.*?=>\{/s);
+test('FORZA submits one complete AI answer then plays ready Pocket frames immediately',()=>{
+  assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/setAiText\(fullText\)/);
-  assert.match(frontend,/const audioUrl=await requestPocketAudio\(reply\.trim\(\)\)/);
-  assert.match(frontend,/await continuousPlayer\.enqueue\(audioUrl\)/);
-  assert.match(frontend,/await playSpeechPhrase\(text\.trim\(\)\)/);
-  assert.match(frontend,/AbortSignal\.timeout\(420000\)/);
-  assert.doesNotMatch(frontend,/takeSpeakablePhrase|streamPocketPhrase|readForzaWavFrames|queuePhrase\(/);
-  assert.doesNotMatch(frontend,/fetch\s*\(\s*['"]\/api\/ai\/forza-speech-stream/);
-  assert.match(backend,/app\.post\('\/api\/ai\/forza-speech'/);
-  assert.match(backend,/phrase\.length>1000/);
-  assert.match(backend,/AbortSignal\.timeout\(420000\)/);
-  assert.match(backend,/\/speak/);
-  assert.match(backend,/X-Forza-Voice-Token/);
-  assert.match(frontend,/X-Forza-Voice/);
+  assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech-stream'/);
+  assert.match(frontend,/body:JSON\.stringify\(\{text:phrase\}\)/);
+  assert.match(frontend,/await readForzaWavFrames\(response,frame=>\{/);
+  assert.match(frontend,/player\.enqueueWav\(frame\)/);
+  assert.match(frontend,/await playPocketProgressive\(reply\.trim\(\),continuousPlayer\)/);
   assert.match(frontend,/new ForzaContinuousWav/);
+  assert.doesNotMatch(frontend,/takeSpeakablePhrase|streamPocketPhrase|queuePhrase\(/);
+  assert.match(backend,/app\.post\('\/api\/ai\/forza-speech-stream'/);
+  assert.match(backend,/phrase\.length>1000/);
+  assert.match(backend,/internalForzaVoiceUrl\+'\/speak-stream'/);
+  assert.match(backend,/X-Accel-Buffering','no'/);
   assert.match(pocketHttp,/MAX_TEXT_CHARS = 1000/);
-  assert.match(pocketHttp,/MAX_REQUEST_BYTES = 8192/);
-  assert.match(pocketHttp,/audio = render\(engine, phrase\)/);
-  assert.match(pocketWorker,/mode="pack"/);
+  assert.match(pocketHttp,/frames = render_chunks\(engine, phrase\)/);
+  assert.match(pocketWorker,/def render_chunks\(engine, text\):/);
   assert.doesNotMatch(frontend,/در حال تبدیل صدای شما به متن و ارسال به سرور/);
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
-  assert.doesNotMatch(frontend,/waitForLocalPersianSpeechVoice/);
 });
-test('customer WAV output is never cached on the browser or Pocket backend',()=>{
+
+test('customer WAV bytes stay transient and fallback never replays partially spoken replies',()=>{
   assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
-  assert.match(frontend,/URL\.createObjectURL\(blob\)/);
-  assert.match(frontend,/URL\.revokeObjectURL\(audioUrl\)/);
+  assert.match(frontend,/if\(receivedFrames>0\)throw error/);
+  assert.match(frontend,/await requestPocketAudio\(phrase\)/);
   assert.match(frontend,/URL\.revokeObjectURL\(url\)/);
-  assert.match(frontend,/await requestPocketAudio\(reply\.trim\(\)\)/);
+  assert.match(frontend,/await Promise\.all\(scheduled\)/);
   assert.doesNotMatch(pocketHttp,/audio_cache|MAX_CACHED_RESPONSES|OrderedDict/);
-  assert.match(pocketHttp,/audio = render\(engine, phrase\)/);
   assert.match(pocketHttp,/self\.reply\(200, audio, "audio\/wav"\)/);
   assert.match(backend,/Cache-Control','no-store'/);
+  assert.match(pocketWorker,/len\(jobs\) > 256/);
+  assert.match(pocketWorker,/pool\.submit\(generate, next_job\)/);
 });
+
 test('CPU 1 or 2 intra-op threads are opt-in, with FP32 as safe default',()=>{
   assert.match(pocketWorker,/CPU_INTRA = int\(os\.environ\.get\("FORZA_CPU_INTRA", "1"\)\)/);
   assert.match(pocketWorker,/FORZA_ONNX_INT8/);
