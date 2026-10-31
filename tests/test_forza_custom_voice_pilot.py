@@ -98,7 +98,7 @@ class CorpusPromptsTest(unittest.TestCase):
         phrases = list(corpus.phrases())
         self.assertEqual(len(phrases), 368)
         self.assertEqual(len(set(phrases)), 368)
-        self.assertTrue(all(any("\\u0600" <= ch <= "\\u06ff" for ch in text) for text in phrases))
+        self.assertTrue(all(any(0x0600 <= ord(ch) <= 0x06FF for ch in text) for text in phrases))
 
 
 class CpuBenchmarkTest(unittest.TestCase):
