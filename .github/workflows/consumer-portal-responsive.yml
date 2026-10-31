@@ -1,5 +1,12 @@
 name: Consumer portal responsive UI smoke
 on:
+  push:
+    branches: [design/consumer-premium-dashboard-20261101]
+    paths:
+      - 'src/components/portal/**'
+      - 'src/pages/ConsumerDashboardPage.tsx'
+      - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
+      - '.github/workflows/consumer-portal-responsive.yml'
   pull_request:
     branches: [main]
     paths:
