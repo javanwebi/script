@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { forzaEarlyStableClause, forzaEarlySpeechRemainder } from '../src/utils/forzaEarlySpeech';
+import { forzaEarlyStableClause, forzaEarlySpeechRemainder } from '../src/utils/forzaEarlySpeech.ts';
 
 test('wait for a complete Persian sentence, not an SSE token fragment', () => {
   assert.equal(forzaEarlyStableClause('برای انتخاب'), null);
