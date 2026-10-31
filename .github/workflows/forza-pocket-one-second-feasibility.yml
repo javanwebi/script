@@ -16,6 +16,9 @@ on:
       - tests/forza-pocket-legacy-stream-compat.test.cjs
       - ops/forza-voice-faststart-benchmark-vps.sh
       - ops/forza-pocket-single-wav-cpu-canary-vps.sh
+      - ops/forza-pocket-g2p-kv-architecture-probe-vps.sh
+      - scripts/forza_g2p_kv_cpu_probe.py
+      - tests/test_forza_g2p_kv_architecture_safety.py
       - scripts/forza_voice_http.py
       - tests/test_forza_pocket_fullwav_canary.py
       - ops/forza-voice-faststart-promote-vps.sh
@@ -68,6 +71,10 @@ jobs:
         run: |
           bash -n ops/forza-pocket-live-ttfb-vps.sh
           node --test tests/forza-pocket-vps-ttfb.test.cjs
+      - name: Check experimental Persian G2P KV-cache architecture against original phonemes
+        run: |
+          python3 -m py_compile scripts/forza_g2p_kv_cpu_probe.py
+          python3 tests/test_forza_g2p_kv_architecture_safety.py
       - name: Verify original Pocket full-WAV resident canary is isolated and has no audio files
         run: |
           bash -n ops/forza-pocket-single-wav-cpu-canary-vps.sh
