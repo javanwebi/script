@@ -5416,10 +5416,14 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 
 
 // All browser audio requests go through the existing rate-limited Node API.
-// In production, forward to the dedicated PRIVATE Pocket voice service to keep
-// ONNX inference away from the catalog / Gemini process. No new provider or
-// voice is introduced; both services use the same selected reference WAV.
+// The private voice URL may point at legacy Pocket or standalone CPU Piper Amir;
+// detect its returned model ID instead of blindly advertising the old voice.
 const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
+const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium']);
+const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
+// During migration the Amir greeting must never accidentally serve a prerecorded
+// Pocket WAV from the original application image.
+const privateAmirGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
 async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
@@ -5466,9 +5470,13 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
 const getForzaGreeting=createForzaGreeting(renderPocketSpeech);
 app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
   try {
-    const audio=await getForzaGreeting();
+    // Explicitly set FORZA_VOICE_ENGINE=amir on the Node container at cutover.
+    // Unlike Pocket, Amir's greeting is synthesized once in RAM, never loaded
+    // from the Pocket greeting asset baked into the previous image.
+    const isAmir=forzaVoiceEngine==='piper-amir-medium';
+    const audio=await (isAmir?privateAmirGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
-    res.setHeader('Cache-Control','public, max-age=3600');
+    res.setHeader('Cache-Control',isAmir?'no-store':'public, max-age=3600');
     res.send(audio);
   } catch(error:any) {
     console.warn('[FORZA greeting] unavailable',String(error?.message||'voice_error').slice(0,120));
@@ -5503,7 +5511,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
     if(res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Forza-Voice','pocket-farsi-v2');
+    res.setHeader('X-Forza-Voice',forzaVoiceEngine);
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
     console.info('[FORZA_LATENCY] phase=pocket-server-tts backend='+(internalForzaVoiceUrl?'private':'local')+' ms='+(Date.now()-started));
     return res.send(wav);
@@ -5552,14 +5560,15 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     if(!upstream?.ok)throw new Error('private_voice_http_'+upstream?.status);
     if(!upstream.body || !(upstream.headers.get('content-type')||'').includes('application/x-forza-wav-frames'))
       throw new Error('private_voice_invalid_stream');
-    if(upstream.headers.get('x-forza-voice')!=='pocket-farsi-v2')
+    const upstreamVoice=upstream.headers.get('x-forza-voice');
+    if(!upstreamVoice || !FORZA_PRIVATE_VOICES.has(upstreamVoice))
       throw new Error('private_voice_wrong_model');
 
     res.setHeader('Content-Type','application/x-forza-wav-frames');
     res.setHeader('Cache-Control','no-store, no-transform');
     res.setHeader('X-Accel-Buffering','no');
     res.setHeader('X-Content-Type-Options','nosniff');
-    res.setHeader('X-Forza-Voice','pocket-farsi-v2');
+    res.setHeader('X-Forza-Voice',upstreamVoice);
     res.setHeader('X-Forza-Voice-Backend','private-service');
     res.flushHeaders?.();
 
@@ -7434,9 +7443,9 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void getForzaGreeting().catch(()=>{});
-    // No resident ONNX worker runs in the app container. Pocket lives in the
-    // private Ubuntu Docker network and is already warmed by its own process.
+    void (forzaVoiceEngine==='piper-amir-medium'?privateAmirGreeting():getForzaGreeting()).catch(()=>{});
+    // The app container never runs ONNX inference. The private voice service
+    // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
       ? '[FORZA Pocket] private Ubuntu voice service configured'
       : '[FORZA Pocket] private voice URL missing; voice requests will fail closed');

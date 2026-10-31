@@ -11,7 +11,8 @@ export async function readForzaWavFrames(
   if (!response.ok || !response.body) throw new Error('forza_stream_http_' + response.status);
   if (!(response.headers.get('Content-Type') || '').includes('application/x-forza-wav-frames'))
     throw new Error('forza_stream_wrong_content_type');
-  if (response.headers.get('X-Forza-Voice') !== 'pocket-farsi-v2')
+  const voice=response.headers.get('X-Forza-Voice');
+  if (voice !== 'pocket-farsi-v2' && voice !== 'piper-amir-medium')
     throw new Error('forza_stream_wrong_voice');
 
   const reader = response.body.getReader();
@@ -36,7 +37,7 @@ export async function readForzaWavFrames(
           if (buffered.length < 4) break;
           expected = new DataView(buffered.buffer, buffered.byteOffset, 4).getUint32(0, true);
           buffered = buffered.subarray(4);
-          if (expected < 44 || expected > 5_000_000)
+          if (expected < 44 || expected > 8_000_000)
             throw new Error('forza_stream_invalid_frame_length');
         }
         if (buffered.length < expected) break;

@@ -622,7 +622,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       body:JSON.stringify({text}),signal:AbortSignal.timeout(420000),
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
-    if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+    const voice=response.headers.get('X-Forza-Voice');
+    if(voice!=='pocket-farsi-v2' && voice!=='piper-amir-medium')
       throw new Error('unexpected_tts_provider');
     const blob=await response.blob();
     if(blob.size<44||blob.size>8_000_000||!blob.type.includes('audio/wav'))
@@ -694,7 +695,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(!callClosedRef.current)setVoiceOutputError(
         error?.message==='autoplay_permission_required'
           ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-          :'صدای Pocket از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
+          :'صدای FORZA از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
       console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
       throw error;
     }finally{

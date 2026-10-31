@@ -18,13 +18,13 @@ function framed(wavs:Uint8Array[]):Uint8Array{
   }
   return result;
 }
-function responseFromSlices(parts:Uint8Array[]):Response{
+function responseFromSlices(parts:Uint8Array[],voice='pocket-farsi-v2'):Response{
   const body=new ReadableStream<Uint8Array>({
     start(controller){for(const part of parts)controller.enqueue(part);controller.close();},
   });
   return new Response(body,{headers:{
     'Content-Type':'application/x-forza-wav-frames',
-    'X-Forza-Voice':'pocket-farsi-v2',
+    'X-Forza-Voice':voice,
   }});
 }
 
@@ -57,5 +57,21 @@ test('Pocket stream rejects oversized frame length before allocating WAV',async(
   await assert.rejects(
     readForzaWavFrames(responseFromSlices([header]),()=>{}),
     /forza_stream_invalid_frame_length/,
+  );
+});
+
+
+test('original Piper Amir accepts one complete no-gap in-memory WAV frame',async()=>{
+  const wav=wavFrame();
+  const out:Uint8Array[]=[];
+  const count=await readForzaWavFrames(responseFromSlices([framed([wav])],'piper-amir-medium'),frame=>out.push(frame));
+  assert.equal(count,1);
+  assert.deepEqual(out[0],wav);
+});
+
+test('rejects an unapproved voice even if the RIFF framing is valid',async()=>{
+  await assert.rejects(
+    readForzaWavFrames(responseFromSlices([framed([wavFrame()])],'untrusted-voice'),()=>{}),
+    /forza_stream_wrong_voice/,
   );
 });
