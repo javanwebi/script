@@ -4,6 +4,8 @@ on:
     paths:
       - docs/forza/POCKET_CPU_ONE_SECOND_PLAN.md
       - ops/forza-pocket-cpu-gate-after-amir-vps.sh
+      - ops/forza-pocket-q4-cpu-probe-vps.sh
+      - scripts/forza_pocket_worker.py
       - .github/workflows/forza-pocket-one-second-feasibility.yml
   workflow_dispatch:
 permissions:
@@ -17,6 +19,7 @@ jobs:
       - name: Check bash syntax and safety invariants (no live modifications)
         run: |
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
+          bash -n ops/forza-pocket-q4-cpu-probe-vps.sh
           python3 - <<'PY'
           from pathlib import Path
           s=Path("ops/forza-pocket-cpu-gate-after-amir-vps.sh").read_text()
@@ -26,6 +29,26 @@ jobs:
           assert "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833" in s
           assert "FORZA_POCKET_ONE_SECOND_GATE" in s
           assert "pass_1000ms" in s
+          assert "FORZA_GATE_SAMPLE" in s
+          q4=Path("ops/forza-pocket-q4-cpu-probe-vps.sh").read_text()
+          assert 'mrfakename/pocket-tts-farsi-v2-ONNX' in q4
+          assert "flow_lm_step_q4.onnx" in q4
+          assert "FORZA_Q4_CPU_RATIO" in q4
+          assert "customer_wav_saved=0" in q4
+          assert "rm -rf -- \"$STAGE\"" in q4
+          for forbidden in ('docker stop "$LIVE"','docker restart "$LIVE"',
+                            'docker rm -f "$LIVE"','docker rename "$LIVE"',
+                            'docker restart "$SITE"','docker system prune','docker volume rm'):
+              assert forbidden not in q4
+          assert "FORZA_GATE_RETRY_ATTEMPTS" in s
+          assert 'case "$FORZA_GATE_SAMPLE" in all|short|medium|long)' in s
+          assert 'FORZA_GATE_SAMPLE' in s
+          assert 'case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3)' in s
+          assert '-e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS"' in s
+          worker=Path("scripts/forza_pocket_worker.py").read_text()
+          assert 'TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))' in worker
+          assert 'attempts=TTS_ATTEMPTS' in worker
+          assert 'TTS_ATTEMPTS not in (1, 2, 3)' in worker
           assert "customer_wav_saved=0" in s
           assert "--read-only" in s
           assert "--mount" in s

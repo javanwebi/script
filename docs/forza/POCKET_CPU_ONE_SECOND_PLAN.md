@@ -58,3 +58,20 @@ Run `ops/forza-pocket-cpu-gate-after-amir-vps.sh` **from the original stopped Po
 ## Why the benchmark runs against Pocket backup, not `forza-voice`
 
 Since the user successfully promoted Amir in revision `d8d2e8578b63220a5acde5216924236b0bb3cb86`, the active `forza-voice` container is **not Pocket**. Earlier benchmark scripts which `docker inspect forza-voice` as parent would inspect the wrong engine and fail. Always locate the stopped original Pocket backup from `/etc/sanatpish/forza-amir-rollback-container`, validate the selected reference SHA-256, and run all Pocket experiments from that immutable image without touching the running Amir service.
+
+
+## October 31 follow-up: screenshot shows 32-second voice wait
+
+### What actually can be improved without buying a GPU
+
+1. Keep the selected Pocket voice reference SHA256 and ONNX runtime; exact *commercial* permissions need to cover any converted/quantized derivative too.
+2. Stage measurement already has G2P `[FORZA voice stream plan] ms=`, acoustic per-job `synthesis_ms=`, `first_ms`, `total_ms` and `underrun_ms`. The sample only producing 1.43s speech in 9.271s (RTF 6.462) **failed** <=1s even with one full text request. Zero underruns for a **single audio frame** do not imply the model is real-time.
+3. New opt-in `FORZA_TTS_RETRY_ATTEMPTS=1|2|3` has default 3 (original high-quality behavior). Run `FORZA_GATE_RETRY_ATTEMPTS=3 FORZA_GATE_SAMPLE=short` then 1 on the same host using the isolated gate, with never-before-cached text and same reference. Do NOT promote 1 if words are omitted, whispered, or clipped; it may speed only retries, not acoustic decoding.
+4. Isolated `ops/forza-pocket-q4-cpu-probe-vps.sh` downloads FP32/Q4 graphs of another export of the same Pocket Farsi v2 model `mrfakename/pocket-tts-farsi-v2-ONNX`, and tests ONNX session support and synthetic one-step runtime on this CPU. This is a **compatibility and operator timing** test, not a real Persian answer synthesis benchmark, not automatically substitutable for the current ONNX graph layout, and does not guarantee Q4 is faster on old Intel Xeon.
+5. The same source advertises `g2p_encoder_kv.onnx` and `g2p_decoder_kv.onnx`: a possible route to avoid repeated full-prefix ByT5 decoding. A production replacement requires exact phoneme-equivalence tests for Persian morphology, ezafe, numbers and industrial part codes, plus memory/latency measurements. See https://huggingface.co/mrfakename/pocket-tts-farsi-v2-ONNX.
+6. The browser currently waits for the complete LLM SSE `done` before sending one TTS request. To start *during* LLM generation, it would need a new full-duplex/WS text->voice protocol with ordered text fragments and one persistent voice session, while leaving subtitles and the final transcript complete. Early text cannot physically make the slow Pocket flow emit 10s of novel audio in <1s. **Never** claim identical full-answer single-request and instantaneous TTS both work simply by moving the HTTP call.
+7. Q4 is not a distillation: it compresses weights but keeps the sequential generation steps. If G2P KV and Q4 still fail the audio clock, the alternative requires an explicitly trained, compact Persian TTS model with the selected voice, with independent validation of identity/quality and proper model licensing. Existing October 2026 Kyutai 2M/7M/18M tiny models are English and cannot just be relabelled Persian.
+
+### Safety defaults
+
+The user-facing website and original running TTS container are *not* changed by either CPU research script. Generated sample PCM/WAV is streamed through memory, never persisted, model download files are ephemeral, and all tests must be run only if spare RAM and disk allow it. No benchmark result should be represented as deployment, and no upgrade should be rolled out until the actual full-answer result and audible quality pass.

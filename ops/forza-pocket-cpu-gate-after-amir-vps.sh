@@ -16,6 +16,12 @@ EXPECTED_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 # Optional A/B of one complete in-RAM WAV versus progressive frames.
 # 1 waits for all CPU synthesis BEFORE playback; it is not a speed boost.
 FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
+# Never change production retry policy: opt into A/B only inside the test
+# container. 1 attempt may be faster but has higher omitted-word risk.
+FORZA_GATE_RETRY_ATTEMPTS=${FORZA_GATE_RETRY_ATTEMPTS:-3}
+FORZA_GATE_SAMPLE=${FORZA_GATE_SAMPLE:-all}
+case "$FORZA_GATE_SAMPLE" in all|short|medium|long) ;; *) echo "Invalid sample" >&2; exit 1;; esac
+case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3) ;; *) echo "Invalid retry budget" >&2; exit 1;; esac
 case "$FORZA_GATE_FULL_ANSWER_WAV" in 0|1) ;; *) echo "Expected FORZA_GATE_FULL_ANSWER_WAV=0 or 1" >&2; exit 1;; esac
 STAGE=""
 CANDIDATE_STARTED=0
@@ -123,6 +129,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e FORZA_TTS_STREAM_FIRST_TOKENS=12 -e FORZA_TTS_UNBROKEN=1 \
   -e FORZA_CPU_INTRA=1 -e FORZA_ONNX_INT8=0 \
   -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
+  -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
   --entrypoint python "$PARENT" -u scripts/forza_voice_http.py >/dev/null
@@ -145,7 +152,9 @@ test "$ACTUAL_SHA" = "$EXPECTED_SHA" || {
 docker exec "$CANDIDATE" test -s /app/vendor/persian_tts/forza_voice_state.npz
 
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
-  -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
+  -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
+  -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -154,6 +163,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     ['long','برای انتخاب تسمه صنعتی، شماره فنی و مشخصات دستگاه را بفرمایید. مدل‌های مختلف تسمه و انتقال نیرو را بررسی می‌کنم و بعد از تطبیق ابعاد و استاندارد قطعه، گزینه مناسب را معرفی خواهم کرد.'],
   ];
   for(const [sample,text] of texts) {
+    if(process.env.FORZA_GATE_SAMPLE!=='all' &&
+       process.env.FORZA_GATE_SAMPLE!==sample)continue;
     const started=performance.now();
     const res=await fetch(url,{method:'POST',
       headers:{'Content-Type':'application/json','X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN},
@@ -191,6 +202,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     const atomic=process.env.FORZA_GATE_FULL_ANSWER_WAV==='1';
     if(atomic && frames!==1)throw Error('atomic_wav_must_have_one_frame');
     console.log('FORZA_POCKET_ONE_SECOND_GATE mode='+(atomic?'atomic':'progressive')+
+      ' retries='+process.env.FORZA_GATE_RETRY_ATTEMPTS+
       ' sample='+sample+
       ' frames='+frames+
       ' first_ms='+firstMs.toFixed(0)+
