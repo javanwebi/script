@@ -708,7 +708,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         url=await requestPocketAudio(phrase);
         if(options?.signal?.aborted || callClosedRef.current)
           throw new Error('forza_tts_aborted');
-        const playback=player.enqueue(url);
+        // Read blob data into RAM BEFORE revoking its transient object URL.
+        // enqueue(url) starts an asynchronous fetch; revoking immediately
+        // races that fetch and can silently leave the browser without sound.
+        const wavRes=await fetch(url);
+        if(!wavRes.ok)throw new Error('forza_pocket_compat_blob_unavailable');
+        const wavBytes=new Uint8Array(await wavRes.arrayBuffer());
+        if(wavBytes.byteLength<44||wavBytes.byteLength>8_000_000)
+          throw new Error('forza_pocket_compat_wav_invalid');
+        const playback=player.enqueueWav(wavBytes);
         void playback.catch(()=>{});
         options?.onScheduled?.(playback);
         if(options?.waitForPlayback!==false)await playback;
