@@ -59,7 +59,7 @@ test('does not send one network token or half word to Pocket',async()=>{
 
 test('handles streaming Persian industrial decimals without cutting 12.7',async()=>{
   const pieces:string[]=[];
-  const queue=new ForzaLiveSpeechQueue(async phrase=>pieces.push(phrase));
+  const queue=new ForzaLiveSpeechQueue(async phrase=>{pieces.push(phrase);});
   const full='برای انتخاب تسمه SPA-1250 با عرض 12.7 میلی‌متر ابتدا مشخصات دستگاه را بفرمایید. سپس پیشنهاد مناسب را بررسی می‌کنم.';
   for(let i=8;i<full.length;i+=7)queue.receive(full.slice(0,i));
   queue.receive(full);
