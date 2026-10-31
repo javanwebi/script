@@ -14,6 +14,7 @@ import sys
 import gc
 import ctypes
 import time
+import threading
 import numpy as np
 from pathlib import Path
 
@@ -47,6 +48,10 @@ CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
 # Pocket would otherwise retry a bad generation. Preserve 3 for production.
 # Never silently change this value on the live voice container.
 TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))
+# OFF by default on production: optional thread-local stage profiling ONLY
+# in the isolated VPS benchmark, measuring retry count and FlowLM/Mimi time.
+TTS_STAGE_PROFILE = os.environ.get("FORZA_TTS_STAGE_PROFILE", "0") == "1"
+_STAGE_PROFILE_CONTEXT = threading.local()
 if TTS_ATTEMPTS not in (1, 2, 3):
     raise ValueError("invalid_forza_tts_retry_attempts")
 if CPU_INTRA not in (1, 2):
@@ -116,6 +121,41 @@ class MemoryBoundTts(OnnxTts):
                                    "1" if _RESIDENT_BY_BUDGET else "0") == "1"
     KEEP_G2P = os.environ.get("FORZA_TTS_RESIDENT_G2P",
                               "1" if _RESIDENT_BY_BUDGET else "0") == "1"
+
+    def _flow_step(self, *args, **kwargs):
+        if not TTS_STAGE_PROFILE:
+            return super()._flow_step(*args, **kwargs)
+        started = time.perf_counter()
+        try:
+            return super()._flow_step(*args, **kwargs)
+        finally:
+            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+            if counter is not None:
+                counter["flow_step_count"] += 1
+                counter["flow_step_ms"] += (time.perf_counter() - started) * 1000
+
+    def _generate_chunk(self, *args, **kwargs):
+        if not TTS_STAGE_PROFILE:
+            return super()._generate_chunk(*args, **kwargs)
+        started = time.perf_counter()
+        try:
+            return super()._generate_chunk(*args, **kwargs)
+        finally:
+            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+            if counter is not None:
+                counter["attempt_count"] += 1
+                counter["flow_total_ms"] += (time.perf_counter() - started) * 1000
+
+    def _decode_all(self, *args, **kwargs):
+        if not TTS_STAGE_PROFILE:
+            return super()._decode_all(*args, **kwargs)
+        started = time.perf_counter()
+        try:
+            return super()._decode_all(*args, **kwargs)
+        finally:
+            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+            if counter is not None:
+                counter["mimi_ms"] += (time.perf_counter() - started) * 1000
 
     def synthesize_text(self, text, *args, **kwargs):
         started = time.monotonic()
@@ -293,14 +333,34 @@ def render_chunks(engine, text):
         synthesis_started = time.monotonic()
         # A measured opt-in retry budget; skipping quality recovery can
         # silently omit words, so only use in isolated A/B with listening.
-        # Timing is already logged per acoustic chunk and for the complete
-        # G2P plan, without patching shared ONNX functions across workers.
-        speech = engine._generate_with_retry(
-            voice_cache, voice_offset, phonemes,
-            attempts=TTS_ATTEMPTS,
-            rng=np.random.default_rng(int(seeds[index])),
-        )
+        # Each synthesis job is a separate thread. Thread-local instrumentation
+        # avoids corrupting shared ONNX sessions or counting other requests.
+        counter = {
+            "attempt_count": 0,
+            "flow_total_ms": 0.0,
+            "flow_step_ms": 0.0,
+            "flow_step_count": 0,
+            "mimi_ms": 0.0,
+        } if TTS_STAGE_PROFILE else None
+        if counter is not None:
+            _STAGE_PROFILE_CONTEXT.counter = counter
+        try:
+            speech = engine._generate_with_retry(
+                voice_cache, voice_offset, phonemes,
+                attempts=TTS_ATTEMPTS,
+                rng=np.random.default_rng(int(seeds[index])),
+            )
+        finally:
+            if counter is not None:
+                _STAGE_PROFILE_CONTEXT.counter = None
         synthesis_ms = int((time.monotonic() - synthesis_started) * 1000)
+        if counter is not None:
+            print("[FORZA voice CPU stages] job=%d attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d" % (
+                index + 1, counter["attempt_count"],
+                int(counter["flow_total_ms"]), counter["flow_step_count"],
+                int(counter["flow_step_ms"]), int(counter["mimi_ms"]),
+                int(max(0.0, synthesis_ms - counter["flow_total_ms"] - counter["mimi_ms"]))),
+                file=sys.stderr, flush=True)
         # Chunk-local declick fades and explicit breathing gaps; unlike
         # /speak this cannot calculate median loudness across future chunks.
         audio = engine._stitch([(speech, gap)])
