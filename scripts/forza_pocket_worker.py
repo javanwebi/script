@@ -180,7 +180,9 @@ def render_chunks(engine, text):
                 jobs.append((chunk, gap))
     if not jobs:
         raise ValueError("empty_phoneme_plan")
-    if len(jobs) > 64:
+    # One full answer may require many short acoustic units; only two
+    # units are ever rendered ahead, so job metadata remains small in RAM.
+    if len(jobs) > 256:
         raise ValueError("too_many_speech_chunks")
 
     # Release the sizeable ONNX G2P graphs before acoustic inference, as in
@@ -215,10 +217,22 @@ def render_chunks(engine, text):
             raise RuntimeError("invalid_wav_chunk")
         return wav
 
-    # Start up to PARALLEL_CHUNKS ONNX jobs, but yield only finished
-    # WAVs in their original text order. No entire-answer WAV is buffered.
+    # A full-text request can contain hundreds of chunks. Executor.map()
+    # eagerly submits every task and retains completed WAVs in Futures,
+    # creating unnecessary RAM pressure on the 2-GiB VPS. Keep at most
+    # PARALLEL_CHUNKS jobs in flight and yield every frame in text order.
     with ThreadPoolExecutor(max_workers=PARALLEL_CHUNKS) as pool:
-        for wav in pool.map(generate, range(len(jobs))):
+        pending = []
+        next_job = 0
+        for _ in range(min(PARALLEL_CHUNKS, len(jobs))):
+            pending.append(pool.submit(generate, next_job))
+            next_job += 1
+        while pending:
+            future = pending.pop(0)
+            wav = future.result()
+            if next_job < len(jobs):
+                pending.append(pool.submit(generate, next_job))
+                next_job += 1
             yield wav
 
 def main():
