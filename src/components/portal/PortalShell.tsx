@@ -128,7 +128,7 @@ export function PortalShell({
         className={`portal-nav-item ${activeTab === m.id ? "is-active" : ""} ${compact ? "compact" : ""}`}
       >
         <Icon size={19} aria-hidden="true" />
-        <span>{m.label}</span>
+        <span>{compact && variant === "consumer" ? ({ overview: "پیشخوان", orders: "سفارش‌ها", quick_buy: "خرید سریع", club_rewards: "باشگاه" } as Record<string, string>)[m.id] || m.label : m.label}</span>
         {!compact && <ChevronLeft size={14} />}
       </button>
     );
@@ -244,7 +244,7 @@ export function PortalShell({
                 <button type="button" key={m.id} onClick={() => select(m.id)}
                   aria-current={activeTab === m.id ? "page" : undefined}>
                   {React.createElement(icons[m.id] || FileText, { size: 18, "aria-hidden": true })}
-                  <span>{m.label}</span>
+                  <span>{({ overview: "پیشخوان", orders: "سفارش‌ها", addresses: "آدرس‌ها" } as Record<string, string>)[m.id] || m.label}</span>
                 </button>
               ))}
             </nav>
