@@ -37,5 +37,14 @@ jobs:
               assert disallowed not in s, disallowed
           assert "2.45 GiB" in s
           assert "p95" in p
+          assert 'mapfile -t BACKUPS' in s
+          assert "unique-stopped-container" in s
+          assert '[[ "$BACKUP" =~ ^forza-voice-before-amir-' in s
+          assert 'BACKUP_SHA=$(docker run --rm --network none' in s
+          assert 'test "$BACKUP_SHA" = "$EXPECTED_SHA"' in s
+          assert 'CANDIDATE_STARTED=0' in s
+          assert 'if [ "$CANDIDATE_STARTED" = 1 ]' in s
+          assert 'test -r "$MARKER"' not in s
+          assert '\\${#BACKUPS' not in s
           print("FORZA_POCKET_ONE_SECOND_PLAN_SAFE")
           PY
