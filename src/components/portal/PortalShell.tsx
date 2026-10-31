@@ -30,6 +30,7 @@ import type {
 } from "../../services/portalContentService";
 import "./portal.css";
 import "./portal-storefront.css";
+import "./consumer-premium.css";
 
 const icons: Record<string, typeof Home> = {
   saved_products: Heart,
@@ -44,6 +45,7 @@ const icons: Record<string, typeof Home> = {
   club_rewards: Gift,
 };
 interface Props {
+  variant?: "consumer" | "high_volume";
   user: Customer;
   menus: PortalMenuItemConfig[];
   activeTab: string;
@@ -60,6 +62,7 @@ interface Props {
   children: React.ReactNode;
 }
 export function PortalShell({
+  variant = "high_volume",
   user,
   menus,
   activeTab,
@@ -130,10 +133,30 @@ export function PortalShell({
       </button>
     );
   };
-  const mobileMenus = menus.slice(0, 3);
+  const mobileMenus = variant === "consumer"
+    ? menus.filter((m) => ["overview", "orders", "quick_buy", "club_rewards"].includes(m.id))
+    : menus.slice(0, 3);
+  const consumerSectionTitles: Record<string, string> = {
+    orders: "سفارش‌ها و رهگیری مرسوله",
+    quick_buy: "خرید سریع قطعات",
+    club_rewards: "باشگاه مشتریان",
+    receipts: "فاکتورها و رسیدها",
+    addresses: "آدرس‌ها و اطلاعات تحویل",
+    saved_products: "محصولات نشان‌شده",
+    purchase_list: "لیست خرید چندکدی",
+  };
+  const consumerSectionDescriptions: Record<string, string> = {
+    orders: "پیگیری سفارش‌های ثبت‌شده، مرسوله‌ها و خرید مجدد",
+    quick_buy: "جستجوی دقیق با نام یا کد فنی قطعه",
+    club_rewards: "سطح عضویت، مسیر پیشرفت و مزایای منتشرشده",
+    receipts: "سوابق خرید، جزئیات پرداخت و چاپ فاکتور",
+    addresses: "اطلاعات گیرنده و نشانی‌های ارسال سفارش",
+    saved_products: "قطعات ذخیره‌شده برای دسترسی سریع‌تر",
+    purchase_list: "ورود و بررسی هم‌زمان کدهای فنی و تعداد",
+  };
   return (
     <div
-      className={`customer-portal accent-${texts.headerAccentTheme} density-${appearance.density} glass-${appearance.glass}`}
+      className={`customer-portal ${variant === "consumer" ? "consumer-premium" : ""} accent-${texts.headerAccentTheme} density-${appearance.density} glass-${appearance.glass}`}
       dir="rtl"
       ref={ref}
     >
@@ -201,11 +224,11 @@ export function PortalShell({
         <main id="portal-content" className="portal-content">
           <div className="portal-heading">
             <div>
-              <p>{texts.heroWelcomePrefix}</p>
+              <p>{variant === "consumer" && activeTab !== "overview" ? "پنل مصرف‌کننده صنعت پیش" : texts.heroWelcomePrefix}</p>
               <h1 ref={title} tabIndex={-1}>
-                {company}
+                {variant === "consumer" && activeTab !== "overview" ? consumerSectionTitles[activeTab] || company : company}
               </h1>
-              <p>{texts.heroSubtitle}</p>
+              <p>{variant === "consumer" && activeTab !== "overview" ? consumerSectionDescriptions[activeTab] || texts.heroSubtitle : texts.heroSubtitle}</p>
             </div>
             <Link to="/products" className="portal-primary">
               <ShoppingBag size={17} />
@@ -213,6 +236,17 @@ export function PortalShell({
               <ArrowUpLeft size={16} />
             </Link>
           </div>
+          {variant === "consumer" && (
+            <nav className="consumer-shortcuts" aria-label="دسترسی سریع پنل مصرف‌کننده">
+              {menus.filter((m) => ["overview", "orders", "addresses"].includes(m.id)).map((m) => (
+                <button type="button" key={m.id} onClick={() => select(m.id)}
+                  aria-current={activeTab === m.id ? "page" : undefined}>
+                  {React.createElement(icons[m.id] || FileText, { size: 18, "aria-hidden": true })}
+                  <span>{m.label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
           {activeTab === "overview" && (
             <>
               <div className="portal-metrics">
@@ -363,8 +397,8 @@ export function PortalShell({
           aria-haspopup="dialog"
           aria-expanded={more}
         >
-          <Menu size={20} />
-          <span>{label("همه بخش‌ها")}</span>
+          {variant === "consumer" ? <UserRound size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+          <span>{variant === "consumer" ? label("حساب من") : label("همه بخش‌ها")}</span>
         </button>
       </nav>
       <dialog
