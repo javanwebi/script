@@ -29,43 +29,62 @@ test -d "$APP/.git" && test -r "$SECRETS"
 test "$(git -C "$APP" remote get-url origin)" = "https://github.com/javanwebi/script.git"
 for name in "$SITE" "$LIVE"; do test "$(docker inspect -f '{{.State.Running}}' "$name")" = true; done
 ! docker inspect "$CANDIDATE" >/dev/null 2>&1 || { echo "Existing candidate container: abort" >&2; exit 1; }
-# When the rollback metadata file is missing, find one uniquely named,
-# stopped original container. Verify the immutable voice fingerprint.
-if [ -r "$MARKER" ]; then
-  BACKUP=$(sed -n 's/^BACKUP=//p' "$MARKER" | head -1)
-  echo "FORZA_POCKET_BACKUP_DISCOVERY source=rollback-marker"
-else
+# The live voice may already be Pocket (e.g. after a manual/automatic
+# rollback), while a separate Amir rollback marker no longer exists.
+# First verify the live service reports Pocket AND serves the exact selected
+# reference voice. If not, inspect the stopped backup candidates by checksum.
+# Never stop, rename, restart or modify any existing container.
+SOURCE_KIND=""
+SOURCE_CONTAINER=""
+PARENT=""
+LIVE_SHA=$(docker exec "$LIVE" sha256sum /app/public/forza-pocket-reference.wav 2>/dev/null | awk '{print $1}' || true)
+if [ "$LIVE_SHA" = "$EXPECTED_SHA" ] && docker exec "$SITE" node -e '
+  fetch("http://forza-voice:8080/health",{signal:AbortSignal.timeout(4000)})
+  .then(async r => {const data=await r.json();process.exit(r.ok&&data.voice==="pocket-farsi-v2"?0:1)})
+  .catch(()=>process.exit(1))
+' >/dev/null 2>&1; then
+  SOURCE_KIND=verified-live-pocket
+  SOURCE_CONTAINER="$LIVE"
+  PARENT=$(docker inspect -f '{{.Image}}' "$LIVE")
+fi
+
+if [ -z "$PARENT" ]; then
+  # Existing rollback metadata is only a HINT; missing/stale files must not
+  # block selecting a provably authentic stopped Pocket backup.
   mapfile -t BACKUPS < <(docker ps -a --format '{{.Names}}' |
-    grep -E '^forza-voice-before-amir-[0-9]{14}$' || true)
-  if [ "${#BACKUPS[@]}" -ne 1 ]; then
-    echo "No unique Pocket backup; candidates=${#BACKUPS[@]}; live unchanged." >&2
-    echo "Inspect: docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'" >&2
+    grep -E '^(forza-voice-before-amir|forza-voice-previous)-[0-9]{14}$' || true)
+  MATCH_COUNT=0
+  for BACKUP in "${BACKUPS[@]}"; do
+    test "$(docker inspect -f '{{.State.Running}}' "$BACKUP")" = false || continue
+    IMAGE=$(docker inspect -f '{{.Image}}' "$BACKUP")
+    docker image inspect "$IMAGE" >/dev/null 2>&1 || continue
+    BACKUP_SHA=$(docker run --rm --network none --read-only --cpus=0.25 --memory=192m \
+      --entrypoint sha256sum "$IMAGE" /app/public/forza-pocket-reference.wav 2>/dev/null |
+      awk '{print $1}' || true)
+    if [ "$BACKUP_SHA" = "$EXPECTED_SHA" ]; then
+      MATCH_COUNT=$((MATCH_COUNT+1))
+      SOURCE_CONTAINER="$BACKUP"
+      PARENT="$IMAGE"
+    fi
+  done
+  if [ "$MATCH_COUNT" -ne 1 ]; then
+    echo "No unique checksum-verified Pocket image found (matches=$MATCH_COUNT)." >&2
+    echo "Run: docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'" >&2
+    echo "Live service and all old containers were left unchanged." >&2
     exit 1
   fi
-  BACKUP="${BACKUPS[0]}"
-  echo "FORZA_POCKET_BACKUP_DISCOVERY source=unique-stopped-container marker_missing=1"
+  SOURCE_KIND=verified-stopped-pocket
 fi
-[[ "$BACKUP" =~ ^forza-voice-before-amir-[0-9]{14}$ ]] || {
-  echo "Unexpected Pocket backup name: abort" >&2; exit 1;
+# Confirm the image itself, not just the currently running container, contains
+# the identical selected voice asset. The benchmark launches this immutable
+# image, not the live container's mutable filesystem.
+docker image inspect "$PARENT" >/dev/null
+IMAGE_SHA=$(docker run --rm --network none --read-only --cpus=0.25 --memory=192m \
+  --entrypoint sha256sum "$PARENT" /app/public/forza-pocket-reference.wav 2>/dev/null | awk '{print $1}' || true)
+test "$IMAGE_SHA" = "$EXPECTED_SHA" || {
+  echo "Pocket image SHA mismatch: refusing wrong voice/model" >&2; exit 1;
 }
-docker container inspect "$BACKUP" >/dev/null 2>&1 || {
-  echo "Original Pocket backup container not found: $BACKUP" >&2; exit 1;
-}
-test "$(docker inspect -f '{{.State.Running}}' "$BACKUP")" = false || {
-  echo "Old Pocket backup is running: abort" >&2; exit 1;
-}
-PARENT=$(docker inspect -f '{{.Image}}' "$BACKUP")
-docker image inspect "$PARENT" >/dev/null || { echo "Pocket image not found" >&2; exit 1; }
-CURRENT_IMAGE=$(docker inspect -f '{{.Image}}' "$LIVE")
-test "$PARENT" != "$CURRENT_IMAGE" || {
-  echo "Pocket backup is same image as live Amir: abort" >&2; exit 1;
-}
-BACKUP_SHA=$(docker run --rm --network none --read-only --cpus=0.25 --memory=192m \
-  --entrypoint sha256sum "$PARENT" /app/public/forza-pocket-reference.wav | awk '{print $1}')
-test "$BACKUP_SHA" = "$EXPECTED_SHA" || {
-  echo "Backup voice SHA mismatch: refusing wrong voice/model" >&2; exit 1;
-}
-echo "FORZA_POCKET_BACKUP_VERIFIED name=$BACKUP voice_sha256=$BACKUP_SHA"
+echo "FORZA_POCKET_SOURCE_VERIFIED kind=$SOURCE_KIND container=$SOURCE_CONTAINER voice_sha256=$IMAGE_SHA"
 TOKEN=$(sed -n 's/^FORZA_VOICE_TOKEN=//p' "$SECRETS" | head -1)
 test "$(printf %s "$TOKEN" | wc -c)" -eq 64 || { echo "Invalid private token" >&2; exit 1; }
 test "$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)" -ge 2450000 || {
@@ -85,7 +104,7 @@ git -C "$APP" archive --format=tar "$REV" scripts/forza_pocket_worker.py scripts
 for item in forza_pocket_worker.py forza_voice_http.py; do
   test -r "$STAGE/scripts/$item"
 done
-echo "FORZA_POCKET_GATE_START revision=$REV selected_voice_sha256=$EXPECTED_SHA backup=$BACKUP"
+echo "FORZA_POCKET_GATE_START revision=$REV selected_voice_sha256=$EXPECTED_SHA source=$SOURCE_KIND container=$SOURCE_CONTAINER"
 echo "FORZA_POCKET_GATE_RESOURCES available_ram_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo) cpu=$(nproc)"
 
 # Do not rebuild or overwrite the original Pocket image. Override only
