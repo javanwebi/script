@@ -25,7 +25,7 @@ p = Path('vendor/persian_tts/scripts/tts_onnx.py')
 s = p.read_text()
 old = 'opts.intra_op_num_threads = 2'
 assert old in s
-s = s.replace(old, 'opts.intra_op_num_threads = 1\n        opts.enable_cpu_mem_arena = False\n        opts.enable_mem_pattern = False')
+s = s.replace(old, 'opts.intra_op_num_threads = int(os.environ.get("FORZA_CPU_INTRA", "1"))\n        opts.enable_cpu_mem_arena = os.environ.get("FORZA_CPU_ARENA", "0") == "1"\n        opts.enable_mem_pattern = os.environ.get("FORZA_CPU_PATTERN", "0") == "1"')
 old = 'self.s_enc = ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)'
 assert old in s
 s = s.replace(old, 'self.s_enc = None if os.environ.get("FORZA_POCKET_PRECOMPUTED_VOICE") == "1" else ort.InferenceSession(str(self.dir / "mimi_encoder.onnx"), opts, providers=prov)')
