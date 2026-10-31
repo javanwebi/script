@@ -218,11 +218,19 @@ class Handler(BaseHTTPRequestHandler):
         started = time.monotonic()
         try:
             # Generated customer audio is transient, never kept in a response cache.
-            audio = render(engine, phrase)
+            # Original customer contract: ONE WAV for the complete answer.
+            # The resident, unbroken option synthesizes each bounded internal
+            # neural unit first, stitches all PCM in RAM without forced
+            # sentence/phrase pauses, then returns one playable WAV. No
+            # network/HTTP chunk gaps, no stored user speech and no new voice.
+            # Remains opt-in for the existing live worker until CPU/quality
+            # benchmarks prove it is an improvement.
+            audio = (render_full_answer_wav(engine, phrase)
+                     if FULL_ANSWER_WAV else render(engine, phrase))
             self.reply(200, audio, "audio/wav")
-            print("[FORZA voice] generated chars=%s bytes=%s ms=%s" % (
-                len(phrase), len(audio), int((time.monotonic() - started) * 1000)),
-                flush=True)
+            print("[FORZA voice] generated chars=%s bytes=%s ms=%s full_answer_wav=%d" % (
+                len(phrase), len(audio), int((time.monotonic() - started) * 1000),
+                int(FULL_ANSWER_WAV)), flush=True)
         except Exception as exc:
             print("[FORZA voice] synthesis_error=%s" % type(exc).__name__, file=sys.stderr, flush=True)
             self.reply(503, {"error": "voice_unavailable"})
