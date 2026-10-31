@@ -50,7 +50,7 @@ class UnbrokenVoiceTest(unittest.TestCase):
         seen = []
         def split_sentences(value):
             seen.append(value)
-            return re.split(r"(?<=[.!؟])\\s+", value)
+            return re.split(r"(?<=[.!؟])\s+", value)
         original = "سلام، من فورزا هستم. کد 6202ZZ چیست؟ عرض 12.7 میلی‌متر!"
         result = units(original, split_sentences)
         self.assertEqual(seen, [spoken(original)])
@@ -67,16 +67,16 @@ class UnbrokenVoiceTest(unittest.TestCase):
                     out.setframerate(24000)
                     out.writeframes(samples)
                 return store.getvalue()
-        frame1 = packet(b"\\x01\\x00" * 24000)
-        frame2 = packet(b"\\x02\\x00" * 12000)
+        frame1 = packet(b"\x01\x00" * 24000)
+        frame2 = packet(b"\x02\x00" * 12000)
         scope["render_chunks"] = lambda engine, text: iter((frame1, frame2))
         class Engine: sample_rate = 24000
         result = combine(Engine(), "سلام، این متن کامل است.")
         with wave.open(io.BytesIO(result), "rb") as wav_file:
             self.assertEqual(wav_file.getframerate(), 24000)
             self.assertEqual(wav_file.getnframes(), 36000)
-            self.assertEqual(wav_file.readframes(24000), b"\\x01\\x00" * 24000)
-            self.assertEqual(wav_file.readframes(12000), b"\\x02\\x00" * 12000)
+            self.assertEqual(wav_file.readframes(24000), b"\x01\x00" * 24000)
+            self.assertEqual(wav_file.readframes(12000), b"\x02\x00" * 12000)
         self.assertEqual(len(result), 44 + 36000 * 2)
 
     def test_unbroken_is_configurable_and_does_not_persist_wav(self):
