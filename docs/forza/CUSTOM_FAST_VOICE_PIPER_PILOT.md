@@ -39,6 +39,13 @@ forza_0001.wav|سلام من فورزا هستم و برای راهنمایی ش
 forza_0002.wav|برای بررسی تسمه شماره فنی دستگاه را اعلام کنید
 ```
 
+A deterministic public *text-only* corpus of **368** Persian industry phrases is available:
+```bash
+cd /path/to/script
+python3 scripts/forza_custom_corpus_prompts.py > /private/forza-prompts.txt
+```
+It is a recording prompt sheet, **not** audio or ready-to-train data. It is relatively repetitive and should be supplemented with naturally varied speech; each recorded utterance must have its own accurate WAV/transcript manifest entry. Generating teacher audio with Pocket is not automatically authorized just because the voice can be used commercially.
+
 Use ffmpeg for offline conversion of authorized input audio (never convert customer's audio). Example:
 ```bash
 ffmpeg -nostdin -i /private/source/forza_0001.wav -ar 22050 -ac 1 -c:a pcm_s16le /private/forza-voice-data/wav/forza_0001.wav
