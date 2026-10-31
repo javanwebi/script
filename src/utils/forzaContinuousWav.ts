@@ -45,15 +45,41 @@ export class ForzaContinuousWav {
     private readonly onUnderrun?: (ms:number) => void,
   ) {}
 
-  enqueue(wavUrl: string): Promise<void> {
-    if (this.closed) return Promise.resolve();
-    let resolveFinished!: () => void;
-    let rejectFinished!: (error:Error) => void;
-    const finished = new Promise<void>((resolve,reject)=> {
+  /** Decode a server frame immediately, in parallel with the previous frame.
+   * Only sample-accurate scheduling is serialized, so network/decode latency
+   * cannot add avoidable gaps between already-generated Pocket frames.
+   */
+  enqueueWav(wav:Uint8Array):Promise<void>{
+    if(this.closed)return Promise.resolve();
+    const ctx=this.getContext();
+    if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
+    const copy=new Uint8Array(wav.byteLength);
+    copy.set(wav);
+    const decoded=ctx.decodeAudioData(copy.buffer);
+    return this.enqueueDecoded(decoded);
+  }
+
+  /** Compatibility path for an already cached same-origin/blob WAV URL. */
+  enqueue(wavUrl:string):Promise<void>{
+    if(this.closed)return Promise.resolve();
+    const ctx=this.getContext();
+    if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
+    const decoded=(async()=>{
+      const response=await fetch(wavUrl);
+      if(!response.ok)throw new Error('forza_wav_unavailable');
+      return await ctx.decodeAudioData(await response.arrayBuffer());
+    })();
+    return this.enqueueDecoded(decoded);
+  }
+
+  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>):Promise<void>{
+    let resolveFinished!:()=>void;
+    let rejectFinished!:(error:Error)=>void;
+    const finished=new Promise<void>((resolve,reject)=>{
       resolveFinished=resolve;rejectFinished=reject;
     });
-    let settled = false;
-    const finish = (error?:Error) => {
+    let settled=false;
+    const finish=(error?:Error)=>{
       if(settled)return;
       settled=true;
       this.pending.delete(cancel);
@@ -62,6 +88,9 @@ export class ForzaContinuousWav {
     };
     const cancel=()=>finish();
     this.pending.add(cancel);
+    // Attach a rejection handler immediately; the ordered scheduler below
+    // still observes and reports the original decode failure.
+    void decodedPromise.catch(()=>{});
     this.scheduleTail=this.scheduleTail.then(async()=>{
       if(this.closed){finish();return;}
       const ctx=this.getContext();
@@ -69,11 +98,9 @@ export class ForzaContinuousWav {
       if(ctx.state==='suspended')await ctx.resume();
       if(this.closed){finish();return;}
       if(ctx.state!=='running')throw new Error('forza_audio_context_suspended');
-      const response=await fetch(wavUrl);
-      if(!response.ok)throw new Error('forza_wav_unavailable');
-      const decoded=await ctx.decodeAudioData(await response.arrayBuffer());
+      const decoded=await decodedPromise;
       if(this.closed){finish();return;}
-      if(!decoded.duration || !Number.isFinite(decoded.duration))
+      if(!decoded.duration||!Number.isFinite(decoded.duration))
         throw new Error('forza_wav_empty');
       const source=ctx.createBufferSource();
       source.buffer=decoded;
@@ -86,8 +113,7 @@ export class ForzaContinuousWav {
       source.connect(this.gain);
       this.sources.add(source);
       const earliest=ctx.currentTime+0.025;
-      // Count genuine starvation only if audio was already scheduled.
-      if(this.nextStart>0 && earliest>this.nextStart+0.025){
+      if(this.nextStart>0&&earliest>this.nextStart+0.025){
         this.underflows++;
         this.onUnderrun?.(Math.round((earliest-this.nextStart)*1000));
       }
