@@ -62,14 +62,13 @@ echo "FORZA_G2P_KV_PROBE_START revision=$REV original_voice_verified=1 source=$S
 echo "FORZA_G2P_KV_DOWNLOAD new_KV_ONNX_only=1 user_data=0 temporary_folder=1"
 # Download only the TWO experimental graphs into temporary staging storage.
 # No generated customer audio is written; no production model replacement.
+# --include must be the sole selector (no positional filename wildcards).
+# Do not place comment lines between a backslash and its continued command:
+# Bash would run "download" on the HOST instead of inside Docker.
 docker run --rm --network bridge --cpus=1 --memory=1g \
   -e HF_HOME=/probe/hf_cache -e HF_HUB_DOWNLOAD_TIMEOUT=240 \
   --mount "type=bind,src=$STAGE,dst=/probe" \
   --entrypoint hf "$PARENT" \
-  # When using --include, supply NO positional file names. Otherwise hf CLI
-  # ignores --include and treats shell-quoted glob literals as file names,
-  # causing the reported File not found ...onnx%2A error.
-  # This single glob selects BOTH cached G2P graphs and external .onnx.data.
   download "$MODEL" --include 'onnx/g2p_*_kv.onnx*' \
   --local-dir /probe/hf
 
