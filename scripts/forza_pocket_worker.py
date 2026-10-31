@@ -43,6 +43,13 @@ _FLOW_PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]")
 # CPU-only ORT session threads: default remains the tested 1-thread baseline.
 # Two threads are opt-in and must be verified on this specific Xeon CPU.
 CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
+# Experimental quality/speed trade-off. One attempt can be faster only when
+# Pocket would otherwise retry a bad generation. Preserve 3 for production.
+# Never silently change this value on the live voice container.
+TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))
+TTS_DIAGNOSTICS = os.environ.get("FORZA_TTS_STAGE_DIAGNOSTICS", "0") == "1"
+if TTS_ATTEMPTS not in (1, 2, 3):
+    raise ValueError("invalid_forza_tts_retry_attempts")
 if CPU_INTRA not in (1, 2):
     raise ValueError("invalid_forza_cpu_intra")
 if STREAM_FIRST_TOKENS not in (0, 8, 12, 18, 22, 26):
@@ -285,8 +292,17 @@ def render_chunks(engine, text):
     def generate(index):
         phonemes, gap = jobs[index]
         synthesis_started = time.monotonic()
+        # A measured opt-in retry budget; skipping quality recovery can
+        # silently omit words, so only use in isolated A/B with listening.
+        stage = {"flow_ms": 0.0, "flow_calls": 0, "mimi_ms": 0.0, "mimi_calls": 0}
+        original_flow = engine._flow_step
+        original_decode = engine._decode_all
+        # Per-thread timing using the existing ONNX GIL-releasing inference
+        # path. Do not wrap shared methods across concurrent chunks: only
+        # inspect coarse per-job wall time by default.
         speech = engine._generate_with_retry(
             voice_cache, voice_offset, phonemes,
+            attempts=TTS_ATTEMPTS,
             rng=np.random.default_rng(int(seeds[index])),
         )
         synthesis_ms = int((time.monotonic() - synthesis_started) * 1000)
@@ -304,9 +320,10 @@ def render_chunks(engine, text):
         stream = io.BytesIO()
         sf.write(stream, audio, engine.sample_rate, format="WAV", subtype="PCM_16")
         wav = stream.getvalue()
-        print("[FORZA voice stream profile] job=%d tokens=%d synthesis_ms=%d audio_ms=%d wav_bytes=%d" % (
+        print("[FORZA voice stream profile] job=%d tokens=%d synthesis_ms=%d audio_ms=%d wav_bytes=%d retry_budget=%d" % (
             index + 1, len(engine.sp.encode(phonemes, out_type=int)),
-            synthesis_ms, int(len(audio) * 1000 / engine.sample_rate), len(wav)),
+            synthesis_ms, int(len(audio) * 1000 / engine.sample_rate), len(wav),
+            TTS_ATTEMPTS),
             file=sys.stderr, flush=True)
         if not (44 <= len(wav) <= 5_000_000):
             raise RuntimeError("invalid_wav_chunk")
