@@ -117,6 +117,65 @@ Do not commit, expose, cache or publicly upload the WAV files. The dataset must 
 
 Use the separate GPU machine to train Piper/VITS, export a new ONNX model, transfer it privately to the VPS and run `ops/forza-piper-custom-cpu-gate-vps.sh`. Only after measurable speed and human voice/word-completeness approval should an explicitly approved, rollback-capable production rollout be considered. The 728 recordings do not prove an accurate voice clone; extra variety or recordings may be required.
 
+
+## Single-command workflow for the approved FORZA male voice
+
+The five private voice samples have been approved. Do NOT overwrite them.
+This one-command tool preserves the first 368 transcripts, extends the set to
+728, and runs the offline teacher in a resumable isolated container.
+
+On the user's VPS:
+
+```bash
+cd /opt/sanatpish
+git fetch origin main && git pull --ff-only origin main
+sudo env FORZA_TEACHER_TRAINING_RIGHTS=yes FORZA_TEACHER_PILOT_APPROVED=yes \
+  bash ops/forza-custom-build-dataset-vps.sh --prepare
+# Check FORZA_DATA_PREP_READY, then execute during low site traffic:
+sudo env FORZA_TEACHER_TRAINING_RIGHTS=yes FORZA_TEACHER_PILOT_APPROVED=yes \
+  bash ops/forza-custom-build-dataset-vps.sh --run
+```
+
+The full teacher generation is CPU-intensive (potentially several hours) and
+has NOT been executed remotely by ChatGPT. It does not change production or
+save customer speech. Success requires `FORZA_DATA_FULL_COMPLETE` and
+`FORZA_CUSTOM_DATASET_PASS` with >=30 minutes of private licensed speech.
+
+After completion, securely copy the private full dataset to a SEPARATE NVIDIA
+GPU machine. Example from the VPS, replacing GPU_USER/GPU_HOST:
+
+```bash
+scp -r /opt/forza-custom-work/full/ GPU_USER@GPU_HOST:/private/forza-training/
+```
+
+On the GPU box, clone `javanwebi/script` privately and install dependencies:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git build-essential cmake ninja-build python3-venv \
+  python3-dev espeak-ng libespeak-ng-dev curl
+export FORZA_VOICE_RIGHTS_CONFIRMED=yes
+export FORZA_APP_DIR=/opt/sanatpish
+export FORZA_PIPER_REPO=/private/piper1-gpl
+export FORZA_PIPER_CKPT=/private/base-ckpt/lessac-medium.ckpt
+export FORZA_TRAIN_DATASET=/private/forza-training/full
+export FORZA_TRAIN_OUTPUT=/private/forza-results
+
+bash "$FORZA_APP_DIR/ops/forza-piper-custom-bootstrap-gpu.sh" --setup
+bash "$FORZA_APP_DIR/ops/forza-piper-custom-run-gpu.sh" --check
+bash "$FORZA_APP_DIR/ops/forza-piper-custom-run-gpu.sh" --train
+```
+
+The bootstrap follows
+[OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/TRAINING.md)
+and obtains the existing medium Piper checkpoint from the official
+MIT-labelled Piper checkpoint dataset (check the MODEL_CARD before commercial
+deployment). On successful training, export produces one ONNX and matching
+JSON. Privately transfer both back to VPS, then run the existing
+`ops/forza-piper-custom-cpu-gate-vps.sh`. Only promote to live FORZA after
+human speaker comparison and full-text speed testing. The GPU machine and
+private full recordings are external dependencies, not present in GitHub.
+
 ## Stop conditions / operational notes
 
 - `FORZA_TEACHER_ABORT wrong_voice_image`: selected reference not identical; **stop**, do not select another male voice.

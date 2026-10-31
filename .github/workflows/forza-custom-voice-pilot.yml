@@ -7,6 +7,9 @@ on:
       - scripts/forza_pocket_teacher_dataset.py
       - scripts/forza_piper_custom_benchmark.py
       - ops/forza-pocket-teacher-corpus-vps.sh
+      - ops/forza-custom-build-dataset-vps.sh
+      - ops/forza-piper-custom-bootstrap-gpu.sh
+      - ops/forza-piper-custom-run-gpu.sh
       - ops/forza-piper-custom-train-gpu.sh
       - ops/forza-piper-custom-export-gpu.sh
       - ops/forza-piper-custom-cpu-gate-vps.sh
@@ -33,6 +36,9 @@ jobs:
       - name: Verify no training or live deployment in CI
         run: |
           bash -n ops/forza-pocket-teacher-corpus-vps.sh
+          bash -n ops/forza-custom-build-dataset-vps.sh
+          bash -n ops/forza-piper-custom-bootstrap-gpu.sh
+          bash -n ops/forza-piper-custom-run-gpu.sh
           bash -n ops/forza-piper-custom-train-gpu.sh
           bash -n ops/forza-piper-custom-export-gpu.sh
           bash -n ops/forza-piper-custom-cpu-gate-vps.sh
