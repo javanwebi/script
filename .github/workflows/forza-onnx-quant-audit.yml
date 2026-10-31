@@ -4,6 +4,7 @@ on:
     paths:
       - ops/forza-onnx-cpu-quant-benchmark-vps.sh
       - ops/forza-progressive-stream-smoke-vps.sh
+      - ops/forza-amir-inmemory-smoke-vps.sh
       - scripts/forza_quantize_flow.py
       - scripts/forza_voice_http.py
       - scripts/forza_pocket_worker.py
@@ -25,6 +26,7 @@ jobs:
         run: |
           bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
           bash -n ops/forza-progressive-stream-smoke-vps.sh
+          bash -n ops/forza-amir-inmemory-smoke-vps.sh
           python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
           python3 tests/test_forza_punctuation_flow.py
           python3 - <<'PY'
@@ -61,5 +63,14 @@ jobs:
           assert "URL.revokeObjectURL(url)" in s
           assert "readForzaWavFrames" in s
           assert "playPocketProgressive" in s
+          amir=Path("ops/forza-amir-inmemory-smoke-vps.sh").read_text()
+          assert "fa_IR-amir-medium.onnx" in amir
+          assert "FORZA_AMIR_RESULT" in amir
+          assert "sha256sum -c" in amir
+          assert "--read-only" in amir
+          assert "generated_wav_saved=0" in amir
+          assert "synthesize_wav" not in amir
+          assert 'open("' not in amir
+          assert 'wave.open' not in amir
           print("FORZA_NO_PERSISTENT_WAV_OK")
           PY
