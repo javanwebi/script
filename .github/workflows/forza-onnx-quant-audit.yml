@@ -1,0 +1,59 @@
+name: FORZA Pocket CPU quant and transient WAV policy
+on:
+  pull_request:
+    paths:
+      - ops/forza-onnx-cpu-quant-benchmark-vps.sh
+      - scripts/forza_quantize_flow.py
+      - scripts/forza_voice_http.py
+      - scripts/forza_pocket_worker.py
+      - Dockerfile.forza-voice
+      - src/components/forza/AiForzaCallExperience.tsx
+      - tests/forza-boot-speech.test.ts
+      - .github/workflows/forza-onnx-quant-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint shell, Python and embedded Node
+        run: |
+          bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
+          python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          script=Path("ops/forza-onnx-cpu-quant-benchmark-vps.sh").read_text()
+          node=script.split("node - <<'JS'\n",1)[1].split("\nJS\n",1)[0]
+          subprocess.run(["node","--check","-"],input=node,text=True,check=True)
+          df=script.split("cat > \"$STAGE/Dockerfile\" <<'DOCKER'\n",1)[1].split("\nDOCKER\n",1)[0]
+          patch=df.split("RUN python3 - <<'PY'\n",1)[1].split("\nPY\n",1)[0]
+          compile(patch,"candidate_patch","exec")
+          for marker in ("FORZA_TUNE_PROFILE_START","FORZA_TUNE_RESULT",
+                        "FORZA_TUNE_BENCH_DONE","VOICE_SHA","STATE_SHA",
+                        "docker commit --change", "--memory 2g"):
+              assert marker in script, marker
+          for marker in ("FORZA_CPU_INTRA","FORZA_ONNX_INT8"):
+              assert marker in Path("Dockerfile.forza-voice").read_text()
+          for unsafe in ('docker rm -f "$LIVE"', 'docker stop "$LIVE"',
+                         'docker restart "$LIVE"', 'docker rename "$LIVE"'):
+              assert unsafe not in script
+          print("FORZA_SAFE_CPU_TUNE_OK")
+          PY
+      - name: Confirm Python output uses in-memory buffers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/forza_pocket_worker.py").read_text()
+          assert "stream = io.BytesIO()" in s
+          assert "sf.write(stream, audio" in s
+          s=Path("scripts/forza_voice_http.py").read_text()
+          assert "audio_cache" not in s
+          s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
+          assert "voiceCacheRef" not in s
+          assert "URL.revokeObjectURL(audioUrl)" in s
+          print("FORZA_NO_PERSISTENT_WAV_OK")
+          PY
