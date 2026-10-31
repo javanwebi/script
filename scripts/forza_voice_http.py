@@ -165,8 +165,8 @@ class Handler(BaseHTTPRequestHandler):
                 import itertools
                 for wav in itertools.chain((first,), frames):
                     frame = struct.pack("<I", len(wav)) + wav
-                    self.wfile.write(("%x\\r\\n" % len(frame)).encode("ascii"))
-                    self.wfile.write(frame + b"\\r\\n")
+                    self.wfile.write(("%x\r\n" % len(frame)).encode("ascii"))
+                    self.wfile.write(frame + b"\r\n")
                     self.wfile.flush()
                     now = time.monotonic()
                     if count == 0:
