@@ -12,9 +12,11 @@ CANDIDATE=forza-progressive-eval
 SECRETS=/etc/sanatpish/forza-voice.env
 FIRST_TOKENS=${FORZA_BENCH_FIRST_TOKENS:-18}
 PARALLEL=${FORZA_BENCH_PARALLEL:-2}
+UNBROKEN=${FORZA_BENCH_UNBROKEN:-1}
 case "$FIRST_TOKENS" in 8|12|18|22|26) ;; *) echo "Invalid first token budget" >&2; exit 1;; esac
 case "$PARALLEL" in 1|2) ;; *) echo "Invalid parallel setting" >&2; exit 1;; esac
-echo "FORZA_PROGRESSIVE_PROFILE_START first_tokens=$FIRST_TOKENS parallel=$PARALLEL"
+case "$UNBROKEN" in 0|1) ;; *) echo "Invalid unbroken voice setting" >&2; exit 1;; esac
+echo "FORZA_PROGRESSIVE_PROFILE_START first_tokens=$FIRST_TOKENS parallel=$PARALLEL unbroken=$UNBROKEN"
 test -d "$APP/.git" && test -r "$SECRETS"
 test "$(git -C "$APP" remote get-url origin)" = "https://github.com/javanwebi/script.git"
 for name in "$LIVE" "$SITE"; do test "$(docker inspect -f '{{.State.Running}}' "$name")" = true; done
@@ -63,7 +65,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   --env-file "$SECRETS" -e PORT=8080 \
   -e FORZA_TTS_RESIDENT_ACOUSTIC=1 -e FORZA_TTS_RESIDENT_G2P=1 \
   -e FORZA_TTS_WARMUP=1 -e "FORZA_TTS_PARALLEL_CHUNKS=$PARALLEL" \
-  -e "FORZA_TTS_STREAM_FIRST_TOKENS=$FIRST_TOKENS" -e FORZA_CPU_INTRA=1 \
+  -e "FORZA_TTS_STREAM_FIRST_TOKENS=$FIRST_TOKENS" -e "FORZA_TTS_UNBROKEN=$UNBROKEN" -e FORZA_CPU_INTRA=1 \
   "$IMAGE" >/dev/null
 READY=0
 for _ in $(seq 1 90); do
@@ -75,7 +77,8 @@ if [ "$READY" != 1 ]; then docker logs --tail 80 "$CANDIDATE" >&2; exit 1; fi
 test "$(docker exec "$CANDIDATE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$VOICE_SHA"
 test "$(docker exec "$CANDIDATE" sha256sum /app/vendor/persian_tts/forza_voice_state.npz | awk '{print $1}')" = "$STATE_SHA"
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" -e "FORZA_SMOKE_REV=$REV" \
-  -e "FORZA_BENCH_FIRST_TOKENS=$FIRST_TOKENS" -e "FORZA_BENCH_PARALLEL=$PARALLEL" "$SITE" node - <<'JS'
+  -e "FORZA_BENCH_FIRST_TOKENS=$FIRST_TOKENS" -e "FORZA_BENCH_PARALLEL=$PARALLEL" \
+  -e "FORZA_BENCH_UNBROKEN=$UNBROKEN" "$SITE" node - <<'JS'
 (async()=>{
   const phrase='سلام، من فورزا هستم و می‌توانم برای انتخاب قطعات صنعتی به شما کمک کنم. لطفاً کد و مشخصات قطعه مورد نیاز را بفرمایید.';
   const started=performance.now();
@@ -127,6 +130,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" -e "FORZA_SMOKE_REV=$REV" \
   console.log('FORZA_PROGRESSIVE_STREAM_RESULT revision='+process.env.FORZA_SMOKE_REV+
     ' first_tokens='+process.env.FORZA_BENCH_FIRST_TOKENS+
     ' parallel='+process.env.FORZA_BENCH_PARALLEL+
+    ' unbroken='+process.env.FORZA_BENCH_UNBROKEN+
     ' frames='+frames+' first_ms='+Math.round(firstMs)+
     ' total_ms='+Math.round(total)+' audio_seconds='+audioSeconds.toFixed(2)+
     ' rtf='+(total/(audioSeconds*1000)).toFixed(3)+
@@ -135,7 +139,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" -e "FORZA_SMOKE_REV=$REV" \
     ' max_predicted_underrun_ms='+Math.round(maxUnderflowMs));
 })().catch(e=>{console.error('FORZA_PROGRESSIVE_STREAM_FAIL',e.message);process.exit(1)});
 JS
-echo "FORZA_PROGRESSIVE_SMOKE_DONE revision=$REV voice_sha256=$VOICE_SHA first_tokens=$FIRST_TOKENS parallel=$PARALLEL"
+echo "FORZA_PROGRESSIVE_SMOKE_DONE revision=$REV voice_sha256=$VOICE_SHA first_tokens=$FIRST_TOKENS parallel=$PARALLEL unbroken=$UNBROKEN"
 echo "FORZA_PROGRESSIVE_VOICE_PHASE_METRICS:"
 docker logs "$CANDIDATE" 2>&1 | grep -E 'FORZA voice stream (plan|profile)|FORZA voice stream] first_chunk_ms' | tail -25 || true
 echo "Live voice, website, database and Nginx unchanged; no generated WAV saved."
