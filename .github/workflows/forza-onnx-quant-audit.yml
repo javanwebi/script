@@ -7,6 +7,7 @@ on:
       - scripts/forza_quantize_flow.py
       - scripts/forza_voice_http.py
       - scripts/forza_pocket_worker.py
+      - tests/test_forza_punctuation_flow.py
       - Dockerfile.forza-voice
       - src/components/forza/AiForzaCallExperience.tsx
       - tests/forza-boot-speech.test.ts
@@ -25,6 +26,7 @@ jobs:
           bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
           bash -n ops/forza-progressive-stream-smoke-vps.sh
           python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+          python3 tests/test_forza_punctuation_flow.py
           python3 - <<'PY'
           from pathlib import Path
           import subprocess
