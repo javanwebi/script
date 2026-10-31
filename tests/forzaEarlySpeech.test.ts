@@ -38,12 +38,10 @@ test('reject an SSE final event that revised the already spoken prefix', () => {
   ), /forza_early_tts_final_prefix_changed/);
 });
 
-test('live SSE-to-original-Pocket has replaced the old off-by-default clause experiment',async()=>{
+test('old progressive SSE clause experiment remains unused for full-answer Pocket',async()=>{
   const {readFile}=await import('node:fs/promises');
   const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
-  assert.match(source,/new ForzaLiveSpeechQueue/);
-  assert.match(source,/liveSpeech\?\.receive\(fullText\)/);
-  assert.match(source,/await liveSpeech\.finish\(reply\)/);
-  assert.doesNotMatch(source,/VITE_FORZA_EARLY_TTS/);
-  assert.doesNotMatch(source,/earlyPlayback|earlyClause/);
+  assert.match(source,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
+  assert.doesNotMatch(source,/ForzaLiveSpeechQueue|earlyPlayback|earlyClause|VITE_FORZA_EARLY_TTS/);
+  assert.match(source,/await consumeForzaTextStream/);
 });
