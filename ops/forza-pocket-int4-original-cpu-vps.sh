@@ -84,7 +84,7 @@ assert s.count(old)==1,'Unexpected Pocket model flow graph source'
 s=s.replace(old,'"flow_lm_step.int4.onnx" if os.environ.get("FORZA_ONNX_INT4") == "1" else ("flow_lm_step.int8.onnx" if os.environ.get("FORZA_ONNX_INT8") == "1" else "flow_lm_step.onnx")')
 p.write_text(s)
 PY
-DOCKERR
+DOCKER
 FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$"
 QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$"
 docker build --pull=false --build-arg "VOICE_PARENT=$PARENT" \
