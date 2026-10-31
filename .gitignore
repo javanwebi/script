@@ -21,3 +21,9 @@ src/data/smsLogsDb.json
 
 # Product uploads belong to the persistent Railway volume, never Git/Docker builds.
 storage/
+
+# Never commit proprietary FORZA voice recordings, training data or checkpoints.
+/private-voice/
+/voice-data/
+/voice-training/
+*.ckpt
