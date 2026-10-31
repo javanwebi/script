@@ -20,11 +20,19 @@ class ForzaCpuProbeSafety(unittest.TestCase):
                 subprocess.run(["bash", "-n", str(path)], check=True, capture_output=True)
 
     def test_hf_cli_is_single_docker_command(self):
-        s = KV.read_text(encoding="utf-8")
-        self.assertIn('--entrypoint hf "$PARENT" \\\n  download "$MODEL" --include', s)
-        self.assertNotRegex(s, r"\\\\\n\s*#")
+        lines = KV.read_text(encoding="utf-8").splitlines()
+        index = next(i for i, line in enumerate(lines) if "--entrypoint hf" in line)
+        # The very next physical line must be the 'hf download' subcommand,
+        # not a shell comment that would terminate the continued command.
+        self.assertTrue(lines[index].rstrip().endswith(chr(92)))
+        self.assertTrue(lines[index + 1].lstrip().startswith('download "$MODEL" --include '))
+        for i, line in enumerate(lines[:-1]):
+            if line.rstrip().endswith(chr(92)):
+                self.assertFalse(lines[i + 1].lstrip().startswith("#"))
+        s = "\\n".join(lines)
         self.assertIn("onnx/g2p_*_kv.onnx*", s)
-        self.assertIn("FORZA_G2P_KV_RESULT", (ROOT / "scripts" / "forza_g2p_kv_cpu_probe.py").read_text(encoding="utf-8"))
+        self.assertIn("FORZA_G2P_KV_RESULT",
+                      (ROOT / "scripts" / "forza_g2p_kv_cpu_probe.py").read_text(encoding="utf-8"))
 
     def test_acoustic_candidate_does_not_replace_live_service(self):
         s = ACOUSTIC.read_text(encoding="utf-8")
