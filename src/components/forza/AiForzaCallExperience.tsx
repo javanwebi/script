@@ -21,6 +21,7 @@ import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeec
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { readForzaWavFrames } from '../../utils/forzaWavFrameStream';
+import { forzaEarlyStableClause, forzaEarlySpeechRemainder } from '../../utils/forzaEarlySpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -30,6 +31,9 @@ interface AiForzaCallExperienceProps {
 type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const GREETING_TEXT = FORZA_GREETING_TEXT;
+// Experimental only: default OFF. Do not enable in production without
+// listening tests for words, prosody and inter-sentence underruns.
+const EARLY_STABLE_CLAUSE_CANARY = import.meta.env.VITE_FORZA_EARLY_TTS === '1';
 
 const QUICK_TOPICS = [
   'محاسبه طول و گام تسمه تایمینگ PU',
@@ -879,6 +883,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
+        // Only when canary explicitly enabled: overlap first *complete*
+        // SSE sentence synthesis with generation of the rest of the answer.
+        // Never split individual words or model token fragments.
+        let earlyClause='';
+        let earlyPlayback:Promise<void>|null=null;
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
@@ -900,6 +909,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(fullText);
+          if(EARLY_STABLE_CLAUSE_CANARY && !earlyPlayback && _chunk){
+            const candidate=forzaEarlyStableClause(fullText);
+            if(candidate){
+              earlyClause=candidate;
+              console.info('[FORZA_LATENCY] phase=early-tts-request clientMs='+
+                Math.round(performance.now()-turnStartedAt)+' chars='+candidate.length);
+              // Attach a rejection handler immediately. The eventual await
+              // below propagates errors without an unhandled rejection.
+              earlyPlayback=playPocketProgressive(candidate,continuousPlayer);
+              void earlyPlayback.catch(()=>{});
+            }
+          }
         };
         try {
           const streamController=new AbortController();
@@ -961,7 +982,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           try {
-            await playPocketProgressive(reply.trim(),continuousPlayer);
+            if(earlyPlayback){
+              // A final 'done' may revise the SSE beginning. Never synthesize
+              // or replay an inconsistent response. Previously heard sound
+              // cannot be unsaid: keep this pathway OFF in production.
+              const remaining=forzaEarlySpeechRemainder(reply.trim(),earlyClause);
+              await earlyPlayback;
+              if(remaining)await playPocketProgressive(remaining,continuousPlayer);
+            }else{
+              await playPocketProgressive(reply.trim(),continuousPlayer);
+            }
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA Pocket Ubuntu] full-answer progressive synthesis failed',
