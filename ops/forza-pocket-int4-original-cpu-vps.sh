@@ -73,7 +73,13 @@ ARG VOICE_PARENT
 FROM ${VOICE_PARENT}
 # The base Pocket image may carry an old ORT lacking any INT4 quantizer.
 # This pinned runtime is for the disposable candidate ONLY; production untouched.
-RUN python -m pip install --no-cache-dir 'onnxruntime==1.23.2' 'onnx>=1.16,<2'
+# Persistent *build* download cache survives failed builds; never used
+# for customer WAV/PCM or live application data.
+# The international PyPI endpoint may be slow or intermittently inaccessible.
+RUN --mount=type=cache,id=forza-int4-pip-download-cache,target=/root/.cache/pip \
+    python -m pip --timeout 180 --retries 10 install \
+      --disable-pip-version-check --only-binary=:all: \
+      'onnxruntime==1.23.2' 'onnx>=1.16,<2'
 RUN python - <<'PY'
 import onnxruntime as ort
 from onnxruntime.quantization import matmul_nbits_quantizer as q
@@ -91,8 +97,19 @@ RUN python /app/scripts/forza_patch_int4_parent.py
 DOCKER
 FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$$"
 QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$$"
-docker build --pull=false --build-arg "VOICE_PARENT=$PARENT" \
-  -f "$STAGE/Dockerfile" -t "$FLOAT_IMAGE" "$STAGE" >/dev/null
+# Retry via host's existing network stack if Docker bridge DNS or
+# networking cannot reliably reach files.pythonhosted.org.
+# Host mode is used ONLY during build of a disposable, untrusted-restricted
+# image; no ports are exposed and no running containers are modified.
+if ! docker build --pull=false --network=default \
+  --build-arg "VOICE_PARENT=$PARENT" \
+  -f "$STAGE/Dockerfile" -t "$FLOAT_IMAGE" "$STAGE"; then
+  echo "FORZA_INT4_PIP_BUILD_RETRY network=host original_voice_unchanged=1" >&2
+  docker build --pull=false --network=host \
+    --build-arg "VOICE_PARENT=$PARENT" \
+    -f "$STAGE/Dockerfile" -t "$FLOAT_IMAGE" "$STAGE"
+fi
+echo "FORZA_INT4_PIP_BUILD_OK original_voice_unchanged=1"
 echo "[2/4] Convert original Pocket MatMul weights to INT4 in a RAM-capped candidate (no audio output files)."
 if docker run --name "$QUANT_CONTAINER" --restart no --cpus 1 \
   --memory 2g --memory-swap 2g --pids-limit 96 \
