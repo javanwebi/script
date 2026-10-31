@@ -7,12 +7,14 @@ umask 077
 test "$EUID" -eq 0 || { echo "Run with sudo bash" >&2; exit 1; }
 APP=/opt/sanatpish
 LIVE=forza-voice
+ORIGINAL_SPEAKER_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 CANDIDATE=forza-voice-faststart-benchmark
 SECRETS=/etc/sanatpish/forza-voice.env
 test -d "$APP/.git"
 test -r "$SECRETS"
 test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/script.git
 test "$(docker inspect -f '{{.State.Running}}' "$LIVE")" = true
+test "$(docker exec "$LIVE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$ORIGINAL_SPEAKER_SHA" || { echo "FORZA_ABORT wrong original Pocket speaker" >&2; exit 1; }
 test "$(docker inspect -f '{{.State.Running}}' sanatpish-new)" = true
 ! docker container inspect "$CANDIDATE" >/dev/null 2>&1 || {
   echo "Existing fast-start benchmark container detected; refusing to overwrite." >&2; exit 1;
@@ -77,6 +79,8 @@ for i in $(seq 1 60); do
   sleep 2
 done
 test "$ready" = 1 || { docker logs --tail 80 "$CANDIDATE" >&2; exit 1; }
+test "$(docker exec "$CANDIDATE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$ORIGINAL_SPEAKER_SHA" || { echo "FORZA_ABORT candidate changed selected Pocket voice" >&2; exit 1; }
+test "$(docker exec "$CANDIDATE" sha256sum /app/vendor/persian_tts/forza_voice_state.npz | awk '{print $1}')" = "$(docker exec "$LIVE" sha256sum /app/vendor/persian_tts/forza_voice_state.npz | awk '{print $1}')" || { echo "FORZA_ABORT precomputed speaker voice state changed" >&2; exit 1; }
 
 echo "[4/4] Measuring first playable WAV, inter-frame gaps, RTF and peak memory."
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" sanatpish-new node - <<'JS'

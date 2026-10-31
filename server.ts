@@ -5557,6 +5557,54 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
         throw new Error('private_voice_'+(reason?.error||'unavailable'));
       await new Promise(resolve=>setTimeout(resolve,300*(attempt+1)));
     }
+    if(upstream?.status===404){
+      // Some older Ubuntu Pocket worker images only implement /speak.
+      // Guard the selected voice BEFORE considering a legacy compatibility
+      // response. This remains the SAME private Pocket reference, never
+      // falls back to browser speechSynthesis or Amir.
+      console.warn('[FORZA Pocket Stream] legacy_worker_no_stream_endpoint status=404');
+      const health=await fetch(internalForzaVoiceUrl+'/health',{
+        signal:controller.signal,
+      });
+      if(!health.ok)throw new Error('private_voice_legacy_health_'+health.status);
+      const identity=await health.json().catch(()=>null) as {voice?:string;ok?:boolean}|null;
+      if(identity?.voice!=='pocket-farsi-v2' || identity.ok===false)
+        throw new Error('private_voice_legacy_wrong_speaker');
+
+      const legacy=await fetch(internalForzaVoiceUrl+'/speak',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
+        },
+        body:JSON.stringify({text:phrase}),
+        signal:controller.signal,
+      });
+      if(!legacy.ok)throw new Error('private_voice_legacy_http_'+legacy.status);
+      if(!(legacy.headers.get('content-type')||'').includes('audio/wav'))
+        throw new Error('private_voice_legacy_wrong_type');
+      const data=await legacy.arrayBuffer();
+      if(data.byteLength<44 || data.byteLength>8_000_000)
+        throw new Error('private_voice_legacy_invalid_size');
+      const wav=Buffer.from(data);
+      if(wav.toString('ascii',0,4)!=='RIFF' || wav.toString('ascii',8,12)!=='WAVE' ||
+        wav.readUInt16LE(22)!==1 || wav.readUInt32LE(24)!==24000 ||
+        wav.readUInt16LE(34)!==16)
+        throw new Error('private_voice_legacy_invalid_pcm');
+      const framing=Buffer.allocUnsafe(4);
+      framing.writeUInt32LE(wav.length,0);
+      res.setHeader('Content-Type','application/x-forza-wav-frames');
+      res.setHeader('Cache-Control','no-store, no-transform');
+      res.setHeader('X-Accel-Buffering','no');
+      res.setHeader('X-Content-Type-Options','nosniff');
+      res.setHeader('X-Forza-Voice','pocket-farsi-v2');
+      res.setHeader('X-Forza-Voice-Backend','private-service');
+      res.setHeader('X-Forza-Voice-Compatibility','legacy-full-wav');
+      res.end(Buffer.concat([framing,wav]));
+      console.info('[FORZA_LATENCY] phase=pocket-server-legacy-compat first_ms='+
+        (Date.now()-started)+' audio_bytes='+wav.length);
+      return;
+    }
     if(!upstream?.ok)throw new Error('private_voice_http_'+upstream?.status);
     if(!upstream.body || !(upstream.headers.get('content-type')||'').includes('application/x-forza-wav-frames'))
       throw new Error('private_voice_invalid_stream');
