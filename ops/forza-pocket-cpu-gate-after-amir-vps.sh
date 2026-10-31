@@ -13,6 +13,10 @@ CANDIDATE=forza-pocket-gate-eval
 MARKER=/etc/sanatpish/forza-amir-rollback-container
 SECRETS=/etc/sanatpish/forza-voice.env
 EXPECTED_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
+# Optional A/B of one complete in-RAM WAV versus progressive frames.
+# 1 waits for all CPU synthesis BEFORE playback; it is not a speed boost.
+FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
+case "$FORZA_GATE_FULL_ANSWER_WAV" in 0|1) ;; *) echo "Expected FORZA_GATE_FULL_ANSWER_WAV=0 or 1" >&2; exit 1;; esac
 STAGE=""
 CANDIDATE_STARTED=0
 cleanup(){
@@ -118,6 +122,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e FORZA_TTS_WARMUP=1 -e FORZA_TTS_PARALLEL_CHUNKS=2 \
   -e FORZA_TTS_STREAM_FIRST_TOKENS=12 -e FORZA_TTS_UNBROKEN=1 \
   -e FORZA_CPU_INTRA=1 -e FORZA_ONNX_INT8=0 \
+  -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
   --entrypoint python "$PARENT" -u scripts/forza_voice_http.py >/dev/null
@@ -139,7 +144,8 @@ test "$ACTUAL_SHA" = "$EXPECTED_SHA" || {
 }
 docker exec "$CANDIDATE" test -s /app/vendor/persian_tts/forza_voice_state.npz
 
-docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" "$SITE" node - <<'JS'
+docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
+  -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -182,7 +188,10 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" "$SITE" node - <<'JS'
     if(buffer.length||frames===0)throw Error('incomplete_stream_'+sample);
     const totalMs=performance.now()-started;
     const withinTarget=totalMs<=1000;
-    console.log('FORZA_POCKET_ONE_SECOND_GATE sample='+sample+
+    const atomic=process.env.FORZA_GATE_FULL_ANSWER_WAV==='1';
+    if(atomic && frames!==1)throw Error('atomic_wav_must_have_one_frame');
+    console.log('FORZA_POCKET_ONE_SECOND_GATE mode='+(atomic?'atomic':'progressive')+
+      ' sample='+sample+
       ' frames='+frames+
       ' first_ms='+firstMs.toFixed(0)+
       ' total_ms='+totalMs.toFixed(0)+

@@ -931,7 +931,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Keep the existing complete-response route as a compatibility
           // fallback when streaming has not begun at all.
           if (reply) {
-            console.warn('[FORZA] Stream ended after partial reply; preserving first text');
+            // An interrupted or incomplete SSE is not a complete answer.
+            // Never send the visible partial transcript to the TTS engine.
+            console.warn('[FORZA] Text stream incomplete; refusing partial speech');
+            throw new Error('پاسخ هوش مصنوعی کامل دریافت نشد. لطفاً دوباره تلاش کنید.');
           } else {
           const fallbackAbort=new AbortController();
           const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);

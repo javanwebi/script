@@ -48,3 +48,35 @@ test('FORZA accepts split CRLF SSE events before the stream closes',async()=>{
   assert.deepEqual(chunks,[message]);
   assert.equal(cancelled,true);
 });
+
+test('FORZA never treats a dropped SSE connection as a complete answer for TTS',async()=>{
+  const stream=new ReadableStream<Uint8Array>({
+    start(c){
+      c.enqueue(event({type:'start'}));
+      c.enqueue(event({type:'text_chunk',chunk:'سلام، فقط یک بخش',textSoFar:'سلام، فقط یک بخش'}));
+      c.close();
+    },
+  });
+  const partials:string[]=[];
+  await assert.rejects(
+    consumeForzaTextStream(new Response(stream),(chunk)=>partials.push(chunk)),
+    /forza_stream_incomplete/,
+  );
+  assert.ok(partials.length>0,'displayed partial subtitles are allowed; TTS is not');
+});
+
+test('completed SSE fullText overrides mismatched intermediate chunks before one TTS call',async()=>{
+  const final='تسمه مدل SPA 1250 برای انتقال نیرو انتخاب می‌شود.';
+  const partial='تسمه مدل B';
+  const stream=new ReadableStream<Uint8Array>({
+    start(c){
+      c.enqueue(event({type:'text_chunk',chunk:partial,textSoFar:partial}));
+      c.enqueue(event({type:'done',fullText:final}));
+      c.close();
+    },
+  });
+  let display='';
+  const answer=await consumeForzaTextStream(new Response(stream),(_chunk,fullText)=>{display=fullText;});
+  assert.equal(display,final);
+  assert.equal(answer,final);
+});

@@ -28,7 +28,9 @@ test('FORZA submits one complete AI answer then plays ready Pocket frames immedi
   assert.match(backend,/internalForzaVoiceUrl\+'\/speak-stream'/);
   assert.match(backend,/X-Accel-Buffering','no'/);
   assert.match(pocketHttp,/MAX_TEXT_CHARS = 1000/);
-  assert.match(pocketHttp,/frames = render_chunks\(engine, phrase\)/);
+  assert.match(pocketHttp,/render_chunks\(engine, phrase\)/);
+  assert.match(pocketHttp,/render_full_answer_wav\(engine, phrase\)/);
+  assert.match(pocketHttp,/FULL_ANSWER_WAV/);
   assert.match(pocketWorker,/def render_chunks\(engine, text\):/);
   assert.doesNotMatch(frontend,/در حال تبدیل صدای شما به متن و ارسال به سرور/);
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
