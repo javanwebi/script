@@ -7443,9 +7443,9 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void getForzaGreeting().catch(()=>{});
-    // No resident ONNX worker runs in the app container. Pocket lives in the
-    // private Ubuntu Docker network and is already warmed by its own process.
+    void (forzaVoiceEngine==='piper-amir-medium'?privateAmirGreeting():getForzaGreeting()).catch(()=>{});
+    // The app container never runs ONNX inference. The private voice service
+    // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
       ? '[FORZA Pocket] private Ubuntu voice service configured'
       : '[FORZA Pocket] private voice URL missing; voice requests will fail closed');
