@@ -4,13 +4,17 @@ on:
     paths:
       - scripts/forza_custom_voice_dataset_gate.py
       - scripts/forza_custom_corpus_prompts.py
+      - scripts/forza_pocket_teacher_dataset.py
       - scripts/forza_piper_custom_benchmark.py
+      - ops/forza-pocket-teacher-corpus-vps.sh
       - ops/forza-piper-custom-train-gpu.sh
       - ops/forza-piper-custom-export-gpu.sh
       - ops/forza-piper-custom-cpu-gate-vps.sh
       - ops/Dockerfile.forza-custom-piper-bench
       - docs/forza/CUSTOM_FAST_VOICE_PIPER_PILOT.md
+      - docs/forza/LICENSED_POCKET_TEACHER_CORPUS.md
       - tests/test_forza_custom_voice_pilot.py
+      - tests/test_forza_teacher_dataset.py
       - .github/workflows/forza-custom-voice-pilot.yml
   workflow_dispatch:
 permissions:
@@ -23,12 +27,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile and test offline code without models, audio or GPU
         run: |
-          python3 -m py_compile scripts/forza_custom_voice_dataset_gate.py scripts/forza_custom_corpus_prompts.py scripts/forza_piper_custom_benchmark.py
+          python3 -m py_compile scripts/forza_custom_voice_dataset_gate.py scripts/forza_custom_corpus_prompts.py scripts/forza_piper_custom_benchmark.py scripts/forza_pocket_teacher_dataset.py
           python3 tests/test_forza_custom_voice_pilot.py
+          python3 tests/test_forza_teacher_dataset.py
       - name: Verify no training or live deployment in CI
         run: |
+          bash -n ops/forza-pocket-teacher-corpus-vps.sh
           bash -n ops/forza-piper-custom-train-gpu.sh
           bash -n ops/forza-piper-custom-export-gpu.sh
           bash -n ops/forza-piper-custom-cpu-gate-vps.sh
           grep -F 'FORZA_VOICE_RIGHTS_CONFIRMED' ops/forza-piper-custom-train-gpu.sh
           grep -F -- '--network none' ops/forza-piper-custom-cpu-gate-vps.sh
+          grep -F -- '--network none' ops/forza-pocket-teacher-corpus-vps.sh
