@@ -37,7 +37,7 @@ export async function readForzaWavFrames(
           if (buffered.length < 4) break;
           expected = new DataView(buffered.buffer, buffered.byteOffset, 4).getUint32(0, true);
           buffered = buffered.subarray(4);
-          if (expected < 44 || expected > 5_000_000)
+          if (expected < 44 || expected > 8_000_000)
             throw new Error('forza_stream_invalid_frame_length');
         }
         if (buffered.length < expected) break;
