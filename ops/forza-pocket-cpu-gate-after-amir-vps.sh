@@ -19,6 +19,8 @@ FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
 # Never change production retry policy: opt into A/B only inside the test
 # container. 1 attempt may be faster but has higher omitted-word risk.
 FORZA_GATE_RETRY_ATTEMPTS=${FORZA_GATE_RETRY_ATTEMPTS:-3}
+FORZA_GATE_SAMPLE=${FORZA_GATE_SAMPLE:-all}
+case "$FORZA_GATE_SAMPLE" in all|short|medium|long) ;; *) echo "Invalid sample" >&2; exit 1;; esac
 case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3) ;; *) echo "Invalid retry budget" >&2; exit 1;; esac
 case "$FORZA_GATE_FULL_ANSWER_WAV" in 0|1) ;; *) echo "Expected FORZA_GATE_FULL_ANSWER_WAV=0 or 1" >&2; exit 1;; esac
 STAGE=""
@@ -151,7 +153,8 @@ docker exec "$CANDIDATE" test -s /app/vendor/persian_tts/forza_voice_state.npz
 
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
   -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
-  -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
+  -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -160,6 +163,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     ['long','برای انتخاب تسمه صنعتی، شماره فنی و مشخصات دستگاه را بفرمایید. مدل‌های مختلف تسمه و انتقال نیرو را بررسی می‌کنم و بعد از تطبیق ابعاد و استاندارد قطعه، گزینه مناسب را معرفی خواهم کرد.'],
   ];
   for(const [sample,text] of texts) {
+    if(process.env.FORZA_GATE_SAMPLE!=='all' &&
+       process.env.FORZA_GATE_SAMPLE!==sample)continue;
     const started=performance.now();
     const res=await fetch(url,{method:'POST',
       headers:{'Content-Type':'application/json','X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN},
