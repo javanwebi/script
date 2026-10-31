@@ -42,13 +42,20 @@ git -C "$APP" show origin/main:scripts/tests/forza-pocket-vps-ttfb.cjs |
     -e "FORZA_PROBE_MODE=$FORZA_PROBE_MODE" \
     -e "FORZA_PROBE_EXTENDED=$FORZA_PROBE_EXTENDED" \
     "$SITE" node -
-PROBE_EXIT=${PIPESTATUS[1]}
+PIPE_RESULTS=("${PIPESTATUS[@]}")
 set -e
+PROBE_EXIT=0
+for code in "${PIPE_RESULTS[@]}"; do
+  if [ "$code" -ne 0 ]; then PROBE_EXIT="$code"; break; fi
+done
 
 echo "FORZA_POCKET_TEST_POST voice_ref_unchanged=$(
   test "$(docker exec "$VOICE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$EXPECTED_SHA" && echo 1 || echo 0
 ) app_running=$(docker inspect -f '{{.State.Running}}' "$SITE") voice_running=$(docker inspect -f '{{.State.Running}}' "$VOICE")"
 docker stats --no-stream --format 'FORZA_POCKET_TEST_RESOURCES name={{.Name}} cpu={{.CPUPerc}} memory={{.MemUsage}}' "$VOICE" "$SITE" || true
+test "$(docker inspect -f '{{.State.Running}}' "$VOICE")" = true
+test "$(docker inspect -f '{{.State.Running}}' "$SITE")" = true
+test "$(docker exec "$VOICE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$EXPECTED_SHA"
 if [ "$PROBE_EXIT" -ne 0 ]; then
   echo "FORZA_POCKET_TEST_INCOMPLETE check_private_or_proxy_error_codes=1" >&2
   exit "$PROBE_EXIT"
