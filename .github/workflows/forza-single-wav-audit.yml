@@ -1,0 +1,40 @@
+name: FORZA complete answer WAV safety
+on:
+  pull_request:
+    paths:
+      - ops/forza-single-wav-benchmark-vps.sh
+      - scripts/forza_pocket_worker.py
+      - scripts/forza_voice_http.py
+      - src/components/forza/AiForzaCallExperience.tsx
+      - server.ts
+      - tests/forza-boot-speech.test.ts
+      - .github/workflows/forza-single-wav-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate isolated VPS benchmark Bash and embedded JS
+        run: |
+          bash -n ops/forza-single-wav-benchmark-vps.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          script=Path("ops/forza-single-wav-benchmark-vps.sh").read_text()
+          node=script.split("node - <<'JS'\n",1)[1].split("\nJS\n",1)[0]
+          subprocess.run(["node","--check","-"],input=node,text=True,check=True)
+          assert "${VOICE_PARENT}" in script
+          for name in ("FORZA_SINGLE_WAV_BENCH_PASS","VOICE_SHA","STATE_SHA","--memory 2g","--cpus 2.0"):
+              assert name in script, name
+          for unsafe in ('docker stop "$LIVE"', 'docker rm -f "$LIVE"',
+                         'docker restart "$SITE"', 'docker rename "$LIVE"'):
+              assert unsafe not in script, unsafe
+          print("FORZA_COMPLETE_WAV_SAFETY_OK")
+          PY
+      - name: Python syntax
+        run: |
+          python3 -m py_compile scripts/forza_pocket_worker.py scripts/forza_voice_http.py
