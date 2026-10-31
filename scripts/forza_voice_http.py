@@ -152,8 +152,12 @@ class Handler(BaseHTTPRequestHandler):
             headers_sent = False
             frames = None
             try:
-                frames = (iter((render_full_answer_wav(engine, phrase),))
-                          if FULL_ANSWER_WAV else render_chunks(engine, phrase))
+                # Both branches must return closable generators: finally
+                # calls frames.close() even if the client disconnects.
+                def one_complete_frame():
+                    yield render_full_answer_wav(engine, phrase)
+                frames = (one_complete_frame() if FULL_ANSWER_WAV
+                          else render_chunks(engine, phrase))
                 first = next(frames)
                 # Wait for a *real* generated chunk before sending headers,
                 # so FIRST_BYTE measures audible ready-to-play data.
