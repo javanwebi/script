@@ -13,43 +13,35 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA starts original Pocket TTS as SSE phrases arrive, then plays ready Pocket frames immediately',()=>{
+test('FORZA renders live words but requests only one original Pocket WAV per complete reply',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/setAiText\(fullText\)/);
-  assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech-stream'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text:phrase\}\)/);
-  assert.match(frontend,/await readForzaWavFrames\(response,frame=>\{/);
-  assert.match(frontend,/player\.enqueueWav\(frame\)/);
-  assert.match(frontend,/new ForzaLiveSpeechQueue/);
-  assert.match(frontend,/liveSpeech\?\.receive\(fullText\)/);
-  assert.match(frontend,/await liveSpeech\.finish\(reply\)/);
-  assert.match(frontend,/await Promise\.all\(scheduledPlaybacks\)/);
+  assert.match(frontend,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
+  assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
+  assert.match(frontend,/body:JSON\.stringify\(\{text\}\)/);
+  assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
+  assert.match(frontend,/await player\.enqueueWav\(audio\)/);
+  assert.match(frontend,/phase=whole-pocket-wav-ready/);
   assert.match(frontend,/new ForzaContinuousWav/);
-  assert.doesNotMatch(frontend,/takeSpeakablePhrase|streamPocketPhrase|queuePhrase\(/);
-  assert.match(backend,/app\.post\('\/api\/ai\/forza-speech-stream'/);
-  assert.match(backend,/phrase\.length>1000/);
-  assert.match(backend,/internalForzaVoiceUrl\+'\/speak-stream'/);
-  assert.match(backend,/X-Accel-Buffering','no'/);
+  assert.doesNotMatch(frontend,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
+  assert.match(backend,/app\.post\('\/api\/ai\/forza-speech'/);
+  assert.match(backend,/internalForzaVoiceUrl\+'\/speak'/);
+  assert.match(backend,/forzaUnbrokenSpokenText\(phrase\)/);
   assert.match(pocketHttp,/MAX_TEXT_CHARS = 1000/);
-  assert.match(pocketHttp,/render_chunks\(engine, phrase\)/);
-  assert.match(pocketHttp,/render_full_answer_wav\(engine, phrase\)/);
-  assert.match(pocketHttp,/FULL_ANSWER_WAV/);
-  assert.match(pocketWorker,/def render_chunks\(engine, text\):/);
-  assert.doesNotMatch(frontend,/در حال تبدیل صدای شما به متن و ارسال به سرور/);
+  assert.match(pocketHttp,/self\.reply\(200, audio, "audio\/wav"\)/);
   assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
 });
 
-test('customer WAV bytes stay transient and fallback never replays partially spoken replies',()=>{
+test('one full WAV is kept in memory and never cached or written to disk',()=>{
   assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
-  assert.match(frontend,/if\(receivedFrames>0 \|\| options\?\.signal\?\.aborted/);
-  assert.match(frontend,/await requestPocketAudio\(phrase\)/);
-  assert.match(frontend,/URL\.revokeObjectURL\(url\)/);
-  assert.match(frontend,/await Promise\.all\(scheduled\)/);
+  assert.match(frontend,/await response\.arrayBuffer\(\)/);
+  assert.match(frontend,/player\.enqueueWav\(audio\)/);
+  assert.match(frontend,/AbortSignal\.timeout\(420000\)/);
+  assert.match(frontend,/pocketAbort\.abort\(\)/);
+  assert.doesNotMatch(frontend,/URL\.createObjectURL\(blob\)|URL\.revokeObjectURL\(url\)/);
   assert.doesNotMatch(pocketHttp,/audio_cache|MAX_CACHED_RESPONSES|OrderedDict/);
-  assert.match(pocketHttp,/self\.reply\(200, audio, "audio\/wav"\)/);
   assert.match(backend,/Cache-Control','no-store'/);
-  assert.match(pocketWorker,/len\(jobs\) > 256/);
-  assert.match(pocketWorker,/pool\.submit\(generate, next_job\)/);
+  assert.match(pocketWorker,/def render\(engine, text\):/);
 });
 
 test('CPU 1 or 2 intra-op threads are opt-in, with FP32 as safe default',()=>{
