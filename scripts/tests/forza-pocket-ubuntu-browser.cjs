@@ -78,10 +78,11 @@ function wav(durationMs=180){
 
   // Regression: server shows Gemini answer but old Pocket /speak-stream
   // returns 503 before any WAV. Exact SAME Pocket /speak must rescue voice.
-  await page.getByTitle('تایپ پیام متنی').click();
+  if(!await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').isVisible())
+    await page.getByTitle('تایپ پیام متنی').click();
   await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPC چیست؟');
   await page.getByTitle('ارسال به هوش مصنوعی').click();
-  await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
+  await page.waitForFunction(()=>window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
     null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟','تسمه SPC چیست؟']);
   const secondTurn=voiceCalls.slice(2);
