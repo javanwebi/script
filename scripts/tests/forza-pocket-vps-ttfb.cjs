@@ -142,7 +142,7 @@ async function resolveProxyUrl() {
   if (process.env.FORZA_PROBE_PROXY_URL) return process.env.FORZA_PROBE_PROXY_URL;
   const candidates = [...new Set(
     [process.env.PORT, '3000', '3001']
-      .filter(v => /^\\d{2,5}$/.test(String(v || '')))
+      .filter(v => /^\d{2,5}$/.test(String(v || '')))
   )];
   for (const port of candidates) {
     const base = 'http://127.0.0.1:' + port;
