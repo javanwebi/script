@@ -54,9 +54,11 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
-  assert.ok(voiceCalls.length>=2,'Pocket must receive multiple phrases of a streamed reply');
-  assert.ok(voiceCalls.every(s=>s.length>0&&s.length<=220));
+  assert.equal(voiceCalls.length,1,'Pocket must receive exactly one full assistant answer');
+  assert.equal(voiceCalls[0],
+    'سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.');
+  assert.ok(voiceCalls[0].length<=1000);
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS audio_chunks='+voiceCalls.length+' bytes_model_downloaded=0');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS complete_wav_requests='+voiceCalls.length+' bytes_model_downloaded=0');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});
