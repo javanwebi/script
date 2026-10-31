@@ -1,0 +1,41 @@
+name: FORZA Pocket one-second CPU feasibility gate
+on:
+  pull_request:
+    paths:
+      - docs/forza/POCKET_CPU_ONE_SECOND_PLAN.md
+      - ops/forza-pocket-cpu-gate-after-amir-vps.sh
+      - .github/workflows/forza-pocket-one-second-feasibility.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check bash syntax and safety invariants (no live modifications)
+        run: |
+          bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("ops/forza-pocket-cpu-gate-after-amir-vps.sh").read_text()
+          p=Path("docs/forza/POCKET_CPU_ONE_SECOND_PLAN.md").read_text()
+          assert "forza-amir-rollback-container" in s
+          assert "docker inspect" in s and 'BACKUP=$(sed' in s
+          assert "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833" in s
+          assert "FORZA_POCKET_ONE_SECOND_GATE" in s
+          assert "pass_1000ms" in s
+          assert "customer_wav_saved=0" in s
+          assert "--read-only" in s
+          assert "--mount" in s
+          assert "customer" in p.lower() or "customer WAV" in p
+          for disallowed in ("docker stop \"$LIVE\"", "docker restart \"$LIVE\"",
+                             "docker rm -f \"$LIVE\"", "docker rename \"$LIVE\"",
+                             "docker restart \"$SITE\"","docker system prune",
+                             "docker volume rm", "writeFileSync(", ".write_bytes(", "wave.open("):
+              assert disallowed not in s, disallowed
+          assert "2.45 GiB" in s
+          assert "p95" in p
+          print("FORZA_POCKET_ONE_SECOND_PLAN_SAFE")
+          PY
