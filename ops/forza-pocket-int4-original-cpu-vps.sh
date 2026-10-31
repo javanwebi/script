@@ -77,7 +77,8 @@ COPY scripts/forza_pocket_worker.py /app/scripts/
 COPY scripts/forza_pocket_overlap.py /app/scripts/
 COPY scripts/forza_quantize_original_flow_int4.py /app/scripts/
 COPY scripts/forza_patch_int4_parent.py /app/scripts/
-RUN python /app/scripts/forza_patch_int4_parent.pyDOCKER
+RUN python /app/scripts/forza_patch_int4_parent.py
+DOCKER
 FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$$"
 QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$$"
 docker build --pull=false --build-arg "VOICE_PARENT=$PARENT" \
