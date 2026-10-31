@@ -13,14 +13,17 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA submits one complete AI answer then plays ready Pocket frames immediately',()=>{
+test('FORZA starts original Pocket TTS as SSE phrases arrive, then plays ready Pocket frames immediately',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/setAiText\(fullText\)/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech-stream'/);
   assert.match(frontend,/body:JSON\.stringify\(\{text:phrase\}\)/);
   assert.match(frontend,/await readForzaWavFrames\(response,frame=>\{/);
   assert.match(frontend,/player\.enqueueWav\(frame\)/);
-  assert.match(frontend,/await playPocketProgressive\(reply\.trim\(\),continuousPlayer\)/);
+  assert.match(frontend,/new ForzaLiveSpeechQueue/);
+  assert.match(frontend,/liveSpeech\?\.receive\(fullText\)/);
+  assert.match(frontend,/await liveSpeech\.finish\(reply\)/);
+  assert.match(frontend,/await Promise\.all\(scheduledPlaybacks\)/);
   assert.match(frontend,/new ForzaContinuousWav/);
   assert.doesNotMatch(frontend,/takeSpeakablePhrase|streamPocketPhrase|queuePhrase\(/);
   assert.match(backend,/app\.post\('\/api\/ai\/forza-speech-stream'/);
@@ -38,7 +41,7 @@ test('FORZA submits one complete AI answer then plays ready Pocket frames immedi
 
 test('customer WAV bytes stay transient and fallback never replays partially spoken replies',()=>{
   assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
-  assert.match(frontend,/if\(receivedFrames>0\)throw error/);
+  assert.match(frontend,/if\(receivedFrames>0 \|\| options\?\.signal\?\.aborted/);
   assert.match(frontend,/await requestPocketAudio\(phrase\)/);
   assert.match(frontend,/URL\.revokeObjectURL\(url\)/);
   assert.match(frontend,/await Promise\.all\(scheduled\)/);
