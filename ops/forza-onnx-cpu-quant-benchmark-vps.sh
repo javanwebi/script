@@ -104,7 +104,7 @@ echo "[2/4] Convert MatMul/Gemm flow weights to INT8 in a RAM-capped candidate (
 if docker run --name "$QUANT_CONTAINER" --restart no --cpus 1 \
   --memory 2g --memory-swap 2g --pids-limit 96 \
   "$FLOAT_IMAGE" python /app/scripts/forza_quantize_flow.py; then
-  docker commit "$QUANT_CONTAINER" "$QUANT_IMAGE" >/dev/null
+  docker commit --change 'CMD ["python", "-u", "scripts/forza_voice_http.py"]' "$QUANT_CONTAINER" "$QUANT_IMAGE" >/dev/null
   echo "FORZA_QUANT_CANDIDATE_READY"
 else
   echo "FORZA_QUANT_FAILED_OR_UNSUPPORTED: float profiles remain usable" >&2
