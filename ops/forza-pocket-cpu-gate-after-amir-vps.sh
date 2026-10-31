@@ -14,27 +14,58 @@ MARKER=/etc/sanatpish/forza-amir-rollback-container
 SECRETS=/etc/sanatpish/forza-voice.env
 EXPECTED_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 STAGE=""
+CANDIDATE_STARTED=0
 cleanup(){
   local rc=$?
   trap - EXIT INT TERM
-  docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+  if [ "$CANDIDATE_STARTED" = 1 ]; then docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true; fi
   if [ -n "$STAGE" ]; then rm -rf -- "$STAGE"; fi
   exit "$rc"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-test -d "$APP/.git" && test -r "$MARKER" && test -r "$SECRETS"
+test -d "$APP/.git" && test -r "$SECRETS"
 test "$(git -C "$APP" remote get-url origin)" = "https://github.com/javanwebi/script.git"
 for name in "$SITE" "$LIVE"; do test "$(docker inspect -f '{{.State.Running}}' "$name")" = true; done
 ! docker inspect "$CANDIDATE" >/dev/null 2>&1 || { echo "Existing candidate container: abort" >&2; exit 1; }
-BACKUP=$(sed -n 's/^BACKUP=//p' "$MARKER" | head -1)
-case "$BACKUP" in forza-voice-before-amir-[0-9]*) ;; *) echo "Unknown Pocket backup marker" >&2; exit 1 ;; esac
+# When the rollback metadata file is missing, find one uniquely named,
+# stopped original container. Verify the immutable voice fingerprint.
+if [ -r "$MARKER" ]; then
+  BACKUP=$(sed -n 's/^BACKUP=//p' "$MARKER" | head -1)
+  echo "FORZA_POCKET_BACKUP_DISCOVERY source=rollback-marker"
+else
+  mapfile -t BACKUPS < <(docker ps -a --format '{{.Names}}' |
+    grep -E '^forza-voice-before-amir-[0-9]{14}$' || true)
+  if [ "\${#BACKUPS[@]}" -ne 1 ]; then
+    echo "No unique Pocket backup; candidates=\${#BACKUPS[@]}; live unchanged." >&2
+    echo "Inspect: docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'" >&2
+    exit 1
+  fi
+  BACKUP="\${BACKUPS[0]}"
+  echo "FORZA_POCKET_BACKUP_DISCOVERY source=unique-stopped-container marker_missing=1"
+fi
+[[ "$BACKUP" =~ ^forza-voice-before-amir-[0-9]{14}$ ]] || {
+  echo "Unexpected Pocket backup name: abort" >&2; exit 1;
+}
+docker container inspect "$BACKUP" >/dev/null 2>&1 || {
+  echo "Original Pocket backup container not found: $BACKUP" >&2; exit 1;
+}
 test "$(docker inspect -f '{{.State.Running}}' "$BACKUP")" = false || {
-  echo "Old Pocket backup is running; abort" >&2; exit 1;
+  echo "Old Pocket backup is running: abort" >&2; exit 1;
 }
 PARENT=$(docker inspect -f '{{.Image}}' "$BACKUP")
-docker image inspect "$PARENT" >/dev/null || { echo "Pocket image is not available" >&2; exit 1; }
+docker image inspect "$PARENT" >/dev/null || { echo "Pocket image not found" >&2; exit 1; }
+CURRENT_IMAGE=$(docker inspect -f '{{.Image}}' "$LIVE")
+test "$PARENT" != "$CURRENT_IMAGE" || {
+  echo "Pocket backup is same image as live Amir: abort" >&2; exit 1;
+}
+BACKUP_SHA=$(docker run --rm --network none --read-only --cpus=0.25 --memory=192m \
+  --entrypoint sha256sum "$PARENT" /app/public/forza-pocket-reference.wav | awk '{print $1}')
+test "$BACKUP_SHA" = "$EXPECTED_SHA" || {
+  echo "Backup voice SHA mismatch: refusing wrong voice/model" >&2; exit 1;
+}
+echo "FORZA_POCKET_BACKUP_VERIFIED name=$BACKUP voice_sha256=$BACKUP_SHA"
 TOKEN=$(sed -n 's/^FORZA_VOICE_TOKEN=//p' "$SECRETS" | head -1)
 test "$(printf %s "$TOKEN" | wc -c)" -eq 64 || { echo "Invalid private token" >&2; exit 1; }
 test "$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)" -ge 2450000 || {
@@ -71,6 +102,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
   --entrypoint python "$PARENT" -u scripts/forza_voice_http.py >/dev/null
+CANDIDATE_STARTED=1
 
 READY=0
 for i in $(seq 1 90); do
