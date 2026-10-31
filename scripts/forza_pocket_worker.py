@@ -37,8 +37,8 @@ STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "18"))
 UNBROKEN_SPEECH = os.environ.get("FORZA_TTS_UNBROKEN", "1") == "1"
 # Preserve decimal points, product codes and hyphens; suppress sentence/
 # clause punctuation for the spoken form only (the UI retains original text).
-_SENTENCE_DOT = re.compile(r"(?<!\\d)\\.|\\.(?!\\d)")
-_FLOW_PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\\[\\]{}()]")
+_SENTENCE_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
+_FLOW_PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]")
 # CPU-only ORT session threads: default remains the tested 1-thread baseline.
 # Two threads are opt-in and must be verified on this specific Xeon CPU.
 CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
