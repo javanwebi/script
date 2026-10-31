@@ -37,12 +37,12 @@ if [ -r "$MARKER" ]; then
 else
   mapfile -t BACKUPS < <(docker ps -a --format '{{.Names}}' |
     grep -E '^forza-voice-before-amir-[0-9]{14}$' || true)
-  if [ "\${#BACKUPS[@]}" -ne 1 ]; then
-    echo "No unique Pocket backup; candidates=\${#BACKUPS[@]}; live unchanged." >&2
+  if [ "${#BACKUPS[@]}" -ne 1 ]; then
+    echo "No unique Pocket backup; candidates=${#BACKUPS[@]}; live unchanged." >&2
     echo "Inspect: docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'" >&2
     exit 1
   fi
-  BACKUP="\${BACKUPS[0]}"
+  BACKUP="${BACKUPS[0]}"
   echo "FORZA_POCKET_BACKUP_DISCOVERY source=unique-stopped-container marker_missing=1"
 fi
 [[ "$BACKUP" =~ ^forza-voice-before-amir-[0-9]{14}$ ]] || {
