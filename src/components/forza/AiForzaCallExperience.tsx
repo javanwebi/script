@@ -830,6 +830,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setUserText(previous=>previous.trim());
       }
 
+      const pocketAbort=new AbortController();
+      let liveSpeech:ForzaLiveSpeechQueue|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -896,7 +898,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
-        const pocketAbort=new AbortController();
         const scheduledPlaybacks:Promise<void>[]=[];
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
@@ -915,7 +916,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Do not wait for the provider's final 'done' or send half a word.
         // Exactly one private Pocket synthesis runs at a time, but browser
         // playback overlaps the following phrase's generation.
-        const liveSpeech=new ForzaLiveSpeechQueue(
+        liveSpeech=new ForzaLiveSpeechQueue(
           async phrase=>playPocketProgressive(phrase,continuousPlayer,{
             signal:pocketAbort.signal,
             waitForPlayback:false,
@@ -937,7 +938,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Appends only newly received SSE content and immediately queues
           // available *complete-word* phrases. The rest stays in memory until
           // the word boundary or the authoritative SSE 'done'.
-          liveSpeech.receive(fullText);
+          liveSpeech?.receive(fullText);
         };
         try {
           const streamController=new AbortController();
@@ -999,6 +1000,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           try {
+            if(!liveSpeech)throw new Error('forza_live_speech_not_initialized');
             await liveSpeech.finish(reply);
             // Do not leave the last Pocket frame playing when the turn ends.
             await Promise.all(scheduledPlaybacks);
@@ -1024,7 +1026,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
-        liveSpeech.cancel();
+        liveSpeech?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
