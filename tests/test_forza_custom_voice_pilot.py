@@ -21,6 +21,7 @@ def load(path, name):
 
 gate = load("scripts/forza_custom_voice_dataset_gate.py", "forza_dataset_gate")
 bench = load("scripts/forza_piper_custom_benchmark.py", "forza_custom_bench")
+corpus = load("scripts/forza_custom_corpus_prompts.py", "forza_custom_corpus")
 
 
 def make_wav(path, *, rate=22050, silent=False):
@@ -90,6 +91,14 @@ class Voice:
         self.text = text
         yield AudioChunk()
         yield AudioChunk()
+
+
+class CorpusPromptsTest(unittest.TestCase):
+    def test_368_public_prompts_unique_and_persian(self):
+        phrases = list(corpus.phrases())
+        self.assertEqual(len(phrases), 368)
+        self.assertEqual(len(set(phrases)), 368)
+        self.assertTrue(all(any("\\u0600" <= ch <= "\\u06ff" for ch in text) for text in phrases))
 
 
 class CpuBenchmarkTest(unittest.TestCase):
