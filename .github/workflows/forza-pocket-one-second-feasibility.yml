@@ -9,6 +9,7 @@ on:
       - scripts/forza_quantize_original_flow_int4.py
       - scripts/forza_patch_int4_parent.py
       - tests/test_forza_int4_parent_patch.py
+      - tests/test_forza_int4_quantizer_api.py
       - ops/forza-pocket-int4-original-cpu-vps.sh
       - tests/test_forza_original_int4_guard.py
       - scripts/forza_pocket_overlap.py
@@ -123,3 +124,4 @@ jobs:
           python3 tests/test_forza_pocket_eos_tail.py
           python3 tests/test_forza_original_int4_guard.py
           python3 tests/test_forza_int4_parent_patch.py
+          python3 tests/test_forza_int4_quantizer_api.py
