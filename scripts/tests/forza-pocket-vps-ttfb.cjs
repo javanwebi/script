@@ -138,6 +138,32 @@ async function inspectPrivate(base) {
   console.log('FORZA_POCKET_VPS_HEALTH private_voice=' + data.voice + ' ready=1');
 }
 
+async function resolveProxyUrl() {
+  if (process.env.FORZA_PROBE_PROXY_URL) return process.env.FORZA_PROBE_PROXY_URL;
+  const candidates = [...new Set(
+    [process.env.PORT, '3000', '3001']
+      .filter(v => /^\\d{2,5}$/.test(String(v || '')))
+  )];
+  for (const port of candidates) {
+    const base = 'http://127.0.0.1:' + port;
+    try {
+      const r = await fetch(base + '/api/health', {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (r.ok) {
+        console.log('FORZA_POCKET_VPS_PROXY_FOUND internal_port=' + port +
+          ' health_http=' + r.status);
+        return base;
+      }
+    } catch (error) {
+      const code = String(error?.cause?.code || error?.code ||
+        error?.message || 'unknown').slice(0, 45);
+      console.log('FORZA_POCKET_VPS_PROXY_PROBE port=' + port + ' code=' + code);
+    }
+  }
+  throw new Error('proxy_not_reachable_at_internal_container_ports');
+}
+
 async function main() {
   const mode = process.env.FORZA_PROBE_MODE || 'both';
   if (!['both', 'proxy', 'private'].includes(mode)) throw new Error('invalid_mode');
@@ -145,8 +171,7 @@ async function main() {
   const token = process.env.FORZA_VOICE_TOKEN || '';
   // Probe runs INSIDE sanatpish-new, where Express normally listens on
   // 3000; host VPS maps 3001 to that port. Never assume host-port == app-port.
-  const proxyBase = process.env.FORZA_PROBE_PROXY_URL ||
-    'http://127.0.0.1:' + (process.env.PORT || '3000');
+  const proxyBase = mode === 'private' ? '' : await resolveProxyUrl();
   const samples = [{ name: 'short', text: SHORT }];
   if (process.env.FORZA_PROBE_EXTENDED === '1')
     samples.push({ name: 'medium', text: MEDIUM });
@@ -179,7 +204,8 @@ async function main() {
         results.push(await bench(run.label, run.url, sample.text, run.headers));
       } catch (error) {
         errors++;
-        const code = String(error?.message || error?.name || 'unknown').slice(0, 90);
+        const code = String(error?.cause?.code || error?.message ||
+          error?.name || 'unknown').slice(0, 90);
         console.log('FORZA_POCKET_VPS_ERROR route=' + run.label + ' code=' + code);
       }
     }
