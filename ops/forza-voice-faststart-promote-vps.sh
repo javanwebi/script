@@ -10,6 +10,7 @@ test "$EUID" -eq 0 || { echo "Run using sudo bash" >&2; exit 1; }
 
 APP=/opt/sanatpish
 LIVE=forza-voice
+ORIGINAL_SPEAKER_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 TOKENFILE=/etc/sanatpish/forza-voice.env
 MARKER=/etc/sanatpish/forza-voice-faststart-rollback-container
 BACKUP="forza-voice-before-faststart-$(date -u +%Y%m%d%H%M%S)"
@@ -43,6 +44,7 @@ test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/scr
 test -r "$TOKENFILE"
 test ! -e "$MARKER" || { echo "Fast-start rollback marker already exists; resolve it first." >&2; exit 1; }
 test "$(docker inspect -f '{{.State.Running}}' "$LIVE")" = true
+test "$(docker exec "$LIVE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$ORIGINAL_SPEAKER_SHA" || { echo "FORZA_ABORT wrong original Pocket speaker" >&2; exit 1; }
 test "$(docker inspect -f '{{.State.Running}}' sanatpish-new)" = true
 test "$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)" -ge 1800000
 test "$(df -Pk / | awk 'NR==2 {print $4}')" -ge 1048576
@@ -91,6 +93,8 @@ for i in $(seq 1 60); do
   sleep 2
 done
 test "$ready" = 1 || { docker logs --tail 80 "$LIVE" >&2; exit 1; }
+test "$(docker exec "$LIVE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$ORIGINAL_SPEAKER_SHA" || { echo "FORZA_PROMOTE_REF_CHANGED rolling_back=1" >&2; exit 1; }
+test "$(docker inspect -f '{{.State.OOMKilled}}' "$LIVE")" = false || { echo "FORZA_PROMOTE_OOM" >&2; exit 1; }
 
 echo "[4/4] Enforcing first-audio and inter-frame limits through the private worker."
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
