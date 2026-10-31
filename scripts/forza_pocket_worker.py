@@ -51,6 +51,10 @@ TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))
 # OFF by default on production: optional thread-local stage profiling ONLY
 # in the isolated VPS benchmark, measuring retry count and FlowLM/Mimi time.
 TTS_STAGE_PROFILE = os.environ.get("FORZA_TTS_STAGE_PROFILE", "0") == "1"
+# Same FlowLM + Mimi weights. Only overlap independent ONNX sessions.
+# Default OFF everywhere. Test solely in isolated 2-vCPU canary and compare
+# output fidelity and CPU latency before any user-facing rollout.
+TTS_OVERLAP_MIMI = os.environ.get("FORZA_TTS_OVERLAP_MIMI", "0") == "1"
 _STAGE_PROFILE_CONTEXT = threading.local()
 if TTS_ATTEMPTS not in (1, 2, 3):
     raise ValueError("invalid_forza_tts_retry_attempts")
@@ -123,39 +127,67 @@ class MemoryBoundTts(OnnxTts):
                               "1" if _RESIDENT_BY_BUDGET else "0") == "1"
 
     def _flow_step(self, *args, **kwargs):
-        if not TTS_STAGE_PROFILE:
+        if not TTS_STAGE_PROFILE and not TTS_OVERLAP_MIMI:
             return super()._flow_step(*args, **kwargs)
         started = time.perf_counter()
         try:
-            return super()._flow_step(*args, **kwargs)
+            result = super()._flow_step(*args, **kwargs)
         finally:
-            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
-            if counter is not None:
-                counter["flow_step_count"] += 1
-                counter["flow_step_ms"] += (time.perf_counter() - started) * 1000
+            if TTS_STAGE_PROFILE:
+                counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+                if counter is not None:
+                    counter["flow_step_count"] += 1
+                    counter["flow_step_ms"] += (time.perf_counter() - started) * 1000
+        if TTS_OVERLAP_MIMI:
+            pipe = getattr(_STAGE_PROFILE_CONTEXT, "mimi_pipeline", None)
+            if pipe is not None:
+                pipe.add(result[0])
+        return result
 
     def _generate_chunk(self, *args, **kwargs):
-        if not TTS_STAGE_PROFILE:
+        if not TTS_STAGE_PROFILE and not TTS_OVERLAP_MIMI:
             return super()._generate_chunk(*args, **kwargs)
         started = time.perf_counter()
+        pipeline = None
+        if TTS_OVERLAP_MIMI:
+            # Separate ONNX sessions for the autoregressive FlowLM and Mimi.
+            # Thread-local pipeline prevents cross-contamination between jobs.
+            from forza_pocket_overlap import MimiOverlap
+            pipeline = MimiOverlap(self)
+            _STAGE_PROFILE_CONTEXT.mimi_pipeline = pipeline
         try:
-            return super()._generate_chunk(*args, **kwargs)
+            result = super()._generate_chunk(*args, **kwargs)
+            if pipeline is not None:
+                _STAGE_PROFILE_CONTEXT.ready_pipeline = pipeline
+            return result
+        except BaseException:
+            if pipeline is not None:
+                pipeline.collect(0)
+            raise
         finally:
-            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
-            if counter is not None:
-                counter["attempt_count"] += 1
-                counter["flow_total_ms"] += (time.perf_counter() - started) * 1000
+            if pipeline is not None:
+                _STAGE_PROFILE_CONTEXT.mimi_pipeline = None
+            if TTS_STAGE_PROFILE:
+                counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+                if counter is not None:
+                    counter["attempt_count"] += 1
+                    counter["flow_total_ms"] += (time.perf_counter() - started) * 1000
 
-    def _decode_all(self, *args, **kwargs):
-        if not TTS_STAGE_PROFILE:
-            return super()._decode_all(*args, **kwargs)
+    def _decode_all(self, latents):
+        if not TTS_STAGE_PROFILE and not TTS_OVERLAP_MIMI:
+            return super()._decode_all(latents)
         started = time.perf_counter()
         try:
-            return super()._decode_all(*args, **kwargs)
+            pipeline = getattr(_STAGE_PROFILE_CONTEXT, "ready_pipeline", None)
+            if pipeline is not None:
+                _STAGE_PROFILE_CONTEXT.ready_pipeline = None
+                return pipeline.collect(len(latents))
+            return super()._decode_all(latents)
         finally:
-            counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
-            if counter is not None:
-                counter["mimi_ms"] += (time.perf_counter() - started) * 1000
+            if TTS_STAGE_PROFILE:
+                counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)
+                if counter is not None:
+                    counter["mimi_ms"] += (time.perf_counter() - started) * 1000
 
     def synthesize_text(self, text, *args, **kwargs):
         started = time.monotonic()
@@ -355,11 +387,12 @@ def render_chunks(engine, text):
                 _STAGE_PROFILE_CONTEXT.counter = None
         synthesis_ms = int((time.monotonic() - synthesis_started) * 1000)
         if counter is not None:
-            print("[FORZA voice CPU stages] job=%d attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d" % (
+            print("[FORZA voice CPU stages] job=%d attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d overlap=%d" % (
                 index + 1, counter["attempt_count"],
                 int(counter["flow_total_ms"]), counter["flow_step_count"],
                 int(counter["flow_step_ms"]), int(counter["mimi_ms"]),
-                int(max(0.0, synthesis_ms - counter["flow_total_ms"] - counter["mimi_ms"]))),
+                int(max(0.0, synthesis_ms - counter["flow_total_ms"] - counter["mimi_ms"])),
+                int(TTS_OVERLAP_MIMI)),
                 file=sys.stderr, flush=True)
         # Chunk-local declick fades and explicit breathing gaps; unlike
         # /speak this cannot calculate median loudness across future chunks.
