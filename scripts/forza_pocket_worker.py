@@ -47,7 +47,6 @@ CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
 # Pocket would otherwise retry a bad generation. Preserve 3 for production.
 # Never silently change this value on the live voice container.
 TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))
-TTS_DIAGNOSTICS = os.environ.get("FORZA_TTS_STAGE_DIAGNOSTICS", "0") == "1"
 if TTS_ATTEMPTS not in (1, 2, 3):
     raise ValueError("invalid_forza_tts_retry_attempts")
 if CPU_INTRA not in (1, 2):
@@ -294,12 +293,8 @@ def render_chunks(engine, text):
         synthesis_started = time.monotonic()
         # A measured opt-in retry budget; skipping quality recovery can
         # silently omit words, so only use in isolated A/B with listening.
-        stage = {"flow_ms": 0.0, "flow_calls": 0, "mimi_ms": 0.0, "mimi_calls": 0}
-        original_flow = engine._flow_step
-        original_decode = engine._decode_all
-        # Per-thread timing using the existing ONNX GIL-releasing inference
-        # path. Do not wrap shared methods across concurrent chunks: only
-        # inspect coarse per-job wall time by default.
+        # Timing is already logged per acoustic chunk and for the complete
+        # G2P plan, without patching shared ONNX functions across workers.
         speech = engine._generate_with_retry(
             voice_cache, voice_offset, phonemes,
             attempts=TTS_ATTEMPTS,
