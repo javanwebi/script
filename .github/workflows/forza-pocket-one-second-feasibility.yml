@@ -11,6 +11,7 @@ on:
       - src/utils/forzaStreamingSpeech.ts
       - tests/forzaLiveSpeechQueue.test.ts
       - tests/forza-boot-speech.test.ts
+      - tests/forzaPocketZeroFrameRecovery.test.ts
       - src/components/forza/AiForzaCallExperience.tsx
       - tests/forzaEarlySpeech.test.ts
       - scripts/forza_quantize_original_flow_int4.py
@@ -45,6 +46,8 @@ jobs:
         run: node --experimental-strip-types --test tests/forzaEarlySpeech.test.ts
       - name: Verify live SSE-to-original-Pocket speech queue and no skipped words
         run: node --experimental-strip-types --test tests/forzaLiveSpeechQueue.test.ts
+      - name: Verify original Pocket zero-frame fallback and 15-second timeout regression
+        run: node --experimental-strip-types --test tests/forzaPocketZeroFrameRecovery.test.ts
       - name: Check bash syntax and safety invariants (no live modifications)
         run: |
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh

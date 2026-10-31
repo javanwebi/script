@@ -19,7 +19,7 @@ function wav(durationMs=180){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-  const errors=[],voiceCalls=[],streamCalls=[];
+  const errors=[],voiceCalls=[],streamCalls=[],recoveredCalls=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     window.__speechSynthesisCalls=0;
@@ -44,6 +44,9 @@ function wav(durationMs=180){
   await page.route('**/api/ai/forza-speech-stream',route=>{
     const {text}=route.request().postDataJSON();
     voiceCalls.push(text);
+    if(streamCalls.length===2)
+      return route.fulfill({status:503,contentType:'application/json',
+        body:'{"error":"pocket_stream_unavailable"}'});
     const sample=wav();
     const frame=Buffer.alloc(4+sample.length);
     frame.writeUInt32LE(sample.length,0);
@@ -53,8 +56,12 @@ function wav(durationMs=180){
       headers:{'X-Forza-Voice':'pocket-farsi-v2'},
       body:frame});
   });
-  await page.route('**/api/ai/forza-speech',route=>route.fulfill({status:503,
-    contentType:'application/json',body:'{"error":"full_wav_not_expected"}'}));
+  await page.route('**/api/ai/forza-speech',route=>{
+    const {text}=route.request().postDataJSON();
+    recoveredCalls.push(text);
+    return route.fulfill({status:200,contentType:'audio/wav',
+      headers:{'X-Forza-Voice':'pocket-farsi-v2'},body:wav()});
+  });
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:30000});
   await page.getByTitle('تایپ پیام متنی').click();
@@ -67,7 +74,24 @@ function wav(durationMs=180){
   assert.equal(voiceCalls.join(' '),
     'سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.');
   assert.ok(voiceCalls.every(phrase=>phrase.length<=180));
+  assert.deepEqual(recoveredCalls,[],'healthy Pocket stream must not use fallback');
+
+  // Regression: server shows Gemini answer but old Pocket /speak-stream
+  // returns 503 before any WAV. Exact SAME Pocket /speak must rescue voice.
+  if(!await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').isVisible())
+    await page.getByTitle('تایپ پیام متنی').click();
+  await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPC چیست؟');
+  await page.getByTitle('ارسال به هوش مصنوعی').click();
+  await page.waitForFunction(()=>window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
+    null,{timeout:30000});
+  assert.deepEqual(streamCalls,['تسمه SPA چیست؟','تسمه SPC چیست؟']);
+  const secondTurn=voiceCalls.slice(2);
+  assert.ok(secondTurn.length>=2);
+  assert.equal(recoveredCalls.join(' '),secondTurn.join(' '),
+    'zero-frame HTTP 503 must be recovered once with same voice, without dropped words');
+  assert.equal(await page.getByText('پخش پیوسته پاسخ کامل نشد؛ متن پاسخ بدون حذف نمایش داده شده است.').count(),0);
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS progressive_wav_requests='+voiceCalls.length+' bytes_model_downloaded=0');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS streaming='+voiceCalls.length+
+    ' recovered_full_wav='+recoveredCalls.length+' same_voice=1');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});

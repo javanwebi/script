@@ -662,8 +662,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ? AbortSignal.any([options.signal,AbortSignal.timeout(420000)])
           : AbortSignal.timeout(420000),
       });
-      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+      if(!response.ok){
+        console.warn('[FORZA_TTS_DIAG] stage=stream-http status='+response.status+
+          ' chars='+phrase.length);
+        throw new Error('forza_pocket_stream_http_'+response.status);
+      }
+      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2'){
+        console.warn('[FORZA_TTS_DIAG] stage=stream-header voice_mismatch=1');
         throw new Error('forza_original_pocket_voice_required');
+      }
       const count=await readForzaWavFrames(response,frame=>{
         if(callClosedRef.current)return;
         receivedFrames++;
@@ -684,13 +691,42 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(callClosedRef.current)return;
       // Do not replay an answer after any part has already been spoken.
       // The full WAV compatibility route is only a zero-frame fallback.
-      if(receivedFrames>0 || options?.signal?.aborted || options?.allowFallback===false)throw error;
-      console.warn('[FORZA Pocket] progressive unavailable; using full-WAV compatibility path');
-      const url=await requestPocketAudio(phrase);
+      const reason=String((error as Error)?.message||'unknown').slice(0,96);
+      console.warn('[FORZA_TTS_DIAG] stage=stream-failed frames='+receivedFrames+
+        ' reason='+reason+' chars='+phrase.length);
+      if(receivedFrames>0 || options?.signal?.aborted || options?.allowFallback===false ||
+        reason==='forza_original_pocket_voice_required' ||
+        reason==='forza_stream_wrong_voice' || callClosedRef.current)throw error;
+      // A zero-frame stream can fail because an older running private service
+      // cannot serve progressive frames. Recover ONCE via the exact SAME
+      // original Pocket /speak endpoint; never switch to browser speechSynthesis
+      // or another speaker. Never replay after even one streamed WAV frame.
+      console.info('[FORZA_TTS_DIAG] stage=zero-frame-recover engine=pocket-farsi-v2');
+      let url:string|undefined;
       try{
-        await player.enqueue(url);
+        if(options?.signal?.aborted)throw new Error('forza_tts_aborted');
+        url=await requestPocketAudio(phrase);
+        if(options?.signal?.aborted || callClosedRef.current)
+          throw new Error('forza_tts_aborted');
+        // Read blob data into RAM BEFORE revoking its transient object URL.
+        // enqueue(url) starts an asynchronous fetch; revoking immediately
+        // races that fetch and can silently leave the browser without sound.
+        const wavRes=await fetch(url);
+        if(!wavRes.ok)throw new Error('forza_pocket_compat_blob_unavailable');
+        const wavBytes=new Uint8Array(await wavRes.arrayBuffer());
+        if(wavBytes.byteLength<44||wavBytes.byteLength>8_000_000)
+          throw new Error('forza_pocket_compat_wav_invalid');
+        const playback=player.enqueueWav(wavBytes);
+        void playback.catch(()=>{});
+        options?.onScheduled?.(playback);
+        if(options?.waitForPlayback!==false)await playback;
+        console.info('[FORZA_TTS_DIAG] stage=zero-frame-recover-success');
+      }catch(fallbackError){
+        console.warn('[FORZA_TTS_DIAG] stage=zero-frame-recover-failed code='+
+          String((fallbackError as Error)?.message||'unknown').slice(0,90));
+        throw fallbackError;
       }finally{
-        URL.revokeObjectURL(url);
+        if(url)URL.revokeObjectURL(url);
       }
     }
   },[requestPocketAudio]);
@@ -920,7 +956,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           async phrase=>playPocketProgressive(phrase,continuousPlayer,{
             signal:pocketAbort.signal,
             waitForPlayback:false,
-            allowFallback:false,
+            allowFallback:true,
             onScheduled:playing=>scheduledPlaybacks.push(playing),
           }),
           (phrase,index)=>console.info('[FORZA_LATENCY] phase=live-tts-queued index='+
@@ -942,8 +978,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         try {
           const streamController=new AbortController();
-          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),25000);
-          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('مهلت دریافت پاسخ تمام شد.')),60000);
+          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
+          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
@@ -958,7 +994,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             });
             reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
-              streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط هنگام دریافت پاسخ قطع شد.')),15000);
+              streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
               onTextChunk(chunk,fullText);
             });
             if(!reply)throw new Error('forza_empty_stream');
@@ -1006,7 +1042,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             await Promise.all(scheduledPlaybacks);
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
-            console.warn('[FORZA Pocket Ubuntu] full-answer progressive synthesis failed',
+            console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
             if(!callClosedRef.current)setVoiceOutputError(
               error?.message==='autoplay_permission_required'
