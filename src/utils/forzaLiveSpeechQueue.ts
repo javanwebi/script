@@ -1,4 +1,4 @@
-import { takeSpeakablePhrase } from './forzaStreamingSpeech';
+import { takeSpeakablePhrase } from './forzaStreamingSpeech.ts';
 
 /**
  * Convert incoming cumulative SSE text into ordered, natural Pocket phrases.
