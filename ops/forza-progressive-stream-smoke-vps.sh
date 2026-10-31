@@ -68,7 +68,7 @@ done
 if [ "$READY" != 1 ]; then docker logs --tail 80 "$CANDIDATE" >&2; exit 1; fi
 test "$(docker exec "$CANDIDATE" sha256sum /app/public/forza-pocket-reference.wav | awk '{print $1}')" = "$VOICE_SHA"
 test "$(docker exec "$CANDIDATE" sha256sum /app/vendor/persian_tts/forza_voice_state.npz | awk '{print $1}')" = "$STATE_SHA"
-docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" "$SITE" node - <<'JS'
+docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" -e "FORZA_SMOKE_REV=$REV" "$SITE" node - <<'JS'
 (async()=>{
   const phrase='سلام، من فورزا هستم و می‌توانم برای انتخاب قطعات صنعتی به شما کمک کنم. لطفاً کد و مشخصات قطعه مورد نیاز را بفرمایید.';
   const started=performance.now();
@@ -108,7 +108,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" "$SITE" node - <<'JS'
   }
   if(need!==-1||buffered.length||frames<2)throw Error('truncated_or_not_progressive');
   const total=performance.now()-started;
-  console.log('FORZA_PROGRESSIVE_STREAM_RESULT revision='+process.env.REV+
+  console.log('FORZA_PROGRESSIVE_STREAM_RESULT revision='+process.env.FORZA_SMOKE_REV+
     ' frames='+frames+' first_ms='+Math.round(firstMs)+
     ' total_ms='+Math.round(total)+' audio_seconds='+audioSeconds.toFixed(2)+
     ' rtf='+(total/(audioSeconds*1000)).toFixed(3)+
