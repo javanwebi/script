@@ -27,6 +27,18 @@ FORZA_GATE_OVERLAP_MIMI=${FORZA_GATE_OVERLAP_MIMI:-0}
 FORZA_GATE_CPU_INTRA=${FORZA_GATE_CPU_INTRA:-1}
 FORZA_GATE_CPU_ARENA=${FORZA_GATE_CPU_ARENA:-0}
 FORZA_GATE_CPU_PATTERN=${FORZA_GATE_CPU_PATTERN:-0}
+# Original Pocket generates 5 extra EOS frames on <=4-word phrases.
+# Try fewer EOS tail frames in this isolated comparison ONLY, checking
+# fixed-seed WAV SHA against the original before considering any rollout.
+FORZA_GATE_EOS_SHORT=${FORZA_GATE_EOS_SHORT:-5}
+FORZA_GATE_EOS_LONG=${FORZA_GATE_EOS_LONG:-3}
+case "$FORZA_GATE_EOS_SHORT" in 1|2|3|4|5) ;; *) echo "Expected EOS_SHORT 1..5" >&2; exit 1;; esac
+case "$FORZA_GATE_EOS_LONG" in 1|2|3) ;; *) echo "Expected EOS_LONG 1..3" >&2; exit 1;; esac
+if [ "$FORZA_GATE_EOS_SHORT" != 5 ] || [ "$FORZA_GATE_EOS_LONG" != 3 ]; then
+  test -n "${FORZA_GATE_FIXED_SEED:-}" || {
+    echo "Reduced EOS tail requires a deterministic seed to compare audio" >&2; exit 1;
+  }
+fi
 case "$FORZA_GATE_CPU_INTRA" in 1|2) ;; *) echo "Invalid FORZA_GATE_CPU_INTRA: expected 1 or 2" >&2; exit 1;; esac
 for value in "$FORZA_GATE_CPU_ARENA" "$FORZA_GATE_CPU_PATTERN"; do
   case "$value" in 0|1) ;; *) echo "Invalid ONNX memory flag: expected 0 or 1" >&2; exit 1;; esac
@@ -150,6 +162,8 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e "FORZA_CPU_INTRA=$FORZA_GATE_CPU_INTRA" -e FORZA_ONNX_INT8=0 \
   -e "FORZA_CPU_ARENA=$FORZA_GATE_CPU_ARENA" \
   -e "FORZA_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN" \
+  -e "FORZA_TTS_EOS_SHORT=$FORZA_GATE_EOS_SHORT" \
+  -e "FORZA_TTS_EOS_LONG=$FORZA_GATE_EOS_LONG" \
   -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e FORZA_TTS_STAGE_PROFILE=1 \
@@ -185,7 +199,9 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
   -e "FORZA_GATE_FIXED_SEED=$FORZA_GATE_FIXED_SEED" \
   -e "FORZA_GATE_CPU_INTRA=$FORZA_GATE_CPU_INTRA" \
   -e "FORZA_GATE_CPU_ARENA=$FORZA_GATE_CPU_ARENA" \
-  -e "FORZA_GATE_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN" \
+  -e "FORZA_GATE_EOS_SHORT=$FORZA_GATE_EOS_SHORT" \
+  -e "FORZA_GATE_EOS_LONG=$FORZA_GATE_EOS_LONG" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -242,6 +258,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
       ' cpu_intra='+process.env.FORZA_GATE_CPU_INTRA+
       ' cpu_arena='+process.env.FORZA_GATE_CPU_ARENA+
       ' cpu_pattern='+process.env.FORZA_GATE_CPU_PATTERN+
+      ' eos_short='+process.env.FORZA_GATE_EOS_SHORT+
+      ' eos_long='+process.env.FORZA_GATE_EOS_LONG+
       ' wav_sha256='+digest.digest('hex')+
       ' sample='+sample+
       ' frames='+frames+
