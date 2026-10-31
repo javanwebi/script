@@ -5518,7 +5518,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
 // synthesizing the rest of the same phrase; /forza-speech remains as fallback.
 app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+  if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
   if(!internalForzaVoiceUrl || !process.env.FORZA_VOICE_TOKEN)
     return res.status(503).json({error:'private_voice_not_configured'});
   if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
@@ -5527,7 +5527,9 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   const onDisconnect=()=>controller.abort();
   req.on('aborted',onDisconnect);
   res.on('close',onDisconnect);
-  const timeout=setTimeout(()=>controller.abort(),90_000);
+  // A single long reply can take minutes on the existing Xeon CPU.
+  // Keep the connection streaming without buffering the whole WAV.
+  const timeout=setTimeout(()=>controller.abort(),420_000);
   const started=Date.now();
   try{
     let upstream:Response|null=null;
@@ -5565,7 +5567,7 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
     for await(const chunk of upstream.body as any){
       if(controller.signal.aborted)break;
       bytes+=chunk.length;
-      if(bytes>5_000_000)throw new Error('private_voice_stream_too_large');
+      if(bytes>32_000_000)throw new Error('private_voice_stream_too_large');
       if(!res.write(chunk)){
         await new Promise<void>((resolve,reject)=>{
           const drained=()=>{res.off('close',closed);resolve();};
