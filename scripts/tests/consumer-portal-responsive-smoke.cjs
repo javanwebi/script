@@ -61,7 +61,7 @@ const customer = {
 
       const bottomNav = page.locator(".consumer-premium .portal-mobile-nav");
       const sidebar = page.locator(".consumer-premium .portal-sidebar");
-      if (width < 768) {
+      if (width < 1024) {
         assert.equal(await bottomNav.locator("button").count(), 5, "consumer bottom navigation must have five actions");
         assert.ok(await bottomNav.isVisible(), "mobile navigation should be visible");
         assert.ok(!(await sidebar.isVisible()), "desktop sidebar should be hidden on mobile");
