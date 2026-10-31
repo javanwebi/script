@@ -55,6 +55,16 @@ TTS_STAGE_PROFILE = os.environ.get("FORZA_TTS_STAGE_PROFILE", "0") == "1"
 # Default OFF everywhere. Test solely in isolated 2-vCPU canary and compare
 # output fidelity and CPU latency before any user-facing rollout.
 TTS_OVERLAP_MIMI = os.environ.get("FORZA_TTS_OVERLAP_MIMI", "0") == "1"
+# Research-only deterministic seed, strictly opt-in in the isolated profiler.
+# This enables fair same-phonemes/same-latents comparisons; it is NEVER set
+# on the production worker, where randomized retries are a quality safeguard.
+_TEST_SEED_RAW = os.environ.get("FORZA_TTS_TEST_SEED", "")
+if _TEST_SEED_RAW and not TTS_STAGE_PROFILE:
+    raise ValueError("deterministic_seed_requires_isolated_profiling")
+if _TEST_SEED_RAW and (not _TEST_SEED_RAW.isdecimal() or
+                       not 0 <= int(_TEST_SEED_RAW) <= 2147483647):
+    raise ValueError("invalid_forza_test_seed")
+TTS_TEST_SEED = int(_TEST_SEED_RAW) if _TEST_SEED_RAW else None
 _STAGE_PROFILE_CONTEXT = threading.local()
 if TTS_ATTEMPTS not in (1, 2, 3):
     raise ValueError("invalid_forza_tts_retry_attempts")
@@ -358,7 +368,16 @@ def render_chunks(engine, text):
         del engine._g2p
         release_unused_memory()
     voice_cache, voice_offset = engine.voice_cache(str(REFERENCE))
-    seeds = engine.rng.integers(0, 2**63, size=len(jobs))
+    if TTS_TEST_SEED is None:
+        seeds = engine.rng.integers(0, 2**63, size=len(jobs))
+    else:
+        # SeedSequence is stable for identical (seed, chunk index) pairs.
+        # Keep each worker's RNG independent of execution/scheduling order.
+        seeds = [int(np.random.SeedSequence([TTS_TEST_SEED, i])
+                     .generate_state(1, dtype=np.uint64)[0])
+                 for i in range(len(jobs))]
+        print("[FORZA voice deterministic] test_seed=%d jobs=%d" %
+              (TTS_TEST_SEED, len(jobs)), file=sys.stderr, flush=True)
 
     def generate(index):
         phonemes, gap = jobs[index]

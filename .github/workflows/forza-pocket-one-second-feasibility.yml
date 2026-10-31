@@ -8,6 +8,7 @@ on:
       - scripts/forza_pocket_worker.py
       - scripts/forza_pocket_overlap.py
       - tests/test_forza_mimi_overlap.py
+      - tests/test_forza_pocket_determinism.py
       - Dockerfile.forza-voice
       - .github/workflows/forza-pocket-one-second-feasibility.yml
   workflow_dispatch:
@@ -94,3 +95,4 @@ jobs:
         run: |
           python3 -m pip install --quiet numpy
           python3 tests/test_forza_mimi_overlap.py
+          python3 tests/test_forza_pocket_determinism.py
