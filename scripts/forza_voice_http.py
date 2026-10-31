@@ -16,11 +16,16 @@ from pathlib import Path
 
 import numpy as np
 from forza_pocket_worker import (
-    MemoryBoundTts, REFERENCE, VOICE_STATE, render, render_chunks, release_unused_memory,
+    MemoryBoundTts, REFERENCE, VOICE_STATE, render, render_chunks,
+    render_full_answer_wav, release_unused_memory,
 )
 from g2p_onnx import OnnxG2P
 
 MAX_TEXT_CHARS = 1000
+# Explicit opt-in only. Whole-answer WAV removes transport underflow but on
+# current VPS incurs the FULL generation delay before the first audible byte.
+# This is not a workaround for the user's strict <=1000ms generation goal.
+FULL_ANSWER_WAV = os.environ.get("FORZA_TTS_FULL_ANSWER_WAV", "0") == "1"
 MAX_REQUEST_BYTES = 8192
 synthesis_slot = threading.BoundedSemaphore(value=1)
 # One active synthesis plus one bounded waiting request; reject excess load cleanly.
@@ -147,7 +152,8 @@ class Handler(BaseHTTPRequestHandler):
             headers_sent = False
             frames = None
             try:
-                frames = render_chunks(engine, phrase)
+                frames = (iter((render_full_answer_wav(engine, phrase),))
+                          if FULL_ANSWER_WAV else render_chunks(engine, phrase))
                 first = next(frames)
                 # Wait for a *real* generated chunk before sending headers,
                 # so FIRST_BYTE measures audible ready-to-play data.
@@ -178,8 +184,8 @@ class Handler(BaseHTTPRequestHandler):
                     count += 1
                 self.wfile.write(b"0\r\n\r\n")
                 self.wfile.flush()
-                print("[FORZA voice stream] chunks=%s total_ms=%s" %
-                      (count, int((time.monotonic() - started) * 1000)), flush=True)
+                print("[FORZA voice stream] full_answer_wav=%d chunks=%s total_ms=%s" %
+                      (int(FULL_ANSWER_WAV), count, int((time.monotonic() - started) * 1000)), flush=True)
             except (BrokenPipeError, ConnectionResetError):
                 self.close_connection = True
             except Exception as exc:
