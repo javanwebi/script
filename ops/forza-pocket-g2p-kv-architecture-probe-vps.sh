@@ -66,7 +66,7 @@ docker run --rm --network bridge --cpus=1 --memory=1g \
   -e HF_HOME=/probe/hf_cache -e HF_HUB_DOWNLOAD_TIMEOUT=240 \
   --mount "type=bind,src=$STAGE,dst=/probe" \
   --entrypoint hf "$PARENT" \
-  download "$MODEL" onnx/g2p_encoder_kv.onnx onnx/g2p_decoder_kv.onnx \
+  download "$MODEL" --include 'onnx/g2p_encoder_kv.onnx*' 'onnx/g2p_decoder_kv.onnx*' \
   --local-dir /probe/hf
 
 test -s "$STAGE/hf/onnx/g2p_encoder_kv.onnx" || { echo "FORZA_KV_ABORT encoder missing" >&2; exit 1; }
