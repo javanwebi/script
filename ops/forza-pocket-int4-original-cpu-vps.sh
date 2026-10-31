@@ -71,7 +71,17 @@ grep -q 'CPU_INTRA = int(os.environ.get' "$STAGE/scripts/forza_pocket_worker.py"
 cat > "$STAGE/Dockerfile" <<'DOCKER'
 ARG VOICE_PARENT
 FROM ${VOICE_PARENT}
-RUN python -m pip install --no-cache-dir 'onnx>=1.16,<2'
+# The base Pocket image may carry an old ORT lacking any INT4 quantizer.
+# This pinned runtime is for the disposable candidate ONLY; production untouched.
+RUN python -m pip install --no-cache-dir 'onnxruntime==1.23.2' 'onnx>=1.16,<2'
+RUN python - <<'PY'
+import onnxruntime as ort
+from onnxruntime.quantization import matmul_nbits_quantizer as q
+assert ort.__version__ == "1.23.2"
+assert hasattr(q, "MatMulNBitsQuantizer")
+assert hasattr(q, "DefaultWeightOnlyQuantConfig")
+print("FORZA_INT4_ORT_READY version="+ort.__version__, flush=True)
+PY
 COPY scripts/forza_voice_http.py /app/scripts/
 COPY scripts/forza_pocket_worker.py /app/scripts/
 COPY scripts/forza_pocket_overlap.py /app/scripts/
@@ -90,8 +100,8 @@ if docker run --name "$QUANT_CONTAINER" --restart no --cpus 1 \
   docker commit --change 'CMD ["python", "-u", "scripts/forza_voice_http.py"]' "$QUANT_CONTAINER" "$QUANT_IMAGE" >/dev/null
   echo "FORZA_ORIGINAL_INT4_CANDIDATE_READY"
 else
-  echo "FORZA_QUANT_FAILED_OR_UNSUPPORTED: float profiles remain usable" >&2
-  QUANT_IMAGE=""
+  echo "FORZA_INT4_CONVERSION_FAILED: no INT4 speed comparison; original Pocket unchanged" >&2
+  exit 1
 fi
 docker rm -f "$QUANT_CONTAINER" >/dev/null 2>&1 || true
 echo "[3/4] Serial A/B performance: each candidate max 2 vCPU / 2 GiB."
