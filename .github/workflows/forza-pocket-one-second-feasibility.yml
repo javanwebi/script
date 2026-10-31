@@ -48,6 +48,11 @@ jobs:
           worker=Path("scripts/forza_pocket_worker.py").read_text()
           assert 'TTS_ATTEMPTS = int(os.environ.get("FORZA_TTS_RETRY_ATTEMPTS", "3"))' in worker
           assert 'attempts=TTS_ATTEMPTS' in worker
+          assert 'TTS_STAGE_PROFILE = os.environ.get("FORZA_TTS_STAGE_PROFILE", "0") == "1"' in worker
+          assert 'counter = getattr(_STAGE_PROFILE_CONTEXT, "counter", None)' in worker
+          assert 'attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d' in worker
+          assert "FORZA_TTS_STAGE_PROFILE=1" in s
+          assert "FORZA voice CPU stages" in s
           assert 'TTS_ATTEMPTS not in (1, 2, 3)' in worker
           assert "customer_wav_saved=0" in s
           assert "--read-only" in s
