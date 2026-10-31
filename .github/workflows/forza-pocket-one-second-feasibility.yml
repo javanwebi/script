@@ -7,6 +7,10 @@ on:
       - ops/forza-pocket-q4-cpu-probe-vps.sh
       - scripts/forza_pocket_worker.py
       - src/utils/forzaEarlySpeech.ts
+      - src/utils/forzaLiveSpeechQueue.ts
+      - src/utils/forzaStreamingSpeech.ts
+      - tests/forzaLiveSpeechQueue.test.ts
+      - tests/forza-boot-speech.test.ts
       - src/components/forza/AiForzaCallExperience.tsx
       - tests/forzaEarlySpeech.test.ts
       - scripts/forza_quantize_original_flow_int4.py
@@ -39,6 +43,8 @@ jobs:
           node-version: '22'
       - name: Verify conservative SSE early-speech selector (disabled by default)
         run: node --experimental-strip-types --test tests/forzaEarlySpeech.test.ts
+      - name: Verify live SSE-to-original-Pocket speech queue and no skipped words
+        run: node --experimental-strip-types --test tests/forzaLiveSpeechQueue.test.ts
       - name: Check bash syntax and safety invariants (no live modifications)
         run: |
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
