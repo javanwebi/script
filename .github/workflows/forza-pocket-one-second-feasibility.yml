@@ -11,6 +11,9 @@ on:
       - tests/test_forza_int4_parent_patch.py
       - tests/test_forza_int4_quantizer_api.py
       - tests/test_forza_int4_pip_network.py
+      - ops/forza-remove-failed-int4-vps.sh
+      - ops/forza-pocket-fp32-onnx-memory-matrix-vps.sh
+      - tests/test_forza_int4_cleanup_fp32_matrix.py
       - ops/forza-pocket-int4-original-cpu-vps.sh
       - tests/test_forza_original_int4_guard.py
       - scripts/forza_pocket_overlap.py
@@ -33,6 +36,8 @@ jobs:
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
           bash -n ops/forza-pocket-q4-cpu-probe-vps.sh
           bash -n ops/forza-pocket-int4-original-cpu-vps.sh
+          bash -n ops/forza-remove-failed-int4-vps.sh
+          bash -n ops/forza-pocket-fp32-onnx-memory-matrix-vps.sh
           python3 -m py_compile scripts/forza_quantize_original_flow_int4.py scripts/forza_patch_int4_parent.py
           python3 -m py_compile scripts/forza_pocket_overlap.py scripts/forza_pocket_worker.py tests/test_forza_mimi_overlap.py
           python3 - <<'PY'
@@ -127,3 +132,4 @@ jobs:
           python3 tests/test_forza_int4_parent_patch.py
           python3 tests/test_forza_int4_quantizer_api.py
           python3 tests/test_forza_int4_pip_network.py
+          python3 tests/test_forza_int4_cleanup_fp32_matrix.py
