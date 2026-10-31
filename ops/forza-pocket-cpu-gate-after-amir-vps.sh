@@ -21,6 +21,14 @@ FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
 FORZA_GATE_RETRY_ATTEMPTS=${FORZA_GATE_RETRY_ATTEMPTS:-3}
 FORZA_GATE_SAMPLE=${FORZA_GATE_SAMPLE:-all}
 FORZA_GATE_OVERLAP_MIMI=${FORZA_GATE_OVERLAP_MIMI:-0}
+# Research-only repeatable generation for comparing model operator changes.
+FORZA_GATE_FIXED_SEED=${FORZA_GATE_FIXED_SEED:-}
+if [ -n "$FORZA_GATE_FIXED_SEED" ]; then
+  [[ "$FORZA_GATE_FIXED_SEED" =~ ^[0-9]{1,10}$ ]] &&
+    test "$FORZA_GATE_FIXED_SEED" -le 2147483647 || {
+      echo "Invalid fixed seed" >&2; exit 1;
+    }
+fi
 case "$FORZA_GATE_OVERLAP_MIMI" in 0|1) ;; *) echo "Invalid Mimi overlap mode" >&2; exit 1;; esac
 case "$FORZA_GATE_SAMPLE" in all|short|medium|long) ;; *) echo "Invalid sample" >&2; exit 1;; esac
 case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3) ;; *) echo "Invalid retry budget" >&2; exit 1;; esac
@@ -134,6 +142,7 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e FORZA_TTS_STAGE_PROFILE=1 \
   -e "FORZA_TTS_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" \
+  -e "FORZA_TTS_TEST_SEED=$FORZA_GATE_FIXED_SEED" \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_overlap.py,dst=/app/scripts/forza_pocket_overlap.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
@@ -160,7 +169,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
   -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" \
-  -e "FORZA_GATE_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" \
+  -e "FORZA_GATE_FIXED_SEED=$FORZA_GATE_FIXED_SEED" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -178,6 +188,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     });
     if(!res.ok||res.headers.get('x-forza-voice')!=='pocket-farsi-v2')
       throw Error('unavailable_'+sample+'_'+res.status);
+    const {createHash}=require('node:crypto');
+    const digest=createHash('sha256');
     let buffer=Buffer.alloc(0),frames=0,firstMs=0,totalAudioMs=0,playbackEnds=0,underflowMs=0,maxUnderflowMs=0;
     for await (const chunk of res.body) {
       buffer=Buffer.concat([buffer,Buffer.from(chunk)]);
@@ -187,6 +199,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
         if(n<44||n>5_000_000)throw Error('invalid_frame_length_'+sample);
         if(buffer.length<n+4)break;
         const wav=buffer.subarray(4,n+4);
+        digest.update(wav);
         if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
           throw Error('bad_wav_'+sample);
         const sr=wav.readUInt32LE(24),channels=wav.readUInt16LE(22),bits=wav.readUInt16LE(34);
@@ -210,6 +223,8 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     console.log('FORZA_POCKET_ONE_SECOND_GATE mode='+(atomic?'atomic':'progressive')+
       ' retries='+process.env.FORZA_GATE_RETRY_ATTEMPTS+
       ' mimi_overlap='+process.env.FORZA_GATE_OVERLAP_MIMI+
+      ' fixed_seed='+(process.env.FORZA_GATE_FIXED_SEED||'random')+
+      ' wav_sha256='+digest.digest('hex')+
       ' sample='+sample+
       ' frames='+frames+
       ' first_ms='+firstMs.toFixed(0)+
