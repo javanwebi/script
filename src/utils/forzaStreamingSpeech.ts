@@ -6,8 +6,11 @@
 export function takeSpeakablePhrase(buffer:string,first:boolean):{phrase:string;rest:string}|null{
   if(!buffer.trim())return null;
   const min=first?28:55;
-  const target=first?72:130;
-  const max=first?120:180;
+  // First voice onset matters more than a long initial chunk. On the VPS,
+  // a 70-120 character first TTS request can delay first sound severely.
+  // Keep subsequent phrases larger to avoid repeated model-startup costs.
+  const target=first?48:130;
+  const max=first?90:180;
   // Never interpret decimal dots in e.g. 12.7 as phrase boundaries.
   const boundary=/(?<!\d)\.(?!\d)|[!?؟؛:\n]/g;
   let found:RegExpExecArray|null;
@@ -21,7 +24,7 @@ export function takeSpeakablePhrase(buffer:string,first:boolean):{phrase:string;
   const comma=/[،]|(?<!\d),(?!\d)/g;
   while((found=comma.exec(buffer))){
     const end=found.index+1;
-    if(end>=(first?48:75)&&end<=max)
+    if(end>=(first?34:75)&&end<=max)
       return {phrase:buffer.slice(0,end).trim(),rest:buffer.slice(end).trimStart()};
     if(end>max)break;
   }
