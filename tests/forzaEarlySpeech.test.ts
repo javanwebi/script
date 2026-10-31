@@ -38,11 +38,12 @@ test('reject an SSE final event that revised the already spoken prefix', () => {
   ), /forza_early_tts_final_prefix_changed/);
 });
 
-test('never enable early TTS on the site by default', async () => {
-  const {readFile} = await import('node:fs/promises');
-  const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx', import.meta.url),'utf8');
-  assert.match(source, /import\.meta\.env\.VITE_FORZA_EARLY_TTS === '1'/);
-  assert.match(source, /forzaEarlySpeechRemainder\(reply\.trim\(\),earlyClause\)/);
-  assert.match(source, /if\(earlyPlayback\)/);
-  assert.match(source, /await playPocketProgressive\(reply\.trim\(\),continuousPlayer\)/);
+test('live SSE-to-original-Pocket has replaced the old off-by-default clause experiment',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+  assert.match(source,/new ForzaLiveSpeechQueue/);
+  assert.match(source,/liveSpeech\?\.receive\(fullText\)/);
+  assert.match(source,/await liveSpeech\.finish\(reply\)/);
+  assert.doesNotMatch(source,/VITE_FORZA_EARLY_TTS/);
+  assert.doesNotMatch(source,/earlyPlayback|earlyClause/);
 });

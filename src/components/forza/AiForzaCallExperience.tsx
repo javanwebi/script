@@ -21,7 +21,7 @@ import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeec
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { readForzaWavFrames } from '../../utils/forzaWavFrameStream';
-import { forzaEarlyStableClause, forzaEarlySpeechRemainder } from '../../utils/forzaEarlySpeech';
+import { ForzaLiveSpeechQueue } from '../../utils/forzaLiveSpeechQueue';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -31,9 +31,7 @@ interface AiForzaCallExperienceProps {
 type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const GREETING_TEXT = FORZA_GREETING_TEXT;
-// Experimental only: default OFF. Do not enable in production without
-// listening tests for words, prosody and inter-sentence underruns.
-const EARLY_STABLE_CLAUSE_CANARY = import.meta.env.VITE_FORZA_EARLY_TTS === '1';
+
 
 const QUICK_TOPICS = [
   'محاسبه طول و گام تسمه تایمینگ PU',
@@ -627,7 +625,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
     const voice=response.headers.get('X-Forza-Voice');
-    if(voice!=='pocket-farsi-v2' && voice!=='piper-amir-medium')
+    if(voice!=='pocket-farsi-v2')
       throw new Error('unexpected_tts_provider');
     const blob=await response.blob();
     if(blob.size<44||blob.size>8_000_000||!blob.type.includes('audio/wav'))
@@ -636,10 +634,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return URL.createObjectURL(blob);
   },[]);
 
-  // One complete assistant answer per request. The private backend forwards
-  // the full text once, while Pocket returns ready WAV frames incrementally.
-  // Frames exist only in RAM and are scheduled against one AudioContext clock.
-  const playPocketProgressive = useCallback(async(text:string,player:ForzaContinuousWav):Promise<void>=>{
+  // Synthesizes each ready, complete Persian phrase via the SAME original
+  // private Pocket voice; sends WAV frames straight to Web Audio in RAM.
+  // For SSE mode we wait for HTTP frames but NOT their playback to finish,
+  // so playback overlaps the next server-side inference when possible.
+  const playPocketProgressive = useCallback(async(
+    text:string,
+    player:ForzaContinuousWav,
+    options?:{
+      signal?:AbortSignal;
+      waitForPlayback?:boolean;
+      allowFallback?:boolean;
+      onScheduled?:(played:Promise<void>)=>void;
+    },
+  ):Promise<void>=>{
     const phrase=text.trim();
     if(!phrase)return;
     let receivedFrames=0;
@@ -650,8 +658,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({text:phrase}),
-        signal:AbortSignal.timeout(420000),
+        signal:options?.signal
+          ? AbortSignal.any([options.signal,AbortSignal.timeout(420000)])
+          : AbortSignal.timeout(420000),
       });
+      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+        throw new Error('forza_original_pocket_voice_required');
       const count=await readForzaWavFrames(response,frame=>{
         if(callClosedRef.current)return;
         receivedFrames++;
@@ -662,16 +674,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // while the remaining binary frames are still in flight.
         void playback.catch(()=>{});
         scheduled.push(playback);
+        options?.onScheduled?.(playback);
       });
       if(callClosedRef.current)return;
-      await Promise.all(scheduled);
+      if(options?.waitForPlayback!==false)await Promise.all(scheduled);
       console.info('[FORZA_LATENCY] phase=progressive-pocket-played frames='+count+
         ' chars='+phrase.length+' underruns='+player.underrunCount);
     }catch(error){
       if(callClosedRef.current)return;
       // Do not replay an answer after any part has already been spoken.
       // The full WAV compatibility route is only a zero-frame fallback.
-      if(receivedFrames>0)throw error;
+      if(receivedFrames>0 || options?.signal?.aborted || options?.allowFallback===false)throw error;
       console.warn('[FORZA Pocket] progressive unavailable; using full-WAV compatibility path');
       const url=await requestPocketAudio(phrase);
       try{
@@ -817,6 +830,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setUserText(previous=>previous.trim());
       }
 
+      const pocketAbort=new AbortController();
+      let liveSpeech:ForzaLiveSpeechQueue|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -883,11 +898,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
-        // Only when canary explicitly enabled: overlap first *complete*
-        // SSE sentence synthesis with generation of the rest of the answer.
-        // Never split individual words or model token fragments.
-        let earlyClause='';
-        let earlyPlayback:Promise<void>|null=null;
+        const scheduledPlaybacks:Promise<void>[]=[];
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
@@ -901,6 +912,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
+        // Start generating on the FIRST complete phrase delivered by SSE.
+        // Do not wait for the provider's final 'done' or send half a word.
+        // Exactly one private Pocket synthesis runs at a time, but browser
+        // playback overlaps the following phrase's generation.
+        liveSpeech=new ForzaLiveSpeechQueue(
+          async phrase=>playPocketProgressive(phrase,continuousPlayer,{
+            signal:pocketAbort.signal,
+            waitForPlayback:false,
+            allowFallback:false,
+            onScheduled:playing=>scheduledPlaybacks.push(playing),
+          }),
+          (phrase,index)=>console.info('[FORZA_LATENCY] phase=live-tts-queued index='+
+            index+' clientMs='+Math.round(performance.now()-turnStartedAt)+
+            ' chars='+phrase.length),
+        );
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -909,18 +935,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(fullText);
-          if(EARLY_STABLE_CLAUSE_CANARY && !earlyPlayback && _chunk){
-            const candidate=forzaEarlyStableClause(fullText);
-            if(candidate){
-              earlyClause=candidate;
-              console.info('[FORZA_LATENCY] phase=early-tts-request clientMs='+
-                Math.round(performance.now()-turnStartedAt)+' chars='+candidate.length);
-              // Attach a rejection handler immediately. The eventual await
-              // below propagates errors without an unhandled rejection.
-              earlyPlayback=playPocketProgressive(candidate,continuousPlayer);
-              void earlyPlayback.catch(()=>{});
-            }
-          }
+          // Appends only newly received SSE content and immediately queues
+          // available *complete-word* phrases. The rest stays in memory until
+          // the word boundary or the authoritative SSE 'done'.
+          liveSpeech?.receive(fullText);
         };
         try {
           const streamController=new AbortController();
@@ -982,16 +1000,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           try {
-            if(earlyPlayback){
-              // A final 'done' may revise the SSE beginning. Never synthesize
-              // or replay an inconsistent response. Previously heard sound
-              // cannot be unsaid: keep this pathway OFF in production.
-              const remaining=forzaEarlySpeechRemainder(reply.trim(),earlyClause);
-              await earlyPlayback;
-              if(remaining)await playPocketProgressive(remaining,continuousPlayer);
-            }else{
-              await playPocketProgressive(reply.trim(),continuousPlayer);
-            }
+            if(!liveSpeech)throw new Error('forza_live_speech_not_initialized');
+            await liveSpeech.finish(reply);
+            // Do not leave the last Pocket frame playing when the turn ends.
+            await Promise.all(scheduledPlaybacks);
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA Pocket Ubuntu] full-answer progressive synthesis failed',
@@ -1010,6 +1022,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
       } finally {
+        // Cancel an in-flight private voice HTTP request if the AI turn
+        // failed, the user interrupted it, or the call was closed.
+        // This never stops/replaces the actual Pocket voice container.
+        pocketAbort.abort();
+        liveSpeech?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;

@@ -41,11 +41,20 @@ function wav(durationMs=180){
     return route.fulfill({status:200,contentType:'text/event-stream',
       headers:{'Cache-Control':'no-cache'},body:frames.map(f=>'data: '+JSON.stringify(f)+'\n\n').join('')});
   });
-  await page.route('**/api/ai/forza-speech',route=>{
+  await page.route('**/api/ai/forza-speech-stream',route=>{
     const {text}=route.request().postDataJSON();
     voiceCalls.push(text);
-    return route.fulfill({status:200,contentType:'audio/wav',headers:{'X-Forza-Voice':'pocket-farsi-v2'},body:wav()});
+    const sample=wav();
+    const frame=Buffer.alloc(4+sample.length);
+    frame.writeUInt32LE(sample.length,0);
+    sample.copy(frame,4);
+    return route.fulfill({status:200,
+      contentType:'application/x-forza-wav-frames',
+      headers:{'X-Forza-Voice':'pocket-farsi-v2'},
+      body:frame});
   });
+  await page.route('**/api/ai/forza-speech',route=>route.fulfill({status:503,
+    contentType:'application/json',body:'{"error":"full_wav_not_expected"}'}));
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:30000});
   await page.getByTitle('تایپ پیام متنی').click();
@@ -54,11 +63,11 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
-  assert.equal(voiceCalls.length,1,'Pocket must receive exactly one full assistant answer');
-  assert.equal(voiceCalls[0],
+  assert.ok(voiceCalls.length>=2,'Pocket should receive progressive phrases from Gemini SSE');
+  assert.equal(voiceCalls.join(' '),
     'سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.');
-  assert.ok(voiceCalls[0].length<=1000);
+  assert.ok(voiceCalls.every(phrase=>phrase.length<=180));
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS complete_wav_requests='+voiceCalls.length+' bytes_model_downloaded=0');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS progressive_wav_requests='+voiceCalls.length+' bytes_model_downloaded=0');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});
