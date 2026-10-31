@@ -22,6 +22,11 @@ class KVProbeGuard(unittest.TestCase):
         self.assertIn("FORZA_G2P_KV_PROBE_START",BASH)
         self.assertIn("FORZA_G2P_KV_FINISHED",BASH)
         self.assertIn("--local-dir /probe/hf",BASH)
+        # hf download treats positional strings as exact filenames and then
+        # ignores --include, giving the user a 404 for a literal ONNX glob.
+        self.assertIn("download \"$MODEL\" --include 'onnx/g2p_*_kv.onnx*'",BASH)
+        self.assertNotIn(" 'onnx/g2p_decoder_kv.onnx*'",BASH)
+        self.assertNotIn(" 'onnx/g2p_encoder_kv.onnx*'",BASH)
         for forbidden in (
             'docker restart "$LIVE"', 'docker stop "$LIVE"', 'docker rm -f "$LIVE"',
             'docker rename "$LIVE"', 'docker restart "$SITE"',
