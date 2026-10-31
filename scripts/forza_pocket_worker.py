@@ -30,6 +30,11 @@ PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", 
 # Upstream Pocket was trained near ~11 phoneme tokens per unit; short
 # chunks can start earlier but may worsen phrase joins or total speed.
 STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "18"))
+# CPU-only ORT session threads: default remains the tested 1-thread baseline.
+# Two threads are opt-in and must be verified on this specific Xeon CPU.
+CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
+if CPU_INTRA not in (1, 2):
+    raise ValueError("invalid_forza_cpu_intra")
 if STREAM_FIRST_TOKENS not in (0, 18, 22, 26):
     raise ValueError("invalid_stream_first_tokens")
 class _LimitedPool(_OriginalPool):
@@ -110,7 +115,7 @@ class MemoryBoundTts(OnnxTts):
             import onnxruntime as ort
             options = ort.SessionOptions()
             options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            options.intra_op_num_threads = 1
+            options.intra_op_num_threads = CPU_INTRA
             options.inter_op_num_threads = 1
             options.enable_cpu_mem_arena = False
             options.enable_mem_pattern = False
