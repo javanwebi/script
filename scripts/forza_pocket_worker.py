@@ -35,7 +35,7 @@ STREAM_FIRST_TOKENS = int(os.environ.get("FORZA_TTS_STREAM_FIRST_TOKENS", "18"))
 CPU_INTRA = int(os.environ.get("FORZA_CPU_INTRA", "1"))
 if CPU_INTRA not in (1, 2):
     raise ValueError("invalid_forza_cpu_intra")
-if STREAM_FIRST_TOKENS not in (0, 18, 22, 26):
+if STREAM_FIRST_TOKENS not in (0, 8, 12, 18, 22, 26):
     raise ValueError("invalid_stream_first_tokens")
 class _LimitedPool(_OriginalPool):
     def __init__(self, max_workers=None, *args, **kwargs):
@@ -154,6 +154,7 @@ def render_chunks(engine, text):
     completed WAV. The full-text /speak route remains unchanged for fallback.
     The existing Pocket model, selected reference and quality retry are kept.
     """
+    planning_started = time.monotonic()
     from concurrent.futures import ThreadPoolExecutor
     from tts_onnx import (
         split_sentences, plan_phrases, pack_phrases, _CHUNK_GAP,
@@ -178,7 +179,9 @@ def render_chunks(engine, text):
     jobs = []
     for sentence_index, plan in enumerate(plans):
         for phrase_index, (phonemes, phrase_gap) in enumerate(plan):
-            # Only the first planned phrase gets the shorter chunk budget.
+            # Only the first planned phrase gets the experimental shorter
+            # chunk budget (not the entire reply); all subsequent phrases
+            # remain at 18 tokens. This is opt-in and may affect prosody.
             # chunk_phonemes uses Pocket's own Persian-boundary safeguards
             # (ezafe, prepositions and bound verb groups), never raw
             # character splitting. Default 0 preserves existing behavior.
@@ -200,6 +203,9 @@ def render_chunks(engine, text):
     # units are ever rendered ahead, so job metadata remains small in RAM.
     if len(jobs) > 256:
         raise ValueError("too_many_speech_chunks")
+    print("[FORZA voice stream plan] ms=%d jobs=%d first_tokens=%d parallel=%d" % (
+        (time.monotonic() - planning_started) * 1000, len(jobs),
+        STREAM_FIRST_TOKENS, PARALLEL_CHUNKS), file=sys.stderr, flush=True)
 
     # Release the sizeable ONNX G2P graphs before acoustic inference, as in
     # the existing full-WAV path. Avoid overlapping their RAM on 1.5 GiB.
