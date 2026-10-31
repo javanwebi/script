@@ -263,6 +263,50 @@
   .consumer-premium .portal-mobile-nav {left: 4px; right: 4px; gap: 1px; padding: 5px;}
   .consumer-premium .portal-mobile-nav .portal-nav-item span {font-size: 9px;}
 }
+/* Tablet is a dedicated layout: use the roomy content canvas, not a cramped 214px sidebar. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .consumer-premium .portal-sidebar {display: none;}
+  .consumer-premium .portal-workspace {margin: 0;}
+  .consumer-premium .portal-content {padding: 25px 28px 115px; max-width: 820px;}
+  .consumer-premium .portal-heading {min-height: 190px; padding: 30px; margin-bottom: 0;}
+  .consumer-premium .consumer-shortcuts {
+    width: min(100% - 35px, 650px);
+    max-width: 100%;
+    margin: -21px auto 24px;
+  }
+  .consumer-premium .consumer-shortcuts button {
+    flex: 1; min-width: 0; padding: 9px 10px;
+    white-space: normal; line-height: 1.6; text-align: center;
+  }
+  .consumer-premium .portal-mobile-nav {
+    position: fixed;
+    bottom: 13px;
+    right: 50%;
+    left: auto;
+    transform: translateX(50%);
+    width: min(610px, calc(100vw - 28px));
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid #e9ebef;
+    border-radius: 26px;
+    box-shadow: 0 12px 37px rgba(29,33,46,.15);
+    background: rgba(255,255,255,.97);
+  }
+  .consumer-premium .portal-mobile-nav .portal-nav-item {
+    min-width: 0; min-height: 56px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px; margin: 0; padding: 6px;
+    border: 0; border-radius: 18px;
+    color: #545965; font-size: 11px;
+  }
+  .consumer-premium .portal-mobile-nav .portal-nav-item span {flex: 0; font-size: 11px; line-height: 1.5;}
+  .consumer-premium .portal-mobile-nav .portal-nav-item.is-active {background: #e06518; color: #fff; box-shadow: 0 4px 12px rgba(224,101,24,.28);}
+}
 @media (prefers-reduced-motion: reduce) {
   .consumer-premium *, .consumer-premium *::before, .consumer-premium *::after {transition-duration: .01ms !important; animation-duration: .01ms !important;}
 }
