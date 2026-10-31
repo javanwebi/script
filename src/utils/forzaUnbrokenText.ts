@@ -11,7 +11,7 @@
 export function forzaUnbrokenSpokenText(answer: string): string {
   return answer
     .replace(/(?<!\d)\.|\.(?!\d)/g, ' ')
-    .replace(/[،,؛;:!?؟…—–\[\]{}()]/g, ' ')
+    .replace(/[،؛;:!?؟…—–\[\]{}()]|(?<!\d),(?!\d)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
