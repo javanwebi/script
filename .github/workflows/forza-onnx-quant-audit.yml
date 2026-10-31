@@ -54,6 +54,8 @@ jobs:
           assert "audio_cache" not in s
           s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
           assert "voiceCacheRef" not in s
-          assert "URL.revokeObjectURL(audioUrl)" in s
+          assert "URL.revokeObjectURL(url)" in s
+          assert "readForzaWavFrames" in s
+          assert "playPocketProgressive" in s
           print("FORZA_NO_PERSISTENT_WAV_OK")
           PY
