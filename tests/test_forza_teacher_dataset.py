@@ -66,6 +66,28 @@ class TeacherCorpusTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "wrong_reference_voice"):
             teacher.verify_reference(reference)
 
+    def test_gpu_and_dataset_orchestrator_syntax_and_safety(self):
+        for relative in (
+            "ops/forza-custom-build-dataset-vps.sh",
+            "ops/forza-piper-custom-bootstrap-gpu.sh",
+            "ops/forza-piper-custom-run-gpu.sh",
+        ):
+            with self.subTest(path=relative):
+                script = ROOT / relative
+                subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True)
+                source = script.read_text(encoding="utf-8")
+                self.assertNotIn("docker stop forza-voice", source)
+                self.assertNotIn("docker restart forza-voice", source)
+                self.assertNotIn("docker rm -f forza-voice", source)
+                self.assertNotIn("git reset --hard", source)
+        data = (ROOT / "ops/forza-custom-build-dataset-vps.sh").read_text()
+        self.assertIn('head -n 368 "$tmp" | cmp -s "$PROMPTS" -', data)
+        self.assertIn("FORZA_DATA_PREP_READY", data)
+        self.assertIn("FORZA_TEACHER_PILOT_APPROVED", data)
+        trainer = (ROOT / "ops/forza-piper-custom-run-gpu.sh").read_text()
+        self.assertIn('--min-clips 728 --min-minutes 30', trainer)
+        self.assertIn('FORZA_GPU_MODEL_READY', trainer)
+
     def test_runner_safe(self):
         script = ROOT / "ops/forza-pocket-teacher-corpus-vps.sh"
         subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True)
