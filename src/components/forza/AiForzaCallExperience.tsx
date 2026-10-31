@@ -20,8 +20,6 @@ import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
-import { readForzaWavFrames } from '../../utils/forzaWavFrameStream';
-import { ForzaLiveSpeechQueue } from '../../utils/forzaLiveSpeechQueue';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -614,121 +612,54 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }), [ensureCtx, isSpeakerMuted, setStatus, stopAudio]);
 
 
-  // The private Ubuntu Pocket voice worker synthesizes WAVs; the browser
-  // simply receives/plays them, with no installed voice or model download.
-  // Do not cache customer answer WAVs. Blob URL lives until playback finishes.
-  const requestPocketAudio=useCallback(async(phrase:string):Promise<string>=>{
-    const text=phrase.trim();
+  // Exactly one full answer per turn. Do not split at punctuation, SSE tokens,
+  // words or phoneme phrases in the browser. This is the SAME original Pocket
+  // Farsi voice /speak service, not browser SpeechSynthesis or a new model.
+  // WAV stays in RAM: no browser audio cache or blob URL files.
+  const requestPocketAudio=useCallback(async(
+    answer:string,
+    signal?:AbortSignal,
+  ):Promise<Uint8Array>=>{
+    const text=answer.trim();
+    if(!text)throw new Error('forza_empty_answer');
+    const started=performance.now();
     const response=await fetch('/api/ai/forza-speech',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text}),signal:AbortSignal.timeout(420000),
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text}),
+      signal:signal
+        ? AbortSignal.any([signal,AbortSignal.timeout(420000)])
+        : AbortSignal.timeout(420000),
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
-    const voice=response.headers.get('X-Forza-Voice');
-    if(voice!=='pocket-farsi-v2')
-      throw new Error('unexpected_tts_provider');
-    const blob=await response.blob();
-    if(blob.size<44||blob.size>8_000_000||!blob.type.includes('audio/wav'))
-      throw new Error('invalid_pocket_audio');
-    if(callClosedRef.current)throw new Error('forza_call_closed');
-    return URL.createObjectURL(blob);
+    if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+      throw new Error('forza_original_pocket_voice_required');
+    if(!(response.headers.get('Content-Type')||'').includes('audio/wav'))
+      throw new Error('forza_pocket_full_answer_not_wav');
+    const audio=new Uint8Array(await response.arrayBuffer());
+    if(audio.byteLength<44||audio.byteLength>8_000_000 ||
+       String.fromCharCode(...audio.subarray(0,4))!=='RIFF' ||
+       String.fromCharCode(...audio.subarray(8,12))!=='WAVE')
+      throw new Error('forza_invalid_full_answer_wav');
+    if(signal?.aborted || callClosedRef.current)throw new Error('forza_tts_aborted');
+    console.info('[FORZA_LATENCY] phase=whole-pocket-wav-ready ms='+
+      Math.round(performance.now()-started)+' chars='+text.length+
+      ' bytes='+audio.byteLength);
+    return audio;
   },[]);
 
-  // Synthesizes each ready, complete Persian phrase via the SAME original
-  // private Pocket voice; sends WAV frames straight to Web Audio in RAM.
-  // For SSE mode we wait for HTTP frames but NOT their playback to finish,
-  // so playback overlaps the next server-side inference when possible.
-  const playPocketProgressive = useCallback(async(
-    text:string,
+  const playPocketFullAnswer=useCallback(async(
+    answer:string,
     player:ForzaContinuousWav,
-    options?:{
-      signal?:AbortSignal;
-      waitForPlayback?:boolean;
-      allowFallback?:boolean;
-      onScheduled?:(played:Promise<void>)=>void;
-    },
+    signal?:AbortSignal,
   ):Promise<void>=>{
-    const phrase=text.trim();
-    if(!phrase)return;
-    let receivedFrames=0;
-    const scheduled:Promise<void>[]=[];
-    const started=performance.now();
-    try{
-      const response=await fetch('/api/ai/forza-speech-stream',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text:phrase}),
-        signal:options?.signal
-          ? AbortSignal.any([options.signal,AbortSignal.timeout(420000)])
-          : AbortSignal.timeout(420000),
-      });
-      if(!response.ok){
-        console.warn('[FORZA_TTS_DIAG] stage=stream-http status='+response.status+
-          ' chars='+phrase.length);
-        throw new Error('forza_pocket_stream_http_'+response.status);
-      }
-      if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2'){
-        console.warn('[FORZA_TTS_DIAG] stage=stream-header voice_mismatch=1');
-        throw new Error('forza_original_pocket_voice_required');
-      }
-      const count=await readForzaWavFrames(response,frame=>{
-        if(callClosedRef.current)return;
-        receivedFrames++;
-        if(receivedFrames===1)console.info('[FORZA_LATENCY] phase=first-pocket-frame ms='+
-          Math.round(performance.now()-started)+' chars='+phrase.length);
-        const playback=player.enqueueWav(frame);
-        // A decode failure must not become an unhandled promise rejection
-        // while the remaining binary frames are still in flight.
-        void playback.catch(()=>{});
-        scheduled.push(playback);
-        options?.onScheduled?.(playback);
-      });
-      if(callClosedRef.current)return;
-      if(options?.waitForPlayback!==false)await Promise.all(scheduled);
-      console.info('[FORZA_LATENCY] phase=progressive-pocket-played frames='+count+
-        ' chars='+phrase.length+' underruns='+player.underrunCount);
-    }catch(error){
-      if(callClosedRef.current)return;
-      // Do not replay an answer after any part has already been spoken.
-      // The full WAV compatibility route is only a zero-frame fallback.
-      const reason=String((error as Error)?.message||'unknown').slice(0,96);
-      console.warn('[FORZA_TTS_DIAG] stage=stream-failed frames='+receivedFrames+
-        ' reason='+reason+' chars='+phrase.length);
-      if(receivedFrames>0 || options?.signal?.aborted || options?.allowFallback===false ||
-        reason==='forza_original_pocket_voice_required' ||
-        reason==='forza_stream_wrong_voice' || callClosedRef.current)throw error;
-      // A zero-frame stream can fail because an older running private service
-      // cannot serve progressive frames. Recover ONCE via the exact SAME
-      // original Pocket /speak endpoint; never switch to browser speechSynthesis
-      // or another speaker. Never replay after even one streamed WAV frame.
-      console.info('[FORZA_TTS_DIAG] stage=zero-frame-recover engine=pocket-farsi-v2');
-      let url:string|undefined;
-      try{
-        if(options?.signal?.aborted)throw new Error('forza_tts_aborted');
-        url=await requestPocketAudio(phrase);
-        if(options?.signal?.aborted || callClosedRef.current)
-          throw new Error('forza_tts_aborted');
-        // Read blob data into RAM BEFORE revoking its transient object URL.
-        // enqueue(url) starts an asynchronous fetch; revoking immediately
-        // races that fetch and can silently leave the browser without sound.
-        const wavRes=await fetch(url);
-        if(!wavRes.ok)throw new Error('forza_pocket_compat_blob_unavailable');
-        const wavBytes=new Uint8Array(await wavRes.arrayBuffer());
-        if(wavBytes.byteLength<44||wavBytes.byteLength>8_000_000)
-          throw new Error('forza_pocket_compat_wav_invalid');
-        const playback=player.enqueueWav(wavBytes);
-        void playback.catch(()=>{});
-        options?.onScheduled?.(playback);
-        if(options?.waitForPlayback!==false)await playback;
-        console.info('[FORZA_TTS_DIAG] stage=zero-frame-recover-success');
-      }catch(fallbackError){
-        console.warn('[FORZA_TTS_DIAG] stage=zero-frame-recover-failed code='+
-          String((fallbackError as Error)?.message||'unknown').slice(0,90));
-        throw fallbackError;
-      }finally{
-        if(url)URL.revokeObjectURL(url);
-      }
-    }
+    // One HTTP POST, one RIFF/WAVE, one AudioBufferSource: no waiting
+    // for a second generated packet mid-sentence, including punctuation.
+    const audio=await requestPocketAudio(answer,signal);
+    if(signal?.aborted || callClosedRef.current)return;
+    await player.enqueueWav(audio);
+    console.info('[FORZA_LATENCY] phase=whole-pocket-playback-finished '+
+      'audio_buffers=1 underruns='+player.underrunCount);
   },[requestPocketAudio]);
 
   const playSpeechPhrase=useCallback(async(phrase:string):Promise<void>=>{
@@ -742,7 +673,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
-      await playPocketProgressive(phrase,player);
+      await playPocketFullAnswer(phrase,player);
       if(!callClosedRef.current)setVoiceOutputError(null);
     }catch(error:any){
       if(!callClosedRef.current)setVoiceOutputError(
@@ -756,7 +687,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(continuousVoiceRef.current===player)continuousVoiceRef.current=null;
       isAiSpeakingRef.current=false;
     }
-  },[ensureCtx,isSpeakerMuted,playPocketProgressive,setStatus]);
+  },[ensureCtx,isSpeakerMuted,playPocketFullAnswer,setStatus]);
 
   const speakText = useCallback(async (text: string) => {
     stopListening();
@@ -773,8 +704,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return;
     }
 
-    // Send the entire assistant answer only once; Pocket streams its internal
-    // generated audio frames to the same browser playback timeline.
+    // Request and play one complete WAV. No network/player chunk boundaries.
     if(text.trim())await playSpeechPhrase(text.trim());
   }, [playSpeechPhrase,setStatus,stopListening]);
 
@@ -867,7 +797,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
 
       const pocketAbort=new AbortController();
-      let liveSpeech:ForzaLiveSpeechQueue|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -934,7 +863,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
-        const scheduledPlaybacks:Promise<void>[]=[];
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
@@ -948,21 +876,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
-        // Start generating on the FIRST complete phrase delivered by SSE.
-        // Do not wait for the provider's final 'done' or send half a word.
-        // Exactly one private Pocket synthesis runs at a time, but browser
-        // playback overlaps the following phrase's generation.
-        liveSpeech=new ForzaLiveSpeechQueue(
-          async phrase=>playPocketProgressive(phrase,continuousPlayer,{
-            signal:pocketAbort.signal,
-            waitForPlayback:false,
-            allowFallback:true,
-            onScheduled:playing=>scheduledPlaybacks.push(playing),
-          }),
-          (phrase,index)=>console.info('[FORZA_LATENCY] phase=live-tts-queued index='+
-            index+' clientMs='+Math.round(performance.now()-turnStartedAt)+
-            ' chars='+phrase.length),
-        );
+        // Text still appears live. Speech deliberately waits for the
+        // authoritative *full* answer; this prevents any sentence-by-sentence
+        // TTS jobs, duplicate words or gaps between output WAV packets.
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -971,10 +887,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(fullText);
-          // Appends only newly received SSE content and immediately queues
-          // available *complete-word* phrases. The rest stays in memory until
-          // the word boundary or the authoritative SSE 'done'.
-          liveSpeech?.receive(fullText);
+          // Display only. Never submit an unfinished sentence or SSE delta
+          // to Pocket; full-answer synthesis starts once after SSE 'done'.
         };
         try {
           const streamController=new AbortController();
@@ -1036,10 +950,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           try {
-            if(!liveSpeech)throw new Error('forza_live_speech_not_initialized');
-            await liveSpeech.finish(reply);
-            // Do not leave the last Pocket frame playing when the turn ends.
-            await Promise.all(scheduledPlaybacks);
+            console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
+              'clientMs='+Math.round(performance.now()-turnStartedAt)+
+              ' chars='+reply.length);
+            await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
@@ -1047,7 +961,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(!callClosedRef.current)setVoiceOutputError(
               error?.message==='autoplay_permission_required'
                 ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-                :'پخش پیوسته پاسخ کامل نشد؛ متن پاسخ بدون حذف نمایش داده شده است.');
+                :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
           }
         }
       } catch (err: any) {
@@ -1062,7 +976,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
-        liveSpeech?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
@@ -1073,7 +986,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,playPocketProgressive,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, stopListening,playPocketFullAnswer,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT

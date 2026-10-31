@@ -19,7 +19,7 @@ function wav(durationMs=180){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-  const errors=[],voiceCalls=[],streamCalls=[],recoveredCalls=[];
+  const errors=[],fullVoiceCalls=[],streamCalls=[],unexpectedProgressiveCalls=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     window.__speechSynthesisCalls=0;
@@ -42,25 +42,15 @@ function wav(durationMs=180){
       headers:{'Cache-Control':'no-cache'},body:frames.map(f=>'data: '+JSON.stringify(f)+'\n\n').join('')});
   });
   await page.route('**/api/ai/forza-speech-stream',route=>{
-    const {text}=route.request().postDataJSON();
-    voiceCalls.push(text);
-    if(streamCalls.length===2)
-      return route.fulfill({status:503,contentType:'application/json',
-        body:'{"error":"pocket_stream_unavailable"}'});
-    const sample=wav();
-    const frame=Buffer.alloc(4+sample.length);
-    frame.writeUInt32LE(sample.length,0);
-    sample.copy(frame,4);
-    return route.fulfill({status:200,
-      contentType:'application/x-forza-wav-frames',
-      headers:{'X-Forza-Voice':'pocket-farsi-v2'},
-      body:frame});
+    unexpectedProgressiveCalls.push(route.request().postDataJSON().text);
+    return route.fulfill({status:503,contentType:'application/json',
+      body:'{"error":"progressive_path_not_allowed_in_full_answer_mode"}'});
   });
   await page.route('**/api/ai/forza-speech',route=>{
     const {text}=route.request().postDataJSON();
-    recoveredCalls.push(text);
+    fullVoiceCalls.push(text);
     return route.fulfill({status:200,contentType:'audio/wav',
-      headers:{'X-Forza-Voice':'pocket-farsi-v2'},body:wav()});
+      headers:{'X-Forza-Voice':'pocket-farsi-v2'},body:wav(180)});
   });
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:30000});
@@ -70,14 +60,13 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
-  assert.ok(voiceCalls.length>=2,'Pocket should receive progressive phrases from Gemini SSE');
-  assert.equal(voiceCalls.join(' '),
-    'سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.');
-  assert.ok(voiceCalls.every(phrase=>phrase.length<=180));
-  assert.deepEqual(recoveredCalls,[],'healthy Pocket stream must not use fallback');
+  const answer='سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.';
+  assert.deepEqual(fullVoiceCalls,[answer],
+    'Pocket must receive the entire final answer in ONE HTTP request and one WAV');
+  assert.deepEqual(unexpectedProgressiveCalls,[],
+    'never send sentence/word/token fragments to progressive TTS endpoint');
 
-  // Regression: server shows Gemini answer but old Pocket /speak-stream
-  // returns 503 before any WAV. Exact SAME Pocket /speak must rescue voice.
+  // Regression: second call likewise sends its entire exact answer once.
   if(!await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').isVisible())
     await page.getByTitle('تایپ پیام متنی').click();
   await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPC چیست؟');
@@ -85,13 +74,10 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
     null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟','تسمه SPC چیست؟']);
-  const secondTurn=voiceCalls.slice(2);
-  assert.ok(secondTurn.length>=2);
-  assert.equal(recoveredCalls.join(' '),secondTurn.join(' '),
-    'zero-frame HTTP 503 must be recovered once with same voice, without dropped words');
-  assert.equal(await page.getByText('پخش پیوسته پاسخ کامل نشد؛ متن پاسخ بدون حذف نمایش داده شده است.').count(),0);
+  assert.deepEqual(fullVoiceCalls,[answer,answer]);
+  assert.equal(unexpectedProgressiveCalls.length,0);
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS streaming='+voiceCalls.length+
-    ' recovered_full_wav='+recoveredCalls.length+' same_voice=1');
+  console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS full_wav_requests='+fullVoiceCalls.length+
+    ' progressive_requests=0 audio_buffers_per_reply=1 original_voice=1');
  } finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_PRIVATE_POCKET_BROWSER_FAIL',e);process.exitCode=1;});

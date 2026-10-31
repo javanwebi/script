@@ -246,6 +246,16 @@ class MemoryBoundTts(OnnxTts):
                 if counter is not None:
                     counter["mimi_ms"] += (time.perf_counter() - started) * 1000
 
+    def _stitch(self, segments):
+        # Pocket's required internal FlowLM chunks are still synthesized
+        # independently for bounded KV memory, but they are joined into ONE
+        # complete WAV without inserting extra pause/silence at artificial
+        # text, punctuation or chunk boundaries. Do not change the selected
+        # speaker, latent frames, retry quality checks or sample rate.
+        if UNBROKEN_SPEECH:
+            segments = [(audio, 0.0) for audio, _gap in segments]
+        return super()._stitch(segments)
+
     def synthesize_text(self, text, *args, **kwargs):
         started = time.monotonic()
         # The G2P encoder/decoder and the acoustic decoder do not need to

@@ -41,6 +41,7 @@ import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, ActivityHandli
 import { normalizeForzaWorkerMessages } from './src/utils/forzaWorkerProtocol';
 import { normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64 } from './src/utils/forzaSpeechPipeline';
 import { classifyForzaAudio } from './src/utils/forzaTtsFormat';
+import { forzaUnbrokenSpokenText } from './src/utils/forzaUnbrokenText';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
@@ -5430,6 +5431,12 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   // does all synthesis. No downloaded neural model is sent to visitors.
   if(!internalForzaVoiceUrl)throw new Error('private_voice_not_configured');
   if(!process.env.FORZA_VOICE_TOKEN)throw new Error('private_voice_token_missing');
+  // Keep the exact full answer visible in the UI/history. The *spoken* form
+  // removes punctuation-induced breaks without omitting or reordering words.
+  // This also works with the older live private Pocket image that only
+  // supports /speak; no need to replace the original speaker or weights.
+  const spoken=forzaUnbrokenSpokenText(phrase);
+  if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
   for(let attempt=0;attempt<8;attempt++){
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
@@ -5438,7 +5445,7 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
         'Content-Type':'application/json',
         'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
       },
-      body:JSON.stringify({text:phrase}),
+      body:JSON.stringify({text:spoken}),
       signal:AbortSignal.timeout(420000),
     });
     // One inference slot across visitors. Brief backoff on BUSY only;
