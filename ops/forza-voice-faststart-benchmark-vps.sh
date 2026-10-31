@@ -29,7 +29,7 @@ if [ -z "$NETWORK" ]; then
 fi
 test -n "$NETWORK"
 TOKEN=$(sed -n 's/^FORZA_VOICE_TOKEN=//p' "$SECRETS" | head -1)
-test "\${#TOKEN}" -eq 64 || { echo "Invalid private voice token." >&2; exit 1; }
+test "${#TOKEN}" -eq 64 || { echo "Invalid private voice token." >&2; exit 1; }
 
 STAGE=$(mktemp -d /opt/forza-faststart-bench.XXXXXXXX)
 cleanup(){
@@ -51,7 +51,7 @@ grep -q 'g2p_ready_ms' "$STAGE/scripts/forza_voice_http.py"
 grep -q 'FORZA_TTS_WARMUP' "$STAGE/scripts/forza_voice_http.py"
 grep -q 'synthesis_ms=' "$STAGE/scripts/forza_pocket_worker.py"
 printf 'FROM %s\nCOPY scripts/forza_pocket_worker.py /app/scripts/forza_pocket_worker.py\nCOPY scripts/forza_voice_http.py /app/scripts/forza_voice_http.py\n' "$SOURCE_IMAGE" > "$STAGE/Dockerfile"
-TAG="sanatpish/forza-voice:faststart-test-\${REV:0:12}"
+TAG="sanatpish/forza-voice:faststart-test-${REV:0:12}"
 docker build --pull=false -q -f "$STAGE/Dockerfile" -t "$TAG" "$STAGE" >/dev/null
 
 echo "[2/4] Starting disposable 2-CPU / 2-GiB worker with resident G2P, warmup and 18-token first chunk."
