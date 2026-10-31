@@ -139,6 +139,9 @@ def run(args):
             raise ValueError("existing_manifest_mismatch")
         if not (wav_dir / name).is_file() or (wav_dir / name).is_symlink():
             raise ValueError("existing_manifest_wav_missing")
+    # Reuse the original worker's precomputed speaker-conditioning path.
+    # This flag must be present before importing/constructing OnnxTts.
+    os.environ["FORZA_POCKET_PRECOMPUTED_VOICE"] = "1"
     # Never touch live container nor use text from customer traffic.
     sys.path.insert(0, "/app/scripts")
     import forza_pocket_worker as pocket
