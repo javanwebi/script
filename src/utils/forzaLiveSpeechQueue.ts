@@ -20,10 +20,15 @@ export class ForzaLiveSpeechQueue {
   private completed = false;
   private failed: unknown = null;
 
+  private readonly speak: (phrase: string) => Promise<void>;
+  private readonly onPhraseReady?: (phrase: string, index: number) => void;
   constructor(
-    private readonly speak: (phrase: string) => Promise<void>,
-    private readonly onPhraseReady?: (phrase: string, index: number) => void,
-  ) {}
+    speak: (phrase: string) => Promise<void>,
+    onPhraseReady?: (phrase: string, index: number) => void,
+  ) {
+    this.speak = speak;
+    this.onPhraseReady = onPhraseReady;
+  }
 
   /**
    * Called synchronously for every real text_chunk SSE event.
