@@ -9,7 +9,6 @@ import argparse
 import array
 import csv
 import json
-import math
 from pathlib import Path
 import re
 import sys
@@ -95,8 +94,9 @@ def inspect_dataset(csv_path: Path, audio_dir: Path, *, min_clips: int = 300,
             if not any("\u0600" <= ch <= "\u06ff" for ch in text):
                 issues.append(f"row_{rows}:no_persian_text")
                 continue
-            path = (root / filename).resolve()
-            if not path.is_relative_to(root) or path.is_symlink():
+            raw_path = root / filename
+            path = raw_path.resolve()
+            if not path.is_relative_to(root) or raw_path.is_symlink():
                 issues.append(f"row_{rows}:unsafe_audio_path")
                 continue
             if not path.is_file():
