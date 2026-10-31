@@ -978,8 +978,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         try {
           const streamController=new AbortController();
-          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),25000);
-          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('مهلت دریافت پاسخ تمام شد.')),60000);
+          let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
+          const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
@@ -994,7 +994,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             });
             reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
-              streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط هنگام دریافت پاسخ قطع شد.')),15000);
+              streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
               onTextChunk(chunk,fullText);
             });
             if(!reply)throw new Error('forza_empty_stream');
