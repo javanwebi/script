@@ -53,7 +53,6 @@ class OriginalVoiceProbeTest(unittest.TestCase):
         self.assertIn('"$SITE" node -', source)
         self.assertIn("FORZA_POCKET_VPS_PROXY_FOUND", node)
         self.assertIn("'/api/health'", node)
-        self.assertIn("['3000'", node) if False else None
         self.assertIn("'3000', '3001'", node)
         self.assertIn('os.environ.get("FORZA_VOICE_TOKEN"', py)
         self.assertIn('http.client.HTTPConnection("::1"', py)
