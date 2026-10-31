@@ -89,7 +89,8 @@ class UnbrokenVoiceTest(unittest.TestCase):
         self.assertIn('spoken = continuous_persian_speech_text(text) if UNBROKEN_SPEECH else text', source)
         http = (SOURCE.parent / "forza_voice_http.py").read_text(encoding="utf-8")
         self.assertIn('FULL_ANSWER_WAV = os.environ.get("FORZA_TTS_FULL_ANSWER_WAV", "0") == "1"', http)
-        self.assertIn('iter((render_full_answer_wav(engine, phrase),))', http)
+        self.assertIn('yield render_full_answer_wav(engine, phrase)', http)
+        self.assertIn('frames = (one_complete_frame() if FULL_ANSWER_WAV', http)
 
 if __name__ == "__main__":
     unittest.main()
