@@ -31,3 +31,20 @@ test('new Pocket progressive workers retain pass-through WAV frame stream',()=>{
  assert.match(route,/controller\.signal/);
  assert.match(route,/pocket_stream_unavailable/);
 });
+
+test('candidate streaming Pocket upgrade checks the same speaker and retains rollback',()=>{
+ const fs=require('node:fs');
+ const sha='31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833';
+ const benchmark=fs.readFileSync(new URL('../ops/forza-voice-faststart-benchmark-vps.sh','file://'+__filename),'utf8');
+ const promote=fs.readFileSync(new URL('../ops/forza-voice-faststart-promote-vps.sh','file://'+__filename),'utf8');
+ for(const source of [benchmark,promote]){
+  assert.ok(source.includes(sha));
+  assert.ok(source.includes('forza-pocket-reference.wav'));
+  assert.ok(!source.includes('docker system prune'));
+  assert.ok(source.includes('FORZA_TTS_RESIDENT_ACOUSTIC=1'));
+ }
+ assert.match(benchmark,/forza_voice_state\.npz/);
+ assert.match(promote,/FORZA_FASTSTART_PROMOTE_FAILED/);
+ assert.match(promote,/restoring the previous voice worker/);
+ assert.match(promote,/FORZA_FASTSTART_POCKET_LIVE_OK/);
+});
