@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - scripts/forza_custom_voice_dataset_gate.py
+      - scripts/forza_custom_corpus_prompts.py
       - scripts/forza_piper_custom_benchmark.py
       - ops/forza-piper-custom-train-gpu.sh
       - ops/forza-piper-custom-export-gpu.sh
@@ -22,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile and test offline code without models, audio or GPU
         run: |
-          python3 -m py_compile scripts/forza_custom_voice_dataset_gate.py scripts/forza_piper_custom_benchmark.py
+          python3 -m py_compile scripts/forza_custom_voice_dataset_gate.py scripts/forza_custom_corpus_prompts.py scripts/forza_piper_custom_benchmark.py
           python3 tests/test_forza_custom_voice_pilot.py
       - name: Verify no training or live deployment in CI
         run: |
