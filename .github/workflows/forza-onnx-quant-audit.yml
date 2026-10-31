@@ -12,6 +12,7 @@ on:
       - tests/test_forza_amir_private.py
       - scripts/forza_amir_voice_http.py
       - Dockerfile.forza-amir
+      - ops/forza-amir-private-canary-vps.sh
       - src/utils/forzaWavFrameStream.ts
       - tests/forza-wav-frame-stream.test.ts
       - Dockerfile.forza-voice
@@ -32,6 +33,7 @@ jobs:
           bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
           bash -n ops/forza-progressive-stream-smoke-vps.sh
           bash -n ops/forza-amir-inmemory-smoke-vps.sh
+          bash -n ops/forza-amir-private-canary-vps.sh
           python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
           python3 tests/test_forza_punctuation_flow.py
           python3 -m py_compile scripts/forza_amir_voice_http.py
@@ -86,6 +88,10 @@ jobs:
           assert "write_bytes(" not in private
           assert 'X-Forza-Voice", VOICE_ID' in private
           docker=Path("Dockerfile.forza-amir").read_text()
+          canary=Path("ops/forza-amir-private-canary-vps.sh").read_text()
+          assert "FORZA_AMIR_PRIVATE_CANARY_RESULT" in canary
+          assert "generated_wav_saved=0" in canary
+          assert "--read-only" in canary
           assert "piper-tts==1.8.0" in docker
           assert "fb815380d969ea372b0b21b0de14421f58fe481047e153e69685d079b6e1a9d1" in docker
           print("FORZA_NO_PERSISTENT_WAV_OK")
