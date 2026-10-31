@@ -65,6 +65,15 @@ if _TEST_SEED_RAW and (not _TEST_SEED_RAW.isdecimal() or
                        not 0 <= int(_TEST_SEED_RAW) <= 2147483647):
     raise ValueError("invalid_forza_test_seed")
 TTS_TEST_SEED = int(_TEST_SEED_RAW) if _TEST_SEED_RAW else None
+# The upstream EOS tail is 5 latent frames for <=4-word chunks, 3 for
+# longer chunks. The chosen speaker/weights stay the same. Optional smaller
+# tails are benchmark-only: any difference in WAV SHA disqualifies promotion.
+TTS_EOS_SHORT = int(os.environ.get("FORZA_TTS_EOS_SHORT", "5"))
+TTS_EOS_LONG = int(os.environ.get("FORZA_TTS_EOS_LONG", "3"))
+if not (1 <= TTS_EOS_SHORT <= 5 and 1 <= TTS_EOS_LONG <= 3):
+    raise ValueError("invalid_forza_eos_tail_steps")
+if (TTS_EOS_SHORT != 5 or TTS_EOS_LONG != 3) and not TTS_STAGE_PROFILE:
+    raise ValueError("eos_tail_tuning_requires_isolated_profiling")
 _STAGE_PROFILE_CONTEXT = threading.local()
 if TTS_ATTEMPTS not in (1, 2, 3):
     raise ValueError("invalid_forza_tts_retry_attempts")
@@ -154,6 +163,38 @@ class MemoryBoundTts(OnnxTts):
                 pipe.add(result[0])
         return result
 
+    def _generate_chunk_with_early_eos(self, cache, off, chunk, rng=None):
+        """Exact Pocket autoregressive steps, except optional extra EOS tail.
+
+        No pitch/time manipulation, voice conversion, inference pruning or
+        re-encoding. Only generate fewer frames AFTER the model emitted EOS.
+        The full PCM output MUST be identical under a fixed seed before any
+        production consideration.
+        """
+        tokens = self.sp.encode(chunk, out_type=int)
+        text_emb = self.lut[np.asarray(tokens)][None].astype(np.float32)
+        r = rng if rng is not None else self.rng
+        noise = (r.standard_normal((1, self.ldim)) * (self.temp**0.5)).astype(np.float32)
+        lat, _, cache, off = self._flow_step(
+            np.full((1, 1, self.ldim), np.nan, np.float32),
+            text_emb, off, noise, cache)
+        latents = [lat]
+        words = len(chunk.split())
+        frames_after_eos = TTS_EOS_SHORT if words <= 4 else TTS_EOS_LONG
+        max_gen_len = int(np.ceil((len(tokens) / self.tps_est + self.gen_pad) * self.frame_rate))
+        eos_step = None
+        for step in range(max_gen_len):
+            noise = (r.standard_normal((1, self.ldim)) * (self.temp**0.5)).astype(np.float32)
+            lat, eos, cache, off = self._flow_step(
+                latents[-1].reshape(1, 1, self.ldim),
+                np.zeros((1, 0, self.dim), np.float32), off, noise, cache)
+            if bool(eos.reshape(-1)[0]) and eos_step is None:
+                eos_step = step
+            if eos_step is not None and step >= eos_step + frames_after_eos:
+                break
+            latents.append(lat)
+        return latents, cache, off
+
     def _generate_chunk(self, *args, **kwargs):
         if not TTS_STAGE_PROFILE and not TTS_OVERLAP_MIMI:
             return super()._generate_chunk(*args, **kwargs)
@@ -166,7 +207,9 @@ class MemoryBoundTts(OnnxTts):
             pipeline = MimiOverlap(self)
             _STAGE_PROFILE_CONTEXT.mimi_pipeline = pipeline
         try:
-            result = super()._generate_chunk(*args, **kwargs)
+            result = (self._generate_chunk_with_early_eos(*args, **kwargs)
+                      if TTS_EOS_SHORT != 5 or TTS_EOS_LONG != 3
+                      else super()._generate_chunk(*args, **kwargs))
             if pipeline is not None:
                 _STAGE_PROFILE_CONTEXT.ready_pipeline = pipeline
             return result
