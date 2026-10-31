@@ -64,9 +64,16 @@ grep -q 'FORZA_TTS_WARMUP' "$STAGE/scripts/forza_voice_http.py"
 grep -q 'synthesis_ms=' "$STAGE/scripts/forza_pocket_worker.py"
 printf 'FROM %s\nCOPY scripts/forza_pocket_worker.py /app/scripts/forza_pocket_worker.py\nCOPY scripts/forza_voice_http.py /app/scripts/forza_voice_http.py\nCOPY scripts/forza_pocket_overlap.py /app/scripts/forza_pocket_overlap.py\n' "$SOURCE_IMAGE" > "$STAGE/Dockerfile"
 TAG="sanatpish/forza-voice:faststart-test-${REV:0:12}"
-docker build --pull=false -q -f "$STAGE/Dockerfile" -t "$TAG" "$STAGE" >/dev/null
+PROFILE="t${FIRST_TOKENS}-p${PARALLEL}-f${FIRST_PRIORITY}-m${OVERLAP_MIMI}-r3"
+docker build --pull=false -q \
+  --label "org.sanatpish.forza.benchmark-profile=$PROFILE" \
+  --label "org.sanatpish.forza.original-voice-sha=$ORIGINAL_SPEAKER_SHA" \
+  -f "$STAGE/Dockerfile" -t "$TAG" "$STAGE" >/dev/null
 
 echo "[2/4] Starting disposable Pocket neural candidate first_tokens=$FIRST_TOKENS priority=$FIRST_PRIORITY parallel=$PARALLEL overlap_mimi=$OVERLAP_MIMI retry_budget=3."
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.benchmark-profile"}}' "$TAG")" = "$PROFILE"
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.original-voice-sha"}}' "$TAG")" = "$ORIGINAL_SPEAKER_SHA"
+
 docker run -d --name "$CANDIDATE" --restart no \
   --network "$NETWORK" --cpus=2.0 --cpu-shares=512 \
   --memory=2g --memory-swap=2g --pids-limit=128 \
