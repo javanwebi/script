@@ -20,6 +20,8 @@ FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
 # container. 1 attempt may be faster but has higher omitted-word risk.
 FORZA_GATE_RETRY_ATTEMPTS=${FORZA_GATE_RETRY_ATTEMPTS:-3}
 FORZA_GATE_SAMPLE=${FORZA_GATE_SAMPLE:-all}
+FORZA_GATE_OVERLAP_MIMI=${FORZA_GATE_OVERLAP_MIMI:-0}
+case "$FORZA_GATE_OVERLAP_MIMI" in 0|1) ;; *) echo "Invalid Mimi overlap mode" >&2; exit 1;; esac
 case "$FORZA_GATE_SAMPLE" in all|short|medium|long) ;; *) echo "Invalid sample" >&2; exit 1;; esac
 case "$FORZA_GATE_RETRY_ATTEMPTS" in 1|2|3) ;; *) echo "Invalid retry budget" >&2; exit 1;; esac
 case "$FORZA_GATE_FULL_ANSWER_WAV" in 0|1) ;; *) echo "Expected FORZA_GATE_FULL_ANSWER_WAV=0 or 1" >&2; exit 1;; esac
@@ -109,7 +111,7 @@ test -n "$NETWORK"
 STAGE=$(mktemp -d /opt/forza-pocket-gate.XXXXXXXX)
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
-git -C "$APP" archive --format=tar "$REV" scripts/forza_pocket_worker.py scripts/forza_voice_http.py |
+git -C "$APP" archive --format=tar "$REV" scripts/forza_pocket_worker.py scripts/forza_voice_http.py scripts/forza_pocket_overlap.py |
   tar -xf - -C "$STAGE"
 for item in forza_pocket_worker.py forza_voice_http.py; do
   test -r "$STAGE/scripts/$item"
@@ -125,13 +127,15 @@ docker run -d --name "$CANDIDATE" --restart no \
   --pids-limit=128 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=96m \
   --env-file "$SECRETS" -e PORT=8080 \
   -e FORZA_TTS_RESIDENT_ACOUSTIC=1 -e FORZA_TTS_RESIDENT_G2P=1 \
-  -e FORZA_TTS_WARMUP=1 -e FORZA_TTS_PARALLEL_CHUNKS=2 \
+  -e FORZA_TTS_WARMUP=1 -e FORZA_TTS_PARALLEL_CHUNKS=1 \
   -e FORZA_TTS_STREAM_FIRST_TOKENS=12 -e FORZA_TTS_UNBROKEN=1 \
   -e FORZA_CPU_INTRA=1 -e FORZA_ONNX_INT8=0 \
   -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e FORZA_TTS_STAGE_PROFILE=1 \
+  -e "FORZA_TTS_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" \
   --mount "type=bind,src=$STAGE/scripts/forza_pocket_worker.py,dst=/app/scripts/forza_pocket_worker.py,readonly" \
+  --mount "type=bind,src=$STAGE/scripts/forza_pocket_overlap.py,dst=/app/scripts/forza_pocket_overlap.py,readonly" \
   --mount "type=bind,src=$STAGE/scripts/forza_voice_http.py,dst=/app/scripts/forza_voice_http.py,readonly" \
   --entrypoint python "$PARENT" -u scripts/forza_voice_http.py >/dev/null
 CANDIDATE_STARTED=1
@@ -155,7 +159,8 @@ docker exec "$CANDIDATE" test -s /app/vendor/persian_tts/forza_voice_state.npz
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
   -e "FORZA_GATE_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
-  -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" \
+  -e "FORZA_GATE_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -204,6 +209,7 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
     if(atomic && frames!==1)throw Error('atomic_wav_must_have_one_frame');
     console.log('FORZA_POCKET_ONE_SECOND_GATE mode='+(atomic?'atomic':'progressive')+
       ' retries='+process.env.FORZA_GATE_RETRY_ATTEMPTS+
+      ' mimi_overlap='+process.env.FORZA_GATE_OVERLAP_MIMI+
       ' sample='+sample+
       ' frames='+frames+
       ' first_ms='+firstMs.toFixed(0)+
