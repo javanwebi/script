@@ -85,8 +85,8 @@ s=s.replace(old,'"flow_lm_step.int4.onnx" if os.environ.get("FORZA_ONNX_INT4") =
 p.write_text(s)
 PY
 DOCKER
-FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$"
-QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$"
+FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$$"
+QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$$"
 docker build --pull=false --build-arg "VOICE_PARENT=$PARENT" \
   -f "$STAGE/Dockerfile" -t "$FLOAT_IMAGE" "$STAGE" >/dev/null
 echo "[2/4] Convert original Pocket MatMul weights to INT4 in a RAM-capped candidate (no audio output files)."
