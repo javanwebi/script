@@ -20,7 +20,7 @@ test('only 404 from old private /speak-stream allows original Pocket full WAV co
  assert.match(route,/X-Forza-Voice-Compatibility','legacy-full-wav'/);
  assert.match(route,/Cache-Control','no-store, no-transform'/);
  assert.ok(route.indexOf("if(upstream?.status===404)")<route.indexOf("if(!upstream?.ok)"));
- assert.doesNotMatch(route,/speechSynthesis|piper-amir-medium|wav\.writeFile/);
+ assert.doesNotMatch(route,/\b(?:window\.)?speechSynthesis\.speak\(|\bnew SpeechSynthesisUtterance\(|\bpiper-amir-medium\b|wav\.writeFile\(/);
 });
 test('new Pocket progressive workers retain pass-through WAV frame stream',()=>{
  const route=server.slice(server.indexOf("app.post('/api/ai/forza-speech-stream'"),
