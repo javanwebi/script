@@ -22,13 +22,15 @@ SELECTED_REFERENCE_SHA = "31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f223679
 
 
 def read_prompts(path: Path, limit: int):
-    if limit not in (1, 5, 368):
-        raise ValueError("limit_must_be_1_5_or_368")
+    if limit not in (1, 5, 728):
+        raise ValueError("limit_must_be_1_5_or_728")
     if not path.is_file() or path.is_symlink():
         raise ValueError("prompts_file_not_regular")
     texts = path.read_text(encoding="utf-8-sig").splitlines()
-    if len(texts) != 368:
-        raise ValueError("expected_exactly_368_prompts")
+    if len(texts) not in (368, 728):
+        raise ValueError("expected_368_legacy_or_728_extended_prompts")
+    if limit == 728 and len(texts) != 728:
+        raise ValueError("full_requires_728_extended_prompts")
     if len(set(texts)) != len(texts):
         raise ValueError("duplicate_prompts")
     if any(not 8 <= len(text) <= MAX_PROMPT_CHARS or
@@ -120,7 +122,7 @@ def run(args):
         raise ValueError("output_symlink")
     output = args.output.resolve()
     root = Path("/work").resolve()
-    expected_folder = {1: "one", 5: "pilot", 368: "full"}[args.limit]
+    expected_folder = {1: "one", 5: "pilot", 728: "full"}[args.limit]
     if output != root / expected_folder:
         raise ValueError("invalid_output_path")
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -183,7 +185,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--limit", type=int, choices=[1, 5, 368], required=True)
+    parser.add_argument("--limit", type=int, choices=[1, 5, 728], required=True)
     parser.add_argument("--rights-confirmed", default="")
     args = parser.parse_args()
     try:

@@ -10,7 +10,7 @@ test "${FORZA_TEACHER_TRAINING_RIGHTS:-}" = yes || abort "training_and_distillat
 case "${1:-}" in
   --one) LIMIT=1; MODE=one ;;
   --pilot) LIMIT=5; MODE=pilot ;;
-  --full) LIMIT=368; MODE=full ;;
+  --full) LIMIT=728; MODE=full ;;
   *) abort "usage: sudo env FORZA_TEACHER_TRAINING_RIGHTS=yes bash ops/forza-pocket-teacher-corpus-vps.sh --one|--pilot|--full" ;;
 esac
 test "$#" -eq 1 || abort "unexpected_arguments"
@@ -25,6 +25,11 @@ test -d "$APP/.git" && test -s "$APP/scripts/forza_pocket_teacher_dataset.py" ||
 test -s "$APP/scripts/forza_pocket_worker.py" || abort "original_worker_missing"
 test -s "$APP/scripts/forza_custom_voice_dataset_gate.py" || abort "dataset_gate_missing"
 test -s "$WORK/prompts.txt" || abort "missing_prompts_txt"
+# A full run uses a >30-minute candidate corpus; keep the original five-prompt
+# smoke tests compatible with the prior 368-line file until explicitly upgraded.
+if [ "$MODE" = full ]; then
+  test "$(wc -l < "$WORK/prompts.txt")" -eq 728 || abort "full_requires_728_prompts_regenerate_using_docs"
+fi
 test ! -L "$WORK" && test ! -L "$WORK/prompts.txt" || abort "unsafe_work_path"
 test "$(stat -c %a "$WORK")" = 700 || abort "work_directory_must_be_mode_700"
 test "$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)" -ge 2450000 || abort "insufficient_free_ram"

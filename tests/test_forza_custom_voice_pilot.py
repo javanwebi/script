@@ -94,10 +94,19 @@ class Voice:
 
 
 class CorpusPromptsTest(unittest.TestCase):
-    def test_368_public_prompts_unique_and_persian(self):
+    def test_728_public_prompts_preserve_original_368_prefix(self):
+        import itertools
         phrases = list(corpus.phrases())
-        self.assertEqual(len(phrases), 368)
-        self.assertEqual(len(set(phrases)), 368)
+        old = list(corpus.SPECIAL) + [
+            template.format(part=part, sector=sector)
+            for part, sector, template in itertools.product(
+                corpus.PARTS, corpus.SECTORS, corpus.TEMPLATES)
+        ]
+        self.assertEqual(len(old), 368)
+        self.assertEqual(phrases[:368], old)
+        self.assertEqual(corpus.TOTAL_PROMPTS, 728)
+        self.assertEqual(len(phrases), 728)
+        self.assertEqual(len(set(phrases)), 728)
         self.assertTrue(all(any(0x0600 <= ord(ch) <= 0x06FF for ch in text) for text in phrases))
 
 
