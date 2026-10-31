@@ -28,6 +28,10 @@ from tts_onnx import OnnxTts
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor as _OriginalPool
 PARALLEL_CHUNKS = min(2, max(1, int(os.environ.get("FORZA_TTS_PARALLEL_CHUNKS", "1"))))
+# CPU latency optimization: run the FIRST acoustic unit without the second
+# unit competing for scarce Xeon compute. Yield its WAV before starting work
+# on the remaining units. Default off until measured with selected voice.
+FIRST_FRAME_PRIORITY = os.environ.get("FORZA_TTS_FIRST_FRAME_PRIORITY", "0") == "1"
 # Opt-in only: test a shorter FIRST chunk with the upstream Persian
 # phoneme boundary rules, preserving the original model/voice reference.
 # Upstream Pocket was trained near ~11 phoneme tokens per unit; short
@@ -401,9 +405,10 @@ def render_chunks(engine, text):
     # units are ever rendered ahead, so job metadata remains small in RAM.
     if len(jobs) > 256:
         raise ValueError("too_many_speech_chunks")
-    print("[FORZA voice stream plan] ms=%d jobs=%d first_tokens=%d parallel=%d unbroken=%d" % (
+    print("[FORZA voice stream plan] ms=%d jobs=%d first_tokens=%d parallel=%d unbroken=%d first_frame_priority=%d" % (
         (time.monotonic() - planning_started) * 1000, len(jobs),
-        STREAM_FIRST_TOKENS, PARALLEL_CHUNKS, int(UNBROKEN_SPEECH)), file=sys.stderr, flush=True)
+        STREAM_FIRST_TOKENS, PARALLEL_CHUNKS, int(UNBROKEN_SPEECH),
+        int(FIRST_FRAME_PRIORITY)), file=sys.stderr, flush=True)
 
     # Release the sizeable ONNX G2P graphs before acoustic inference, as in
     # the existing full-WAV path. Avoid overlapping their RAM on 1.5 GiB.
@@ -486,7 +491,21 @@ def render_chunks(engine, text):
     with ThreadPoolExecutor(max_workers=PARALLEL_CHUNKS) as pool:
         pending = []
         next_job = 0
-        for _ in range(min(PARALLEL_CHUNKS, len(jobs))):
+        if FIRST_FRAME_PRIORITY:
+            # With only 2 vCPU available to Pocket, overlapping a second
+            # FlowLM/Mimi inference can starve the FIRST frame. Do not start
+            # any other acoustic generation until the first frame exists.
+            # The worker HTTP handler sends this yield immediately as the
+            # first playable WAV; further jobs are submitted on resume.
+            first_started = time.monotonic()
+            wav = pool.submit(generate, 0).result()
+            print("[FORZA voice first-frame-priority] first_job_ms=%d first_tokens=%d" % (
+                (time.monotonic() - first_started) * 1000,
+                len(engine.sp.encode(jobs[0][0], out_type=int))),
+                file=sys.stderr, flush=True)
+            next_job = 1
+            yield wav
+        for _ in range(min(PARALLEL_CHUNKS, len(jobs) - next_job)):
             pending.append(pool.submit(generate, next_job))
             next_job += 1
         while pending:

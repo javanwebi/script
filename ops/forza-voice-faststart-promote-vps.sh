@@ -12,6 +12,17 @@ APP=/opt/sanatpish
 LIVE=forza-voice
 ORIGINAL_SPEAKER_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 TOKENFILE=/etc/sanatpish/forza-voice.env
+# A real private-Pocket canary must have passed with exactly these settings.
+# Both benchmark and promotion default to the same early-first-frame profile.
+FIRST_TOKENS=${FORZA_FASTSTART_FIRST_TOKENS:-8}
+PARALLEL=${FORZA_FASTSTART_PARALLEL:-1}
+FIRST_PRIORITY=${FORZA_FASTSTART_FIRST_FRAME_PRIORITY:-1}
+OVERLAP_MIMI=${FORZA_FASTSTART_OVERLAP_MIMI:-1}
+case "$FIRST_TOKENS" in 8|12|18|22|26) ;; *) echo "Invalid first token profile" >&2; exit 1;; esac
+case "$PARALLEL" in 1|2) ;; *) echo "Invalid parallel profile" >&2; exit 1;; esac
+case "$FIRST_PRIORITY" in 0|1) ;; *) echo "Invalid priority profile" >&2; exit 1;; esac
+case "$OVERLAP_MIMI" in 0|1) ;; *) echo "Invalid Mimi profile" >&2; exit 1;; esac
+PROFILE="t${FIRST_TOKENS}-p${PARALLEL}-f${FIRST_PRIORITY}-m${OVERLAP_MIMI}-r3"
 MARKER=/etc/sanatpish/forza-voice-faststart-rollback-container
 BACKUP="forza-voice-before-faststart-$(date -u +%Y%m%d%H%M%S)"
 CHANGED=0
@@ -60,6 +71,14 @@ docker image inspect "$IMAGE" >/dev/null || {
   echo "Missing $IMAGE. Run ops/forza-voice-faststart-benchmark-vps.sh first." >&2
   exit 1
 }
+# Prevent accidentally promoting a different tuning profile or a different
+# reference voice even when several benchmarks reused the same Docker tag.
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.benchmark-profile"}}' "$IMAGE")" = "$PROFILE" || {
+  echo "FORZA_PROMOTE_ABORT benchmark_profile_mismatch expected=$PROFILE" >&2; exit 1;
+}
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.original-voice-sha"}}' "$IMAGE")" = "$ORIGINAL_SPEAKER_SHA" || {
+  echo "FORZA_PROMOTE_ABORT selected_speaker_mismatch" >&2; exit 1;
+}
 
 NETWORK=$(docker inspect -f '{{range $name, $conf := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$LIVE" | grep -Fx supabase_default | head -1 || true)
 if [ -z "$NETWORK" ]; then
@@ -78,8 +97,14 @@ docker run -d --name "$LIVE" --network "$NETWORK" --network-alias "$LIVE" \
   -e FORZA_TTS_RESIDENT_ACOUSTIC=1 \
   -e FORZA_TTS_RESIDENT_G2P=1 \
   -e FORZA_TTS_WARMUP=1 \
-  -e FORZA_TTS_PARALLEL_CHUNKS=2 \
-  -e FORZA_TTS_STREAM_FIRST_TOKENS=18 \
+  -e "FORZA_TTS_PARALLEL_CHUNKS=$PARALLEL" \
+  -e "FORZA_TTS_STREAM_FIRST_TOKENS=$FIRST_TOKENS" \
+  -e "FORZA_TTS_FIRST_FRAME_PRIORITY=$FIRST_PRIORITY" \
+  -e "FORZA_TTS_OVERLAP_MIMI=$OVERLAP_MIMI" \
+  -e FORZA_TTS_RETRY_ATTEMPTS=3 \
+  -e FORZA_CPU_INTRA=1 \
+  -e FORZA_CPU_ARENA=0 \
+  -e FORZA_CPU_PATTERN=0 \
   "$IMAGE" >/dev/null
 
 echo "[3/4] Waiting for resident G2P and Pocket warmup (up to 120 seconds)."
@@ -149,7 +174,7 @@ printf '%s\n' "$BACKUP" > "$MARKER"
 chmod 600 "$MARKER"
 VERIFIED=1
 echo "FORZA_FASTSTART_POCKET_LIVE_OK"
-echo "Image=$IMAGE CPU=2 RAM=2GiB resident_G2P=1 warmup=1 parallel_chunks=2 first_tokens=18"
+echo "Image=$IMAGE CPU=2 RAM=2GiB resident_G2P=1 warmup=1 benchmark_profile=$PROFILE original_voice_unchanged=1"
 echo "Backup retained stopped: $BACKUP"
 echo "Existing /speak route remains compatible; deploy the app to activate progressive browser playback."
 echo "Older /etc/sanatpish/forza-voice-rollback-container was preserved unchanged."

@@ -10,6 +10,16 @@ LIVE=forza-voice
 ORIGINAL_SPEAKER_SHA=31ce0344f5abe28b1bcff4fe49f6d75e7cb7d0e672edec8f22367998e9b24833
 CANDIDATE=forza-voice-faststart-benchmark
 SECRETS=/etc/sanatpish/forza-voice.env
+# Test genuine Pocket neural-runtime tuning in the disposable container only.
+# The live voice continues running the identical selected model and reference.
+FIRST_TOKENS=${FORZA_FASTSTART_FIRST_TOKENS:-8}
+PARALLEL=${FORZA_FASTSTART_PARALLEL:-1}
+FIRST_PRIORITY=${FORZA_FASTSTART_FIRST_FRAME_PRIORITY:-1}
+OVERLAP_MIMI=${FORZA_FASTSTART_OVERLAP_MIMI:-1}
+case "$FIRST_TOKENS" in 8|12|18|22|26) ;; *) echo "FIRST_TOKENS must be 8,12,18,22 or 26" >&2; exit 1 ;; esac
+case "$PARALLEL" in 1|2) ;; *) echo "PARALLEL must be 1 or 2" >&2; exit 1 ;; esac
+case "$FIRST_PRIORITY" in 0|1) ;; *) echo "FIRST_PRIORITY must be 0 or 1" >&2; exit 1 ;; esac
+case "$OVERLAP_MIMI" in 0|1) ;; *) echo "OVERLAP_MIMI must be 0 or 1" >&2; exit 1 ;; esac
 test -d "$APP/.git"
 test -r "$SECRETS"
 test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/script.git
@@ -48,15 +58,22 @@ trap 'exit 143' TERM
 echo "[1/4] Building candidate from current Pocket image plus updated worker code."
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
-git -C "$APP" archive --format=tar "$REV" scripts/forza_pocket_worker.py scripts/forza_voice_http.py | tar -xf - -C "$STAGE"
+git -C "$APP" archive --format=tar "$REV" scripts/forza_pocket_worker.py scripts/forza_voice_http.py scripts/forza_pocket_overlap.py | tar -xf - -C "$STAGE"
 grep -q 'g2p_ready_ms' "$STAGE/scripts/forza_voice_http.py"
 grep -q 'FORZA_TTS_WARMUP' "$STAGE/scripts/forza_voice_http.py"
 grep -q 'synthesis_ms=' "$STAGE/scripts/forza_pocket_worker.py"
-printf 'FROM %s\nCOPY scripts/forza_pocket_worker.py /app/scripts/forza_pocket_worker.py\nCOPY scripts/forza_voice_http.py /app/scripts/forza_voice_http.py\n' "$SOURCE_IMAGE" > "$STAGE/Dockerfile"
+printf 'FROM %s\nCOPY scripts/forza_pocket_worker.py /app/scripts/forza_pocket_worker.py\nCOPY scripts/forza_voice_http.py /app/scripts/forza_voice_http.py\nCOPY scripts/forza_pocket_overlap.py /app/scripts/forza_pocket_overlap.py\n' "$SOURCE_IMAGE" > "$STAGE/Dockerfile"
 TAG="sanatpish/forza-voice:faststart-test-${REV:0:12}"
-docker build --pull=false -q -f "$STAGE/Dockerfile" -t "$TAG" "$STAGE" >/dev/null
+PROFILE="t${FIRST_TOKENS}-p${PARALLEL}-f${FIRST_PRIORITY}-m${OVERLAP_MIMI}-r3"
+docker build --pull=false -q \
+  --label "org.sanatpish.forza.benchmark-profile=$PROFILE" \
+  --label "org.sanatpish.forza.original-voice-sha=$ORIGINAL_SPEAKER_SHA" \
+  -f "$STAGE/Dockerfile" -t "$TAG" "$STAGE" >/dev/null
 
-echo "[2/4] Starting disposable 2-CPU / 2-GiB worker with resident G2P, warmup and 18-token first chunk."
+echo "[2/4] Starting disposable Pocket neural candidate first_tokens=$FIRST_TOKENS priority=$FIRST_PRIORITY parallel=$PARALLEL overlap_mimi=$OVERLAP_MIMI retry_budget=3."
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.benchmark-profile"}}' "$TAG")" = "$PROFILE"
+test "$(docker image inspect -f '{{index .Config.Labels "org.sanatpish.forza.original-voice-sha"}}' "$TAG")" = "$ORIGINAL_SPEAKER_SHA"
+
 docker run -d --name "$CANDIDATE" --restart no \
   --network "$NETWORK" --cpus=2.0 --cpu-shares=512 \
   --memory=2g --memory-swap=2g --pids-limit=128 \
@@ -64,8 +81,14 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e FORZA_TTS_RESIDENT_ACOUSTIC=1 \
   -e FORZA_TTS_RESIDENT_G2P=1 \
   -e FORZA_TTS_WARMUP=1 \
-  -e FORZA_TTS_PARALLEL_CHUNKS=2 \
-  -e FORZA_TTS_STREAM_FIRST_TOKENS=18 \
+  -e "FORZA_TTS_PARALLEL_CHUNKS=$PARALLEL" \
+  -e "FORZA_TTS_STREAM_FIRST_TOKENS=$FIRST_TOKENS" \
+  -e "FORZA_TTS_FIRST_FRAME_PRIORITY=$FIRST_PRIORITY" \
+  -e "FORZA_TTS_OVERLAP_MIMI=$OVERLAP_MIMI" \
+  -e FORZA_TTS_RETRY_ATTEMPTS=3 \
+  -e FORZA_CPU_INTRA=1 \
+  -e FORZA_CPU_ARENA=0 \
+  -e FORZA_CPU_PATTERN=0 \
   "$TAG" >/dev/null
 
 echo "[3/4] Waiting for G2P preload and acoustic warmup (up to 120 seconds)."
@@ -143,6 +166,7 @@ fi
 test "$(docker inspect -f '{{.State.OOMKilled}}' "$CANDIDATE")" = false
 test "$(docker inspect -f '{{.State.Running}}' "$LIVE")" = true
 test "$(docker inspect -f '{{.State.Running}}' sanatpish-new)" = true
-docker logs --tail 100 "$CANDIDATE" 2>&1 | grep -E 'g2p_ready_ms|warmup_ms|synthesis_ms=|first_chunk_ms|inter_chunk_gap_ms|chunks=' || true
-echo "FORZA_FASTSTART_BENCH_PASS revision=$REV image=$TAG"
+docker logs --tail 120 "$CANDIDATE" 2>&1 | grep -E 'g2p_ready_ms|warmup_ms|synthesis_ms=|first_chunk_ms|first_job_ms|first_frame_priority=|inter_chunk_gap_ms|chunks=' || true
+echo "FORZA_FASTSTART_BENCH_PASS revision=$REV image=$TAG first_tokens=$FIRST_TOKENS first_frame_priority=$FIRST_PRIORITY parallel=$PARALLEL overlap_mimi=$OVERLAP_MIMI retry_budget=3"
+echo "FORZA_POCKET_MODEL_TUNING_REQUIRES_LISTENING_TEST=1 exact_reference_sha256=$ORIGINAL_SPEAKER_SHA"
 echo "Live voice, website, Nginx and Supabase were not modified."

@@ -35,6 +35,8 @@ on:
       - tests/test_forza_original_int4_guard.py
       - scripts/forza_pocket_overlap.py
       - tests/test_forza_mimi_overlap.py
+      - tests/test_forza_pocket_first_frame_priority.py
+      - ops/forza-voice-faststart-benchmark-vps.sh
       - tests/test_forza_pocket_determinism.py
       - tests/test_forza_pocket_eos_tail.py
       - Dockerfile.forza-voice
@@ -163,6 +165,8 @@ jobs:
         run: |
           python3 -m pip install --quiet numpy
           python3 tests/test_forza_mimi_overlap.py
+          python3 tests/test_forza_pocket_first_frame_priority.py
+          bash -n ops/forza-voice-faststart-benchmark-vps.sh
           python3 tests/test_forza_pocket_determinism.py
           python3 tests/test_forza_pocket_eos_tail.py
           python3 tests/test_forza_original_int4_guard.py
