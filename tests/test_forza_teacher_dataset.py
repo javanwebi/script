@@ -24,14 +24,20 @@ class TeacherCorpusTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-    def test_one_five_and_full_known_prompt_count(self):
+    def test_legacy_pilot_and_extended_full_count(self):
         self.assertEqual(len(teacher.read_prompts(self.prompts, 1)), 1)
         self.assertEqual(len(teacher.read_prompts(self.prompts, 5)), 5)
-        self.assertEqual(len(teacher.read_prompts(self.prompts, 368)), 368)
+        with self.assertRaisesRegex(ValueError, "full_requires_728"):
+            teacher.read_prompts(self.prompts, 728)
+        self.prompts.write_text(
+            "\\n".join("سلام این یک متن آزمایش شماره " + str(i) for i in range(728)) + "\\n",
+            encoding="utf-8"
+        )
+        self.assertEqual(len(teacher.read_prompts(self.prompts, 728)), 728)
 
     def test_reject_missing_and_bad_prompt_sets(self):
         self.prompts.write_text("سلام یک جمله\n", encoding="utf-8")
-        with self.assertRaisesRegex(ValueError, "expected_exactly_368"):
+        with self.assertRaisesRegex(ValueError, "expected_368_legacy_or_728_extended"):
             teacher.read_prompts(self.prompts, 5)
 
     def test_reject_duplicate_text(self):
@@ -64,7 +70,7 @@ class TeacherCorpusTest(unittest.TestCase):
         script = ROOT / "ops/forza-pocket-teacher-corpus-vps.sh"
         subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True)
         source = script.read_text(encoding="utf-8")
-        for required in ("--one) LIMIT=1; MODE=one", "--network none", "--read-only", "--cpus=1",
+        for required in ("--one) LIMIT=1; MODE=one", "--full) LIMIT=728; MODE=full", "--network none", "--read-only", "--cpus=1",
                          "selected_voice_sha256", "FORZA_TEACHER_PILOT_APPROVED",
                          "FORZA_TEACHER_TRAINING_RIGHTS", "FORZA_TEACHER_VPS_PASS"):
             self.assertIn(required, source)
