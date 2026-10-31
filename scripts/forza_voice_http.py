@@ -11,7 +11,6 @@ import socket
 import sys
 import threading
 import time
-from collections import OrderedDict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -23,12 +22,9 @@ from g2p_onnx import OnnxG2P
 
 MAX_TEXT_CHARS = 1000
 MAX_REQUEST_BYTES = 8192
-MAX_CACHED_RESPONSES = 4
 synthesis_slot = threading.BoundedSemaphore(value=1)
 # One active synthesis plus one bounded waiting request; reject excess load cleanly.
 synthesis_queue = threading.BoundedSemaphore(value=2)
-audio_cache = OrderedDict()
-cache_lock = threading.Lock()
 engine = None
 
 
@@ -199,13 +195,6 @@ class Handler(BaseHTTPRequestHandler):
                 release_unused_memory()
             return
 
-        with cache_lock:
-            cached = audio_cache.get(phrase)
-            if cached:
-                audio_cache.move_to_end(phrase)
-        if cached:
-            self.reply(200, cached, "audio/wav")
-            return
         if not synthesis_queue.acquire(blocking=False):
             self.reply(503, {"error": "voice_busy"})
             return
@@ -215,18 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         started = time.monotonic()
         try:
-            with cache_lock:
-                cached = audio_cache.get(phrase)
-            if cached:
-                self.reply(200, cached, "audio/wav")
-                return
+            # Generated customer audio is transient, never kept in a response cache.
             audio = render(engine, phrase)
-            with cache_lock:
-                # Keep short repeated phrases cached; do not pin many multi-minute WAVs in RAM.
-                if len(phrase) <= 220:
-                    audio_cache[phrase] = audio
-                if len(audio_cache) > MAX_CACHED_RESPONSES:
-                    audio_cache.popitem(last=False)
             self.reply(200, audio, "audio/wav")
             print("[FORZA voice] generated chars=%s bytes=%s ms=%s" % (
                 len(phrase), len(audio), int((time.monotonic() - started) * 1000)),
