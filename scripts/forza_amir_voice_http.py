@@ -45,12 +45,14 @@ def synthesize_complete(text):
     if not spoken:
         raise ValueError("empty_spoken_text")
     output = io.BytesIO()
+    configured = False
     with wave.open(output, "wb") as target:
         for part in engine.synthesize(spoken):
-            if target.getnchannels() == 0:
+            if not configured:
                 target.setnchannels(part.sample_channels)
                 target.setsampwidth(part.sample_width)
                 target.setframerate(part.sample_rate)
+                configured = True
             target.writeframes(part.audio_int16_bytes)
             if output.tell() > MAX_WAV_BYTES:
                 raise ValueError("audio_too_large")
