@@ -5435,7 +5435,7 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
         'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
       },
       body:JSON.stringify({text:phrase}),
-      signal:AbortSignal.timeout(30000),
+      signal:AbortSignal.timeout(420000),
     });
     // One inference slot across visitors. Brief backoff on BUSY only;
     // never retry a 403 token mismatch or an unavailable worker.
@@ -5451,7 +5451,7 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
     if(!(response.headers.get('content-type')||'').includes('audio/wav'))
       throw new Error('private_voice_invalid_type');
     const payload=await response.arrayBuffer();
-    if(payload.byteLength<44||payload.byteLength>5_000_000)
+    if(payload.byteLength<44||payload.byteLength>8_000_000)
       throw new Error('private_voice_invalid_length');
     const wav=Buffer.from(payload);
     if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
@@ -5495,7 +5495,7 @@ function consumePocketVoiceBudget(req:any):boolean{
 
 app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>220)return res.status(400).json({error:'pocket_invalid_text'});
+  if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
   if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
   const started=Date.now();
   try{
