@@ -35,9 +35,12 @@ export async function consumeForzaTextStream(
         const remaining=finalText.slice(fullText.length);
         fullText=finalText;
         onChunk(remaining,fullText);
-      } else if(!fullText){
+      } else if(finalText!==fullText){
+        // The explicit completed answer is authoritative. A missed, revised
+        // or out-of-order delta must NEVER make Pocket speak a partial reply.
+        // Reconcile subtitles with the final text before one TTS request.
         fullText=finalText;
-        if(fullText)onChunk(fullText,fullText);
+        onChunk('',fullText);
       }
     }
   };
@@ -64,6 +67,9 @@ export async function consumeForzaTextStream(
       pending += decoder.decode();
       if (pending.trim()) dispatch(pending);
     }
+    // Network EOF is NOT the end of an AI answer. Without the explicit
+    // final SSE event, the UI must never send a partial answer to TTS.
+    if (!sawDone) throw new Error('forza_stream_incomplete');
     return fullText.trim();
   } finally {
     // A server/proxy may keep an SSE connection open after its final 'done'
