@@ -1,0 +1,268 @@
+/* Consumer portal only. Keep the high-volume portal on the shared baseline. */
+.customer-portal.consumer-premium {
+  --portal-accent: #e06518;
+  --portal-ink: #55565a;
+  --consumer-navy: #20243d;
+  --consumer-shadow: 0 14px 35px rgba(27, 35, 55, .065), 0 2px 7px rgba(27, 35, 55, .035);
+  background: #f5f6f9;
+  color: #30323a;
+  font-family: "VazirmatnPortal", "Vazirmatn", sans-serif;
+}
+.consumer-premium .portal-sidebar {
+  background: #fff;
+  box-shadow: -8px 0 38px rgba(23, 29, 46, .035);
+  border-left: 1px solid #eaebf0;
+}
+.consumer-premium .portal-brand {color: var(--consumer-navy);}
+.consumer-premium .portal-brand-mark {background: #fff1e6; color: var(--portal-accent);}
+.consumer-premium .portal-company {background: #f8f9fb; border: 1px solid #eceef1; border-radius: 18px; padding: 17px 13px;}
+.consumer-premium .portal-sidebar .portal-nav-item {border-radius: 13px; font-weight: 650; transition: background .18s ease, color .18s ease;}
+.consumer-premium .portal-sidebar .portal-nav-item.is-active {background: #fff0e4; color: #aa4b12; border-color: #f7d5bd;}
+.consumer-premium .portal-workspace {min-height: 100dvh;}
+.consumer-premium .portal-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e9ecf2;
+  box-shadow: 0 1px 14px rgba(23, 29, 46, .025);
+}
+.consumer-premium .portal-content {max-width: 1540px; padding-bottom: 90px;}
+.consumer-premium .portal-heading {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(27px, 4vw, 50px);
+  border-radius: 30px;
+  margin-bottom: 0;
+  min-height: 196px;
+  color: white;
+  background: linear-gradient(95deg, rgba(51, 27, 33, .90), rgba(148, 57, 17, .89) 56%, rgba(224, 101, 24, .82)), url("../../assets/images/mobile/ind_bg_plant_1789640602049.webp") center / cover no-repeat, #a84a1a;
+}
+.consumer-premium .portal-heading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .17;
+  background: radial-gradient(circle at 82% 22%, #fff 0, transparent 30%);
+}
+.consumer-premium .portal-heading h1 {font-size: clamp(23px, 2.7vw, 37px); line-height: 1.5; color: white; font-weight: 850; margin: 6px 0 11px;}
+.consumer-premium .portal-heading p, .consumer-premium .portal-heading > div > p:first-child {color: #fff6ef; font-size: 13px; max-width: 680px;}
+.consumer-premium .portal-heading > div > p:first-child {font-weight: 650; font-size: 12px; letter-spacing: .05px;}
+.consumer-premium .portal-heading > .portal-primary {
+  background: #fff;
+  border: 1px solid rgba(255,255,255,.88);
+  color: #a64e1d;
+  font-weight: 800;
+  border-radius: 999px;
+  min-height: 48px;
+  box-shadow: 0 7px 24px rgba(55,29,15,.15);
+}
+.consumer-premium .portal-heading > .portal-primary:hover {background: #fff5ec;}
+.consumer-premium .consumer-shortcuts {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+  margin: -23px 27px 24px auto;
+  padding: 6px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #f0f1f5;
+  box-shadow: var(--consumer-shadow);
+}
+.consumer-premium .consumer-shortcuts button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 9px 19px;
+  border-radius: 999px;
+  color: #616570;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.consumer-premium .consumer-shortcuts button[aria-current="page"] {background: #fff0e6; color: #b95316;}
+.consumer-premium .consumer-shortcuts button:hover {color: #aa4a12;}
+.consumer-premium .portal-metrics {gap: 16px; margin: 3px 0 24px; grid-template-columns: repeat(4, minmax(0, 1fr));}
+.consumer-premium .portal-metric {
+  padding: 20px 21px;
+  min-height: 122px;
+  border-radius: 21px;
+  background: #fff;
+  box-shadow: var(--consumer-shadow);
+  border: 1px solid #eef0f3;
+  grid-template-columns: minmax(0, 1fr) 46px;
+}
+.consumer-premium .portal-metric::after {inset: auto 22px 0; background: #efb48d; height: 2px; opacity: .55;}
+.consumer-premium .portal-metric-icon {width: 46px; height: 46px; border-radius: 15px; background: #fff0e6; color: #db641a;}
+.consumer-premium .portal-metric strong {font-size: clamp(15px, 1.6vw, 23px); letter-spacing: 0; font-variant-numeric: tabular-nums; color: #23293a;}
+.consumer-premium .portal-metric > span:not(.portal-metric-icon) {font-size: 12px; color: #6f7480;}
+.consumer-premium .portal-campaigns {gap: 17px;}
+.consumer-premium .portal-campaign {
+  border: 1px solid #f4e4d7;
+  border-radius: 25px;
+  background: linear-gradient(112deg, #fff8f1, #fff 72%);
+  box-shadow: var(--consumer-shadow);
+}
+.consumer-premium .portal-campaign h2 {font-size: clamp(17px, 1.65vw, 23px); color: #292e3c;}
+.consumer-premium .portal-campaign img {object-fit: contain;}
+.consumer-premium .portal-panels {gap: 20px;}
+.consumer-premium .portal-panels .bg-white,
+.consumer-premium .portal-recent-orders,
+.consumer-premium .portal-inquiries,
+.consumer-premium .portal-club,
+.consumer-premium .portal-bulk-form,
+.consumer-premium .portal-bulk-help,
+.consumer-premium .portal-bulk-results {
+  border: 1px solid #edeff3;
+  border-radius: 24px;
+  box-shadow: var(--consumer-shadow);
+  background-color: #fff;
+}
+.consumer-premium .portal-panels .rounded-2xl {border-radius: 16px;}
+.consumer-premium .portal-panels .rounded-3xl {border-radius: 24px;}
+.consumer-premium .portal-panels h2, .consumer-premium .portal-panels h3 {letter-spacing: -.15px; color: #272d3b;}
+.consumer-premium .portal-panels button {transition: background-color .18s ease, border-color .18s ease, color .18s ease;}
+.consumer-premium .portal-panels button:active {transform: translateY(1px);}
+.consumer-premium .portal-recent-orders {padding: 27px;}
+.consumer-premium .portal-recent-heading {margin-bottom: 15px;}
+.consumer-premium .portal-order-rows {gap: 10px; margin-top: 12px;}
+.consumer-premium .portal-order-rows > button {
+  border: 1px solid #edf0f4;
+  padding: 16px;
+  border-radius: 16px;
+  background: #fafbfc;
+}
+.consumer-premium .portal-order-rows > button:hover {border-color: #f0bb94; background: #fffaf7;}
+.consumer-premium .portal-club {padding: clamp(18px, 2.6vw, 28px);}
+.consumer-premium .portal-milestone {border-radius: 16px;}
+.consumer-premium .portal-tool-empty {background: #fcfcfd; border: 1px dashed #d9dde5; border-radius: 23px;}
+.consumer-premium .portal-bulk-form textarea {border-radius: 15px; min-height: 160px; width: 100%; font-size: 14px; line-height: 2; resize: vertical;}
+.consumer-premium .portal-bulk-row {border-radius: 13px;}
+.consumer-premium .portal-panels input[type="search"],
+.consumer-premium .portal-panels input[type="text"] {min-height: 44px;}
+.consumer-premium :is(button, a, input, textarea, select):focus-visible {outline: 3px solid #e06518; outline-offset: 3px;}
+.consumer-premium .portal-mobile-nav {display: none;}
+@media (max-width: 1199px) {
+  .consumer-premium .portal-metrics {grid-template-columns: repeat(2, minmax(0,1fr));}
+  .consumer-premium .portal-metric strong {font-size: 19px;}
+}
+@media (max-width: 767px) {
+  .customer-portal.consumer-premium {background: #f6f7fa; font-size: 13px;}
+  .consumer-premium .portal-sidebar {display: none;}
+  .consumer-premium .portal-workspace {margin: 0;}
+  .consumer-premium .portal-topbar {
+    position: relative;
+    top: auto;
+    min-height: 66px;
+    padding: 16px 19px 8px;
+    background: #9e441c;
+    box-shadow: none;
+    border: 0;
+    color: white;
+    z-index: 1;
+  }
+  .consumer-premium .portal-top-brand, .consumer-premium .portal-person {color: #fff;}
+  .consumer-premium .portal-person svg {background: rgba(255,255,255,.16); color: #fff;}
+  .consumer-premium .portal-top-actions a {color: #fff; border-color: rgba(255,255,255,.22);}
+  .consumer-premium .portal-content {padding: 0 13px calc(116px + env(safe-area-inset-bottom)); overflow: visible;}
+  .consumer-premium .portal-heading {
+    margin: -1px -13px 0;
+    padding: 24px 23px 73px;
+    min-height: 218px;
+    border-radius: 0 0 30px 30px;
+    align-items: flex-start;
+    background-image: linear-gradient(100deg, rgba(96,35,28,.86), rgba(208,83,19,.80)), url("../../assets/images/mobile/ind_bg_plant_1789640602049.webp");
+    background-position: center;
+  }
+  .consumer-premium .portal-heading h1 {font-size: clamp(22px, 5.7vw, 29px); line-height: 1.48; margin: 9px 0;}
+  .consumer-premium .portal-heading p {font-size: 12px; line-height: 1.9;}
+  .consumer-premium .portal-heading > .portal-primary {margin-top: 19px; width: auto; min-height: 44px; font-size: 11px; padding-inline: 17px;}
+  .consumer-premium .consumer-shortcuts {
+    width: calc(100% - 8px);
+    margin: -53px 4px 21px;
+    justify-content: space-between;
+    border-radius: 24px;
+    padding: 6px;
+    gap: 2px;
+  }
+  .consumer-premium .consumer-shortcuts button {
+    flex: 1;
+    padding: 10px 4px;
+    font-size: 11px;
+    gap: 5px;
+    min-width: 0;
+    border-radius: 18px;
+  }
+  .consumer-premium .consumer-shortcuts button svg {width: 15px; height: 15px; flex-shrink: 0;}
+  .consumer-premium .portal-metrics {grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-bottom: 20px;}
+  .consumer-premium .portal-metric {padding: 13px; min-height: 104px; border-radius: 19px; grid-template-columns: minmax(0,1fr) 31px; gap: 5px;}
+  .consumer-premium .portal-metric strong {font-size: clamp(13px, 3.6vw, 17px); overflow-wrap: anywhere;}
+  .consumer-premium .portal-metric > span:not(.portal-metric-icon) {font-size: 10px;}
+  .consumer-premium .portal-metric-icon {width: 30px; height: 30px; border-radius: 10px;}
+  .consumer-premium .portal-metric-icon svg {width: 17px; height: 17px;}
+  .consumer-premium .portal-campaign {border-radius: 21px; min-height: 150px; padding: 18px; gap: 9px;}
+  .consumer-premium .portal-campaign img {max-height: 116px; width: 28%;}
+  .consumer-premium .portal-panels {gap: 13px;}
+  .consumer-premium .portal-panels .bg-white,
+  .consumer-premium .portal-recent-orders,
+  .consumer-premium .portal-inquiries,
+  .consumer-premium .portal-club {border-radius: 21px;}
+  .consumer-premium .portal-recent-orders {padding: 15px;}
+  .consumer-premium .portal-order-rows > button {padding: 12px; gap: 9px;}
+  .consumer-premium .portal-panels :is(.p-6, .p-7, .p-5) {padding: 15px;}
+  .consumer-premium .portal-tools-heading {margin-bottom: 17px;}
+  .consumer-premium .portal-tools-heading h2 {font-size: 17px;}
+  .consumer-premium .portal-mobile-nav {
+    position: fixed;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 9px;
+    right: 9px;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    gap: 3px;
+    padding: 7px;
+    border: 1px solid #e9ebef;
+    border-radius: 26px;
+    box-shadow: 0 12px 37px rgba(29,33,46,.15);
+    background: rgba(255,255,255,.97);
+    backdrop-filter: blur(12px);
+  }
+  .consumer-premium .portal-mobile-nav .portal-nav-item {
+    display: flex; flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0; min-height: 57px;
+    border-radius: 19px;
+    margin: 0; padding: 6px 2px;
+    gap: 2px; border: 0;
+    font-size: 10px; line-height: 1.45;
+    color: #545965;
+  }
+  .consumer-premium .portal-mobile-nav .portal-nav-item > svg {width: 20px; height: 20px; opacity: 1;}
+  .consumer-premium .portal-mobile-nav .portal-nav-item span {font-size: 10px; font-weight: 700; line-height: 1.5; text-align: center; max-width: 100%; flex: 0;}
+  .consumer-premium .portal-mobile-nav .portal-nav-item.is-active {
+    background: #e06518; color: #fff;
+    border: 0; box-shadow: 0 4px 12px rgba(224,101,24,.28);
+  }
+  .consumer-premium .portal-mobile-nav .portal-nav-item.is-active svg {color: #fff;}
+  .consumer-premium .portal-menu-dialog {border-radius: 25px 25px 0 0; max-height: 85dvh; overflow-y: auto;}
+}
+@media (max-width: 375px) {
+  .consumer-premium .portal-topbar {padding-inline: 13px;}
+  .consumer-premium .portal-person span {display: none;}
+  .consumer-premium .consumer-shortcuts button {font-size: 10px;}
+  .consumer-premium .consumer-shortcuts button svg {display: none;}
+  .consumer-premium .portal-mobile-nav {left: 4px; right: 4px; gap: 1px; padding: 5px;}
+  .consumer-premium .portal-mobile-nav .portal-nav-item span {font-size: 9px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .consumer-premium *, .consumer-premium *::before, .consumer-premium *::after {transition-duration: .01ms !important; animation-duration: .01ms !important;}
+}
