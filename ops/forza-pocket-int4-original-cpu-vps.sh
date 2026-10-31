@@ -61,7 +61,8 @@ echo "[1/4] Build isolated tunable image based on *live* Pocket weights and voic
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
 git -C "$APP" archive --format=tar "$REV" \
-  scripts/forza_voice_http.py scripts/forza_pocket_worker.py scripts/forza_pocket_overlap.py scripts/forza_quantize_original_flow_int4.py |
+  scripts/forza_voice_http.py scripts/forza_pocket_worker.py scripts/forza_pocket_overlap.py \
+  scripts/forza_quantize_original_flow_int4.py scripts/forza_patch_int4_parent.py |
   tar -xf - -C "$STAGE"
 grep -q 'CPU_INTRA = int(os.environ.get' "$STAGE/scripts/forza_pocket_worker.py"
 ! grep -q 'audio_cache' "$STAGE/scripts/forza_voice_http.py" || {
@@ -75,15 +76,8 @@ COPY scripts/forza_voice_http.py /app/scripts/
 COPY scripts/forza_pocket_worker.py /app/scripts/
 COPY scripts/forza_pocket_overlap.py /app/scripts/
 COPY scripts/forza_quantize_original_flow_int4.py /app/scripts/
-RUN python - <<'PY'
-from pathlib import Path
-p=Path('/app/vendor/persian_tts/scripts/tts_onnx.py')
-s=p.read_text()
-old='"flow_lm_step.int8.onnx" if os.environ.get("FORZA_ONNX_INT8") == "1" else "flow_lm_step.onnx"'
-assert s.count(old)==1,'Unexpected Pocket model flow graph source'
-s=s.replace(old,'"flow_lm_step.int4.onnx" if os.environ.get("FORZA_ONNX_INT4") == "1" else ("flow_lm_step.int8.onnx" if os.environ.get("FORZA_ONNX_INT8") == "1" else "flow_lm_step.onnx")')
-p.write_text(s)
-PY
+COPY scripts/forza_patch_int4_parent.py /app/scripts/
+RUN python /app/scripts/forza_patch_int4_parent.py
 DOCKER
 FLOAT_IMAGE="sanatpish/forza-original-int4:float-${REV:0:12}-$$"
 QUANT_IMAGE="sanatpish/forza-original-int4:int4-${REV:0:12}-$$"

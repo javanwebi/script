@@ -7,6 +7,8 @@ on:
       - ops/forza-pocket-q4-cpu-probe-vps.sh
       - scripts/forza_pocket_worker.py
       - scripts/forza_quantize_original_flow_int4.py
+      - scripts/forza_patch_int4_parent.py
+      - tests/test_forza_int4_parent_patch.py
       - ops/forza-pocket-int4-original-cpu-vps.sh
       - tests/test_forza_original_int4_guard.py
       - scripts/forza_pocket_overlap.py
@@ -29,7 +31,7 @@ jobs:
           bash -n ops/forza-pocket-cpu-gate-after-amir-vps.sh
           bash -n ops/forza-pocket-q4-cpu-probe-vps.sh
           bash -n ops/forza-pocket-int4-original-cpu-vps.sh
-          python3 -m py_compile scripts/forza_quantize_original_flow_int4.py
+          python3 -m py_compile scripts/forza_quantize_original_flow_int4.py scripts/forza_patch_int4_parent.py
           python3 -m py_compile scripts/forza_pocket_overlap.py scripts/forza_pocket_worker.py tests/test_forza_mimi_overlap.py
           python3 - <<'PY'
           from pathlib import Path
@@ -120,3 +122,4 @@ jobs:
           python3 tests/test_forza_pocket_determinism.py
           python3 tests/test_forza_pocket_eos_tail.py
           python3 tests/test_forza_original_int4_guard.py
+          python3 tests/test_forza_int4_parent_patch.py
