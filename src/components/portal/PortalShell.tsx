@@ -134,7 +134,9 @@ export function PortalShell({
     );
   };
   const mobileMenus = variant === "consumer"
-    ? menus.filter((m) => ["overview", "orders", "quick_buy", "club_rewards"].includes(m.id))
+    ? ["overview", "orders", "quick_buy", "club_rewards"]
+        .map((id) => menus.find((m) => m.id === id))
+        .filter((m): m is PortalMenuItemConfig => Boolean(m))
     : menus.slice(0, 3);
   const consumerSectionTitles: Record<string, string> = {
     orders: "سفارش‌ها و رهگیری مرسوله",
