@@ -48,12 +48,12 @@ test "$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)" -ge 1800000
 test "$(df -Pk / | awk 'NR==2 {print $4}')" -ge 1048576
 
 TOKEN=$(sed -n 's/^FORZA_VOICE_TOKEN=//p' "$TOKENFILE" | head -1)
-test "\${#TOKEN}" -eq 64 || { echo "Invalid private voice token." >&2; exit 1; }
+test "${#TOKEN}" -eq 64 || { echo "Invalid private voice token." >&2; exit 1; }
 
 echo "[1/4] Verifying the exact benchmark image."
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
-IMAGE="sanatpish/forza-voice:faststart-test-\${REV:0:12}"
+IMAGE="sanatpish/forza-voice:faststart-test-${REV:0:12}"
 docker image inspect "$IMAGE" >/dev/null || {
   echo "Missing $IMAGE. Run ops/forza-voice-faststart-benchmark-vps.sh first." >&2
   exit 1
@@ -94,8 +94,8 @@ test "$ready" = 1 || { docker logs --tail 80 "$LIVE" >&2; exit 1; }
 
 echo "[4/4] Enforcing first-audio and inter-frame limits through the private worker."
 docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
-  -e "FORZA_FASTSTART_MAX_FIRST_MS=\${FORZA_FASTSTART_MAX_FIRST_MS:-5000}" \
-  -e "FORZA_FASTSTART_MAX_GAP_MS=\${FORZA_FASTSTART_MAX_GAP_MS:-5000}" \
+  -e "FORZA_FASTSTART_MAX_FIRST_MS=${FORZA_FASTSTART_MAX_FIRST_MS:-5000}" \
+  -e "FORZA_FASTSTART_MAX_GAP_MS=${FORZA_FASTSTART_MAX_GAP_MS:-5000}" \
   sanatpish-new node - <<'JS'
 (async()=>{
  const maxFirst=Number(process.env.FORZA_FASTSTART_MAX_FIRST_MS);
