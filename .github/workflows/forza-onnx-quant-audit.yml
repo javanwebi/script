@@ -13,6 +13,8 @@ on:
       - scripts/forza_amir_voice_http.py
       - Dockerfile.forza-amir
       - ops/forza-amir-private-canary-vps.sh
+      - ops/forza-amir-go-live-vps.sh
+      - ops/forza-amir-rollback-vps.sh
       - src/utils/forzaWavFrameStream.ts
       - tests/forza-wav-frame-stream.test.ts
       - Dockerfile.forza-voice
@@ -34,6 +36,8 @@ jobs:
           bash -n ops/forza-progressive-stream-smoke-vps.sh
           bash -n ops/forza-amir-inmemory-smoke-vps.sh
           bash -n ops/forza-amir-private-canary-vps.sh
+          bash -n ops/forza-amir-go-live-vps.sh
+          bash -n ops/forza-amir-rollback-vps.sh
           python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
           python3 tests/test_forza_punctuation_flow.py
           python3 -m py_compile scripts/forza_amir_voice_http.py
@@ -91,6 +95,17 @@ jobs:
           canary=Path("ops/forza-amir-private-canary-vps.sh").read_text()
           assert "FORZA_AMIR_PRIVATE_CANARY_RESULT" in canary
           assert "generated_wav_saved=0" in canary
+          promote=Path("ops/forza-amir-go-live-vps.sh").read_text()
+          rollback=Path("ops/forza-amir-rollback-vps.sh").read_text()
+          assert "FORZA_AMIR_LIVE_OK" in promote
+          assert "FORZA_AMIR_DEPLOY_FAILED" in promote
+          assert "FORZA_VOICE_ENGINE=amir" in promote
+          assert "/usr/local/sbin/sanatpish-deploy" in promote
+          assert "FORZA_POCKET_RESTORED" in rollback
+          assert "generated_wav_saved=0" in promote
+          assert "forza-amir-rollback-container" in promote and "forza-amir-rollback-container" in rollback
+          for unsafe in ("docker system prune", "docker volume rm", "drop database", "rm -rf /opt/sanatpish"):
+              assert unsafe not in promote and unsafe not in rollback
           assert "--read-only" in canary
           assert "piper-tts==1.8.0" in docker
           assert "fb815380d969ea372b0b21b0de14421f58fe481047e153e69685d079b6e1a9d1" in docker
