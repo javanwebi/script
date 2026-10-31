@@ -58,6 +58,17 @@ jobs:
           assert 'attempts_actual=%d flow_ms=%d flow_steps=%d flow_onnx_ms=%d mimi_ms=%d overhead_ms=%d' in worker
           assert "FORZA_TTS_STAGE_PROFILE=1" in s
           assert "FORZA_GATE_OVERLAP_MIMI" in s
+          assert "FORZA_GATE_CPU_INTRA" in s
+          assert "FORZA_GATE_CPU_ARENA" in s
+          assert "FORZA_GATE_CPU_PATTERN" in s
+          assert 'case "$FORZA_GATE_CPU_INTRA" in 1|2)' in s
+          assert '-e "FORZA_CPU_INTRA=$FORZA_GATE_CPU_INTRA"' in s
+          assert '-e "FORZA_CPU_ARENA=$FORZA_GATE_CPU_ARENA"' in s
+          assert '-e "FORZA_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN"' in s
+          dockerfile=Path("Dockerfile.forza-voice").read_text()
+          assert 'FORZA_CPU_INTRA' in dockerfile
+          assert 'FORZA_CPU_ARENA' in dockerfile
+          assert 'FORZA_CPU_PATTERN' in dockerfile
           assert 'case "$FORZA_GATE_OVERLAP_MIMI" in 0|1)' in s
           assert "type=bind,src=$STAGE/scripts/forza_pocket_overlap.py" in s
           assert 'TTS_OVERLAP_MIMI = os.environ.get("FORZA_TTS_OVERLAP_MIMI", "0") == "1"' in worker
