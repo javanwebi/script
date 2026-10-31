@@ -22,7 +22,7 @@ if test "$MODE" = --check; then
   test -d "$PIPER_REPO/src/piper/train" || abort "missing_piper_source"
   test -x "$PIPER_REPO/.venv/bin/python" || abort "missing_piper_venv"
   test -s "$CHECKPOINT" || abort "missing_base_checkpoint"
-  "$PIPER_REPO/.venv/bin/python" -c 'import lightning,torch; print("FORZA_GPU_TORCH_CUDA",torch.cuda.is_available())' \
+  "$PIPER_REPO/.venv/bin/python" -c 'import lightning,torch; assert torch.cuda.is_available(), "cuda_unavailable"; print("FORZA_GPU_TORCH_CUDA_READY")' \
     || abort "python_torch_import_failed"
   echo "FORZA_GPU_READY source_present=1 checkpoint_present=1 gpu_detected=1 production_unchanged=1"
   exit 0
@@ -51,7 +51,5 @@ if ! test -s "$CHECKPOINT"; then
   test "$(stat -c %s "$temp")" -gt 200000000 || abort "checkpoint_download_too_small"
   mv "$temp" "$CHECKPOINT"
 fi
-FORZA_VOICE_RIGHTS_CONFIRMED=yes FORZA_PIPER_REPO="$PIPER_REPO" FORZA_PIPER_CKPT="$CHECKPOINT" bash "$OLDPWD/ops/forza-piper-custom-bootstrap-gpu.sh" --check 2>/dev/null || {
-  test -s "$CHECKPOINT" && test -x "$PIPER_REPO/.venv/bin/python" || abort "setup_incomplete"
-}
+"$PIPER_REPO/.venv/bin/python" -c 'import lightning,torch; assert torch.cuda.is_available(), "cuda_unavailable"; print("FORZA_GPU_TORCH_CUDA_READY")' || abort "gpu_python_cuda_unavailable"
 echo "FORZA_GPU_SETUP_DONE piper_checkout_ready=1 checkpoint_ready=1 dataset_not_uploaded=1 production_unchanged=1"
