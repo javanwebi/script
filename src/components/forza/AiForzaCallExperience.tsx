@@ -658,11 +658,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // The legacy WAV route remains only as a 404 compatibility fallback.
   const streamPocketPhrase=useCallback(async(
     phrase:string,
-    onWav:(url:string,temporary:boolean)=>void,
+    onWav:(audio:{wav:Uint8Array}|{url:string})=>void,
   ):Promise<void>=>{
     const text=phrase.trim();
     const cached=voiceCacheRef.current.get(text);
-    if(cached){onWav(cached,false);return;}
+    if(cached){onWav({url:cached});return;}
     const startedAt=performance.now();
     const response=await fetch('/api/ai/forza-speech-stream',{
       method:'POST',
@@ -676,7 +676,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       Boolean(response.body);
     if(!valid){
       if(response.status===404){
-        onWav(await requestPocketAudio(text),false);
+        onWav({url:await requestPocketAudio(text)});
         return;
       }
       throw new Error('pocket_stream_http_'+response.status);
@@ -684,14 +684,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     let frameCount=0;
     await readForzaWavFrames(response.body!,wav=>{
       if(callClosedRef.current)throw new Error('forza_call_closed');
-      const audioUrl=URL.createObjectURL(
-        new Blob([wav.slice().buffer],{type:'audio/wav'}),
-      );
       frameCount++;
       if(frameCount===1)console.info(
         '[FORZA_LATENCY] phase=first-pocket-stream-wav clientMs='+Math.round(performance.now()-startedAt)
       );
-      onWav(audioUrl,true);
+      // Pass PCM WAV bytes directly to Web Audio. No Blob URL, fetch roundtrip
+      // or serial decode step between receiving the frame and queueing it.
+      onWav({wav:wav.slice()});
     });
     console.info('[FORZA_LATENCY] phase=pocket-stream-frames count='+frameCount);
   },[requestPocketAudio]);
@@ -932,16 +931,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           let playbackFailure:Error|null=null;
           const audioRequest=synthesisChain.then(async()=>{
             if(callClosedRef.current)throw new Error('forza_call_closed');
-            await streamPocketPhrase(phrase,(url,temporary)=>{
-              if(callClosedRef.current){
-                if(temporary)URL.revokeObjectURL(url);
-                return;
-              }
-              if(!temporary)lastPlayableVoiceRef.current={text:phrase,audioUrl:url};
-              const playback=continuousPlayer.enqueue(url).then(
-                ()=>{if(temporary)URL.revokeObjectURL(url);},
+            await streamPocketPhrase(phrase,(audio)=>{
+              if(callClosedRef.current)return;
+              const playback=('wav' in audio
+                ? continuousPlayer.enqueueWav(audio.wav)
+                : continuousPlayer.enqueue(audio.url)).then(
+                ()=>{},
                 error=>{
-                  if(temporary)URL.revokeObjectURL(url);
                   playbackFailure=error instanceof Error?error:new Error(String(error));
                 },
               );
