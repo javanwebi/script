@@ -44,28 +44,28 @@ PROXY_OUTPUT=""
 if [ "$FORZA_PROBE_MODE" != proxy ]; then
   if PRIVATE_OUTPUT=$(git -C "$APP" show origin/main:scripts/tests/forza-pocket-vps-private-ttfb.py |
     docker exec -i -e "FORZA_PROBE_EXTENDED=$FORZA_PROBE_EXTENDED" "$VOICE" python - 2>&1); then
-    printf '%s\\n' "$PRIVATE_OUTPUT"
+    printf '%s\n' "$PRIVATE_OUTPUT"
   else
-    printf '%s\\n' "$PRIVATE_OUTPUT"
+    printf '%s\n' "$PRIVATE_OUTPUT"
     PROBE_EXIT=1
   fi
 fi
 if [ "$FORZA_PROBE_MODE" != private ]; then
   if PROXY_OUTPUT=$(git -C "$APP" show origin/main:scripts/tests/forza-pocket-vps-ttfb.cjs |
-    docker exec -i -e FORZA_PROBE_MODE=proxy \\
+    docker exec -i -e FORZA_PROBE_MODE=proxy \
       -e "FORZA_PROBE_EXTENDED=$FORZA_PROBE_EXTENDED" "$SITE" node - 2>&1); then
-    printf '%s\\n' "$PROXY_OUTPUT"
+    printf '%s\n' "$PROXY_OUTPUT"
   else
-    printf '%s\\n' "$PROXY_OUTPUT"
+    printf '%s\n' "$PROXY_OUTPUT"
     PROBE_EXIT=1
   fi
 fi
 
 if [ "$FORZA_PROBE_MODE" = both ]; then
-  first_private=$(printf '%s\\n' "$PRIVATE_OUTPUT" |
-    sed -n '/^FORZA_POCKET_VPS_RESULT route=private_short /s/.* first_ms=\\([0-9]*\\).*/\\1/p' | tail -1)
-  first_proxy=$(printf '%s\\n' "$PROXY_OUTPUT" |
-    sed -n '/^FORZA_POCKET_VPS_RESULT route=proxy_short /s/.* first_ms=\\([0-9]*\\).*/\\1/p' | tail -1)
+  first_private=$(printf '%s\n' "$PRIVATE_OUTPUT" |
+    sed -n '/^FORZA_POCKET_VPS_RESULT route=private_short /s/.* first_ms=\([0-9]*\).*/\1/p' | tail -1)
+  first_proxy=$(printf '%s\n' "$PROXY_OUTPUT" |
+    sed -n '/^FORZA_POCKET_VPS_RESULT route=proxy_short /s/.* first_ms=\([0-9]*\).*/\1/p' | tail -1)
   if [[ "$first_private" =~ ^[0-9]+$ && "$first_proxy" =~ ^[0-9]+$ ]]; then
     echo "FORZA_POCKET_VPS_COMPARE proxy_minus_private_first_ms=$((first_proxy-first_private)) result=serial_samples_not_statistically_conclusive"
   else
