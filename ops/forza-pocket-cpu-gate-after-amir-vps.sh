@@ -21,6 +21,16 @@ FORZA_GATE_FULL_ANSWER_WAV=${FORZA_GATE_FULL_ANSWER_WAV:-0}
 FORZA_GATE_RETRY_ATTEMPTS=${FORZA_GATE_RETRY_ATTEMPTS:-3}
 FORZA_GATE_SAMPLE=${FORZA_GATE_SAMPLE:-all}
 FORZA_GATE_OVERLAP_MIMI=${FORZA_GATE_OVERLAP_MIMI:-0}
+# The Pocket image patches upstream ONNX SessionOptions to read these
+# per-container knobs, including for resident warm sessions. Only the
+# temporary evaluation container receives the values.
+FORZA_GATE_CPU_INTRA=${FORZA_GATE_CPU_INTRA:-1}
+FORZA_GATE_CPU_ARENA=${FORZA_GATE_CPU_ARENA:-0}
+FORZA_GATE_CPU_PATTERN=${FORZA_GATE_CPU_PATTERN:-0}
+case "$FORZA_GATE_CPU_INTRA" in 1|2) ;; *) echo "Invalid FORZA_GATE_CPU_INTRA: expected 1 or 2" >&2; exit 1;; esac
+for value in "$FORZA_GATE_CPU_ARENA" "$FORZA_GATE_CPU_PATTERN"; do
+  case "$value" in 0|1) ;; *) echo "Invalid ONNX memory flag: expected 0 or 1" >&2; exit 1;; esac
+done
 # Research-only repeatable generation for comparing model operator changes.
 FORZA_GATE_FIXED_SEED=${FORZA_GATE_FIXED_SEED:-}
 if [ -n "$FORZA_GATE_FIXED_SEED" ]; then
@@ -137,7 +147,9 @@ docker run -d --name "$CANDIDATE" --restart no \
   -e FORZA_TTS_RESIDENT_ACOUSTIC=1 -e FORZA_TTS_RESIDENT_G2P=1 \
   -e FORZA_TTS_WARMUP=1 -e FORZA_TTS_PARALLEL_CHUNKS=1 \
   -e FORZA_TTS_STREAM_FIRST_TOKENS=12 -e FORZA_TTS_UNBROKEN=1 \
-  -e FORZA_CPU_INTRA=1 -e FORZA_ONNX_INT8=0 \
+  -e "FORZA_CPU_INTRA=$FORZA_GATE_CPU_INTRA" -e FORZA_ONNX_INT8=0 \
+  -e "FORZA_CPU_ARENA=$FORZA_GATE_CPU_ARENA" \
+  -e "FORZA_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN" \
   -e "FORZA_TTS_FULL_ANSWER_WAV=$FORZA_GATE_FULL_ANSWER_WAV" \
   -e "FORZA_TTS_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e FORZA_TTS_STAGE_PROFILE=1 \
@@ -170,7 +182,10 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
   -e "FORZA_GATE_RETRY_ATTEMPTS=$FORZA_GATE_RETRY_ATTEMPTS" \
   -e "FORZA_GATE_SAMPLE=$FORZA_GATE_SAMPLE" \
   -e "FORZA_GATE_OVERLAP_MIMI=$FORZA_GATE_OVERLAP_MIMI" \
-  -e "FORZA_GATE_FIXED_SEED=$FORZA_GATE_FIXED_SEED" "$SITE" node - <<'JS'
+  -e "FORZA_GATE_FIXED_SEED=$FORZA_GATE_FIXED_SEED" \
+  -e "FORZA_GATE_CPU_INTRA=$FORZA_GATE_CPU_INTRA" \
+  -e "FORZA_GATE_CPU_ARENA=$FORZA_GATE_CPU_ARENA" \
+  -e "FORZA_GATE_CPU_PATTERN=$FORZA_GATE_CPU_PATTERN" "$SITE" node - <<'JS'
 (async()=>{
   const url='http://forza-pocket-gate-eval:8080/speak-stream';
   const texts=[
@@ -224,6 +239,9 @@ docker exec -i -e "FORZA_VOICE_TOKEN=$TOKEN" \
       ' retries='+process.env.FORZA_GATE_RETRY_ATTEMPTS+
       ' mimi_overlap='+process.env.FORZA_GATE_OVERLAP_MIMI+
       ' fixed_seed='+(process.env.FORZA_GATE_FIXED_SEED||'random')+
+      ' cpu_intra='+process.env.FORZA_GATE_CPU_INTRA+
+      ' cpu_arena='+process.env.FORZA_GATE_CPU_ARENA+
+      ' cpu_pattern='+process.env.FORZA_GATE_CPU_PATTERN+
       ' wav_sha256='+digest.digest('hex')+
       ' sample='+sample+
       ' frames='+frames+
