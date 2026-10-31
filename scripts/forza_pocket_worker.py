@@ -76,13 +76,29 @@ def release_unused_memory():
         pass
 
 
+def _voice_container_has_resident_budget() -> bool:
+    """Opt into warm resident models only when cgroups allow at least 2 GiB.
+    A one-gigabyte Railway service keeps the original memory-conservative path.
+    Environment flags always override this choice in either direction.
+    """
+    try:
+        value = Path("/sys/fs/cgroup/memory.max").read_text().strip()
+        return value.isdigit() and int(value) >= 2 * 1024**3
+    except (OSError, ValueError):
+        return False
+
+
+_RESIDENT_BY_BUDGET = _voice_container_has_resident_budget()
+
+
 class MemoryBoundTts(OnnxTts):
-    # Opt-in benchmark. Avoid acoustic ONNX teardown/reload before every
-    # Persian utterance, but only when explicitly enabled and memory-tested.
-    KEEP_ACOUSTIC = os.environ.get("FORZA_TTS_RESIDENT_ACOUSTIC") == "1"
-    # Experimental: retain Persian grapheme-to-phoneme ONNX sessions between
-    # phrases. Enable only in a disposable benchmark; it can increase peak RAM.
-    KEEP_G2P = os.environ.get("FORZA_TTS_RESIDENT_G2P") == "1"
+    # On the tested 2-GiB VPS voice container, keep ONNX acoustic/G2P loaded
+    # between turns. Never reload the graphs on each full-text request.
+    # Railway or other small containers keep the original conservative mode.
+    KEEP_ACOUSTIC = os.environ.get("FORZA_TTS_RESIDENT_ACOUSTIC",
+                                   "1" if _RESIDENT_BY_BUDGET else "0") == "1"
+    KEEP_G2P = os.environ.get("FORZA_TTS_RESIDENT_G2P",
+                              "1" if _RESIDENT_BY_BUDGET else "0") == "1"
 
     def synthesize_text(self, text, *args, **kwargs):
         started = time.monotonic()
