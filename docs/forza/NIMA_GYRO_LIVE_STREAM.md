@@ -58,6 +58,33 @@ This is a successful real-time-factor performance check, **not** a
 guarantee of under-one-second initial audible latency or of uninterrupted
 streamed conversations.
 
+
+### Recovery from `voice_info_route_missing` after `Already current`
+
+If the operator ran `git pull` before the original
+`/usr/local/sbin/sanatpish-deploy`, the old deploy helper used to exit
+without rebuilding `dist` or restarting Node when HEAD already equalled
+origin/main. The new `forza-nima-go-live-vps.sh` detects this *before the
+voice cutover*, rebuilds the **current** commit using the source-controlled
+`ops/sanatpish-deploy.sh` in isolated staging and then checks that the real
+Express API returns JSON:
+
+```bash
+cd /opt/sanatpish
+git fetch origin main && git pull --ff-only origin main
+sudo bash ops/forza-nima-go-live-vps.sh
+```
+
+Expected recovery markers:
+`FORZA_NIMA_STALE_APP_DETECTED`,
+`Rebuilding already checked-out revision`,
+`DEPLOY_OK`, `FORZA_NIMA_APP_READY`, then
+`FORZA_NIMA_LIVE_OK`. If build or runtime validation fails, the script
+aborts **before** touching the original voice container. An attempted
+rollback without a Nima marker after this early abort correctly reports
+`missing_nima_rollback_data`; do not run rollback before a Nima cutover.
+The repair does not directly modify the database or Nginx.
+
 ## Activate Nima instead of Pocket, including the exact welcome text
 
 **Before starting:** ensure the 728-clip teacher generator is no longer

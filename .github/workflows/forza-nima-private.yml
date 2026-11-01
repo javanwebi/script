@@ -7,6 +7,7 @@ on:
       - docs/forza/NIMA_GYRO_LIVE_STREAM.md
       - ops/forza-nima-private-canary-vps.sh
       - ops/forza-nima-go-live-vps.sh
+      - ops/sanatpish-deploy.sh
       - ops/forza-nima-rollback-vps.sh
       - server.ts
       - src/components/forza/AiForzaCallExperience.tsx
