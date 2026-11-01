@@ -26,7 +26,7 @@ export function registerCatalogNavigationApi(app:Express){
           left join public.catalog_variants v on v.family_code=f.code
           group by f.category_slug
         ) fc on fc.category_slug=c.slug
-        where c.is_active=true and coalesce(fc.family_count,0)>0
+        where c.is_active=true and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
         order by c.sort_order,c.name`);
       const categories=result.rows.map((row:any)=>{
         const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
@@ -41,6 +41,8 @@ export function registerCatalogNavigationApi(app:Express){
           description:row.description||metadata.description||children.map((node:any)=>String(node?.name||'')).filter(Boolean).join('، '),
           active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,
           children,subcategories,
+          menuSource:typeof metadata.source==='string'?metadata.source:'',
+          routeSlug:typeof metadata.routeSlug==='string'?metadata.routeSlug:row.slug,
         };
       });
       res.setHeader('Cache-Control','no-store');
