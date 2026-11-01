@@ -53,6 +53,8 @@ export const CatalogFamilyTaxonomyManager:React.FC=()=>{
       if(!res.ok||!data.success)throw Error(data.message||'ذخیره ناموفق بود');
       setFamilies(current=>current.filter(f=>f.code!==selected.code));
       setNotice('خانواده به مسیر انتخاب‌شده در دیتابیس متصل شد.');
+      window.dispatchEvent(new Event('catalog-family-menu-updated'));
+
       setSelected(null);setCategorySlug('');setSubmenu('');setLeaf('');
     }catch(e){setError(e instanceof Error?e.message:'خطا در اتصال خانواده');}
     finally{setSaving(false);}
