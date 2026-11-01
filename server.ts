@@ -5706,6 +5706,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
   if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
+    // Do not replace a provider's already-streamed partial answer with a
+    // second provider's answer: the user would see one response then hear another.
+    let providerSentText=false;
     const clientAbort = new AbortController();
     const onDisconnect = () => clientAbort.abort();
     res.once('close', onDisconnect);
@@ -5720,6 +5723,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         catalogContext,
         signal: clientAbort.signal,
         onDelta: (chunk, textSoFar) => {
+          providerSentText=true;
           sendEvent({ type: 'text_chunk', responseId, chunk, textSoFar });
         },
       });
@@ -5740,7 +5744,13 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       if (clientAbort.signal.aborted) return;
       const code=String(error?.code || 'provider_failure').slice(0, 80);
       // Log only the sanitized status code, not private upstream errors.
-      console.warn('[AI Consult Stream] ' + textProvider + ' unavailable code=' + code);
+      console.warn('[AI Consult Stream] ' + textProvider + ' unavailable code=' + code+
+        ' partial='+Number(providerSentText));
+      if(providerSentText){
+        sendEvent({type:'error',responseId,errorCode:code,
+          message:'پاسخ هوش مصنوعی کامل دریافت نشد؛ لطفاً دوباره تلاش کنید.'});
+        return res.end();
+      }
       if (textProvider === 'xkiro') {
         // User opted in to free xKiro. Do not silently spend money on paid
         // models or switch to a blocked Gemini key after free-tier exhaustion.
