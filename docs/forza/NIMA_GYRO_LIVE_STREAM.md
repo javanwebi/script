@@ -22,8 +22,9 @@ This release deliberately changes the active Nima path to:
    `phase=whole-answer-tts-request`, `phase=nima-phrase-wav-ready` and
    `[FORZA_WHOLE_WAV] phase=playback_finished wavs=1` so LLM time, CPU
    synthesis time and actual playback can be measured separately.
-6. Voice requests send only the latest six history turns rather than 24
-   to reduce upstream prefill costs; no model/provider or credentials change.
+6. The existing conversation history window is preserved (up to 24
+   recent messages), so technical continuity is not sacrificed for a
+   speculative latency improvement. LLM TTFT remains separately measured.
 
 The `/api/ai/forza-voice-info` response now advertises
 `{voice: "piper-nima-gyro-medium", incrementalSpeech: false,
