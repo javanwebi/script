@@ -203,9 +203,12 @@ export function ReferenceMegaMenu({
         iconKey: "package",
         categories: unassigned,
       });
+      const term = search.trim().toLocaleLowerCase();
       return sections.map(section => ({
         ...section,
-        categories: section.categories.filter(category => categoryMatches(category, search)),
+        categories: !term || section.title.toLocaleLowerCase().includes(term)
+          ? section.categories
+          : section.categories.filter(category => categoryMatches(category, search)),
       })).filter(section => section.categories.length);
     }
 
@@ -393,6 +396,7 @@ export function ReferenceMegaMenu({
                       </div>
                       {links.length ? (
                         <div className="reference-menu-sub-links">
+                          <span className="reference-menu-leaf-label">ریزاقلام / مشخصات · سطح ۴</span>
                           {links.map(child => (
                             <Link key={child.name} to={selectionHref(activeCategory, child)} onClick={onNavigate}>
                               <span>{child.name}</span><ArrowUpLeft size={12} />
