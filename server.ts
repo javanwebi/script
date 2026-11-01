@@ -6005,7 +6005,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
     // Gemini may close cleanly after exhausting its output token budget.
     // A transport-level 'done' is not evidence that the sentence finished.
-    if(streamFinishReason && !['STOP','FINISH_REASON_UNSPECIFIED'].includes(streamFinishReason)){
+    if(streamFinishReason && streamFinishReason!=='STOP'){
       console.warn('[FORZA_LLM_INCOMPLETE] reason='+streamFinishReason+
         ' chars='+fullAccumulatedText.length);
       sendEvent({type:'error',responseId,errorCode:'llm_finish_'+
