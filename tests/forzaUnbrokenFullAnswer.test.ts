@@ -31,10 +31,12 @@ test('full answer is sent once after final SSE; no progressive phrase queue rema
   const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   const server=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
   const worker=readFileSync(new URL('../scripts/forza_pocket_worker.py',import.meta.url),'utf8');
+  const player=readFileSync(new URL('../src/utils/forzaWholeAnswerSpeech.ts',import.meta.url),'utf8');
   assert.match(ui,/reply=await consumeForzaTextStream/);
   assert.match(ui,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort\.signal\)/);
   assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(ui,/await player\.enqueueWav\(audio\)/);
+  assert.match(ui,/await playForzaWholeAnswer\(answer,requestPocketAudio,player,signal\)/);
+  assert.match(player,/await player\.enqueueWav\(wav\)/);
   assert.doesNotMatch(ui,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
   assert.match(ui,/forza_original_pocket_voice_required/);
   assert.match(server,/const spoken=forzaUnbrokenSpokenText\(phrase\)/);

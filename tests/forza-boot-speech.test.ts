@@ -7,6 +7,7 @@ const frontend=readFileSync(new URL('../src/components/forza/AiForzaCallExperien
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 const pocketWorker=readFileSync(new URL('../scripts/forza_pocket_worker.py',import.meta.url),'utf8');
 const pocketHttp=readFileSync(new URL('../scripts/forza_voice_http.py',import.meta.url),'utf8');
+const wholeAnswer=readFileSync(new URL('../src/utils/forzaWholeAnswerSpeech.ts',import.meta.url),'utf8');
 
 test('FORZA active session does not remount during catalog hydration',()=>{
   for(const path of ['/ai-forza','/ai-forza/','/ai-forza/session'])
@@ -20,7 +21,8 @@ test('FORZA renders live words but requests only one original Pocket WAV per com
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
   assert.match(frontend,/body:JSON\.stringify\(\{text\}\)/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
-  assert.match(frontend,/await player\.enqueueWav\(audio\)/);
+  assert.match(frontend,/await playForzaWholeAnswer\(answer,requestPocketAudio,player,signal\)/);
+  assert.match(wholeAnswer,/await player\.enqueueWav\(wav\)/);
   assert.match(frontend,/phase=whole-pocket-wav-ready/);
   assert.match(frontend,/new ForzaContinuousWav/);
   assert.doesNotMatch(frontend,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
@@ -35,7 +37,7 @@ test('FORZA renders live words but requests only one original Pocket WAV per com
 test('one full WAV is kept in memory and never cached or written to disk',()=>{
   assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
   assert.match(frontend,/await response\.arrayBuffer\(\)/);
-  assert.match(frontend,/player\.enqueueWav\(audio\)/);
+  assert.match(wholeAnswer,/player\.enqueueWav\(wav\)/);
   assert.match(frontend,/AbortSignal\.timeout\(420000\)/);
   assert.match(frontend,/pocketAbort\.abort\(\)/);
   assert.doesNotMatch(frontend,/URL\.createObjectURL\(blob\)|URL\.revokeObjectURL\(url\)/);

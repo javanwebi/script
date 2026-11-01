@@ -1,3 +1,67 @@
+## 2026-11-01 regression recovery: one answer, one WAV (active default)
+
+The user again observed 15-second silence at question marks/full stops and an
+18-second "response ready / generating audio" indicator while the entire
+answer was already visible. We found that the 38/66-character Nima phrase
+planner and two-in-flight TTS lookahead still emitted *multiple separate WAVs*
+per AI reply. Piper is serialized behind one CPU inference slot, making
+follow-up WAVs late even after the browser scheduled the preceding buffer.
+Period/semicolon stripping inside individual WAVs does **not** remove
+inter-WAV synthesis gaps.
+
+This release deliberately changes the active Nima path to:
+1. Browser receives and **displays every SSE text delta immediately**.
+2. The **authoritative SSE done frame** determines the single complete reply.
+   Network EOF and incomplete/revised frames are never spoken as the answer.
+3. The same resident selected Nima engine receives **one full text request**
+   through the existing private `/api/ai/forza-speech` route.
+4. **One WAV** is decoded and scheduled on **one WebAudio source**. The player
+   trims long PCM silence, detects real audible completion and enables the
+   microphone as soon as actual audio ends. No text/audio is persisted.
+5. Browser Console reports `[FORZA_LATENCY] phase=first-text`,
+   `phase=whole-answer-tts-request`, `phase=nima-phrase-wav-ready` and
+   `[FORZA_WHOLE_WAV] phase=playback_finished wavs=1` so LLM time, CPU
+   synthesis time and actual playback can be measured separately.
+6. The existing conversation history window is preserved (up to 24
+   recent messages), so technical continuity is not sacrificed for a
+   speculative latency improvement. LLM TTFT remains separately measured.
+
+The `/api/ai/forza-voice-info` response now advertises
+`{voice: "piper-nima-gyro-medium", incrementalSpeech: false,
+wholeAnswerWav: true}`. Nima selection depends on its **actual voice ID**,
+not on the deprecated incremental flag. The earlier experimental phrase
+buffer code remains in the repository for comparison but is **not invoked**
+by live Nima conversation; this is a deliberate regression rollback of the
+failed multi-WAV architecture, not a change of voice.
+
+**Trade-off:** the user asked for both immediate token-synchronous speech
+and exactly one uninterrupted full-answer audio file. With current Piper,
+these are mutually exclusive. The single-WAV mode prefers correctness and
+no per-phrase gaps: it begins *after* the LLM completes and the CPU finishes
+synthesizing the whole WAV. It cannot guarantee speech begins with the
+first word, and may take seconds on the 3-vCPU host or when the TTS worker is
+busy. The initial subtitle still streams instantly; increasing API speed
+may require changing the AI provider or upgrading CPU. Do not claim 0ms
+startup or fully eliminating provider latency.
+
+Deploy **only** with `sudo /usr/local/sbin/sanatpish-deploy`, without first
+running `git pull`. After `DEPLOY_OK`, verify the production voice
+identity using:
+
+```sh
+curl -fsS http://127.0.0.1:3001/api/ai/forza-voice-info
+docker logs --tail 40 forza-voice
+```
+
+In Chrome, hard reload `/ai-forza`, ask a question with three punctuation
+marks and check that exactly one `POST /api/ai/forza-speech` appears in the
+Network tab for the full answer, without a series of per-clause requests.
+Record first-text latency, full-WAV latency, final microphone restart and
+TTS queue response in server logs. If the 18s delay persists, compare
+`phase=pocket-server-tts` and `phase=first-text` instead of blindly
+altering sentence splitting again.
+
+
 # FORZA — Nima (gyro) low-latency private CPU canary and incremental speech
 
 The user-selected **"💧 نیما"** at

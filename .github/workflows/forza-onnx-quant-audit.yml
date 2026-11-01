@@ -74,7 +74,9 @@ jobs:
           s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
           assert "voiceCacheRef" not in s
           assert "await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal)" in s
-          assert "await player.enqueueWav(audio)" in s
+          assert "await playForzaWholeAnswer(answer,requestPocketAudio,player,signal)" in s
+          helper=Path("src/utils/forzaWholeAnswerSpeech.ts").read_text()
+          assert "await player.enqueueWav(wav)" in helper
           assert "readForzaWavFrames" not in s
           assert "ForzaLiveSpeechQueue" not in s
           assert "playPocketProgressive" not in s

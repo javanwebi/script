@@ -77,18 +77,23 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertLess(promotion.index('voice_info_route_missing_after_checked_rebuild'),
                         promotion.index('docker stop -t 15 "$LIVE"'))
 
-    def test_client_uses_nima_only_when_server_advertises_it(self):
+    def test_client_plays_exactly_one_full_nima_wav_instead_of_phrase_stalls(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
-        self.assertIn("new ForzaIncrementalSpeechText()",frontend)
-        self.assertIn("const useNima=voiceModeRef.current==='piper-nima-gyro-medium'",frontend)
-        self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
-        self.assertIn("await activeNimaBuffer.finish()",frontend)
-        self.assertIn("bufferedNima?.cancel()",frontend)
-        self.assertIn("maxConcurrent:2",frontend)
-        self.assertIn("initialBufferSeconds:2",frontend)
-        self.assertIn("phase=nima-incremental-finished",frontend)
-        self.assertIn("incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'",backend)
+        helper=(ROOT/"src/utils/forzaWholeAnswerSpeech.ts").read_text()
+        self.assertIn("data?.voice==='piper-nima-gyro-medium'",frontend)
+        self.assertIn("await playForzaWholeAnswer(answer,requestPocketAudio,player,signal)",frontend)
+        self.assertIn("await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal)",frontend)
+        self.assertIn("consumeForzaTextStream(streamRes",frontend)
+        self.assertIn("setAiText(fullText)",frontend)
+        self.assertIn("[FORZA_WHOLE_WAV]",frontend)
+        self.assertNotIn("new ForzaIncrementalSpeechText()",frontend)
+        self.assertNotIn("new ForzaNimaBufferedSpeech({",frontend)
+        self.assertNotIn("phrasePlanner",frontend)
+        self.assertNotIn("terminalIdleTimer",frontend)
+        self.assertIn("const wav=await synthesize(text,signal)",helper)
+        self.assertIn("await player.enqueueWav(wav)",helper)
+        self.assertIn("incrementalSpeech:false,wholeAnswerWav:true",backend)
         self.assertIn("privatePiperGreeting()",backend)
         self.assertNotIn("privateAmirGreeting()",backend)
 
