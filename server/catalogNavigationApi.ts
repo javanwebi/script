@@ -86,6 +86,52 @@ export function registerCatalogNavigationApi(app:Express){
     }catch(error){return fail(res,error);}
   });
 
+
+  // Admin-only taxonomy review. Product identities and legacy paths are not rewritten.
+  app.get('/api/catalog/menu-unassigned',async(req,res)=>{
+    try{
+      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false});
+      const rows=await database().query(
+        `select f.code,f.name,f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
+          coalesce(f.item_count,0) as "skuCount"
+         from public.catalog_families f
+         left join public.catalog_family_menu_assignments a on a.family_code=f.code
+         where f.is_active=true and f.is_deleted=false and a.family_code is null
+         order by f.category_slug,f.name limit 4000`);
+      return res.json({success:true,families:rows.rows});
+    }catch(error){return fail(res,error);}
+  });
+
+  app.post('/api/catalog/menu-family-assignment',async(req,res)=>{
+    try{
+      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false});
+      const familyCode=clean(req.body?.familyCode,180),categorySlug=clean(req.body?.categorySlug,90);
+      const submenu=clean(req.body?.submenu,180),leaf=clean(req.body?.leaf,250);
+      if(!familyCode||!/^excel-v2-[0-9]+-[0-9]+$/.test(categorySlug))
+        return res.status(400).json({success:false,message:'خانواده و دسته مقصد معتبر لازم است.'});
+      const category=await database().query(
+        `select c.metadata from public.catalog_categories c
+         where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2' limit 1`,[categorySlug]);
+      const family=await database().query(
+        'select code from public.catalog_families where code=$1 and is_active=true and is_deleted=false limit 1',[familyCode]);
+      if(!category.rows.length||!family.rows.length)return res.status(404).json({success:false,message:'خانواده یا دسته مقصد یافت نشد.'});
+      const nodes=Array.isArray(category.rows[0].metadata?.children)?category.rows[0].metadata.children:[];
+      const selectedNode=nodes.find((node:any)=>node.name===submenu);
+      if(submenu&&!selectedNode)return res.status(400).json({success:false,message:'زیرمنو با دسته انتخابی مطابقت ندارد.'});
+      if(leaf&&(!selectedNode||!Array.isArray(selectedNode.children)||!selectedNode.children.some((child:any)=>child.name===leaf)))
+        return res.status(400).json({success:false,message:'ریزقلم با زیرمنو مطابقت ندارد.'});
+      await database().query(
+        `insert into public.catalog_family_menu_assignments(family_code,category_slug,submenu_name,leaf_name,method)
+         values($1,$2,$3,$4,'admin_verified')
+         on conflict(family_code) do update set category_slug=excluded.category_slug,
+           submenu_name=excluded.submenu_name,leaf_name=excluded.leaf_name,
+           method='admin_verified',updated_at=now()`,[familyCode,categorySlug,submenu||null,leaf||null]);
+      return res.json({success:true,familyCode,categorySlug});
+    }catch(error){return fail(res,error);}
+  });
+
   app.get('/api/catalog/navigation-groups',async(req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,groups:[]});
