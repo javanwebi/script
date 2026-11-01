@@ -105,6 +105,7 @@ export function ReferenceMegaMenu({
 }) {
   const [categories, setCategories] = useState<EnhancedCategory[]>(() => readCategories());
   const [activeSlug, setActiveSlug] = useState("تسمه-و-انتقال-نیرو");
+  const [activeGroupId, setActiveGroupId] = useState("");
   const [search, setSearch] = useState("");
   const [savedGroups, setSavedGroups] = useState<SavedNavigationGroup[] | null>(null);
 
@@ -223,26 +224,42 @@ export function ReferenceMegaMenu({
     })).filter(section => section.categories.length);
   }, [orderedCategories, savedGroups, search]);
 
-  const filteredCategories = useMemo(
-    () => navigationSections.flatMap(section => section.categories),
-    [navigationSections]
-  );
+  // Four distinct levels from the spreadsheet:
+  // 1. navigation group -> 2. product category -> 3. submenu -> 4. specification/leaf.
+  const activeSection =
+    navigationSections.find(section => section.id === activeGroupId) ||
+    navigationSections.find(section => section.categories.some(category => category.slug === activeSlug)) ||
+    navigationSections[0] ||
+    null;
   const activeCategory =
-    filteredCategories.find(category => category.slug === activeSlug) ||
-    filteredCategories[0] ||
+    activeSection?.categories.find(category => category.slug === activeSlug) ||
+    activeSection?.categories[0] ||
     null;
 
   if (compact) {
     return (
-      <div className="reference-catalog-mobile" dir="rtl">
-        {filteredCategories.map(category => (
-          <section key={category.slug}>
-            <h3><Layers size={17} />{category.name}</h3>
-            <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
-              مشاهده همه محصولات <ArrowLeft size={14} />
-            </Link>
-            <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} onNavigate={onNavigate} />
-          </section>
+      <div className="reference-catalog-mobile reference-menu-four-levels" dir="rtl">
+        {navigationSections.map((section, sectionIndex) => (
+          <details className="reference-mobile-mega-group" key={section.id} open={search.trim() ? true : undefined}>
+            <summary>
+              <Layers size={17} aria-hidden="true" />
+              <strong>{section.title}</strong>
+              <small>{toPersianDigits(section.categories.length)} دسته</small>
+            </summary>
+            <div className="reference-mobile-mega-categories">
+              {section.categories.map(category => (
+                <section key={category.slug} className="reference-mobile-mega-category">
+                  <h3>{category.name}</h3>
+                  <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
+                    مشاهده محصولات <ArrowLeft size={14} />
+                  </Link>
+                  <CategoryNavigation nodes={category.children || []}
+                    categorySlug={(category as EnhancedCategory & { routeSlug?: string }).routeSlug || category.slug}
+                    onNavigate={onNavigate} />
+                </section>
+              ))}
+            </div>
+          </details>
         ))}
       </div>
     );
@@ -262,19 +279,19 @@ export function ReferenceMegaMenu({
           <input
             type="search"
             value={search}
-            onChange={event => setSearch(event.target.value)}
+            onChange={event => { setSearch(event.target.value); setActiveGroupId(""); setActiveSlug(""); }}
             placeholder="جستجو بین دسته‌ها و زیرگروه‌ها"
             aria-label="جستجو بین دسته‌بندی‌ها"
           />
         </label>
       </header>
 
-      <aside className="reference-menu-rail" aria-label="دسته‌بندی‌های اصلی">
+      <aside className="reference-menu-groups" aria-label="گروه‌بندی اصلی مگامنو، سطح یک">
         <div className="reference-menu-rail-heading">
-          <strong>دسته‌بندی‌ها</strong>
-          <span>{toPersianDigits(filteredCategories.length)} دسته</span>
+          <strong>گروه‌بندی منوها</strong>
+          <span>سطح ۱ · {toPersianDigits(navigationSections.length)} گروه</span>
         </div>
-        <div className="reference-menu-category-list">
+        <div className="reference-menu-group-list">
           {navigationSections.map(section => {
             const GroupIcon = /سیال|آب.?بندی|لاستیک/i.test(section.title)
               ? Link2
@@ -283,53 +300,64 @@ export function ReferenceMegaMenu({
                 : /مهندسی|قطعات|مواد/i.test(section.title)
                   ? Box
                   : Layers;
+            const selected = activeSection?.id === section.id;
             return (
-              <section className="reference-menu-category-group" key={section.id}>
-                <div className="reference-menu-group-heading">
-                  <span className="reference-menu-group-icon"><GroupIcon size={14} /></span>
-                  <strong>{section.title}</strong>
-                  <small>{toPersianDigits(section.categories.length)}</small>
-                </div>
-                {section.categories.map(category => {
-                  const selected = activeCategory?.slug === category.slug;
-                  const Icon = /تسمه|انتقال نیرو|انتقال قدرت/i.test(category.name)
-                    ? Layers
-                    : /کارخانه|صنعت|سرامیک|نساجی/i.test(category.name)
-                      ? Factory
-                      : /شیلنگ|آب.?بندی|لاستیک/i.test(category.name)
-                        ? Link2
-                        : /پروفیل|قطعه/i.test(category.name)
-                          ? Box
-                          : Move;
-                  const count = Number(category.familyCount ?? category.count ?? 0);
-                  return (
-                    <button
-                      type="button"
-                      key={category.slug}
-                      className={"reference-menu-category" + (selected ? " is-active" : "")}
-                      aria-pressed={selected}
-                      onMouseEnter={() => setActiveSlug(category.slug)}
-                      onFocus={() => setActiveSlug(category.slug)}
-                      onClick={() => setActiveSlug(category.slug)}
-                    >
-                      <CategoryThumbnail category={category} FallbackIcon={Icon} />
-                      <span className="reference-menu-category-copy">
-                        <strong>{category.name}</strong>
-                        <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرگروه‌ها"}</small>
-                      </span>
-                      <ChevronLeft size={15} className="reference-menu-category-arrow" />
-                    </button>
-                  );
-                })}
-              </section>
+              <button type="button" key={section.id}
+                className={"reference-menu-group-option" + (selected ? " is-active" : "")}
+                aria-pressed={selected}
+                onMouseEnter={() => { setActiveGroupId(section.id); setActiveSlug(section.categories[0]?.slug || ""); }}
+                onFocus={() => { setActiveGroupId(section.id); setActiveSlug(section.categories[0]?.slug || ""); }}
+                onClick={() => { setActiveGroupId(section.id); setActiveSlug(section.categories[0]?.slug || ""); }}>
+                <span className="reference-menu-group-icon"><GroupIcon size={16} /></span>
+                <strong>{section.title}</strong>
+                <small>{toPersianDigits(section.categories.length)}</small>
+                <ChevronLeft size={15} aria-hidden="true" />
+              </button>
             );
           })}
-          {navigationSections.length === 0 && (
+          {!navigationSections.length && (
             <div className="reference-menu-no-results">
               <PackageSearch size={22} />
-              <span>دسته‌ای با این عبارت پیدا نشد.</span>
+              <span>موردی با این عبارت پیدا نشد.</span>
             </div>
           )}
+        </div>
+      </aside>
+
+      <aside className="reference-menu-rail" aria-label="دسته‌های گروه منتخب، سطح دو">
+        <div className="reference-menu-rail-heading">
+          <strong>دسته‌ها</strong>
+          <span>سطح ۲ · {toPersianDigits(activeSection?.categories.length || 0)} دسته</span>
+        </div>
+        <div className="reference-menu-category-list">
+          {activeSection?.categories.map(category => {
+            const selected = activeCategory?.slug === category.slug;
+            const Icon = /تسمه|انتقال نیرو|انتقال قدرت/i.test(category.name)
+              ? Layers
+              : /کارخانه|صنعت|سرامیک|نساجی/i.test(category.name)
+                ? Factory
+                : /شیلنگ|آب.?بندی|لاستیک/i.test(category.name)
+                  ? Link2
+                  : /پروفیل|قطعه/i.test(category.name)
+                    ? Box
+                    : Move;
+            const count = Number(category.familyCount ?? category.count ?? 0);
+            return (
+              <button type="button" key={category.slug}
+                className={"reference-menu-category" + (selected ? " is-active" : "")}
+                aria-pressed={selected}
+                onMouseEnter={() => setActiveSlug(category.slug)}
+                onFocus={() => setActiveSlug(category.slug)}
+                onClick={() => setActiveSlug(category.slug)}>
+                <CategoryThumbnail category={category} FallbackIcon={Icon} />
+                <span className="reference-menu-category-copy">
+                  <strong>{category.name}</strong>
+                  <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرمنوها"}</small>
+                </span>
+                <ChevronLeft size={15} className="reference-menu-category-arrow" aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
         <Link className="reference-menu-all-categories" to="/categories" onClick={onNavigate}>
           همه دسته‌بندی‌ها <ArrowLeft size={15} />
@@ -341,7 +369,7 @@ export function ReferenceMegaMenu({
           <>
             <div className="reference-menu-category-hero">
               <div className="reference-menu-category-copy-block">
-                <span className="reference-menu-eyebrow">دسته‌بندی منتخب</span>
+                <span className="reference-menu-eyebrow">{activeSection?.title} / دسته‌ها (سطح ۲)</span>
                 <h2>{activeCategory.name}</h2>
                 <p>{activeCategory.description || "زیرگروه‌ها را بررسی کنید یا مستقیم وارد کاتالوگ محصولات شوید."}</p>
                 <Link to={categoryHref(activeCategory)} onClick={onNavigate}>
@@ -352,13 +380,13 @@ export function ReferenceMegaMenu({
             </div>
 
             {groups.length ? (
-              <div className="reference-menu-subgrid">
+              <div className="reference-menu-subgrid" aria-label="زیرمنوها، سطح سه، و ریزاقلام، سطح چهار">
                 {groups.map(node => {
                   const links = leafNodes(node.children || []);
                   return (
                     <section className="reference-menu-subgroup" key={node.name}>
                       <div className="reference-menu-subgroup-heading">
-                        <strong>{node.name}</strong>
+                        <strong><span className="reference-menu-level-mark">زیرمنو · سطح ۳</span>{node.name}</strong>
                         <Link to={selectionHref(activeCategory, node)} onClick={onNavigate} aria-label={"مشاهده محصولات " + node.name}>
                           <ArrowUpLeft size={14} />
                         </Link>
