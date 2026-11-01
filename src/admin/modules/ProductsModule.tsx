@@ -113,7 +113,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     return (excel.length ? excel : navigationGroups).filter(group => group.active)
       .sort((a,b) => a.sortOrder - b.sortOrder);
   }, [navigationGroups]);
-  const categoryGroup = (slug: string) => excelMenuGroups.find(group => group.categorySlugs.includes(slug));
+  const legacyMenuGroups = useMemo(() => navigationGroups.filter(group =>
+    group.active && !group.id.startsWith('excel-v2-')
+  ).sort((a,b) => a.sortOrder - b.sortOrder), [navigationGroups]);
+  const categoryGroup = (slug: string) =>
+    excelMenuGroups.find(group => group.categorySlugs.includes(slug)) ||
+    legacyMenuGroups.find(group => group.categorySlugs.includes(slug));
   const filteredAdminCategories = categories.filter(category =>
     menuGroupFilter === 'all' || (menuGroupFilter === 'unassigned'
       ? !categoryGroup(category.slug) : categoryGroup(category.slug)?.id === menuGroupFilter)
@@ -1672,6 +1677,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               className="min-w-0 flex-1 sm:max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-800">
               <option value="all">همه دسته‌های محصولات</option>
               {excelMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}
+              {legacyMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title} (قبلی)</option>)}
               <option value="unassigned">بدون سرگروه</option>
             </select>
             <span className="text-[11px] text-slate-600">{toPersianDigits(filteredAdminCategories.length)} دسته</span>
@@ -1939,8 +1945,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                     disabled={!navigationGroupsLoaded} className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold">
                     <option value="">{navigationGroupsLoaded ? 'انتخاب سرگروه' : 'در حال دریافت دسته‌ها از Supabase...'}</option>
                     {excelMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}
+                    {legacyMenuGroups.length > 0 && <optgroup label="گروه‌های قبلی">
+                      {legacyMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}
+                    </optgroup>}
                   </select>
-                  <p className="mt-1 text-[10px] text-slate-500">از ۱۴ گروه اصلی فایل اکسل انتخاب کنید؛ تغییر گروه، خانواده‌ها و کدهای کالا را حذف نمی‌کند.</p>
+                  <p className="mt-1 text-[10px] text-slate-500">از گروه‌های اصلی فایل اکسل انتخاب کنید؛ گروه‌های قبلی برای حفظ دسته‌های موجود هم قابل انتخاب‌اند. تغییر گروه، خانواده‌ها و کدهای کالا را حذف نمی‌کند.</p>
                 </div>
                 <details className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer select-none font-bold text-slate-700">تنظیمات تکمیلی (اختیاری): نام انگلیسی، شناسه مسیر و تعداد</summary>
