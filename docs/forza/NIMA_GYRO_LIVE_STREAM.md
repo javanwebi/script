@@ -48,6 +48,31 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Fix: final two-word silence on SSE done (2026-11-01)
+
+A real-browser user observed that the last two words of each response were
+spoken about five seconds after the previous sentence. The original streaming
+phrase planner sent all complete word groups immediately, then called
+`complete(finalText)` on the final SSE event. When just two words remained,
+`complete()` created a brand-new tiny Piper WAV request **after** playback had
+already drained. The Nima worker serializes inference on this small VPS, so
+the last request could easily arrive after the prior speech ended.
+
+The new planner starts the first completed word group immediately, but holds
+back **only the latest subsequent group** in memory until a newer group
+arrives or the explicit final SSE `done` event. On `done`, the reserved
+group and final few words become one contiguous TTS request. It never
+sends the final one/two words as a standalone clip when a reserved group
+exists. Long answers continue to release earlier groups during streaming,
+and subtitle text is never delayed. No audio files or text cache are
+persisted. The private Nima model and voice worker are unchanged.
+
+Browser Console diagnostic: `[FORZA_NIMA_FINAL] coalesced_phrases=1
+final_chars=N` reports only final phrase length, not user transcript.
+This fixes the separate tiny final WAV for typical multi-clause answers.
+Actual multi-second upstream LLM delays or CPU synthesis queue underflows
+can still cause gaps; measure `[FORZA_AUDIO_UNDERRUN]` if observed.
+
 ## Fix: full stops do not trigger silence (2026-11-01)
 
 The user observed a ~6-second gap between the words describing confirmed
