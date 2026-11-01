@@ -119,3 +119,37 @@ test('holdback releases older buffered groups during long SSE, not only at done'
   assert.ok(last.every(phrase=>phrase.split(/\s+/).length>2));
   assert.equal([...output,...last].join(' ').replace(/\s+/g,' ').trim(),text);
 });
+
+test('a delayed SSE done cannot hold the final complete Persian words for seconds',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const finalText='سلام، برای بررسی مشخصات قطعات صنعتی از کاتالوگ صنعت پیش '+
+    'لطفاً نام و کد فنی مورد نظر خود را بفرمایید.';
+  const emitted=planner.push(finalText);
+  assert.ok(emitted.length>0);
+  const early=planner.flushTerminalIdle();
+  assert.equal(early.length,1,'one reserved end phrase should start when terminal SSE stalls');
+  assert.ok(early[0].endsWith('خود را بفرمایید.'));
+  assert.deepEqual(planner.flushTerminalIdle(),[],'timer must never duplicate audio');
+  assert.deepEqual(planner.complete(finalText),[],'authoritative done must not replay early audio');
+  assert.equal([...emitted,...early].join(' ').replace(/\s+/g,' ').trim(),finalText);
+});
+
+test('terminal idle never pronounces an unfinished word or decimal as a complete reply',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const input='قطر محصول 3.25 و شماره فنی قطعه مورد نیاز ';
+  const emitted=planner.push(input);
+  assert.deepEqual(planner.flushTerminalIdle(),[]);
+  const full=input+'برای استعلام و بررسی کاتالوگ دقیق است.';
+  const more=planner.push(full);
+  const final=[...emitted,...more,...planner.complete(full)].join(' ').replace(/\s+/g,' ').trim();
+  assert.equal(final,full.trim());
+});
+
+test('new text after terminal idle flush is still streamed and voiced once in order',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const first='برای بررسی محصول مورد نظر لطفاً کد قطعه را بفرمایید.';
+  const early=[...planner.push(first),...planner.flushTerminalIdle()];
+  const full=first+' همچنین می‌توانید نام سازنده و اندازه قطعه را اعلام کنید.';
+  const remaining=[...planner.push(full),...planner.complete(full)];
+  assert.equal([...early,...remaining].join(' ').replace(/\s+/g,' ').trim(),full);
+});
