@@ -159,7 +159,8 @@ def call(path,data=None):
         return response.status,response.headers,response.read()
 status,headers,data=call('/api/ai/forza-voice-info')
 assert status==200 and json.loads(data)['voice']=='piper-nima-gyro-medium'
-assert json.loads(data)['incrementalSpeech'] is True
+assert json.loads(data)['incrementalSpeech'] is False
+assert json.loads(data)['wholeAnswerWav'] is True
 status,headers,greeting=call('/forza-greeting-bootstrap.wav')
 assert status==200 and greeting[:4]==b'RIFF' and greeting[8:12]==b'WAVE'
 assert struct.unpack('<I',greeting[24:28])[0]==22050
@@ -171,7 +172,7 @@ assert wav[:4]==b'RIFF' and wav[8:12]==b'WAVE'
 status,headers,frame=call('/api/ai/forza-speech-stream',phrase)
 assert status==200 and headers.get('X-Forza-Voice')=='piper-nima-gyro-medium'
 assert len(frame)>48 and struct.unpack('<I',frame[:4])[0]==len(frame)-4 and frame[4:8]==b'RIFF'
-print('FORZA_NIMA_LIVE_AUDIO_PASS greeting=1 wav=1 framed_wav=1 incremental=1')
+print('FORZA_NIMA_LIVE_AUDIO_PASS greeting=1 wav=1 framed_wav=1 whole_answer_wav=1')
 PY
 test "$(docker inspect -f '{{.State.OOMKilled}}' "$LIVE")" = false || fail "voice_out_of_memory"
 printf 'BACKUP=%s\nENV_BACKUP=%s\nREVISION=%s\n' "$PREV" "$PREV_ENV" "$REV" > "$MARKER"
