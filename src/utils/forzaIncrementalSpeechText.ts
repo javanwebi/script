@@ -8,6 +8,12 @@
 export class ForzaIncrementalSpeechText {
   private seen = '';
   private emitted = 0;
+  // Hold one not-yet-submitted middle phrase so the final 1–3 words can be
+  // merged with it at explicit SSE done. Without this, complete() creates a
+  // separate tiny Piper inference job after the prior WAV has played.
+  // The very first short phrase is still dispatched immediately.
+  private started = false;
+  private heldPhrase = '';
 
   push(fullText: string): string[] {
     if (!fullText.startsWith(this.seen)) {
@@ -21,16 +27,54 @@ export class ForzaIncrementalSpeechText {
       const cut = this.boundary(tail);
       if (cut <= 0) break;
       const speech = tail.slice(0, cut).trim();
-      if (speech) output.push(speech);
+      if (speech) {
+        if (!this.started) {
+          // Preserve first-audio latency: the first complete word group is
+          // sent while the LLM is still producing the remaining answer.
+          output.push(speech);
+          this.started = true;
+        } else if (this.heldPhrase) {
+          // A newer complete group allows the previous reserved group to
+          // enter the audio queue. Always keep the newest group in reserve.
+          output.push(this.heldPhrase);
+          this.heldPhrase = speech;
+        } else {
+          this.heldPhrase = speech;
+        }
+      }
       this.emitted += cut;
     }
     return output;
   }
 
+  /**
+   * An upstream provider may stream the last visible words and leave SSE open
+   * several seconds before sending its authoritative `done` event. If the
+   * currently visible answer already ends with an explicit terminal mark,
+   * a short idle timeout may dispatch the *combined* pending final phrase now.
+   * Never flush half-written words, partial decimals, or unpunctuated text.
+   * Future monotonic SSE updates continue normally; already spoken words
+   * cannot be emitted twice when `complete()` eventually arrives.
+   */
+  flushTerminalIdle(): string[] {
+    if (!/[.!؟؛]\s*$/.test(this.seen)) return [];
+    const remaining = this.seen.slice(this.emitted).trim();
+    const ready = [this.heldPhrase, remaining].filter(Boolean).join(' ');
+    if (!ready) return [];
+    this.heldPhrase = '';
+    this.emitted = this.seen.length;
+    return [ready];
+  }
+
   complete(finalText: string): string[] {
     const output = this.push(finalText);
     const remaining = this.seen.slice(this.emitted).trim();
-    if (remaining) output.push(remaining);
+    // Crucial for real CPU inference: send the reserved final phrase and any
+    // one/two-word suffix to Piper in *one* WAV request. Never create a
+    // separate TTS task just for the last words at the SSE done event.
+    const finalPhrase = [this.heldPhrase, remaining].filter(Boolean).join(' ');
+    this.heldPhrase = '';
+    if (finalPhrase) output.push(finalPhrase);
     this.emitted = this.seen.length;
     return output;
   }

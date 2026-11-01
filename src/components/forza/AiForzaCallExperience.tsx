@@ -825,6 +825,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
+      let terminalIdleTimer:number|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -927,6 +928,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             ' started='+Number(info.started)),
         });
         const activeNimaBuffer=bufferedNima;
+        // A provider may delay the SSE done event after the complete text
+        // appears. A short idle flush avoids waiting seconds to voice the
+        // final completed sentence. The timer is cancelled on further deltas,
+        // turn completion, interruption, and any error.
         let firstPhraseQueued=false;
         const queueSpeech=(phrase:string)=>{
           if(!firstPhraseQueued){
@@ -947,7 +952,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(useNima){
             // Enforce monotonic SSE text; never speak a revised/duplicate
             // segment after the consumer has already heard its predecessor.
+            if(terminalIdleTimer!==null){
+              window.clearTimeout(terminalIdleTimer);
+              terminalIdleTimer=null;
+            }
             for(const phrase of phrasePlanner.push(fullText))queueSpeech(phrase);
+            if(/[.!؟؛]\s*$/.test(fullText)){
+              terminalIdleTimer=window.setTimeout(()=>{
+                terminalIdleTimer=null;
+                if(pocketAbort.signal.aborted||callClosedRef.current)return;
+                const completed=phrasePlanner.flushTerminalIdle();
+                if(completed.length){
+                  console.info('[FORZA_NIMA_FINAL] early_terminal_idle_flush=1 chars='+
+                    completed.reduce((sum,phrase)=>sum+phrase.length,0));
+                  for(const phrase of completed)queueSpeech(phrase);
+                }
+              },300);
+            }
           }
         };
         try {
@@ -1014,7 +1035,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' chars='+reply.length);
             if(useNima){
-              for(const phrase of phrasePlanner.complete(reply))queueSpeech(phrase);
+              if(terminalIdleTimer!==null){
+                window.clearTimeout(terminalIdleTimer);
+                terminalIdleTimer=null;
+              }
+              const finalPhrases=phrasePlanner.complete(reply);
+              console.info('[FORZA_NIMA_FINAL] coalesced_phrases='+finalPhrases.length+
+                ' final_chars='+(finalPhrases.at(-1)?.length||0));
+              for(const phrase of finalPhrases)queueSpeech(phrase);
               await activeNimaBuffer.finish();
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
                 activeNimaBuffer.statistics.scheduled+
@@ -1045,6 +1073,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
+        if(terminalIdleTimer!==null)window.clearTimeout(terminalIdleTimer);
         bufferedNima?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;

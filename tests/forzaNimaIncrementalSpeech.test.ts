@@ -77,3 +77,79 @@ test('several sentences in one SSE event do not turn into per-sentence audio req
   assert.ok(phrases.some(p=>p.includes('.')&&p.includes('مشخصات')),'punctuation remains inside continuous word group');
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),answer.trim());
 });
+
+test('FORZA final two words are combined with a reserved phrase, not a separate WAV',()=>{
+  const answer='سلام، وقت بخیر؛ برای ارائه اطلاعات دقیق و تأییدشده از کاتالوگ صنعت پیش، '+
+    'لطفاً نام یا کد قطعه صنعتی مورد نظر خود را بفرمایید.';
+  const planner=new ForzaIncrementalSpeechText();
+  const early:string[]=[];
+  for(let n=1;n<=answer.length;n++)early.push(...planner.push(answer.slice(0,n)));
+  assert.ok(early.length>0,'first coherent phrase must synthesize before final done');
+  const final=planner.complete(answer);
+  assert.equal(final.length,1,'a final reserved group and two-word suffix must share one TTS request');
+  const tailWords=final[0].trim().split(/\s+/);
+  assert.ok(tailWords.length>4,'do not generate a separate WAV for the last two words');
+  assert.ok(final[0].endsWith('را بفرمایید.'));
+  assert.equal([...early,...final].join(' ').replace(/\s+/g,' ').trim(),answer.trim());
+});
+
+test('when final done carries only two new words, they join the held last phrase',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const previous='برای انتخاب بهترین قطعات صنعتی در کاتالوگ صنعت پیش '+
+    'لطفا مدل و مشخصات دستگاه مورد نظر خود را ';
+  const early=planner.push(previous);
+  assert.equal(early.length,1,'first phrase still goes out early');
+  const final=planner.complete(previous+'بفرمایید لطفاً.');
+  assert.equal(final.length,1,'last phrase and two late words must be a single WAV');
+  assert.ok(final[0].includes('مشخصات دستگاه'));
+  assert.ok(final[0].endsWith('بفرمایید لطفاً.'));
+  assert.equal([...early,...final].join(' ').replace(/\s+/g,' ').trim(),
+    (previous+'بفرمایید لطفاً.').trim());
+});
+
+test('holdback releases older buffered groups during long SSE, not only at done',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const text='برای ارائه مشاوره درباره انواع تسمه صنعتی لازم است ابتدا مشخصات دستگاه را '+
+    'بفرمایید تا بتوانیم کد فنی محصول را با اطلاعات معتبر کاتالوگ صنعت پیش '+
+    'مقایسه کرده و گزینه های مناسب را بررسی و پیشنهاد کنیم.';
+  const output:string[]=[];
+  for(let i=1;i<=text.length;i++)output.push(...planner.push(text.slice(0,i)));
+  assert.ok(output.length>=2,'middle audio must keep streaming before final done');
+  const last=planner.complete(text);
+  assert.ok(last.every(phrase=>phrase.split(/\s+/).length>2));
+  assert.equal([...output,...last].join(' ').replace(/\s+/g,' ').trim(),text);
+});
+
+test('a delayed SSE done cannot hold the final complete Persian words for seconds',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const finalText='سلام، برای بررسی مشخصات قطعات صنعتی از کاتالوگ صنعت پیش '+
+    'لطفاً نام و کد فنی مورد نظر خود را بفرمایید.';
+  const emitted=planner.push(finalText);
+  assert.ok(emitted.length>0);
+  const early=planner.flushTerminalIdle();
+  assert.equal(early.length,1,'one reserved end phrase should start when terminal SSE stalls');
+  assert.ok(early[0].endsWith('خود را بفرمایید.'));
+  assert.deepEqual(planner.flushTerminalIdle(),[],'timer must never duplicate audio');
+  assert.deepEqual(planner.complete(finalText),[],'authoritative done must not replay early audio');
+  assert.equal([...emitted,...early].join(' ').replace(/\s+/g,' ').trim(),finalText);
+});
+
+test('terminal idle never pronounces an unfinished word or decimal as a complete reply',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const input='قطر محصول 3.25 و شماره فنی قطعه مورد نیاز ';
+  const emitted=planner.push(input);
+  assert.deepEqual(planner.flushTerminalIdle(),[]);
+  const full=input+'برای استعلام و بررسی کاتالوگ دقیق است.';
+  const more=planner.push(full);
+  const final=[...emitted,...more,...planner.complete(full)].join(' ').replace(/\s+/g,' ').trim();
+  assert.equal(final,full.trim());
+});
+
+test('new text after terminal idle flush is still streamed and voiced once in order',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const first='برای بررسی محصول مورد نظر لطفاً کد قطعه را بفرمایید.';
+  const early=[...planner.push(first),...planner.flushTerminalIdle()];
+  const full=first+' همچنین می‌توانید نام سازنده و اندازه قطعه را اعلام کنید.';
+  const remaining=[...planner.push(full),...planner.complete(full)];
+  assert.equal([...early,...remaining].join(' ').replace(/\s+/g,' ').trim(),full);
+});
