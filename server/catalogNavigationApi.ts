@@ -26,7 +26,7 @@ export function registerCatalogNavigationApi(app:Express){
           left join public.catalog_variants v on v.family_code=f.code
           group by f.category_slug
         ) fc on fc.category_slug=c.slug
-        where c.is_active=true and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
+        where c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
         order by c.sort_order,c.name`);
       const categories=result.rows.map((row:any)=>{
         const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
@@ -55,7 +55,7 @@ export function registerCatalogNavigationApi(app:Express){
       if(!databaseEnabled())return res.status(503).json({success:false,groups:[]});
       const withInactive=req.query.includeInactive==='1'&&(await getPortalIdentity(req)).admin;
       const rows=await database().query(
-        'select id,title,icon_key as "iconKey",image_url as "imageUrl",category_slugs as "categorySlugs",sort_order as "sortOrder",is_active as active from public.catalog_navigation_groups '+(withInactive?'':'where is_active=true ')+'order by sort_order,id');
+        'select id,title,icon_key as "iconKey",image_url as "imageUrl",category_slugs as "categorySlugs",sort_order as "sortOrder",is_active as active from public.catalog_navigation_groups '+(withInactive?'':'where is_active=true and id like \'excel-v2-%\' ')+'order by sort_order,id');
       return res.json({success:true,groups:rows.rows});
     }catch(error){return fail(res,error);}
   });
