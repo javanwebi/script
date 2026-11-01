@@ -21,6 +21,7 @@ import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { playForzaWholeAnswer } from '../../utils/forzaWholeAnswerSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -710,10 +711,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   ):Promise<void>=>{
     // One HTTP POST, one RIFF/WAVE, one AudioBufferSource: no waiting
     // for a second generated packet mid-sentence, including punctuation.
-    const audio=await requestPocketAudio(answer,signal);
-    if(signal?.aborted || callClosedRef.current)return;
-    await player.enqueueWav(audio);
-    console.info('[FORZA_LATENCY] phase=whole-pocket-playback-finished '+
+    await playForzaWholeAnswer(answer,requestPocketAudio,player,signal);
+    console.info('[FORZA_LATENCY] phase=whole-answer-playback-finished '+
       'audio_buffers=1 underruns='+player.underrunCount);
   },[requestPocketAudio]);
 
