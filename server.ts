@@ -5825,6 +5825,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  let geminiSentText=false;
   try {
     const ai = new GoogleGenAI({
       apiKey,
@@ -5949,6 +5950,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
       }
       fullAccumulatedText += chunkText;
+      geminiSentText=true;
       speechBuffer += chunkText;
 
       sendEvent({
@@ -6079,12 +6081,20 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   } catch (err: any) {
     console.warn('[AI Consult Stream] Stream interrupted:', String(err?.message||err).slice(0,120));
     try {
-      // In-progress Gemini chunks are already on screen. Switching to a
-      // different response at the end would speak something other than
-      // what the user just read, and could silently lose the last words.
-      if(res.headersSent && res.writableEnded)return;
-      sendEvent({type:'error',responseId,errorCode:'gemini_stream_interrupted',
-        message:'ارتباط هوش مصنوعی قطع شد و پاسخ کامل نیست. لطفاً دوباره تلاش کنید.'});
+      if(res.writableEnded)return;
+      if(!geminiSentText){
+        // Preserve the existing offline fallback when no AI words have been
+        // delivered; it does not contaminate a different partial transcript.
+        const off=consultantFallback(String(query||''));
+        sendEvent({type:'text_chunk',responseId,chunk:off.reply,textSoFar:off.reply});
+        sendEvent({type:'done',responseId,fullText:off.reply,
+          suggestedAction:off.suggestedAction});
+      }else{
+        // Some AI text has already reached the browser. Do not silently
+        // claim a provider interruption was a complete response.
+        sendEvent({type:'error',responseId,errorCode:'gemini_stream_interrupted',
+          message:'ارتباط هوش مصنوعی قطع شد و پاسخ کامل نیست. لطفاً دوباره تلاش کنید.'});
+      }
     } catch {}
     res.end();
   }
