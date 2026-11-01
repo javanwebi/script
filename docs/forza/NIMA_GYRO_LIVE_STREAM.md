@@ -48,16 +48,41 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Fix: full stops do not trigger silence (2026-11-01)
+
+The user observed a ~6-second gap between the words describing confirmed
+specifications and the last `catalog review` phrase, despite the answer already
+being visible. The old planner treated every `.`, `،`, `؟`, and `؛` followed by
+whitespace as an **immediate TTS segment boundary**. Because Nima creates one
+complete WAV per request, each punctuation mark could force an independent
+CPU synthesis job, and a delayed next WAV would leave the speaker silent.
+
+For Nima, the incremental text planner now **ignores punctuation for segment
+boundaries**. The visible transcript is unmodified. Synthesis begins at the
+first coherent complete-word group (target ~38 Persian characters), while
+later groups target ~66 characters, always breaking at spaces (never inside
+a word or industrial code). The model worker already strips spoken punctuation
+while retaining the original subtitle punctuation. The same player still
+schedules all WAV buffers on a single AudioContext clock.
+
+A real audio underrun now carries the console diagnostic
+`[FORZA_AUDIO_UNDERRUN] wait_ms=N cause=next_wav_arrived_after_previous_playback`.
+Inspect `phase=first-tts-phrase-queued` and per-phrase
+`phase=nima-phrase-wav-ready` logs to distinguish LLM text stalls from
+private Piper CPU/queue delays. This patch does **not** promise physically
+zero silence when inference or the upstream LLM is slower than playback;
+it eliminates the explicit *punctuation-triggered* stop/start source.
+
 ## Real-time first words and uninterrupted scheduled Nima playback (November 2026)
 
 To minimize the perceived gap between visible LLM tokens and audible speech:
 * The browser renders **every SSE text delta immediately**, even if it is an
   unfinished word. Display is not gated by TTS generation.
 * Nima begins synthesizing as soon as the *first coherent short group*
-  (~38 characters maximum without punctuation, cut on a complete word boundary)
-  has arrived; a short complete sentence may start earlier. It does **not**
-  wait for the full answer or 80 characters before its very first request.
-* Subsequent word groups target ~76 characters without punctuation, allowing
+  (~38 characters, cut on a complete word boundary)
+  has arrived. It does **not** wait for the full answer or require a sentence
+  ending before its first request.
+* Subsequent word groups target ~66 characters, allowing
   the selected CPU voice to synthesize ahead with up to two in-flight requests.
 * The optional first-audio buffer hold has been reduced from 500 ms to **120 ms**
   after the first valid WAV arrives, if less than two seconds of audio is ready.

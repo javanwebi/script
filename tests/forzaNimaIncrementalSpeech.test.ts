@@ -2,68 +2,78 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ForzaIncrementalSpeechText } from '../src/utils/forzaIncrementalSpeechText';
 
-test('Nima speaks only completed Persian clauses while words arrive progressively',()=>{
- const stream=new ForzaIncrementalSpeechText();
- assert.deepEqual(stream.push('سلام، من فور'),[]);
- assert.deepEqual(stream.push('سلام، من فورزا هستم. و '),['سلام، من فورزا هستم.']);
- assert.deepEqual(stream.push('سلام، من فورزا هستم. و در صنعت پیش کمک می‌کنم. '),
-  ['و در صنعت پیش کمک می‌کنم.']);
- assert.deepEqual(stream.complete('سلام، من فورزا هستم. و در صنعت پیش کمک می‌کنم. اکنون آماده هستم.'),
-  ['اکنون آماده هستم.']);
+function speakInDeltas(text:string):string[] {
+  const stream=new ForzaIncrementalSpeechText();
+  const phrases:string[]=[];
+  for(let i=1;i<=text.length;i++)phrases.push(...stream.push(text.slice(0,i)));
+  phrases.push(...stream.complete(text));
+  return phrases;
+}
+
+test('period, comma and question mark never independently trigger a new Piper WAV',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const short='سلام، فورزا آماده است. ';
+  assert.deepEqual(planner.push(short),[]);
+  const first=planner.push(short+'آیا مدل دستگاه را ');
+  assert.equal(first.length,1,'first word group crosses punctuation only after word limit');
+  const full=short+'آیا مدل دستگاه را بفرمایید؟ سپس موجودی را بررسی می‌کنم.';
+  const phrases=[...first,...planner.push(full),...planner.complete(full)];
+  assert.ok(phrases[0].includes('است.'),'period stays inside the first continuous chunk');
+  assert.ok(phrases[0].includes('آیا'),'the first phrase crosses the period');
+  assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),full.trim());
 });
 
-test('Nima never duplicates or loses words on repeated stream snapshots',()=>{
- const chunker=new ForzaIncrementalSpeechText();
- const input='برای انتخاب تسمه مناسب لطفاً مدل دستگاه را بفرمایید. '+
-  'ما مشخصات فنی را بررسی می‌کنیم.';
- let spoken:string[]=[];
- for(let index=1;index<=input.length;index++){
-   spoken.push(...chunker.push(input.slice(0,index)));
- }
- spoken.push(...chunker.complete(input));
- assert.equal(spoken.join(' ').replace(/\s+/g,' ').trim(),input.trim());
+test('one-character-at-a-time SSE never duplicates or loses words',()=>{
+  const input='برای انتخاب تسمه مناسب لطفاً مدل دستگاه را بفرمایید. '+
+    'ما مشخصات فنی را بررسی می‌کنیم.';
+  const phrases=speakInDeltas(input);
+  assert.ok(phrases.length>=2,'the answer is spoken before all text is delivered');
+  assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),input.trim());
 });
 
-test('Nima preserves decimals and rejects revised TTS text',()=>{
- const chunker=new ForzaIncrementalSpeechText();
- assert.deepEqual(chunker.push('قطر قطعه 3.25 میلی متر است. و '),['قطر قطعه 3.25 میلی متر است.']);
- assert.throws(()=>chunker.push('قطر قطعه 4.25 میلی متر است. و '),/stream_revised/);
+test('Nima retains industrial decimals and rejects a revised LLM transcript',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  assert.deepEqual(planner.push('قطر قطعه 3.25 میلی متر است. و '),[]);
+  const next='قطر قطعه 3.25 میلی متر است. و کد فنی استاندارد را بررسی می‌کنیم. ';
+  const phrases=[...planner.push(next),...planner.complete(next)];
+  assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),next.trim());
+  assert.throws(()=>planner.push('قطر قطعه 4.25 میلی متر است. و '),/stream_revised/);
 });
 
-test('Nima buffers unfinished words and flushes short final answers',()=>{
- const chunker=new ForzaIncrementalSpeechText();
- assert.deepEqual(chunker.push('سلام فورزا'),[]);
- assert.deepEqual(chunker.complete('سلام فورزا'),['سلام فورزا']);
- assert.deepEqual(chunker.complete('سلام فورزا'),[]);
+test('unfinished last word is buffered until its boundary or final done',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const prefix='برای بررسی قطعات مورد نیاز به مدل دستگا';
+  assert.ok(!planner.push(prefix).some(part=>part.endsWith('دستگا')));
+  const whole=prefix+'ه و مشخصات دقیق آن نیاز داریم.';
+  const phrases=planner.complete(whole);
+  assert.ok(phrases.join(' ').includes('دستگاه'));
 });
 
-test('first Nima phrase starts while LLM is still delivering unpunctuated Persian words',()=>{
- const stream=new ForzaIncrementalSpeechText();
- const prefix='برای انتخاب قطعه صنعتی مناسب ابتدا مدل ';
- assert.ok(prefix.length<80);
- const first=stream.push(prefix);
- assert.equal(first.length,1,'first coherent word group should be ready before 80 characters');
- assert.ok(first[0].length>=22);
- assert.equal(stream.push(prefix).length,0,'identical SSE snapshots must never repeat speech');
- const finished=prefix+'دستگاه را بفرمایید تا مشخصات مورد نیاز را بررسی کنیم.';
- const chunks=[...first,...stream.complete(finished)];
- assert.equal(chunks.join(' ').replace(/\s+/g,' ').trim(),finished.trim());
+test('Nima begins at first complete word group without waiting for full response',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const prefix='برای انتخاب قطعه صنعتی مناسب ابتدا مدل ';
+  assert.ok(prefix.length<80);
+  const first=planner.push(prefix);
+  assert.equal(first.length,1);
+  assert.ok(first[0].length>=22);
+  assert.equal(planner.push(prefix).length,0);
+  const whole=prefix+'دستگاه را بفرمایید تا مشخصات مورد نیاز را بررسی کنیم.';
+  assert.equal([...first,...planner.complete(whole)].join(' ').replace(/\s+/g,' ').trim(),whole.trim());
 });
 
-test('streaming Nima keeps unfinished final Persian words buffered',()=>{
- const stream=new ForzaIncrementalSpeechText();
- const incomplete='برای بررسی قطعات مورد نیاز به مدل دستگا';
- assert.ok(!stream.push(incomplete).some(part=>part.endsWith('دستگا')));
- const complete=incomplete+'ه و مشخصات دقیق آن نیاز داریم.';
- const spoken=stream.complete(complete);
- assert.ok(spoken.join(' ').includes('دستگاه'));
+test('short final answers flush only on explicit done',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  assert.deepEqual(planner.push('سلام فورزا'),[]);
+  assert.deepEqual(planner.complete('سلام فورزا'),['سلام فورزا']);
+  assert.deepEqual(planner.complete('سلام فورزا'),[]);
 });
 
-test('first short completed sentence can be spoken before the next LLM sentence arrives',()=>{
- const stream=new ForzaIncrementalSpeechText();
- const first='سلام، فورزا آماده است. ';
- assert.deepEqual(stream.push(first),['سلام، فورزا آماده است.']);
- assert.deepEqual(stream.push(first+'اکنون '),[]);
- assert.deepEqual(stream.complete(first+'اکنون مشخصات دستگاه را بفرمایید.'),
-   ['اکنون مشخصات دستگاه را بفرمایید.']);
+test('several sentences in one SSE event do not turn into per-sentence audio requests',()=>{
+  const answer='سلام. من فورزا هستم. مشخصات فنی محصول را بررسی می‌کنم. '+
+    'لطفاً کد دقیق را بفرمایید. متشکرم.';
+  const phrases=speakInDeltas(answer);
+  const sentences=answer.match(/[.!؟]+/g)?.length||0;
+  assert.ok(phrases.length < sentences,'there must be fewer audio requests than punctuation marks');
+  assert.ok(phrases.some(p=>p.includes('.')&&p.includes('مشخصات')),'punctuation remains inside continuous word group');
+  assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),answer.trim());
 });
