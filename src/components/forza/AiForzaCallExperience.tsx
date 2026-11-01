@@ -20,6 +20,7 @@ import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
@@ -65,14 +66,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
     void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
       .then(r=>r.ok?r.json():null)
       .then(data=>{
-        if(mounted&&data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true)
+        if(!mounted)return;
+        if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
-      }).catch(()=>{});
+          setActiveVoiceLabel('نیما (Piper فارسی)');
+        }else{
+          voiceModeRef.current='pocket-farsi-v2';
+          setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
+            ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
+        }
+      }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
     return()=>{mounted=false};
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
@@ -809,6 +818,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
 
       const pocketAbort=new AbortController();
+      let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -894,22 +904,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // partial words to the neural synthesizer.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
-        let speechQueue:Promise<void>=Promise.resolve();
-        const playbackJobs:Promise<void>[]=[];
-        let ttsFailure:unknown=null;
-        const queueSpeech=(phrase:string)=>{
-          speechQueue=speechQueue.then(async()=>{
-            if(pocketAbort.signal.aborted)throw new Error('forza_tts_aborted');
-            const pcm=await requestPocketAudio(phrase,pocketAbort.signal);
-            if(pocketAbort.signal.aborted)return;
-            // Schedule playback without waiting for it to finish: generate
-            // the next phrase while the previous AudioBuffer is playing.
-            const played=continuousPlayer.enqueueWav(pcm);
-            playbackJobs.push(played);
-            void played.catch(()=>{});
-          });
-          void speechQueue.catch(error=>{ttsFailure=error;});
-        };
+        // Nima runs two bounded in-memory TTS lookahead requests. Audio is
+        // emitted in original source order to the SAME AudioContext scheduler.
+        // Initial playback primes ~2s of audio, but waits at most 500ms after
+        // the first ready WAV if the next phrase has not arrived yet.
+        bufferedNima=new ForzaNimaBufferedSpeech({
+          synthesize:requestPocketAudio,
+          player:continuousPlayer,
+          signal:pocketAbort.signal,
+          maxConcurrent:2,
+          initialBufferSeconds:2,
+          maximumInitialWaitMs:500,
+          onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
+            info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
+            ' started='+Number(info.started)),
+        });
+        const activeNimaBuffer=bufferedNima;
+        const queueSpeech=(phrase:string)=>activeNimaBuffer.add(phrase);
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -989,10 +1000,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' chars='+reply.length);
             if(useNima){
               for(const phrase of phrasePlanner.complete(reply))queueSpeech(phrase);
-              await speechQueue;
-              if(ttsFailure)throw ttsFailure;
-              await Promise.all(playbackJobs);
-              console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+playbackJobs.length+
+              await activeNimaBuffer.finish();
+              console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
+                activeNimaBuffer.statistics.scheduled+
+                ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
@@ -1019,6 +1030,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
+        bufferedNima?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
@@ -1567,7 +1579,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای فورزا: Pocket TTS فارسی v2 · تشخیص گفتار: مرورگر / سرویس فعلی سرور
+            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: مرورگر / سرویس فعلی سرور
           </div>
         )}
         {microphoneError && (
