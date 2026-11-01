@@ -72,7 +72,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       .then(r=>r.ok?r.json():null)
       .then(data=>{
         if(!mounted)return;
-        if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
+        // Select the actual resident voice by ID. Whole-answer playback
+        // does not require incrementalSpeech support from the engine.
+        if(data?.voice==='piper-nima-gyro-medium'){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
         }else{
