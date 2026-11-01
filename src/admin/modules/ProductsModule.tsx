@@ -48,7 +48,6 @@ import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
 import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
-import { catalogFamilyCount } from '../catalogFamilyFilters';
 
 interface ProductsModuleProps {
   onQuickImportClick?: () => void;
