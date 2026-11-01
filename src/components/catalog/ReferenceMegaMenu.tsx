@@ -24,7 +24,8 @@ const readCategories = (): EnhancedCategory[] => {
   const source = managed.length ? managed : CATEGORIES;
   // Only show active categories that contain real catalog families; this also excludes empty test entries.
   return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
-    Number(category.familyCount ?? category.count ?? 0) > 0);
+    (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+      (category as EnhancedCategory & { menuSource?: string }).menuSource === 'industrial_megamenu_hierarchy_v2'));
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -112,7 +113,9 @@ export function ReferenceMegaMenu({
     const applyCategories = (input: unknown) => {
       if (!mounted || !Array.isArray(input)) return;
       const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
-        Boolean(category.name && category.slug) && Number(category.familyCount ?? category.count ?? 0) > 0);
+        Boolean(category.name && category.slug) &&
+        (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+          (category as EnhancedCategory & { menuSource?: string }).menuSource === 'industrial_megamenu_hierarchy_v2'));
       if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
@@ -173,7 +176,9 @@ export function ReferenceMegaMenu({
     const available = orderedCategories;
     const assigned = new Set<string>();
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
-    const configured = [...(savedGroups || [])]
+    const excelGroups = (savedGroups || []).filter(group => group.active !== false && /^excel-v2-[0-9]+$/.test(group.id));
+    const useApprovedGroups = excelGroups.length > 0;
+    const configured = [...(useApprovedGroups ? excelGroups : savedGroups || [])]
       .filter(group => group.active !== false)
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -190,7 +195,7 @@ export function ReferenceMegaMenu({
         });
       });
       const unassigned = available.filter(category => !assigned.has(category.slug));
-      if (unassigned.length) sections.push({
+      if (unassigned.length && !useApprovedGroups) sections.push({
         id: "other-categories",
         title: "سایر دسته‌بندی‌ها",
         iconKey: "package",
