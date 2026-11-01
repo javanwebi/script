@@ -36,3 +36,34 @@ test('Nima buffers unfinished words and flushes short final answers',()=>{
  assert.deepEqual(chunker.complete('سلام فورزا'),['سلام فورزا']);
  assert.deepEqual(chunker.complete('سلام فورزا'),[]);
 });
+
+test('first Nima phrase starts while LLM is still delivering unpunctuated Persian words',()=>{
+ const stream=new ForzaIncrementalSpeechText();
+ const prefix='برای انتخاب قطعه صنعتی مناسب ابتدا مدل ';
+ assert.ok(prefix.length<80);
+ const first=stream.push(prefix);
+ assert.equal(first.length,1,'first coherent word group should be ready before 80 characters');
+ assert.ok(first[0].length>=22);
+ assert.equal(stream.push(prefix).length,0,'identical SSE snapshots must never repeat speech');
+ const finished=prefix+'دستگاه را بفرمایید تا مشخصات مورد نیاز را بررسی کنیم.';
+ const chunks=[...first,...stream.complete(finished)];
+ assert.equal(chunks.join(' ').replace(/\s+/g,' ').trim(),finished.trim());
+});
+
+test('streaming Nima keeps unfinished final Persian words buffered',()=>{
+ const stream=new ForzaIncrementalSpeechText();
+ const incomplete='برای بررسی قطعات مورد نیاز به مدل دستگا';
+ assert.ok(!stream.push(incomplete).some(part=>part.endsWith('دستگا')));
+ const complete=incomplete+'ه و مشخصات دقیق آن نیاز داریم.';
+ const spoken=stream.complete(complete);
+ assert.ok(spoken.join(' ').includes('دستگاه'));
+});
+
+test('first short completed sentence can be spoken before the next LLM sentence arrives',()=>{
+ const stream=new ForzaIncrementalSpeechText();
+ const first='سلام، فورزا آماده است. ';
+ assert.deepEqual(stream.push(first),['سلام، فورزا آماده است.']);
+ assert.deepEqual(stream.push(first+'اکنون '),[]);
+ assert.deepEqual(stream.complete(first+'اکنون مشخصات دستگاه را بفرمایید.'),
+   ['اکنون مشخصات دستگاه را بفرمایید.']);
+});
