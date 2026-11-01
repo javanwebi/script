@@ -75,12 +75,35 @@ fi
 test -n "$NETWORK" || fail "no_private_docker_network"
 docker inspect -f '{{range $name,$conf := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$SITE" | grep -Fxq "$NETWORK" || fail "site_not_connected_to_voice_network"
 
+# A previous manual 'git pull' can advance the bind-mounted checkout
+# without restarting the running Node process or rebuilding dist/. The normal
+# deployment tool then prints 'Already current' even though the API is stale.
+# Only accept real JSON from the actual Node port; HTML SPA fallback is NOT OK.
+voice_info_ready() {
+  curl --noproxy '*' -fsS --max-time 6 \
+    -H 'Accept: application/json' \
+    http://127.0.0.1:3001/api/ai/forza-voice-info 2>/dev/null |
+    python3 -c 'import json,sys
+try:
+    x=json.loads(sys.stdin.read())
+except (ValueError, UnicodeError):
+    sys.exit(2)
+sys.exit(0 if x.get("voice")=="pocket-farsi-v2" and x.get("incrementalSpeech") is False else 3)'
+}
+
 echo "[1/5] Deploy the compatible source while Pocket is still live."
 /usr/local/sbin/sanatpish-deploy
 git -C "$APP" fetch --quiet origin main
 REV=$(git -C "$APP" rev-parse origin/main)
 test "$(git -C "$APP" rev-parse HEAD)" = "$REV" || fail "application_revision_mismatch"
-curl -fsS --max-time 5 http://127.0.0.1:3001/api/ai/forza-voice-info | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["voice"]=="pocket-farsi-v2"' || fail "voice_info_route_missing"
+if ! voice_info_ready; then
+  echo "FORZA_NIMA_STALE_APP_DETECTED: checkout matches main but API is older."
+  echo "Rebuilding the current revision in an isolated directory with full lint/build validation."
+  test -r "$APP/ops/sanatpish-deploy.sh" || fail "current_revision_rebuild_tool_missing"
+  SANATPISH_DEPLOY_REBUILD_CURRENT=1 bash "$APP/ops/sanatpish-deploy.sh"
+fi
+voice_info_ready || fail "voice_info_route_missing_after_checked_rebuild"
+echo "FORZA_NIMA_APP_READY api=pocket-farsi-v2 revision=$REV"
 
 STAGE=$(mktemp -d /opt/forza-nima-release.XXXXXXXX)
 git -C "$APP" archive --format=tar "$REV" Dockerfile.forza-nima scripts/forza_nima_voice_http.py | tar -xf - -C "$STAGE"
@@ -120,7 +143,7 @@ test "$READY" = 1 || fail "nima_health_failed"
 docker restart "$SITE" >/dev/null
 UP=0
 for i in $(seq 1 60); do
-  if curl -fsS --max-time 4 http://127.0.0.1:3001/api/health 2>/dev/null | grep -q '"database":"ok"'; then UP=1; break; fi
+  if curl --noproxy '*' -fsS --max-time 4 http://127.0.0.1:3001/api/health 2>/dev/null | grep -q '"database":"ok"'; then UP=1; break; fi
   sleep 2
 done
 test "$UP" = 1 || fail "site_not_healthy_after_voice_switch"
