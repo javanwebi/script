@@ -41,7 +41,7 @@ export class ForzaIncrementalSpeechText {
     const sentence = /[.!؟؛]+\s+/g;
     for (const match of text.matchAll(sentence)) {
       const stop = (match.index || 0) + match[0].length;
-      if (stop >= 22) return stop;
+      if (stop >= 16) return stop;
     }
     const comma = /[،,]+\s+/g;
     for (const match of text.matchAll(comma)) {
