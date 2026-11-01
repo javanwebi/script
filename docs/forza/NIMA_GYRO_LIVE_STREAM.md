@@ -48,6 +48,46 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Faster Persian STT and immediate turn hand-off (2026-11-01)
+
+The previous Chrome Web Speech final transcript path waited roughly 700-950 ms
+after a complete utterance even when its final hypothesis was already known.
+The live-voice path now permits a 480 ms stable quiet window after a high
+confidence finalized sentence, 650 ms for lower-confidence complete phrases,
+and longer (1450-1900 ms) for unfinished Persian thoughts. The same bounded
+decision applies to microphone VAD and browser SpeechRecognition. This
+reduces *post-speech* delay; actual LLM first-token time and fallback
+server-side speech recognition latency must be measured separately.
+
+The browser **optionally** supplies a small industrial Persian vocabulary
+hint to compatible Chrome Web Speech implementations. Incompatible browsers
+continue normally; phrase hints cannot guarantee the identity or words of
+a user in a noisy group. Audio capture already requests echoCancellation,
+noiseSuppression, autoGainControl and one audio channel. The VAD-only Audio
+Analyzer now uses 120 Hz high-pass and 3.8 kHz low-pass filtering to reject
+rumble and high-frequency machinery noise; the original browser/STT audio
+is not filtered, so technical speech phonemes are not removed by the meter.
+The configured server STT prompt now requests only the dominant
+near-microphone voice and forbids guessing industrial codes when inaudible.
+
+After a true final AudioBufferSource `onended` event, the client removes
+the **speaking** indicator instead of treating a scheduled WAV as audible.
+During an interim buffer underrun, the UI shows that response production
+continues and keeps the microphone gated against synthesizer echo. As soon
+as all actual output buffers finish, the existing turn-finally path changes
+to listening and restarts STT immediately (unless muted or the call ended).
+Chrome Console contains `[FORZA_AUDIO] playback_drained=1` and
+`[FORZA_TURN] state=listening_after_audio_complete` markers.
+
+**Critical security prerequisite:** a normal browser will not allow
+`getUserMedia()` on `http://87.107.152.92/ai-forza`; FORZA requires an
+HTTPS origin with a valid certificate for user voice capture. This commit
+does not configure Nginx or issue certificates. Even on HTTPS, hardware
+mic proximity/headset and a purpose-built denoising/diarization model may
+be needed for reliable speaker isolation in crowded backgrounds. Do not
+claim impossible 100% accurate recognition. Run real-noise and p95
+latency tests in a real Chrome session after deploy.
+
 ## Fix: final two-word silence on SSE done (2026-11-01)
 
 A real-browser user observed that the last two words of each response were
