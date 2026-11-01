@@ -5494,11 +5494,12 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
   }
 });
 
-// Browser chooses the incremental speech path ONLY for verified Piper Nima.
-// Other existing voices retain their safe full-answer behavior.
+// The browser now uses one completed WAV per AI turn for either supported
+// engine. The incremental phrase flag is false to prevent older clients from
+// splitting text into multiple CPU-serialized synthesis requests.
 app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
-  res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
+  res.json({voice:forzaVoiceEngine,incrementalSpeech:false,wholeAnswerWav:true});
 });
 
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
