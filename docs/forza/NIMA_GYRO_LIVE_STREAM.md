@@ -48,6 +48,41 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Audible speech ends: 5-second stale speaking and mid-sentence underflow fix
+
+**Observed:** On some Nima responses, the customer hears the last phoneme but
+the UI remains "speaking" for ~5 seconds and blocks the microphone. On
+other turns, a long pause occurs mid-sentence even though subtitles are visible.
+
+**Two different failure sources:**
+1. The old `pocketWavWindow` trimmed **at most 240 ms** of silent PCM at
+   the end of a WAV, so 5 seconds of silence embedded by Piper/VITS were
+   treated as speech. `AudioBufferSource.onended` and the mic restart were
+   delayed by the same silent samples. The updated envelope scans the actual
+   channel waveform and removes up to 8s of *verified* leading/trailing
+   silence, preserving at least 70ms after the last audible final consonant.
+   Only playback bounds change; WAVs, voices and text are not saved/altered.
+2. The incremental text planner intentionally holds one whole completed
+   phrase to avoid a final 2-word clip. On a slow SSE feed, that phrase could
+   sit in memory while the AudioContext queue ran dry. If no further SSE
+   arrives for **170ms**, it now releases an already-completed reserved
+   phrase to Nima (not the unfinished word). Terminal punctuation still
+   flushes combined final words after **250ms** of idle. Exact ordered,
+   no-duplicate text remains enforced.
+
+AudioBufferSource.start() can schedule a future sound; it does **not** mean
+that sound is audible *now*. Future scheduled PCM segments no longer set the
+speaking banner until their scheduled start (and the callback is cancelled
+when a turn is interrupted). `[FORZA_AUDIO_TRIM] trailing_silence_ms=N`
+is printed if a WAV has over 250ms of confirmed silent tail. Measure real
+`[FORZA_AUDIO_UNDERRUN] wait_ms=N` after deployment: gaps caused by slow
+CPU TTS or late LLM tokens cannot be eliminated solely by trimming samples.
+
+Full test coverage checks 5s silent WAV tail, soft final consonants, future
+start not claiming to speak early, mid-phrase idle prefetch and complete
+reconstruction of all Persian words. These are source-level tests, not a
+claim of a live browser end-to-end latency pass.
+
 ## Faster Persian STT and immediate turn hand-off (2026-11-01)
 
 The previous Chrome Web Speech final transcript path waited roughly 700-950 ms
