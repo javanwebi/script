@@ -910,9 +910,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
-        // Voice requests need recent conversation context, not the entire
-        // transcript on every turn. A smaller prompt cuts provider prefill.
-        const previousHistory=historyRef.current.slice(-6);
+        // Preserve existing multi-turn conversational memory. LLM first
+        // token latency is measured separately; shortening history here would
+        // silently weaken ongoing technical consultations.
+        const previousHistory=historyRef.current.slice(-24);
         const resolvedUserQuery=String(payload.query||q).trim();
         if(resolvedUserQuery){
           setUserText(resolvedUserQuery);
