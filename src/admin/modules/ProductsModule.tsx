@@ -32,6 +32,7 @@ import { adminService } from '../../services/adminService';
 import { flushDurableChanges } from '../../services/durableStorage';
 import { CategoryTreeEditor } from '../CategoryTreeEditor';
 import { CatalogNavigationGroupsEditor } from '../CatalogNavigationGroupsEditor';
+import { CatalogFamilyTaxonomyManager } from '../CatalogFamilyTaxonomyManager';
 import {
   Product,
   ProductVariant,
@@ -1607,6 +1608,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           </div>
 
           <CatalogNavigationGroupsEditor categories={categories}/>
+          <CatalogFamilyTaxonomyManager/>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map(cat => (
