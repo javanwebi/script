@@ -5441,6 +5441,7 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
   for(let attempt=0;attempt<8;attempt++){
+    const attemptStarted=Date.now();
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
       method:'POST',
       headers:{
@@ -5455,6 +5456,8 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
       if(reason?.error==='voice_busy'&&attempt<7&&Date.now()-started<20000){
+        console.warn('[FORZA_TTS_TIMING] voice_busy=1 attempts='+ (attempt+1) +
+          ' elapsed_ms='+(Date.now()-started));
         await new Promise(resolve=>setTimeout(resolve,Math.min(1800,180*(attempt+1))));
         continue;
       }
@@ -5469,6 +5472,12 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
     const wav=Buffer.from(payload);
     if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
       throw new Error('private_voice_invalid_wav');
+    console.info('[FORZA_TTS_TIMING] total_ms='+(Date.now()-started)+
+      ' last_attempt_ms='+(Date.now()-attemptStarted)+
+      ' retries='+attempt+' chars='+spoken.length+
+      ' worker_queue_ms='+(response.headers.get('x-forza-queue-ms')||'unknown')+
+      ' worker_synthesis_ms='+(response.headers.get('x-forza-synthesis-ms')||'unknown')+
+      ' wav_bytes='+wav.length);
     return wav;
   }
   throw new Error('private_voice_busy_timeout');
