@@ -15,8 +15,8 @@ export function registerCatalogNavigationApi(app:Express){
       const result=await database().query(
         `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
           c.sort_order as "sortOrder",c.is_active as active,c.metadata,
-          coalesce(fc.family_count,0) as "familyCount",
-          coalesce(fc.sku_count,0) as "skuCount"
+          case when c.slug like 'excel-v2-%' then coalesce(mc.family_count,0) else coalesce(fc.family_count,0) end as "familyCount",
+          case when c.slug like 'excel-v2-%' then coalesce(mc.sku_count,0) else coalesce(fc.sku_count,0) end as "skuCount"
         from public.catalog_categories c
         left join (
           select f.category_slug,
@@ -26,7 +26,14 @@ export function registerCatalogNavigationApi(app:Express){
           left join public.catalog_variants v on v.family_code=f.code
           group by f.category_slug
         ) fc on fc.category_slug=c.slug
-        where c.is_active=true and coalesce(fc.family_count,0)>0
+        left join (
+          select a.category_slug,count(distinct f.code) as family_count,
+            coalesce(sum(f.item_count),0) as sku_count
+          from public.catalog_family_menu_assignments a
+          join public.catalog_families f on f.code=a.family_code and f.is_active=true and f.is_deleted=false
+          group by a.category_slug
+        ) mc on mc.category_slug=c.slug
+        where c.is_active=true and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
         order by c.sort_order,c.name`);
       const categories=result.rows.map((row:any)=>{
         const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
@@ -41,10 +48,41 @@ export function registerCatalogNavigationApi(app:Express){
           description:row.description||metadata.description||children.map((node:any)=>String(node?.name||'')).filter(Boolean).join('، '),
           active:row.active===true,sortOrder:Number(row.sortOrder)||0,count:familyCount,familyCount,skuCount,
           children,subcategories,
+          menuSource:typeof metadata.source==='string'?metadata.source:'',
+          routeSlug:typeof metadata.routeSlug==='string'?metadata.routeSlug:row.slug,
         };
       });
       res.setHeader('Cache-Control','no-store');
       return res.json({success:true,categories});
+    }catch(error){return fail(res,error);}
+  });
+
+
+  // Read-only four-level menu taxonomy; original family categories remain untouched.
+  app.get('/api/catalog/menu-category/:slug',async(req,res)=>{
+    try{
+      const slug=clean(req.params.slug,90);
+      if(!/^excel-v2-[0-9]+-[0-9]+$/.test(slug))return res.status(404).json({success:false,message:'دسته موجود نیست.'});
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
+      const category=await database().query(
+        `select c.slug,c.name,c.description,c.image_url as image,c.metadata
+         from public.catalog_categories c
+         where c.slug=$1 and c.is_active=true and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+         limit 1`,[slug]);
+      if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
+      const familyRows=await database().query(
+        `select a.family_code as code,f.name,coalesce(f.brand,'') as brand,
+          a.submenu_name as submenu,a.leaf_name as leaf,coalesce(f.item_count,0) as "skuCount"
+         from public.catalog_family_menu_assignments a
+         join public.catalog_families f on f.code=a.family_code
+         where a.category_slug=$1 and f.is_active=true and f.is_deleted=false
+         order by f.name,f.code limit 3000`,[slug]);
+      const record=category.rows[0];
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,category:{
+        slug:record.slug,name:record.name,description:record.description||'',
+        image:record.image||null,children:Array.isArray(record.metadata?.children)?record.metadata.children:[]
+      },families:familyRows.rows});
     }catch(error){return fail(res,error);}
   });
 
