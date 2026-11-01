@@ -57,6 +57,7 @@ export class ForzaContinuousWav {
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
   private pending = new Set<() => void>();
+  private scheduledStartTimers = new Set<ReturnType<typeof setTimeout>>();
   private closed = false;
   private gain: GainNode | null = null;
   private muted = false;
@@ -144,7 +145,13 @@ export class ForzaContinuousWav {
       }
       const startAt=Math.max(earliest,this.nextStart);
       this.nextStart=startAt+trimmed.duration;
+      let startTimer:ReturnType<typeof setTimeout>|null=null;
       source.onended=()=>{
+        if(startTimer!==null){
+          clearTimeout(startTimer);
+          this.scheduledStartTimers.delete(startTimer);
+          startTimer=null;
+        }
         this.sources.delete(source);
         source.disconnect();
         finish();
@@ -154,7 +161,19 @@ export class ForzaContinuousWav {
           this.onPlaybackDrained?.();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
-      this.onPlaying();
+      // source.start(futureTime) only schedules audio. Earlier code announced
+      // "speaking" right now, even for a segment several seconds in the
+      // future, leaving the UI stuck while no voice was audible.
+      const untilStartMs=Math.max(0,Math.round((startAt-ctx.currentTime)*1000));
+      if(untilStartMs<=60)this.onPlaying();
+      else {
+        startTimer=setTimeout(()=>{
+          this.scheduledStartTimers.delete(startTimer!);
+          startTimer=null;
+          if(!this.closed&&this.sources.has(source))this.onPlaying();
+        },untilStartMs);
+        this.scheduledStartTimers.add(startTimer);
+      }
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
     return finished;
   }
@@ -169,6 +188,8 @@ export class ForzaContinuousWav {
     if(this.closed)return;
     this.closed=true;
     this.nextStart=0;
+    for(const timer of this.scheduledStartTimers)clearTimeout(timer);
+    this.scheduledStartTimers.clear();
     for(const source of this.sources){
       try{source.stop();}catch{}
       try{source.disconnect();}catch{}
