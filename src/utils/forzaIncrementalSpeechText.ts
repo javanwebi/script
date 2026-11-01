@@ -48,11 +48,13 @@ export class ForzaIncrementalSpeechText {
       const stop = (match.index || 0) + match[0].length;
       if (stop >= 48) return stop;
     }
-    // Long LLM runs without punctuation: split at a word boundary, leaving
-    // the unfinished last token buffered for the next SSE message.
-    if (text.length >= 115) {
-      const end = text.lastIndexOf(' ', 100);
-      if (end >= 65) return end + 1;
+    // The LLM may stream very long phrases without punctuation. Do not wait
+    // for 115 characters before starting TTS: emit a meaningful, already
+    // completed word group sooner, never a half-written technical identifier.
+    // Shorter Persian phrases reduce the delay before the next WAV is ready.
+    if (text.length >= 80) {
+      const end = Math.max(text.lastIndexOf(' ', 76), text.lastIndexOf('\\n', 76));
+      if (end >= 52) return end + 1;
     }
     return 0;
   }
