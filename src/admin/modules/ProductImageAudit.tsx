@@ -6,6 +6,7 @@ import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
 import {uploadProductImage} from '../../services/productImageUpload';
 import {normalizeCatalogueText} from '../../data/userProducts';
+import {useApprovedMenuTaxonomy,saveApprovedFamilyAssignment} from '../useApprovedMenuTaxonomy';
 
 type AuditRow=ReturnType<typeof getImageAssignmentAudit>[number];
 type Filter='all'|'sku-linked'|'family-example'|'unassigned'|'catalogue-photo';
@@ -19,7 +20,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   products:Product[];
   categories:Category[];
   onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string,persistedId?:string)=>void;
-  onCreateFamily:(file:string,category:string,submenu:string,subcategory:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
+  onCreateFamily:(file:string,category:string,submenu:string,subcategory:string,imageUrl?:string,imageTitle?:string,upload?:File,
+    target?:{categorySlug:string;submenu:string;leaf:string})=>void;
   onCreateCategory:(imageUrl?:string)=>void;
   onEditCategory:(categoryName:string,imageUrl?:string)=>void;
   onEditFamily:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
@@ -53,57 +55,50 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [urlInput,setUrlInput]=useState('');
   const [sourceError,setSourceError]=useState('');
   const [title,setTitle]=useState('');
+  const [menuGroup,setMenuGroup]=useState('');
   const [category,setCategory]=useState('');
   const [submenu,setSubmenu]=useState('');
   const [subcategory,setSubcategory]=useState('');
   const [familyCode,setFamilyCode]=useState('');
   const [familySearch,setFamilySearch]=useState('');
-  const [searchAllFamilies,setSearchAllFamilies]=useState(true);
+  const [searchAllFamilies,setSearchAllFamilies]=useState(false);
   const [directMode,setDirectMode]=useState(false);
   const [sku,setSku]=useState('');
   const [skuSearch,setSkuSearch]=useState('');
   const [placement,setPlacement]=useState<StorageChoice>('family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
+  const taxonomy=useApprovedMenuTaxonomy();
+  const approvedCategories=taxonomy.categories;
+  const approvedGroups=taxonomy.groups;
+  const selectedApprovedCategory=approvedCategories.find(x=>x.slug===category);
+  const menuSubmenus=(selectedApprovedCategory?.children||[]).map(x=>({value:x.name,label:x.name}));
+  const menuLeaves=(selectedApprovedCategory?.children||[]).find(x=>x.name===submenu)?.children?.map(x=>({value:x.name,label:x.name}))||[];
+  const matchedGroup=approvedGroups.find(x=>x.categorySlugs.includes(category));
+
   const selectedRow=audit.find(x=>x.file===file);
   const family=products.find(x=>x.code===familyCode);
   // All families must be selectable, even with no currently associated image.
   // Hierarchy: categoryName -> submenu -> subcategory -> family (as on the site).
   const allFamilies=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products]);
-  // Navigation configuration and product assignments are both authoritative sources:
-  // an empty newly created category/menu must be selectable immediately.
-  const categoryNames=useMemo(()=>[...new Set([
-    ...categories.filter(item=>item.active!==false).map(item=>item.name),
-    ...products.map(product=>product.categoryName)
-  ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa')),[categories,products]);
-  const currentCategory=categories.find(item=>item.name===category);
-  const submenus=useMemo(()=>{
-    const nodes=(categories.find(item=>item.name===category)?.children||[]);
-    const options=new Map<string,string>();
-    nodes.forEach(node=>options.set(node.value||node.name,node.name));
-    products.filter(product=>product.categoryName===category).forEach(product=>{
-      if(product.submenu&&!options.has(product.submenu))options.set(product.submenu,product.submenu);
-    });
-    return [...options].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label,'fa'));
-  },[categories,products,category]);
-  const subcategories=useMemo(()=>{
-    const nodes=(categories.find(item=>item.name===category)?.children||[]);
-    const options=new Map<string,string>();
-    nodes.filter(node=>!submenu||(node.value||node.name)===submenu).forEach(node=>{
-      (node.children||[]).forEach(child=>options.set(child.value||child.name,child.name));
-    });
-    products.filter(product=>product.categoryName===category&&(!submenu||product.submenu===submenu)).forEach(product=>{
-      if(product.subcategory&&!options.has(product.subcategory))options.set(product.subcategory,product.subcategory);
-    });
-    return [...options].map(([value,label])=>({value,label})).sort((a,b)=>a.label.localeCompare(b.label,'fa'));
-  },[categories,products,category,submenu]);
+  // The imported four-level hierarchy is the sole selectable taxonomy.
+  // Old product category fields are retained only for backward-compatible product storage.
+  const currentCategory=selectedApprovedCategory;
   useEffect(()=>{
     const onSaved=(event:Event)=>{
       const detail=(event as CustomEvent<{categoryName?:string;submenu?:string;subcategory?:string;familyCode?:string;imageUrl?:string;imageFileName?:string}>).detail;
       if(!detail)return;
-      if(detail.categoryName) setCategory(detail.categoryName);
-      if(detail.submenu!==undefined)setSubmenu(detail.submenu);
-      if(detail.subcategory!==undefined)setSubcategory(detail.subcategory);
+      // The legacy family fields do not define its approved menu classification.
+      // Resolve the approved path by family code after the family has been saved.
+      if(detail.familyCode){
+        const assigned=taxonomy.byFamily.get(detail.familyCode);
+        if(assigned){
+          setCategory(assigned.categorySlug);
+          setMenuGroup(approvedGroups.find(group=>group.categorySlugs.includes(assigned.categorySlug))?.id||'');
+          setSubmenu(assigned.submenuName||'');
+          setSubcategory(assigned.leafName||'');
+        }
+      }
       if(detail.familyCode){setFamilyCode(detail.familyCode);setFamilySearch('');}
       if(detail.imageUrl){
         setUrl(previous=>{if(previous.startsWith('blob:'))URL.revokeObjectURL(previous);return detail.imageUrl||'';});
@@ -114,12 +109,16 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     };
     window.addEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
     return ()=>window.removeEventListener('atlas-image-assignment-hierarchy-saved',onSaved);
-  },[]);
-  const families=useMemo(()=>products.filter(p=>
-    (searchAllFamilies||((!category||p.categoryName===category)&&(!submenu||p.submenu===submenu)&&
-    (!subcategory||p.subcategory===subcategory)))&&
-    normalizeCatalogueText(p.code+' '+p.name+' '+(p.variants||[]).map(v=>v.code+' '+v.name).join(' ')).includes(normalizeCatalogueText(familySearch))
-  ).sort((a,b)=>a.name.localeCompare(b.name,'fa')),[products,category,submenu,subcategory,familySearch,searchAllFamilies]);
+  },[taxonomy.byFamily,approvedGroups]);
+  const families=useMemo(()=>products.filter(p=>{
+    const assignment=taxonomy.byFamily.get(p.code);
+    const matchesPath=(!category||assignment?.categorySlug===category) &&
+      (!submenu||assignment?.submenuName===submenu) &&
+      (!subcategory||assignment?.leafName===subcategory);
+    return (searchAllFamilies || (taxonomy.assignmentsLoaded && matchesPath && Boolean(assignment))) &&
+      normalizeCatalogueText(p.code+' '+p.name+' '+(p.variants||[]).map(v=>v.code+' '+v.name).join(' ')).includes(normalizeCatalogueText(familySearch));
+  }).sort((a,b)=>a.name.localeCompare(b.name,'fa')),
+  [products,category,submenu,subcategory,familySearch,searchAllFamilies,taxonomy.byFamily,taxonomy.assignmentsLoaded]);
   // Build one searchable index across every family, not only the selected destination family.
   const allSkuChoices=useMemo(()=>products.flatMap(product=>(product.variants||[]).map(variant=>{
     const assignedImage=product.galleryImages?.find(image=>image.scope==='variant'&&image.variantCode===variant.code)?.url;
@@ -148,9 +147,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setTitle(found?.observed||'');
-    setFamilySearch('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -166,10 +165,25 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
   };
   const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('')};
+  const chooseFamily=(code:string)=>{
+    setFamilyCode(code);setSku('');
+    const assigned=taxonomy.byFamily.get(code);
+    if(assigned){
+      setCategory(assigned.categorySlug);
+      setMenuGroup(approvedGroups.find(group=>group.categorySlugs.includes(assigned.categorySlug))?.id||'');
+      setSubmenu(assigned.submenuName||'');
+      setSubcategory(assigned.leafName||'');
+    }
+  };
+  const saveSelectedPath=async(code:string)=>{
+    if(!code||!category||!submenu) return;
+    await saveApprovedFamilyAssignment({familyCode:code,categorySlug:category,submenu,leaf:subcategory});
+    taxonomy.refresh();
+  };
   const apply=async()=>{
     if(!file||!url||(!directMode&&!familyCode)||((directMode||placement==='sku')&&!sku)||savingUpload)return;
     if(directMode){
-      const destination=categories.find(item=>item.name===category);
+      const destination=approvedCategories.find(item=>item.slug===category);
       if(!destination||!submenu){setSourceError('برای کد بدون خانواده، دسته و زیرمنو را انتخاب کنید.');return;}
       setSavingUpload(true);setSourceError('');
       try{
@@ -203,6 +217,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           targetFamilyCode:familyCode,skuCode:sku,imageUrl:assignedUrl,
           fileName:assignedFile,title:title||undefined,persistedId
         });
+        await saveSelectedPath(familyCode);
         closeSelection();
       }catch(error:any){setSourceError(error.message||'انتقال کد کالا و اتصال تصویر ذخیره نشد.');}
       finally{setSavingUpload(false);}
@@ -215,12 +230,15 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         const saved=await uploadProductImage(selectedUpload,{
           familyCode,title:title||selectedUpload.name
         });
+        await saveSelectedPath(familyCode);
         onEdit(familyCode,saved.fileName,undefined,saved.url,title,saved.id);
         closeSelection();
       }catch(error:any){setSourceError(error.message||'ثبت تصویر در Storage ممکن نشد.');}
       finally{setSavingUpload(false);}
       return;
     }
+    try {await saveSelectedPath(familyCode);}
+    catch(error){setSourceError(error instanceof Error?error.message:'مسیر خانواده در دیتابیس ثبت نشد.');return;}
     onEdit(familyCode,file,undefined,url,title);
     closeSelection();
   };
