@@ -997,18 +997,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               terminalIdleTimer=null;
             }
             for(const phrase of phrasePlanner.push(fullText))queueSpeech(phrase);
-            if(/[.!؟؛]\s*$/.test(fullText)){
-              terminalIdleTimer=window.setTimeout(()=>{
-                terminalIdleTimer=null;
-                if(pocketAbort.signal.aborted||callClosedRef.current)return;
-                const completed=phrasePlanner.flushTerminalIdle();
-                if(completed.length){
-                  console.info('[FORZA_NIMA_FINAL] early_terminal_idle_flush=1 chars='+
-                    completed.reduce((sum,phrase)=>sum+phrase.length,0));
-                  for(const phrase of completed)queueSpeech(phrase);
-                }
-              },300);
-            }
+            // Do not wait for another complete 66-character chunk before
+            // handing an already complete phrase to Piper. An upstream SSE
+            // pause would otherwise empty playback even though words exist.
+            const isTerminal=/[.!؟؛]\s*$/.test(fullText);
+            terminalIdleTimer=window.setTimeout(()=>{
+              terminalIdleTimer=null;
+              if(pocketAbort.signal.aborted||callClosedRef.current)return;
+              const completed=isTerminal
+                ?phrasePlanner.flushTerminalIdle()
+                :phrasePlanner.flushBufferedOnIdle();
+              if(completed.length){
+                console.info('[FORZA_NIMA_BUFFER] idle_phrase_released=1 terminal='+
+                  Number(isTerminal)+' chars='+
+                  completed.reduce((sum,phrase)=>sum+phrase.length,0));
+                for(const phrase of completed)queueSpeech(phrase);
+              }
+            },isTerminal?250:170);
           }
         };
         try {
