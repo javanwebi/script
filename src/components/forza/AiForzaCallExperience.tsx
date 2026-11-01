@@ -818,6 +818,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
 
       const pocketAbort=new AbortController();
+      let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -907,7 +908,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // emitted in original source order to the SAME AudioContext scheduler.
         // Initial playback primes ~2s of audio, but waits at most 500ms after
         // the first ready WAV if the next phrase has not arrived yet.
-        const bufferedNima=new ForzaNimaBufferedSpeech({
+        bufferedNima=new ForzaNimaBufferedSpeech({
           synthesize:requestPocketAudio,
           player:continuousPlayer,
           signal:pocketAbort.signal,
@@ -918,7 +919,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
         });
-        const queueSpeech=(phrase:string)=>bufferedNima.add(phrase);
+        const activeNimaBuffer=bufferedNima;
+        const queueSpeech=(phrase:string)=>activeNimaBuffer.add(phrase);
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -998,10 +1000,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' chars='+reply.length);
             if(useNima){
               for(const phrase of phrasePlanner.complete(reply))queueSpeech(phrase);
-              await bufferedNima.finish();
+              await activeNimaBuffer.finish();
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
-                bufferedNima.statistics.scheduled+
-                ' audio_s='+bufferedNima.statistics.totalBufferedSeconds.toFixed(2)+
+                activeNimaBuffer.statistics.scheduled+
+                ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
@@ -1028,7 +1030,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
-        bufferedNima.cancel();
+        bufferedNima?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
