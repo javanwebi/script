@@ -14,6 +14,8 @@ on:
       - src/utils/forzaIncrementalSpeechText.ts
       - src/utils/forzaContinuousWav.ts
       - src/utils/forzaWholeAnswerSpeech.ts
+      - src/utils/forzaStreamClient.ts
+      - tests/forzaIncompleteStreamGuard.test.ts
       - src/utils/forzaSpeechPipeline.ts
       - src/utils/forzaForegroundVoice.ts
       - src/utils/forzaNimaBufferedSpeech.ts
@@ -43,6 +45,6 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test Nima single-WAV response and SSE reception
-        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts tests/forzaWholeAnswerSpeech.test.ts tests/forzaFastTurntaking.test.ts tests/forzaForegroundVoice.test.ts
+        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts tests/forzaWholeAnswerSpeech.test.ts tests/forzaIncompleteStreamGuard.test.ts tests/forzaFastTurntaking.test.ts tests/forzaForegroundVoice.test.ts
       - name: Typecheck website and voice endpoints
         run: npm run lint

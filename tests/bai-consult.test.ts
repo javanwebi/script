@@ -72,16 +72,15 @@ test('provider HTTP 429 signals a safe fallback without returning a private body
 
 test('a partially delivered completion is not replayed on an upstream error', async () => {
   const delivered: string[] = [];
-  const result = await streamBaiConsult({
+  await assert.rejects(streamBaiConsult({
     apiKey: 'secret-placeholder', model: 'qwen3.7-flash', query: 'سلام',
     fetchImpl: (async () => fakeStream([
       'data: {"choices":[{"delta":{"content":"ابتدا"}}]}\n\n',
       'data: {"error":{"message":"never log provider tokens"}}\n\n',
     ])) as typeof fetch,
     onDelta: chunk => delivered.push(chunk),
-  });
+  }), (error:unknown)=>error instanceof BaiConsultError&&error.code==='provider_stream_error');
   assert.deepEqual(delivered, ['ابتدا']);
-  assert.equal(result.text, 'ابتدا');
 });
 
 test('reject an empty answer so the existing Gemini fallback remains available', async () => {
@@ -170,4 +169,51 @@ test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro mod
   }
   assert.equal(bodies.length, 2);
   for (const body of bodies) assert.equal(Object.hasOwn(body, 'reasoning_effort'), false);
+});
+
+
+test('provider [DONE] after finish_reason length never completes a cut-off Persian word',async()=>{
+  const chunks:string[]=[];
+  const nl=String.fromCharCode(10);
+  const event=(obj:unknown)=>'data: '+JSON.stringify(obj)+nl+nl;
+  await assert.rejects(streamXkiroConsult({
+    apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',
+    query:'تسمه چیست؟',voice:true,
+    fetchImpl:(async()=>fakeStream([
+      event({choices:[{delta:{content:'تسمه، نواری از جنس لاست'}}]}),
+      event({choices:[{delta:{},finish_reason:'length'}]}),
+      'data: [DONE]'+nl+nl,
+    ])) as typeof fetch,
+    onDelta:chunk=>chunks.push(chunk),
+  }), (err:unknown)=>err instanceof BaiConsultError&&err.code==='provider_output_truncated');
+  assert.deepEqual(chunks,['تسمه، نواری از جنس لاست']);
+});
+
+test('partial provider EOF without normal finish never silently becomes successful TTS',async()=>{
+  const nl=String.fromCharCode(10);
+  await assert.rejects(streamBaiConsult({
+    apiKey:'secret-placeholder',model:'qwen3.7-flash',
+    query:'تسمه چیست؟',
+    fetchImpl:(async()=>fakeStream([
+      'data: '+JSON.stringify({choices:[{delta:{content:'تسمه، نواری از جنس لاست'}}]})+nl+nl,
+    ])) as typeof fetch,
+    onDelta:()=>{},
+  }), (err:unknown)=>err instanceof BaiConsultError&&err.code==='provider_stream_incomplete');
+});
+
+test('voice generation budget provides room for complete Persian technical answers',async()=>{
+  const nl=String.fromCharCode(10);
+  let tokens=0;
+  await streamBaiConsult({
+    apiKey:'secret-placeholder',model:'qwen3.7-flash',query:'تسمه چیست؟',voice:true,
+    fetchImpl:(async(_url,opts)=>{
+      tokens=JSON.parse(String(opts?.body)).max_tokens;
+      return fakeStream([
+        'data: '+JSON.stringify({choices:[{delta:{content:'تسمه قطعه‌ای انعطاف‌پذیر برای انتقال نیرو است.'}}]})+nl+nl,
+        'data: [DONE]'+nl+nl,
+      ]);
+    }) as typeof fetch,
+    onDelta:()=>{},
+  });
+  assert.ok(tokens>=512,'the old 256-token cap truncated Persian responses');
 });

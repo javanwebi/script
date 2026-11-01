@@ -1,3 +1,55 @@
+## 2026-11-01 — Fix visibly truncated AI replies and isolate 25-second TTS delays
+
+Reported in the site: the question "تسمه چیست؟" produced the visibly
+unfinished "تسمه، نواری از جنس لاست..." while the UI showed generating
+voice for over 20 seconds.
+
+**Cause A — false success on an incomplete upstream response:**
+- `server/ai/baiConsult.ts` previously returned the *partial* streamed text
+  from its catch handler on any upstream error, including provider error
+  events and broken SSE connections. It also ignored
+  `finish_reason: "length"` preceding `[DONE]`.
+- Voice completions had a 256 token ceiling in the OpenAI-compatible and
+  Gemini routes, insufficient for some Persian answers with hidden reasoning.
+- Now the voice output budget is 768 tokens; OpenAI-compatible streams
+  reject non-normal finish reasons, unexpected EOF and provider error even
+  after some visible text was delivered. The server sends an SSE `error`
+  (never `done`) if a partial reply has already appeared and the provider
+  fails. Gemini checks final `finishReason`, rather than trusting stream
+  EOF as proof of a complete answer; its unchanged offline fallback is
+  allowed only before any Gemini text was emitted.
+- The client refuses to synthesize or present a cut-off answer as final,
+  clearing partial subtitles and showing a retry error instead.
+  The model still receives the original configured provider and
+  conversation history; no paid service was silently introduced.
+
+**Cause B — slow actual CPU generation vs private TTS queue delay:**
+- Nima is still the same in-memory Piper gyro engine with a bounded
+  one-at-a-time inference slot on the small VPS.
+- The Express proxy now logs `[FORZA_TTS_TIMING]` separately for
+  `total_ms`, `last_attempt_ms`, `retries`, `chars`,
+  `wav_bytes` and optional private-worker queue and synthesis headers.
+  The live Python worker logs `[FORZA_NIMA_PRODUCTION] chars=… ms=…`
+  for completed synthesis requests. Logs contain timing and counts,
+  never the customer's transcript or API tokens.
+- Do not guess whether 25 seconds were spent waiting for the inference
+  semaphore, CPU contention, retries, or the actual acoustic model; check
+  measured logs on the production container. This patch **does not change**
+  the Nima model, audio persistence, server limits, memory, or queue duration.
+
+Read-only diagnostic on the Ubuntu VPS after reproducing one turn:
+
+```bash
+docker logs --since 15m sanatpish-new 2>&1 |
+  grep -E 'FORZA_LATENCY|FORZA_TTS_TIMING|AI Consult Stream|FORZA_TTS_DIAG' | tail -60
+docker logs --since 15m forza-voice 2>&1 |
+  grep -E 'FORZA_NIMA_PRODUCTION|generation_error|voice_busy' | tail -50
+docker stats --no-stream sanatpish-new forza-voice
+```
+
+Without the before/after timings and real browser verification, no claim
+that the observed 25-second audio startup was fixed is warranted.
+
 ## 2026-11-01 regression recovery: one answer, one WAV (active default)
 
 The user again observed 15-second silence at question marks/full stops and an
