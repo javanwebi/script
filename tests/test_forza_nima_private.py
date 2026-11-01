@@ -34,6 +34,26 @@ class NimaCandidateTests(unittest.TestCase):
                           "sanatpish-deploy","docker system prune","git reset --hard"):
             self.assertNotIn(forbidden,src)
 
+    def test_guarded_live_switch_and_rollback_are_syntax_safe(self):
+        for name in ("forza-nima-go-live-vps.sh", "forza-nima-rollback-vps.sh"):
+            path=ROOT/"ops"/name
+            subprocess.run(["bash","-n",str(path)],check=True,capture_output=True)
+            src=path.read_text(encoding="utf-8")
+            self.assertIn("forza-voice-promote.lock",src)
+            self.assertIn("forza-nima-rollback-container",src)
+            self.assertNotIn("docker volume rm",src)
+            self.assertNotIn("docker system prune",src)
+            self.assertNotIn("git reset --hard",src)
+        live=(ROOT/"ops/forza-nima-go-live-vps.sh").read_text(encoding="utf-8")
+        self.assertIn("teacher_dataset_generation_running",live)
+        self.assertIn("FORZA_VOICE_ENGINE=nima",live)
+        self.assertIn("FORZA_NIMA_LIVE_OK",live)
+        self.assertIn("FORZA_NIMA_FAILED_ROLLING_BACK",live)
+        self.assertIn("piper-nima-gyro-medium",live)
+        rollback=(ROOT/"ops/forza-nima-rollback-vps.sh").read_text(encoding="utf-8")
+        self.assertIn("pocket-farsi-v2",rollback)
+        self.assertIn("FORZA_POCKET_ROLLBACK_PASS",rollback)
+
     def test_client_uses_nima_only_when_server_advertises_it(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
