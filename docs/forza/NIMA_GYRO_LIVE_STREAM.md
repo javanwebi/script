@@ -67,8 +67,16 @@ exists. Long answers continue to release earlier groups during streaming,
 and subtitle text is never delayed. No audio files or text cache are
 persisted. The private Nima model and voice worker are unchanged.
 
-Browser Console diagnostic: `[FORZA_NIMA_FINAL] coalesced_phrases=1
-final_chars=N` reports only final phrase length, not user transcript.
+If the provider stalls after sending a sentence-ending `.`, `!`, `؟`
+or `؛` but before the explicit `done` SSE event, the browser also uses a
+**300 ms terminal-text idle check** to send the combined final group early.
+Further SSE deltas cancel/reset that check. The authoritative `done` event
+does not replay already submitted audio, and the idle check never submits
+unfinished tokens/decimals or text without terminal punctuation.
+
+Browser Console diagnostics: `[FORZA_NIMA_FINAL] coalesced_phrases=1
+final_chars=N` or `[FORZA_NIMA_FINAL] early_terminal_idle_flush=1`
+report only character counts, never the transcript.
 This fixes the separate tiny final WAV for typical multi-clause answers.
 Actual multi-second upstream LLM delays or CPU synthesis queue underflows
 can still cause gaps; measure `[FORZA_AUDIO_UNDERRUN]` if observed.
