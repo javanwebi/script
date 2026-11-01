@@ -12,9 +12,15 @@ on:
       - server.ts
       - src/components/forza/AiForzaCallExperience.tsx
       - src/utils/forzaIncrementalSpeechText.ts
+      - src/utils/forzaContinuousWav.ts
+      - src/utils/forzaSpeechPipeline.ts
+      - src/utils/forzaForegroundVoice.ts
       - src/utils/forzaNimaBufferedSpeech.ts
       - tests/forzaNimaIncrementalSpeech.test.ts
       - tests/forzaNimaBufferedSpeech.test.ts
+      - tests/forzaFastTurntaking.test.ts
+      - tests/forzaForegroundVoice.test.ts
+      - tests/forza-continuous-wav.test.ts
       - tests/test_forza_nima_private.py
       - .github/workflows/forza-nima-private.yml
   workflow_dispatch:
@@ -35,6 +41,6 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts
+        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts tests/forzaFastTurntaking.test.ts tests/forzaForegroundVoice.test.ts
       - name: Typecheck website and voice endpoints
         run: npm run lint

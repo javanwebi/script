@@ -56,6 +56,33 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
 }
 
 /**
+ * Voice chat's responsive end-of-turn detector. The static parser below
+ * remains available for cautious form transcription. Final browser STT
+ * hypotheses that look like complete questions can be dispatched after a
+ * short quiet interval. Never cut into interim or mid-thought Persian speech.
+ */
+export function forzaLiveTurnPauseMs(text:string, hasInterim:boolean):number {
+  const analysis=analyzePersianSentenceCompletion(text);
+  if(analysis.isMidThought) return hasInterim ? 1900 : 1450;
+  if(hasInterim) return 900;
+  if(analysis.confidence>=0.9) return 480;
+  return 650;
+}
+
+/**
+ * Web Speech contextual vocabulary is a *hint*, not a guarantee. Chrome can
+ * ignore phrases entirely; keep vocabulary short and use it only if the
+ * implementation explicitly supports the experimental SpeechRecognitionPhrase
+ * interface. Never overwrite the customer's spoken text.
+ */
+export const FORZA_INDUSTRIAL_STT_TERMS=[
+  'صنعت پیش','فورزا','تسمه تایمینگ','تسمه شیاردار','تسمه صنعتی',
+  'بلبرینگ','یاتاقان','رولیک','پولی','شفت','الکتروموتور',
+  'گام تسمه','پیش فاکتور','استعلام قیمت','مهندسی معکوس',
+  'DIN','ISO','HTD','SPB','SPA','PK','6202','6205','C3',
+] as const;
+
+/**
  * Spoken phonemes, NOT product identifiers: only call when synthesizing audio.
  * Never replace a technical code in the actual message, catalog or quotation.
  */

@@ -13,9 +13,10 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, forzaLiveTurnPauseMs, FORZA_INDUSTRIAL_STT_TERMS, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
+import { ForzaForegroundVoice } from '../../utils/forzaForegroundVoice';
 import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
@@ -115,6 +116,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
   const recognitionFailedRef = useRef(false);
   const vadRef = useRef(new ForzaVoiceActivity());
+  const foregroundRef=useRef(new ForzaForegroundVoice());
+  const unverifiedTranscriptRef=useRef('');
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
   const recorderStartedAtRef = useRef(0);
@@ -170,6 +173,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const currentBufferSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micVADHighpassRef=useRef<BiquadFilterNode|null>(null);
+  const micVADLowpassRef=useRef<BiquadFilterNode|null>(null);
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -222,6 +227,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(localSttRecognizerRef.current!==recognizer||isAiSpeakingRef.current||
            isProcessingTurnRef.current||statusRef.current!=='listening')return;
         const words=value.trim();
+        if(micAnalyserRef.current&&streamRef.current?.active&&
+           ctxRef.current?.state==='running'&&!foregroundRef.current.confirmed){
+          if(words)unverifiedTranscriptRef.current=words;
+          return;
+        }
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
@@ -245,6 +255,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatus('listening');
     setTurn('user');
     activeTranscriptRef.current = '';
+    unverifiedTranscriptRef.current='';
+    foregroundRef.current.resetTurn();
     hasSpeechSoundRef.current = false;
     audioChunksRef.current = [];
 
@@ -344,40 +356,56 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(samples);
         const rms=rootMeanSquareFromTimeDomain(samples);
-        const current=vadRef.current.sample(rms,Date.now());
+        const now=Date.now();
+        const current=vadRef.current.sample(rms,now);
+        const foreground=foregroundRef.current.sample(rms,now);
         setAudioLevel(current.level);
-        if(current.speechStarted){
+        if(foreground.started){
           hasSpeechSoundRef.current=true;
           setIsUserSpeaking(true);
+          // Browser STT may produce its transcript before enough near-field
+          // microphone frames confirm the foreground speaker. Promote that
+          // provisional text only after the user's voice is confirmed.
+          if(unverifiedTranscriptRef.current){
+            activeTranscriptRef.current=unverifiedTranscriptRef.current;
+            setUserText(unverifiedTranscriptRef.current);
+            unverifiedTranscriptRef.current='';
+          }
+          console.info('[FORZA_STT] foreground_mic_confirmed=1');
         }
         // 650-900ms after a clearly finished question, ~1.7s for an
         // unfinished Persian thought. Worker audio STT is the safety net.
-        if(current.speaking){
+        if(foreground.foreground){
           if(silenceTimerRef.current){
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current=null;
           }
-        }else if(current.silenceMs>0 && hasSpeechSoundRef.current && !silenceTimerRef.current){
+        }else if(foreground.silenceMs>0 && hasSpeechSoundRef.current && !silenceTimerRef.current){
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
-            ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 1000;
-          const remaining=Math.max(80,pauseMs-current.silenceMs);
+            ? Math.min(
+                forzaEndOfTurnPauseMs(transcript,speechInterimRef.current),
+                forzaLiveTurnPauseMs(transcript,speechInterimRef.current))
+            : 850;
+          const remaining=Math.max(80,pauseMs-foreground.silenceMs);
           silenceTimerRef.current=window.setTimeout(()=>{
             silenceTimerRef.current=null;
             if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
-            if(vadRef.current.silenceDuration(Date.now())<pauseMs)return;
+            if(foregroundRef.current.silenceDuration(Date.now())<pauseMs)return;
             setIsUserSpeaking(false);
             if(activeTranscriptRef.current.trim()){
               const text=activeTranscriptRef.current.trim();
               activeTranscriptRef.current='';
               hasSpeechSoundRef.current=false;
               vadRef.current.reset();
+              foregroundRef.current.resetTurn();
+              foregroundRef.current.resetTurn();
               void handleUserFinishedSpeaking(text);
             }else if(mediaRecorderRef.current?.state==='recording'){
               // MediaRecorder.onstop dispatches the audio to Worker STT.
               mediaRecorderRef.current.stop();
               vadRef.current.reset();
+              foregroundRef.current.resetTurn();
             }else{
               hasSpeechSoundRef.current=false;
               vadRef.current.reset();
@@ -904,6 +932,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           },
           ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            // A scheduled AudioBufferSource is not necessarily still audible.
+            // As soon as the last PCM sample actually ends, stop displaying
+            // "speaking". Do not restart the mic until all future TTS jobs
+            // have finished; otherwise it would hear a later Nima phrase.
+            if(!callClosedRef.current&&isProcessingTurnRef.current){
+              isAiSpeakingRef.current=false;
+              setStatus('thinking');
+              setVoicePending(true);
+              console.info('[FORZA_AUDIO] playback_drained=1');
+            }
+          },
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1080,9 +1120,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isAiSpeakingRef.current=false;
         setVoicePending(false);
         isProcessingTurnRef.current = false;
-        setStatus('listening');
-        setTurn('user');
-        startListening();
+        if(!callClosedRef.current){
+          // Audio playback is actually finished here: no arbitrary post-TTS
+          // delay, no stale "speaking" banner, immediate microphone restart.
+          setStatus('listening');
+          setTurn('user');
+          console.info('[FORZA_TURN] state=listening_after_audio_complete');
+          startListening();
+        }
       }
     },
     [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
@@ -1150,6 +1195,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'fa-IR';
+      rec.maxAlternatives=3;
+      // Chrome supports optional contextual bias on some versions. Never
+      // require it for speech recognition; unsupported browsers simply
+      // continue with the built-in Persian STT path.
+      try {
+        const Phrase=(window as any).SpeechRecognitionPhrase;
+        if(Phrase && 'phrases' in rec)
+          rec.phrases=FORZA_INDUSTRIAL_STT_TERMS.map(term=>new Phrase(term,2));
+      }catch { /* optional contextual vocabulary not supported */ }
 
       rec.onstart = () => {
         isRecognitionActiveRef.current = true;
@@ -1164,6 +1218,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const currentSpeech = recognized.text;
         if (currentSpeech) {
           speechInterimRef.current = recognized.hasInterim;
+          // Chrome may accurately transcribe someone across the room.
+          // Only the confirmed foreground microphone turn is eligible for
+          // text display or an AI request. In unsupported audio environments,
+          // do not pretend physical proximity is verified.
+          const hasLiveMeter=Boolean(micAnalyserRef.current&&streamRef.current?.active&&
+            ctxRef.current?.state==='running');
+          if(hasLiveMeter&&!foregroundRef.current.confirmed){
+            unverifiedTranscriptRef.current=currentSpeech;
+            return;
+          }
+          unverifiedTranscriptRef.current='';
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
           setUserText(currentSpeech);
@@ -1171,13 +1236,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setTurn('user');
           setIsUserSpeaking(true);
 
-          const pauseMs = forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim);
+          const pauseMs = Math.min(
+            forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim),
+            forzaLiveTurnPauseMs(currentSpeech, recognized.hasInterim));
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = window.setTimeout(() => {
             silenceTimerRef.current = null;
-            if (vadRef.current.heardSpeech && vadRef.current.silenceDuration(Date.now()) < pauseMs) return;
-            if (activeTranscriptRef.current && !isAiSpeakingRef.current && !isProcessingTurnRef.current && statusRef.current === 'listening' && !micMutedRef.current) {
+            if (foregroundRef.current.confirmed &&
+                foregroundRef.current.silenceDuration(Date.now()) < pauseMs) return;
+            if (activeTranscriptRef.current &&
+                (!micAnalyserRef.current||foregroundRef.current.confirmed) &&
+                !isAiSpeakingRef.current && !isProcessingTurnRef.current &&
+                statusRef.current === 'listening' && !micMutedRef.current) {
               const textToSend = activeTranscriptRef.current;
               activeTranscriptRef.current = '';
               hasSpeechSoundRef.current = false;
@@ -1240,6 +1311,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       streamRef.current=stream;
       micContextWarningRef.current=false;
       vadRef.current.reset();
+      foregroundRef.current.resetDevice();
       for (const track of stream.getAudioTracks()) {
         track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
       }
@@ -1248,7 +1320,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const source=ctx.createMediaStreamSource(stream);
         const analyser=ctx.createAnalyser();
         analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
-        source.connect(analyser);
+        // Filter *only the VAD meter*, not the microphone stream passed to
+        // Chrome/Gemini STT. Low-frequency ventilation/air-conditioner hum
+        // and high-frequency machinery noise otherwise keep RMS above its
+        // speech threshold and delay end-of-turn detection indefinitely.
+        micVADHighpassRef.current?.disconnect();
+        micVADLowpassRef.current?.disconnect();
+        const high=ctx.createBiquadFilter(),low=ctx.createBiquadFilter();
+        high.type='highpass';high.frequency.value=120;
+        low.type='lowpass';low.frequency.value=3800;
+        source.connect(high);high.connect(low);low.connect(analyser);
+        micVADHighpassRef.current=high;
+        micVADLowpassRef.current=low;
         micSourceNodeRef.current=source;
         micAnalyserRef.current=analyser;
       }
@@ -1325,6 +1408,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
       localSttNodeRef.current?.disconnect();localSttSinkRef.current?.disconnect();
       localSttNodeRef.current=null;localSttSinkRef.current=null;
+      micVADHighpassRef.current?.disconnect();micVADLowpassRef.current?.disconnect();
+      micVADHighpassRef.current=null;micVADLowpassRef.current=null;
       stopAudio();
     };
   // A scene starts once. Changing TTS/recognition callbacks must not tear down

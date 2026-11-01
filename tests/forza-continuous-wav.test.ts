@@ -108,3 +108,35 @@ test('trims isolated WAV leading/trailing silence but keeps breath margins',()=>
   const silent={...decoded,getChannelData:()=>new Float32Array(24000)};
   assert.deepEqual(pocketWavWindow(silent as unknown as AudioBuffer),{offset:0,duration:1});
 });
+
+test('speaking banner drains at the actual final PCM onended, not future buffer scheduling',async()=>{
+  const scheduled:number[]=[];
+  const sources:Array<{onended:(()=>void)|null}>=[];
+  const ctx={
+    state:'running',currentTime:10,destination:{},
+    createBufferSource(){
+      const source={buffer:null,onended:null as (()=>void)|null,
+        connect(){},disconnect(){},start(when:number){scheduled.push(when);},
+        stop(){this.onended?.()}};
+      sources.push(source);return source;
+    },
+    createGain(){return {gain:{value:1},connect(){},disconnect(){}};},
+    async decodeAudioData(){return {duration:0.5};},
+    async resume(){},
+  };
+  let drained=0;
+  const player=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,
+    ()=>{},undefined,()=>{drained++});
+  const first=player.enqueueWav(new Uint8Array([1,2,3]));
+  const second=player.enqueueWav(new Uint8Array([4,5,6]));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(scheduled.length,2);
+  assert.equal(drained,0,'scheduling a future WAV cannot mark end of audio');
+  sources[0].onended?.();
+  assert.equal(drained,0,'first of multiple active buffers is not end of turn');
+  sources[1].onended?.();
+  await Promise.all([first,second]);
+  assert.equal(drained,1,'last PCM frame completion must release speaking status');
+  player.cancel();
+  assert.equal(drained,1,'cancellation does not fire playback-ended callback');
+});
