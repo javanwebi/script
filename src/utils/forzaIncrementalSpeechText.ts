@@ -53,7 +53,7 @@ export class ForzaIncrementalSpeechText {
     // completed word group sooner, never a half-written technical identifier.
     // Shorter Persian phrases reduce the delay before the next WAV is ready.
     if (text.length >= 80) {
-      const end = Math.max(text.lastIndexOf(' ', 76), text.lastIndexOf('\\n', 76));
+      const end = Math.max(text.lastIndexOf(' ', 76), text.lastIndexOf('\n', 76));
       if (end >= 52) return end + 1;
     }
     return 0;
