@@ -663,10 +663,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
        String.fromCharCode(...audio.subarray(8,12))!=='WAVE')
       throw new Error('forza_invalid_full_answer_wav');
     if(signal?.aborted || callClosedRef.current)throw new Error('forza_tts_aborted');
-    console.info('[FORZA_LATENCY] phase='+
-      (voiceModeRef.current==='piper-nima-gyro-medium'?'nima-phrase-wav-ready':'whole-pocket-wav-ready')+
-      ' ms='+Math.round(performance.now()-started)+' chars='+text.length+
-      ' bytes='+audio.byteLength);
+    if(voiceModeRef.current==='piper-nima-gyro-medium'){
+      console.info('[FORZA_LATENCY] phase=nima-phrase-wav-ready ms='+
+        Math.round(performance.now()-started)+' chars='+text.length+
+        ' bytes='+audio.byteLength);
+    }else{
+      console.info('[FORZA_LATENCY] phase=whole-pocket-wav-ready ms='+
+        Math.round(performance.now()-started)+' chars='+text.length+
+        ' bytes='+audio.byteLength);
+    }
     return audio;
   },[]);
 
