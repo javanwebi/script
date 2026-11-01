@@ -1131,7 +1131,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              دسته‌بندی‌ها ({toPersianDigits(categories.length)})
+              دسته‌بندی‌ها ({toPersianDigits(approvedCategories.length)})
             </button>
             <button
               type="button"
@@ -1684,96 +1684,41 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             </button>
           </div>
 
-          <CatalogNavigationGroupsEditor categories={categories}/>
+          <CatalogNavigationGroupsEditor categories={approvedCategories}/>
           <CatalogFamilyTaxonomyManager/>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map(cat => (
-              <div
-                key={cat.id || cat.slug}
-                className="p-4 rounded-2xl border border-slate-200 hover:border-[#E06518]/60 bg-slate-50/50 hover:bg-white transition-all flex flex-col justify-between gap-4 shadow-2xs"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      {cat.image ? (
-                        <img
-                          src={cat.image}
-                          alt={cat.name}
-                          className="w-11 h-11 rounded-xl object-contain bg-white border border-slate-200 p-1 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-11 h-11 rounded-xl bg-orange-100 text-[#E06518] flex items-center justify-center font-black text-sm shrink-0">
-                          {cat.name.slice(0, 2)}
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-black text-sm text-slate-800">{cat.name}</div>
-                        <div className="text-[11px] text-slate-500 font-mono" dir="ltr">
-                          {cat.nameEn || cat.slug}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200/80 text-slate-700">
-                      {toPersianDigits(catalogFamilyCount(products,products.find(p => p.categorySlug === cat.slug)?.categoryName || cat.name))} خانواده
-                    </span>
-                  </div>
-
-                  {cat.description && (
-                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                      {cat.description}
-                    </p>
-                  )}
-
-                  {cat.subcategories && cat.subcategories.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {cat.subcategories.slice(0, 6).map((sub, i) => (
-                        <span
-                          key={i}
-                          className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[10px] font-semibold text-slate-700"
-                        >
-                          {sub}
-                        </span>
-                      ))}
-                      {cat.subcategories.length > 6 && (
-                        <span className="px-2 py-0.5 rounded-lg bg-slate-200 text-[10px] font-bold text-slate-700">
-                          +{toPersianDigits(cat.subcategories.length - 6)} زیرگروه دیگر
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-slate-200/80">
-                  <span className="font-mono text-[10px] text-slate-400" dir="ltr">
-                    /{cat.slug}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={()=>openFamiliesInCategory(cat.slug)}
-                      className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#C65A16] border border-orange-200 text-xs font-bold">
-                      مشاهده خانواده‌ها
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenCategoryModal(cat)}
-                      className="px-3 py-1.5 rounded-lg bg-white hover:bg-orange-50 text-[#E06518] border border-orange-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                      <span>ویرایش دسته‌بندی</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCategoryItem(cat.slug)}
-                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition-colors"
-                      title="حذف دسته‌بندی"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+          <h4 className="text-sm font-black text-slate-700">دسته‌های مصوب و خانواده‌های مرتبط</h4>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {approvedCategories.map(cat=>{
+              const count=taxonomy.assignments.filter(item=>item.categorySlug===cat.slug).length;
+              const group=approvedGroups.find(item=>item.categorySlugs.includes(cat.slug));
+              return <article key={cat.slug} className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                <div>
+                  <p className="text-[10px] font-bold text-[#C45A18]">{group?.title||'سرگروه تأییدشده'}</p>
+                  <h5 className="mt-1 text-sm font-black text-slate-800">{cat.name}</h5>
+                  <p className="mt-2 text-xs text-slate-500">{toPersianDigits(cat.children?.length||0)} زیرمنو · {toPersianDigits(count)} خانواده متصل</p>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {(cat.children||[]).slice(0,4).map(node=><span key={node.name} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] text-slate-600">{node.name}</span>)}
                   </div>
                 </div>
-              </div>
-            ))}
+                <button type="button" onClick={()=>openFamiliesInCategory(cat.slug)}
+                  className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-[#C65A16]">
+                  مشاهده خانواده‌ها و کالاها
+                </button>
+              </article>;
+            })}
           </div>
+          <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <summary className="cursor-pointer text-xs font-bold text-slate-500">ساختار قدیمی کاتالوگ (صرفاً جهت حفظ سازگاری)</summary>
+            <p className="mt-2 text-xs leading-6 text-slate-600">این دسته‌ها برای لینک محصولات قدیمی حفظ شده‌اند، اما فهرست مصوب مگامنو و کاتالوگ از ۳۴ دسته بالا استفاده می‌کند. حذف رکوردهای قدیمی توصیه نمی‌شود.</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+              {categories.filter(cat=>cat.active!==false&&!/^excel-v2-/.test(cat.slug)).map(cat=>
+                <div key={cat.slug} className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                  <span className="font-bold">{cat.name}</span>
+                  <p className="mt-1 text-[10px] text-slate-400" dir="ltr">{cat.slug}</p>
+                </div>)}
+            </div>
+          </details>
         </div>
       )}
 
