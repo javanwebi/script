@@ -1014,7 +1014,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' chars='+reply.length);
             if(useNima){
-              for(const phrase of phrasePlanner.complete(reply))queueSpeech(phrase);
+              const finalPhrases=phrasePlanner.complete(reply);
+              console.info('[FORZA_NIMA_FINAL] coalesced_phrases='+finalPhrases.length+
+                ' final_chars='+(finalPhrases.at(-1)?.length||0));
+              for(const phrase of finalPhrases)queueSpeech(phrase);
               await activeNimaBuffer.finish();
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
                 activeNimaBuffer.statistics.scheduled+
