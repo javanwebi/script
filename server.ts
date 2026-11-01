@@ -5707,6 +5707,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
   if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
+    let sentAnyProviderText=false;
     const clientAbort = new AbortController();
     const onDisconnect = () => clientAbort.abort();
     res.once('close', onDisconnect);
@@ -5721,6 +5722,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         catalogContext,
         signal: clientAbort.signal,
         onDelta: (chunk, textSoFar) => {
+          sentAnyProviderText=true;
           sendEvent({ type: 'text_chunk', responseId, chunk, textSoFar });
         },
       });
@@ -5741,7 +5743,15 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       if (clientAbort.signal.aborted) return;
       const code=String(error?.code || 'provider_failure').slice(0, 80);
       // Log only the sanitized status code, not private upstream errors.
-      console.warn('[AI Consult Stream] ' + textProvider + ' unavailable code=' + code);
+      console.warn('[AI Consult Stream] ' + textProvider + ' unavailable code=' + code+
+        ' partial='+Number(sentAnyProviderText));
+      if(sentAnyProviderText){
+        // Once subtitles have started streaming, never append a fallback
+        // model's new answer or mark a truncated answer successful.
+        sendEvent({type:'error',responseId,errorCode:code,
+          message:'پاسخ هوش مصنوعی کامل دریافت نشد؛ لطفاً دوباره تلاش کنید.'});
+        return res.end();
+      }
       if (textProvider === 'xkiro') {
         // User opted in to free xKiro. Do not silently spend money on paid
         // models or switch to a blocked Gemini key after free-tier exhaustion.
@@ -5825,7 +5835,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
+    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. در ۲ تا ۴ جمله کوتاه، دقیق و کامل به فارسی پاسخ بدهید. هیچ واژه یا جمله‌ای را نیمه‌تمام رها نکنید. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
 
 دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
 ۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
@@ -5877,7 +5887,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           ...(lowLatencyVoice ? {
             config: {
               thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
-              maxOutputTokens: 256,
+              maxOutputTokens: 768,
             },
           } : {}),
         });
@@ -5928,7 +5938,10 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     }
 
     let firstTextAt=0;
+    let streamFinishReason='';
     for await (const chunk of stream) {
+      const reason=String(chunk?.candidates?.[0]?.finishReason||'');
+      if(reason)streamFinishReason=reason;
       const chunkText = chunk.text || '';
       if (!chunkText) continue;
       if(!firstTextAt){
@@ -5977,6 +5990,17 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           speechPromises.push(p);
         }
       }
+    }
+
+    // Gemini may close cleanly after exhausting its output token budget.
+    // A transport-level 'done' is not evidence that the sentence finished.
+    if(streamFinishReason && !['STOP','FINISH_REASON_UNSPECIFIED'].includes(streamFinishReason)){
+      console.warn('[FORZA_LLM_INCOMPLETE] reason='+streamFinishReason+
+        ' chars='+fullAccumulatedText.length);
+      sendEvent({type:'error',responseId,errorCode:'llm_finish_'+
+        streamFinishReason.toLowerCase(),
+        message:'پاسخ هوش مصنوعی ناتمام بود؛ لطفاً دوباره تلاش کنید.'});
+      return res.end();
     }
 
     // Synthesize any remaining speech buffer
@@ -6053,21 +6077,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     });
     res.end();
   } catch (err: any) {
-    console.warn('[AI Consult Stream] Stream interruption, activating immediate expert fallback:', err?.message || err);
+    console.warn('[AI Consult Stream] Stream interrupted:', String(err?.message||err).slice(0,120));
     try {
-      const off = consultantFallback(query || '');
-      sendEvent({
-        type: 'text_chunk',
-        responseId,
-        chunk: off.reply,
-        textSoFar: off.reply,
-      });
-      sendEvent({
-        type: 'done',
-        responseId,
-        fullText: off.reply,
-        suggestedAction: off.suggestedAction,
-      });
+      // In-progress Gemini chunks are already on screen. Switching to a
+      // different response at the end would speak something other than
+      // what the user just read, and could silently lose the last words.
+      if(res.headersSent && res.writableEnded)return;
+      sendEvent({type:'error',responseId,errorCode:'gemini_stream_interrupted',
+        message:'ارتباط هوش مصنوعی قطع شد و پاسخ کامل نیست. لطفاً دوباره تلاش کنید.'});
     } catch {}
     res.end();
   }
