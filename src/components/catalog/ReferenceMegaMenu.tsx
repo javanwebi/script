@@ -239,7 +239,7 @@ export function ReferenceMegaMenu({
   if (compact) {
     return (
       <div className="reference-catalog-mobile reference-menu-four-levels" dir="rtl">
-        {navigationSections.map((section, sectionIndex) => (
+        {navigationSections.map(section => (
           <details className="reference-mobile-mega-group" key={section.id} open={search.trim() ? true : undefined}>
             <summary>
               <Layers size={17} aria-hidden="true" />
