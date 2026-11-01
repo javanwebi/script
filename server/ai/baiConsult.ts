@@ -68,6 +68,8 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   let textSoFar = '';
   let firstTokenMs = -1;
   let finished = false;
+  let finishReason: string | null = null;
+  let lastTokenMs = -1;
   const historyMessages = history.slice(-6)
     .filter(item => typeof item?.text === 'string' && !!item.text.trim())
     .map(item => ({
@@ -83,7 +85,22 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     let parsed: any;
     try { parsed = JSON.parse(raw); } catch { throw new BaiConsultError('invalid_sse_json'); }
     if (parsed?.error) throw new BaiConsultError('provider_stream_error');
-    const delta = parsed?.choices?.[0]?.delta?.content;
+    const choice = parsed?.choices?.[0];
+    const reason = choice?.finish_reason;
+    // Many OpenAI-compatible gateways send finish_reason="stop"
+    // before the closing [DONE] frame. Waiting for a withheld [DONE]
+    // previously held a completed answer until the 38-second timeout.
+    // Conversely, "length", filtering and tool handoffs are NOT a
+    // completed speech answer.
+    if (typeof reason === 'string' && reason) {
+      finishReason = reason;
+      if (reason !== 'stop')
+        throw new BaiConsultError(reason==='length'
+          ? 'provider_output_truncated'
+          : 'provider_finish_'+reason.replace(/[^a-z0-9_-]/gi,'').slice(0,32));
+      finished = true;
+    }
+    const delta = choice?.delta?.content;
     const str = typeof delta === 'string'
       ? delta
       : Array.isArray(delta)
@@ -97,6 +114,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       firstTokenTimer = undefined;
     }
     textSoFar += str;
+    lastTokenMs = Date.now() - started;
     onDelta(str, textSoFar);
   };
 
@@ -171,11 +189,19 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       }
     }
     if (!finished && buffer.trim()) consumeEvent(buffer);
+    // A dropped connection or timeout after partial text must NOT send
+    // a final "done" message to the UI or invoke speech with a fragment.
+    if (!finished) throw new BaiConsultError('provider_stream_incomplete');
     if (!textSoFar.trim()) throw new BaiConsultError('empty_completion');
+    console.info('[FORZA_TEXT_STREAM] model='+model+
+      ' first_ms='+firstTokenMs+' last_ms='+lastTokenMs+
+      ' done_ms='+(Date.now()-started)+
+      ' ended_by='+(finishReason==='stop'?'finish_reason_stop':'done_frame')+
+      ' chars='+textSoFar.length);
     return { text: textSoFar, model, firstTokenMs };
   } catch (error) {
-    // Preserve already-delivered text in the caller; never repeat a partial answer.
-    if (textSoFar) return { text: textSoFar, model, firstTokenMs };
+    // The consumer sees the already delivered delta(s); the SSE route must
+    // finish with an error rather than claiming that partial text is final.
     if (error instanceof BaiConsultError) throw error;
     if (signal?.aborted) throw new BaiConsultError('client_aborted');
     if (controller.signal.aborted) throw new BaiConsultError('upstream_timeout');
