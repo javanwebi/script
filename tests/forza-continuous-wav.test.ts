@@ -33,7 +33,7 @@ test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart'
     assert.equal(scheduled.length,2);
     assert.ok(Math.abs((scheduled[1]-scheduled[0])-0.4)<0.00001);
     assert.equal(queue.underrunCount,0);
-    assert.equal(speaking.length,2);
+    assert.equal(speaking.length,1,'second WAV is only scheduled in the future; do not advertise speaking yet');
     queue.setMuted(true);
     assert.equal(gain.gain.value,0);
     nodes.forEach(s=>s.onended?.());
@@ -139,4 +139,49 @@ test('speaking banner drains at the actual final PCM onended, not future buffer 
   assert.equal(drained,1,'last PCM frame completion must release speaking status');
   player.cancel();
   assert.equal(drained,1,'cancellation does not fire playback-ended callback');
+});
+
+test('Nima last audible word is not held hostage by five seconds of silent PCM padding',()=>{
+  const sampleRate=24000,seconds=6.2;
+  const pcm=new Float32Array(Math.round(sampleRate*seconds));
+  // Nearly one second of clear voice, then five seconds of zero amplitude.
+  pcm.fill(0.035,sampleRate*0.12,Math.round(sampleRate*1.12));
+  const wav={duration:seconds,sampleRate,length:pcm.length,getChannelData:()=>pcm} as unknown as AudioBuffer;
+  const window=pocketWavWindow(wav);
+  assert.ok(window.offset>=0.05&&window.offset<=0.12,JSON.stringify(window));
+  assert.ok(window.duration>1&&window.duration<1.3,JSON.stringify(window));
+  assert.ok(seconds-window.offset-window.duration>4.7,'5s of silence must not count as speaking time');
+});
+
+test('Nima end-trimmer retains the soft final consonant before trailing silence',()=>{
+  const rate=24000,pcm=new Float32Array(rate*3);
+  pcm.fill(0.04,rate*0.2,rate);
+  pcm.fill(0.0012,rate,Math.round(rate*1.24));
+  const window=pocketWavWindow({sampleRate:rate,length:pcm.length,duration:3,getChannelData:()=>pcm} as unknown as AudioBuffer);
+  assert.ok(window.offset+window.duration>1.26,'keep 70ms guard after weak consonant');
+  assert.ok(window.offset+window.duration<1.5,'still trim obvious dead air');
+});
+
+test('future scheduled audio never sets speaking prematurely or after cancellation',async()=>{
+  const sources:Array<{onended:(()=>void)|null}>=[];
+  const ctx={
+    state:'running',currentTime:10,destination:{},
+    createBufferSource(){
+      const s={buffer:null,onended:null as (()=>void)|null,
+        connect(){},disconnect(){},start(){},stop(){this.onended?.()}};
+      sources.push(s);return s;
+    },
+    createGain(){return {gain:{value:1},connect(){},disconnect(){}};},
+    async decodeAudioData(){return {duration:4};},async resume(){},
+  };
+  let speaking=0;
+  const player=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{speaking++});
+  const one=player.enqueueWav(new Uint8Array([1]));
+  const two=player.enqueueWav(new Uint8Array([2]));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(sources.length,2);
+  assert.equal(speaking,1,'second audio was only scheduled for future playback');
+  player.cancel();
+  await Promise.all([one,two]);
+  assert.equal(speaking,1,'cancelled future WAV must not report speech');
 });

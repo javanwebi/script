@@ -153,3 +153,29 @@ test('new text after terminal idle flush is still streamed and voiced once in or
   const remaining=[...planner.push(full),...planner.complete(full)];
   assert.equal([...early,...remaining].join(' ').replace(/\s+/g,' ').trim(),full);
 });
+
+test('SSE idle releases the full ready middle phrase before the AudioContext buffer runs dry',()=>{
+  const sentence='برای انتخاب قطعه مناسب ابتدا کد دستگاه را بررسی کنید و '+
+    'سپس مشخصات صنعتی سفارش را به ما اعلام بفرمایید تا بتوانیم '+
+    'مدل و سایز مناسب تسمه صنعتی را از کاتالوگ بررسی کنیم.';
+  const planner=new ForzaIncrementalSpeechText();
+  const early=planner.push(sentence);
+  const idle=planner.flushBufferedOnIdle();
+  const final=planner.complete(sentence);
+  assert.ok(early.length>=1,'the first short phrase is synthesized during SSE');
+  assert.ok(idle.length>=1,'completed middle words must not wait for SSE done');
+  assert.equal(planner.flushBufferedOnIdle().length,0,'no duplicate release');
+  assert.equal([...early,...idle,...final].join(' ').replace(/\s+/g,' ').trim(),sentence);
+});
+
+test('idle does not send a partial word or duplicate a future updated transcript',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const first='برای استعلام موجودی یاتاقان صنعتی باید شماره مدل دقیق دستگاه ';
+  const outputs=planner.push(first);
+  assert.ok(outputs.length>0);
+  const idle=planner.flushBufferedOnIdle();
+  const rest=first+'را برای کارشناسان فنی صنعت پیش ارسال کنید.';
+  const more=planner.push(rest);
+  const completed=planner.complete(rest);
+  assert.equal([...outputs,...idle,...more,...completed].join(' ').replace(/\s+/g,' ').trim(),rest.trim());
+});

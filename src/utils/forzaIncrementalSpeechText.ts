@@ -56,6 +56,19 @@ export class ForzaIncrementalSpeechText {
    * Future monotonic SSE updates continue normally; already spoken words
    * cannot be emitted twice when `complete()` eventually arrives.
    */
+  /**
+   * Release one already completed and reserved word group when streaming
+   * pauses briefly. The old planner kept an ENTIRE 66-character group until
+   * another group or SSE done arrived, making Nima run out of playable audio.
+   * Never synthesize the unfinished tail; final text still joins on done.
+   */
+  flushBufferedOnIdle(): string[] {
+    if (!this.heldPhrase) return [];
+    const ready=this.heldPhrase;
+    this.heldPhrase='';
+    return [ready];
+  }
+
   flushTerminalIdle(): string[] {
     if (!/[.!؟؛]\s*$/.test(this.seen)) return [];
     const remaining = this.seen.slice(this.emitted).trim();
