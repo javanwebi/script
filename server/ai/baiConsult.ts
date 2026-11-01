@@ -134,7 +134,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         ...(isXkiro && model === 'qwen/qwen3.5-flash:free' ? { reasoning_effort: 'none' } : {}),
         // A 256-token voice budget cut Persian answers mid-word. Keep the
         // prompt concise but allow enough output for a finished explanation.
-        max_tokens: voice ? 768 : 768,
+        max_tokens: 768,
         messages: [
           { role: 'system', content: systemMessage + String(catalogContext).slice(0, 5000) },
           ...historyMessages,
