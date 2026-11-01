@@ -17,11 +17,13 @@ The new Nima-only default is a bounded pipeline:
    105 characters, **never because of punctuation**. Short answers emit
    one full phrase on authoritative done. All characters are kept exactly
    once, including the last words.
-3. Each ready group is immediately dispatched to the existing Nima worker,
-   at most two in flight; further groups stay in a bounded CPU-safe queue.
-   This overlaps neural synthesis with continued LLM generation. First audio
-   begins after one phrase is synthesized; the planner never waits for the
-   entire final reply before making the first audio request.
+3. Each ready group is immediately dispatched to the existing Nima worker.
+   Only ONE HTTP synthesis request remains in flight per conversation because
+   the VPS Piper worker has ONE inference slot; sending two requests together
+   would only occupy its tiny shared queue, not improve CPU inference speed.
+   Further groups stay in a bounded client-side in-memory queue. This
+   overlaps synthesis with both LLM generation and playback of previous
+   already-ready audio. It never waits for the entire answer to begin TTS.
 4. Existing `ForzaContinuousWav` decodes each WAV and sample-clock schedules
    every audible segment on the **same AudioContext** while earlier speech
    plays. No browser voice fallback, model replacement, WAV caching, file
