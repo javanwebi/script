@@ -48,6 +48,34 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Real-time first words and uninterrupted scheduled Nima playback (November 2026)
+
+To minimize the perceived gap between visible LLM tokens and audible speech:
+* The browser renders **every SSE text delta immediately**, even if it is an
+  unfinished word. Display is not gated by TTS generation.
+* Nima begins synthesizing as soon as the *first coherent short group*
+  (~38 characters maximum without punctuation, cut on a complete word boundary)
+  has arrived; a short complete sentence may start earlier. It does **not**
+  wait for the full answer or 80 characters before its very first request.
+* Subsequent word groups target ~76 characters without punctuation, allowing
+  the selected CPU voice to synthesize ahead with up to two in-flight requests.
+* The optional first-audio buffer hold has been reduced from 500 ms to **120 ms**
+  after the first valid WAV arrives, if less than two seconds of audio is ready.
+  Any WAV with >=2 s available begins scheduling immediately.
+* The existing `ForzaContinuousWav` component maintains a **single
+  AudioContext sample-clock** for every clause: no separate HTML media player,
+  no file writes, no speaker replacement, and no word duplication.
+* Chrome Console now exposes `[FORZA_NIMA_LATENCY]
+  phase=first-tts-phrase-queued`, per-phrase `nima-phrase-wav-ready`,
+  and `[FORZA_AUDIO_UNDERRUN]` events to diagnose any observed pause.
+
+Technical limit: Piper/VITS gyro needs several complete words to pronounce
+natural Persian and creates a complete WAV per request. Literal sound at the
+same millisecond as the first word is **not** supported. A gap-free speaking
+experience also depends on the actual LLM delivering text fast enough to
+prepare enough future audio; the browser cannot speak text that hasn't arrived.
+Verify the first audible delay and P95 silence gaps in the live website.
+
 ## Nima low-latency phrase prefetch (no model replacement)
 
 The browser now starts up to **two Nima TTS phrase requests in parallel**
@@ -61,11 +89,10 @@ This player uses one `AudioContext` clock, so future PCM buffers may be
 scheduled while earlier speech is playing, without opening/closing a media
 element between sentences. It aims for ~2 seconds of ready audio before
 starting; if the first short phrase has less audio, the hold is capped at
-500 ms after the first complete WAV arrives. Text can appear immediately,
+120 ms after the first complete WAV arrives. Text can appear immediately,
 while speech uses complete phrases rather than individual letters.
 
-The default no-punctuation phrase threshold is 80 Persian characters instead
-of 115, splitting only on finished word boundaries. The original exact LLM
+The first no-punctuation phrase threshold is approximately 38 Persian characters, and subsequent phrases target 76 characters (previously 80), splitting only on finished word boundaries. The original exact LLM
 display text stays unchanged. No synthesized WAV, PCM, transcript or browser
 audio cache is written to disk.
 
