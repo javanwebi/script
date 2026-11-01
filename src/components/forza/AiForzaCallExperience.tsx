@@ -20,6 +20,7 @@ import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -63,6 +64,17 @@ function getSupportedAudioMimeType(): string {
 export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ onClose }) => {
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
+  const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  useEffect(()=>{
+    let mounted=true;
+    void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        if(mounted&&data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true)
+          voiceModeRef.current='piper-nima-gyro-medium';
+      }).catch(()=>{});
+    return()=>{mounted=false};
+  },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
@@ -632,7 +644,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         : AbortSignal.timeout(420000),
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
-    if(response.headers.get('X-Forza-Voice')!=='pocket-farsi-v2')
+    if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
       throw new Error('forza_original_pocket_voice_required');
     if(!(response.headers.get('Content-Type')||'').includes('audio/wav'))
       throw new Error('forza_pocket_full_answer_not_wav');
@@ -876,9 +888,28 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
-        // Text still appears live. Speech deliberately waits for the
-        // authoritative *full* answer; this prevents any sentence-by-sentence
-        // TTS jobs, duplicate words or gaps between output WAV packets.
+        // Nima: voice each complete Persian clause as SSE deltas arrive,
+        // while the UI renders every token. Pocket retains its historical
+        // full-answer path until explicitly replaced. Never send individual
+        // partial words to the neural synthesizer.
+        const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
+        const phrasePlanner=new ForzaIncrementalSpeechText();
+        let speechQueue:Promise<void>=Promise.resolve();
+        const playbackJobs:Promise<void>[]=[];
+        let ttsFailure:unknown=null;
+        const queueSpeech=(phrase:string)=>{
+          speechQueue=speechQueue.then(async()=>{
+            if(pocketAbort.signal.aborted)throw new Error('forza_tts_aborted');
+            const pcm=await requestPocketAudio(phrase,pocketAbort.signal);
+            if(pocketAbort.signal.aborted)return;
+            // Schedule playback without waiting for it to finish: generate
+            // the next phrase while the previous AudioBuffer is playing.
+            const played=continuousPlayer.enqueueWav(pcm);
+            playbackJobs.push(played);
+            void played.catch(()=>{});
+          });
+          void speechQueue.catch(error=>{ttsFailure=error;});
+        };
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -887,8 +918,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(fullText);
-          // Display only. Never submit an unfinished sentence or SSE delta
-          // to Pocket; full-answer synthesis starts once after SSE 'done'.
+          if(useNima){
+            // Enforce monotonic SSE text; never speak a revised/duplicate
+            // segment after the consumer has already heard its predecessor.
+            for(const phrase of phrasePlanner.push(fullText))queueSpeech(phrase);
+          }
         };
         try {
           const streamController=new AbortController();
@@ -953,7 +987,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' chars='+reply.length);
-            await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+            if(useNima){
+              for(const phrase of phrasePlanner.complete(reply))queueSpeech(phrase);
+              await speechQueue;
+              if(ttsFailure)throw ttsFailure;
+              await Promise.all(playbackJobs);
+              console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+playbackJobs.length+
+                ' underruns='+continuousPlayer.underrunCount);
+            }else{
+              await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+            }
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
@@ -986,7 +1029,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,playPocketFullAnswer,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
