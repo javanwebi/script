@@ -706,3 +706,11 @@
   font-weight: 900;
 }
 .reference-mobile-mega-category .reference-view-all { margin-bottom: 9px; }
+
+.reference-menu-leaf-label {
+  display: block;
+  padding: 4px 7px 2px;
+  color: #a26741;
+  font-size: 9px;
+  font-weight: 800;
+}
