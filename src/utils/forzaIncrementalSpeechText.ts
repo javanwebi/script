@@ -36,25 +36,33 @@ export class ForzaIncrementalSpeechText {
   }
 
   private boundary(text: string): number {
-    // Sentence and clause delimiters; require a following whitespace/token,
-    // preserving decimals such as 3.25 and industrial model names.
-    const sentence = /[.!؟؛]+\s+/g;
-    for (const match of text.matchAll(sentence)) {
-      const stop = (match.index || 0) + match[0].length;
-      if (stop >= 16) return stop;
+    // First words matter: begin TTS when the first natural, completed
+    // Persian word group is available, not after an 80-character clause.
+    // The following phrases are intentionally longer, giving the CPU Piper
+    // worker time to synthesize ahead of the uninterrupted audio timeline.
+    const first = this.emitted === 0;
+    const minSentence = first ? 10 : 18;
+    const minComma = first ? 22 : 42;
+    const limit = first ? 38 : 76;
+    const minWordCut = first ? 22 : 48;
+
+    // Require trailing whitespace so decimals (3.25) or a model identifier
+    // ending in a dot are not pronounced before that token is complete.
+    for (const match of text.matchAll(/[.!؟؛]+\s+/g)) {
+      const stop = (match.index ?? 0) + match[0].length;
+      if (stop >= minSentence) return stop;
     }
-    const comma = /[،,]+\s+/g;
-    for (const match of text.matchAll(comma)) {
-      const stop = (match.index || 0) + match[0].length;
-      if (stop >= 48) return stop;
+    for (const match of text.matchAll(/[،,]+\s+/g)) {
+      const stop = (match.index ?? 0) + match[0].length;
+      if (stop >= minComma) return stop;
     }
-    // The LLM may stream very long phrases without punctuation. Do not wait
-    // for 115 characters before starting TTS: emit a meaningful, already
-    // completed word group sooner, never a half-written technical identifier.
-    // Shorter Persian phrases reduce the delay before the next WAV is ready.
-    if (text.length >= 80) {
-      const end = Math.max(text.lastIndexOf(' ', 76), text.lastIndexOf('\n', 76));
-      if (end >= 52) return end + 1;
+
+    // Waiting for punctuation can cause several seconds of silence when
+    // LLM output is unpunctuated. Stop only at an already received whitespace
+    // boundary; retain the unfinished next word in the buffer.
+    if (text.length >= limit) {
+      const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
+      if (end >= minWordCut) return end + 1;
     }
     return 0;
   }
