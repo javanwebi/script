@@ -48,6 +48,8 @@ import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServ
 import { normalizeCatalogueText } from '../../data/userProducts';
 import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
 
+type NavigationGroup = { id: string; title: string; categorySlugs: string[]; active: boolean; sortOrder: number };
+
 interface ProductsModuleProps {
   onQuickImportClick?: () => void;
 }
@@ -81,6 +83,41 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Categories & Brands state
   const [categories, setCategories] = useState<Category[]>(() => adminService.getCategories());
+  const [navigationGroups, setNavigationGroups] = useState<NavigationGroup[]>([]);
+  const [navigationGroupsLoaded, setNavigationGroupsLoaded] = useState(false);
+  const [selectedMenuGroupId, setSelectedMenuGroupId] = useState('');
+  const [menuGroupFilter, setMenuGroupFilter] = useState('all');
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/catalog/navigation-groups?includeInactive=1', {credentials:'same-origin',cache:'no-store'});
+        const data = await res.json();
+        if (!res.ok || !data.success || !Array.isArray(data.groups)) throw Error('گروه‌های مگامنو بارگذاری نشدند.');
+        if (mounted) {
+          setNavigationGroups(data.groups);
+          setNavigationGroupsLoaded(true);
+        }
+      } catch {
+        if (mounted) setNavigationGroupsLoaded(false);
+      }
+    };
+    void load();
+    window.addEventListener('catalog-navigation-groups-updated',load);
+    return () => { mounted = false; window.removeEventListener('catalog-navigation-groups-updated',load); };
+  }, []);
+
+  const excelMenuGroups = useMemo(() => {
+    const excel = navigationGroups.filter(group => group.id.startsWith('excel-v2-'));
+    return (excel.length ? excel : navigationGroups).filter(group => group.active)
+      .sort((a,b) => a.sortOrder - b.sortOrder);
+  }, [navigationGroups]);
+  const categoryGroup = (slug: string) => excelMenuGroups.find(group => group.categorySlugs.includes(slug));
+  const filteredAdminCategories = categories.filter(category =>
+    menuGroupFilter === 'all' || (menuGroupFilter === 'unassigned'
+      ? !categoryGroup(category.slug) : categoryGroup(category.slug)?.id === menuGroupFilter)
+  );
   const [brands, setBrands] = useState<Brand[]>(() => adminService.getBrands());
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -95,6 +132,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   const handleOpenCategoryModal = (cat?: Category,candidateImage = '') => {
     setCategoryImageCandidate(candidateImage&&!candidateImage.startsWith('blob:')?candidateImage:'');
+    setSelectedMenuGroupId(cat ? (categoryGroup(cat.slug)?.id || '') : '');
     if (cat) {
       setEditingCategory({
         ...cat,
@@ -124,6 +162,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   const handleSaveCategoryModal = async () => {
     if (!editingCategory || !editingCategory.name.trim()) return;
+    const isNewCategory = !categories.some(category => category.slug === editingCategory.slug);
+    if (!navigationGroupsLoaded || (isNewCategory && !selectedMenuGroupId)) {
+      setCategorySaveError('برای ثبت دسته، ابتدا گروه اصلی را از فیلد «دسته‌ها» انتخاب کنید. در صورت خطای بارگذاری، صفحه را دوباره باز کنید.');
+      return;
+    }
     const finalSlug =
       editingCategory.slug.trim() ||
       editingCategory.name.trim().replace(/[\s\u200c]+/g, '-');
@@ -143,7 +186,22 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     try {
       adminService.saveCategory(toSave);
       await flushDurableChanges();
+      const groupResponse = await fetch('/api/catalog/category-group', {
+        method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({categorySlug: toSave.slug, groupId: selectedMenuGroupId}),
+      });
+      const groupData = await groupResponse.json().catch(() => ({success:false}));
+      if (!groupResponse.ok || !groupData.success) {
+        throw new Error(groupData.message || 'دسته ذخیره شد اما اتصال آن به گروه مگامنو انجام نشد؛ دوباره ثبت کنید.');
+      }
+      setNavigationGroups(previous => previous.map(group => ({
+        ...group,
+        categorySlugs: group.id === selectedMenuGroupId
+          ? [...new Set([...group.categorySlugs, toSave.slug])]
+          : group.categorySlugs.filter(slug => slug !== toSave.slug),
+      })));
       setCategories(adminService.getCategories());
+      window.dispatchEvent(new Event('catalog-navigation-groups-updated'));
       window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{detail:{categoryName:toSave.name}}));
       setIsCategoryModalOpen(false);
       setEditingCategory(null);
@@ -1608,8 +1666,19 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
           <CatalogNavigationGroupsEditor categories={categories}/>
 
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-100 bg-orange-50/40 p-3">
+            <label htmlFor="categories-menu-group-filter" className="text-xs font-bold text-slate-700">دسته‌ها (سرگروه مگامنو)</label>
+            <select id="categories-menu-group-filter" value={menuGroupFilter} onChange={event => setMenuGroupFilter(event.target.value)}
+              className="min-w-0 flex-1 sm:max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-800">
+              <option value="all">همه دسته‌های محصولات</option>
+              {excelMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}
+              <option value="unassigned">بدون سرگروه</option>
+            </select>
+            <span className="text-[11px] text-slate-600">{toPersianDigits(filteredAdminCategories.length)} دسته</span>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map(cat => (
+            {filteredAdminCategories.map(cat => (
               <div
                 key={cat.id || cat.slug}
                 className="p-4 rounded-2xl border border-slate-200 hover:border-[#E06518]/60 bg-slate-50/50 hover:bg-white transition-all flex flex-col justify-between gap-4 shadow-2xs"
@@ -1630,6 +1699,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       )}
                       <div>
                         <div className="font-black text-sm text-slate-800">{cat.name}</div>
+                        <div className="mt-1 text-[10px] font-bold text-[#C55817]">{categoryGroup(cat.slug)?.title || 'بدون سرگروه مگامنو'}</div>
                         <div className="text-[11px] text-slate-500 font-mono" dir="ltr">
                           {cat.nameEn || cat.slug}
                         </div>
@@ -1863,6 +1933,15 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   <label className="block font-bold text-slate-700 mb-1">نام فارسی دسته‌بندی *</label>
                   <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} placeholder="مثلاً: تسمه‌های صنعتی یا چرخ‌دنده‌ها" className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold" />
                 </div>
+                <div>
+                  <label htmlFor="category-parent-group" className="block font-bold text-slate-700 mb-1">دسته‌ها (گروه اصلی مگامنو) *</label>
+                  <select id="category-parent-group" value={selectedMenuGroupId} onChange={event => setSelectedMenuGroupId(event.target.value)}
+                    disabled={!navigationGroupsLoaded} className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold">
+                    <option value="">{navigationGroupsLoaded ? 'انتخاب سرگروه' : 'در حال دریافت دسته‌ها از Supabase...'}</option>
+                    {excelMenuGroups.map(group => <option key={group.id} value={group.id}>{group.title}</option>)}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-500">از ۱۴ گروه اصلی فایل اکسل انتخاب کنید؛ تغییر گروه، خانواده‌ها و کدهای کالا را حذف نمی‌کند.</p>
+                </div>
                 <details className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer select-none font-bold text-slate-700">تنظیمات تکمیلی (اختیاری): نام انگلیسی، شناسه مسیر و تعداد</summary>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -1948,7 +2027,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                 <button
                   type="button"
                   onClick={() => void handleSaveCategoryModal()}
-                  disabled={categorySavePending || categoryImageUploading}
+                  disabled={categorySavePending || categoryImageUploading || !navigationGroupsLoaded}
                   className="px-5 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold cursor-pointer"
                 >
                   {categorySavePending ? "در حال ذخیره..." : "ذخیره دسته‌بندی"}
