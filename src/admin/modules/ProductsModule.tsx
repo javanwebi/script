@@ -33,6 +33,7 @@ import { flushDurableChanges } from '../../services/durableStorage';
 import { CategoryTreeEditor } from '../CategoryTreeEditor';
 import { CatalogNavigationGroupsEditor } from '../CatalogNavigationGroupsEditor';
 import { CatalogFamilyTaxonomyManager } from '../CatalogFamilyTaxonomyManager';
+import { useApprovedMenuTaxonomy, saveApprovedFamilyAssignment } from '../useApprovedMenuTaxonomy';
 import {
   Product,
   ProductVariant,
@@ -47,7 +48,7 @@ import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
 import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
-import { catalogHierarchyOptions, catalogFamilyCount, matchesFamilyHierarchy } from '../catalogFamilyFilters';
+import { catalogFamilyCount } from '../catalogFamilyFilters';
 
 interface ProductsModuleProps {
   onQuickImportClick?: () => void;
@@ -59,6 +60,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   // Full catalog state (all 1,383+ families & 10,435+ SKUs)
   const [products, setProducts] = useState<Product[]>(() => adminService.getProducts());
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMenuGroup, setSelectedMenuGroup] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSubmenu, setSelectedSubmenu] = useState('all');
   const [selectedSubcategory, setSelectedSubcategory] = useState('all');
@@ -288,6 +290,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Draft Family being edited
   const [draftFamily, setDraftFamily] = useState<Product | null>(null);
+  const [draftMenuGroup, setDraftMenuGroup] = useState('');
+  const [draftMenuCategory, setDraftMenuCategory] = useState('');
+  const [draftMenuSubmenu, setDraftMenuSubmenu] = useState('');
+  const [draftMenuLeaf, setDraftMenuLeaf] = useState('');
   const [familySavePending,setFamilySavePending] = useState(false);
   const [pendingFamilyUpload,setPendingFamilyUpload] = useState<File|null>(null);
   const [pendingFamilyImageTitle,setPendingFamilyImageTitle] = useState('');
@@ -319,13 +325,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [previewSelectedVariantCode, setPreviewSelectedVariantCode] = useState('');
   const [previewActiveImageIdx, setPreviewActiveImageIdx] = useState(0);
 
-  // Use live product hierarchy: independent category metadata can be outdated.
-  const hierarchy = useMemo(() => catalogHierarchyOptions(products, {
-    category:selectedCategory, submenu:selectedSubmenu, subcategory:selectedSubcategory,
-  }), [products,selectedCategory,selectedSubmenu,selectedSubcategory]);
-  const catalogCategoryNames = hierarchy.categories;
+  // One PostgreSQL-backed taxonomy for mega-menu, catalogue, product filters and image audit.
+  // Keep the original family category fields unchanged for old product links.
+  const taxonomy = useApprovedMenuTaxonomy();
+  const approvedCategories = taxonomy.categories;
+  const approvedGroups = taxonomy.groups;
+  const selectedApprovedCategory = approvedCategories.find(item=>item.slug===selectedCategory);
+  const visibleMenuCategories = selectedMenuGroup==='all'
+    ? approvedCategories
+    : approvedCategories.filter(item=>approvedGroups.find(g=>g.id===selectedMenuGroup)?.categorySlugs.includes(item.slug));
+  const menuSubmenus = selectedApprovedCategory?.children?.map(node=>node.name)||[];
+  const menuLeaves = selectedApprovedCategory?.children
+    ?.filter(node=>selectedSubmenu==='all'||node.name===selectedSubmenu)
+    .flatMap(node=>(node.children||[]).map(child=>child.name))||[];
+  const editorApprovedCategory = approvedCategories.find(item=>item.slug===draftMenuCategory);
+  const editorSubmenus = editorApprovedCategory?.children||[];
+  const editorLeaves = editorSubmenus.find(node=>node.name===draftMenuSubmenu)?.children||[];
   const openFamiliesInCategory = (category:string) => {
-    setActiveSubTab('products');setSelectedCategory(products.find(p => p.categorySlug === category)?.categoryName || products.find(p => p.categoryName === category)?.categoryName || category);
+    setActiveSubTab('products');setSelectedMenuGroup('all');setSelectedCategory(category);
     setSelectedSubmenu('all');setSelectedSubcategory('all');setSearchQuery('');
     setPriceFilter('all');setImageFilter('all');setStatusFilter('all');setCurrentPage(1);
   };
@@ -377,7 +394,15 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         if (!terms.every(t => hay.includes(t))) return false;
       }
 
-      if (!matchesFamilyHierarchy(p, {category:selectedCategory,submenu:selectedSubmenu,subcategory:selectedSubcategory})) return false;
+      const assigned=taxonomy.byFamily.get(p.code);
+      if(selectedCategory==='unassigned') {
+        if(taxonomy.assignmentsLoaded && assigned) return false;
+      } else {
+        if(selectedCategory!=='all' && assigned?.categorySlug!==selectedCategory) return false;
+        if(selectedSubmenu!=='all' && assigned?.submenuName!==selectedSubmenu) return false;
+        if(selectedSubcategory!=='all' && assigned?.leafName!==selectedSubcategory) return false;
+      }
+      if(selectedMenuGroup!=='all' && !approvedGroups.find(g=>g.id===selectedMenuGroup)?.categorySlugs.includes(assigned?.categorySlug||'')) return false;
 
       if (statusFilter === 'active' && p.active === false) return false;
       if (statusFilter === 'inactive' && p.active !== false) return false;
@@ -403,7 +428,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
       return true;
     });
-  }, [products, searchQuery, selectedCategory, selectedSubmenu, selectedSubcategory, statusFilter, priceFilter, imageFilter]);
+  }, [products, searchQuery, selectedMenuGroup, selectedCategory, selectedSubmenu, selectedSubcategory, statusFilter, priceFilter, imageFilter, taxonomy.byFamily, taxonomy.assignmentsLoaded, approvedGroups]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
   const paginatedProducts = filteredProducts.slice(
@@ -418,10 +443,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       code: familyId,
       name: '',
       brand: 'ATLAS',
-      categoryName: catalogCategoryNames[0] || 'قطعات مکانیکی',
-      categorySlug: (catalogCategoryNames[0] || 'قطعات مکانیکی').replace(/\s+/g, '-'),
-      submenu: 'قطعات صنعتی',
-      subcategory: 'قطعه صنعتی',
+      categoryName: 'قطعات مکانیکی',
+      categorySlug: 'قطعات-مکانیکی',
+      submenu: '',
+      subcategory: '',
       unit: 'عدد',
       active: true,
       inquiryOnly: true,
@@ -439,6 +464,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       variants: [],
     };
 
+    setDraftMenuGroup('');
+    setDraftMenuCategory('');
+    setDraftMenuSubmenu('');
+    setDraftMenuLeaf('');
     setIsCreatingNewFamily(true);
     setPendingFamilyUpload(null);
     setPendingFamilyImageTitle('');
@@ -482,6 +511,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     });
 
     const firstCode = variantsCopy[0]?.code || '';
+    const existingAssignment=taxonomy.byFamily.get(product.code);
+    setDraftMenuCategory(existingAssignment?.categorySlug||'');
+    setDraftMenuGroup(approvedGroups.find(g=>g.categorySlugs.includes(existingAssignment?.categorySlug||''))?.id||'');
+    setDraftMenuSubmenu(existingAssignment?.submenuName||'');
+    setDraftMenuLeaf(existingAssignment?.leafName||'');
     setIsCreatingNewFamily(false);
     setPendingFamilyUpload(null);
     setPendingFamilyImageTitle('');
