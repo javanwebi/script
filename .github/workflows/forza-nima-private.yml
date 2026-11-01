@@ -14,10 +14,12 @@ on:
       - src/utils/forzaIncrementalSpeechText.ts
       - src/utils/forzaContinuousWav.ts
       - src/utils/forzaSpeechPipeline.ts
+      - src/utils/forzaForegroundVoice.ts
       - src/utils/forzaNimaBufferedSpeech.ts
       - tests/forzaNimaIncrementalSpeech.test.ts
       - tests/forzaNimaBufferedSpeech.test.ts
-      - tests/forzaFastTurntaking.test.ts
+      - tests/forzaFastTurntaking.test.ts tests/forzaForegroundVoice.test.ts
+      - tests/forzaForegroundVoice.test.ts
       - tests/forza-continuous-wav.test.ts
       - tests/test_forza_nima_private.py
       - .github/workflows/forza-nima-private.yml
