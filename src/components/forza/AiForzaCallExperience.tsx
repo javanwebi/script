@@ -825,6 +825,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
+      let terminalIdleTimer:ReturnType<typeof setTimeout>|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -931,7 +932,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // appears. A short idle flush avoids waiting seconds to voice the
         // final completed sentence. The timer is cancelled on further deltas,
         // turn completion, interruption, and any error.
-        let terminalIdleTimer:ReturnType<typeof setTimeout>|null=null;
         let firstPhraseQueued=false;
         const queueSpeech=(phrase:string)=>{
           if(!firstPhraseQueued){
