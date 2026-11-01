@@ -59,6 +59,27 @@ decision applies to microphone VAD and browser SpeechRecognition. This
 reduces *post-speech* delay; actual LLM first-token time and fallback
 server-side speech recognition latency must be measured separately.
 
+## Prioritize near-field user speech over distant conversation
+
+A new lightweight `ForzaForegroundVoice` is calibrated from low-energy
+microphone frames in the actual conversation and requires sustained speech
+stronger than the local noise floor (four successive ~55 ms VAD frames).
+The same foreground confirmation now gates BOTH Chrome Web Speech hypotheses
+and recorded-audio fallback dispatch. Chrome transcripts that arrive early
+are kept temporarily in memory and only promoted after near-field microphone
+evidence; background conversation alone no longer authorizes a user turn.
+A brief machinery click cannot authorize an utterance, and the ambient
+estimate is retained between turns but reset when the device changes.
+
+This is **an amplitude-based foreground heuristic, not true speaker
+diarization or physical distance measurement**. A loud distant speaker may
+still be accepted; a quiet close user could be missed. For dependable
+individual-speaker recognition in a room with overlapping talkers, use a
+close-talk directional/headset microphone or add a verified
+speaker-embedding/diarization and multichannel noise-suppression system.
+The current change adds no heavy STT model, no third-party service, and
+does not save audio.
+
 The browser **optionally** supplies a small industrial Persian vocabulary
 hint to compatible Chrome Web Speech implementations. Incompatible browsers
 continue normally; phrase hints cannot guarantee the identity or words of
