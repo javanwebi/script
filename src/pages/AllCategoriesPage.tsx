@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CATEGORIES, flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
+import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
+import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../data/approvedMenuFallback';
+import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { USER_PRODUCTS, CATALOGUE_SKU_COUNT } from '../data/userProducts';
 import { 
@@ -40,8 +42,52 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [importedCategories, setImportedCategories] = useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
+  const [importedGroups, setImportedGroups] = useState<Array<{
+    id: string; title: string; categorySlugs: string[];
+  }>>(APPROVED_MENU_GROUPS);
 
-  const filteredCategories = CATEGORIES.filter(cat => {
+  useEffect(() => {
+    let mounted = true;
+    const loadExcelHierarchy = async () => {
+      try {
+        const [categoriesResponse, groupsResponse] = await Promise.all([
+          fetch('/api/catalog/categories', { credentials: 'same-origin', cache: 'no-store' }),
+          fetch('/api/catalog/navigation-groups', { credentials: 'same-origin', cache: 'no-store' }),
+        ]);
+        if (!categoriesResponse.ok || !groupsResponse.ok) return;
+        const [categoriesData, groupsData] = await Promise.all([categoriesResponse.json(), groupsResponse.json()]);
+        if (!categoriesData?.success || !groupsData?.success ||
+          !Array.isArray(categoriesData.categories) || !Array.isArray(groupsData.groups)) return;
+        const indexed = new Map<string, EnhancedCategory>(
+          (categoriesData.categories as EnhancedCategory[]).map(category => [category.slug, category])
+        );
+        const groups = (groupsData.groups as {
+          id: string; title: string; active?: boolean; sortOrder: number; categorySlugs: string[];
+        }[]).filter(group => /^excel-v2-[0-9]+$/.test(group.id) && group.active !== false)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        if (!groups.length) return;
+        const seen = new Set<string>();
+        const ordered = groups.flatMap(group => (group.categorySlugs || []).map(slug => indexed.get(slug)))
+          .filter((category): category is EnhancedCategory => {
+            if (!category || seen.has(category.slug)) return false;
+            seen.add(category.slug);
+            return true;
+          });
+        if (mounted && ordered.length === APPROVED_MENU_CATEGORIES.length && groups.length === APPROVED_MENU_GROUPS.length) {
+          setImportedCategories(ordered);
+          setImportedGroups(groups);
+        }
+      } catch {
+        // The hydrated catalogue is the fallback if the dedicated navigation API is unavailable.
+      }
+    };
+    void loadExcelHierarchy();
+    return () => { mounted = false; };
+  }, []);
+
+  const catalogueCategories = importedCategories;
+  const filteredCategories = catalogueCategories.filter(cat => {
     if (cat.active === false) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -52,6 +98,13 @@ export const AllCategoriesPage: React.FC = () => {
       flattenCategoryNodes(cat.children || []).some(node => node.hidden !== true && node.name.toLowerCase().includes(q))
     );
   });
+
+  const categorySections = importedGroups.length
+    ? importedGroups.map(group => ({
+        id: group.id, title: group.title,
+        categories: filteredCategories.filter(category => group.categorySlugs.includes(category.slug)),
+      })).filter(section => section.categories.length > 0)
+    : [{ id: 'all', title: '', categories: filteredCategories }];
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8 text-right" dir="rtl">
@@ -87,7 +140,7 @@ export const AllCategoriesPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center">
                 <span className="block text-2xl font-black text-orange-400 font-mono">
-                  {toPersianDigits(CATEGORIES.length)}
+                  {toPersianDigits(catalogueCategories.length)}
                 </span>
                 <span className="text-xs text-slate-300 font-medium">دسته‌بندی تخصصی</span>
               </div>
@@ -127,9 +180,17 @@ export const AllCategoriesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
-          {filteredCategories.map((category) => {
+        {/* Grouped exactly as the main menu hierarchy in Supabase. */}
+        <div className="space-y-9">
+          {categorySections.map(section => (
+            <section key={section.id} className="space-y-4">
+              {section.title && (
+                <h2 className="border-r-4 border-[#E56B1E] pr-3 text-xl font-black text-[#484344]">
+                  {section.title}
+                </h2>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
+          {section.categories.map((category) => {
             const familyCount = category.familyCount ?? category.count;
             const skuCount = category.skuCount ?? category.count;
 
@@ -194,7 +255,7 @@ export const AllCategoriesPage: React.FC = () => {
                   {/* Action Link Button */}
                   <div className="pt-2 mt-auto border-t border-slate-100">
                     <Link
-                      to={`/category/${(category.name === "تسمه و انتقال نیرو" || category.name === "تسمه و انتقال قدرت") ? "تسمه-و-انتقال-نیرو" : resolveCategorySlug(category.slug)}`}
+                      to={`/category/${resolveCategorySlug(category.slug)}`}
                       className="w-full inline-flex items-center justify-center gap-2 bg-[#484344] hover:bg-[#E06518] text-white py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm hover:shadow-md group-hover:shadow-orange-500/20"
                     >
                       <span>مشاهده محصولات این دسته‌بندی</span>
@@ -205,6 +266,9 @@ export const AllCategoriesPage: React.FC = () => {
               </div>
             );
           })}
+              </div>
+            </section>
+          ))}
         </div>
 
         {/* Empty state if search returns nothing */}
