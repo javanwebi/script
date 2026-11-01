@@ -48,6 +48,61 @@ Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
 
+## Nima low-latency phrase prefetch (no model replacement)
+
+The browser now starts up to **two Nima TTS phrase requests in parallel**
+while LLM SSE text continues to arrive. The already-loaded Piper model in
+`forza-voice` is unchanged. The server's bounded single-model inference
+semaphore still serializes actual inference to protect the 3-vCPU VPS.
+
+The browser holds audio responses only in RAM, queues them by **original
+SSE phrase sequence**, and feeds the existing `ForzaContinuousWav` player.
+This player uses one `AudioContext` clock, so future PCM buffers may be
+scheduled while earlier speech is playing, without opening/closing a media
+element between sentences. It aims for ~2 seconds of ready audio before
+starting; if the first short phrase has less audio, the hold is capped at
+500 ms after the first complete WAV arrives. Text can appear immediately,
+while speech uses complete phrases rather than individual letters.
+
+The default no-punctuation phrase threshold is 80 Persian characters instead
+of 115, splitting only on finished word boundaries. The original exact LLM
+display text stays unchanged. No synthesized WAV, PCM, transcript or browser
+audio cache is written to disk.
+
+**Limit:** The buffer cannot conceal a true 10-second LLM text stall if there
+are less than 10 seconds of audio prepared. The Nima API remains
+non-phoneme-streaming (each `/speak` request produces one WAV), so truly
+zero-latency gap-free output is not guaranteed.
+
+After CI succeeds and code is merged into main, deploy the source in place:
+
+```bash
+cd /opt/sanatpish
+sudo /usr/local/sbin/sanatpish-deploy
+```
+
+**Do not run `git pull` first**: the deploy script fetches and promotes
+the new revision itself. If the new revision was already checked out and
+`Already current` appears without a rebuild, the reviewed explicit rebuild
+mode is:
+
+```bash
+cd /opt/sanatpish
+sudo env SANATPISH_DEPLOY_REBUILD_CURRENT=1 bash ops/sanatpish-deploy.sh
+```
+
+The existing Nima voice container, model, its internal token, Docker limits,
+Nginx and PostgreSQL data are not changed by the front-end scheduler update.
+
+For a real browser test, use Chrome DevTools Console, ask for a four-sentence
+reply and observe `[FORZA_NIMA_BUFFER]`,
+`[FORZA_AUDIO_UNDERRUN]` and `phase=nima-incremental-finished`.
+Verify voice remains Nima:
+
+```bash
+curl -fsS http://127.0.0.1:3001/api/ai/forza-voice-info
+```
+
 ## Real VPS canary result, 2026-11-01
 
 The user ran the isolated Nima canary against commit `8b67db131aaf`
