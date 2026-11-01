@@ -17,8 +17,21 @@ old="$(git rev-parse HEAD)"
 git fetch --quiet origin main
 new="$(git rev-parse FETCH_HEAD)"
 git merge-base --is-ancestor "$old" "$new" || { echo "Non fast-forward update: abort"; exit 1; }
-if [ "$old" = "$new" ]; then echo "Already current: $old"; exit 0; fi
-echo "Deploying from $old to $new"
+# The VPS checkout can already contain new source while its bind-mounted
+# Node process and dist/ still run the previous build (for example when an
+# operator ran git pull before invoking this deploy script).
+# A checked, opt-in rebuild of the current commit still performs all existing
+# isolated lint/build checks before any live container restart.
+case "${SANATPISH_DEPLOY_REBUILD_CURRENT:-0}" in 0|1) ;; *) echo "Invalid SANATPISH_DEPLOY_REBUILD_CURRENT" >&2; exit 1 ;; esac
+if [ "$old" = "$new" ] && [ "${SANATPISH_DEPLOY_REBUILD_CURRENT:-0}" != 1 ]; then
+  echo "Already current: $old"
+  exit 0
+fi
+if [ "$old" = "$new" ]; then
+  echo "Rebuilding already checked-out revision: $old (candidate lint/build then guarded restart)"
+else
+  echo "Deploying from $old to $new"
+fi
 # npm installation and validation run in an isolated directory, never in /app.
 # A brief restart is required only AFTER candidate validation.
 APP=/opt/sanatpish
