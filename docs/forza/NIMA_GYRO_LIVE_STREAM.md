@@ -1,3 +1,59 @@
+## 2026-11-01: pipelined first-speech fast start with safe full-WAV fallback
+
+Production screenshots showed **27 seconds spent making a complete-answer WAV
+after the entire LLM text was already visible**. This latency came from a
+serial architecture: (1) wait for entire LLM reply, THEN (2) generate and
+play a full Piper WAV. They need to **overlap**, not accumulate.
+
+The new Nima-only default is a bounded pipeline:
+
+1. `/api/ai/consult-stream` continues to render every SSE text delta
+   immediately. The first-token goal is **2 seconds**, measured by
+   `[FORZA_LATENCY] phase=first-text target_ms=2000 met=...`. The configured
+   external model is NOT guaranteed to deliver first tokens in 2 seconds.
+   `[FORZA_SLA]` records misses; it is not a fake fallback or early timeout.
+2. A separate `ForzaRealtimeSpeechPlanner` emits its first **finished-word
+   group** after about 56 incoming characters and later groups of about
+   105 characters, **never because of punctuation**. Short answers emit
+   one full phrase on authoritative done. All characters are kept exactly
+   once, including the last words.
+3. Each ready group is immediately dispatched to the existing Nima worker,
+   at most two in flight; further groups stay in a bounded CPU-safe queue.
+   This overlaps neural synthesis with continued LLM generation. First audio
+   begins after one phrase is synthesized; the planner never waits for the
+   entire final reply before making the first audio request.
+4. Existing `ForzaContinuousWav` decodes each WAV and sample-clock schedules
+   every audible segment on the **same AudioContext** while earlier speech
+   plays. No browser voice fallback, model replacement, WAV caching, file
+   writes, DB changes, or credential changes. No second player is opened at
+   punctuation marks.
+5. At authoritative SSE done, the remaining words are queued once; the
+   microphone resumes only after all actual PCM playback jobs resolve.
+   An upstream error cancels queued synthesis and playback. Already-heard
+   provisional words cannot be retracted; a failed stream shows a retry
+   error, never claims the partial response is complete.
+
+**Emergency A/B fallback:** open `/ai-forza?forzaVoice=full` to restore
+the existing single-WAV-after-done mode for that browser URL. This preserves
+a known fallback for real QA without code deployment or container switch.
+
+**Limitations:** Two seconds is a *first AI text* target, NOT a physically
+possible guarantee for every full arbitrarily long answer. Streaming Piper
+requires a few complete words and CPU inference before first audible PCM.
+A single CPU TTS worker can still run out of prepared audio if provider
+tokens arrive slowly or the private inference is saturated. Sample-clock
+scheduling prevents avoidable UI/player gaps but cannot fabricate missing
+audio. Check real Chrome logs and VPS worker timings before claiming success.
+
+Use the usual guarded app deploy **after CI**:
+`sudo /usr/local/sbin/sanatpish-deploy`. Run both
+`/ai-forza` and `/ai-forza?forzaVoice=full` with the same Persian question.
+In Console compare `phase=first-text`, `[FORZA_REALTIME]
+tts_queued_chars`, `buffered_s`, `phase=playback_finished`, and
+`[FORZA_AUDIO_UNDERRUN] wait_ms`. In the VPS compare
+`[FORZA_TTS_TIMING]` and `[FORZA_NIMA_PRODUCTION]`. If first text misses
+2 seconds, the model/provider and network, not TTS, are the first bottleneck.
+
 ## 2026-11-01 — Fix visibly truncated AI replies and isolate 25-second TTS delays
 
 Reported in the site: the question "تسمه چیست؟" produced the visibly
