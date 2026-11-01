@@ -72,16 +72,15 @@ test('provider HTTP 429 signals a safe fallback without returning a private body
 
 test('a partially delivered completion is not replayed on an upstream error', async () => {
   const delivered: string[] = [];
-  const result = await streamBaiConsult({
+  await assert.rejects(streamBaiConsult({
     apiKey: 'secret-placeholder', model: 'qwen3.7-flash', query: 'سلام',
     fetchImpl: (async () => fakeStream([
       'data: {"choices":[{"delta":{"content":"ابتدا"}}]}\n\n',
       'data: {"error":{"message":"never log provider tokens"}}\n\n',
     ])) as typeof fetch,
     onDelta: chunk => delivered.push(chunk),
-  });
+  }), (e:unknown)=>e instanceof BaiConsultError&&e.code==='provider_stream_error');
   assert.deepEqual(delivered, ['ابتدا']);
-  assert.equal(result.text, 'ابتدا');
 });
 
 test('reject an empty answer so the existing Gemini fallback remains available', async () => {
@@ -170,4 +169,48 @@ test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro mod
   }
   assert.equal(bodies.length, 2);
   for (const body of bodies) assert.equal(Object.hasOwn(body, 'reasoning_effort'), false);
+});
+
+test('xKiro completes immediately on finish_reason stop even when gateway withholds [DONE]',async()=>{
+  let cancelled=false;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(
+        'data: {"choices":[{"delta":{"content":"تسمه برای انتقال نیرو استفاده می‌شود."}}]}\\n\\n'.replaceAll('\\n','\n')+
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n'.replaceAll('\\n','\n')
+      ));
+      // Intentional: gateway keeps its socket open indefinitely.
+    },
+    cancel() {cancelled=true;},
+  });
+  const result=await streamXkiroConsult({
+    apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',query:'تسمه چیست؟',
+    voice:true,
+    fetchImpl:(async()=>new Response(stream,{headers:{'Content-Type':'text/event-stream'}})) as typeof fetch,
+    onDelta:()=>{},
+  });
+  assert.equal(result.text,'تسمه برای انتقال نیرو استفاده می‌شود.');
+  assert.equal(cancelled,true,'complete stream must cancel open provider socket');
+});
+
+test('xKiro never converts timeout EOF or finish_reason length into a final answer',async()=>{
+  const spoken:string[]=[];
+  await assert.rejects(streamXkiroConsult({
+    apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',query:'تسمه چیست؟',
+    voice:true,
+    fetchImpl:(async()=>fakeStream([
+      'data: {"choices":[{"delta":{"content":"تسمه نواری از جنس لاست"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n',
+      'data: [DONE]\n\n',
+    ])) as typeof fetch,
+    onDelta:chunk=>spoken.push(chunk),
+  }), (e:unknown)=>e instanceof BaiConsultError&&e.code==='provider_output_truncated');
+  assert.deepEqual(spoken,['تسمه نواری از جنس لاست']);
+  await assert.rejects(streamBaiConsult({
+    apiKey:'secret-placeholder',model:'qwen3.7-flash',query:'تسمه چیست؟',
+    fetchImpl:(async()=>fakeStream([
+      'data: {"choices":[{"delta":{"content":"نوار از جنس لاست"}}]}\n\n',
+    ])) as typeof fetch,
+    onDelta:()=>{},
+  }), (e:unknown)=>e instanceof BaiConsultError&&e.code==='provider_stream_incomplete');
 });
