@@ -663,9 +663,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
        String.fromCharCode(...audio.subarray(8,12))!=='WAVE')
       throw new Error('forza_invalid_full_answer_wav');
     if(signal?.aborted || callClosedRef.current)throw new Error('forza_tts_aborted');
-    console.info('[FORZA_LATENCY] phase=whole-pocket-wav-ready ms='+
-      Math.round(performance.now()-started)+' chars='+text.length+
-      ' bytes='+audio.byteLength);
+    if(voiceModeRef.current==='piper-nima-gyro-medium'){
+      console.info('[FORZA_LATENCY] phase=nima-phrase-wav-ready ms='+
+        Math.round(performance.now()-started)+' chars='+text.length+
+        ' bytes='+audio.byteLength);
+    }else{
+      console.info('[FORZA_LATENCY] phase=whole-pocket-wav-ready ms='+
+        Math.round(performance.now()-started)+' chars='+text.length+
+        ' bytes='+audio.byteLength);
+    }
     return audio;
   },[]);
 
@@ -874,8 +880,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setMicrophoneError(null);
         }
 
-        // Show streaming AI words immediately, but send the FULL final answer
-        // to Pocket once. Pocket synthesizes progressively inside that request.
+        // Render every incoming SSE delta immediately; the selected Nima
+        // engine voices complete word groups before the LLM reply finishes.
+        // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
         const previousHistory=historyRef.current.slice(-24);
         const resolvedUserQuery=String(payload.query||q).trim();
@@ -904,23 +911,31 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // partial words to the neural synthesizer.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
-        // Nima runs two bounded in-memory TTS lookahead requests. Audio is
-        // emitted in original source order to the SAME AudioContext scheduler.
-        // Initial playback primes ~2s of audio, but waits at most 500ms after
-        // the first ready WAV if the next phrase has not arrived yet.
+        // Text updates are displayed immediately. Piper gets its first small,
+        // completed word group while SSE continues, then synthesizes further
+        // phrases in bounded lookahead on the same AudioContext clock.
+        // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
           synthesize:requestPocketAudio,
           player:continuousPlayer,
           signal:pocketAbort.signal,
           maxConcurrent:2,
           initialBufferSeconds:2,
-          maximumInitialWaitMs:500,
+          maximumInitialWaitMs:120,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
         });
         const activeNimaBuffer=bufferedNima;
-        const queueSpeech=(phrase:string)=>activeNimaBuffer.add(phrase);
+        let firstPhraseQueued=false;
+        const queueSpeech=(phrase:string)=>{
+          if(!firstPhraseQueued){
+            firstPhraseQueued=true;
+            console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
+              Math.round(performance.now()-turnStartedAt)+' chars='+phrase.length);
+          }
+          activeNimaBuffer.add(phrase);
+        };
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
