@@ -901,14 +901,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setStatus('speaking');
             setTurn('ai');
           },
-          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms),
+          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
+            ' cause=next_wav_arrived_after_previous_playback'),
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
-        // Nima: voice each complete Persian clause as SSE deltas arrive,
-        // while the UI renders every token. Pocket retains its historical
-        // full-answer path until explicitly replaced. Never send individual
-        // partial words to the neural synthesizer.
+        // Nima: group *complete words* across punctuation, so a full stop
+        // never forces its own neural WAV or an avoidable gap. Stream tokens
+        // to subtitles immediately and keep the Pocket fallback unchanged.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
         // Text updates are displayed immediately. Piper gets its first small,
