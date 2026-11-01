@@ -171,39 +171,47 @@ test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro mod
   for (const body of bodies) assert.equal(Object.hasOwn(body, 'reasoning_effort'), false);
 });
 
+
 test('provider [DONE] after finish_reason length never completes a cut-off Persian word',async()=>{
   const chunks:string[]=[];
+  const nl=String.fromCharCode(10);
+  const event=(obj:unknown)=>'data: '+JSON.stringify(obj)+nl+nl;
   await assert.rejects(streamXkiroConsult({
     apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',
     query:'تسمه چیست؟',voice:true,
     fetchImpl:(async()=>fakeStream([
-      'data: {"choices":[{"delta":{"content":"تسمه، نواری از جنس لاست"}}]}\\n\\n',
-      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\\n\\n',
-      'data: [DONE]\\n\\n',
-    ].map(s=>s.replace(/\\\\n/g,'\\n')))) as typeof fetch,
+      event({choices:[{delta:{content:'تسمه، نواری از جنس لاست'}}]}),
+      event({choices:[{delta:{},finish_reason:'length'}]}),
+      'data: [DONE]'+nl+nl,
+    ])) as typeof fetch,
     onDelta:chunk=>chunks.push(chunk),
   }), (err:unknown)=>err instanceof BaiConsultError&&err.code==='provider_output_truncated');
   assert.deepEqual(chunks,['تسمه، نواری از جنس لاست']);
 });
 
 test('partial provider EOF without normal finish never silently becomes successful TTS',async()=>{
+  const nl=String.fromCharCode(10);
   await assert.rejects(streamBaiConsult({
     apiKey:'secret-placeholder',model:'qwen3.7-flash',
     query:'تسمه چیست؟',
     fetchImpl:(async()=>fakeStream([
-      'data: {"choices":[{"delta":{"content":"تسمه، نواری از جنس لاست"}}]}\\n\\n',
-    ].map(s=>s.replace(/\\\\n/g,'\\n')))) as typeof fetch,
+      'data: '+JSON.stringify({choices:[{delta:{content:'تسمه، نواری از جنس لاست'}}]})+nl+nl,
+    ])) as typeof fetch,
     onDelta:()=>{},
   }), (err:unknown)=>err instanceof BaiConsultError&&err.code==='provider_stream_incomplete');
 });
 
 test('voice generation budget provides room for complete Persian technical answers',async()=>{
+  const nl=String.fromCharCode(10);
   let tokens=0;
   await streamBaiConsult({
     apiKey:'secret-placeholder',model:'qwen3.7-flash',query:'تسمه چیست؟',voice:true,
     fetchImpl:(async(_url,opts)=>{
       tokens=JSON.parse(String(opts?.body)).max_tokens;
-      return fakeStream(['data: {"choices":[{"delta":{"content":"تسمه قطعه‌ای انعطاف‌پذیر برای انتقال نیرو است."}}]}\\n\\n','data: [DONE]\\n\\n'].map(s=>s.replace(/\\\\n/g,'\\n')));
+      return fakeStream([
+        'data: '+JSON.stringify({choices:[{delta:{content:'تسمه قطعه‌ای انعطاف‌پذیر برای انتقال نیرو است.'}}]})+nl+nl,
+        'data: [DONE]'+nl+nl,
+      ]);
     }) as typeof fetch,
     onDelta:()=>{},
   });
