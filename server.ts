@@ -5424,7 +5424,7 @@ const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium','pip
 const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
   ? 'piper-nima-gyro-medium'
   : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
-// During migration the Amir greeting must never accidentally serve a prerecorded
+// During migration a Piper greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
 const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
@@ -5479,8 +5479,8 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
 const getForzaGreeting=createForzaGreeting(renderPocketSpeech);
 app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
   try {
-    // Explicitly set FORZA_VOICE_ENGINE=amir on the Node container at cutover.
-    // Unlike Pocket, Amir's greeting is synthesized once in RAM, never loaded
+    // Explicitly set FORZA_VOICE_ENGINE=nima on the Node container at cutover.
+    // Unlike Pocket, a Piper greeting is synthesized once in RAM, never loaded
     // from the Pocket greeting asset baked into the previous image.
     const isPiper=forzaVoiceEngine!=='pocket-farsi-v2';
     const audio=await (isPiper?privatePiperGreeting():getForzaGreeting());
@@ -7507,7 +7507,7 @@ async function start() {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void (forzaVoiceEngine==='piper-amir-medium'?privateAmirGreeting():getForzaGreeting()).catch(()=>{});
+    void (forzaVoiceEngine!=='pocket-farsi-v2'?privatePiperGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
     // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
