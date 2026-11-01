@@ -43,6 +43,7 @@ export class ForzaContinuousWav {
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
+    private readonly onPlaybackDrained?: () => void,
   ) {}
 
   /** Decode a server frame immediately, in parallel with the previous frame.
@@ -123,6 +124,10 @@ export class ForzaContinuousWav {
         this.sources.delete(source);
         source.disconnect();
         finish();
+        // Actual PCM ended, not just source.start() being scheduled for the
+        // future. A full turn may still be synthesizing its next phrase.
+        if(!this.closed && this.sources.size===0)
+          this.onPlaybackDrained?.();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
       this.onPlaying();
