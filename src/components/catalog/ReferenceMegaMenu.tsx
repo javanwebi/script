@@ -22,10 +22,10 @@ type SavedNavigationGroup = {
 const readCategories = (): EnhancedCategory[] => {
   const managed = getManagedCategories();
   const source = managed.length ? managed : CATEGORIES;
-  // Only show active categories that contain real catalog families; this also excludes empty test entries.
+  // Public menu is strictly limited to the user-approved imported taxonomy.
+  // Older catalogue category records remain in PostgreSQL only for product compatibility.
   return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
-    (Number(category.familyCount ?? category.count ?? 0) > 0 ||
-      (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
+    (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2");
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -113,8 +113,8 @@ export function ReferenceMegaMenu({
     const applyCategories = (input: unknown) => {
       if (!mounted || !Array.isArray(input)) return;
       const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
-        Boolean(category.name && category.slug) && (Number(category.familyCount ?? category.count ?? 0) > 0 ||
-        (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
+        Boolean(category.name && category.slug) &&
+        (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2");
       if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
@@ -137,7 +137,9 @@ export function ReferenceMegaMenu({
       fetch("/api/catalog/navigation-groups", { credentials: "same-origin", cache: "no-store" })
         .then(response => response.ok ? response.json() : null)
         .then(data => {
-          if (mounted && data?.success && Array.isArray(data.groups)) setSavedGroups(data.groups);
+          if (mounted && data?.success && Array.isArray(data.groups))
+            setSavedGroups(data.groups.filter((group: SavedNavigationGroup) =>
+              group.active !== false && /^excel-v2-\\d+$/.test(group.id)));
         })
         .catch(() => { /* Category navigation remains usable without optional group metadata. */ });
     };
@@ -175,12 +177,9 @@ export function ReferenceMegaMenu({
     const available = orderedCategories;
     const assigned = new Set<string>();
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
-    // The Excel hierarchy is authoritative for the mega-menu, while legacy catalogue
-    // categories remain available elsewhere and are never deleted from PostgreSQL.
-    const excelGroups = (savedGroups || []).filter(group => group.active !== false && group.id.startsWith("excel-v2-"));
-    const strictExcel = excelGroups.length > 0;
-    const configured = [...(strictExcel ? excelGroups : savedGroups || [])]
-      .filter(group => group.active !== false)
+    // Do not fall back to legacy groups or generic auto-grouping during an API outage.
+    const configured = (savedGroups || []).filter(group =>
+      group.active !== false && /^excel-v2-\\d+$/.test(group.id))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (configured.length) {
@@ -196,31 +195,14 @@ export function ReferenceMegaMenu({
         });
       });
       const unassigned = available.filter(category => !assigned.has(category.slug));
-      if (unassigned.length && !strictExcel) sections.push({
-        id: "other-categories",
-        title: "سایر دسته‌بندی‌ها",
-        iconKey: "package",
-        categories: unassigned,
-      });
+      // Unassigned/legacy categories are intentionally hidden from this public menu.
       return sections.map(section => ({
         ...section,
         categories: section.categories.filter(category => categoryMatches(category, search)),
       })).filter(section => section.categories.length);
     }
 
-    const fallbackGroups = new Map<string, EnhancedCategory[]>();
-    available.forEach(category => {
-      const title = defaultNavigationGroup(category);
-      const current = fallbackGroups.get(title) || [];
-      current.push(category);
-      fallbackGroups.set(title, current);
-    });
-    return [...fallbackGroups.entries()].map(([title, items], index) => ({
-      id: "default-" + index,
-      title,
-      iconKey: "layers",
-      categories: items.filter(category => categoryMatches(category, search)),
-    })).filter(section => section.categories.length);
+    return [];
   }, [orderedCategories, savedGroups, search]);
 
   const filteredCategories = useMemo(
@@ -241,7 +223,9 @@ export function ReferenceMegaMenu({
             <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
               مشاهده همه محصولات <ArrowLeft size={14} />
             </Link>
-            <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} onNavigate={onNavigate} />
+            <CategoryNavigation nodes={category.children || []}
+              categorySlug={(category as EnhancedCategory & { routeSlug?: string }).routeSlug || category.slug}
+              onNavigate={onNavigate} />
           </section>
         ))}
       </div>
