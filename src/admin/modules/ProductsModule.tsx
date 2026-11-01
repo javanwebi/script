@@ -1222,40 +1222,42 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             <details className="rounded-xl border border-slate-200 bg-slate-50">
               <summary className="cursor-pointer select-none px-3 py-3 text-xs font-bold text-slate-700">
                 فیلترهای بیشتر: دسته‌بندی و وضعیت تصویر
-                {(selectedCategory !== 'all' || selectedSubmenu !== 'all' || selectedSubcategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
+                {(selectedMenuGroup !== 'all' || selectedCategory !== 'all' || selectedSubmenu !== 'all' || selectedSubcategory !== 'all' || imageFilter !== 'all') && <span className="mr-2 rounded-full bg-[#FFF0E5] px-2 py-1 text-[#B94D0A]">فیلتر فعال</span>}
               </summary>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 pt-0">
-                <label className="block text-xs font-bold text-slate-600">
-                  دسته‌بندی
-                  <select
-                    value={selectedCategory}
-                    onChange={e => {
-                      setSelectedCategory(e.target.value);
-                      setSelectedSubmenu('all');setSelectedSubcategory('all');
-                      setCurrentPage(1);
-                    }}
-                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white focus:border-[#E06518] focus:outline-none"
-                  >
-                    <option value="all">همه دسته‌بندی‌ها ({toPersianDigits(catalogCategoryNames.length)})</option>
-                    {catalogCategoryNames.map(catName => (
-                      <option key={catName} value={catName}>{catName}</option>
-                    ))}
+                <label className="block text-xs font-bold text-slate-600">گروه‌بندی مگامنو (سطح ۱)
+                  <select value={selectedMenuGroup} onChange={e=>{
+                    setSelectedMenuGroup(e.target.value);setSelectedCategory('all');
+                    setSelectedSubmenu('all');setSelectedSubcategory('all');setCurrentPage(1);
+                  }} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-xs">
+                    <option value="all">تمام سرگروه‌ها</option>
+                    {approvedGroups.map(group=><option key={group.id} value={group.id}>{group.title}</option>)}
                   </select>
                 </label>
-                <label className="block text-xs font-bold text-slate-600">زیرمنو
-                  <select aria-label="فیلتر زیرمنوی کالاها" value={selectedSubmenu}
+                <label className="block text-xs font-bold text-slate-600">دسته‌های فایل (سطح ۲)
+                  <select value={selectedCategory} onChange={e=>{
+                    setSelectedCategory(e.target.value);setSelectedSubmenu('all');
+                    setSelectedSubcategory('all');setCurrentPage(1);
+                  }} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-xs">
+                    <option value="all">همه دسته‌ها ({toPersianDigits(visibleMenuCategories.length)})</option>
+                    {selectedMenuGroup==='all'&&<option value="unassigned">خانواده‌های هنوز دسته‌بندی‌نشده (نیازمند بررسی)</option>}
+                    {visibleMenuCategories.map(cat=><option key={cat.slug} value={cat.slug}>{cat.name}</option>)}
+                  </select>
+                </label>
+                <label className="block text-xs font-bold text-slate-600">زیرمنو (سطح ۳)
+                  <select value={selectedSubmenu} disabled={!selectedApprovedCategory}
                     onChange={e=>{setSelectedSubmenu(e.target.value);setSelectedSubcategory('all');setCurrentPage(1)}}
-                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white">
-                    <option value="all">همه زیرمنوها ({toPersianDigits(hierarchy.submenus.length)})</option>
-                    {hierarchy.submenus.map(name=><option key={name} value={name}>{name}</option>)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-xs disabled:opacity-50">
+                    <option value="all">تمام زیرمنوها</option>
+                    {menuSubmenus.map(name=><option key={name} value={name}>{name}</option>)}
                   </select>
                 </label>
-                <label className="block text-xs font-bold text-slate-600">زیرگروه / نوع فنی
-                  <select aria-label="فیلتر زیرگروه کالاها" value={selectedSubcategory}
+                <label className="block text-xs font-bold text-slate-600">ریزاقلام (سطح ۴)
+                  <select value={selectedSubcategory} disabled={!selectedApprovedCategory}
                     onChange={e=>{setSelectedSubcategory(e.target.value);setCurrentPage(1)}}
-                    className="mt-1.5 w-full px-3 py-3 rounded-xl border border-slate-300 text-xs bg-white">
-                    <option value="all">همه زیرگروه‌ها ({toPersianDigits(hierarchy.subcategories.length)})</option>
-                    {hierarchy.subcategories.map(name=><option key={name} value={name}>{name}</option>)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-xs disabled:opacity-50">
+                    <option value="all">تمام ریزاقلام</option>
+                    {[...new Set(menuLeaves)].map(name=><option key={name} value={name}>{name}</option>)}
                   </select>
                 </label>
                 <label className="block text-xs font-bold text-slate-600">
