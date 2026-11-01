@@ -1000,6 +1000,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // An interrupted or incomplete SSE is not a complete answer.
             // Never send the visible partial transcript to the TTS engine.
             console.warn('[FORZA] Text stream incomplete; refusing partial speech');
+            // A half-delivered subtitle should not remain in the same card
+            // looking like an authoritative completed response.
+            reply='';
+            setAiText('');
+            setDisplayedAi('');
             throw new Error('پاسخ هوش مصنوعی کامل دریافت نشد. لطفاً دوباره تلاش کنید.');
           } else {
           const fallbackAbort=new AbortController();
