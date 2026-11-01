@@ -42,6 +42,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [importedCategories, setImportedCategories] = useState<EnhancedCategory[]>([]);
+  const [importedGroups, setImportedGroups] = useState<Array<{
+    id: string; title: string; categorySlugs: string[];
+  }>>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -70,7 +73,10 @@ export const AllCategoriesPage: React.FC = () => {
             seen.add(category.slug);
             return true;
           });
-        if (mounted && ordered.length) setImportedCategories(ordered);
+        if (mounted && ordered.length) {
+          setImportedCategories(ordered);
+          setImportedGroups(groups);
+        }
       } catch {
         // The hydrated catalogue is the fallback if the dedicated navigation API is unavailable.
       }
@@ -91,6 +97,13 @@ export const AllCategoriesPage: React.FC = () => {
       flattenCategoryNodes(cat.children || []).some(node => node.hidden !== true && node.name.toLowerCase().includes(q))
     );
   });
+
+  const categorySections = importedGroups.length
+    ? importedGroups.map(group => ({
+        id: group.id, title: group.title,
+        categories: filteredCategories.filter(category => group.categorySlugs.includes(category.slug)),
+      })).filter(section => section.categories.length > 0)
+    : [{ id: 'all', title: '', categories: filteredCategories }];
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8 text-right" dir="rtl">
@@ -166,9 +179,17 @@ export const AllCategoriesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
-          {filteredCategories.map((category) => {
+        {/* Grouped exactly as the main menu hierarchy in Supabase. */}
+        <div className="space-y-9">
+          {categorySections.map(section => (
+            <section key={section.id} className="space-y-4">
+              {section.title && (
+                <h2 className="border-r-4 border-[#E56B1E] pr-3 text-xl font-black text-[#484344]">
+                  {section.title}
+                </h2>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
+          {section.categories.map((category) => {
             const familyCount = category.familyCount ?? category.count;
             const skuCount = category.skuCount ?? category.count;
 
@@ -244,6 +265,9 @@ export const AllCategoriesPage: React.FC = () => {
               </div>
             );
           })}
+              </div>
+            </section>
+          ))}
         </div>
 
         {/* Empty state if search returns nothing */}
