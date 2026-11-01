@@ -8,6 +8,7 @@ import type { CategoryNode, EnhancedCategory } from "../../data/categories";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
 import { toPersianDigits } from "../../utils/formatters";
+import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
 
 type SavedNavigationGroup = {
   id: string;
@@ -19,13 +20,11 @@ type SavedNavigationGroup = {
   active?: boolean;
 };
 
+const isApprovedCategory = (category: EnhancedCategory) =>
+  Boolean(category?.name) && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug || '') && category.active !== false;
 const readCategories = (): EnhancedCategory[] => {
-  const managed = getManagedCategories();
-  const source = managed.length ? managed : CATEGORIES;
-  // Only show active categories that contain real catalog families; this also excludes empty test entries.
-  return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
-    (Number(category.familyCount ?? category.count ?? 0) > 0 ||
-      (category as EnhancedCategory & { menuSource?: string }).menuSource === 'industrial_megamenu_hierarchy_v2'));
+  const managed = getManagedCategories().filter(isApprovedCategory);
+  return managed.length === APPROVED_MENU_CATEGORIES.length ? managed : APPROVED_MENU_CATEGORIES;
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -45,20 +44,6 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
   if (!term) return true;
   return [category.name, category.description, ...nodeNames(category.children || [])]
     .some(value => String(value || "").toLocaleLowerCase().includes(term));
-};
-
-const defaultNavigationGroup = (category: EnhancedCategory): string => {
-  const name = category.name || "";
-  if (/تسمه|پولی|زنجیر|نقاله|بلبرینگ|یاتاقان|چرخ|رولر|کوپلینگ|انتقال قدرت|ریل|حرکت/i.test(name)) {
-    return "انتقال قدرت و تجهیزات حرکتی";
-  }
-  if (/آب.?بندی|درزگیر|لاستیک|شیلنگ|سیال|پمپ|شیرآلات|وکیوم|مکش|فیلتر/i.test(name)) {
-    return "آب‌بندی، لاستیک و سیالات";
-  }
-  if (/کاشی|سرامیک|نساجی|پارچه|بسته.?بندی|غذایی|نوشیدنی|ماشین.?سازی|خط تولید|صنایع/i.test(name)) {
-    return "تجهیزات صنایع و خطوط تولید";
-  }
-  return "قطعات و مواد مهندسی";
 };
 
 const categoryArtwork = (category: EnhancedCategory): string => {
@@ -104,24 +89,21 @@ export function ReferenceMegaMenu({
   topOffset?: number;
 }) {
   const [categories, setCategories] = useState<EnhancedCategory[]>(() => readCategories());
-  const [activeSlug, setActiveSlug] = useState("تسمه-و-انتقال-نیرو");
+  const [activeSlug, setActiveSlug] = useState("excel-v2-1-1");
   const [search, setSearch] = useState("");
-  const [savedGroups, setSavedGroups] = useState<SavedNavigationGroup[] | null>(null);
+  const [savedGroups, setSavedGroups] = useState<SavedNavigationGroup[] | null>(APPROVED_MENU_GROUPS);
 
   useEffect(() => {
     let mounted = true;
     const applyCategories = (input: unknown) => {
       if (!mounted || !Array.isArray(input)) return;
-      const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
-        Boolean(category.name && category.slug) &&
-        (Number(category.familyCount ?? category.count ?? 0) > 0 ||
-          (category as EnhancedCategory & { menuSource?: string }).menuSource === 'industrial_megamenu_hierarchy_v2'));
+      const next = (input as EnhancedCategory[]).filter(isApprovedCategory);
       if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
         next.some(category => category.slug === current)
           ? current
-          : (next.find(category => resolveCategorySlug(category.slug) === "تسمه-و-انتقال-نیرو")?.slug || next[0]?.slug || "")
+          : (next[0]?.slug || "excel-v2-1-1")
       );
     };
     const loadCategories = () => fetch("/api/catalog/categories", { credentials: "same-origin", cache: "no-store" })
@@ -138,7 +120,11 @@ export function ReferenceMegaMenu({
       fetch("/api/catalog/navigation-groups", { credentials: "same-origin", cache: "no-store" })
         .then(response => response.ok ? response.json() : null)
         .then(data => {
-          if (mounted && data?.success && Array.isArray(data.groups)) setSavedGroups(data.groups);
+          if (mounted && data?.success && Array.isArray(data.groups)) {
+            const approved = (data.groups as SavedNavigationGroup[]).filter(group =>
+              group.active !== false && /^excel-v2-[0-9]+$/.test(group.id));
+            if (approved.length === APPROVED_MENU_GROUPS.length) setSavedGroups(approved);
+          }
         })
         .catch(() => { /* Category navigation remains usable without optional group metadata. */ });
     };
@@ -176,10 +162,8 @@ export function ReferenceMegaMenu({
     const available = orderedCategories;
     const assigned = new Set<string>();
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
-    const excelGroups = (savedGroups || []).filter(group => group.active !== false && /^excel-v2-[0-9]+$/.test(group.id));
-    const useApprovedGroups = excelGroups.length > 0;
-    const configured = [...(useApprovedGroups ? excelGroups : savedGroups || [])]
-      .filter(group => group.active !== false)
+    const configured = [...(savedGroups || APPROVED_MENU_GROUPS)]
+      .filter(group => group.active !== false && /^excel-v2-[0-9]+$/.test(group.id))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (configured.length) {
@@ -194,32 +178,14 @@ export function ReferenceMegaMenu({
           categories: members,
         });
       });
-      const unassigned = available.filter(category => !assigned.has(category.slug));
-      if (unassigned.length && !useApprovedGroups) sections.push({
-        id: "other-categories",
-        title: "سایر دسته‌بندی‌ها",
-        iconKey: "package",
-        categories: unassigned,
-      });
+
       return sections.map(section => ({
         ...section,
         categories: section.categories.filter(category => categoryMatches(category, search)),
       })).filter(section => section.categories.length);
     }
 
-    const fallbackGroups = new Map<string, EnhancedCategory[]>();
-    available.forEach(category => {
-      const title = defaultNavigationGroup(category);
-      const current = fallbackGroups.get(title) || [];
-      current.push(category);
-      fallbackGroups.set(title, current);
-    });
-    return [...fallbackGroups.entries()].map(([title, items], index) => ({
-      id: "default-" + index,
-      title,
-      iconKey: "layers",
-      categories: items.filter(category => categoryMatches(category, search)),
-    })).filter(section => section.categories.length);
+    return [];
   }, [orderedCategories, savedGroups, search]);
 
   const filteredCategories = useMemo(
