@@ -1,6 +1,6 @@
 import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
-import {database,databaseEnabled} from './db/connection';
+import {database,databaseEnabled,transaction} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
 
 const clean=(value:unknown,max=150)=>typeof value==='string'?value.trim().slice(0,max):'';
@@ -84,6 +84,41 @@ export function registerCatalogNavigationApi(app:Express){
           category_slugs=excluded.category_slugs,sort_order=excluded.sort_order,is_active=excluded.is_active,updated_at=now()`,
         [id,title,iconKey,imageUrl||null,unique,sortOrder,req.body?.active!==false]);
       return res.json({success:true,id});
+    }catch(error){return fail(res,error);}
+  });
+
+  // An admin category's "دسته‌ها" field is the authoritative mega-menu parent.
+  // Move in one PostgreSQL transaction so a category cannot remain in two groups.
+  app.post('/api/catalog/category-group',async(req,res)=>{
+    try{
+      if(!(await getPortalIdentity(req)).admin)
+        return res.status(403).json({success:false,message:'فقط مدیر سایت مجاز به تغییر دسته اصلی است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false});
+      const categorySlug=clean(req.body?.categorySlug,150);
+      const groupId=clean(req.body?.groupId,90);
+      if(!categorySlug||typeof req.body?.categorySlug!=='string'||req.body.categorySlug.length>150||
+        (req.body?.groupId!==''&&(!groupId||req.body.groupId!==groupId)))
+        return res.status(400).json({success:false,message:'دسته یا گروه انتخاب‌شده معتبر نیست.'});
+      const changed=await transaction(async client=>{
+        // Serialize group membership updates and lock the selected rows until committed.
+        const category=await client.query('select slug from public.catalog_categories where slug=$1 for update',[categorySlug]);
+        if(!category.rowCount)return {notFound:'category'};
+        await client.query('select id from public.catalog_navigation_groups order by id for update');
+        if(groupId){
+          const group=await client.query('select id from public.catalog_navigation_groups where id=$1',[groupId]);
+          if(!group.rowCount)return {notFound:'group'};
+        }
+        await client.query(`update public.catalog_navigation_groups
+          set category_slugs=array_remove(category_slugs,$1), updated_at=now()
+          where $1=any(category_slugs)`,[categorySlug]);
+        if(groupId)await client.query(`update public.catalog_navigation_groups
+          set category_slugs=array_append(category_slugs,$1),updated_at=now()
+          where id=$2`,[categorySlug,groupId]);
+        return {groupId};
+      });
+      if('notFound' in changed)
+        return res.status(404).json({success:false,message:changed.notFound==='category'?'دسته‌بندی در دیتابیس پیدا نشد.':'گروه انتخاب‌شده وجود ندارد.'});
+      return res.json({success:true,categorySlug,groupId:changed.groupId});
     }catch(error){return fail(res,error);}
   });
 
