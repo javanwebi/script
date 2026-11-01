@@ -33,7 +33,7 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
     return false;
   };
   const paddingStart=Math.round(sampleRate*0.04);
-  const paddingEnd=Math.round(sampleRate*0.08);
+  const paddingEnd=Math.round(sampleRate*0.07);
   // Allow several seconds of dead-air from VITS/Piper (not just 240ms).
   // The word edge must be audible; preserve the last 80ms near that edge.
   const maxTail=Math.min(Math.round(sampleRate*8),length-Math.round(sampleRate*0.15));
