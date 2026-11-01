@@ -975,8 +975,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
             firstTextDelivered=true;
-            console.info('[FORZA_LATENCY] phase=first-text clientMs='+
-              Math.round(performance.now()-turnStartedAt));
+            const ttft=Math.round(performance.now()-turnStartedAt);
+            console.info('[FORZA_LATENCY] phase=first-text clientMs='+ttft+
+              ' target_ms=2000 met='+Number(ttft<=2000));
+            if(ttft>2000)console.warn('[FORZA_SLA] first_ai_text_exceeded_2s ms='+ttft+
+              ' action=measure_upstream_provider_ttft');
             setVoicePending(true);
           }
           setAiText(fullText);
