@@ -54,6 +54,29 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("pocket-farsi-v2",rollback)
         self.assertIn("FORZA_POCKET_ROLLBACK_PASS",rollback)
 
+    def test_live_switch_rebuilds_stale_checked_out_app_before_voice_cutover(self):
+        deploy=ROOT/"ops/sanatpish-deploy.sh"
+        live=ROOT/"ops/forza-nima-go-live-vps.sh"
+        for script in (deploy,live):
+            subprocess.run(["bash","-n",str(script)],check=True,capture_output=True)
+        source=deploy.read_text(encoding="utf-8")
+        self.assertIn('SANATPISH_DEPLOY_REBUILD_CURRENT:-0',source)
+        self.assertIn('Rebuilding already checked-out revision',source)
+        self.assertIn('npm run lint',source)
+        self.assertIn('npm run build',source)
+        self.assertIn('docker start "$CONTAINER"',source)
+        promotion=live.read_text(encoding="utf-8")
+        self.assertIn('SANATPISH_DEPLOY_REBUILD_CURRENT=1 bash "$APP/ops/sanatpish-deploy.sh"',promotion)
+        self.assertIn('voice_info_route_missing_after_checked_rebuild',promotion)
+        self.assertIn('FORZA_NIMA_STALE_APP_DETECTED',promotion)
+        self.assertIn("http://127.0.0.1:3001/api/ai/forza-voice-info",promotion)
+        self.assertIn("if ! voice_info_ready; then",promotion)
+        # Never mask an HTML SPA fallback as a valid voice-info API response.
+        self.assertIn('json.loads(sys.stdin.read())',promotion)
+        self.assertIn('x.get("voice")=="pocket-farsi-v2"',promotion)
+        self.assertLess(promotion.index('voice_info_route_missing_after_checked_rebuild'),
+                        promotion.index('docker stop -t 15 "$LIVE"'))
+
     def test_client_uses_nima_only_when_server_advertises_it(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
