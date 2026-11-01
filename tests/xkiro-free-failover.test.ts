@@ -87,11 +87,11 @@ test('partial text from first free model is not duplicated in a retry',async()=>
     return sse('دوباره');
   }) as typeof fetch;
   const chunks:string[]=[];
-  const result=await streamXkiroFreePool({apiKey:'not-a-real-secret',model:'vendor/partial',
-    query:'سلام',voice:true,fetchImpl,onDelta:c=>chunks.push(c)});
-  assert.equal(result.text,'سلام');
+  await assert.rejects(streamXkiroFreePool({apiKey:'not-a-real-secret',model:'vendor/partial',
+    query:'سلام',voice:true,fetchImpl,onDelta:c=>chunks.push(c)}),
+    (err:unknown)=>err instanceof BaiConsultError&&err.code==='provider_stream_error');
   assert.deepEqual(attempts,['vendor/partial']);
-  assert.deepEqual(chunks,['سلام']);
+  assert.deepEqual(chunks,['سلام'],'text may be visible but must never be marked complete');
 });
 
 test('Retry-After on 429 stops switching all models while the account is throttled',async()=>{
