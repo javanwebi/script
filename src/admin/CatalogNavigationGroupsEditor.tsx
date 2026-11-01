@@ -1,9 +1,9 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Check,FolderPlus,Image as ImageIcon,Upload,ChevronDown} from 'lucide-react';
+import {Check,Image as ImageIcon,Upload,ChevronDown} from 'lucide-react';
 import type {Category} from '../types';
 
 type NavGroup={id:string;title:string;iconKey:string;imageUrl:string|null;categorySlugs:string[];sortOrder:number;active:boolean};
-const blank=():NavGroup=>({id:'',title:'',iconKey:'layers',imageUrl:null,categorySlugs:[],sortOrder:0,active:true});
+
 
 export function CatalogNavigationGroupsEditor({categories}:{categories:Category[]}){
   const [groups,setGroups]=useState<NavGroup[]>([]);
@@ -15,7 +15,10 @@ export function CatalogNavigationGroupsEditor({categories}:{categories:Category[
   const reload=()=>{
     fetch('/api/catalog/navigation-groups?includeInactive=1',{credentials:'same-origin'})
       .then(async response=>{const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'بارگذاری گروه‌ها انجام نشد.');return data.groups;})
-      .then(items=>{setGroups(items);setLoaded(true);})
+      .then(items=>{
+        const approved=(items as NavGroup[]).filter(group=>/^excel-v2-[0-9]+$/.test(group.id)&&group.active);
+        setGroups(approved);setLoaded(true);
+      })
       .catch(err=>setError(err.message||'اتصال به پایگاه داده برقرار نشد.'));
   };
   useEffect(()=>{reload();},[]);
@@ -44,7 +47,7 @@ export function CatalogNavigationGroupsEditor({categories}:{categories:Category[
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-sm font-black text-[#55565A]">گروه‌بندی‌های مگامنو</h3>
         <p className="mt-1 text-[11px] leading-6 text-slate-500">این گروه‌ها فقط در «همه محصولات» نمایش داده می‌شوند. دسته‌بندی‌ها و اطلاعات کالا تغییر نمی‌کنند.</p></div>
-      <button type="button" onClick={()=>setDraft({...blank(),sortOrder:groups.length})} className="flex items-center gap-1.5 rounded-xl bg-[#E06518] px-4 py-2.5 text-xs font-bold text-white"><FolderPlus size={16}/> گروه جدید</button>
+      <span className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#C65A16]">۱۴ گروه‌بندی مصوب</span>
     </div>
     {!loaded&&<p className="text-xs text-slate-500">در حال دریافت گروه‌ها از پایگاه داده…</p>}
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
