@@ -88,6 +88,24 @@ export function registerCatalogNavigationApi(app:Express){
 
 
   // Admin-only taxonomy review. Product identities and legacy paths are not rewritten.
+
+  // Shared read source for catalogue, image audit, and product editor; RLS-protected table is server-only.
+  app.get('/api/catalog/menu-family-assignments',async(req,res)=>{
+    try{
+      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false});
+      const rows=await database().query(
+        `select a.family_code as "familyCode",a.category_slug as "categorySlug",
+           a.submenu_name as "submenuName",a.leaf_name as "leafName",a.method
+         from public.catalog_family_menu_assignments a
+         join public.catalog_families f on f.code=a.family_code
+         where f.is_active=true and f.is_deleted=false
+         order by a.family_code limit 10000`);
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,assignments:rows.rows});
+    }catch(error){return fail(res,error);}
+  });
+
   app.get('/api/catalog/menu-unassigned',async(req,res)=>{
     try{
       if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
