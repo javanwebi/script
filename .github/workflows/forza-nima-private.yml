@@ -1,0 +1,34 @@
+name: FORZA Nima private voice and SSE speech tests
+on:
+  pull_request:
+    paths:
+      - Dockerfile.forza-nima
+      - scripts/forza_nima_voice_http.py
+      - ops/forza-nima-private-canary-vps.sh
+      - server.ts
+      - src/components/forza/AiForzaCallExperience.tsx
+      - src/utils/forzaIncrementalSpeechText.ts
+      - tests/forzaNimaIncrementalSpeech.test.ts
+      - tests/test_forza_nima_private.py
+      - .github/workflows/forza-nima-private.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Nima isolated service source and safety
+        run: python3 tests/test_forza_nima_private.py
+      - name: Install frontend/toolchain
+        run: npm ci --ignore-scripts
+      - name: Test incremental SSE speech planner
+        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts
+      - name: Typecheck website and voice endpoints
+        run: npm run lint
