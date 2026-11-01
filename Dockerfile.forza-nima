@@ -1,0 +1,40 @@
+# CPU-only standalone FORZA Nima voice container.
+# All model weights are downloaded at IMAGE BUILD TIME. Runtime inference is offline.
+# Generated customer PCM/WAV is transient memory, never written to disk.
+FROM python:3.11-slim-bookworm
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    ONNXRUNTIME_LOG_SEVERITY_LEVEL=3
+RUN pip install --no-cache-dir piper-tts==1.8.0
+COPY scripts/forza_nima_voice_http.py scripts/forza_nima_voice_http.py
+RUN mkdir -p /app/voice \
+ && python - <<'PY'
+import hashlib
+import json
+from pathlib import Path
+from urllib.request import urlopen
+root=Path("/app/voice")
+name="fa_IR-gyro-medium.onnx"
+base="https://huggingface.co/rhasspy/piper-voices/resolve/main/fa/fa_IR/gyro/medium/"
+checksum="37dfae43c82ee38ca9e6aac4ffef76a74d6b282ccbc397b27761f35d355c99ba"
+with urlopen(base+name,timeout=90) as response, open(root/name,"wb") as output:
+    digest=hashlib.sha256()
+    for chunk in iter(lambda: response.read(1024*1024),b""):
+        digest.update(chunk)
+        output.write(chunk)
+if digest.hexdigest()!=checksum:
+    raise RuntimeError("nima_model_checksum_mismatch")
+with urlopen(base+name+".json",timeout=30) as response:
+    config=response.read()
+data=json.loads(config)
+if data["language"]["code"]!="fa_IR" or data["audio"]["sample_rate"]!=22050:
+    raise RuntimeError("nima_model_config_invalid")
+(root/(name+".json")).write_bytes(config)
+print("FORZA_AMIR_MODEL_VERIFIED",flush=True)
+PY
+EXPOSE 8080
+CMD ["python", "-u", "scripts/forza_nima_voice_http.py"]
