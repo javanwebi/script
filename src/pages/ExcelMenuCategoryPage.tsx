@@ -20,7 +20,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [search, setSearch] = useState('');
-  const [, refreshProducts] = useState(0);
+  const [catalogRevision, refreshProducts] = useState(0);
 
   useEffect(() => subscribeCatalogChanges(() => refreshProducts(n => n + 1)), []);
   useEffect(() => {
@@ -40,7 +40,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
 
   const products = useMemo(() => new Map<string, Product>(
     getAllProducts().map(p => [p.code, p])
-  ), [data, status]);
+  ), [data, status, catalogRevision]);
 
   const families = useMemo(() => (data?.families || []).filter(family => {
     const matchesSelection = !selection || family.submenu === selection || family.leaf === selection;
