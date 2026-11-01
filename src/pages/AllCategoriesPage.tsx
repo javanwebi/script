@@ -62,7 +62,7 @@ export const AllCategoriesPage: React.FC = () => {
           (categoriesData.categories as EnhancedCategory[]).map(category => [category.slug, category])
         );
         const groups = (groupsData.groups as {
-          id: string; active?: boolean; sortOrder: number; categorySlugs: string[];
+          id: string; title: string; active?: boolean; sortOrder: number; categorySlugs: string[];
         }[]).filter(group => group.id.startsWith('excel-v2-') && group.active !== false)
           .sort((a, b) => a.sortOrder - b.sortOrder);
         if (!groups.length) return;
