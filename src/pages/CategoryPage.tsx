@@ -8,6 +8,7 @@ import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
+import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -45,6 +46,11 @@ import {
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  // Keep original legacy category pages unchanged; approved Excel categories get their
+  // own real family listing instead of linking several menu categories to one old page.
+  if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || '')) {
+    return <ExcelMenuCategoryPage />;
+  }
   const canonicalBeltSlug = categorySlugFor('تسمه و انتقال نیرو');
   if (resolveCategorySlug(slug || '') === canonicalBeltSlug) {
     if (slug !== canonicalBeltSlug) {
