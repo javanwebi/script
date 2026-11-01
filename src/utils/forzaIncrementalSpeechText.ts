@@ -47,6 +47,25 @@ export class ForzaIncrementalSpeechText {
     return output;
   }
 
+  /**
+   * An upstream provider may stream the last visible words and leave SSE open
+   * several seconds before sending its authoritative `done` event. If the
+   * currently visible answer already ends with an explicit terminal mark,
+   * a short idle timeout may dispatch the *combined* pending final phrase now.
+   * Never flush half-written words, partial decimals, or unpunctuated text.
+   * Future monotonic SSE updates continue normally; already spoken words
+   * cannot be emitted twice when `complete()` eventually arrives.
+   */
+  flushTerminalIdle(): string[] {
+    if (!/[.!؟؛]\s*$/.test(this.seen)) return [];
+    const remaining = this.seen.slice(this.emitted).trim();
+    const ready = [this.heldPhrase, remaining].filter(Boolean).join(' ');
+    if (!ready) return [];
+    this.heldPhrase = '';
+    this.emitted = this.seen.length;
+    return [ready];
+  }
+
   complete(finalText: string): string[] {
     const output = this.push(finalText);
     const remaining = this.seen.slice(this.emitted).trim();
