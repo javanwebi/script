@@ -77,7 +77,7 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertLess(promotion.index('voice_info_route_missing_after_checked_rebuild'),
                         promotion.index('docker stop -t 15 "$LIVE"'))
 
-    def test_client_plays_exactly_one_full_nima_wav_instead_of_phrase_stalls(self):
+    def test_client_streams_nima_with_original_full_wav_fallback(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
         helper=(ROOT/"src/utils/forzaWholeAnswerSpeech.ts").read_text()
@@ -88,7 +88,11 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("setAiText(fullText)",frontend)
         self.assertIn("[FORZA_WHOLE_WAV]",frontend)
         self.assertNotIn("new ForzaIncrementalSpeechText()",frontend)
-        self.assertNotIn("new ForzaNimaBufferedSpeech({",frontend)
+        self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
+        self.assertIn("new ForzaRealtimeSpeechPlanner()",frontend)
+        self.assertIn("new URLSearchParams(window.location.search).get('forzaVoice')!=='full'",frontend)
+        self.assertIn("realtimeSpeech.add(phrase)",frontend)
+        self.assertIn("await realtimeSpeech.finish()",frontend)
         self.assertNotIn("phrasePlanner",frontend)
         self.assertNotIn("terminalIdleTimer",frontend)
         self.assertIn("const wav=await synthesize(text,signal)",helper)
