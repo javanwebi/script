@@ -5420,11 +5420,13 @@ async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Char
 // The private voice URL may point at legacy Pocket or standalone CPU Piper Amir;
 // detect its returned model ID instead of blindly advertising the old voice.
 const internalForzaVoiceUrl = process.env.FORZA_VOICE_INTERNAL_URL?.trim().replace(/[/]$/, '') || '';
-const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium']);
-const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
+const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium','piper-nima-gyro-medium']);
+const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
+  ? 'piper-nima-gyro-medium'
+  : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
 // During migration the Amir greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
-const privateAmirGreeting=createForzaGreeting(renderPocketSpeech,[]);
+const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
 async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
@@ -5480,16 +5482,23 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
     // Explicitly set FORZA_VOICE_ENGINE=amir on the Node container at cutover.
     // Unlike Pocket, Amir's greeting is synthesized once in RAM, never loaded
     // from the Pocket greeting asset baked into the previous image.
-    const isAmir=forzaVoiceEngine==='piper-amir-medium';
-    const audio=await (isAmir?privateAmirGreeting():getForzaGreeting());
+    const isPiper=forzaVoiceEngine!=='pocket-farsi-v2';
+    const audio=await (isPiper?privatePiperGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
-    res.setHeader('Cache-Control',isAmir?'no-store':'public, max-age=3600');
+    res.setHeader('Cache-Control',isPiper?'no-store':'public, max-age=3600');
     res.send(audio);
   } catch(error:any) {
     console.warn('[FORZA greeting] unavailable',String(error?.message||'voice_error').slice(0,120));
     res.setHeader('Cache-Control','no-store');
     res.status(503).json({error:'forza_greeting_unavailable'});
   }
+});
+
+// Browser chooses the incremental speech path ONLY for verified Piper Nima.
+// Other existing voices retain their safe full-answer behavior.
+app.get('/api/ai/forza-voice-info',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
