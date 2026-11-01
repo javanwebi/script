@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, Layers, Package, Search } from 'lucide-react';
 import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
+import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
 
@@ -78,6 +79,9 @@ export const ExcelMenuCategoryPage: React.FC = () => {
         </div>
         {data.category.image && <img src={data.category.image} alt="" className="h-28 w-28 rounded-xl bg-white p-2 object-contain"/>}
       </header>
+      <div className="mb-5">
+        <DirectSkuProducts categorySlug={slug} selectedSub={selection||'all'}/>
+      </div>
       <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]">
         <aside className="self-start rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800"><Layers size={17}/> زیرمنوها و مشخصات</h2>
