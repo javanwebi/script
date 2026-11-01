@@ -30,7 +30,7 @@ export class ForzaForegroundVoice {
         this.floor=Math.max(0.001,ordered[Math.floor(ordered.length*0.25)]);
       }
     }
-    const threshold=Math.max(0.013,this.floor*3.2,this.floor+0.008);
+    const threshold=Math.max(0.006,this.floor*2.8,this.floor+0.004);
     const foreground=energy>=threshold;
     let started=false;
     if(foreground){
