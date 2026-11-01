@@ -44,7 +44,13 @@ export class ForzaRealtimeSpeechPlanner {
   }
 
   complete(finalText:string):string[]{
-    const ready=this.push(finalText);
+    // The network parser returns finalText.trim() at authoritative done;
+    // provider SSE may have included harmless trailing spaces in its last
+    // delta. Reconcile whitespace without misclassifying a valid answer as
+    // a revised transcript after voice has started.
+    const canonical=this.seen.trimEnd()===finalText.trimEnd()
+      ?this.seen:finalText;
+    const ready=this.push(canonical);
     const tail=this.seen.slice(this.cursor).trim();
     if(tail)ready.push(tail);
     this.cursor=this.seen.length;
