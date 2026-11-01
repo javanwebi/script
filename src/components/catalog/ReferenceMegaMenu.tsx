@@ -22,10 +22,10 @@ type SavedNavigationGroup = {
 const readCategories = (): EnhancedCategory[] => {
   const managed = getManagedCategories();
   const source = managed.length ? managed : CATEGORIES;
-  // Public menu is strictly limited to the user-approved imported taxonomy.
-  // Older catalogue category records remain in PostgreSQL only for product compatibility.
+  // Only show active categories that contain real catalog families; this also excludes empty test entries.
   return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
-    (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2");
+    (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+      (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -45,6 +45,20 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
   if (!term) return true;
   return [category.name, category.description, ...nodeNames(category.children || [])]
     .some(value => String(value || "").toLocaleLowerCase().includes(term));
+};
+
+const defaultNavigationGroup = (category: EnhancedCategory): string => {
+  const name = category.name || "";
+  if (/تسمه|پولی|زنجیر|نقاله|بلبرینگ|یاتاقان|چرخ|رولر|کوپلینگ|انتقال قدرت|ریل|حرکت/i.test(name)) {
+    return "انتقال قدرت و تجهیزات حرکتی";
+  }
+  if (/آب.?بندی|درزگیر|لاستیک|شیلنگ|سیال|پمپ|شیرآلات|وکیوم|مکش|فیلتر/i.test(name)) {
+    return "آب‌بندی، لاستیک و سیالات";
+  }
+  if (/کاشی|سرامیک|نساجی|پارچه|بسته.?بندی|غذایی|نوشیدنی|ماشین.?سازی|خط تولید|صنایع/i.test(name)) {
+    return "تجهیزات صنایع و خطوط تولید";
+  }
+  return "قطعات و مواد مهندسی";
 };
 
 const categoryArtwork = (category: EnhancedCategory): string => {
@@ -99,8 +113,8 @@ export function ReferenceMegaMenu({
     const applyCategories = (input: unknown) => {
       if (!mounted || !Array.isArray(input)) return;
       const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
-        Boolean(category.name && category.slug) &&
-        (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2");
+        Boolean(category.name && category.slug) && (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+        (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
       if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
@@ -123,9 +137,7 @@ export function ReferenceMegaMenu({
       fetch("/api/catalog/navigation-groups", { credentials: "same-origin", cache: "no-store" })
         .then(response => response.ok ? response.json() : null)
         .then(data => {
-          if (mounted && data?.success && Array.isArray(data.groups))
-            setSavedGroups(data.groups.filter((group: SavedNavigationGroup) =>
-              group.active !== false && /^excel-v2-[0-9]+$/.test(group.id)));
+          if (mounted && data?.success && Array.isArray(data.groups)) setSavedGroups(data.groups);
         })
         .catch(() => { /* Category navigation remains usable without optional group metadata. */ });
     };
@@ -163,9 +175,12 @@ export function ReferenceMegaMenu({
     const available = orderedCategories;
     const assigned = new Set<string>();
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
-    // Do not fall back to legacy groups or generic auto-grouping during an API outage.
-    const configured = (savedGroups || []).filter(group =>
-      group.active !== false && /^excel-v2-[0-9]+$/.test(group.id))
+    // The Excel hierarchy is authoritative for the mega-menu, while legacy catalogue
+    // categories remain available elsewhere and are never deleted from PostgreSQL.
+    const excelGroups = (savedGroups || []).filter(group => group.active !== false && group.id.startsWith("excel-v2-"));
+    const strictExcel = excelGroups.length > 0;
+    const configured = [...(strictExcel ? excelGroups : savedGroups || [])]
+      .filter(group => group.active !== false)
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (configured.length) {
@@ -180,14 +195,32 @@ export function ReferenceMegaMenu({
           categories: members,
         });
       });
-      // Unassigned/legacy categories are intentionally hidden from this public menu.
+      const unassigned = available.filter(category => !assigned.has(category.slug));
+      if (unassigned.length && !strictExcel) sections.push({
+        id: "other-categories",
+        title: "سایر دسته‌بندی‌ها",
+        iconKey: "package",
+        categories: unassigned,
+      });
       return sections.map(section => ({
         ...section,
         categories: section.categories.filter(category => categoryMatches(category, search)),
       })).filter(section => section.categories.length);
     }
 
-    return [];
+    const fallbackGroups = new Map<string, EnhancedCategory[]>();
+    available.forEach(category => {
+      const title = defaultNavigationGroup(category);
+      const current = fallbackGroups.get(title) || [];
+      current.push(category);
+      fallbackGroups.set(title, current);
+    });
+    return [...fallbackGroups.entries()].map(([title, items], index) => ({
+      id: "default-" + index,
+      title,
+      iconKey: "layers",
+      categories: items.filter(category => categoryMatches(category, search)),
+    })).filter(section => section.categories.length);
   }, [orderedCategories, savedGroups, search]);
 
   const filteredCategories = useMemo(
@@ -208,9 +241,7 @@ export function ReferenceMegaMenu({
             <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
               مشاهده همه محصولات <ArrowLeft size={14} />
             </Link>
-            <CategoryNavigation nodes={category.children || []}
-              categorySlug={(category as EnhancedCategory & { routeSlug?: string }).routeSlug || category.slug}
-              onNavigate={onNavigate} />
+            <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} onNavigate={onNavigate} />
           </section>
         ))}
       </div>
