@@ -825,7 +825,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
-      let terminalIdleTimer:ReturnType<typeof setTimeout>|null=null;
+      let terminalIdleTimer:number|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
