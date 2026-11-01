@@ -1004,17 +1004,28 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
           });
         }}
-        onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload)=>{
+        onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload,target)=>{
           handleOpenNewFamily();
+          if(target){
+            setDraftMenuCategory(target.categorySlug);
+            setDraftMenuGroup(approvedGroups.find(group=>group.categorySlugs.includes(target.categorySlug))?.id||'');
+            setDraftMenuSubmenu(target.submenu);
+            setDraftMenuLeaf(target.leaf);
+          }
+          const legacySlug=target
+            ? (approvedCategories.find(cat=>cat.slug===target.categorySlug) as
+               (typeof approvedCategories[number] & {routeSlug?:string})|undefined)?.routeSlug
+            : undefined;
+          const legacyCategory=categories.find(cat=>cat.slug===legacySlug);
           const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
           setPendingFamilyUpload(upload||null);
           setPendingFamilyImageTitle(imageTitle||'');
           setDraftFamily(previous=>previous?{
             ...previous,
-            categoryName:category||previous.categoryName,
-            categorySlug:categories.find(c=>c.name===category)?.slug||previous.categorySlug,
-            submenu:submenu||previous.submenu,
-            subcategory:subcategory||previous.subcategory,
+            categoryName:legacyCategory?.name||previous.categoryName,
+            categorySlug:legacySlug||previous.categorySlug,
+            submenu:target?.submenu||submenu||previous.submenu,
+            subcategory:target?.leaf||subcategory||previous.subcategory,
             images:persistedUrl?[persistedUrl]:[],
             galleryImages:persistedUrl?[{
               id:'review-new-'+file,url:persistedUrl,fileName:file,scope:'family',
