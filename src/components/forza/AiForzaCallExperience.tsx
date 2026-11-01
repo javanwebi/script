@@ -21,6 +21,8 @@ import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
+import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
+import { ForzaRealtimeSpeechPlanner } from '../../utils/forzaRealtimeSpeechPlanner';
 import { playForzaWholeAnswer } from '../../utils/forzaWholeAnswerSpeech';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
@@ -851,6 +853,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
 
       const pocketAbort=new AbortController();
+      let realtimeSpeech:ForzaNimaBufferedSpeech|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -947,16 +950,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
-        // SINGLE-WAV MODE (Nima and Pocket): do not synthesize a different
-        // file for each punctuation mark, subtitle delta, word or 66-char
-        // fragment. That formerly caused serial CPU queue starvation and
-        // 15-second gaps while the first WAV was already audible.
-        //
-        // The LLM still streams its text to the UI immediately. Only after
-        // its authoritative SSE done frame will the full answer be sent to
-        // the selected existing voice engine as exactly ONE POST and ONE WAV.
-        // Piper/VITS does not support guaranteed instant whole-answer WAV
-        // synthesis; do not pretend the first sound is token-level streaming.
+        // Default Nima to *pipelined* live voice: synthesize the first
+        // complete word group while the LLM is still streaming, and keep
+        // later TTS requests queued while earlier PCM is audible. Old Pocket
+        // stays on its one-WAV path. Emergency regression switch:
+        // /ai-forza?forzaVoice=full restores the complete-response mode.
+        const useRealtimeNima=voiceModeRef.current==='piper-nima-gyro-medium'&&
+          new URLSearchParams(window.location.search).get('forzaVoice')!=='full';
+        const realtimePlanner=useRealtimeNima?new ForzaRealtimeSpeechPlanner():null;
+        if(useRealtimeNima){
+          realtimeSpeech=new ForzaNimaBufferedSpeech({
+            player:continuousPlayer,
+            synthesize:requestPocketAudio,
+            signal:pocketAbort.signal,
+            maxConcurrent:2,
+            initialBufferSeconds:1.3,
+            maximumInitialWaitMs:90,
+            onBuffered:info=>console.info('[FORZA_REALTIME] buffered_s='+
+              info.bufferedSeconds.toFixed(2)+' ready='+info.queuedPhrases+
+              ' started='+Number(info.started)),
+          });
+        }
         const onTextChunk=(_chunk:string,fullText:string)=>{
           reply=fullText;
           if(!firstTextDelivered&&fullText.trim()){
@@ -966,6 +980,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(fullText);
+          if(realtimePlanner&&realtimeSpeech){
+            const ready=realtimePlanner.push(fullText);
+            for(const phrase of ready){
+              console.info('[FORZA_REALTIME] tts_queued_chars='+phrase.length+
+                ' first_text_ms='+Math.round(performance.now()-turnStartedAt));
+              realtimeSpeech.add(phrase);
+            }
+          }
         };
         try {
           const streamController=new AbortController();
@@ -1035,17 +1057,30 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' chars='+reply.length);
-            // One complete answer -> one request -> one WAV -> one
-            // AudioBufferSource. Protect every word and every punctuation
-            // boundary from premature per-phrase synthesis.
-            const speechStartedAt=performance.now();
-            console.info('[FORZA_WHOLE_WAV] phase=request voice='+voiceModeRef.current+
-              ' chars='+reply.length+' text_ready_ms='+
-              Math.round(speechStartedAt-turnStartedAt));
-            await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
-            console.info('[FORZA_WHOLE_WAV] phase=playback_finished wavs=1 voice='+
-              voiceModeRef.current+' total_ms='+
-              Math.round(performance.now()-turnStartedAt));
+            if(realtimePlanner&&realtimeSpeech){
+              // The terminal SSE done is authoritative; the remaining text
+              // is emitted once and all previously queued WAVs finish in
+              // chronological order on the same WebAudio clock.
+              for(const phrase of realtimePlanner.complete(reply)){
+                console.info('[FORZA_REALTIME] final_phrase_chars='+phrase.length);
+                realtimeSpeech.add(phrase);
+              }
+              await realtimeSpeech.finish();
+              console.info('[FORZA_REALTIME] phase=playback_finished phrases='+
+                realtimeSpeech.statistics.scheduled+' total_ms='+
+                Math.round(performance.now()-turnStartedAt)+
+                ' underruns='+continuousPlayer.underrunCount);
+            }else{
+              // Safe, user-selectable fall back if the live Nima path stalls.
+              const speechStartedAt=performance.now();
+              console.info('[FORZA_WHOLE_WAV] phase=request voice='+voiceModeRef.current+
+                ' chars='+reply.length+' text_ready_ms='+
+                Math.round(speechStartedAt-turnStartedAt));
+              await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+              console.info('[FORZA_WHOLE_WAV] phase=playback_finished wavs=1 voice='+
+                voiceModeRef.current+' total_ms='+
+                Math.round(performance.now()-turnStartedAt));
+            }
             if(!callClosedRef.current)setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
@@ -1068,6 +1103,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // failed, the user interrupted it, or the call was closed.
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
+        realtimeSpeech?.cancel();
         continuousVoiceRef.current?.cancel();
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
