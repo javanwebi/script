@@ -543,6 +543,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       setTimeout(() => setSaveFeedback(null), 3000);
       return;
     }
+    if(isCreatingNewFamily && (!draftMenuCategory||!draftMenuSubmenu)) {
+      setSaveFeedback('برای خانواده جدید باید دسته و زیرمنو از فهرست مصوب انتخاب شود.');
+      return;
+    }
+    if(draftMenuCategory && !draftMenuSubmenu) {
+      setSaveFeedback('ابتدا زیرمنوی معتبر را برای دسته انتخاب‌شده مشخص کنید.');
+      return;
+    }
 
     const cleanSpecs = (draftFamily.technicalSpecs || [])
       .filter(s => s.key.trim())
@@ -577,11 +585,20 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       };
     });
 
+    const legacyTargetSlug=(editorApprovedCategory as (typeof editorApprovedCategory & {routeSlug?:string}))?.routeSlug;
+    const legacyDestination=categories.find(item=>item.slug===legacyTargetSlug);
     const payload: Product = {
       ...draftFamily,
       code: draftFamily.code.trim(),
       name: draftFamily.name.trim(),
-      categorySlug: categories.find(c=>c.name===draftFamily.categoryName)?.slug || draftFamily.categoryName.trim().replace(/[\s\u200c]+/g, '-'),
+      // The original family hierarchy is kept for old product links. New families also
+      // get their proper legacy category route; their visible taxonomy lives in the mapping table.
+      categoryName:isCreatingNewFamily ? (legacyDestination?.name||draftFamily.categoryName) : draftFamily.categoryName,
+      categorySlug:isCreatingNewFamily
+        ? (legacyTargetSlug || draftFamily.categorySlug)
+        : draftFamily.categorySlug,
+      submenu:isCreatingNewFamily ? draftMenuSubmenu : draftFamily.submenu,
+      subcategory:isCreatingNewFamily ? (draftMenuLeaf||draftMenuSubmenu) : draftFamily.subcategory,
       technicalSpecs: cleanSpecs,
       galleryImages: cleanGallery,
       images: cleanGallery.map(g => g.url),
@@ -598,6 +615,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       });
       const data=await response.json().catch(()=>({success:false,message:'پاسخ پایگاه داده معتبر نیست.'}));
       if(!response.ok||!data.success)throw new Error(data.message||'ذخیره خانواده در دیتابیس انجام نشد.');
+      let categoryWarning='';
+      if(draftMenuCategory && draftMenuSubmenu){
+        try {
+          await saveApprovedFamilyAssignment({
+            familyCode:payload.code,categorySlug:draftMenuCategory,
+            submenu:draftMenuSubmenu,leaf:draftMenuLeaf
+          });
+          taxonomy.refresh();
+        } catch(error){
+          categoryWarning=error instanceof Error?error.message:'اتصال خانواده به دسته‌بندی مصوب ثبت نشد.';
+        }
+      }
       let imageWarning='';
       let storedFamilyImage:{id:string;url:string;fileName:string}|undefined;
       if(pendingFamilyUpload){
@@ -627,10 +656,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{
         detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code,imageUrl:storedFamilyImage?.url,imageFileName:storedFamilyImage?.fileName}
       }));
-      if(imageWarning){
-        setEditorTab('images');
-        setSaveFeedback('خانواده ذخیره شد؛ اما تصویر ذخیره نشد: '+imageWarning+' — در بخش تصاویر دوباره آپلود کنید.');
-      }else setSaveFeedback('نام، دسته‌بندی، کدها و تصاویر خانواده در دیتابیس ثبت شدند.');
+      if(imageWarning||categoryWarning){
+        if(imageWarning)setEditorTab('images');
+        setSaveFeedback('خانواده ذخیره شد؛ '+(categoryWarning?'اما مسیر منو ثبت نشد: '+categoryWarning+' ':'')+
+          (imageWarning?'تصویر ذخیره نشد: '+imageWarning:''));
+      }else setSaveFeedback('خانواده، کدها و مسیر دسته‌بندی مصوب در Supabase ثبت شدند.');
     }catch(error){
       setSaveFeedback(error instanceof Error?error.message:'ذخیره خانواده در دیتابیس انجام نشد.');
     }finally{
@@ -2459,64 +2489,46 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        دسته‌بندی اصلی
-                      </label>
-                      <input
-                        type="text"
-                        list="catalog-categories-list"
-                        value={draftFamily.categoryName}
-                        onChange={e =>
-                          setDraftFamily({
-                            ...draftFamily,
-                            categoryName: e.target.value,
-                            categorySlug: e.target.value.trim().replace(/[\s\u200c]+/g, '-'),
-                          })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                      />
-                      <datalist id="catalog-categories-list">
-                        {catalogCategoryNames.map(c => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                    </div>
-
-                    <details className="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <summary className="cursor-pointer select-none text-xs font-bold text-slate-700">دسته‌بندی تکمیلی (اختیاری)</summary>
-                      <p className="text-[11px] text-slate-500 mt-1">اگر کالا زیرمنو یا نوع فنی مشخصی دارد، اینجا وارد کنید؛ در غیر این صورت خالی بماند.</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        زیرمنو (Submenu)
-                      </label>
-                      <input
-                        type="text"
-                        value={draftFamily.submenu || ''}
-                        onChange={e =>
-                          setDraftFamily({ ...draftFamily, submenu: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        زیرگروه / نوع فنی
-                      </label>
-                      <input
-                        type="text"
-                        value={draftFamily.subcategory || ''}
-                        onChange={e =>
-                          setDraftFamily({ ...draftFamily, subcategory: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                      />
-                    </div>
-
+                    <div className="sm:col-span-2 lg:col-span-3 space-y-3 rounded-xl border border-orange-200 bg-orange-50/30 p-3">
+                      <h4 className="text-sm font-bold text-slate-800">دسته‌بندی استاندارد صنعت پیش</h4>
+                      <p className="text-[11px] leading-6 text-slate-600">همان گروه‌ها، دسته‌ها و زیرمنوهای مگامنو و کاتالوگ؛ مسیر قدیمی محصولات برای سازگاری حفظ می‌شود.</p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="text-xs font-bold text-slate-700">گروه‌بندی (سطح ۱)
+                          <select value={draftMenuGroup} className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5"
+                            onChange={e=>{setDraftMenuGroup(e.target.value);setDraftMenuCategory('');setDraftMenuSubmenu('');setDraftMenuLeaf('');}}>
+                            <option value="">انتخاب سرگروه</option>
+                            {approvedGroups.map(group=><option key={group.id} value={group.id}>{group.title}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-xs font-bold text-slate-700">دسته (سطح ۲)
+                          <select value={draftMenuCategory} disabled={!draftMenuGroup}
+                            onChange={e=>{setDraftMenuCategory(e.target.value);setDraftMenuSubmenu('');setDraftMenuLeaf('');}}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 disabled:opacity-50">
+                            <option value="">انتخاب دسته</option>
+                            {approvedCategories.filter(cat=>approvedGroups.find(g=>g.id===draftMenuGroup)?.categorySlugs.includes(cat.slug))
+                              .map(cat=><option key={cat.slug} value={cat.slug}>{cat.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-xs font-bold text-slate-700">زیرمنو (سطح ۳)
+                          <select value={draftMenuSubmenu} disabled={!draftMenuCategory}
+                            onChange={e=>{setDraftMenuSubmenu(e.target.value);setDraftMenuLeaf('');}}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 disabled:opacity-50">
+                            <option value="">انتخاب زیرمنو</option>
+                            {editorSubmenus.map(node=><option key={node.name} value={node.name}>{node.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-xs font-bold text-slate-700">زیرمنوی زیرمنو (سطح ۴)
+                          <select value={draftMenuLeaf} disabled={!draftMenuSubmenu}
+                            onChange={e=>setDraftMenuLeaf(e.target.value)}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 disabled:opacity-50">
+                            <option value="">بدون ریزقلم مشخص</option>
+                            {editorLeaves.map(node=><option key={node.name} value={node.name}>{node.name}</option>)}
+                          </select>
+                        </label>
                       </div>
-                    </details>
+                      {!taxonomy.assignmentsLoaded&&<p className="text-[11px] text-amber-700">{taxonomy.loadError||'در حال دریافت ارتباط خانواده‌ها از دیتابیس'}</p>}
+                      <p className="text-[11px] text-slate-500">دسته قدیمی این خانواده: {draftFamily.categoryName} · {draftFamily.submenu||'—'} / {draftFamily.subcategory||'—'}</p>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
