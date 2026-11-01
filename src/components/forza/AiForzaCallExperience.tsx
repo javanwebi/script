@@ -66,14 +66,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
     void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
       .then(r=>r.ok?r.json():null)
       .then(data=>{
-        if(mounted&&data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true)
+        if(!mounted)return;
+        if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
-      }).catch(()=>{});
+          setActiveVoiceLabel('نیما (Piper فارسی)');
+        }else{
+          voiceModeRef.current='pocket-farsi-v2';
+          setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
+            ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
+        }
+      }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
     return()=>{mounted=false};
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
@@ -1569,7 +1577,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای فورزا: نیما (Piper فارسی) · تشخیص گفتار: مرورگر / سرویس فعلی سرور
+            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: مرورگر / سرویس فعلی سرور
           </div>
         )}
         {microphoneError && (
