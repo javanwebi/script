@@ -36,34 +36,20 @@ export class ForzaIncrementalSpeechText {
   }
 
   private boundary(text: string): number {
-    // First words matter: begin TTS when the first natural, completed
-    // Persian word group is available, not after an 80-character clause.
-    // The following phrases are intentionally longer, giving the CPU Piper
-    // worker time to synthesize ahead of the uninterrupted audio timeline.
+    // DO NOT split at full stops, commas or Persian question marks. Earlier
+    // versions treated every sentence as its own WAV, so the following phrase
+    // could miss the AudioContext deadline and leave a multi-second silence.
+    //
+    // Piper receives coherent groups of *complete words* while the LLM is
+    // still streaming; punctuation is kept in subtitles, and the private
+    // Nima worker removes spoken punctuation without adding long pauses.
     const first = this.emitted === 0;
-    const minSentence = first ? 10 : 18;
-    const minComma = first ? 22 : 42;
-    const limit = first ? 38 : 76;
-    const minWordCut = first ? 22 : 48;
-
-    // Require trailing whitespace so decimals (3.25) or a model identifier
-    // ending in a dot are not pronounced before that token is complete.
-    for (const match of text.matchAll(/[.!؟؛]+\s+/g)) {
-      const stop = (match.index ?? 0) + match[0].length;
-      if (stop >= minSentence) return stop;
-    }
-    for (const match of text.matchAll(/[،,]+\s+/g)) {
-      const stop = (match.index ?? 0) + match[0].length;
-      if (stop >= minComma) return stop;
-    }
-
-    // Waiting for punctuation can cause several seconds of silence when
-    // LLM output is unpunctuated. Stop only at an already received whitespace
-    // boundary; retain the unfinished next word in the buffer.
-    if (text.length >= limit) {
-      const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
-      if (end >= minWordCut) return end + 1;
-    }
-    return 0;
+    const limit = first ? 38 : 66;
+    const minWordCut = first ? 22 : 42;
+    if (text.length < limit) return 0;
+    // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
+    // to pronounce; finish() flushes the final short text at authoritative done.
+    const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
+    return end >= minWordCut ? end + 1 : 0;
   }
 }
