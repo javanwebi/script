@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
+import { CATEGORIES, flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { USER_PRODUCTS, CATALOGUE_SKU_COUNT } from '../data/userProducts';
@@ -41,7 +41,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [menuLoadStatus, setMenuLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [importedCategories, setImportedCategories] = useState<EnhancedCategory[]>([]);
   const [importedGroups, setImportedGroups] = useState<Array<{
     id: string; title: string; categorySlugs: string[];
@@ -55,21 +54,18 @@ export const AllCategoriesPage: React.FC = () => {
           fetch('/api/catalog/categories', { credentials: 'same-origin', cache: 'no-store' }),
           fetch('/api/catalog/navigation-groups', { credentials: 'same-origin', cache: 'no-store' }),
         ]);
-        if (!categoriesResponse.ok || !groupsResponse.ok) throw Error('خطا در دریافت منو از دیتابیس');
+        if (!categoriesResponse.ok || !groupsResponse.ok) return;
         const [categoriesData, groupsData] = await Promise.all([categoriesResponse.json(), groupsResponse.json()]);
         if (!categoriesData?.success || !groupsData?.success ||
-          !Array.isArray(categoriesData.categories) || !Array.isArray(groupsData.groups))
-          throw Error('پاسخ دسته‌بندی دیتابیس نامعتبر است');
+          !Array.isArray(categoriesData.categories) || !Array.isArray(groupsData.groups)) return;
         const indexed = new Map<string, EnhancedCategory>(
-          (categoriesData.categories as EnhancedCategory[])
-            .filter(category => (category as EnhancedCategory & {menuSource?:string}).menuSource === 'industrial_megamenu_hierarchy_v2')
-            .map(category => [category.slug, category])
+          (categoriesData.categories as EnhancedCategory[]).map(category => [category.slug, category])
         );
         const groups = (groupsData.groups as {
           id: string; title: string; active?: boolean; sortOrder: number; categorySlugs: string[];
-        }[]).filter(group => /^excel-v2-\d+$/.test(group.id) && group.active !== false)
+        }[]).filter(group => group.id.startsWith('excel-v2-') && group.active !== false)
           .sort((a, b) => a.sortOrder - b.sortOrder);
-        if (!groups.length) throw Error('گروه‌های فایل اکسل در پایگاه داده موجود نیستند');
+        if (!groups.length) return;
         const seen = new Set<string>();
         const ordered = groups.flatMap(group => (group.categorySlugs || []).map(slug => indexed.get(slug)))
           .filter((category): category is EnhancedCategory => {
@@ -77,22 +73,19 @@ export const AllCategoriesPage: React.FC = () => {
             seen.add(category.slug);
             return true;
           });
-        if (!ordered.length) throw Error('دسته‌بندی‌های فایل اکسل در پایگاه داده موجود نیستند');
-        if (mounted) {
+        if (mounted && ordered.length) {
           setImportedCategories(ordered);
           setImportedGroups(groups);
-          setMenuLoadStatus('ready');
         }
       } catch {
-        // Do not expose unapproved old catalogue categories on API failure.
-        if (mounted) setMenuLoadStatus('error');
+        // The hydrated catalogue is the fallback if the dedicated navigation API is unavailable.
       }
     };
     void loadExcelHierarchy();
     return () => { mounted = false; };
   }, []);
 
-  const catalogueCategories = importedCategories;
+  const catalogueCategories = importedCategories.length ? importedCategories : CATEGORIES;
   const filteredCategories = catalogueCategories.filter(cat => {
     if (cat.active === false) return false;
     if (!searchQuery.trim()) return true;
@@ -110,7 +103,7 @@ export const AllCategoriesPage: React.FC = () => {
         id: group.id, title: group.title,
         categories: filteredCategories.filter(category => group.categorySlugs.includes(category.slug)),
       })).filter(section => section.categories.length > 0)
-    : [];
+    : [{ id: 'all', title: '', categories: filteredCategories }];
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8 text-right" dir="rtl">
@@ -186,11 +179,7 @@ export const AllCategoriesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Only the approved Excel hierarchy; never fall back to old product categories. */}
-        {menuLoadStatus !== 'ready' && <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-          {menuLoadStatus === 'loading' ? 'در حال دریافت دسته‌بندی‌های تأییدشده…' :
-            'دریافت دسته‌بندی‌های تأییدشده ناموفق بود. لطفاً صفحه را دوباره بارگذاری کنید.'}
-        </p>}
+        {/* Grouped exactly as the main menu hierarchy in Supabase. */}
         <div className="space-y-9">
           {categorySections.map(section => (
             <section key={section.id} className="space-y-4">
