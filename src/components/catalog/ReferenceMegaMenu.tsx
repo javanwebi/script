@@ -125,7 +125,7 @@ export function ReferenceMegaMenu({
         .then(data => {
           if (mounted && data?.success && Array.isArray(data.groups))
             setSavedGroups(data.groups.filter((group: SavedNavigationGroup) =>
-              group.active !== false && /^excel-v2-\\d+$/.test(group.id)));
+              group.active !== false && /^excel-v2-[0-9]+$/.test(group.id)));
         })
         .catch(() => { /* Category navigation remains usable without optional group metadata. */ });
     };
@@ -165,7 +165,7 @@ export function ReferenceMegaMenu({
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
     // Do not fall back to legacy groups or generic auto-grouping during an API outage.
     const configured = (savedGroups || []).filter(group =>
-      group.active !== false && /^excel-v2-\\d+$/.test(group.id))
+      group.active !== false && /^excel-v2-[0-9]+$/.test(group.id))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (configured.length) {
