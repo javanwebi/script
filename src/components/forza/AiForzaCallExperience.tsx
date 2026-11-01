@@ -963,7 +963,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             player:continuousPlayer,
             synthesize:requestPocketAudio,
             signal:pocketAbort.signal,
-            maxConcurrent:2,
+            // Private Piper has ONE CPU inference slot. Two parallel HTTP
+            // TTS jobs cannot synthesize faster and unnecessarily occupy
+            // the tiny shared worker queue for other customers. Keep one
+            // active request while queuing future phrases in browser RAM.
+            maxConcurrent:1,
             initialBufferSeconds:1.3,
             maximumInitialWaitMs:90,
             onBuffered:info=>console.info('[FORZA_REALTIME] buffered_s='+
