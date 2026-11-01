@@ -573,3 +573,136 @@
     min-width: 42px;
   }
 }
+
+
+/* Spreadsheet-driven 4-level mega menu (group > category > submenu > specification).
+   Keep each navigation pane independently scrollable; never flatten levels 3/4. */
+@media (min-width: 1024px) {
+  .reference-catalog-menu {
+    grid-template-columns: minmax(220px, 265px) minmax(235px, 295px) minmax(0, 1fr) !important;
+  }
+  .reference-menu-groups {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 14px 11px 12px;
+    border-left: 1px solid #e6eaed;
+    background: #f3f6f8;
+  }
+  .reference-menu-group-list {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #e56b1e #edf1f4;
+    padding: 2px 3px 12px;
+  }
+  .reference-menu-group-option {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto 14px;
+    align-items: center;
+    gap: 7px;
+    min-height: 49px;
+    margin-bottom: 5px;
+    padding: 8px 7px;
+    text-align: right;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #45515c;
+  }
+  .reference-menu-group-option strong {
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 850;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+  .reference-menu-group-option small { font-size: 10px; color: #84909a; }
+  .reference-menu-group-option:hover, .reference-menu-group-option.is-active {
+    background: #fff;
+    border-color: #eec3a5;
+    color: #c55313;
+  }
+  .reference-menu-group-option.is-active .reference-menu-group-icon {
+    background: #fff0e5;
+    color: #df6418;
+  }
+  .reference-menu-rail { grid-column: 2 !important; grid-row: 2; }
+  .reference-menu-main { grid-column: 3 !important; grid-row: 2; }
+  .reference-menu-subgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reference-menu-level-mark {
+    display: block;
+    margin-bottom: 2px;
+    color: #d36826;
+    font-size: 9px;
+    font-weight: 750;
+  }
+}
+@media (min-width: 1280px) {
+  .reference-catalog-menu {
+    grid-template-columns: minmax(238px, 280px) minmax(265px, 315px) minmax(0, 1fr) !important;
+  }
+  .reference-menu-subgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .reference-catalog-menu {
+    grid-template-columns: minmax(190px, 215px) minmax(210px, 245px) minmax(0, 1fr) !important;
+  }
+  .reference-menu-group-option { grid-template-columns: 25px minmax(0, 1fr) 12px; }
+  .reference-menu-group-option small { display: none; }
+  .reference-menu-main { padding-inline: 12px; }
+  .reference-menu-category-hero { grid-template-columns: minmax(0, 1fr) 95px; }
+  .reference-menu-category-hero > img { height: 90px; }
+}
+.reference-mobile-mega-group {
+  min-width: 0;
+  border: 1px solid #dfe5e9;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+.reference-mobile-mega-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 13px;
+  cursor: pointer;
+  list-style: none;
+  color: #3d454c;
+  background: #f6f8fa;
+}
+.reference-mobile-mega-group > summary::-webkit-details-marker { display: none; }
+.reference-mobile-mega-group > summary > strong {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 900;
+}
+.reference-mobile-mega-group > summary > small { color: #b45a1b; font-size: 10px; }
+.reference-mobile-mega-group[open] > summary {
+  color: #c9560e;
+  background: #fff6ef;
+  border-bottom: 1px solid #f4ddcf;
+}
+.reference-mobile-mega-categories { display: grid; gap: 9px; padding: 11px; }
+.reference-mobile-mega-category {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9edf0;
+  border-radius: 10px;
+}
+.reference-mobile-mega-category h3 {
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.reference-mobile-mega-category .reference-view-all { margin-bottom: 9px; }
