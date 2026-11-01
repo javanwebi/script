@@ -47,6 +47,54 @@ greeting is served when engine=Nima. Require real site checks for greeting,
 Persian industrial pronunciations, text/audio alignment and multi-user load
 before retiring Pocket.
 
+
+## Real VPS canary result, 2026-11-01
+
+The user ran the isolated Nima canary against commit `8b67db131aaf`
+and reported a genuine **7.93-second WAV generated in 2,735 ms** on the
+limited two-vCPU container, RTF=0.345, `frames=1`, `generated_files=0`,
+`FORZA_NIMA_PRIVATE_CANARY_PASS`, and `live_changed=0`.
+This is a successful real-time-factor performance check, **not** a
+guarantee of under-one-second initial audible latency or of uninterrupted
+streamed conversations.
+
+## Activate Nima instead of Pocket, including the exact welcome text
+
+**Before starting:** ensure the 728-clip teacher generator is no longer
+running; do not interrupt it. This stage updates the main site code once,
+builds a private Nima voice container and changes only the private voice
+runtime and Node app configuration. Supabase / Nginx are not modified.
+On any failure after the switch the script attempts to restore Pocket.
+
+```bash
+cd /opt/sanatpish
+git fetch origin main
+git pull --ff-only origin main
+sudo bash ops/forza-nima-go-live-vps.sh
+```
+
+Expected `FORZA_NIMA_LIVE_OK` and
+`FORZA_NIMA_LIVE_AUDIO_PASS greeting=1 wav=1 framed_wav=1 incremental=1`.
+It validates the health of the Node app, new `/api/ai/forza-voice-info`
+endpoint, Nima welcome WAV, full fallback WAV, and framed WAV. The script
+retains the previous selected Pocket container in a stopped backup for
+rollback. It never deletes the original voice model or the training data.
+
+If there is an issue after activation, restore original Pocket with:
+
+```bash
+sudo bash /opt/sanatpish/ops/forza-nima-rollback-vps.sh
+```
+
+After successful activation, open the real `/ai-forza` page in a browser,
+verify that the welcome has Nima's voice, then ask a 3–4 sentence question.
+Check the live console for `phase=first-text`,
+`phase=nima-incremental-finished` and any `FORZA_AUDIO_UNDERRUN` messages.
+A `FORZA_NIMA_LIVE_OK` deployment alone does not establish that live
+mic/STT, model text generation, browser autoplay, human pronunciation or
+gap-free multi-clause playback meet the requested standard.
+
+
 **Latency**: no guarantee of zero gaps. Measured p95 first phrase, model RTF
 and AudioContext underruns on the actual VPS are the acceptance criteria.
 The LLM still delivers its text over SSE; a streaming clause policy can only
