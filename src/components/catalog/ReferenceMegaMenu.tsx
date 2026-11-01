@@ -47,20 +47,6 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
     .some(value => String(value || "").toLocaleLowerCase().includes(term));
 };
 
-const defaultNavigationGroup = (category: EnhancedCategory): string => {
-  const name = category.name || "";
-  if (/تسمه|پولی|زنجیر|نقاله|بلبرینگ|یاتاقان|چرخ|رولر|کوپلینگ|انتقال قدرت|ریل|حرکت/i.test(name)) {
-    return "انتقال قدرت و تجهیزات حرکتی";
-  }
-  if (/آب.?بندی|درزگیر|لاستیک|شیلنگ|سیال|پمپ|شیرآلات|وکیوم|مکش|فیلتر/i.test(name)) {
-    return "آب‌بندی، لاستیک و سیالات";
-  }
-  if (/کاشی|سرامیک|نساجی|پارچه|بسته.?بندی|غذایی|نوشیدنی|ماشین.?سازی|خط تولید|صنایع/i.test(name)) {
-    return "تجهیزات صنایع و خطوط تولید";
-  }
-  return "قطعات و مواد مهندسی";
-};
-
 const categoryArtwork = (category: EnhancedCategory): string => {
   const name = category.name || "";
   if (/تسمه|انتقال نیرو|انتقال قدرت/i.test(name)) return A.categories.belts;
@@ -194,7 +180,6 @@ export function ReferenceMegaMenu({
           categories: members,
         });
       });
-      const unassigned = available.filter(category => !assigned.has(category.slug));
       // Unassigned/legacy categories are intentionally hidden from this public menu.
       return sections.map(section => ({
         ...section,
