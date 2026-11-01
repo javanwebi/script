@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, forzaLiveTurnPauseMs, FORZA_INDUSTRIAL_STT_TERMS, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
@@ -360,8 +360,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }else if(current.silenceMs>0 && hasSpeechSoundRef.current && !silenceTimerRef.current){
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
-            ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 1000;
+            ? Math.min(
+                forzaEndOfTurnPauseMs(transcript,speechInterimRef.current),
+                forzaLiveTurnPauseMs(transcript,speechInterimRef.current))
+            : 850;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
           silenceTimerRef.current=window.setTimeout(()=>{
             silenceTimerRef.current=null;
@@ -904,6 +906,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           },
           ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            // A scheduled AudioBufferSource is not necessarily still audible.
+            // As soon as the last PCM sample actually ends, stop displaying
+            // "speaking". Do not restart the mic until all future TTS jobs
+            // have finished; otherwise it would hear a later Nima phrase.
+            if(!callClosedRef.current&&isProcessingTurnRef.current){
+              isAiSpeakingRef.current=false;
+              setStatus('thinking');
+              setVoicePending(true);
+              console.info('[FORZA_AUDIO] playback_drained=1');
+            }
+          },
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1080,9 +1094,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isAiSpeakingRef.current=false;
         setVoicePending(false);
         isProcessingTurnRef.current = false;
-        setStatus('listening');
-        setTurn('user');
-        startListening();
+        if(!callClosedRef.current){
+          // Audio playback is actually finished here: no arbitrary post-TTS
+          // delay, no stale "speaking" banner, immediate microphone restart.
+          setStatus('listening');
+          setTurn('user');
+          console.info('[FORZA_TURN] state=listening_after_audio_complete');
+          startListening();
+        }
       }
     },
     [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
@@ -1150,6 +1169,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'fa-IR';
+      rec.maxAlternatives=3;
+      // Chrome supports optional contextual bias on some versions. Never
+      // require it for speech recognition; unsupported browsers simply
+      // continue with the built-in Persian STT path.
+      try {
+        const Phrase=(window as any).SpeechRecognitionPhrase;
+        if(Phrase && 'phrases' in rec)
+          rec.phrases=FORZA_INDUSTRIAL_STT_TERMS.map(term=>new Phrase(term,2));
+      }catch { /* optional contextual vocabulary not supported */ }
 
       rec.onstart = () => {
         isRecognitionActiveRef.current = true;
@@ -1171,7 +1199,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setTurn('user');
           setIsUserSpeaking(true);
 
-          const pauseMs = forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim);
+          const pauseMs = Math.min(
+            forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim),
+            forzaLiveTurnPauseMs(currentSpeech, recognized.hasInterim));
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = window.setTimeout(() => {
