@@ -24,7 +24,8 @@ const readCategories = (): EnhancedCategory[] => {
   const source = managed.length ? managed : CATEGORIES;
   // Only show active categories that contain real catalog families; this also excludes empty test entries.
   return source.filter(category => category.active !== false && Boolean(category.name && category.slug) &&
-    Number(category.familyCount ?? category.count ?? 0) > 0);
+    (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+      (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
 };
 
 const visibleNodes = (nodes: CategoryNode[] = []): CategoryNode[] =>
@@ -88,7 +89,7 @@ function CategoryThumbnail({ category, FallbackIcon }: { category: EnhancedCateg
 }
 
 const categoryHref = (category: EnhancedCategory) =>
-  "/category/" + resolveCategorySlug(category.slug);
+  "/category/" + resolveCategorySlug((category as EnhancedCategory & { routeSlug?: string }).routeSlug || category.slug);
 
 const selectionHref = (category: EnhancedCategory, node: CategoryNode) =>
   categoryHref(category) + "?" + new URLSearchParams({ sub: node.value || node.name }).toString();
@@ -112,7 +113,8 @@ export function ReferenceMegaMenu({
     const applyCategories = (input: unknown) => {
       if (!mounted || !Array.isArray(input)) return;
       const next = (input as EnhancedCategory[]).filter(category => category && category.active !== false &&
-        Boolean(category.name && category.slug) && Number(category.familyCount ?? category.count ?? 0) > 0);
+        Boolean(category.name && category.slug) && (Number(category.familyCount ?? category.count ?? 0) > 0 ||
+        (category as EnhancedCategory & { menuSource?: string }).menuSource === "industrial_megamenu_hierarchy_v2"));
       if (!next.length) return;
       setCategories(next);
       setActiveSlug(current =>
@@ -173,7 +175,11 @@ export function ReferenceMegaMenu({
     const available = orderedCategories;
     const assigned = new Set<string>();
     const sections: { id: string; title: string; iconKey: string; categories: EnhancedCategory[] }[] = [];
-    const configured = [...(savedGroups || [])]
+    // The Excel hierarchy is authoritative for the mega-menu, while legacy catalogue
+    // categories remain available elsewhere and are never deleted from PostgreSQL.
+    const excelGroups = (savedGroups || []).filter(group => group.active !== false && group.id.startsWith("excel-v2-"));
+    const strictExcel = excelGroups.length > 0;
+    const configured = [...(strictExcel ? excelGroups : savedGroups || [])]
       .filter(group => group.active !== false)
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -190,7 +196,7 @@ export function ReferenceMegaMenu({
         });
       });
       const unassigned = available.filter(category => !assigned.has(category.slug));
-      if (unassigned.length) sections.push({
+      if (unassigned.length && !strictExcel) sections.push({
         id: "other-categories",
         title: "سایر دسته‌بندی‌ها",
         iconKey: "package",
@@ -229,7 +235,7 @@ export function ReferenceMegaMenu({
   if (compact) {
     return (
       <div className="reference-catalog-mobile" dir="rtl">
-        {orderedCategories.map(category => (
+        {filteredCategories.map(category => (
           <section key={category.slug}>
             <h3><Layers size={17} />{category.name}</h3>
             <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
