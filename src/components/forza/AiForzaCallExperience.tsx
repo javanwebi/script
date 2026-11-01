@@ -170,6 +170,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const currentBufferSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micVADHighpassRef=useRef<BiquadFilterNode|null>(null);
+  const micVADLowpassRef=useRef<BiquadFilterNode|null>(null);
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -1278,7 +1280,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const source=ctx.createMediaStreamSource(stream);
         const analyser=ctx.createAnalyser();
         analyser.fftSize=512;analyser.smoothingTimeConstant=0.6;
-        source.connect(analyser);
+        // Filter *only the VAD meter*, not the microphone stream passed to
+        // Chrome/Gemini STT. Low-frequency ventilation/air-conditioner hum
+        // and high-frequency machinery noise otherwise keep RMS above its
+        // speech threshold and delay end-of-turn detection indefinitely.
+        micVADHighpassRef.current?.disconnect();
+        micVADLowpassRef.current?.disconnect();
+        const high=ctx.createBiquadFilter(),low=ctx.createBiquadFilter();
+        high.type='highpass';high.frequency.value=120;
+        low.type='lowpass';low.frequency.value=3800;
+        source.connect(high);high.connect(low);low.connect(analyser);
+        micVADHighpassRef.current=high;
+        micVADLowpassRef.current=low;
         micSourceNodeRef.current=source;
         micAnalyserRef.current=analyser;
       }
@@ -1355,6 +1368,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
       localSttNodeRef.current?.disconnect();localSttSinkRef.current?.disconnect();
       localSttNodeRef.current=null;localSttSinkRef.current=null;
+      micVADHighpassRef.current?.disconnect();micVADLowpassRef.current?.disconnect();
+      micVADHighpassRef.current=null;micVADLowpassRef.current=null;
       stopAudio();
     };
   // A scene starts once. Changing TTS/recognition callbacks must not tear down
