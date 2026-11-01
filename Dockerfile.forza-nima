@@ -34,7 +34,7 @@ data=json.loads(config)
 if data["language"]["code"]!="fa_IR" or data["audio"]["sample_rate"]!=22050:
     raise RuntimeError("nima_model_config_invalid")
 (root/(name+".json")).write_bytes(config)
-print("FORZA_AMIR_MODEL_VERIFIED",flush=True)
+print("FORZA_NIMA_MODEL_VERIFIED",flush=True)
 PY
 EXPOSE 8080
 CMD ["python", "-u", "scripts/forza_nima_voice_http.py"]

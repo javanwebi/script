@@ -4,7 +4,10 @@ on:
     paths:
       - Dockerfile.forza-nima
       - scripts/forza_nima_voice_http.py
+      - docs/forza/NIMA_GYRO_LIVE_STREAM.md
       - ops/forza-nima-private-canary-vps.sh
+      - ops/forza-nima-go-live-vps.sh
+      - ops/forza-nima-rollback-vps.sh
       - server.ts
       - src/components/forza/AiForzaCallExperience.tsx
       - src/utils/forzaIncrementalSpeechText.ts

@@ -140,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
                              "application/x-forza-wav-frames")
             else:
                 self.respond(200, wav, "audio/wav")
-            print("[FORZA_AMIR_PRODUCTION] chars=%d ms=%d wav_bytes=%d" % (
+            print("[FORZA_NIMA_PRODUCTION] chars=%d ms=%d wav_bytes=%d" % (
                 len(phrase), (time.monotonic() - start) * 1000, len(wav)
             ), flush=True)
         except (BrokenPipeError, ConnectionResetError):
