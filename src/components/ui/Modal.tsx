@@ -56,7 +56,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex ${
+      className={`fixed inset-0 ${fullScreen ? "z-[100]" : "z-50"} flex ${
         fullScreen ? "items-stretch justify-center p-0" : mobileBottomSheet
           ? 'items-end md:items-center justify-center p-0 md:p-4'
           : 'items-center justify-center p-3 sm:p-4'

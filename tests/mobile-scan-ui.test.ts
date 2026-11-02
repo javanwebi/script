@@ -119,3 +119,29 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
   assert.ok(upload > stopAndReturn, "legacy inline camera upload must remain after the review-only return");
 });
+
+test("full-screen identification hides storefront dock and floating actions across capture, review and results", () => {
+  const layout = source("src/components/layout/Layout.tsx");
+  const provider = source("src/components/search/PartIdentificationProvider.tsx");
+  const modal = source("src/components/ui/Modal.tsx");
+  assert.match(provider, /const IdentificationOverlayContext = createContext\(false\)/);
+  assert.match(provider, /useIdentificationOverlayOpen/);
+  assert.match(provider, /<IdentificationOverlayContext.Provider value=\{open\}>/);
+  assert.match(layout, /const identificationOpen = useIdentificationOverlayOpen\(\)/);
+  assert.match(layout, /!identificationOpen && isStorefrontBottomNavRoute\(location.pathname\)/);
+  assert.match(layout, /\{showStorefrontDock && \(/);
+  assert.match(modal, /fullScreen \? "z-\[100\]" : "z-50"/);
+});
+
+test("mobile commerce dock route whitelist excludes checkout, AI, forms and dashboards", () => {
+  const routes = source("src/components/layout/storefrontBottomNavVisibility.ts");
+  assert.match(routes, /SHOPPING_SECTION_PREFIXES/);
+  assert.match(routes, /pathnameWithoutTrailingSlash.startsWith\(prefix \+ "\/"\)/);
+  // Inspect both the browsing allowlist and absence of workflow and portal destinations.
+  for (const route of ["/products", "/categories", "/category", "/product", "/cart", "/search"]) {
+    assert.ok(routes.includes(`"${route}"`), `${route} must support the commerce dock`);
+  }
+  for (const excluded of ["/checkout", "/inquiry", "/club", "/admin", "/account", "/ai-forza", "/ai-consult", "/identify-part"]) {
+    assert.ok(!routes.includes(`"${excluded}"`), `${excluded} must not have the commerce dock`);
+  }
+});
