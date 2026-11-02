@@ -24,7 +24,11 @@ export function selectHomePreviewProducts(catalog:unknown):HomePreviewProduct[] 
  const active=catalog.map(record).filter((p):p is Record<string,unknown> => Boolean(p && p.active!==false && typeof p.code==='string'));
  const byCode=new Map(active.map(p=>[String(p.code).toLowerCase(),p]));
  const selected=preferredCodes.map(code=>byCode.get(code.toLowerCase())).filter((p):p is Record<string,unknown>=>Boolean(p));
- const source=selected.length>=8?selected:active.slice(12,24);
+ // Match the existing 12-24 fallback when the catalogue is large. When the
+ // database has fewer than 24 active families, still return up to 12 products.
+ const source=selected.length>=8
+  ? selected
+  : active.length>=24 ? active.slice(12,24) : active.slice(0,12);
  return source.slice(0,12).map(p=>{
   const image=Array.isArray(p.images)?p.images.find(v=>typeof v==='string' && v.length<=2048):undefined;
   return {
