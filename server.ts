@@ -3,7 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {checkoutApi} from './server/db/checkout';
-import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi} from './server/db/runtimeApi';
+import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -397,6 +397,7 @@ app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
 app.get('/api/catalog/variant-review/:code',publicVariantReviewApi);
+app.get('/api/catalog/home-preview',publicHomePreviewApi);
 app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
 app.use('/api/catalog', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
