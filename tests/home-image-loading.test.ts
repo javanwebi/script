@@ -19,8 +19,7 @@ test('marketing photograph imports use generated WebP derivatives',()=>{
 test('hero requests visible slide only, with high priority on mobile',()=>{
  const hero=read('src/pages/HomePage.tsx');
  assert.ok(!hero.includes('backgroundImage: `url(${slide.image})`'));
- assert.ok(hero.includes('src={isActive ? slide.image : undefined}'));
- assert.ok(hero.includes('src={isActive ? slide.image : undefined}'));
+ assert.equal(hero.split('src={isActive ? slide.image : undefined}').length-1,2);
  assert.ok(hero.includes('fetchPriority={isActive ? "high" : "low"}'));
 });
 
