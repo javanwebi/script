@@ -20,6 +20,7 @@ import { useCart } from '../../context/CartContext';
 import { Modal } from '../ui/Modal';
 import { Product } from '../../types';
 import type { HomePreviewProduct } from '../../utils/homeCatalogPreview';
+import {selectHomePreviewProducts} from '../../utils/homeCatalogPreview';
 import {homeProducts} from '../../services/homeFirstPaint';
 
 export const HighUtilityProductsSection: React.FC = () => {
@@ -43,29 +44,15 @@ export const HighUtilityProductsSection: React.FC = () => {
     return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',onHydrated);};
   },[]);
 
-  // Curated list of high-utility industrial parts (بلبرینگ‌ها، کاسه‌نمدها، یاتاقان‌ها، کوپلینگ‌ها و تسمه‌ها)
+  // The full hydration uses the same verified family choice/order as the
+  // small public preview: cards do not jump when the 10k-SKU runtime arrives.
   const utilityProducts = useMemo(() => {
-    const featuredCodes = [
-      'AT-E010',
-      'AT-E025',
-      'AT-E060',
-      'AT-E080',
-      'AT-E120',
-      'AT-E140',
-      'AT-E170',
-      'AT-E210',
-      'AT-E260',
-      'AT-E280',
-      'AT-E035',
-      'AT-E190',
-    ];
-
-    const matched = USER_PRODUCTS.filter(p => featuredCodes.includes(p.code));
-    if (matched.length >= 8) {
-      return matched;
-    }
-    // Fallback: pick alternate slice from user products
-    return USER_PRODUCTS.slice(12, 24);
+    const byCode=new Map(USER_PRODUCTS.map(p=>[p.code,p]));
+    return selectHomePreviewProducts(USER_PRODUCTS).flatMap(preview=>{
+      const full=byCode.get(preview.code);
+      if(!full)return [];
+      return [{...full,images:preview.images.length?preview.images:full.images}];
+    });
   }, [catalogRevision]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
