@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Promote tested WebP and loading-priority build; preserve current 3005 production.
+# Promote tested WebP and loading-priority build; preserve current 3004 production.
 set -Eeuo pipefail
 umask 077
 STAGE=/opt/sanatpish-images
@@ -181,6 +181,15 @@ for p in preview['products']:
   new_img=get('http://127.0.0.1:3005'+url)
   assert old_img==new_img and len(new_img)>50,'PRODUCT_IMAGE_DIFFERENCE'
   print('PRODUCT_IMAGE_PARITY_OK',len(new_img),'bytes')
+  thumbnail=re.fullmatch(r'/storage/products/catalog/e\\(([1-9]\\d{0,3})\\)\\.png',paths[0])
+  if thumbnail:
+   thumb_url=f"http://127.0.0.1:3005/storage/products/thumbs/e({thumbnail.group(1)}).webp"
+   with urllib.request.urlopen(thumb_url,timeout=35) as result:
+    data=result.read()
+    mime=result.headers.get('Content-Type','')
+   assert data[:4]==b'RIFF' and data[8:12]==b'WEBP','THUMBNAIL_NOT_VALID_WEBP'
+   assert 'image/webp' in mime,'THUMBNAIL_WRONG_CONTENT_TYPE'
+   print('PRODUCT_THUMBNAIL_WARMED',len(data),'bytes')
   break
 else:
  raise AssertionError('PRODUCT_IMAGE_SAMPLE_UNAVAILABLE')
