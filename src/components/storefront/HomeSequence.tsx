@@ -15,6 +15,8 @@ import {
   Maximize2,
 } from "lucide-react";
 import { CATEGORIES } from "../../data/categories";
+import type { EnhancedCategory } from "../../data/categories";
+import {homeCategories} from "../../services/homeFirstPaint";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
@@ -35,10 +37,26 @@ const groups = [
 ];
 
 export function HomeCategoryStrip() {
-  // Preserve the original six-card horizontal homepage strip; other groups stay on /categories.
-  const categories = groups
-    .map(name => CATEGORIES.find(category => category.name === name && category.active !== false))
-    .filter((category): category is NonNullable<typeof category> => Boolean(category));
+  // Category cards are independent of the full 10k-SKU /api/runtime hydration.
+  const [available,setAvailable]=React.useState<EnhancedCategory[]>(()=>[...CATEGORIES]);
+  React.useEffect(()=>{
+    let alive=true;
+    // The main startup listener installs the database arrays during the same
+    // event dispatch. A microtask observes them only after installation.
+    const syncHydrated=()=>queueMicrotask(()=>{if(alive)setAvailable([...CATEGORIES]);});
+    window.addEventListener('sanat-durable-hydrated',syncHydrated);
+    void homeCategories().then(categories=>{
+      // Once /api/runtime has completed, its authoritative taxonomy wins.
+      if(alive && CATEGORIES.length===0 && categories.length)
+        setAvailable(categories);
+    });
+    return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',syncHydrated);};
+  },[]);
+  // Preserve the familiar six tiles. If the active PostgreSQL taxonomy uses
+  // new names, fill remaining slots from active categories instead of showing blanks.
+  const active=available.filter(category=>category.active!==false);
+  const preferred=groups.map(name=>active.find(c=>c.name===name)).filter((c):c is EnhancedCategory=>Boolean(c));
+  const categories=[...preferred,...active.filter(c=>!preferred.some(p=>p.slug===c.slug))].slice(0,6);
   return (
     <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
       <div className="home-category-track">
@@ -53,18 +71,26 @@ export function HomeCategoryStrip() {
             مشاهده همه گروه‌ها <ArrowLeft size={15} />
           </span>
         </Link>
+        {categories.length===0 && Array.from({length:6},(_,index)=>(
+          <div key={index} className="home-category-item animate-pulse" aria-hidden="true">
+            <div className="w-16 h-16 rounded-xl bg-slate-100 mx-auto" />
+            <div className="w-20 h-3 rounded bg-slate-100 mx-auto mt-3" />
+          </div>
+        ))}
         {categories.map((c) => (
           <Link
             className="home-category-item"
             key={c.slug}
             to={`/category/${c.slug}`}
           >
-            <ProductImage
-              // Prefer the bundled category artwork over sparse/legacy SKU URLs from the database.
-              // ProductImage still falls back to the original catalog photo when its thumbnail is missing.
-              src={categoryArtwork[c.name] || c.image}
+            <img
+              // Bundled hashed WebP images are marketing artwork, not product
+              // catalogue volume paths; the ProductImage resolver rejects them.
+              src={categoryArtwork[c.name] || c.image || A.categories.transmission}
               alt={c.name}
               loading="lazy"
+              decoding="async"
+              fetchPriority="low"
             />
             <strong>{c.name}</strong>
             <small>
@@ -193,7 +219,7 @@ export function HomeForzaBanner() {
                 <Maximize2 className="absolute bottom-1.5 right-1.5 w-3 h-3 text-[#E06518]/70" />
 
                 {/* Industrial Parts Image Inside Scanner */}
-                <img
+                <img fetchPriority="low" decoding="async"
                   src={A.categories.pulleys}
                   alt="شناسایی هوشمند قطعات صنعتی از روی تصویر"
                   onError={(e) => {
@@ -241,7 +267,7 @@ export function HomeForzaBanner() {
               <div className="absolute inset-2 rounded-full bg-orange-300/35 blur-xl pointer-events-none animate-pulse" />
 
               {/* Futuristic FORZA AI Robot Halo PNG Image */}
-              <img
+              <img fetchPriority="low" decoding="async"
                 src={A.forzaAiRobotHalo}
                 alt="هوش مصنوعی FORZA"
                 className="w-full h-full object-contain drop-shadow-[0_12px_28px_rgba(0,0,0,0.45)] relative z-10 transition-transform hover:scale-105 duration-300"

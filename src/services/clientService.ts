@@ -33,12 +33,13 @@ export const DEFAULT_CLIENTS: ClientLogo[] = MOSHTARI_CLIENTS.map((item, idx) =>
 class ClientService {
   private getStorage(): ClientLogo[] {
     try {
-      const data = durableStorage.getItem(STORAGE_KEY);
-      if (!data) {
-        this.saveStorage(DEFAULT_CLIENTS);
-        return DEFAULT_CLIENTS;
-      }
-      return JSON.parse(data);
+      // During first paint PostgreSQL has not hydrated yet. Showing bundled
+      // customer logos must never trigger an implicit database write.
+      const data = durableStorage.getExistingItem(STORAGE_KEY);
+      if (data === null) return DEFAULT_CLIENTS;
+      const parsed: unknown = JSON.parse(data);
+      // Preserve an explicitly stored empty list; do not silently re-seed it.
+      return Array.isArray(parsed) ? parsed as ClientLogo[] : DEFAULT_CLIENTS;
     } catch {
       return DEFAULT_CLIENTS;
     }

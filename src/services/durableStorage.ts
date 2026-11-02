@@ -16,6 +16,12 @@ export async function refreshDurableStorage(){
 }
 export const durableStorage={
  getItem(key:string):string|null{if(!enabled&&!ephemeral(key)&&!hydrating)return null;return memory.get(key) ?? (ephemeral(key) || /settings|club_config|stock_v2|layout_configs/.test(key)?null:'[]');},
+ /** Unlike legacy getItem, distinguish a truly missing row from an explicit saved [].
+  * Read-only; never initializes a PostgreSQL document on a public page render. */
+ getExistingItem(key:string):string|null{
+  if(!enabled&&!ephemeral(key)&&!hydrating)return null;
+  return memory.get(key) ?? null;
+ },
  setItem(key:string,value:string){
   // Hydration copies authenticated server data into a volatile rendering cache.
   // Never block that copy on the separate /api/runtime bootstrap; no DB write occurs.

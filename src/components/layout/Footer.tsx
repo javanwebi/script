@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
 import { CATEGORIES } from '../../data/categories';
-import { AiConsultModal } from '../search/AiConsultModal';
+const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
 
 // Minimalist Two-tone Geometric Brand Mark
 const AtlasLogoMark: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' }) => (
@@ -108,7 +108,7 @@ export const Footer: React.FC = () => {
 
         {/* Subtle conveyor graphic on far left */}
         <div className="absolute left-0 top-0 bottom-0 w-[22%] lg:w-[16%] pointer-events-none overflow-hidden z-0 hidden md:block opacity-10 mix-blend-multiply">
-          <img
+          <img fetchPriority="low" decoding="async" loading="lazy"
             src={STORE_ASSETS.footerConveyor}
             alt="نوار نقاله صنعتی"
             className="w-full h-full object-cover object-right"
@@ -123,7 +123,7 @@ export const Footer: React.FC = () => {
             {/* 1. BRAND & NEWSLETTER COLUMN */}
             <div className="space-y-3.5 text-right lg:pl-3">
               <Link to="/" className="inline-flex items-center gap-3 group">
-                <img src={STORE_ASSETS.sanatPishLogo} alt="صنعت پیش" className="w-12 h-12 sm:w-14 sm:h-14 group-hover:scale-105 transition-transform shrink-0 object-contain" />
+                <img fetchPriority="low" decoding="async" loading="lazy" src={STORE_ASSETS.sanatPishLogo} alt="صنعت پیش" className="w-12 h-12 sm:w-14 sm:h-14 group-hover:scale-105 transition-transform shrink-0 object-contain" />
                 <div className="flex flex-col text-right">
                   <span className="text-xl sm:text-2xl font-black tracking-tight text-[#2B313A] leading-tight">
                     صنعت پیش
@@ -605,7 +605,9 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      <AiConsultModal isOpen={isConsultOpen} onClose={() => setIsConsultOpen(false)} />
+      {isConsultOpen && <React.Suspense fallback={null}>
+        <LazyAiConsultModal isOpen onClose={() => setIsConsultOpen(false)} />
+      </React.Suspense>}
     </footer>
   );
 };

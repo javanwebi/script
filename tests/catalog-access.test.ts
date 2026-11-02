@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { publicCatalog } from "../src/utils/catalogPrivacy";
+import { publicCatalog, compactCatalogReviews } from "../src/utils/catalogPrivacy";
 import {
   findCatalogKnowledge,
   catalogFallback,
@@ -41,4 +41,18 @@ test("unavailable model fallback identifies its catalog source and never invents
   assert.ok(text.includes("در دسترس نیست"));
   assert.ok(text.includes("پنل"));
   assert.ok(!text.includes("در انبار موجود"));
+});
+
+test("bootstrap compaction removes bulky per-SKU review without dropping code, specs, or pictures", () => {
+  const original = [{
+    code: "F1", images: ["/storage/products/thumbs/e(1).webp"],
+    variants: [{ code: "S1", technicalSpecs: [{key:"قطر",value:"10 mm"}], technicalReview: {categoryPath:["تسمه"],note:"reference"}, price: 100 }],
+  }];
+  const response = compactCatalogReviews(publicCatalog(original));
+  assert.equal(response[0].variants[0].code,"S1");
+  assert.deepEqual(response[0].variants[0].technicalSpecs,original[0].variants[0].technicalSpecs);
+  assert.deepEqual(response[0].images,original[0].images);
+  assert.equal("technicalReview" in response[0].variants[0],false);
+  assert.equal("price" in response[0].variants[0],false);
+  assert.ok(original[0].variants[0].technicalReview);
 });

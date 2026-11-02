@@ -28,6 +28,8 @@ const FORCE = process.argv.includes('--force');
 const TARGETS = [
   // Marketing banners / hero images: wider, keep a bit more resolution.
   { dir: 'src/assets/images', maxWidth: 1600, maxHeight: 1600, quality: 80 },
+  { dir: 'src/assets/IMAGESITE', maxWidth: 1200, maxHeight: 1200, quality: 78,
+    only: ['Futuristic FORZA AI Robot Halo.png', 'Levitating Orbital Engine Assembly (1).png'] },
 ];
 
 const SOURCE_RE = /\.(png|jpe?g)$/i;
@@ -42,7 +44,7 @@ async function exists(p) {
   }
 }
 
-async function optimizeFolder({ dir, maxWidth, maxHeight, quality }) {
+async function optimizeFolder({ dir, maxWidth, maxHeight, quality, only }) {
   const srcDir = path.join(ROOT, dir);
   if (!(await exists(srcDir))) {
     console.log(`  skip (missing): ${dir}`);
@@ -53,7 +55,7 @@ async function optimizeFolder({ dir, maxWidth, maxHeight, quality }) {
   await fs.mkdir(outDir, { recursive: true });
 
   const entries = (await fs.readdir(srcDir, { withFileTypes: true }))
-    .filter((e) => e.isFile() && SOURCE_RE.test(e.name))
+    .filter((e) => e.isFile() && SOURCE_RE.test(e.name) && (!only || only.includes(e.name)))
     .map((e) => e.name)
     .sort();
 

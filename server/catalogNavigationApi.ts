@@ -8,6 +8,31 @@ const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||u
 const fail=(res:Response,error:unknown)=>{console.error('[Catalog navigation/direct SKU]',error instanceof Error?error.message:String(error));return res.status(503).json({success:false,message:'ارتباط با پایگاه داده برقرار نشد.'});};
 
 export function registerCatalogNavigationApi(app:Express){
+  // Small homepage-only query: do not aggregate 10k catalog variants before
+  // the first category cards paint. All results come from live PostgreSQL.
+  app.get('/api/catalog/home-categories',async(_req,res)=>{
+    res.setHeader('Cache-Control','no-store');
+    if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
+    try{
+      const result=await database().query(
+        `select c.id,c.slug,c.name,c.image_url as image,c.is_active as active
+         from public.catalog_categories c
+         where c.is_active=true and (
+           c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+           or exists (
+             select 1 from public.catalog_families f
+             where f.category_slug=c.slug and f.is_active=true and f.is_deleted=false
+           )
+         )
+         order by c.sort_order,c.name limit 80`);
+      return res.json({success:true,categories:result.rows.map((row:any)=>({
+        id:row.id,slug:row.slug,name:row.name,nameEn:'',
+        icon:'Package',description:'',image:row.image||undefined,
+        active:row.active===true,children:[],subcategories:[],count:0
+      }))});
+    }catch(error){return fail(res,error);}
+  });
+
   // PostgreSQL is the authoritative source for every product category shown in the mega-menu.
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
