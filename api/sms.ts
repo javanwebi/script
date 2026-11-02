@@ -1,6 +1,7 @@
 /** Server-only OTP transport. Supabase Auth owns verification and session creation. */
 type SmsProvider='kavenegar'|'smsir';
-const provider=():SmsProvider=>process.env.SMS_PROVIDER==='smsir'?'smsir':'kavenegar';
+// SMS.ir is the primary SMS provider for SanatPish. Kavenegar remains opt-in only.
+const provider=():SmsProvider=>process.env.SMS_PROVIDER==='kavenegar'?'kavenegar':'smsir';
 
 export const smsConfigured=()=>{
   if(provider()==='smsir')return Boolean(process.env.SMSIR_API_KEY&&/^[0-9]+$/.test(process.env.SMSIR_TEMPLATE_ID||''));
