@@ -5,9 +5,13 @@ import { Footer } from './Footer';
 import { MobileBottomBar } from './MobileBottomBar';
 import { AuthModal } from '../auth/AuthModal';
 import { AiFloatingButton } from '../common/AiFloatingButton';
+import { useIdentificationOverlayOpen } from '../search/PartIdentificationProvider';
+import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const identificationOpen = useIdentificationOverlayOpen();
+  const showStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
 
   // Full-screen dedicated AI experiences (AI FORZA Voice & Cognivo AI Workspace)
   const isDedicatedAiWorkspace =
@@ -55,19 +59,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   return (
-    <div className="storefront min-h-screen flex flex-col">
+    <div className={`storefront min-h-screen flex flex-col ${showStorefrontDock ? "has-mobile-dock" : ""}`}>
       <Header />
-      <main className={`flex-1 w-full pb-28 lg:pb-0 ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
+      <main className={`flex-1 w-full ${showStorefrontDock ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
         {children}
       </main>
       <Footer />
-      {/* Mobile Floating Bottom Navigation Bar */}
-      <MobileBottomBar
-        onOpenMobileMenu={handleOpenMobileMenu}
-        onOpenSearch={handleOpenSearch}
-      />
-      {/* Global AI Floating Quick Action Button */}
-      <AiFloatingButton showAssistant={!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/checkout") && !location.pathname.startsWith("/product/")} />
+      {/* The mobile dock and floating actions are limited to storefront routes.
+          Never keep them mounted behind the camera or product-identification overlay. */}
+      {showStorefrontDock && (
+        <>
+          <MobileBottomBar
+            onOpenMobileMenu={handleOpenMobileMenu}
+            onOpenSearch={handleOpenSearch}
+          />
+          <AiFloatingButton showAssistant={!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/product/")} />
+        </>
+      )}
       {/* Global OTP Auth Modal */}
       <AuthModal />
     </div>

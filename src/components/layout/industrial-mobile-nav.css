@@ -118,7 +118,7 @@
     left: -9px;
     font-size: 10px;
   }
-  .storefront .store-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .storefront.has-mobile-dock .store-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .storefront .store-mobile-sheet {
     max-height: min(88dvh,780px);
     border-top: 4px solid #e06518;

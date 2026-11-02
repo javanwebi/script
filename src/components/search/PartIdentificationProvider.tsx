@@ -3,8 +3,13 @@ import { Link, type LinkProps, useLocation, useNavigate } from 'react-router-dom
 const Studio = lazy(() => import('./AiVisualPartSearchModal').then(m=>({default:m.AiVisualPartSearchModal})));
 type IdentificationEntry = (mode?: 'camera' | 'upload') => void;
 const IdentificationContext = createContext<IdentificationEntry | null>(null);
+const IdentificationOverlayContext = createContext(false);
 export function usePartIdentificationAction(): IdentificationEntry | null {
   return useContext(IdentificationContext);
+}
+/** True while identification covers the storefront, including live camera, review and results. */
+export function useIdentificationOverlayOpen(): boolean {
+  return useContext(IdentificationOverlayContext);
 }
 export function PartIdentificationProvider({children}: {children:React.ReactNode}) {
   const [open,setOpen] = useState(false);
@@ -15,9 +20,9 @@ export function PartIdentificationProvider({children}: {children:React.ReactNode
     setStartWithCamera(mode === 'camera');
     setOpen(true);
   };
-  return <IdentificationContext.Provider value={openIdentification}>{children}
+  return <IdentificationContext.Provider value={openIdentification}><IdentificationOverlayContext.Provider value={open}>{children}
     {open && <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-white/90">در حال باز کردن شناسایی قطعه…</div>}><Studio isOpen initialCamera={startWithCamera} fullScreen={startWithCamera} onClose={()=>setOpen(false)} /></Suspense>}
-  </IdentificationContext.Provider>;
+  </IdentificationOverlayContext.Provider></IdentificationContext.Provider>;
 }
 /** Ordinary links retain normal navigation, including Ctrl/cmd-click and new tabs. */
 export function PartIdentificationLink({to,onClick,...props}:LinkProps) {
