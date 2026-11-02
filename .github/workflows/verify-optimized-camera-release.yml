@@ -22,6 +22,8 @@ jobs:
       - name: Validate production blue-green deployment shell syntax
         run: |
           bash -n ops/deploy-mobile-camera-bluegreen-vps.sh
+          grep -Fq 'NO_FREE_BLUEGREEN_PORT_IN_3006_3020' ops/deploy-mobile-camera-bluegreen-vps.sh
+          grep -Fq '3019 3020' ops/deploy-mobile-camera-bluegreen-vps.sh
           grep -Fq 'MOBILE_CAMERA_WEBP_BLUEGREEN_DEPLOY_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
           grep -Fq 'NGINX_ROLLBACK_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
       - name: FORZA mobile contact panel and swipe gesture regression

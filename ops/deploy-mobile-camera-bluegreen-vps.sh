@@ -23,7 +23,7 @@ import re,sys
 ports=[]
 for p in sys.argv[1:]:
  s=Path(p).read_text()
- x=set(re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(3004|3005|3006|3007|3008);',s))
+ x=set(re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(30(?:0[4-9]|1[0-9]|20));',s))
  assert len(x)==1,('UNEXPECTED_PROXY_TARGET',p,x)
  ports.append(next(iter(x)))
 assert len(set(ports))==1,('NGINX_TARGETS_DISAGREE',ports)
@@ -42,10 +42,17 @@ test -n "$OLD"
 echo "ACTIVE_CONTAINER=$OLD"
 
 NEXT=''
-for p in 3006 3007 3008; do
+# Persistent blue/green deployments leave earlier containers on old ports.
+# Prefer fresh canary ports without interrupting the currently active site.
+for p in 3006 3007 3008 3009 3010 3011 3012 3013 3014 3015 3016 3017 3018 3019 3020; do
  if test "$p" != "$ACTIVE" && ! ss -H -ltn "( sport = :$p )" | grep -q .; then NEXT="$p"; break; fi
 done
-test -n "$NEXT"
+if test -z "$NEXT"; then
+  echo "NO_FREE_BLUEGREEN_PORT_IN_3006_3020" >&2
+  echo "===== RUNNING PORT MAPPINGS ====="
+  docker ps --format 'table {{.Names}}\t{{.Ports}}'
+  exit 1
+fi
 echo "CANARY_PORT=$NEXT"
 
 STAMP="$(date +%Y%m%d-%H%M%S)-$BASHPID"
