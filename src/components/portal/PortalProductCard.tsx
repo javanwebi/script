@@ -35,6 +35,8 @@ export const PortalProductCard: React.FC<PortalProductCardProps> = ({
         <Link to={href}>
           <ProductImage
             src={product.images[0]}
+                    thumbnail
+                    decoding="async"
             thumbnail
             alt={product.name}
             loading="lazy"
