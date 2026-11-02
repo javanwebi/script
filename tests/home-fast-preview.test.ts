@@ -5,7 +5,7 @@ import {selectHomePreviewProducts} from '../src/utils/homeCatalogPreview';
 
 test('public home teaser strips every commercial field and bulky variants',()=>{
  const family={code:'AT-E010',name:'قطعه نمونه',brand:'FORZA',categorySlug:'transmission',
-  categoryName:'تسمه و انتقال نیرو',images:['/storage/products/a.webp','/storage/products/b.webp'],
+  categoryName:'تسمه و انتقال نیرو',images:['/storage/products/11111111-1111-1111-1111-111111111111.webp','/storage/products/22222222-2222-2222-2222-222222222222.webp'],
   price:250000,stock:42,active:true,variants:[{code:'PRIVATE-SKU',price:1000}]};
  const input=Array.from({length:13},(_,i)=>({...family,code:'AT-E'+String(10+i).padStart(3,'0')}));
  const previews=selectHomePreviewProducts(input);
@@ -15,6 +15,21 @@ test('public home teaser strips every commercial field and bulky variants',()=>{
   assert.ok(!encoded.includes(key),key);
  assert.equal(previews[0].images.length,1);
  assert.equal(previews[0].name,'قطعه نمونه');
+});
+
+test('home preview prefers image-linked families while preserving exact family association',()=>{
+ const input=Array.from({length:30},(_,i)=>({
+  code:'SKU-'+i,name:'Family '+i,brand:'B',categorySlug:'cat',categoryName:'C',
+  images:i>=24?['/storage/products/11111111-1111-1111-1111-111111111111.webp']:[],
+  active:true,
+ }));
+ const previews=selectHomePreviewProducts(input);
+ assert.equal(previews.length,12);
+ assert.ok(previews.some(p=>p.code==='SKU-24'));
+ for(const p of previews){
+  assert.equal(p.name,'Family '+p.code.split('-')[1]);
+  if(p.images.length)assert.match(p.images[0],/^\\/storage\\/products\\//);
+ }
 });
 
 test('large catalogue keeps the existing 12–24 featured fallback window',()=>{
