@@ -23,7 +23,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   if (!currentUser) return <Navigate to="/login" replace />;
 
-  if (!currentUser.onboardingCompleted && location.pathname !== "/onboarding")
+  // The two-question setup is required once for ordinary retail customers.
+  // Factory/dealer/admin accounts keep their own portal flows.
+  const retailCustomer = !portalContentService.isHighVolumeCustomer(currentUser)
+    && currentUser.role === "retail";
+  if (retailCustomer && currentUser.onboardingCompleted !== true && location.pathname !== "/onboarding")
     return <Navigate to="/onboarding" replace />;
 
   if (currentUser && portalType) {
