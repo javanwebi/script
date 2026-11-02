@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="240" viewBox="0 0 740 240" fill="none" aria-hidden="true">
+<defs>
+<pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" stroke="#e5a167" stroke-opacity=".1" stroke-width=".7"/></pattern>
+<linearGradient id="precision" x1="740" x2="0" y1="0" y2="240"><stop stop-color="#f29d5b" stop-opacity=".5"/><stop offset="1" stop-color="#ffbe89" stop-opacity="0"/></linearGradient>
+</defs>
+<rect x="0" y="0" width="740" height="240" fill="url(#grid)"/>
+<g transform="translate(524 120)" stroke="url(#precision)">
+<circle r="78" stroke-width="1.4" stroke-dasharray="18 7 2 7"/>
+<circle r="52" stroke-width="1"/>
+<circle r="32" stroke-width=".7" stroke-dasharray="3 5"/>
+<path d="M-96 0H96M0-96V96" stroke-width=".8"/>
+<path d="M-70-70l16 0 0 16M70 70H54V54M70-70H54v16M-70 70h16V54" stroke-width="2.5"/>
+</g>
+<path d="M42 196H230L282 150H390" stroke="#e06518" stroke-opacity=".55" stroke-width="1.3"/>
+<circle cx="390" cy="150" r="4" stroke="#f6ad73" stroke-width="1.4"/>
+<path d="M120 41h182M120 47h102M120 53h58" stroke="#c3ccd5" stroke-opacity=".22"/>
+<path d="M648 42h48v8M648 198h48v-8" stroke="#e06518" stroke-opacity=".5" stroke-width="1.5"/>
+</svg>
