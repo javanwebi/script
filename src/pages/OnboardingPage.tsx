@@ -15,6 +15,7 @@ export const OnboardingPage = () => {
   const navigate = useNavigate();
   const {
     currentUser,
+    authLoading,
     saveOnboardingStep1,
     saveOnboardingStep2,
     setLatestCredentials,
@@ -37,8 +38,9 @@ export const OnboardingPage = () => {
     });
   };
   useEffect(() => {
-    if (currentUser?.onboardingCompleted) finish();
-  }, [currentUser?.onboardingCompleted]);
+    if (authLoading || !currentUser) return;
+    if (currentUser.role !== "retail" || currentUser.approvedB2B || currentUser.onboardingCompleted === true) finish();
+  }, [authLoading, currentUser?.id, currentUser?.role, currentUser?.approvedB2B, currentUser?.onboardingCompleted]);
   const next = async () => {
     setBusy(true);
     setError("");
