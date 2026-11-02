@@ -39,3 +39,33 @@ test("mobile/tablet dock and branded scanner preserve RTL and desktop header", (
   assert.match(scan, /precision-scan-technical-overlay\.svg/);
   assert.match(layout, /pb-28 lg:pb-0/);
 });
+
+test("mobile capsule has four destinations, a detached camera, and no support dock tab", () => {
+  const nav = source("src/components/layout/MobileBottomBar.tsx");
+  const css = source("src/components/layout/industrial-mobile-nav.css");
+  const markup = nav.split('<nav className="store-bottom-nav store-industrial-bottom-nav"')[1].split("</nav>")[0];
+  assert.doesNotMatch(markup, /راهنما|راهنمای خرید|Headphones/);
+  assert.match(markup, /store-scan-action/);
+  assert.match(markup, /<span>خانه<\/span>/);
+  assert.match(markup, /<span>دسته‌ها<\/span>/);
+  assert.match(markup, /<span>سبد خرید<\/span>/);
+  assert.match(markup, /<span>حساب من<\/span>/);
+  assert.match(css, /grid-template-columns: 72px repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css, /store-industrial-bottom-nav::before/);
+  assert.match(css, /border-radius: 50%/);
+});
+
+test("support icon above the FORZA button reuses the original help sheet", () => {
+  const floating = source("src/components/common/AiFloatingButton.tsx");
+  const nav = source("src/components/layout/MobileBottomBar.tsx");
+  const layout = source("src/components/layout/Layout.tsx");
+  const styles = source("src/components/common/floating-quick-actions.css");
+  assert.match(floating, /open-mobile-support/);
+  assert.match(floating, /className="store-help-launcher"/);
+  assert.match(nav, /addEventListener\("open-mobile-support"/);
+  assert.match(nav, /setSheet\("support"\)/);
+  assert.match(nav, /راهنمای خرید و پشتیبانی/);
+  assert.match(layout, /<AiFloatingButton showAssistant=/);
+  assert.match(styles, /flex-direction: column/);
+  assert.match(styles, /inset-block-end: calc\(106px/);
+});

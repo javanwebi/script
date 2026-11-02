@@ -67,7 +67,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         onOpenSearch={handleOpenSearch}
       />
       {/* Global AI Floating Quick Action Button */}
-      {!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/checkout") && !location.pathname.startsWith("/product/") && <AiFloatingButton />}
+      <AiFloatingButton showAssistant={!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/checkout") && !location.pathname.startsWith("/product/")} />
       {/* Global OTP Auth Modal */}
       <AuthModal />
     </div>

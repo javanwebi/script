@@ -1,20 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Sparkles,
-  Send,
-  X,
-  PhoneCall,
-  LayoutDashboard,
-  Trash2,
-  ExternalLink,
-  RefreshCw,
-  ChevronDown,
-  ArrowLeft,
-} from "lucide-react";
-import { apiUrl } from "../../config/apiConfig";
-import { renderEngineeringMarkdown } from "../../utils/engineeringMarkdown";
-import { STORE_ASSETS } from "../../assets/images";
+import { LifeBuoy } from "lucide-react";
+import "./floating-quick-actions.css";
 
 // Geometric Cognivo orange logo icon matching the reference design
 export const CognivoGeometricLogo: React.FC<{
@@ -39,17 +26,34 @@ export const CognivoGeometricLogo: React.FC<{
   </svg>
 );
 
-export const AiFloatingButton: React.FC = () => {
+/* Keep FORZA's existing destination while adding direct access to the original support sheet. */
+export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAssistant = true }) => {
   const navigate = useNavigate();
   return (
-    <button
-      type="button"
-      className="store-assistant unified-ai-launcher"
-      onClick={() => navigate("/ai-consult")}
-      aria-label="باز کردن میزکار هوشمند FORZA"
-    >
-      <CognivoGeometricLogo size={29} />
-      <span>میزکار FORZA</span>
-    </button>
+    <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
+      <button
+        type="button"
+        className="store-help-launcher"
+        onClick={(event) => window.dispatchEvent(
+          new CustomEvent("open-mobile-support", { detail: { opener: event.currentTarget } }),
+        )}
+        title="راهنمای خرید و پشتیبانی"
+        aria-label="باز کردن راهنمای خرید و پشتیبانی"
+        aria-haspopup="dialog"
+      >
+        <LifeBuoy size={23} strokeWidth={1.9} />
+      </button>
+      {showAssistant && (
+        <button
+          type="button"
+          className="store-assistant unified-ai-launcher"
+          onClick={() => navigate("/ai-consult")}
+          aria-label="باز کردن میزکار هوشمند FORZA"
+        >
+          <CognivoGeometricLogo size={29} />
+          <span>میزکار FORZA</span>
+        </button>
+      )}
+    </div>
   );
 };
