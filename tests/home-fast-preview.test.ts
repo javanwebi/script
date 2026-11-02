@@ -34,12 +34,22 @@ test('never reveal inactive families or oversized data URLs',()=>{
  assert.ok(result.every(p=>p.images.length===0));
 });
 
-test('first paint reads lightweight APIs before full SKU hydration',()=>{
+test('first paint prefetches SQL-light categories and small product previews',()=>{
+ const main=readFileSync('src/main.tsx','utf8');
+ const boot=readFileSync('src/services/homeFirstPaint.ts','utf8');
  const home=readFileSync('src/components/storefront/HomeSequence.tsx','utf8');
  const featured=readFileSync('src/components/home/HighUtilityProductsSection.tsx','utf8');
  const server=readFileSync('server.ts','utf8');
- assert.match(home,/fetch\('\/api\/catalog\/categories'/);
- assert.match(featured,/fetch\('\/api\/catalog\/home-preview'/);
+ const nav=readFileSync('server/catalogNavigationApi.ts','utf8');
+ assert.match(main,/prefetchHomeFirstPaint\(\)/);
+ assert.match(main,/prefetchHomeFirstPaint\(\)[\s\S]*?await import\('\.\/App\.tsx'\)/);
+ assert.match(boot,/\x2fapi\x2fcatalog\x2fhome-categories/);
+ assert.match(boot,/\x2fapi\x2fcatalog\x2fhome-preview/);
+ assert.match(home,/homeCategories\(\)/);
+ assert.match(featured,/homeProducts\(\)/);
+ assert.match(home,/queueMicrotask/);
+ assert.match(featured,/queueMicrotask/);
+ assert.match(nav,/app\.get\('\x2fapi\x2fcatalog\x2fhome-categories'/);
  assert.match(featured,/utilityProducts\.length===0 && previews\.map/);
- assert.match(server,/app\.get\('\/api\/catalog\/home-preview',publicHomePreviewApi\)/);
+ assert.match(server,/app\.get\('\x2fapi\x2fcatalog\x2fhome-preview',publicHomePreviewApi\)/);
 });
