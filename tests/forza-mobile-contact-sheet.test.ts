@@ -28,14 +28,27 @@ test("phone and WhatsApp use site contact links; unavailable social accounts nev
   assert.doesNotMatch(code, /href="https:\/\/(instagram\.com|eitaa\.com|t\.me)"/);
 });
 
-test("swipe up passes threshold to the same existing AI workspace chat route with accessible button fallback", () => {
+test("swipe up enters the same AI chat route without any visible workspace button", () => {
   const code = source("src/components/common/AiFloatingButton.tsx");
   assert.match(code, /onTouchStart=\{onTouchStart\}/);
   assert.match(code, /onTouchMove=\{onTouchMove\}/);
   assert.match(code, /onTouchEnd=\{onTouchEnd\}/);
-  assert.match(code, /dragOffsetRef\.current > 78/);
+  assert.match(code, /dragOffsetRef\.current > 58/);
   assert.match(code, /if \(shouldEnter\) openWorkspace\(\)/);
-  assert.match(code, /onClick=\{openWorkspace\}/);
+  assert.doesNotMatch(code, /sp-forza-contact__workspace-button|onClick=\{openWorkspace\}/);
+  assert.match(code, /role="link"/);
+  assert.match(code, /onKeyDown=\{event =>/);
+  assert.match(code, /data-testid="forza-swipe-instruction"/);
+  assert.match(code, /\.closest\("\.sp-forza-contact__swipe, \.sp-forza-contact__swipe-cta"\)/);
+  assert.match(code, /sp-forza-contact__arrow--bottom/);
+  assert.match(code, /sp-forza-contact__arrow--middle/);
+  assert.match(code, /sp-forza-contact__arrow--top/);
+  const css = source("src/components/common/floating-quick-actions.css");
+  assert.match(css, /\.sp-forza-contact__arrow--bottom \{ animation-delay: 0s; \}/);
+  assert.match(css, /\.sp-forza-contact__arrow--middle \{ animation-delay: \.2s; \}/);
+  assert.match(css, /\.sp-forza-contact__arrow--top \{ animation-delay: \.4s; \}/);
+  assert.match(css, /@keyframes sp-forza-arrow-pulse/);
+  assert.match(css, /prefers-reduced-motion/);
   assert.match(code, /event\.key === "Escape"/);
   assert.match(code, /document\.body\.style\.overflow = overflow/);
 });
