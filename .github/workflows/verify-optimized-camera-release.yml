@@ -24,6 +24,8 @@ jobs:
           bash -n ops/deploy-mobile-camera-bluegreen-vps.sh
           grep -Fq 'MOBILE_CAMERA_WEBP_BLUEGREEN_DEPLOY_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
           grep -Fq 'NGINX_ROLLBACK_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
+      - name: FORZA mobile contact panel and swipe gesture regression
+        run: node --import tsx --test tests/forza-mobile-contact-sheet.test.ts
       - name: Camera and dock regression
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build optimized storefront with camera
