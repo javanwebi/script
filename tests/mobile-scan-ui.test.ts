@@ -89,3 +89,22 @@ test("RTL pill items follow home, categories, cart, account, camera; active colo
   assert.match(css, /background: linear-gradient\(145deg,#F28A43,#E06518\)/);
   assert.doesNotMatch(css, /#182465|#3544aa|#25368c|#15215f|#3b4bb0/i);
 });
+
+test("dock camera opens a full-screen live preview, local review, retake, and explicit confirm", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const provider = source("src/components/search/PartIdentificationProvider.tsx");
+  const styles = source("src/components/search/industrial-scan.css");
+  assert.match(provider, /fullScreen=\{startWithCamera\}/);
+  assert.match(modal, /cameraFlowActive/);
+  assert.match(modal, /data-testid="full-screen-camera-experience"/);
+  assert.match(modal, /sanat-camera-experience__video/);
+  assert.match(modal, /sanat-camera-experience__preview/);
+  assert.match(modal, /onClick=\{confirmCameraPhoto\}/);
+  assert.match(modal, /onClick=\{retakeCameraPhoto\}/);
+  assert.match(modal, /تأیید و جستجوی قطعه/);
+  assert.match(modal, /عکس‌برداری مجدد/);
+  assert.match(modal, /setCameraReview\(true\)/);
+  assert.match(modal, /handleAnalyze\("quick"\)/);
+  assert.match(styles, /height: 100dvh/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+});

@@ -111,6 +111,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Camera stream state
   const [isUsingCamera, setIsUsingCamera] = useState<boolean>(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraFlowActive, setCameraFlowActive] = useState<boolean>(initialCamera);
+  const [cameraReview, setCameraReview] = useState(false);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const cameraRequestRef = useRef(0);
   React.useEffect(() => {
@@ -299,6 +301,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         setUploadedImageUrl(null);
         setMimeType("image/jpeg");
         setErrorMessage("");
+        if (cameraFlowActive) {
+          // Keep the captured frame local until the customer confirms it.
+          setCameraReview(true);
+          stopCamera();
+          return;
+        }
         uploadSelectedImage(dataUrl);
         stopCamera();
       }
@@ -309,6 +317,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   React.useEffect(() => {
     if (!isOpen || !initialCamera) return;
     setCurrentStep(1);
+    setCameraFlowActive(true);
+    setCameraReview(false);
     void startCamera();
   }, [isOpen, initialCamera]);
 
@@ -409,6 +419,26 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
   };
 
+  const retakeCameraPhoto = () => {
+    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
+    setSelectedImage(null);
+    setUploadedImageUrl(null);
+    setCameraReview(false);
+    setErrorMessage("");
+    void startCamera();
+  };
+
+  const confirmCameraPhoto = () => {
+    if (!selectedImage) {
+      setErrorMessage("ابتدا عکس قطعه را ثبت کنید.");
+      return;
+    }
+    // analyzePartWithAi uploads this confirmed data URL once and reuses the existing catalog pipeline.
+    setCameraReview(false);
+    setCameraFlowActive(false);
+    void handleAnalyze("quick");
+  };
+
   // Resolve a match image that may be a bare catalog filename (e.g. "e(001).png")
   const resolveMatchImage = (match: any, catalogItem: any): string => {
     const raw: string =
@@ -430,8 +460,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   return (
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
-      fullScreen={fullScreen}
-      closeLabel={fullScreen ? "بازگشت به میزکار" : "بستن"}
+      fullScreen={fullScreen || cameraFlowActive}
+      closeLabel={fullScreen || cameraFlowActive ? (initialCamera ? "بازگشت به سایت" : "بازگشت به میزکار") : "بستن"}
       isOpen={isOpen}
       onClose={() => {
         stopCamera();
@@ -451,7 +481,90 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       noPadding={currentStep === 1}
     >
-      {currentStep === 1 ? (
+      {cameraFlowActive ? (
+        <section className="sanat-camera-experience" dir="rtl" data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
+          <header className="sanat-camera-experience__header">
+            <div className="sanat-camera-experience__heading">
+              <span className="sanat-camera-experience__eyebrow">FORZA VISION / LIVE SCAN</span>
+              <h1>{cameraReview ? "بازبینی عکس قطعه" : "اسکن قطعه"}</h1>
+              <p>{cameraReview ? "اگر تصویر واضح است تأیید کنید؛ در غیر این صورت دوباره عکس بگیرید." : "دوربین را روبه‌روی قطعه نگه دارید و آن را داخل کادر نارنجی قرار دهید."}</p>
+            </div>
+            <button type="button" className="sanat-camera-experience__close" onClick={() => { stopCamera(); onClose(); }} aria-label="بستن دوربین">
+              <X size={22} />
+            </button>
+          </header>
+
+          <div className={`sanat-camera-experience__stage ${cameraReview ? "is-review" : ""}`}>
+            {cameraReview && selectedImage ? (
+              <img src={selectedImage} alt="پیش‌نمایش عکس ثبت‌شده از قطعه" className="sanat-camera-experience__preview" />
+            ) : (
+              <>
+                <video
+                  ref={(node) => {
+                    videoRef.current = node;
+                    if (node && cameraStreamRef.current && node.srcObject !== cameraStreamRef.current) {
+                      node.srcObject = cameraStreamRef.current;
+                      void node.play().catch(() => undefined);
+                    }
+                  }}
+                  onLoadedMetadata={() => setIsCameraReady(true)}
+                  aria-label="تصویر زنده دوربین پشت برای اسکن قطعه"
+                  className="sanat-camera-experience__video"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                <span className="sanat-camera-experience__frame" aria-hidden="true" />
+                <span className="sanat-camera-experience__live-tag" role="status" aria-live="polite">
+                  {isCameraReady ? "دوربین فعال" : "در حال آماده‌سازی دوربین…"}
+                </span>
+                {!isCameraReady && !errorMessage && (
+                  <span className="sanat-camera-experience__loading">در حال اتصال به دوربین دستگاه</span>
+                )}
+              </>
+            )}
+            <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+          </div>
+
+          <footer className="sanat-camera-experience__footer">
+            {errorMessage && <div className="sanat-camera-experience__error" role="alert">{errorMessage}</div>}
+            {cameraReview ? (
+              <div className="sanat-camera-experience__actions">
+                <button type="button" onClick={confirmCameraPhoto} className="sanat-camera-experience__confirm">
+                  <CheckCircle2 size={19} />
+                  <span>تأیید و جستجوی قطعه</span>
+                </button>
+                <button type="button" onClick={retakeCameraPhoto} className="sanat-camera-experience__retake">
+                  <RefreshCw size={18} />
+                  <span>عکس‌برداری مجدد</span>
+                </button>
+              </div>
+            ) : (
+              <div className="sanat-camera-experience__live-actions">
+                {errorMessage ? (
+                  <>
+                    <button type="button" onClick={() => void startCamera()} className="sanat-camera-experience__confirm">
+                      <RefreshCw size={18} />
+                      تلاش دوباره برای دوربین
+                    </button>
+                    <button type="button" onClick={() => { setCameraFlowActive(false); setErrorMessage(""); }} className="sanat-camera-experience__retake">
+                      انتخاب تصویر از گالری
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={capturePhoto} disabled={!isCameraReady} className="sanat-camera-experience__capture">
+                    <span className="sanat-camera-experience__shutter"><Camera size={27} /></span>
+                    <span>ثبت عکس قطعه</span>
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="sanat-camera-experience__footnote">
+              برای نتیجه بهتر، تمام قطعه و نوشته‌ها یا کدهای روی آن داخل تصویر باشند.
+            </p>
+          </footer>
+        </section>
+      ) : currentStep === 1 ? (
         <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
           <button

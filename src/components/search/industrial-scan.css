@@ -43,3 +43,228 @@
   .sanat-scan-viewfinder__video { aspect-ratio:3/4; min-height:300px; max-height:min(60dvh,470px); }
 }
 @media (prefers-reduced-motion:reduce) { .sanat-scan-viewfinder * { animation:none!important; } }
+
+
+/* Full-viewport capture and review flow launched from the mobile scan dock. */
+.sanat-camera-experience {
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff;
+  background: #0b1118;
+  font-family: inherit;
+}
+.sanat-camera-experience__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: calc(16px + env(safe-area-inset-top)) 18px 15px;
+  background: linear-gradient(180deg,#121c28 0%,#0b1118 100%);
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+.sanat-camera-experience__heading { min-width: 0; }
+.sanat-camera-experience__eyebrow {
+  display: block;
+  color: #f28a43;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .13em;
+  direction: ltr;
+  text-align: right;
+}
+.sanat-camera-experience__heading h1 {
+  margin: 7px 0 3px;
+  color: #fff;
+  font-size: clamp(19px,4vw,25px);
+  font-weight: 900;
+  line-height: 1.35;
+}
+.sanat-camera-experience__heading p {
+  margin: 0;
+  color: #b9c2cd;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.sanat-camera-experience__close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 14px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+.sanat-camera-experience__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #070b10;
+}
+.sanat-camera-experience__video,
+.sanat-camera-experience__preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.sanat-camera-experience__video { object-fit: cover; }
+.sanat-camera-experience__preview {
+  object-fit: contain;
+  background: radial-gradient(ellipse at center,#202b36,#070b10 78%);
+}
+.sanat-camera-experience__frame {
+  position: absolute;
+  inset: 12% 7%;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 22px;
+  background:
+    linear-gradient(#f28a43,#f28a43) top left/34px 4px no-repeat,
+    linear-gradient(#f28a43,#f28a43) top left/4px 34px no-repeat,
+    linear-gradient(#f28a43,#f28a43) top right/34px 4px no-repeat,
+    linear-gradient(#f28a43,#f28a43) top right/4px 34px no-repeat,
+    linear-gradient(#f28a43,#f28a43) bottom left/34px 4px no-repeat,
+    linear-gradient(#f28a43,#f28a43) bottom left/4px 34px no-repeat,
+    linear-gradient(#f28a43,#f28a43) bottom right/34px 4px no-repeat,
+    linear-gradient(#f28a43,#f28a43) bottom right/4px 34px no-repeat;
+  box-shadow: 0 0 0 999px rgba(0,0,0,.08);
+}
+.sanat-camera-experience__live-tag {
+  position: absolute;
+  top: 18px;
+  inset-inline-start: 18px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(9,15,22,.72);
+  font-size: 10px;
+  font-weight: 750;
+  backdrop-filter: blur(10px);
+}
+.sanat-camera-experience__loading {
+  position: absolute;
+  inset-inline: 18px;
+  bottom: 22px;
+  text-align: center;
+  color: #e7edf4;
+  font-size: 12px;
+  text-shadow: 0 2px 12px #000;
+}
+.sanat-camera-experience__footer {
+  flex: 0 0 auto;
+  padding: 15px 18px calc(15px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg,#111a24,#0b1118);
+  border-top: 1px solid rgba(255,255,255,.09);
+}
+.sanat-camera-experience__live-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 66px;
+}
+.sanat-camera-experience__capture {
+  min-width: min(100%,280px);
+  min-height: 64px;
+  padding: 8px 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg,#f28a43,#e06518 70%,#c95210);
+  box-shadow: 0 8px 26px rgba(224,101,24,.3),inset 0 1px rgba(255,255,255,.25);
+  font-size: 14px;
+  font-weight: 850;
+}
+.sanat-camera-experience__capture:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.sanat-camera-experience__shutter {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 50%;
+  background: rgba(255,255,255,.15);
+}
+.sanat-camera-experience__actions {
+  display: grid;
+  grid-template-columns: minmax(0,1.2fr) minmax(0,1fr);
+  gap: 10px;
+}
+.sanat-camera-experience__confirm,
+.sanat-camera-experience__retake {
+  min-height: 54px;
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 850;
+}
+.sanat-camera-experience__confirm {
+  border: 1px solid #f28a43;
+  color: #fff;
+  background: linear-gradient(135deg,#f28a43,#e06518 70%,#c95210);
+  box-shadow: 0 7px 20px rgba(224,101,24,.22);
+}
+.sanat-camera-experience__retake {
+  border: 1px solid rgba(255,255,255,.2);
+  color: #f2f5f8;
+  background: rgba(255,255,255,.08);
+}
+.sanat-camera-experience__error {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(248,113,113,.4);
+  border-radius: 12px;
+  color: #fecaca;
+  background: rgba(127,29,29,.25);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.sanat-camera-experience__footnote {
+  margin: 12px 0 0;
+  color: #98a4b2;
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
+}
+@media (max-width:380px) {
+  .sanat-camera-experience__header { padding-inline: 13px; }
+  .sanat-camera-experience__footer { padding-inline: 13px; }
+  .sanat-camera-experience__actions { grid-template-columns: 1fr; }
+  .sanat-camera-experience__confirm,
+  .sanat-camera-experience__retake { min-height: 49px; }
+  .sanat-camera-experience__frame { inset: 13% 5%; }
+}
+@media (orientation:landscape) and (max-height:520px) {
+  .sanat-camera-experience__header { padding-block: calc(7px + env(safe-area-inset-top)) 7px; }
+  .sanat-camera-experience__heading h1 { margin-top: 2px; font-size: 17px; }
+  .sanat-camera-experience__heading p { font-size: 10px; }
+  .sanat-camera-experience__footer { padding-block: 7px calc(7px + env(safe-area-inset-bottom)); }
+  .sanat-camera-experience__footnote { margin-top: 5px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sanat-camera-experience__capture,
+  .sanat-camera-experience__confirm,
+  .sanat-camera-experience__retake { transition: none; }
+}
