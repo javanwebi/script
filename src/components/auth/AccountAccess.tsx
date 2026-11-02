@@ -45,7 +45,7 @@ export function AccountAccess({
     try {
       destination = sessionStorage.getItem("sanat_access_destination") || "";
     } catch {}
-    if (user?.onboardingCompleted) {
+    if (user?.role !== "retail" || user?.approvedB2B || user?.onboardingCompleted === true) {
       try {
         sessionStorage.removeItem("sanat_access_destination");
       } catch {}
