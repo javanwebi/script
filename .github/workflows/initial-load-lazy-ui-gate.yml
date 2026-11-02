@@ -1,0 +1,22 @@
+name: Verify isolated homepage initial loading
+on:
+  push:
+    branches: [perf/initial-load-lazy-ui-20261102]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript and import-safety verification
+        run: npm run lint
+      - name: Homepage lazy-loading regression checks
+        run: node --import tsx --test tests/home-initial-load.test.ts
+      - name: Frontend production build
+        run: npm run build

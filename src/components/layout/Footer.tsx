@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
 import { CATEGORIES } from '../../data/categories';
-import { AiConsultModal } from '../search/AiConsultModal';
+const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
 
 // Minimalist Two-tone Geometric Brand Mark
 const AtlasLogoMark: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' }) => (
@@ -605,7 +605,9 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      <AiConsultModal isOpen={isConsultOpen} onClose={() => setIsConsultOpen(false)} />
+      {isConsultOpen && <React.Suspense fallback={null}>
+        <LazyAiConsultModal isOpen onClose={() => setIsConsultOpen(false)} />
+      </React.Suspense>}
     </footer>
   );
 };
