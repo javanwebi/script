@@ -19,6 +19,11 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript
         run: npm run lint
+      - name: Validate production blue-green deployment shell syntax
+        run: |
+          bash -n ops/deploy-mobile-camera-bluegreen-vps.sh
+          grep -Fq 'MOBILE_CAMERA_WEBP_BLUEGREEN_DEPLOY_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
+          grep -Fq 'NGINX_ROLLBACK_OK' ops/deploy-mobile-camera-bluegreen-vps.sh
       - name: Camera and dock regression
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build optimized storefront with camera
