@@ -50,8 +50,8 @@ import {
 import { CATEGORIES } from "../data/categories";
 import { STORE_ASSETS } from "../assets/images";
 import { toPersianDigits } from "../utils/formatters";
-import { AiVisualPartSearchModal } from "../components/search/AiVisualPartSearchModal";
-import { AiConsultModal } from "../components/search/AiConsultModal";
+const LazyVisualSearch = React.lazy(() => import("../components/search/AiVisualPartSearchModal").then(m => ({default:m.AiVisualPartSearchModal})));
+const LazyAiConsult = React.lazy(() => import("../components/search/AiConsultModal").then(m => ({default:m.AiConsultModal})));
 import { OurClientsSection } from "../components/home/OurClientsSection";
 
 import { HighUtilityProductsSection } from "../components/home/HighUtilityProductsSection";
@@ -820,8 +820,12 @@ export const HomePage: React.FC = () => {
       <WhySanatPish />
       <HomeKnowledge />
       <HomeMembership />
-      <AiVisualPartSearchModal isOpen={isVisualSearchOpen} onClose={() => setIsVisualSearchOpen(false)} />
-      <AiConsultModal isOpen={isConsultOpen} onClose={() => setIsConsultOpen(false)} />
+      {isVisualSearchOpen && <React.Suspense fallback={null}>
+        <LazyVisualSearch isOpen onClose={() => setIsVisualSearchOpen(false)} />
+      </React.Suspense>}
+      {isConsultOpen && <React.Suspense fallback={null}>
+        <LazyAiConsult isOpen onClose={() => setIsConsultOpen(false)} />
+      </React.Suspense>}
     </div>
   );
 };
