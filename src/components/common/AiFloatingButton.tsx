@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ArrowUp, ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
+import { ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
 
 // Geometric Cognivo orange logo icon matching the reference design
@@ -87,7 +87,9 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   }, [sheetOpen]);
 
   const onTouchStart = (event: React.TouchEvent<HTMLElement>) => {
-    if ((event.target as Element).closest("a, button")) return;
+    // Only the top grab handle and the dedicated swipe cue initiate navigation.
+    // Scrolling contact details or touching communication links must never navigate.
+    if (!(event.target as Element).closest(".sp-forza-contact__swipe, .sp-forza-contact__swipe-cta")) return;
     touchStart.current = event.touches[0]?.clientY ?? null;
     dragOffsetRef.current = 0;
   };
@@ -98,7 +100,7 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
     setDragOffset(Math.min(125, dragOffsetRef.current));
   };
   const onTouchEnd = () => {
-    const shouldEnter = touchStart.current !== null && dragOffsetRef.current > 78;
+    const shouldEnter = touchStart.current !== null && dragOffsetRef.current > 58;
     touchStart.current = null;
     dragOffsetRef.current = 0;
     setDragOffset(0);
@@ -214,16 +216,31 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
               ))}
             </div>
 
-            <div className="sp-forza-contact__workspace">
-              <span className="sp-forza-contact__workspace-symbol"><ChevronUp size={23}/></span>
-              <div>
-                <strong>مشاوره هوش مصنوعی، همین‌جا در دسترس شماست</strong>
-                <p>صفحه را به بالا بکشید تا میزکار FORZA باز شود و گفت‌وگو را شروع کنید.</p>
+          </div>
+          <div
+            className="sp-forza-contact__swipe-cta"
+            data-testid="forza-swipe-instruction"
+            role="link"
+            tabIndex={0}
+            aria-label="برای باز کردن میزکار هوش مصنوعی FORZA، انگشت خود را روی فلش‌ها گذاشته و از پایین به بالا بکشید. با صفحه‌کلید نیز می‌توانید کلید فلش بالا یا Enter را بزنید."
+            onKeyDown={event => {
+              if (event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openWorkspace();
+              }
+            }}
+          >
+            <div className="sp-forza-contact__swipe-visual" aria-hidden="true">
+              <span className="sp-forza-contact__swipe-line" />
+              <div className="sp-forza-contact__swipe-arrows">
+                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--top" />
+                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--middle" />
+                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--bottom" />
               </div>
-              <button type="button" onClick={openWorkspace} className="sp-forza-contact__workspace-button">
-                <ArrowUp size={18}/>
-                ورود به میزکار و شروع چت
-              </button>
+            </div>
+            <div className="sp-forza-contact__swipe-copy">
+              <strong>برای مشاوره هوش مصنوعی، به بالا بکشید</strong>
+              <p>انگشتتان را روی فلش‌ها بگذارید و از پایین به بالا بکشید تا وارد میزکار FORZA و گفت‌وگو شوید.</p>
             </div>
           </div>
         </section>
