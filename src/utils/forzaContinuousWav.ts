@@ -58,7 +58,7 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   // Preserve the established leading margin (30ms) and 80ms for
   // quiet Persian word endings, avoiding clipped consonants.
   begin=Math.max(0,begin-Math.round(buffer.sampleRate*0.03));
-  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.08));
+  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.06));
   if(finish-begin<buffer.sampleRate*0.15)return entire;
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
