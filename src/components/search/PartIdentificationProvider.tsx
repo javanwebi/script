@@ -16,6 +16,13 @@ export function PartIdentificationProvider({children}: {children:React.ReactNode
   const [startWithCamera,setStartWithCamera] = useState(false);
   const location = useLocation();
   React.useEffect(()=>setOpen(false),[location.key]);
+  // Defense in depth: suppress legacy, third-party or late-mounted dock controls
+  // for the entire identification session, including analysis and results.
+  React.useEffect(() => {
+    if (!open) return;
+    document.body.classList.add("sanat-identification-open");
+    return () => document.body.classList.remove("sanat-identification-open");
+  }, [open]);
   const openIdentification: IdentificationEntry = (mode = 'upload') => {
     setStartWithCamera(mode === 'camera');
     setOpen(true);

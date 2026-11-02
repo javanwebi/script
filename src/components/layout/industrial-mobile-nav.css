@@ -152,3 +152,11 @@
   .storefront .store-industrial-bottom-nav > :is(a,button),
   .storefront .store-industrial-bottom-nav .store-scan-orbit { transition: none; }
 }
+
+/* Defense in depth for full-screen identification, including modal and route flows. */
+body.sanat-identification-open .storefront .store-bottom-nav,
+body.sanat-identification-open .storefront .store-ai-quick-actions,
+.storefront.no-mobile-dock .store-bottom-nav,
+.storefront.no-mobile-dock .store-ai-quick-actions {
+  display: none !important;
+}
