@@ -28,6 +28,7 @@ const FORCE = process.argv.includes('--force');
 const TARGETS = [
   // Marketing banners / hero images: wider, keep a bit more resolution.
   { dir: 'src/assets/images', maxWidth: 1600, maxHeight: 1600, quality: 80 },
+  { dir: 'src/assets/IMAGESITE', maxWidth: 1200, maxHeight: 1200, quality: 78 },
 ];
 
 const SOURCE_RE = /\.(png|jpe?g)$/i;
