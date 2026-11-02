@@ -68,8 +68,8 @@
   .storefront .store-industrial-bottom-nav > a[aria-current="page"],
   .storefront .store-industrial-bottom-nav > button[aria-expanded="true"] {
     color: #fff;
-    background: linear-gradient(135deg,#182465,#3544aa);
-    box-shadow: 0 4px 13px rgba(28,43,123,.28);
+    background: linear-gradient(135deg,#E06518,#C95210);
+    box-shadow: 0 4px 13px rgba(224,101,24,.28);
   }
   .storefront .store-industrial-bottom-nav > :is(a,button):active {
     transform: scale(.96);
@@ -99,10 +99,10 @@
     width: 57px;
     height: 57px;
     border-radius: 50%;
-    background: linear-gradient(145deg,#25368c,#15215f);
+    background: linear-gradient(145deg,#F28A43,#E06518);
     color: white;
     border: 3px solid white;
-    box-shadow: 0 0 0 2px #3b4bb0, 0 7px 20px rgba(20,32,91,.33);
+    box-shadow: 0 0 0 2px #E06518, 0 7px 20px rgba(224,101,24,.33);
     transform: none;
     transition: transform .18s ease;
   }
