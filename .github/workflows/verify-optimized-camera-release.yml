@@ -1,0 +1,35 @@
+name: Combined optimized WebP storefront and full-screen scanner
+on:
+  push:
+    branches: [release/home-webp-mobile-camera-bluegreen-20261103]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run lint
+      - name: Camera and dock regression
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts
+      - name: Build optimized storefront with camera
+        run: npm run build
+      - name: Verify camera controls, image assets and optimized WebP bundle
+        run: |
+          set -euo pipefail
+          grep -RlF 'full-screen-camera-experience' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'عکس‌برداری مجدد' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'store-scan-action' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'sanat-camera-experience__stage' dist/assets --include='*.css' >/dev/null
+          test -s dist/images/scan-industrial-generated.webp
+          test -s dist/images/precision-scan-technical-overlay.svg
+          test "$(find dist/assets -maxdepth 1 -name '*.webp' | wc -l)" -ge 21

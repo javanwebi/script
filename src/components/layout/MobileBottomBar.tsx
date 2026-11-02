@@ -6,18 +6,18 @@ import {
   LayoutGrid,
   ShoppingCart,
   UserRound,
-  Headphones,
   Layers,
   X,
   ChevronLeft,
   ArrowUpLeft,
   Search,
+  ScanLine,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-import { PRIMARY_CATALOG_CATEGORIES } from "../../data/categories";
-import { CategoryNavigation } from "../catalog/CategoryNavigation";
 import { toPersianDigits } from "../../utils/formatters";
+import { usePartIdentificationAction } from "../search/PartIdentificationProvider";
+import "./industrial-mobile-nav.css";
 interface MobileBottomBarProps {
   onOpenMobileMenu?: () => void;
   onOpenSearch?: () => void;
@@ -26,6 +26,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
   const { currentUser, openAuthModal } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
+  const openIdentification = usePartIdentificationAction();
   const [sheet, setSheet] = useState<"categories" | "support" | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -33,46 +34,50 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
     setSheet(null);
   }, [location.pathname, location.search]);
   useEffect(() => {
-    if (sheet) dialog.current?.showModal();
-    else dialog.current?.close();
+    if (sheet && !dialog.current?.open) dialog.current?.showModal();
+    else if (!sheet && dialog.current?.open) dialog.current.close();
   }, [sheet]);
   useEffect(() => {
-    const open = () => setSheet("categories");
-    window.addEventListener("open-mobile-menu", open);
-    return () => window.removeEventListener("open-mobile-menu", open);
+    const openCategories = () => setSheet("categories");
+    const openSupport = (event: Event) => {
+      const trigger = (event as CustomEvent<{ opener?: HTMLButtonElement }>).detail?.opener;
+      opener.current = trigger instanceof HTMLButtonElement ? trigger : null;
+      setSheet("support");
+    };
+    window.addEventListener("open-mobile-menu", openCategories);
+    window.addEventListener("open-mobile-support", openSupport);
+    return () => {
+      window.removeEventListener("open-mobile-menu", openCategories);
+      window.removeEventListener("open-mobile-support", openSupport);
+    };
   }, []);
   const active = (path: string) =>
     path === "/"
       ? location.pathname === "/"
       : location.pathname.startsWith(path);
-  const open = (
-    kind: "categories" | "support",
-    e: React.MouseEvent<HTMLButtonElement>,
-  ) => {
-    opener.current = e.currentTarget;
-    setSheet(kind);
+  const openCategories = (event: React.MouseEvent<HTMLButtonElement>) => {
+    opener.current = event.currentTarget;
+    setSheet("categories");
   };
   return (
     <>
-      <nav className="store-bottom-nav" aria-label="منوی دسترسی سریع موبایل">
+      <nav className="store-bottom-nav store-industrial-bottom-nav" aria-label="منوی دسترسی سریع صنعت پیش" dir="rtl">
         <Link to="/" aria-current={active("/") ? "page" : undefined}>
           <Home size={21} />
           <span>خانه</span>
         </Link>
         <button
           type="button"
-          onClick={(e) => open("categories", e)}
+          onClick={openCategories}
           aria-expanded={sheet === "categories"}
           aria-haspopup="dialog"
         >
           <LayoutGrid size={21} />
-          <span>دسته‌بندی</span>
+          <span>دسته‌ها</span>
         </button>
         <Link
           to="/cart"
-          aria-current={
-            active("/cart") || active("/checkout") ? "page" : undefined
-          }
+          aria-current={active("/cart") || active("/checkout") ? "page" : undefined}
         >
           <span className="store-cart-count">
             <ShoppingCart size={21} />
@@ -80,28 +85,29 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
           </span>
           <span>سبد خرید</span>
         </Link>
-        <button
-          type="button"
-          onClick={(e) => open("support", e)}
-          aria-haspopup="dialog"
-          aria-expanded={sheet === "support"}
-        >
-          <Headphones size={21} />
-          <span>راهنمای خرید</span>
-        </button>
         {currentUser ? (
           <Link
             to={currentUser.approvedB2B ? "/account" : "/consumer-dashboard"}
+            aria-current={active("/account") || active("/consumer-dashboard") || active("/retail-account") ? "page" : undefined}
           >
             <UserRound size={21} />
             <span>حساب من</span>
           </Link>
         ) : (
-          <button type="button" onClick={() => openAuthModal()}>
+          <button type="button" onClick={() => openAuthModal()} aria-label="ورود یا ثبت‌نام">
             <UserRound size={21} />
-            <span>ورود / ثبت‌نام</span>
+            <span>حساب من</span>
           </button>
         )}
+        <button
+          type="button"
+          className="store-scan-action"
+          onClick={() => openIdentification?.("camera")}
+          title="اسکن قطعه با دوربین"
+          aria-label="باز کردن دوربین و اسکن عکس قطعه"
+        >
+          <span className="store-scan-orbit" aria-hidden="true"><ScanLine size={25} strokeWidth={2} /></span>
+        </button>
       </nav>
       <dialog
         className="store-mobile-sheet"
@@ -109,7 +115,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
         onCancel={() => setSheet(null)}
         onClose={() => {
           setSheet(null);
-          opener.current?.focus();
+          if (opener.current?.isConnected) opener.current.focus();
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setSheet(null);
