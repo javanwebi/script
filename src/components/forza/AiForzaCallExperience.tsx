@@ -696,7 +696,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoicePending(false);
       setStatus('speaking');
       setTurn('ai');
-    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms));
+    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms),()=>{
+      // The browser's real playback has stopped; do not hold "speaking"
+      // while the caller settles the promise or restarts the microphone.
+      isAiSpeakingRef.current=false;
+      if(!callClosedRef.current)setStatus('idle');
+    });
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
@@ -893,6 +898,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
+        let finalAudioSubmitted=false;
+        let listeningResumedOnAudioEnd=false;
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
@@ -904,6 +911,31 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           },
           ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            if(callClosedRef.current || !isProcessingTurnRef.current)return;
+            isAiSpeakingRef.current=false;
+            const allFinalAudioScheduled=finalAudioSubmitted &&
+              (!useNima || (
+                bufferedNima!==null &&
+                bufferedNima.statistics.queued===bufferedNima.statistics.scheduled
+              ));
+            if(allFinalAudioScheduled){
+              // Every final WAV segment has actually stopped playing. The
+              // microphone can listen now; do not wait for the promise chain
+              // of the TTS/SSE turn to finish its bookkeeping.
+              listeningResumedOnAudioEnd=true;
+              isProcessingTurnRef.current=false;
+              setVoicePending(false);
+              setStatus('listening');
+              setTurn('user');
+              startListening();
+              console.info('[FORZA_AUDIO_END] phase=mic-ready after_final_wav=1');
+            }else{
+              // A subsequent phrase or SSE reply may still arrive; no false
+              // "speaking" label and no premature echo-triggered microphone.
+              setStatus('thinking');
+            }
+          },
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1043,12 +1075,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               console.info('[FORZA_NIMA_FINAL] coalesced_phrases='+finalPhrases.length+
                 ' final_chars='+(finalPhrases.at(-1)?.length||0));
               for(const phrase of finalPhrases)queueSpeech(phrase);
+              finalAudioSubmitted=true;
               await activeNimaBuffer.finish();
               console.info('[FORZA_LATENCY] phase=nima-incremental-finished phrases='+
                 activeNimaBuffer.statistics.scheduled+
                 ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
+              finalAudioSubmitted=true;
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
             }
             if(!callClosedRef.current)setVoiceOutputError(null);
@@ -1079,10 +1113,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
         setVoicePending(false);
-        isProcessingTurnRef.current = false;
-        setStatus('listening');
-        setTurn('user');
-        startListening();
+        if(!listeningResumedOnAudioEnd){
+          isProcessingTurnRef.current = false;
+          setStatus('listening');
+          setTurn('user');
+          startListening();
+        }
       }
     },
     [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
@@ -1560,6 +1596,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? (voiceWaitSeconds >= 25
                 ? `متن آماده است؛ ساخت صدا طول کشیده (${voiceWaitSeconds} ثانیه)`
                 : `پاسخ آماده است؛ در حال تولید صدا (${voiceWaitSeconds} ثانیه)` )
+              : status === 'thinking' && aiText.trim()
+              ? 'فورزا در انتظار ادامه پاسخ...'
               : status === 'thinking'
               ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
