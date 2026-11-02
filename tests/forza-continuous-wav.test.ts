@@ -108,3 +108,94 @@ test('trims isolated WAV leading/trailing silence but keeps breath margins',()=>
   const silent={...decoded,getChannelData:()=>new Float32Array(24000)};
   assert.deepEqual(pocketWavWindow(silent as unknown as AudioBuffer),{offset:0,duration:1});
 });
+
+test('FORZA WAV with ten seconds of truly silent tail stops at audible speech end',()=>{
+  const rate=24000;
+  const pcm=new Float32Array(rate*12);
+  // Real Persian phrase is 1.5 seconds, the rest is synthesizer zero-padding.
+  pcm.fill(0.035,0,Math.floor(rate*1.5));
+  const decoded={
+    length:pcm.length,sampleRate:rate,duration:12,
+    getChannelData:()=>pcm,
+  } as unknown as AudioBuffer;
+  const window=pocketWavWindow(decoded);
+  assert.equal(window.offset,0);
+  assert.ok(window.duration>1.5 && window.duration<1.65,
+    'silent 10s WAV tail must not keep speaking UI active: '+JSON.stringify(window));
+});
+
+test('FORZA speaking ends when final audio source really ends, not when SSE closes',async()=>{
+  const sources:Array<{
+    onended:(()=>void)|null;start:(when:number,offset?:number,duration?:number)=>void;
+  }>=[];
+  const ctx={
+    state:'running',currentTime:2,destination:{},
+    createBufferSource(){
+      const s={
+        buffer:null as unknown,
+        onended:null as null|(()=>void),
+        connect(){},disconnect(){},start(_when:number,_offset?:number,_duration?:number){},
+        stop(){this.onended?.()},
+      };
+      sources.push(s);
+      return s;
+    },
+    createGain(){return {gain:{value:1},connect(){},disconnect(){}};},
+    async decodeAudioData(){
+      return {duration:0.5};
+    },
+    async resume(){},
+  };
+  let status='thinking';
+  const queue=new ForzaContinuousWav(
+    ()=>ctx as unknown as AudioContext,
+    ()=>{status='speaking';},
+    undefined,
+    ()=>{status='thinking';},
+  );
+  const a=queue.enqueueWav(new Uint8Array([1]));
+  const b=queue.enqueueWav(new Uint8Array([2]));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(sources.length,2);
+  assert.equal(status,'speaking');
+  sources[0].onended?.();
+  assert.equal(status,'speaking','one still-scheduled audio segment must retain speaking state');
+  sources[1].onended?.();
+  assert.equal(status,'thinking','mark speech finished immediately, even when SSE is still open');
+  await Promise.all([a,b]);
+  const c=queue.enqueueWav(new Uint8Array([3]));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(status,'speaking','new audio after a network gap must restore speaking');
+  sources[2].onended?.();
+  await c;
+  assert.equal(status,'thinking');
+  queue.cancel();
+});
+
+test('interrupting FORZA does not emit a misleading playback-complete event',async()=>{
+  let idleEvents=0;
+  const sources:Array<{onended:(()=>void)|null}>=[];
+  const ctx={
+    state:'running',currentTime:5,destination:{},
+    createBufferSource(){
+      const source={
+        buffer:null as unknown,onended:null as null|(()=>void),
+        connect(){},disconnect(){},start(){},stop(){this.onended?.()},
+      };
+      sources.push(source);return source;
+    },
+    createGain(){return {gain:{value:1},connect(){},disconnect(){}};},
+    async decodeAudioData(){return {duration:1};},
+    async resume(){},
+  };
+  const queue=new ForzaContinuousWav(
+    ()=>ctx as unknown as AudioContext,
+    ()=>{},undefined,()=>{idleEvents++},
+  );
+  const done=queue.enqueueWav(new Uint8Array([1]));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  queue.cancel();
+  await done;
+  assert.equal(idleEvents,0);
+  assert.equal(sources.length,1);
+});
