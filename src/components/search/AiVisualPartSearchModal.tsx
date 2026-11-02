@@ -1007,7 +1007,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </div>
         </div>
       ) : (
-        <div className="p-5 sm:p-6 text-right space-y-5">
+        <div className={currentStep === "analyzing" ? "sp-vision-analysis-container" : "p-5 sm:p-6 text-right space-y-5"}>
           {/* TOP STEPPER (Only visible during steps 2 & 3) */}
           {typeof currentStep === "number" && (
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">

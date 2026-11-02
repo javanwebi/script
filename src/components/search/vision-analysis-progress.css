@@ -119,3 +119,5 @@
   .sp-vision-analysis__scan-line,.sp-vision-analysis__track.is-indeterminate > span {animation:none}
   .sp-vision-analysis__track > span {transition:none}
 }
+
+.sp-vision-analysis-container { width: 100%; min-height: 100dvh; }
