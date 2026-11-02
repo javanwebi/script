@@ -50,7 +50,7 @@ test("mobile capsule has four destinations, a detached camera, and no support do
   assert.match(markup, /<span>دسته‌ها<\/span>/);
   assert.match(markup, /<span>سبد خرید<\/span>/);
   assert.match(markup, /<span>حساب من<\/span>/);
-  assert.match(css, /grid-template-columns: 72px repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css, /grid-template-columns: repeat\(4,minmax\(0,1fr\)\) 72px/);
   assert.match(css, /store-industrial-bottom-nav::before/);
   assert.match(css, /border-radius: 50%/);
 });
@@ -70,17 +70,21 @@ test("support icon above the FORZA button reuses the original help sheet", () =>
   assert.match(styles, /inset-block-end: calc\(106px/);
 });
 
-test("RTL pill items follow camera, home, categories, cart, account; active colors follow orange brand", () => {
+test("RTL pill items follow home, categories, cart, account, camera; active colors follow orange brand", () => {
   const nav = source("src/components/layout/MobileBottomBar.tsx");
   const css = source("src/components/layout/industrial-mobile-nav.css");
   const markup = nav.split('<nav className="store-bottom-nav store-industrial-bottom-nav"')[1].split("</nav>")[0];
-  const expected = ["store-scan-action", "<span>خانه</span>", "<span>دسته‌ها</span>", "<span>سبد خرید</span>", "<span>حساب من</span>"];
+  const expected = ["<span>خانه</span>", "<span>دسته‌ها</span>", "<span>سبد خرید</span>", "<span>حساب من</span>", "store-scan-action"];
   let previous = -1;
   for (const term of expected) {
     const position = markup.indexOf(term);
     assert.ok(position > previous, `Invalid RTL dock order: ${term}`);
     previous = position;
   }
+  assert.match(css, /grid-template-columns: repeat\(4,minmax\(0,1fr\)\) 72px/);
+  assert.match(css, /inset-inline-start: 0;\s*inset-inline-end: 69px/);
+  assert.match(css, /grid-template-columns: repeat\(4,minmax\(0,1fr\)\) 80px/);
+  assert.match(css, /grid-template-columns: repeat\(4,minmax\(0,1fr\)\) 62px/);
   assert.match(css, /background: linear-gradient\(135deg,#E06518,#C95210\)/);
   assert.match(css, /background: linear-gradient\(145deg,#F28A43,#E06518\)/);
   assert.doesNotMatch(css, /#182465|#3544aa|#25368c|#15215f|#3b4bb0/i);

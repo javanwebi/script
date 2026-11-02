@@ -12,7 +12,7 @@
     padding: 0;
     display: grid;
     direction: rtl;
-    grid-template-columns: 72px repeat(4,minmax(0,1fr));
+    grid-template-columns: repeat(4,minmax(0,1fr)) 72px;
     gap: 0;
     align-items: center;
     background: transparent;
@@ -28,8 +28,8 @@
     position: absolute;
     z-index: -1;
     inset-block: 6px;
-    inset-inline-start: 69px;
-    inset-inline-end: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 69px;
     border-radius: 999px;
     background: rgba(255,255,255,.985);
     border: 1px solid rgba(210,216,225,.95);
@@ -78,7 +78,7 @@
     outline: 3px solid #e06518;
     outline-offset: 2px;
   }
-  /* Right-side circular scanner: visually detached from the white capsule. */
+  /* Left-side circular scanner: visually detached from the white capsule. */
   .storefront .store-industrial-bottom-nav > button.store-scan-action {
     display: grid;
     place-items: center;
@@ -129,17 +129,17 @@
 @media (min-width:768px) and (max-width:1023px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
     max-width: 500px;
-    grid-template-columns: 80px repeat(4,minmax(0,1fr));
+    grid-template-columns: repeat(4,minmax(0,1fr)) 80px;
   }
-  .storefront .store-industrial-bottom-nav::before { inset-inline-start: 77px; }
+  .storefront .store-industrial-bottom-nav::before { inset-inline-end: 77px; }
   .storefront .store-industrial-bottom-nav > :is(a,button) { font-size: 11px; }
 }
 @media (max-width:370px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
     inset-inline: 5px;
-    grid-template-columns: 62px repeat(4,minmax(0,1fr));
+    grid-template-columns: repeat(4,minmax(0,1fr)) 62px;
   }
-  .storefront .store-industrial-bottom-nav::before { inset-inline-start: 59px; }
+  .storefront .store-industrial-bottom-nav::before { inset-inline-end: 59px; }
   .storefront .store-industrial-bottom-nav > :is(a,button) { font-size: 9px; }
   .storefront .store-industrial-bottom-nav > button.store-scan-action {
     width: 59px; height: 64px; min-height: 64px;

@@ -62,15 +62,6 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
   return (
     <>
       <nav className="store-bottom-nav store-industrial-bottom-nav" aria-label="منوی دسترسی سریع صنعت پیش" dir="rtl">
-        <button
-          type="button"
-          className="store-scan-action"
-          onClick={() => openIdentification?.("camera")}
-          title="اسکن قطعه با دوربین"
-          aria-label="باز کردن دوربین و اسکن عکس قطعه"
-        >
-          <span className="store-scan-orbit" aria-hidden="true"><ScanLine size={25} strokeWidth={2} /></span>
-        </button>
         <Link to="/" aria-current={active("/") ? "page" : undefined}>
           <Home size={21} />
           <span>خانه</span>
@@ -108,6 +99,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
             <span>حساب من</span>
           </button>
         )}
+        <button
+          type="button"
+          className="store-scan-action"
+          onClick={() => openIdentification?.("camera")}
+          title="اسکن قطعه با دوربین"
+          aria-label="باز کردن دوربین و اسکن عکس قطعه"
+        >
+          <span className="store-scan-orbit" aria-hidden="true"><ScanLine size={25} strokeWidth={2} /></span>
+        </button>
       </nav>
       <dialog
         className="store-mobile-sheet"
