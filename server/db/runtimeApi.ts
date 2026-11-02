@@ -7,6 +7,7 @@ import {readDocument,writeDocument,readProducts,conflict} from './repository';
 import {domainFor,canWriteCustomerNamespace,publicReadable} from './namespaces';
 import {getPortalIdentity} from '../../api/portal';
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
+import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
@@ -56,6 +57,17 @@ async function publicProductsCached():Promise<unknown>{
  }
  return publicCatalogInFlight;
 }
+/** First-paint catalog preview: independent of the 10k-SKU runtime hydration. */
+export async function publicHomePreviewApi(_req:Request,res:Response){
+ res.setHeader('Cache-Control','public, max-age=20');
+ if(!databaseEnabled())return res.status(503).json({success:false,products:[]});
+ try{
+  // This cache contains only the publicCatalog projection; never prices or stock.
+  const catalog=await publicProductsCached();
+  return res.json({success:true,products:selectHomePreviewProducts(catalog)});
+ }catch{return res.status(503).json({success:false,products:[]});}
+}
+
 /** Resolve one public technical review on demand; no private commercial fields. */
 export async function publicVariantReviewApi(req:Request,res:Response){
  res.setHeader('Cache-Control','private, no-store');
