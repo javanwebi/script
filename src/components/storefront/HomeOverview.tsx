@@ -41,7 +41,7 @@ export function HomeAssist({
         </p>
       </div>
       <div className="home-assist-visual" aria-hidden="true">
-        <img src={STORE_ASSETS.aiSearchMobile} alt="" loading="lazy" />
+        <img fetchPriority="low" decoding="async" src={STORE_ASSETS.aiSearchMobile} alt="" loading="lazy" />
         <span>
           <ScanLineGraphic /> از تصویر تا مشخصات قطعه
         </span>
@@ -178,7 +178,7 @@ export function WhySanatPish() {
     >
       {/* Subtle Architectural Factory Background Silhouette */}
       <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.07]">
-        <img
+        <img fetchPriority="low" decoding="async"
           src={STORE_ASSETS.industries.bgPlant}
           alt=""
           className="w-full h-full object-cover object-center filter grayscale"
@@ -231,7 +231,7 @@ export function WhySanatPish() {
           >
             {/* Video Thumbnail on Right */}
             <div className="relative w-24 sm:w-44 h-11 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden border border-[#E06518]/60 shrink-0 bg-slate-900">
-              <img
+              <img fetchPriority="low" decoding="async"
                 src={STORE_ASSETS.industries.ceramic}
                 alt="معرفی کوتاه صنعت پیش"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -302,7 +302,7 @@ export function WhySanatPish() {
 
               {/* Central Levitating Orbital Engine Assembly Image */}
               <div className="relative z-10 w-32 h-32 sm:w-64 sm:h-64 flex items-center justify-center">
-                <img
+                <img fetchPriority="low" decoding="async"
                   src={STORE_ASSETS.levitatingOrbitalEngine}
                   alt="موتور لویتاسیون صنعتی - صنعت پیش"
                   className="w-full h-full object-contain drop-shadow-[0_12px_28px_rgba(224,101,24,0.35)] relative z-10 transition-transform hover:scale-105 duration-300"
@@ -317,7 +317,7 @@ export function WhySanatPish() {
                   key={fp.id}
                   className={`hidden sm:flex absolute ${fp.pos} z-20 w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-white/80 backdrop-blur-md border border-white shadow-lg p-1.5 items-center justify-center transform-gpu`}
                 >
-                  <img
+                  <img fetchPriority="low" decoding="async"
                     src={fp.img}
                     alt=""
                     onError={(e) => {
@@ -352,7 +352,7 @@ export function WhySanatPish() {
                 >
                   {/* Right Photo */}
                   <div className="w-13 h-13 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden shrink-0 border border-slate-200/80 bg-slate-100">
-                    <img
+                    <img fetchPriority="low" decoding="async"
                       src={image}
                       alt={title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -401,7 +401,7 @@ export function WhySanatPish() {
 
                   {/* Right Photo */}
                   <div className="w-13 h-13 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden shrink-0 border border-slate-200/80 bg-slate-100">
-                    <img
+                    <img fetchPriority="low" decoding="async"
                       src={image}
                       alt={title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -436,7 +436,7 @@ export function WhySanatPish() {
         <div className="mt-5 sm:mt-12 relative rounded-xl sm:rounded-3xl overflow-hidden bg-[#35383E]/95 backdrop-blur-xl border border-white/15 shadow-xl text-white">
           {/* Glowing Factory Line Perspective Image on the Left Side of Bar */}
           <div className="absolute inset-y-0 left-0 w-full sm:w-2/5 z-0 pointer-events-none opacity-25 sm:opacity-65">
-            <img
+            <img fetchPriority="low" decoding="async"
               src={STORE_ASSETS.industries.ceramic}
               alt=""
               className="w-full h-full object-cover object-left"
@@ -558,7 +558,7 @@ export function WhySanatPish() {
             </div>
 
             <div className="relative rounded-2xl overflow-hidden h-52 bg-slate-900 border border-slate-200">
-              <img
+              <img fetchPriority="low" decoding="async" loading="lazy"
                 src={STORE_ASSETS.whySanatDirectFactory}
                 alt="مجموعه صنعت پیش"
                 className="w-full h-full object-cover opacity-85"
@@ -667,7 +667,7 @@ export function IndustrialServices() {
         {services.map(({ image, Icon, title, text, to, action }, i) => (
           <article key={title}>
             <div className="home-services-photo">
-              <img src={image} alt={title} loading="lazy" />
+              <img fetchPriority="low" decoding="async" src={image} alt={title} loading="lazy" />
               <span className="home-services-number">۰{i + 1}</span>
             </div>
             <div className="home-services-body">
