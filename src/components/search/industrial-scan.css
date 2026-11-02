@@ -2,7 +2,7 @@
 /* Industrial product discovery: real product photography, no mock records */
 .sanat-scan-intro {
   position:relative; min-height:130px; overflow:hidden; border-radius:18px; isolation:isolate;
-  background: #202936 url('/images/precision-scan-technical-overlay.svg') right center / auto 100% no-repeat, url('/images/belt-hero-cinematic.webp') 30% center / cover no-repeat;
+  background: #202936 url('/images/precision-scan-technical-overlay.svg') right center / auto 100% no-repeat, url('/images/scan-industrial-generated.webp') 30% center / cover no-repeat;
   border:1px solid rgba(224,101,24,.45); box-shadow:0 8px 28px rgba(28,39,53,.13);
 }
 .sanat-scan-intro::before {
