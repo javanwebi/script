@@ -3,8 +3,10 @@
  * HTMLAudioElement pause/reopen gaps by scheduling decoded buffers against one
  * AudioContext clock. A slow synthesizer may still cause buffer underrun.
  */
-/** Clip only quiet leading/trailing padding generated around isolated WAV
- * clauses. Keep a 30 ms safety margin to protect weak Persian consonants. */
+/** Remove only true low-amplitude padding, never mid-sentence pauses.
+ * Piper can emit several seconds of trailing PCM silence. Previous trimming
+ * stopped after 240ms, leaving FORZA marked "speaking" long after audible
+ * speech ended. Retain 60ms at either edge for quiet Persian consonants. */
 export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:number}{
   const entire={offset:0,duration:buffer.duration};
   if(!buffer.length||!buffer.sampleRate||typeof buffer.getChannelData!=='function'||buffer.duration<0.35)return entire;
@@ -12,20 +14,51 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   const length=pcm.length;
   const step=Math.max(1,Math.round(buffer.sampleRate/200));
   const threshold=0.0015;
-  const maxTrim=Math.min(Math.round(buffer.sampleRate*0.24),Math.floor(length*0.24));
+  const leadingLimit=Math.min(Math.round(buffer.sampleRate*0.24),Math.floor(length*0.24));
+  // Inspect at most the last twelve seconds in 20ms PCM windows. Piper
+  // sometimes ends a WAV with a near-silent noise floor, not digital zeros;
+  // amplitude spikes are a poor proxy for speech. Windowed RMS plus a
+  // relative threshold identifies the last meaningful audible phoneme.
+  const trailingLimit=Math.min(
+    Math.round(buffer.sampleRate*12),
+    Math.max(0,length-Math.round(buffer.sampleRate*0.15)),
+  );
   let begin=0,finish=length;
   const audible=(a:number,b:number)=>{
     for(let i=a;i<b;i+=4)if(Math.abs(pcm[i])>=threshold)return true;
     return false;
   };
-  while(begin+step<maxTrim&&!audible(begin,Math.min(begin+step,length)))begin+=step;
-  while(finish-step>length-maxTrim&&!audible(finish-step,finish))finish-=step;
+  while(begin+step<leadingLimit&&!audible(begin,Math.min(begin+step,length)))begin+=step;
+
+  const frame=Math.max(1,Math.round(buffer.sampleRate*0.02));
+  const tailStart=Math.max(0,length-trailingLimit);
+  const frames:{start:number,end:number,rms:number}[]=[];
+  let strongest=0;
+  for(let pos=tailStart;pos<length;pos+=frame){
+    const end=Math.min(length,pos+frame);
+    let energy=0,count=0;
+    for(let i=pos;i<end;i+=3){energy+=pcm[i]*pcm[i];count++;}
+    const rms=Math.sqrt(energy/Math.max(1,count));
+    frames.push({start:pos,end,rms});
+    strongest=Math.max(strongest,rms);
+  }
+  if(strongest<threshold){
+    // Fully silent WAVs have no speech boundary to detect; preserve them
+    // rather than fabricating an audible beginning/end.
+    if(!audible(0,length))return entire;
+  }
+  const speechFloor=Math.max(threshold,Math.min(0.018,strongest*0.10));
+  for(let i=frames.length-1;i>=0;i--){
+    if(frames[i].rms>=speechFloor){
+      finish=frames[i].end;
+      break;
+    }
+  }
   if(begin===0&&finish===length)return entire;
-  // If the sample is effectively silent, do not shrink it into zero duration.
-  if(!audible(begin,finish))return entire;
-  const padding=Math.round(buffer.sampleRate*0.03);
-  begin=Math.max(0,begin-padding);
-  finish=Math.min(length,finish+padding);
+  // Preserve the established leading margin (30ms) and 80ms for
+  // quiet Persian word endings, avoiding clipped consonants.
+  begin=Math.max(0,begin-Math.round(buffer.sampleRate*0.03));
+  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.08));
   if(finish-begin<buffer.sampleRate*0.15)return entire;
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
@@ -43,6 +76,7 @@ export class ForzaContinuousWav {
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
+    private readonly onPlaybackIdle?: () => void,
   ) {}
 
   /** Decode a server frame immediately, in parallel with the previous frame.
@@ -123,6 +157,10 @@ export class ForzaContinuousWav {
         this.sources.delete(source);
         source.disconnect();
         finish();
+        // The browser's actual audio source end, not SSE done / TTS HTTP
+        // completion, owns the "speaking" indicator. More audio can still
+        // arrive later; that remains an in-progress AI turn, not listening.
+        if(!this.closed && this.sources.size===0)this.onPlaybackIdle?.();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
       this.onPlaying();
