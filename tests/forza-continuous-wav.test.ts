@@ -199,3 +199,18 @@ test('interrupting FORZA does not emit a misleading playback-complete event',asy
   assert.equal(idleEvents,0);
   assert.equal(sources.length,1);
 });
+
+test('FORZA ignores inaudible Piper noise floor at the end of spoken WAV',()=>{
+  const rate=24000;
+  const pcm=new Float32Array(rate*11);
+  pcm.fill(0.08,0,rate);
+  // Below the actual voice level, but nonzero: older per-sample tests
+  // incorrectly treated this as 10 seconds of continued speech.
+  pcm.fill(0.002,rate,pcm.length);
+  const decoded={
+    length:pcm.length,sampleRate:rate,duration:11,getChannelData:()=>pcm,
+  } as unknown as AudioBuffer;
+  const audible=pocketWavWindow(decoded);
+  assert.ok(audible.duration>1 && audible.duration<1.15,
+    'near-inaudible tail must not keep FORZA in speaking state: '+JSON.stringify(audible));
+});
