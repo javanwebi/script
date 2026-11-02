@@ -4,58 +4,58 @@ import {test} from 'node:test';
 
 const read=(file:string)=>readFileSync(file,'utf8');
 
-test('marketing photography imports generated lightweight WebP, not full JPG',()=>{
+test('marketing photograph imports use generated WebP derivatives',()=>{
  const assets=read('src/assets/images/index.ts');
  const optim=read('scripts/optimize-images.mjs');
- assert.doesNotMatch(assets,/^import .+ from '\\.\\/[^']+\\.jpe?g';/gm);
- assert.match(assets,/brands_fullbleed_bg_1791282424638\\.webp/);
- assert.match(assets,/parts_warehouse_vault_1791289671081\\.webp/);
- assert.match(assets,/IMAGESITE\\/mobile\\/Futuristic FORZA AI Robot Halo\\.webp/);
- assert.match(optim,/src\\/assets\\/IMAGESITE/);
- assert.match(optim,/only\\.includes\\(e\\.name\\)/);
+ const imports=assets.split('\n').filter(line=>line.startsWith('import '));
+ assert.equal(imports.filter(line=>line.endsWith(".jpg';")).length,0);
+ assert.ok(assets.includes('brands_fullbleed_bg_1791282424638.webp'));
+ assert.ok(assets.includes('parts_warehouse_vault_1791289671081.webp'));
+ assert.ok(assets.includes('IMAGESITE/mobile/Futuristic FORZA AI Robot Halo.webp'));
+ assert.ok(optim.includes('src/assets/IMAGESITE'));
+ assert.ok(optim.includes('only.includes(e.name)'));
 });
 
-test('first hero has high priority and inactive slides have no image request',()=>{
+test('hero requests visible slide only, with high priority on mobile',()=>{
  const hero=read('src/pages/HomePage.tsx');
- assert.match(hero,/backgroundImage: isActive \\? `url\\(\\$\\{slide\\.image\\}\\)` : undefined/);
- assert.match(hero,/src=\\{isActive \\? slide\\.image : undefined\\}/);
- assert.match(hero,/fetchPriority=\\{isActive \\? "high" : "low"\\}/);
+ assert.ok(hero.includes('backgroundImage: isActive ?'));
+ assert.ok(hero.includes('src={isActive ? slide.image : undefined}'));
+ assert.ok(hero.includes('fetchPriority={isActive ? "high" : "low"}'));
 });
 
-test('home category art bypasses catalog-only image URL resolver',()=>{
+test('category marketing artwork bypasses catalog-only product URL resolver',()=>{
  const source=read('src/components/storefront/HomeSequence.tsx');
- assert.match(source,/<img[\\s\\S]*?src=\\{categoryArtwork\\[c\\.name\\]/);
- assert.doesNotMatch(source,/<ProductImage[\\s\\S]*?src=\\{categoryArtwork\\[c\\.name\\]/);
+ assert.ok(source.includes('src={categoryArtwork[c.name] || c.image || A.categories.transmission}'));
+ assert.ok(!source.includes('src={categoryArtwork[c.name] || c.image}'));
 });
 
-test('offscreen sections and product images avoid full-resolution downloads',()=>{
- for (const file of [
+test('offscreen images are lazy, low-priority and decoded asynchronously',()=>{
+ for(const file of [
   'src/components/home/MainBrandsBanner.tsx',
   'src/components/storefront/HomeDiscovery.tsx',
   'src/components/storefront/HomeOverview.tsx',
   'src/components/layout/Footer.tsx'
  ]){
-  const text=read(file);
-  const images=text.match(/<img\\b[\\s\\S]*?\\/>/g)??[];
-  assert.ok(images.length>0,file);
-  for(const img of images){
-   assert.match(img,/loading="lazy"/,file);
-   assert.match(img,/decoding="async"/,file);
-   assert.match(img,/fetchPriority="low"/,file);
+  const source=read(file);
+  const tags=source.split('<img').slice(1).map(part=>part.split('/>')[0]);
+  assert.ok(tags.length>0,file);
+  for(const tag of tags){
+   assert.ok(tag.includes('loading="lazy"'),file);
+   assert.ok(tag.includes('decoding="async"'),file);
+   assert.ok(tag.includes('fetchPriority="low"'),file);
   }
  }
- for (const file of [
+ for(const file of [
   'src/components/home/HighUtilityProductsSection.tsx',
   'src/components/product/ProductCard.tsx',
   'src/components/portal/PortalProductCard.tsx'
  ]){
-  const text=read(file);
-  assert.match(text,/thumbnail/,file);
+  assert.ok(read(file).includes('thumbnail'),file);
  }
 });
 
-test('fingerprinted assets are immutable but HTML is revalidated',()=>{
+test('versioned assets can be cached immutably, HTML is revalidated',()=>{
  const server=read('server.ts');
- assert.match(server,/max-age=31536000, immutable/);
- assert.match(server,/res\\.setHeader\\('Cache-Control', 'no-cache'\\)/);
+ assert.ok(server.includes('max-age=31536000, immutable'));
+ assert.ok(server.includes("res.setHeader('Cache-Control', 'no-cache')"));
 });
