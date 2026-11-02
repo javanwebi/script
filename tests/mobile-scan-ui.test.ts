@@ -69,3 +69,19 @@ test("support icon above the FORZA button reuses the original help sheet", () =>
   assert.match(styles, /flex-direction: column/);
   assert.match(styles, /inset-block-end: calc\(106px/);
 });
+
+test("RTL pill items follow camera, home, categories, cart, account; active colors follow orange brand", () => {
+  const nav = source("src/components/layout/MobileBottomBar.tsx");
+  const css = source("src/components/layout/industrial-mobile-nav.css");
+  const markup = nav.split('<nav className="store-bottom-nav store-industrial-bottom-nav"')[1].split("</nav>")[0];
+  const expected = ["store-scan-action", "<span>خانه</span>", "<span>دسته‌ها</span>", "<span>سبد خرید</span>", "<span>حساب من</span>"];
+  let previous = -1;
+  for (const term of expected) {
+    const position = markup.indexOf(term);
+    assert.ok(position > previous, `Invalid RTL dock order: ${term}`);
+    previous = position;
+  }
+  assert.match(css, /background: linear-gradient\(135deg,#E06518,#C95210\)/);
+  assert.match(css, /background: linear-gradient\(145deg,#F28A43,#E06518\)/);
+  assert.doesNotMatch(css, /#182465|#3544aa|#25368c|#15215f|#3b4bb0/i);
+});

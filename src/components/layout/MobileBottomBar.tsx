@@ -71,6 +71,29 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
         >
           <span className="store-scan-orbit" aria-hidden="true"><ScanLine size={25} strokeWidth={2} /></span>
         </button>
+        <Link to="/" aria-current={active("/") ? "page" : undefined}>
+          <Home size={21} />
+          <span>خانه</span>
+        </Link>
+        <button
+          type="button"
+          onClick={openCategories}
+          aria-expanded={sheet === "categories"}
+          aria-haspopup="dialog"
+        >
+          <LayoutGrid size={21} />
+          <span>دسته‌ها</span>
+        </button>
+        <Link
+          to="/cart"
+          aria-current={active("/cart") || active("/checkout") ? "page" : undefined}
+        >
+          <span className="store-cart-count">
+            <ShoppingCart size={21} />
+            {itemCount > 0 && <b>{toPersianDigits(itemCount)}</b>}
+          </span>
+          <span>سبد خرید</span>
+        </Link>
         {currentUser ? (
           <Link
             to={currentUser.approvedB2B ? "/account" : "/consumer-dashboard"}
@@ -85,29 +108,6 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
             <span>حساب من</span>
           </button>
         )}
-        <Link
-          to="/cart"
-          aria-current={active("/cart") || active("/checkout") ? "page" : undefined}
-        >
-          <span className="store-cart-count">
-            <ShoppingCart size={21} />
-            {itemCount > 0 && <b>{toPersianDigits(itemCount)}</b>}
-          </span>
-          <span>سبد خرید</span>
-        </Link>
-        <button
-          type="button"
-          onClick={openCategories}
-          aria-expanded={sheet === "categories"}
-          aria-haspopup="dialog"
-        >
-          <LayoutGrid size={21} />
-          <span>دسته‌ها</span>
-        </button>
-        <Link to="/" aria-current={active("/") ? "page" : undefined}>
-          <Home size={21} />
-          <span>خانه</span>
-        </Link>
       </nav>
       <dialog
         className="store-mobile-sheet"
