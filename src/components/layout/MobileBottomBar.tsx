@@ -12,12 +12,15 @@ import {
   ChevronLeft,
   ArrowUpLeft,
   Search,
+  ScanLine,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { PRIMARY_CATALOG_CATEGORIES } from "../../data/categories";
 import { CategoryNavigation } from "../catalog/CategoryNavigation";
 import { toPersianDigits } from "../../utils/formatters";
+import { usePartIdentificationAction } from "../search/PartIdentificationProvider";
+import "./industrial-mobile-nav.css";
 interface MobileBottomBarProps {
   onOpenMobileMenu?: () => void;
   onOpenSearch?: () => void;
@@ -26,6 +29,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
   const { currentUser, openAuthModal } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
+  const openIdentification = usePartIdentificationAction();
   const [sheet, setSheet] = useState<"categories" | "support" | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -54,7 +58,14 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
   };
   return (
     <>
-      <nav className="store-bottom-nav" aria-label="منوی دسترسی سریع موبایل">
+      <nav className="store-bottom-nav store-industrial-bottom-nav" aria-label="منوی دسترسی سریع صنعت پیش">
+        <button type="button" className="store-scan-action"
+          onClick={() => openIdentification?.("camera")}
+          title="اسکن قطعه با دوربین"
+          aria-label="باز کردن دوربین و اسکن عکس قطعه">
+          <span className="store-scan-orbit" aria-hidden="true"><ScanLine size={24} strokeWidth={2} /></span>
+          <span>اسکن قطعه</span>
+        </button>
         <Link to="/" aria-current={active("/") ? "page" : undefined}>
           <Home size={21} />
           <span>خانه</span>
@@ -66,7 +77,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
           aria-haspopup="dialog"
         >
           <LayoutGrid size={21} />
-          <span>دسته‌بندی</span>
+          <span>دسته‌ها</span>
         </button>
         <Link
           to="/cart"
@@ -87,7 +98,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
           aria-expanded={sheet === "support"}
         >
           <Headphones size={21} />
-          <span>راهنمای خرید</span>
+          <span>راهنما</span>
         </button>
         {currentUser ? (
           <Link
@@ -99,7 +110,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
         ) : (
           <button type="button" onClick={() => openAuthModal()}>
             <UserRound size={21} />
-            <span>ورود / ثبت‌نام</span>
+            <span>حساب من</span>
           </button>
         )}
       </nav>

@@ -1,0 +1,69 @@
+
+/* Sanat Pish mobile navigation — precision floating dock */
+@media (max-width: 1023px) {
+  .storefront .store-bottom-nav.store-industrial-bottom-nav {
+    position: fixed; inset-inline: max(9px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-left));
+    inset-block-end: calc(10px + env(safe-area-inset-bottom)); z-index: 60;
+    display: grid; direction: rtl; grid-template-columns: 65px repeat(5,minmax(0,1fr));
+    align-items: center; gap: 2px; width: auto; min-width: 0; min-height: 77px;
+    margin: 0 auto; padding: 7px; border: 1px solid #d6d8dc; border-radius: 23px;
+    background: rgba(255,255,255,.975); box-shadow: 0 14px 40px rgba(24,32,41,.21);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); isolation: isolate;
+  }
+  .storefront .store-industrial-bottom-nav > a,
+  .storefront .store-industrial-bottom-nav > button {
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
+    min-width:0; min-height:60px; padding: 5px 1px; border:0; border-radius:15px;
+    color:#59616b; background:transparent; font-size:10px; line-height:1.5; font-weight:650;
+    transition:color .2s ease, background-color .2s ease, transform .2s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .storefront .store-industrial-bottom-nav > :is(a,button) > span:last-child {
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .storefront .store-industrial-bottom-nav > a[aria-current="page"],
+  .storefront .store-industrial-bottom-nav > button[aria-expanded="true"] {
+    color:#fff; background:#29323d; box-shadow:0 5px 14px rgba(25,34,44,.22);
+  }
+  .storefront .store-industrial-bottom-nav > :is(a,button):active { transform:scale(.97); }
+  .storefront .store-industrial-bottom-nav :is(a,button):focus-visible {
+    outline: 3px solid #e06518; outline-offset: 2px;
+  }
+  .storefront .store-industrial-bottom-nav > .store-scan-action {
+    position:relative; overflow:visible; gap:0; background:transparent; color:#2b313a;
+  }
+  .storefront .store-industrial-bottom-nav .store-scan-orbit {
+    display:grid; place-items:center; width:52px; height:52px; flex:0 0 52px;
+    transform:translateY(-11px); border-radius:17px; border:3px solid white;
+    background:linear-gradient(140deg,#3a4452,#19212b); color:white;
+    box-shadow:0 0 0 2px #e06518, 0 7px 17px rgba(22,31,40,.25);
+  }
+  .storefront .store-industrial-bottom-nav .store-scan-action > span:last-child {
+    position:absolute; inset-block-end:1px; font-weight:850; font-size:9px; color:#2b313a;
+  }
+  .storefront .store-industrial-bottom-nav .store-cart-count b {
+    background:#e06518; border:1px solid #fff; width:18px; height:18px;
+    top:-7px; left:-9px; font-size:10px;
+  }
+  .storefront .store-footer { padding-bottom:calc(112px + env(safe-area-inset-bottom)); }
+  .storefront .store-mobile-sheet {
+    max-height:min(88dvh,780px); border-top:4px solid #e06518;
+    border-radius:24px 24px 0 0; overscroll-behavior:contain;
+  }
+}
+@media (min-width:768px) and (max-width:1023px) {
+  .storefront .store-bottom-nav.store-industrial-bottom-nav {
+    max-width:620px; min-height:80px; grid-template-columns:76px repeat(5,minmax(0,1fr)); padding:8px 10px;
+  }
+  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size:11px; }
+}
+@media (max-width:370px) {
+  .storefront .store-bottom-nav.store-industrial-bottom-nav {
+    inset-inline:6px 6px; padding-inline:4px; grid-template-columns:57px repeat(5,minmax(0,1fr));
+  }
+  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size:9px; }
+  .storefront .store-industrial-bottom-nav .store-scan-orbit { width:47px; height:47px; flex-basis:47px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .storefront .store-industrial-bottom-nav > :is(a,button) { transition:none; }
+}

@@ -57,7 +57,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return (
     <div className="storefront min-h-screen flex flex-col">
       <Header />
-      <main className={`flex-1 w-full pb-16 lg:pb-0 ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
+      <main className={`flex-1 w-full pb-28 lg:pb-0 ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
         {children}
       </main>
       <Footer />
