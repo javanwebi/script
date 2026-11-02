@@ -101,7 +101,10 @@ test -s "$STAGE/dist/index.html"
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
 grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
 test -s "$STAGE/dist/images/scan-industrial-generated.webp"
 test -s "$STAGE/dist/images/precision-scan-technical-overlay.svg"
@@ -192,6 +195,10 @@ curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename 
  -o /tmp/sanatpish-fullscreen-camera-canary.js
 grep -qF 'full-screen-camera-experience' /tmp/sanatpish-fullscreen-camera-canary.js
 grep -qF 'عکس‌برداری مجدد' /tmp/sanatpish-fullscreen-camera-canary.js
+PROGRESSJS="$(grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' | head -1)"
+curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$PROGRESSJS")"  -o /tmp/sanatpish-vision-redesign-canary.js
+grep -qF 'vision-analyzing-screen' /tmp/sanatpish-vision-redesign-canary.js
+echo VISION_REDESIGN_CANARY_OK
 echo CAMERA_CANARY_OK
 
 echo '===== ATOMIC NGINX TRAFFIC SWITCH ====='

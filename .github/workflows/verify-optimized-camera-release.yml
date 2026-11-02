@@ -33,7 +33,10 @@ jobs:
           set -euo pipefail
           grep -RlF 'full-screen-camera-experience' dist/assets --include='*.js' >/dev/null
           grep -RlF 'عکس‌برداری مجدد' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'vision-analyzing-screen' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'sanat-identification-open' dist/assets --include='*.js' >/dev/null
           grep -RlF 'store-scan-action' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'sp-vision-analysis__viewer' dist/assets --include='*.css' >/dev/null
           grep -RlF 'sanat-camera-experience__stage' dist/assets --include='*.css' >/dev/null
           test -s dist/images/scan-industrial-generated.webp
           test -s dist/images/precision-scan-technical-overlay.svg
