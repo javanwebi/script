@@ -384,7 +384,13 @@ function ensureBrowserCatalogBuilt() {
     }
   }
 
-  cachedAllIncludingInactive = groupProductFamilies(allFamilies).map(enrichProductTechnicalData);
+  // PostgreSQL already provides the authoritative technical specifications.
+  // Re-enriching every SKU after lightweight hydration rebuilds >15 MiB of
+  // technical reviews on the browser's main thread. Preserve server data;
+  // retain legacy enrichment only for explicit fixture/offline catalogues.
+  cachedAllIncludingInactive = databaseProducts
+    ? groupProductFamilies(allFamilies)
+    : groupProductFamilies(allFamilies).map(enrichProductTechnicalData);
   cachedProducts = cachedAllIncludingInactive.filter((p) => p.active !== false);
 
   cachedMapIncludingInactive = new Map();
