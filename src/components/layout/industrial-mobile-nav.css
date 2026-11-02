@@ -126,7 +126,7 @@
     overscroll-behavior: contain;
   }
 }
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width:768px) and (max-width:1023px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
     max-width: 500px;
     grid-template-columns: 80px repeat(4,minmax(0,1fr));
@@ -134,7 +134,7 @@
   .storefront .store-industrial-bottom-nav::before { inset-inline-start: 77px; }
   .storefront .store-industrial-bottom-nav > :is(a,button) { font-size: 11px; }
 }
-@media (max-width: 370px) {
+@media (max-width:370px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
     inset-inline: 5px;
     grid-template-columns: 62px repeat(4,minmax(0,1fr));
