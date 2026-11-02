@@ -110,6 +110,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
   // Camera stream state
   const [isUsingCamera, setIsUsingCamera] = useState<boolean>(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const cameraRequestRef = useRef(0);
   React.useEffect(() => {
@@ -237,6 +238,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const request = ++cameraRequestRef.current;
     try {
       setIsUsingCamera(true);
+      setIsCameraReady(false);
       setErrorMessage("");
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera requires HTTPS');
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -273,14 +275,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       videoRef.current.srcObject = null;
     }
     setIsUsingCamera(false);
+    setIsCameraReady(false);
   };
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      if (!isCameraReady || !video.videoWidth || !video.videoHeight) {
+        setErrorMessage('تصویر دوربین هنوز آماده نشده است. پس از نمایش تصویر دوباره تلاش کنید.');
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -709,6 +716,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                           void node.play().catch(() => undefined);
                         }
                       }}
+                      onLoadedMetadata={() => setIsCameraReady(true)}
                       aria-label="پیش‌نمایش زنده دوربین برای عکاسی از قطعه"
                       className="w-full h-full object-cover"
                       autoPlay
@@ -716,12 +724,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     />
                     <canvas ref={canvasRef} className="hidden" />
                     <span className="sanat-scan-viewfinder__corners" aria-hidden="true" />
-                    <span className="sanat-scan-viewfinder__hint">دوربین فعال · قطعه را در کادر قرار دهید</span>
+                    <span className="sanat-scan-viewfinder__hint" role="status" aria-live="polite">{isCameraReady ? "دوربین فعال · قطعه را در کادر قرار دهید" : "در حال آماده‌سازی تصویر دوربین…"}</span>
                   </div>
                   <div className="sanat-scan-viewfinder__actions absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 px-4">
                     <button
                       type="button"
                       onClick={capturePhoto}
+                      disabled={!isCameraReady}
                       className="min-h-12 px-5 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 cursor-pointer transition-all"
                     >
                       <Camera className="w-4 h-4" />
