@@ -171,5 +171,5 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
-  assert.match(modal = source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+  assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
 });
