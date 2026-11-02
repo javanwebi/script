@@ -696,7 +696,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoicePending(false);
       setStatus('speaking');
       setTurn('ai');
-    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms));
+    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms),()=>{
+      // The browser's real playback has stopped; do not hold "speaking"
+      // while the caller settles the promise or restarts the microphone.
+      isAiSpeakingRef.current=false;
+      if(!callClosedRef.current)setStatus('idle');
+    });
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
@@ -904,6 +909,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           },
           ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            if(callClosedRef.current || !isProcessingTurnRef.current)return;
+            isAiSpeakingRef.current=false;
+            // A delayed SSE done event or the next Nima phrase may still be
+            // pending. "Thinking" is truthful; "speaking" is not. Do NOT
+            // resume STT until the authoritative turn has completed.
+            setStatus('thinking');
+          },
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1560,6 +1573,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? (voiceWaitSeconds >= 25
                 ? `متن آماده است؛ ساخت صدا طول کشیده (${voiceWaitSeconds} ثانیه)`
                 : `پاسخ آماده است؛ در حال تولید صدا (${voiceWaitSeconds} ثانیه)` )
+              : status === 'thinking' && aiText.trim()
+              ? 'فورزا در انتظار ادامه پاسخ...'
               : status === 'thinking'
               ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
