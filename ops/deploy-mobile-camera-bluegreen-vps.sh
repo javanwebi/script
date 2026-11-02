@@ -111,6 +111,7 @@ grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='
 grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sanat-identification-open' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'صفحه را به بالا بکشید' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
@@ -211,7 +212,8 @@ echo VISION_REDESIGN_CANARY_OK
 FORZAJS="$(grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' | head -1)"
 curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$FORZAJS")"  -o /tmp/sanatpish-forza-contact-canary.js
 grep -qF 'forza-mobile-contact-sheet' /tmp/sanatpish-forza-contact-canary.js
-grep -qF 'صفحه را به بالا بکشید' /tmp/sanatpish-forza-contact-canary.js
+grep -qF 'برای مشاوره هوش مصنوعی، به بالا بکشید' /tmp/sanatpish-forza-contact-canary.js
+grep -qF 'forza-swipe-instruction' /tmp/sanatpish-forza-contact-canary.js
 echo FORZA_CONTACT_CANARY_OK
 echo CAMERA_CANARY_OK
 
