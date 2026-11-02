@@ -46,6 +46,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
+import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
@@ -352,6 +353,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// Signed Supabase Auth hook must read original request bytes before body parsing.
+registerSupabaseSmsHook(app);
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 app.get('/api/admin/catalog-image-audits',async(req,res)=>{
