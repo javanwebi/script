@@ -28,16 +28,16 @@ const CategoryPage = lazy(() =>
     default: module.CategoryPage,
   })),
 );
-import { AllCategoriesPage } from "./pages/AllCategoriesPage";
+const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
 const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
 const ProductDetailPage = lazy(() =>
   import("./pages/ProductDetailPage").then((module) => ({
     default: module.ProductDetailPage,
   })),
 );
-import { SearchPage } from "./pages/SearchPage";
-import { CartPage } from "./pages/CartPage";
-import { WishlistPage } from "./pages/WishlistPage";
+const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({default:m.SearchPage})));
+const CartPage = lazy(() => import("./pages/CartPage").then(m => ({default:m.CartPage})));
+const WishlistPage = lazy(() => import("./pages/WishlistPage").then(m => ({default:m.WishlistPage})));
 const CheckoutPage = lazy(() =>
   import("./pages/CheckoutPage").then((module) => ({
     default: module.CheckoutPage,
@@ -48,8 +48,8 @@ const AccountPage = lazy(() =>
     default: module.AccountPage,
   })),
 );
-import { ClubPage } from "./pages/ClubPage";
-import { AgencyPage } from "./pages/AgencyPage";
+const ClubPage = lazy(() => import("./pages/ClubPage").then(m => ({default:m.ClubPage})));
+const AgencyPage = lazy(() => import("./pages/AgencyPage").then(m => ({default:m.AgencyPage})));
 const AiForzaPage = lazy(() =>
   import("./pages/AiForzaPage").then((module) => ({
     default: module.AiForzaPage,
@@ -62,7 +62,7 @@ const AiConsultPage = lazy(() =>
 );
 import { RegisterPage } from "./pages/RegisterPage";
 import { LoginPage } from "./pages/LoginPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage").then(m => ({default:m.OnboardingPage})));
 const ConsumerDashboardPage = lazy(() =>
   import("./pages/ConsumerDashboardPage").then((module) => ({
     default: module.ConsumerDashboardPage,
@@ -73,8 +73,8 @@ const TileCeramicIndustryPage = lazy(() =>
     default: module.TileCeramicIndustryPage,
   })),
 );
-import { AboutUsPage } from "./pages/AboutUsPage";
-import { ContactUsPage } from "./pages/ContactUsPage";
+const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
+const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,
