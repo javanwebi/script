@@ -23,6 +23,14 @@ function wav(durationMs=180){
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     window.__speechSynthesisCalls=0;
+    window.__forzaPlaybackEndedAt=0;
+    const originalStart=AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start=function(...args){
+      this.addEventListener('ended',()=>{
+        window.__forzaPlaybackEndedAt=performance.now();
+      });
+      return originalStart.apply(this,args);
+    };
     window.speechSynthesis?.cancel?.();
     // The app must not rely on installed client TTS voices for reply output.
   });
@@ -56,9 +64,13 @@ function wav(durationMs=180){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:30000});
   await page.getByTitle('تایپ پیام متنی').click();
   await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPA چیست؟');
+  await page.evaluate(()=>window.__forzaPlaybackEndedAt=0);
   await page.getByTitle('ارسال به هوش مصنوعی').click();
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
-  await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
+  await page.waitForFunction(()=>window.__forzaPlaybackEndedAt>0,null,{timeout:30000});
+  await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:2000});
+  const micDelay=await page.evaluate(()=>performance.now()-window.__forzaPlaybackEndedAt);
+  assert.ok(micDelay<750,'FORZA must listen immediately after audible WAV finishes; extra delay='+micDelay+'ms');
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
   const answer='سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.';
   assert.deepEqual(fullVoiceCalls,[answer],
