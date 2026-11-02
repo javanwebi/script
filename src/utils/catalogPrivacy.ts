@@ -24,3 +24,19 @@ export function publicCatalog<T>(input: T): T {
     ) as T;
   return input;
 }
+
+/** Keep the public catalogue searchable but defer bulky per-SKU technical reports. */
+export function compactCatalogReviews<T>(input: T): T {
+  if (!Array.isArray(input)) return input;
+  return input.map((family) => {
+    if (!family || typeof family !== 'object' || !Array.isArray(family.variants)) return family;
+    return {
+      ...family,
+      variants: family.variants.map((variant: unknown) => {
+        if (!variant || typeof variant !== 'object') return variant;
+        const { technicalReview: _deferredReview, ...summary } = variant as Record<string, unknown>;
+        return summary;
+      }),
+    };
+  }) as T;
+}

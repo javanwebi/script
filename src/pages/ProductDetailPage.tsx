@@ -19,6 +19,7 @@ import {
   buildDefaultGalleryImages,
   subscribeCatalogChanges,
 } from "../data/mockGenerator";
+import type { TechnicalReview } from "../data/productTechnicalData";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
@@ -135,6 +136,30 @@ export const ProductDetailPage: React.FC = () => {
     "specs" | "catalogue" | "delivery"
   >("specs");
 
+  // Fetch the full technical report only for the SKU shown in the specs tab.
+  // Catalog listing/search never needs thousands of these large reports.
+  const [lazyReviews, setLazyReviews] = useState<Record<string, TechnicalReview | null>>({});
+  useEffect(() => {
+    if (activeTab !== "specs" || !selectedVariantCode) return;
+    const selected = visibleVariants.find(v => v.code === selectedVariantCode);
+    if (!selected || selected.technicalReview || Object.prototype.hasOwnProperty.call(lazyReviews, selectedVariantCode)) return;
+    const controller = new AbortController();
+    fetch("/api/catalog/variant-review/" + encodeURIComponent(selectedVariantCode), {
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (!controller.signal.aborted) {
+          setLazyReviews(current => ({ ...current, [selectedVariantCode]: data?.success ? (data.technicalReview ?? null) : null }));
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLazyReviews(current => ({ ...current, [selectedVariantCode]: null }));
+      });
+    return () => controller.abort();
+  }, [activeTab, selectedVariantCode, visibleVariants, lazyReviews]);
+
   // Initialize selected variant & matching image when URL code or family changes
   useEffect(() => {
     if (!product) return;
@@ -232,6 +257,7 @@ export const ProductDetailPage: React.FC = () => {
   const selectedVariant =
     visibleVariants.find((v) => v.code === selectedVariantCode) ||
     visibleVariants[0];
+  const selectedTechnicalReview = selectedVariant?.technicalReview ?? lazyReviews[selectedVariantCode];
 
   // SKU-owned pricing & stock resolution
   const baseUnitPrice = selectedVariant
@@ -1199,18 +1225,18 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {selectedVariant?.technicalReview && (
+              {selectedTechnicalReview && (
                 <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3 text-xs text-slate-600">
                   <h3 className="font-bold text-[#55565A]">مسیر فنی و منابع این کد کالا</h3>
-                  <p>{selectedVariant.technicalReview.categoryPath.join(' ← ')}</p>
-                  <p className="leading-6">{selectedVariant.technicalReview.note}</p>
-                  {selectedVariant.technicalReview.ownerCatalogue&&<p>منبع ابعاد: کاتالوگ اطلس، صفحهٔ چاپی {selectedVariant.technicalReview.ownerCatalogue.printedPage}؛ صفحهٔ PDF {selectedVariant.technicalReview.ownerCatalogue.pdfPage}.</p>}
-                  {selectedVariant.technicalReview.researchWarnings?.map(warning=><p key={warning} className="leading-6 text-amber-800">نیازمند تطبیق: {warning}</p>)}
+                  <p>{selectedTechnicalReview.categoryPath.join(' ← ')}</p>
+                  <p className="leading-6">{selectedTechnicalReview.note}</p>
+                  {selectedTechnicalReview.ownerCatalogue&&<p>منبع ابعاد: کاتالوگ اطلس، صفحهٔ چاپی {selectedTechnicalReview.ownerCatalogue.printedPage}؛ صفحهٔ PDF {selectedTechnicalReview.ownerCatalogue.pdfPage}.</p>}
+                  {selectedTechnicalReview.researchWarnings?.map(warning=><p key={warning} className="leading-6 text-amber-800">نیازمند تطبیق: {warning}</p>)}
                   <div className="flex flex-wrap gap-3">
-                    {selectedVariant.technicalReview.references.map(ref => <a key={ref.url} href={ref.url} target="_blank" rel="noopener noreferrer" className="text-[#E06518] underline underline-offset-4">{ref.title}</a>)}
+                    {selectedTechnicalReview.references.map(ref => <a key={ref.url} href={ref.url} target="_blank" rel="noopener noreferrer" className="text-[#E06518] underline underline-offset-4">{ref.title}</a>)}
                   </div>
-                  {selectedVariant.technicalReview.comparisonReferences?.map(ref=><p key={ref.url} className="leading-6"><a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-[#E06518] underline">{ref.title}</a> — مرجع مقایسه: {ref.condition}</p>)}
-                  <p className="leading-6">نیازمند تکمیل: {selectedVariant.technicalReview.missing.join('، ')}</p>
+                  {selectedTechnicalReview.comparisonReferences?.map(ref=><p key={ref.url} className="leading-6"><a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-[#E06518] underline">{ref.title}</a> — مرجع مقایسه: {ref.condition}</p>)}
+                  <p className="leading-6">نیازمند تکمیل: {selectedTechnicalReview.missing.join('، ')}</p>
                 </section>
               )}
 

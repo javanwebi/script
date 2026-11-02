@@ -6,7 +6,7 @@ import {adoptedNamespaces,readAdoptedProducts,toman} from './adopted';
 import {readDocument,writeDocument,readProducts,conflict} from './repository';
 import {domainFor,canWriteCustomerNamespace,publicReadable} from './namespaces';
 import {getPortalIdentity} from '../../api/portal';
-import {publicCatalog} from '../../src/utils/catalogPrivacy';
+import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
@@ -56,6 +56,24 @@ async function publicProductsCached():Promise<unknown>{
  }
  return publicCatalogInFlight;
 }
+/** Resolve one public technical review on demand; no private commercial fields. */
+export async function publicVariantReviewApi(req:Request,res:Response){
+ res.setHeader('Cache-Control','private, no-store');
+ if(!databaseEnabled())return res.status(503).json({success:false});
+ const code=String(req.params.code||'').trim();
+ if(!code || code.length>180)return res.status(400).json({success:false});
+ try{
+  const catalog=await publicProductsCached();
+  if(!Array.isArray(catalog))return res.status(503).json({success:false});
+  for(const family of catalog as Array<{active?:boolean;variants?:Array<{code?:string;active?:boolean;technicalReview?:unknown}>}>){
+   if(family.active===false)continue;
+   const variant=family.variants?.find(v=>v.active!==false && v.code?.toLowerCase()===code.toLowerCase());
+   if(variant)return res.json({success:true,code:variant.code,technicalReview:variant.technicalReview??null});
+  }
+  return res.status(404).json({success:false});
+ }catch{return res.status(503).json({success:false,message:'دریافت اطلاعات فنی ممکن نشد.'});}
+}
+
 export async function runtimeApi(req:Request,res:Response){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');
  if(!databaseEnabled())return res.json({success:true,database:false});
@@ -98,7 +116,8 @@ export async function runtimeApi(req:Request,res:Response){
     for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
     return data;
    }):await readProducts();
-   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,products:identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products))});
+   const visibleProducts=identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
+   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,products:identity.admin?visibleProducts:compactCatalogReviews(visibleProducts)});
   }
   checkOrigin(req);
   const key=String(req.body?.key || '');const domain=domainFor(key);if(!domain)throw Object.assign(new Error('بخش داده معتبر نیست.'),{status:400});
