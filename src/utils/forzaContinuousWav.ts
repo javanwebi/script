@@ -15,8 +15,10 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   const step=Math.max(1,Math.round(buffer.sampleRate/200));
   const threshold=0.0015;
   const leadingLimit=Math.min(Math.round(buffer.sampleRate*0.24),Math.floor(length*0.24));
-  // Preserve the first 150ms even on extremely short clips. The 12-second
-  // ceiling protects legitimate trailing silence without clipping speech.
+  // Inspect at most the last twelve seconds in 20ms PCM windows. Piper
+  // sometimes ends a WAV with a near-silent noise floor, not digital zeros;
+  // amplitude spikes are a poor proxy for speech. Windowed RMS plus a
+  // relative threshold identifies the last meaningful audible phoneme.
   const trailingLimit=Math.min(
     Math.round(buffer.sampleRate*12),
     Math.max(0,length-Math.round(buffer.sampleRate*0.15)),
@@ -27,14 +29,36 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
     return false;
   };
   while(begin+step<leadingLimit&&!audible(begin,Math.min(begin+step,length)))begin+=step;
-  while(finish-step>length-trailingLimit&&!audible(finish-step,finish))finish-=step;
+
+  const frame=Math.max(1,Math.round(buffer.sampleRate*0.02));
+  const tailStart=Math.max(0,length-trailingLimit);
+  const frames:{start:number,end:number,rms:number}[]=[];
+  let strongest=0;
+  for(let pos=tailStart;pos<length;pos+=frame){
+    const end=Math.min(length,pos+frame);
+    let energy=0,count=0;
+    for(let i=pos;i<end;i+=3){energy+=pcm[i]*pcm[i];count++;}
+    const rms=Math.sqrt(energy/Math.max(1,count));
+    frames.push({start:pos,end,rms});
+    strongest=Math.max(strongest,rms);
+  }
+  if(strongest<threshold){
+    // Fully silent WAVs have no speech boundary to detect; preserve them
+    // rather than fabricating an audible beginning/end.
+    if(!audible(0,length))return entire;
+  }
+  const speechFloor=Math.max(threshold,Math.min(0.018,strongest*0.10));
+  for(let i=frames.length-1;i>=0;i--){
+    if(frames[i].rms>=speechFloor){
+      finish=frames[i].end;
+      break;
+    }
+  }
   if(begin===0&&finish===length)return entire;
-  // Never mistake a fully silent WAV for spoken sound.
-  if(!audible(begin,finish))return entire;
-  // Preserve the established leading margin (30ms) and a slightly wider
-  // trailing margin (60ms) so natural word endings do not get clipped.
+  // Preserve the established leading margin (30ms) and 80ms for
+  // quiet Persian word endings, avoiding clipped consonants.
   begin=Math.max(0,begin-Math.round(buffer.sampleRate*0.03));
-  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.06));
+  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.08));
   if(finish-begin<buffer.sampleRate*0.15)return entire;
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
