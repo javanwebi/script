@@ -1,69 +1,154 @@
-
-/* Sanat Pish mobile navigation — precision floating dock */
+/* Capsule nav follows the supplied flight-app reference; behavior remains Sanat Pish. */
 @media (max-width: 1023px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
-    position: fixed; inset-inline: max(9px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-left));
-    inset-block-end: calc(10px + env(safe-area-inset-bottom)); z-index: 60;
-    display: grid; direction: rtl; grid-template-columns: 65px repeat(5,minmax(0,1fr));
-    align-items: center; gap: 2px; width: auto; min-width: 0; min-height: 77px;
-    margin: 0 auto; padding: 7px; border: 1px solid #d6d8dc; border-radius: 23px;
-    background: rgba(255,255,255,.975); box-shadow: 0 14px 40px rgba(24,32,41,.21);
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); isolation: isolate;
+    position: fixed;
+    inset-inline: max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-left));
+    inset-block-end: calc(12px + env(safe-area-inset-bottom));
+    z-index: 60;
+    width: auto;
+    max-width: 500px;
+    min-height: 70px;
+    margin-inline: auto;
+    padding: 0;
+    display: grid;
+    direction: rtl;
+    grid-template-columns: 72px repeat(4,minmax(0,1fr));
+    gap: 0;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    isolation: isolate;
   }
-  .storefront .store-industrial-bottom-nav > a,
-  .storefront .store-industrial-bottom-nav > button {
-    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px;
-    min-width:0; min-height:60px; padding: 5px 1px; border:0; border-radius:15px;
-    color:#59616b; background:transparent; font-size:10px; line-height:1.5; font-weight:650;
-    transition:color .2s ease, background-color .2s ease, transform .2s ease;
-    -webkit-tap-highlight-color:transparent;
+  /* A single white pill behind the four standard destinations. */
+  .storefront .store-industrial-bottom-nav::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset-block: 6px;
+    inset-inline-start: 69px;
+    inset-inline-end: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,.985);
+    border: 1px solid rgba(210,216,225,.95);
+    box-shadow: 0 10px 30px rgba(22,32,52,.22), 0 3px 9px rgba(22,32,52,.07);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
-  .storefront .store-industrial-bottom-nav > :is(a,button) > span:last-child {
-    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .storefront .store-industrial-bottom-nav > :is(a,button) {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    min-height: 54px;
+    margin-inline: 2px;
+    padding: 7px 2px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    color: #6f7480;
+    font-size: 10px;
+    font-weight: 650;
+    line-height: 1.35;
+    transition: color .18s ease, background-color .18s ease, transform .18s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .storefront .store-industrial-bottom-nav > :is(a,button):not(.store-scan-action) > span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .storefront .store-industrial-bottom-nav > a[aria-current="page"],
   .storefront .store-industrial-bottom-nav > button[aria-expanded="true"] {
-    color:#fff; background:#29323d; box-shadow:0 5px 14px rgba(25,34,44,.22);
+    color: #fff;
+    background: linear-gradient(135deg,#182465,#3544aa);
+    box-shadow: 0 4px 13px rgba(28,43,123,.28);
   }
-  .storefront .store-industrial-bottom-nav > :is(a,button):active { transform:scale(.97); }
+  .storefront .store-industrial-bottom-nav > :is(a,button):active {
+    transform: scale(.96);
+  }
   .storefront .store-industrial-bottom-nav :is(a,button):focus-visible {
-    outline: 3px solid #e06518; outline-offset: 2px;
+    outline: 3px solid #e06518;
+    outline-offset: 2px;
   }
-  .storefront .store-industrial-bottom-nav > .store-scan-action {
-    position:relative; overflow:visible; gap:0; background:transparent; color:#2b313a;
+  /* Right-side circular scanner: visually detached from the white capsule. */
+  .storefront .store-industrial-bottom-nav > button.store-scan-action {
+    display: grid;
+    place-items: center;
+    width: 66px;
+    height: 66px;
+    min-height: 66px;
+    margin-inline: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: none;
+    color: #fff;
   }
   .storefront .store-industrial-bottom-nav .store-scan-orbit {
-    display:grid; place-items:center; width:52px; height:52px; flex:0 0 52px;
-    transform:translateY(-11px); border-radius:17px; border:3px solid white;
-    background:linear-gradient(140deg,#3a4452,#19212b); color:white;
-    box-shadow:0 0 0 2px #e06518, 0 7px 17px rgba(22,31,40,.25);
+    display: grid;
+    place-items: center;
+    width: 57px;
+    height: 57px;
+    border-radius: 50%;
+    background: linear-gradient(145deg,#25368c,#15215f);
+    color: white;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #3b4bb0, 0 7px 20px rgba(20,32,91,.33);
+    transform: none;
+    transition: transform .18s ease;
   }
-  .storefront .store-industrial-bottom-nav .store-scan-action > span:last-child {
-    position:absolute; inset-block-end:1px; font-weight:850; font-size:9px; color:#2b313a;
+  .storefront .store-industrial-bottom-nav > button.store-scan-action:active .store-scan-orbit {
+    transform: scale(.96);
   }
   .storefront .store-industrial-bottom-nav .store-cart-count b {
-    background:#e06518; border:1px solid #fff; width:18px; height:18px;
-    top:-7px; left:-9px; font-size:10px;
+    background: #e06518;
+    border: 1px solid white;
+    width: 18px;
+    height: 18px;
+    top: -7px;
+    left: -9px;
+    font-size: 10px;
   }
-  .storefront .store-footer { padding-bottom:calc(112px + env(safe-area-inset-bottom)); }
+  .storefront .store-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .storefront .store-mobile-sheet {
-    max-height:min(88dvh,780px); border-top:4px solid #e06518;
-    border-radius:24px 24px 0 0; overscroll-behavior:contain;
+    max-height: min(88dvh,780px);
+    border-top: 4px solid #e06518;
+    border-radius: 24px 24px 0 0;
+    overscroll-behavior: contain;
   }
 }
 @media (min-width:768px) and (max-width:1023px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
-    max-width:620px; min-height:80px; grid-template-columns:76px repeat(5,minmax(0,1fr)); padding:8px 10px;
+    max-width: 500px;
+    grid-template-columns: 80px repeat(4,minmax(0,1fr));
   }
-  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size:11px; }
+  .storefront .store-industrial-bottom-nav::before { inset-inline-start: 77px; }
+  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size: 11px; }
 }
 @media (max-width:370px) {
   .storefront .store-bottom-nav.store-industrial-bottom-nav {
-    inset-inline:6px 6px; padding-inline:4px; grid-template-columns:57px repeat(5,minmax(0,1fr));
+    inset-inline: 5px;
+    grid-template-columns: 62px repeat(4,minmax(0,1fr));
   }
-  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size:9px; }
-  .storefront .store-industrial-bottom-nav .store-scan-orbit { width:47px; height:47px; flex-basis:47px; }
+  .storefront .store-industrial-bottom-nav::before { inset-inline-start: 59px; }
+  .storefront .store-industrial-bottom-nav > :is(a,button) { font-size: 9px; }
+  .storefront .store-industrial-bottom-nav > button.store-scan-action {
+    width: 59px; height: 64px; min-height: 64px;
+  }
+  .storefront .store-industrial-bottom-nav .store-scan-orbit {
+    width: 54px; height: 54px;
+  }
 }
-@media (prefers-reduced-motion:reduce) {
-  .storefront .store-industrial-bottom-nav > :is(a,button) { transition:none; }
+@media (prefers-reduced-motion: reduce) {
+  .storefront .store-industrial-bottom-nav > :is(a,button),
+  .storefront .store-industrial-bottom-nav .store-scan-orbit { transition: none; }
 }
