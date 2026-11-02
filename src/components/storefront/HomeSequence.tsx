@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { CATEGORIES } from "../../data/categories";
 import type { EnhancedCategory } from "../../data/categories";
+import {homeCategories} from "../../services/homeFirstPaint";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
@@ -40,17 +41,16 @@ export function HomeCategoryStrip() {
   const [available,setAvailable]=React.useState<EnhancedCategory[]>(()=>[...CATEGORIES]);
   React.useEffect(()=>{
     let alive=true;
-    const controller=new AbortController();
-    const syncHydrated=()=>{if(alive)setAvailable([...CATEGORIES]);};
+    // The main startup listener installs the database arrays during the same
+    // event dispatch. A microtask observes them only after installation.
+    const syncHydrated=()=>queueMicrotask(()=>{if(alive)setAvailable([...CATEGORIES]);});
     window.addEventListener('sanat-durable-hydrated',syncHydrated);
-    void fetch('/api/catalog/categories',{credentials:'same-origin',cache:'no-store',signal:controller.signal})
-      .then(response=>response.ok?response.json():null)
-      .then(data=>{
-        // The authoritative runtime response wins if it arrived first.
-        if(alive && CATEGORIES.length===0 && data?.success && Array.isArray(data.categories))
-          setAvailable(data.categories as EnhancedCategory[]);
-      }).catch(()=>{});
-    return()=>{alive=false;controller.abort();window.removeEventListener('sanat-durable-hydrated',syncHydrated);};
+    void homeCategories().then(categories=>{
+      // Once /api/runtime has completed, its authoritative taxonomy wins.
+      if(alive && CATEGORIES.length===0 && categories.length)
+        setAvailable(categories);
+    });
+    return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',syncHydrated);};
   },[]);
   // Preserve the familiar six tiles. If the active PostgreSQL taxonomy uses
   // new names, fill remaining slots from active categories instead of showing blanks.
