@@ -1,3 +1,5 @@
+import {getProductImageUrl} from '../assets/imagesproducts';
+
 /** A tiny, public, read-only homepage teaser. Never send commercial SKU data. */
 export interface HomePreviewProduct {
   code:string;
@@ -18,6 +20,19 @@ function record(value:unknown):Record<string,unknown>|null {
 function shortText(value:unknown,max:number):string {
  return typeof value==='string'?value.slice(0,max):'';
 }
+/** Use a real image attached to this family, never infer one from SKU digits. */
+function linkedImage(product:Record<string,unknown>):string {
+ const gallery=Array.isArray(product.galleryImages)
+  ? product.galleryImages.map(item=>record(item)?.url) : [];
+ const candidates=[...(Array.isArray(product.images)?product.images:[]),product.image,...gallery];
+ for(const candidate of candidates){
+  if(typeof candidate!=='string' || candidate.length>2048)continue;
+  const local=getProductImageUrl(candidate);
+  if(local.startsWith('/storage/products/'))return local;
+ }
+ return '';
+}
+
 /** Read only from already sanitized publicCatalog; return an explicit allowlist of fields. */
 export function selectHomePreviewProducts(catalog:unknown):HomePreviewProduct[] {
  if(!Array.isArray(catalog))return [];
@@ -26,18 +41,28 @@ export function selectHomePreviewProducts(catalog:unknown):HomePreviewProduct[] 
  const selected=preferredCodes.map(code=>byCode.get(code.toLowerCase())).filter((p):p is Record<string,unknown>=>Boolean(p));
  // Match the existing 12-24 fallback when the catalogue is large. When the
  // database has fewer than 24 active families, still return up to 12 products.
- const source=selected.length>=8
+ const originalSelection=selected.length>=8
   ? selected
   : active.length>=24 ? active.slice(12,24) : active.slice(0,12);
- return source.slice(0,12).map(p=>{
-  const image=Array.isArray(p.images)?p.images.find(v=>typeof v==='string' && v.length<=2048):undefined;
+ // Prefer catalog families with actual attached images, not blank cards.
+ // Preserve the original ordering when the catalogue contains no photos.
+ const photographic=[...originalSelection.filter(p=>linkedImage(p)),...active.filter(p=>linkedImage(p))];
+ const seen=new Set<string>();
+ const source=[...photographic,...originalSelection,...active].filter(p=>{
+  const code=String(p.code);
+  if(seen.has(code))return false;
+  seen.add(code);
+  return true;
+ }).slice(0,12);
+ return source.map(p=>{
+  const image=linkedImage(p);
   return {
    code:shortText(p.code,180),
    name:shortText(p.name,240),
    brand:shortText(p.brand,140),
    categorySlug:shortText(p.categorySlug,180),
    categoryName:shortText(p.categoryName,180),
-   images:typeof image==='string'?[image]:[]
+   images:image?[image]:[]
   };
  });
 }
