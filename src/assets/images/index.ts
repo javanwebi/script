@@ -44,8 +44,8 @@ import prodPumpImg from './mobile/prod_pump_1789640002577.webp';
 import prodMotorImg from './mobile/prod_motor_1789640017545.webp';
 import prodBearingNskImg from './mobile/prod_bearing_nsk_1789640036345.webp';
 import footerConveyorImg from './mobile/footer_conveyor_1789463035125.webp';
-import forzaAiRobotHaloImg from '../IMAGESITE/Futuristic FORZA AI Robot Halo.png';
-import levitatingOrbitalEngineImg from '../IMAGESITE/Levitating Orbital Engine Assembly (1).png';
+import forzaAiRobotHaloImg from '../IMAGESITE/mobile/Futuristic FORZA AI Robot Halo.webp';
+import levitatingOrbitalEngineImg from '../IMAGESITE/mobile/Levitating Orbital Engine Assembly (1).webp';
 import refineryDuskWideImg from './mobile/refinery_dusk_wide_1790695808002.webp';
 
 const atlasAiCyborgImg = forzaAiRobotHaloImg;
