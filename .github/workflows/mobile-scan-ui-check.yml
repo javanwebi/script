@@ -1,0 +1,33 @@
+
+name: Verify Sanat Pish mobile dock and camera scan
+on:
+  pull_request:
+    paths:
+      - "src/components/layout/MobileBottomBar.tsx"
+      - "src/components/layout/industrial-mobile-nav.css"
+      - "src/components/layout/Layout.tsx"
+      - "src/components/search/**"
+      - "public/images/precision-scan-technical-overlay.svg"
+      - "tests/mobile-scan-ui.test.ts"
+      - ".github/workflows/mobile-scan-ui-check.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile-ui-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run lint
+      - name: Mobile scan source regression tests
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts
+      - name: Production bundle build
+        run: npm run build
