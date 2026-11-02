@@ -51,7 +51,6 @@ LISTENERS="$(ss -H -ltn)"
 if [[ "$LISTENERS" =~ :3005[[:space:]] ]];then echo 'PORT_3005_BUSY';exit 1;fi
 
 echo '===== CONFIG BACKUP ====='
-[[ "$BACKUP" != *'
 mkdir -m 700 -p "$BACKUP"
 cp -p "$CONF1" "$BACKUP/default"
 cp -p "$CONF2" "$BACKUP/https"
