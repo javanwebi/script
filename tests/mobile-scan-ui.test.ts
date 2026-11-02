@@ -145,3 +145,31 @@ test("mobile commerce dock route whitelist excludes checkout, AI, forms and dash
     assert.ok(!routes.includes(`"${excluded}"`), `${excluded} must not have the commerce dock`);
   }
 });
+
+test("image identification progress uses a dedicated responsive UI with real progress and no obsolete 864 atlas claim", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const view = source("src/components/search/VisionAnalysisProgress.tsx");
+  const css = source("src/components/search/vision-analysis-progress.css");
+  assert.match(modal, /<VisionAnalysisProgress/);
+  assert.match(modal, /currentStep === "analyzing"/);
+  assert.match(modal, /data-testid="vision-analyzing-screen"/);
+  assert.doesNotMatch(modal, /۸۶۴ قلمی|بازرگانی اطلس/);
+  assert.match(view, /در انتظار گزارش سرور/);
+  assert.match(view, /aria-valuenow=\{value === null \? undefined : value\}/);
+  assert.match(view, /فقط نتایج قابل بررسی از کاتالوگ/);
+  assert.match(css, /min-width: 800px/);
+  assert.match(css, /max-width: 480px/);
+  assert.match(css, /prefers-reduced-motion/);
+});
+
+test("identification hides mobile dock with React state, scoped class and CSS fallback", () => {
+  const layout = source("src/components/layout/Layout.tsx");
+  const provider = source("src/components/search/PartIdentificationProvider.tsx");
+  const css = source("src/components/layout/industrial-mobile-nav.css");
+  assert.match(layout, /showStorefrontDock \? "has-mobile-dock" : "no-mobile-dock"/);
+  assert.match(provider, /document\.body\.classList\.add\("sanat-identification-open"\)/);
+  assert.match(provider, /document\.body\.classList\.remove\("sanat-identification-open"\)/);
+  assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
+  assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
+  assert.match(modal = source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+});

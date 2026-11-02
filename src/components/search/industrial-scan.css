@@ -270,3 +270,19 @@
   .sanat-camera-experience__confirm,
   .sanat-camera-experience__retake { transition: none; }
 }
+
+/* Mobile first identification input: remove the over-sized old hero on phones. */
+@media (max-width: 1023px) {
+  .sp-vision-entry { min-height: 100dvh; border-radius: 0; align-content: start; }
+  .sp-vision-entry [data-testid="identification-image-panel"] {
+    min-height: 146px;
+    padding: 23px 16px 14px;
+    box-shadow: none;
+  }
+  .sp-vision-entry [data-testid="identification-image-panel"] h3 { font-size: clamp(16px,4.5vw,20px); }
+  .sp-vision-entry [data-testid="identification-image-panel"] p { max-width: 37ch; }
+  .sp-vision-entry [data-testid="identification-image-panel"] .grid { align-items: center; }
+}
+@media (max-width: 390px) {
+  .sp-vision-entry [data-testid="identification-image-panel"] { min-height: 128px; padding: 18px 12px 10px; }
+}
