@@ -83,12 +83,14 @@ export function HomeCategoryStrip() {
             key={c.slug}
             to={`/category/${c.slug}`}
           >
-            <ProductImage
-              // Prefer the bundled category artwork over sparse/legacy SKU URLs from the database.
-              // ProductImage still falls back to the original catalog photo when its thumbnail is missing.
-              src={categoryArtwork[c.name] || c.image}
+            <img
+              // Bundled hashed WebP images are marketing artwork, not product
+              // catalogue volume paths; the ProductImage resolver rejects them.
+              src={categoryArtwork[c.name] || c.image || A.categories.transmission}
               alt={c.name}
               loading="lazy"
+              decoding="async"
+              fetchPriority="low"
             />
             <strong>{c.name}</strong>
             <small>
