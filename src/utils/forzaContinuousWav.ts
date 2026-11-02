@@ -31,9 +31,10 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   if(begin===0&&finish===length)return entire;
   // Never mistake a fully silent WAV for spoken sound.
   if(!audible(begin,finish))return entire;
-  const padding=Math.round(buffer.sampleRate*0.06);
-  begin=Math.max(0,begin-padding);
-  finish=Math.min(length,finish+padding);
+  // Preserve the established leading margin (30ms) and a slightly wider
+  // trailing margin (60ms) so natural word endings do not get clipped.
+  begin=Math.max(0,begin-Math.round(buffer.sampleRate*0.03));
+  finish=Math.min(length,finish+Math.round(buffer.sampleRate*0.06));
   if(finish-begin<buffer.sampleRate*0.15)return entire;
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
