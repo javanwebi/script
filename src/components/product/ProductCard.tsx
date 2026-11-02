@@ -18,6 +18,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <Link to={href}>
           <ProductImage
             src={product.images[0]}
+                    thumbnail
+                    decoding="async"
             thumbnail
             alt={product.name}
             loading="lazy"
