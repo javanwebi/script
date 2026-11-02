@@ -2,7 +2,7 @@
 
 **Never deploy a feature branch directly to production.** Production source of truth is `origin/main` in `javanwebi/script`. Both ChatGPT projects and all other contributors must branch from the latest main, push their changes, and merge reviewed pull requests into main. Do not reset main or replace the running site with a standalone branch copy.
 
-## Single repeatable VPS command
+## Install once, deploy with one command
 
 ```bash
 sudo bash -euo pipefail -c '
@@ -13,6 +13,19 @@ sudo bash -euo pipefail -c '
   bash -n /tmp/sanatpish-main-bluegreen.sh
   SANATPISH_RELEASE_SHA="$SHA" bash /tmp/sanatpish-main-bluegreen.sh
 '
+```
+
+Once the merged commit exists on GitHub main, install the wrapper once with:
+```bash
+cd /opt/sanatpish
+git fetch origin main
+sudo sh -c 'git -C /opt/sanatpish show "$(git -C /opt/sanatpish rev-parse FETCH_HEAD)":ops/sanatpish-deploy-main.sh > /usr/local/sbin/sanatpish-deploy-main'
+sudo chmod 755 /usr/local/sbin/sanatpish-deploy-main
+```
+
+Every later update needs only:
+```bash
+sudo sanatpish-deploy-main
 ```
 
 The command does not checkout, clean, reset, or modify tracked files under `/opt/sanatpish`. It archives exactly the fetched commit into an isolated stage, builds and tests, launches a new canary, checks catalog parity, then switches Nginx with rollback. The previous production container is preserved for immediate rollback.
