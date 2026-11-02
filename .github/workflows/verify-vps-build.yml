@@ -32,6 +32,8 @@ jobs:
         run: npm run lint
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
+      - name: FORZA mobile support panel and swipe gesture
+        run: node --import tsx --test tests/forza-mobile-contact-sheet.test.ts
       - name: Mobile camera capture and confirmation flow
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS

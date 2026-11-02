@@ -58,3 +58,99 @@
 @media (prefers-reduced-motion: reduce) {
   .storefront .store-ai-quick-actions > .store-help-launcher { transition: none; }
 }
+
+/* Mobile-only FORZA contact and swipe-to-workspace sheet. Desktop never renders the panel. */
+@media (max-width: 1023px) {
+  body.sanat-forza-contact-open .storefront .store-bottom-nav,
+  body.sanat-forza-contact-open .storefront .store-ai-quick-actions { visibility: hidden; }
+  .sp-forza-contact__backdrop {
+    position: fixed; inset: 0; z-index: 130;
+    background: rgba(17,25,37,.48);
+    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  }
+  .sp-forza-contact__sheet {
+    position: fixed; z-index: 131;
+    inset-inline: 0; bottom: 0; width: 100%;
+    height: max(56dvh, min(380px, 76dvh));
+    max-height: 88dvh;
+    overflow: hidden;
+    border-radius: 29px 29px 0 0;
+    background: #fff;
+    box-shadow: 0 -14px 60px rgba(14,24,41,.19);
+    touch-action: pan-y;
+    display: flex; flex-direction: column;
+    animation: sp-forza-sheet-entrance .22s ease-out;
+  }
+  @keyframes sp-forza-sheet-entrance {
+    from { opacity: .5; translate: 0 45px; }
+    to { opacity: 1; translate: 0 0; }
+  }
+  .sp-forza-contact__swipe {
+    flex: 0 0 auto; display: flex; align-items: center; flex-direction: column;
+    gap: 2px; padding: 9px 0 2px; color: #d6661c;
+  }
+  .sp-forza-contact__handle {
+    height: 5px; width: 49px; border-radius: 999px; background: #d5dbe3;
+  }
+  .sp-forza-contact__inner {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 6px 19px calc(20px + env(safe-area-inset-bottom));
+  }
+  .sp-forza-contact__header {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    margin-bottom: 13px;
+  }
+  .sp-forza-contact__eyebrow { display:block; color: #d56519; font-size: 9px; font-weight: 900; letter-spacing: .10em; direction:ltr; text-align:right; }
+  .sp-forza-contact__header h2 { color: #293441; font-size: clamp(17px,4.6vw,23px); line-height: 1.45; font-weight: 900; margin: 3px 0 3px; }
+  .sp-forza-contact__header p { font-size: 11px; line-height: 1.85; color: #758190; margin: 0; }
+  .sp-forza-contact__close {
+    flex: 0 0 42px; width: 42px; height: 42px; display:grid; place-items:center;
+    color:#677586; background:#f4f6f8; border:1px solid #e7ebef; border-radius:14px;
+  }
+  .sp-forza-contact__phone {
+    display:flex; align-items:center; gap: 10px; min-height:69px; padding:11px 13px;
+    border-radius:17px; background:linear-gradient(110deg,#fff7f0,#fff 88%);
+    border: 1px solid #f6d9be; text-decoration:none; color:#283544;
+  }
+  .sp-forza-contact__phone-icon { flex:0 0 44px; height:44px; display:grid; place-items:center; border-radius:13px; color:#fff; background:#e06518; }
+  .sp-forza-contact__phone-copy { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; font-size:12px; }
+  .sp-forza-contact__phone-copy strong { font-weight:850; }
+  .sp-forza-contact__phone-copy > span { align-self:flex-start; color:#747f8e; font-size:12px; font-weight:750; }
+  .sp-forza-contact__phone-action { color:#bf5415; font-size:11px; font-weight:850; }
+  .sp-forza-contact__channels { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; padding-block:15px; }
+  .sp-forza-contact__channel { min-width:0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:800; color:#4c5868; text-decoration:none; }
+  .sp-forza-contact__channel-icon { display:grid; place-items:center; width:49px; height:49px; border:1px solid #e8edf2; border-radius:17px; background:#f7f9fb; color:#727c87; }
+  .sp-forza-contact__channel--whatsapp .sp-forza-contact__channel-icon { background:#e9fbf1; border-color:#b5efd1; color:#178450; }
+  .sp-forza-contact__channel--telegram .sp-forza-contact__channel-icon { background:#eaf5ff; border-color:#c8e7ff; color:#218bc1; }
+  .sp-forza-contact__channel--instagram .sp-forza-contact__channel-icon { background:#fff0f5; border-color:#f8d9e5; color:#c34275; }
+  .sp-forza-contact__channel--eitaa .sp-forza-contact__channel-icon { background:#fff6e8; border-color:#ffe0b4; color:#d67a15; }
+  .sp-forza-contact__eitaa-symbol { font-size:29px; font-family:Georgia,serif; font-style:italic; font-weight:900; line-height:1; }
+  .sp-forza-contact__channel.is-unavailable .sp-forza-contact__channel-icon { opacity:.75; }
+  .sp-forza-contact__channel small { color:#98a2ae; font-size:9px; font-weight:500; }
+  .sp-forza-contact__workspace {
+    background:linear-gradient(135deg,#172838,#263f51); border-radius:21px;
+    padding:12px 15px 14px; color:white; display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:8px; row-gap:8px; align-items:start;
+  }
+  .sp-forza-contact__workspace-symbol { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background:#fffc; color:#d75c10; }
+  .sp-forza-contact__workspace strong { font-size:12px; font-weight:850; line-height:1.6; }
+  .sp-forza-contact__workspace p { margin:4px 0 0; color:#cedbe5; font-size:10px; line-height:1.7; }
+  .sp-forza-contact__workspace-button {
+    grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:8px;
+    min-height:43px; padding:8px 12px; border-radius:12px;
+    background:linear-gradient(135deg,#f28a43,#e06518); color:#fff;
+    font-size:12px; font-weight:850;
+  }
+  .sp-forza-contact__close:focus-visible,.sp-forza-contact__workspace-button:focus-visible,.sp-forza-contact__channel:focus-visible,.sp-forza-contact__phone:focus-visible { outline:3px solid #e06518; outline-offset:2px; }
+}
+@media (max-width: 370px) {
+  .sp-forza-contact__inner { padding-inline:12px; }
+  .sp-forza-contact__channels { gap:4px; }
+  .sp-forza-contact__channel-icon { width:43px; height:43px; border-radius:14px; }
+  .sp-forza-contact__workspace { padding:11px; }
+}
+@media (min-width: 1024px) {
+  .sp-forza-contact { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sp-forza-contact__sheet { animation:none; }
+}

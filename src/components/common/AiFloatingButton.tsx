@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { LifeBuoy } from "lucide-react";
+import { ArrowUp, ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
 
 // Geometric Cognivo orange logo icon matching the reference design
@@ -27,9 +28,111 @@ export const CognivoGeometricLogo: React.FC<{
 );
 
 /* Keep FORZA's existing destination while adding direct access to the original support sheet. */
+type ContactChannel = { label: string; href: string | null; icon: React.ReactNode; className: string };
+
+const optionalSocialLink = (candidate: string | undefined, domain: string): string | null => {
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== "https:" || (host !== domain && host !== "www." + domain)) return null;
+    if (!url.pathname || url.pathname === "/") return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+};
+
+/** Mobile-only support sheet; desktop keeps direct workspace navigation. */
 export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAssistant = true }) => {
   const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const touchStart = useRef<number | null>(null);
+  const dragOffsetRef = useRef(0);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const launcher = useRef<HTMLButtonElement>(null);
+
+  const openWorkspace = () => {
+    touchStart.current = null;
+    setDragOffset(0);
+    setSheetOpen(false);
+    navigate("/ai-consult");
+  };
+
+  const handleLauncherClick = () => {
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setSheetOpen(true);
+    } else {
+      navigate("/ai-consult");
+    }
+  };
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.body.classList.add("sanat-forza-contact-open");
+    closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.body.classList.remove("sanat-forza-contact-open");
+      window.removeEventListener("keydown", onKeyDown);
+      launcher.current?.focus();
+    };
+  }, [sheetOpen]);
+
+  const onTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    if ((event.target as Element).closest("a, button")) return;
+    touchStart.current = event.touches[0]?.clientY ?? null;
+    dragOffsetRef.current = 0;
+  };
+  const onTouchMove = (event: React.TouchEvent<HTMLElement>) => {
+    if (touchStart.current === null) return;
+    const delta = touchStart.current - (event.touches[0]?.clientY ?? touchStart.current);
+    dragOffsetRef.current = Math.max(0, delta);
+    setDragOffset(Math.min(125, dragOffsetRef.current));
+  };
+  const onTouchEnd = () => {
+    const shouldEnter = touchStart.current !== null && dragOffsetRef.current > 78;
+    touchStart.current = null;
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+    if (shouldEnter) openWorkspace();
+  };
+
+  const channels: ContactChannel[] = [
+    {
+      label: "واتساپ",
+      href: "https://wa.me/989903427027",
+      icon: <MessageCircle size={23} strokeWidth={1.9}/>,
+      className: "sp-forza-contact__channel--whatsapp",
+    },
+    {
+      label: "ایتا",
+      href: optionalSocialLink(import.meta.env.VITE_SANATPISH_EITAA_URL, "eitaa.com"),
+      icon: <span className="sp-forza-contact__eitaa-symbol" aria-hidden="true">e</span>,
+      className: "sp-forza-contact__channel--eitaa",
+    },
+    {
+      label: "تلگرام",
+      href: optionalSocialLink(import.meta.env.VITE_SANATPISH_TELEGRAM_URL, "t.me"),
+      icon: <Send size={23} strokeWidth={1.8}/>,
+      className: "sp-forza-contact__channel--telegram",
+    },
+    {
+      label: "اینستاگرام",
+      href: optionalSocialLink(import.meta.env.VITE_SANATPISH_INSTAGRAM_URL, "instagram.com"),
+      icon: <Instagram size={23} strokeWidth={1.8}/>,
+      className: "sp-forza-contact__channel--instagram",
+    },
+  ];
   return (
+    <>
     <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
       <button
         type="button"
@@ -47,13 +150,86 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
         <button
           type="button"
           className="store-assistant unified-ai-launcher"
-          onClick={() => navigate("/ai-consult")}
-          aria-label="باز کردن میزکار هوشمند FORZA"
+          ref={launcher}
+          onClick={handleLauncherClick}
+          aria-haspopup="dialog"
+          aria-expanded={sheetOpen}
+          aria-label="مشاوره و راه‌های ارتباطی FORZA"
         >
           <CognivoGeometricLogo size={29} />
           <span>میزکار FORZA</span>
         </button>
       )}
     </div>
+    {showAssistant && sheetOpen && createPortal(
+      <div className="sp-forza-contact" dir="rtl">
+        <div className="sp-forza-contact__backdrop" onClick={() => setSheetOpen(false)} aria-hidden="true" />
+        <section
+          className="sp-forza-contact__sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sp-forza-contact-title"
+          aria-describedby="sp-forza-contact-desc"
+          data-testid="forza-mobile-contact-sheet"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchEnd}
+          style={{ transform: dragOffset ? `translateY(-${dragOffset}px)` : undefined }}
+        >
+          <div className="sp-forza-contact__swipe" aria-hidden="true">
+            <span className="sp-forza-contact__handle" />
+            <ChevronUp size={17}/>
+          </div>
+          <div className="sp-forza-contact__inner">
+            <header className="sp-forza-contact__header">
+              <div>
+                <span className="sp-forza-contact__eyebrow">SANAT PISH / FORZA</span>
+                <h2 id="sp-forza-contact-title">چطور می‌تونیم کمکتون کنیم؟</h2>
+                <p id="sp-forza-contact-desc">برای مشاوره خرید، یافتن قطعه یا استعلام فنی، راه ارتباطی دلخواهتان را انتخاب کنید.</p>
+              </div>
+              <button ref={closeButton} className="sp-forza-contact__close" type="button" onClick={() => setSheetOpen(false)} aria-label="بستن راه‌های ارتباطی"><X size={20}/></button>
+            </header>
+
+            <a className="sp-forza-contact__phone" href="tel:03535254703">
+              <span className="sp-forza-contact__phone-icon"><Phone size={21}/></span>
+              <span className="sp-forza-contact__phone-copy"><strong>تماس با کارشناسان فروش</strong><span dir="ltr">۰۳۵-۳۵۲۵۴۷۰۳</span></span>
+              <span className="sp-forza-contact__phone-action">تماس</span>
+            </a>
+
+            <div className="sp-forza-contact__channels" aria-label="پیام‌رسان‌ها و شبکه‌های اجتماعی">
+              {channels.map(channel => channel.href ? (
+                <a key={channel.label} href={channel.href} target="_blank" rel="noopener noreferrer"
+                  className={`sp-forza-contact__channel ${channel.className}`} aria-label={`ارتباط از طریق ${channel.label}`}>
+                  <span className="sp-forza-contact__channel-icon">{channel.icon}</span>
+                  <span>{channel.label}</span>
+                </a>
+              ) : (
+                <div key={channel.label} className={`sp-forza-contact__channel ${channel.className} is-unavailable`}
+                  aria-label={`${channel.label}؛ آدرس رسمی هنوز ثبت نشده`} title="آدرس رسمی هنوز ثبت نشده">
+                  <span className="sp-forza-contact__channel-icon">{channel.icon}</span>
+                  <span>{channel.label}</span>
+                  <small>به‌زودی</small>
+                </div>
+              ))}
+            </div>
+
+            <div className="sp-forza-contact__workspace">
+              <span className="sp-forza-contact__workspace-symbol"><ChevronUp size={23}/></span>
+              <div>
+                <strong>مشاوره هوش مصنوعی، همین‌جا در دسترس شماست</strong>
+                <p>صفحه را به بالا بکشید تا میزکار FORZA باز شود و گفت‌وگو را شروع کنید.</p>
+              </div>
+              <button type="button" onClick={openWorkspace} className="sp-forza-contact__workspace-button">
+                <ArrowUp size={18}/>
+                ورود به میزکار و شروع چت
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };
