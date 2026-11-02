@@ -23,12 +23,19 @@ cleanup(){
  exit "$status"
 }
 trap cleanup EXIT
+trap 'status=$?; echo "CANARY_ERROR_LINE=$LINENO STATUS=$status" >&2' ERR
 echo '===== PRECHECK HEALTH AND REPO ====='
 test "$(git -C "$STAGE" rev-parse HEAD)" = "$EXPECTED"
 test -s "$STAGE/dist/index.html"
 curl -fsS --max-time 12 http://127.0.0.1:3002/api/health;echo
 test "$(docker inspect "$SRC" --format '{{.State.Running}}')" = true
-nginx -T 2>/dev/null | grep -Fq 'proxy_pass http://127.0.0.1:3002;'
+# Do not combine grep -q with pipefail: early grep exit may SIGPIPE nginx -T.
+NGINX_ACTIVE_CONFIG="$(nginx -T 2>/dev/null)"
+if [[ "$NGINX_ACTIVE_CONFIG" != *'proxy_pass http://127.0.0.1:3002;'* ]];then
+ echo 'UNEXPECTED_PUBLIC_NGINX_TARGET'
+ exit 1
+fi
+echo 'PREFLIGHT_NGINX_OK'
 if ss -ltn | grep -Eq '(:3004)[[:space:]]';then echo PORT_3004_IN_USE;exit 1;fi
 echo '===== PREPARE ISOLATED RUNTIME ENV ====='
 docker inspect "$SRC" | python3 -c '
@@ -60,6 +67,7 @@ if not found:raise SystemExit("MISSING_APP_MOUNT")
 )
 echo '===== START CANARY 3004 (NO NGINX CHANGE) ====='
 CID="$(docker run -d --name "$NAME" --network "$NETWORK" \
+ --workdir /app \
  --cpus=1.0 --memory=2g --memory-swap=2g \
  -p 127.0.0.1:3004:3000 \
  --env-file "$ENV_FILE" -e PORT=3000 \
