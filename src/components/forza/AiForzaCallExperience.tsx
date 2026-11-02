@@ -831,6 +831,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const pocketAbort=new AbortController();
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
+      let listeningResumedOnAudioEnd=false;
       try {
         const payload: any = {
           history: historyRef.current.slice(-24),
@@ -899,7 +900,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let reply='';
         let firstTextDelivered=false;
         let finalAudioSubmitted=false;
-        let listeningResumedOnAudioEnd=false;
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
