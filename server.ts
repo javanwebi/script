@@ -7503,8 +7503,19 @@ async function start() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Vite fingerprints every /assets/ file; cache these binaries across visits
+    // while always revalidating the HTML shell after a deployment.
+    app.use(express.static(distPath, {
+      setHeaders(res, filePath) {
+        if (filePath.includes(path.sep + 'assets' + path.sep)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (filePath.endsWith(path.sep + 'index.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }));
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -93,7 +93,7 @@ export const MainBrandsBanner: React.FC = () => {
       {/* Full-Bleed Machinery Background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Desktop: Unified Wide Dual Banner */}
-        <img
+        <img fetchPriority="low" decoding="async" loading="lazy"
           src={STORE_ASSETS.brandsFullbleedBg || STORE_ASSETS.forzaSwrDualBanner}
           alt="برندهای معتبر جهانی FORZA، ATLAS و SWR"
           className="hidden lg:block w-full h-full object-cover object-center opacity-85"
@@ -102,7 +102,7 @@ export const MainBrandsBanner: React.FC = () => {
         {/* Mobile: Dedicated Stacked Machinery Background */}
         <div className="lg:hidden absolute inset-0 flex flex-col">
           <div className="relative w-full h-1/3 overflow-hidden">
-            <img
+            <img fetchPriority="low" decoding="async" loading="lazy"
               src={STORE_ASSETS.banners?.forza || STORE_ASSETS.brandsFullbleedBg}
               alt="FORZA Industrial Belts"
               className="w-full h-full object-cover object-left opacity-75"
@@ -111,7 +111,7 @@ export const MainBrandsBanner: React.FC = () => {
             <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-[#E06518]/30 rounded-full blur-[80px]" />
           </div>
           <div className="relative w-full h-1/3 overflow-hidden">
-            <img
+            <img fetchPriority="low" decoding="async" loading="lazy"
               src={STORE_ASSETS.heroPulley || STORE_ASSETS.brandsFullbleedBg}
               alt="ATLAS Power Transmission"
               className="w-full h-full object-cover object-center opacity-75"
@@ -120,7 +120,7 @@ export const MainBrandsBanner: React.FC = () => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-[#EA580C]/35 rounded-full blur-[80px]" />
           </div>
           <div className="relative w-full h-1/3 overflow-hidden">
-            <img
+            <img fetchPriority="low" decoding="async" loading="lazy"
               src={STORE_ASSETS.banners?.swr || STORE_ASSETS.brandsFullbleedBg}
               alt="SWR Industrial Valves"
               className="w-full h-full object-cover object-right opacity-75"
@@ -184,7 +184,7 @@ export const MainBrandsBanner: React.FC = () => {
           <div className="relative flex flex-col items-center justify-between space-y-6 rounded-2xl p-5 sm:p-6 lg:p-4 bg-black/30 lg:bg-transparent border border-[#E06518]/25 lg:border-transparent backdrop-blur-[2px] lg:backdrop-blur-none overflow-hidden">
             {/* Mobile Background Atmosphere */}
             <div className="absolute inset-0 pointer-events-none lg:hidden -z-10">
-              <img
+              <img fetchPriority="low" decoding="async" loading="lazy"
                 src={STORE_ASSETS.banners?.forza || STORE_ASSETS.brandsFullbleedBg}
                 alt="FORZA"
                 className="w-full h-full object-cover object-left opacity-35"
@@ -196,7 +196,7 @@ export const MainBrandsBanner: React.FC = () => {
               {/* FORZA Logo */}
               <div className="flex flex-col items-center justify-center gap-2">
                 <div className="h-24 sm:h-28 flex items-center justify-center p-1">
-                  <img src={STORE_ASSETS.logoForza} alt="FORZA" className="h-full w-auto max-w-[190px] sm:max-w-[220px] object-contain filter drop-shadow-md" />
+                  <img fetchPriority="low" decoding="async" loading="lazy" src={STORE_ASSETS.logoForza} alt="FORZA" className="h-full w-auto max-w-[190px] sm:max-w-[220px] object-contain filter drop-shadow-md" />
                 </div>
                 <div className="text-[10px] tracking-[0.24em] text-[#F97316] font-bold uppercase">
                   POWER YOUR INDUSTRY
@@ -232,7 +232,7 @@ export const MainBrandsBanner: React.FC = () => {
                   className="bg-[#0D1524]/90 hover:bg-[#131F33] border border-slate-700/60 hover:border-[#E06518] rounded-xl p-2 flex flex-col items-center justify-between text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_18px_rgba(224,101,24,0.28)] cursor-pointer group/card aspect-[1/1.18]"
                 >
                   <div className="w-full flex-1 flex items-center justify-center overflow-hidden rounded-lg p-0.5">
-                    <img
+                    <img fetchPriority="low" decoding="async" loading="lazy"
                       src={item.image}
                       alt={item.title}
                       className="w-full h-full object-contain group-hover/card:scale-110 transition-transform duration-300"
@@ -255,7 +255,7 @@ export const MainBrandsBanner: React.FC = () => {
           <div className="relative flex flex-col items-center justify-between space-y-6 rounded-2xl p-5 sm:p-6 lg:p-4 bg-gradient-to-b from-[#EA580C]/10 via-black/35 to-black/30 lg:bg-gradient-to-b lg:from-[#EA580C]/15 lg:to-transparent border border-[#F97316]/35 lg:border-[#F97316]/20 backdrop-blur-[2px] lg:backdrop-blur-none overflow-hidden shadow-xl lg:shadow-none">
             {/* Mobile Background Atmosphere */}
             <div className="absolute inset-0 pointer-events-none lg:hidden -z-10">
-              <img
+              <img fetchPriority="low" decoding="async" loading="lazy"
                 src={STORE_ASSETS.heroPulley || STORE_ASSETS.brandsFullbleedBg}
                 alt="ATLAS"
                 className="w-full h-full object-cover object-center opacity-30"
@@ -267,7 +267,7 @@ export const MainBrandsBanner: React.FC = () => {
               {/* ATLAS Logo */}
               <div className="flex flex-col items-center justify-center gap-2">
                 <div className="h-24 sm:h-28 flex items-center justify-center p-1">
-                  <img
+                  <img fetchPriority="low" decoding="async" loading="lazy"
                     src={STORE_ASSETS.atlasLogo}
                     alt="اطلس (ATLAS)"
                     className="h-full w-auto max-w-[190px] sm:max-w-[220px] object-contain filter drop-shadow-[0_4px_12px_rgba(249,115,22,0.4)]"
@@ -307,7 +307,7 @@ export const MainBrandsBanner: React.FC = () => {
                   className="bg-[#0D1524]/90 hover:bg-[#131F33] border border-slate-700/60 hover:border-[#F97316] rounded-xl p-2 flex flex-col items-center justify-between text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_18px_rgba(249,115,22,0.35)] cursor-pointer group/card aspect-[1/1.18]"
                 >
                   <div className="w-full flex-1 flex items-center justify-center overflow-hidden rounded-lg p-0.5">
-                    <img
+                    <img fetchPriority="low" decoding="async" loading="lazy"
                       src={item.image}
                       alt={item.title}
                       className="w-full h-full object-contain group-hover/card:scale-110 transition-transform duration-300 filter drop-shadow-sm"
@@ -330,7 +330,7 @@ export const MainBrandsBanner: React.FC = () => {
           <div className="relative flex flex-col items-center justify-between space-y-6 rounded-2xl p-5 sm:p-6 lg:p-4 bg-black/30 lg:bg-transparent border border-[#0077FF]/25 lg:border-transparent backdrop-blur-[2px] lg:backdrop-blur-none overflow-hidden">
             {/* Mobile Background Atmosphere */}
             <div className="absolute inset-0 pointer-events-none lg:hidden -z-10">
-              <img
+              <img fetchPriority="low" decoding="async" loading="lazy"
                 src={STORE_ASSETS.banners?.swr || STORE_ASSETS.brandsFullbleedBg}
                 alt="SWR"
                 className="w-full h-full object-cover object-right opacity-35"
@@ -342,7 +342,7 @@ export const MainBrandsBanner: React.FC = () => {
               {/* SWR Logo */}
               <div className="flex flex-col items-center justify-center gap-2">
                 <div className="h-24 sm:h-28 flex items-center justify-center p-1">
-                  <img src={STORE_ASSETS.swrLogo} alt="SWR" className="h-full w-auto max-w-[190px] sm:max-w-[220px] object-contain filter drop-shadow-md" />
+                  <img fetchPriority="low" decoding="async" loading="lazy" src={STORE_ASSETS.swrLogo} alt="SWR" className="h-full w-auto max-w-[190px] sm:max-w-[220px] object-contain filter drop-shadow-md" />
                 </div>
                 <div className="text-[10px] tracking-[0.24em] text-[#0088FF] font-bold uppercase">
                   INDUSTRIAL SOLUTIONS
@@ -378,7 +378,7 @@ export const MainBrandsBanner: React.FC = () => {
                   className="bg-[#0D1524]/90 hover:bg-[#131F33] border border-slate-700/60 hover:border-[#0088FF] rounded-xl p-2 flex flex-col items-center justify-between text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_18px_rgba(0,136,255,0.28)] cursor-pointer group/card aspect-[1/1.18]"
                 >
                   <div className="w-full flex-1 flex items-center justify-center overflow-hidden rounded-lg p-0.5">
-                    <img
+                    <img fetchPriority="low" decoding="async" loading="lazy"
                       src={item.image}
                       alt={item.title}
                       className="w-full h-full object-contain group-hover/card:scale-110 transition-transform duration-300"

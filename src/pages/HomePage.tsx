@@ -355,20 +355,21 @@ export const HomePage: React.FC = () => {
         onTouchEnd={handleTouchEnd}
         className="home-hero relative w-full overflow-hidden bg-white lg:bg-[#55565A] text-[#37383b] lg:text-white border-b border-slate-200 lg:border-slate-800/80 h-auto min-h-[460px] sm:min-h-[500px] lg:h-[530px] xl:h-[570px] flex flex-col justify-between select-none shrink-0"
       >
-        {/* DESKTOP BACKGROUND: Factory Images with Smooth Cross-Fade & Uniform Sizing */}
+        {/* Only the active hero downloads; native image priority also works on desktop. */}
         {heroSlides.map((slide, idx) => {
           const isActive = idx === heroSlideIndex;
           return (
-            <div
+            <img
               key={`desktop-bg-${slide.id}`}
-              className={`hidden lg:block absolute inset-0 bg-cover bg-center bg-no-repeat h-full w-full transition-opacity duration-1000 ease-in-out will-change-transform ${
-                isActive
-                  ? "opacity-100 z-0 scale-100"
-                  : "opacity-0 -z-10 scale-105"
+              src={isActive ? slide.image : undefined}
+              alt=""
+              aria-hidden="true"
+              loading={isActive ? "eager" : "lazy"}
+              fetchPriority={isActive ? "high" : "low"}
+              decoding="async"
+              className={`hidden lg:block absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ease-in-out ${
+                isActive ? "opacity-100 z-0 scale-100" : "opacity-0 -z-10 scale-105"
               }`}
-              style={{
-                backgroundImage: `url(${slide.image})`,
-              }}
             />
           );
         })}
@@ -572,8 +573,11 @@ export const HomePage: React.FC = () => {
                 return (
                   <img
                     key={slide.id}
-                    src={slide.image}
+                    src={isActive ? slide.image : undefined}
                     alt={slide.titlePart1}
+                    loading={isActive ? "eager" : "lazy"}
+                    fetchPriority={isActive ? "high" : "low"}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 ${
                       isActive

@@ -83,12 +83,14 @@ export function HomeCategoryStrip() {
             key={c.slug}
             to={`/category/${c.slug}`}
           >
-            <ProductImage
-              // Prefer the bundled category artwork over sparse/legacy SKU URLs from the database.
-              // ProductImage still falls back to the original catalog photo when its thumbnail is missing.
-              src={categoryArtwork[c.name] || c.image}
+            <img
+              // Bundled hashed WebP images are marketing artwork, not product
+              // catalogue volume paths; the ProductImage resolver rejects them.
+              src={categoryArtwork[c.name] || c.image || A.categories.transmission}
               alt={c.name}
               loading="lazy"
+              decoding="async"
+              fetchPriority="low"
             />
             <strong>{c.name}</strong>
             <small>
@@ -217,7 +219,7 @@ export function HomeForzaBanner() {
                 <Maximize2 className="absolute bottom-1.5 right-1.5 w-3 h-3 text-[#E06518]/70" />
 
                 {/* Industrial Parts Image Inside Scanner */}
-                <img
+                <img fetchPriority="low" decoding="async"
                   src={A.categories.pulleys}
                   alt="شناسایی هوشمند قطعات صنعتی از روی تصویر"
                   onError={(e) => {
@@ -265,7 +267,7 @@ export function HomeForzaBanner() {
               <div className="absolute inset-2 rounded-full bg-orange-300/35 blur-xl pointer-events-none animate-pulse" />
 
               {/* Futuristic FORZA AI Robot Halo PNG Image */}
-              <img
+              <img fetchPriority="low" decoding="async"
                 src={A.forzaAiRobotHalo}
                 alt="هوش مصنوعی FORZA"
                 className="w-full h-full object-contain drop-shadow-[0_12px_28px_rgba(0,0,0,0.45)] relative z-10 transition-transform hover:scale-105 duration-300"
