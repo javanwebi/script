@@ -17,6 +17,15 @@ test('public home teaser strips every commercial field and bulky variants',()=>{
  assert.equal(previews[0].name,'قطعه نمونه');
 });
 
+test('large catalogue keeps the existing 12–24 featured fallback window',()=>{
+ const input=Array.from({length:30},(_,i)=>({code:'SKU-'+i,name:'Product '+i,
+  brand:'brand',categorySlug:'cat',categoryName:'Category',images:[],active:true}));
+ const previews=selectHomePreviewProducts(input);
+ assert.equal(previews.length,12);
+ assert.equal(previews[0].code,'SKU-12');
+ assert.equal(previews.at(-1)?.code,'SKU-23');
+});
+
 test('never reveal inactive families or oversized data URLs',()=>{
  const input=Array.from({length:15},(_,i)=>({code:'X'+i,name:'n',brand:'b',
   categorySlug:'c',categoryName:'C',images:['data:image/png;base64,'+'A'.repeat(6000)],active:i!==13}));
