@@ -367,7 +367,7 @@ export const HomePage: React.FC = () => {
                   : "opacity-0 -z-10 scale-105"
               }`}
               style={{
-                backgroundImage: `url(${slide.image})`,
+                backgroundImage: isActive ? `url(${slide.image})` : undefined,
               }}
             />
           );
@@ -572,8 +572,11 @@ export const HomePage: React.FC = () => {
                 return (
                   <img
                     key={slide.id}
-                    src={slide.image}
+                    src={isActive ? slide.image : undefined}
                     alt={slide.titlePart1}
+                    loading={isActive ? "eager" : "lazy"}
+                    fetchPriority={isActive ? "high" : "low"}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 ${
                       isActive
