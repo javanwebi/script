@@ -191,7 +191,9 @@ export const HighUtilityProductsSection: React.FC = () => {
                 <span>{product.brand}</span><span dir="ltr">{product.code}</span>
               </div>
               <div className="aspect-square rounded-xl bg-[#F8F9FA] border border-slate-100 p-2">
-                <ProductImage src={product.images[0]} alt={product.name} loading="lazy" className="w-full h-full object-contain" />
+                <ProductImage src={product.images[0]}
+                    thumbnail
+                    decoding="async" alt={product.name} loading="lazy" className="w-full h-full object-contain" />
               </div>
               <strong className="text-xs sm:text-sm line-clamp-2 text-[#55565A]">{product.name}</strong>
               <span className="text-[10px] text-slate-500 line-clamp-1">{product.categoryName}</span>
@@ -225,6 +227,8 @@ export const HighUtilityProductsSection: React.FC = () => {
                 >
                   <ProductImage
                     src={product.images[0]}
+                    thumbnail
+                    decoding="async"
                     alt={product.name}
                     loading="lazy"
                     className="w-full h-full object-contain"
