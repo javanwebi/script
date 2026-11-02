@@ -28,7 +28,7 @@ test('home preview prefers image-linked families while preserving exact family a
  assert.ok(previews.some(p=>p.code==='SKU-24'));
  for(const p of previews){
   assert.equal(p.name,'Family '+p.code.split('-')[1]);
-  if(p.images.length)assert.match(p.images[0],/^\\/storage\\/products\\//);
+  if(p.images.length)assert.ok(p.images[0].startsWith('/storage/products/'));
  }
 });
 
