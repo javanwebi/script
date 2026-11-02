@@ -49,8 +49,9 @@ import { BRANDS } from '../../data/brands';
 import { getInstantSearchResults } from '../../data/mockGenerator';
 import { toPersianDigits, formatPrice } from '../../utils/formatters';
 import { Product } from '../../types';
-import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
-import { AiConsultModal } from '../search/AiConsultModal';
+const LazyVisualPartSearchModal = React.lazy(() => import('../search/AiVisualPartSearchModal').then(m => ({default: m.AiVisualPartSearchModal})));
+const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default: m.AiConsultModal})));
+
 import {
   portalContentService,
   PortalAnnouncementItem,
@@ -954,17 +955,25 @@ export const Header: React.FC = () => {
       {/* AI DYNAMIC VISUAL PART SEARCH MODAL */}
 
       {/* 5. AI DYNAMIC VISUAL PART SEARCH MODAL */}
-      <AiVisualPartSearchModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-      />
+      {isCameraModalOpen && (
+        <React.Suspense fallback={null}>
+          <LazyVisualPartSearchModal
+            isOpen
+            onClose={() => setIsCameraModalOpen(false)}
+          />
+        </React.Suspense>
+      )}
 
-      {/* 6. AI CONSULT MODAL */}
-      <AiConsultModal
-        isOpen={isConsultModalOpen}
-        onClose={() => setIsConsultModalOpen(false)}
-        onOpenVisualSearch={() => setIsCameraModalOpen(true)}
-      />
+      {/* 6. AI CONSULT MODAL — loaded only when actually opened */}
+      {isConsultModalOpen && (
+        <React.Suspense fallback={null}>
+          <LazyAiConsultModal
+            isOpen
+            onClose={() => setIsConsultModalOpen(false)}
+            onOpenVisualSearch={() => setIsCameraModalOpen(true)}
+          />
+        </React.Suspense>
+      )}
     </header>
   );
 };
