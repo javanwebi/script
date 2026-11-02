@@ -15,6 +15,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import { CATEGORIES } from "../../data/categories";
+import type { EnhancedCategory } from "../../data/categories";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
@@ -35,10 +36,27 @@ const groups = [
 ];
 
 export function HomeCategoryStrip() {
-  // Preserve the original six-card horizontal homepage strip; other groups stay on /categories.
-  const categories = groups
-    .map(name => CATEGORIES.find(category => category.name === name && category.active !== false))
-    .filter((category): category is NonNullable<typeof category> => Boolean(category));
+  // Category cards are independent of the full 10k-SKU /api/runtime hydration.
+  const [available,setAvailable]=React.useState<EnhancedCategory[]>(()=>[...CATEGORIES]);
+  React.useEffect(()=>{
+    let alive=true;
+    const controller=new AbortController();
+    const syncHydrated=()=>{if(alive)setAvailable([...CATEGORIES]);};
+    window.addEventListener('sanat-durable-hydrated',syncHydrated);
+    void fetch('/api/catalog/categories',{credentials:'same-origin',cache:'no-store',signal:controller.signal})
+      .then(response=>response.ok?response.json():null)
+      .then(data=>{
+        // The authoritative runtime response wins if it arrived first.
+        if(alive && CATEGORIES.length===0 && data?.success && Array.isArray(data.categories))
+          setAvailable(data.categories as EnhancedCategory[]);
+      }).catch(()=>{});
+    return()=>{alive=false;controller.abort();window.removeEventListener('sanat-durable-hydrated',syncHydrated);};
+  },[]);
+  // Preserve the familiar six tiles. If the active PostgreSQL taxonomy uses
+  // new names, fill remaining slots from active categories instead of showing blanks.
+  const active=available.filter(category=>category.active!==false);
+  const preferred=groups.map(name=>active.find(c=>c.name===name)).filter((c):c is EnhancedCategory=>Boolean(c));
+  const categories=[...preferred,...active.filter(c=>!preferred.some(p=>p.slug===c.slug))].slice(0,6);
   return (
     <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
       <div className="home-category-track">
@@ -53,6 +71,12 @@ export function HomeCategoryStrip() {
             مشاهده همه گروه‌ها <ArrowLeft size={15} />
           </span>
         </Link>
+        {categories.length===0 && Array.from({length:6},(_,index)=>(
+          <div key={index} className="home-category-item animate-pulse" aria-hidden="true">
+            <div className="w-16 h-16 rounded-xl bg-slate-100 mx-auto" />
+            <div className="w-20 h-3 rounded bg-slate-100 mx-auto mt-3" />
+          </div>
+        ))}
         {categories.map((c) => (
           <Link
             className="home-category-item"
