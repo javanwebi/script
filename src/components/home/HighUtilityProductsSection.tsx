@@ -1,5 +1,5 @@
 import { ProductImage } from '../product/ProductImage';
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -19,11 +19,30 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { Modal } from '../ui/Modal';
 import { Product } from '../../types';
+import type { HomePreviewProduct } from '../../utils/homeCatalogPreview';
 
 export const HighUtilityProductsSection: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+
+  const [catalogRevision,setCatalogRevision]=useState(0);
+  const [previews,setPreviews]=useState<HomePreviewProduct[]>([]);
+  useEffect(()=>{
+    let alive=true;
+    const controller=new AbortController();
+    const onHydrated=()=>{if(alive)setCatalogRevision(n=>n+1);};
+    window.addEventListener('sanat-durable-hydrated',onHydrated);
+    // Tiny public preview renders first; the real catalogue replaces it as
+    // soon as /api/runtime hydrates. Never enable pricing/cart from previews.
+    void fetch('/api/catalog/home-preview',{credentials:'same-origin',signal:controller.signal})
+      .then(response=>response.ok?response.json():null)
+      .then(data=>{
+        if(alive && data?.success && Array.isArray(data.products))
+          setPreviews(data.products as HomePreviewProduct[]);
+      }).catch(()=>{});
+    return()=>{alive=false;controller.abort();window.removeEventListener('sanat-durable-hydrated',onHydrated);};
+  },[]);
 
   // Curated list of high-utility industrial parts (بلبرینگ‌ها، کاسه‌نمدها، یاتاقان‌ها، کوپلینگ‌ها و تسمه‌ها)
   const utilityProducts = useMemo(() => {
@@ -48,7 +67,7 @@ export const HighUtilityProductsSection: React.FC = () => {
     }
     // Fallback: pick alternate slice from user products
     return USER_PRODUCTS.slice(12, 24);
-  }, []);
+  }, [catalogRevision]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -159,6 +178,27 @@ export const HighUtilityProductsSection: React.FC = () => {
           className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
+          {utilityProducts.length===0 && previews.length===0 && Array.from({length:6},(_,i)=>(
+            <div key={i} className="w-48 sm:w-60 shrink-0 rounded-2xl border border-slate-200 p-4 animate-pulse" aria-hidden="true">
+              <div className="aspect-square rounded-xl bg-slate-100" />
+              <div className="h-3 bg-slate-100 rounded mt-4" />
+              <div className="h-3 bg-slate-100 rounded mt-2 w-2/3" />
+            </div>
+          ))}
+          {utilityProducts.length===0 && previews.map(product=>(
+            <Link key={product.code} to={`/product/${encodeURIComponent(product.code)}`}
+              className="w-48 sm:w-60 shrink-0 bg-white rounded-2xl border border-[#CBD2D8] p-3 sm:p-4 flex flex-col text-right gap-3 hover:border-[#E06518]">
+              <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-600">
+                <span>{product.brand}</span><span dir="ltr">{product.code}</span>
+              </div>
+              <div className="aspect-square rounded-xl bg-[#F8F9FA] border border-slate-100 p-2">
+                <ProductImage src={product.images[0]} alt={product.name} loading="lazy" className="w-full h-full object-contain" />
+              </div>
+              <strong className="text-xs sm:text-sm line-clamp-2 text-[#55565A]">{product.name}</strong>
+              <span className="text-[10px] text-slate-500 line-clamp-1">{product.categoryName}</span>
+              <span className="text-xs text-[#E06518]">مشاهده مشخصات <ArrowLeft className="w-3 h-3 inline" /></span>
+            </Link>
+          ))}
           {utilityProducts.map(product => {
             const isFav = isInWishlist(product.code);
             const isJustAdded = quickAddedCode === product.code;
