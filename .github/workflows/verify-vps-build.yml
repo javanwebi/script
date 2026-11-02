@@ -8,6 +8,7 @@ on:
       - "server/auth/**"
       - "api/sms.ts"
       - "tests/supabase-sms-hook.test.ts"
+      - "tests/mobile-scan-ui.test.ts"
       - "vite.config.ts"
       - "package.json"
       - "package-lock.json"
@@ -31,6 +32,8 @@ jobs:
         run: npm run lint
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
+      - name: Mobile camera capture and confirmation flow
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS
         run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
       - name: Print focused Vite failure
