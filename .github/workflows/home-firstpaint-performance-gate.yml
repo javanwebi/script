@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - perf/home-first-paint-lightweight-20261102
+      - perf/home-preload-categories-20261102
   workflow_dispatch:
 jobs:
   verify:
