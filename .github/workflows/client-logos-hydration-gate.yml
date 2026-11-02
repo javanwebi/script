@@ -1,0 +1,22 @@
+name: Verify client logos hydration side effect fix
+on:
+  push:
+    branches:
+      - fix/client-logos-read-before-hydration-20261102
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check frontend TypeScript
+        run: npm run lint
+      - name: Test client logo pre-hydration
+        run: node --import tsx --test tests/client-logos-hydration.test.ts
+      - name: Build production frontend
+        run: npm run build

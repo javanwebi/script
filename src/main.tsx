@@ -4,6 +4,7 @@ import {refreshDurableStorage} from './services/durableStorage';
 import {installDatabaseReferences} from './data/databaseReferences';
 import {installDatabaseProducts} from './data/mockGenerator';
 import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
+import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
 import './index.css';
 
 function showBackendUnavailable(){
@@ -42,6 +43,9 @@ async function boot(){
       }
     }
   });
+  // Parallelize the real PostgreSQL homepage summaries with importing the App.
+  // Never prefetch home data for FORZA calls, account or admin routes.
+  if (window.location.pathname === '/') prefetchHomeFirstPaint();
   // Start React before awaiting a potentially slow cross-region database read.
   const {default:App}=await import('./App.tsx');
   const root=createRoot(document.getElementById('root')!);

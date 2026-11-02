@@ -32,7 +32,7 @@ export function HomeAiIntroduction() {
         </Link>
       </div>
       <div className="home-ai-feature">
-        <img
+        <img fetchPriority="low" decoding="async"
           src={A.aiConsultRobot}
           alt="نمای معرفی مشاور هوشمند FORZA"
           loading="lazy"
@@ -53,7 +53,7 @@ export function HomeAiIntroduction() {
         </div>
       </div>
       <div className="home-ai-feature">
-        <img
+        <img fetchPriority="low" decoding="async"
           src={A.aiSearchMobile}
           alt="نمای معرفی جستجوی تصویری قطعات"
           loading="lazy"
@@ -84,7 +84,7 @@ export function HomeIndustryShowcase() {
   const deck = useRef<HTMLDivElement>(null);
   return (
     <section className="home-industrial-supply" id="industries">
-      <img
+      <img fetchPriority="low" decoding="async"
         className="home-supply-background"
         src={A.industries.bgPlant}
         alt=""
@@ -116,7 +116,7 @@ export function HomeIndustryShowcase() {
                 key={i.slug}
                 className={n === 0 ? "is-featured" : ""}
               >
-                <img src={i.image} alt={i.title} loading="lazy" />
+                <img fetchPriority="low" decoding="async" src={i.image} alt={i.title} loading="lazy" />
                 <span>
                   <Layers size={16} />
                   <strong>{i.title}</strong>

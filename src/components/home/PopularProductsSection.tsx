@@ -184,6 +184,8 @@ export const PopularProductsSection: React.FC = () => {
                 >
                   <ProductImage
                     src={product.images[0]}
+                    thumbnail
+                    decoding="async"
                     alt={product.name}
                     loading="lazy"
                     className="w-full h-full object-contain"

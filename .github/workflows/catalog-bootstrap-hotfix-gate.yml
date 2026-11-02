@@ -1,0 +1,23 @@
+name: Sanat Pish isolated catalog hotfix gate
+on:
+  push:
+    branches:
+      - perf/catalog-bootstrap-hotfix-ced9c75-20261102
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript safety
+        run: npm run lint
+      - name: Catalog bootstrap tests
+        run: node --import tsx --test tests/catalog-bootstrap-compact.test.ts
+      - name: Production frontend build
+        run: npm run build
