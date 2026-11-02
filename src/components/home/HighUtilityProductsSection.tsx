@@ -20,6 +20,7 @@ import { useCart } from '../../context/CartContext';
 import { Modal } from '../ui/Modal';
 import { Product } from '../../types';
 import type { HomePreviewProduct } from '../../utils/homeCatalogPreview';
+import {homeProducts} from '../../services/homeFirstPaint';
 
 export const HighUtilityProductsSection: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -30,18 +31,16 @@ export const HighUtilityProductsSection: React.FC = () => {
   const [previews,setPreviews]=useState<HomePreviewProduct[]>([]);
   useEffect(()=>{
     let alive=true;
-    const controller=new AbortController();
-    const onHydrated=()=>{if(alive)setCatalogRevision(n=>n+1);};
+    const onHydrated=()=>queueMicrotask(()=>{
+      if(alive)setCatalogRevision(n=>n+1);
+    });
     window.addEventListener('sanat-durable-hydrated',onHydrated);
-    // Tiny public preview renders first; the real catalogue replaces it as
-    // soon as /api/runtime hydrates. Never enable pricing/cart from previews.
-    void fetch('/api/catalog/home-preview',{credentials:'same-origin',signal:controller.signal})
-      .then(response=>response.ok?response.json():null)
-      .then(data=>{
-        if(alive && data?.success && Array.isArray(data.products))
-          setPreviews(data.products as HomePreviewProduct[]);
-      }).catch(()=>{});
-    return()=>{alive=false;controller.abort();window.removeEventListener('sanat-durable-hydrated',onHydrated);};
+    // The request already started before the main App bundle loaded.
+    // The preview is read-only; cart/prices still require /api/runtime.
+    void homeProducts().then(products=>{
+      if(alive && products.length)setPreviews(products);
+    });
+    return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',onHydrated);};
   },[]);
 
   // Curated list of high-utility industrial parts (بلبرینگ‌ها، کاسه‌نمدها، یاتاقان‌ها، کوپلینگ‌ها و تسمه‌ها)
