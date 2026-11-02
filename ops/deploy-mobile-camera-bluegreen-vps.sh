@@ -135,14 +135,14 @@ for m in mounts:
   sys.stdout.buffer.write(arg.encode()+b"\0")
 ' "$STAGE"
 )
-test "\${#MOUNTS[@]}" -ge 2
+test "${#MOUNTS[@]}" -ge 2
 echo '===== START NEW CANARY ====='
 CID="$(docker run -d --name "$NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$NEXT:3000" --env-file "$ENV_FILE" \
  -e PORT=3000 -e SANATPISH_SERVE_DIST=1 \
  -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
- "\${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
+ "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
  if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:$NEXT/api/health" 2>/dev/null | grep -q '"database":"ok"'; then
