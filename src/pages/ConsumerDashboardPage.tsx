@@ -826,9 +826,6 @@ export const ConsumerDashboardPage: React.FC = () => {
                     </details>
                   </article>
                 ))}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}
