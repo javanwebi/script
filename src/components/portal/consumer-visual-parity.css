@@ -90,3 +90,148 @@
 .consumer-order-list-card {background:#fff!important;border-radius:19px!important;border:1px solid #eceef2!important;box-shadow:0 5px 15px rgba(38,44,56,.045);transition:border-color .2s;}
 .consumer-order-list-card:hover {border-color:#e9af87!important;}
 .consumer-order-list-card .font-mono {font-variant-numeric:tabular-nums;}
+
+/* Quick buy — photos and code-first catalog cards */
+.consumer-quickbuy-panel {display:grid;gap:20px;min-width:0;}
+.consumer-quickbuy-search {display:flex;align-items:flex-end;justify-content:space-between;gap:22px;padding:24px;border-radius:24px;background:#fff;box-shadow:var(--cv-shadow);border:1px solid #eeeff2;}
+.consumer-quickbuy-search h2 {font-size:23px;font-weight:850;color:var(--cv-ink);}
+.consumer-quickbuy-search p {font-size:12px;color:var(--cv-muted);line-height:1.9;max-width:580px;}
+.consumer-search-field {display:flex;align-items:center;gap:11px;min-height:54px;padding:8px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:17px;min-width:320px;max-width:520px;flex:1;}
+.consumer-search-field svg {color:var(--cv-orange);flex-shrink:0;}
+.consumer-search-field input {font:inherit;background:transparent;border:0;outline:0;min-width:0;width:100%;font-size:12px;color:var(--cv-ink);}
+.consumer-search-field:focus-within {border-color:var(--cv-orange);box-shadow:0 0 0 3px #fde7d8;}
+.consumer-search-field button {width:30px;height:30px;border-radius:50%;font-size:21px;line-height:1; color:#666; background:#ebedf1;}
+.consumer-categories {display:flex;gap:9px;overflow-x:auto;scrollbar-width:thin;scroll-snap-type:x proximity;padding:2px 0 12px;}
+.consumer-categories button {flex-shrink:0;display:flex;align-items:center;gap:8px;min-height:44px;border-radius:999px;padding:8px 17px;border:1px solid #e5e8ed;background:#fff;color:#565a64;font-size:12px;font-weight:750;scroll-snap-align:start;}
+.consumer-categories button[aria-pressed="true"] {background:var(--cv-orange);color:#fff;border-color:var(--cv-orange);box-shadow:0 5px 15px rgba(224,101,24,.2);}
+.consumer-quickbuy-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+.consumer-quickbuy-card {min-width:0;display:flex;flex-direction:column;position:relative;background:white;border:1px solid #ebedf0;box-shadow:var(--cv-shadow);border-radius:22px;overflow:hidden;transition:border-color .18s,transform .18s;}
+.consumer-quickbuy-card:hover {border-color:#efb58b;transform:translateY(-2px);}
+.consumer-quickbuy-media {display:block;height:180px;background:radial-gradient(ellipse at 50% 75%,#fff1e7,#fbfbfd 65%);padding:18px;}
+.consumer-quickbuy-media img {width:100%;height:100%;object-fit:contain;}
+.consumer-quickbuy-card-copy {display:flex;flex:1;flex-direction:column;padding:14px 17px 11px;min-width:0;}
+.consumer-sku {align-self:flex-end;background:#f2f3f6;border-radius:999px;color:#4a4f5c;padding:5px 10px;font-size:11px;font-weight:800;letter-spacing:.02em;unicode-bidi:isolate;}
+.consumer-quickbuy-card h3 {font-size:15px;line-height:1.8;font-weight:800;color:#282e38;min-height:50px;margin-top:9px;}
+.consumer-quickbuy-card h3 a:hover {color:var(--cv-orange-dark);}
+.consumer-quickbuy-card-copy p {font-size:11px;color:#8c9098;}
+.consumer-quickbuy-price {margin-top:auto; padding-top:12px;}
+.consumer-quickbuy-price span {font-size:13px;font-weight:850;color:var(--cv-orange-dark);line-height:1.8;}
+.consumer-product-cta {display:flex;align-items:center;justify-content:center;gap:8px;min-height:45px;margin:0 14px 15px;background:var(--cv-orange);color:#fff;border-radius:14px;font-size:12px;font-weight:800;}
+.consumer-product-cta:hover {background:var(--cv-orange-dark);}
+.consumer-quickbuy-footer {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.consumer-quickbuy-footer button {display:flex;align-items:center;gap:15px;text-align:right;min-width:0;padding:19px;background:linear-gradient(105deg,#fff,#fff8f3);border:1px solid #eee7e0;border-radius:20px;box-shadow:var(--cv-shadow);}
+.consumer-quickbuy-footer button>svg:first-child {color:var(--cv-orange);width:32px;height:32px;flex-shrink:0;}
+.consumer-quickbuy-footer button>svg:last-child {color:var(--cv-orange);margin-inline-start:auto;flex-shrink:0;}
+.consumer-quickbuy-footer strong,.consumer-quickbuy-footer small {display:block;}
+.consumer-quickbuy-footer strong {font-size:13px;color:var(--cv-ink);}
+.consumer-quickbuy-footer small {font-size:11px;color:#888c94;margin-top:3px;line-height:1.8;}
+
+/* Invoices — compact status summary and responsive receipt rows. */
+.consumer-invoices-panel {display:grid;gap:18px;min-width:0;}
+.consumer-invoices-summary {display:grid;grid-template-columns:155px repeat(3,minmax(0,1fr));gap:10px;padding:18px;border-radius:24px;background:linear-gradient(105deg,#fff9f5,#fff 70%);box-shadow:var(--cv-shadow);border:1px solid #f0e5dc;}
+.consumer-invoice-illustration {background:#fff0e7;border-radius:19px;display:flex;flex-direction:column;gap:5px;justify-content:center;align-items:center;color:#d96017;font-size:12px;font-weight:850;}
+.consumer-invoices-summary > div:not(:first-child) {display:flex;justify-content:center;flex-direction:column;align-items:center;gap:6px;border-inline-start:1px solid #e8e8ec;text-align:center;}
+.consumer-invoices-summary > div:not(:first-child) svg {color:var(--cv-orange);}
+.consumer-invoices-summary > div:not(:first-child) span {font-size:11px;color:#676b76;}
+.consumer-invoices-summary > div:not(:first-child) strong {font-size:24px;font-weight:900;color:#282d36;}
+.consumer-invoice-rows {display:grid;gap:10px;}
+.consumer-invoice-row {display:grid;grid-template-columns:44px minmax(130px,1.1fr) minmax(110px,.7fr) minmax(125px,.9fr) minmax(120px,1fr) auto;gap:12px;align-items:center;padding:14px 16px;border-radius:17px;background:#fff;box-shadow:0 3px 12px rgba(33,40,50,.04);border:1px solid #eaecf0;min-width:0;}
+.consumer-invoice-row-icon {width:42px;height:42px;display:grid;place-items:center;background:#fff1e6;color:var(--cv-orange);border-radius:13px;}
+.consumer-invoice-row :is(.consumer-invoice-identity,.consumer-invoice-date,.consumer-invoice-amount) {display:flex;flex-direction:column;gap:2px;min-width:0;}
+.consumer-invoice-row small {font-size:10px;color:#9296a0;}
+.consumer-invoice-row strong {font-size:12px;font-weight:850;white-space:normal;overflow-wrap:anywhere;}
+.consumer-invoice-row .consumer-invoice-amount strong {color:var(--cv-orange-dark);}
+.consumer-invoice-state > span {display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border-radius:999px;padding:7px 10px;font-size:10px;font-weight:750;}
+.consumer-invoice-state .is-paid {color:#218455;background:#eaf7ed;}
+.consumer-invoice-state .is-pending {color:#a46a16;background:#fff3df;}
+.consumer-invoice-row button {white-space:nowrap;}
+.consumer-document-note {font-size:11px;line-height:1.9;color:#6e7380;border-radius:14px;border:1px solid #e9ebf0;background:#fff;padding:11px 14px;}
+
+/* Delivery addresses & form. */
+.consumer-address-panel {display:grid;gap:21px;min-width:0;}
+.consumer-address-profile {display:flex;align-items:center;gap:15px;background:linear-gradient(110deg,#fff,#fff6ef);border:1px solid #f2e3d6;border-radius:24px;padding:22px;box-shadow:var(--cv-shadow);}
+.consumer-avatar {display:grid;place-items:center;width:66px;height:66px;border:1px solid #f2d7bf;background:#fff;border-radius:21px;color:var(--cv-orange);flex-shrink:0;}
+.consumer-address-profile > div:nth-child(2) {min-width:0;}
+.consumer-address-profile > div:nth-child(2)>span {font-size:11px;color:#a46339;font-weight:750;}
+.consumer-address-profile h2 {font-size:21px;font-weight:850;color:#2a2e38;line-height:1.7;}
+.consumer-address-profile bdi {font-size:12px;font-weight:700;color:#7f838c;}
+.consumer-role-tag {margin-inline-start:auto;background:#fff1e6;padding:9px 13px;border-radius:999px;color:#a9490d;white-space:nowrap;font-size:11px;font-weight:800;}
+.consumer-address-add {display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:9px 17px;border-radius:13px;background:var(--cv-orange);color:#fff;font-size:12px;font-weight:850;}
+.consumer-address-add:hover {background:var(--cv-orange-dark);}
+.consumer-address-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;}
+.consumer-address-card {display:flex;flex-direction:column;min-width:0;border:1px solid #ebedf1;background:#fff;box-shadow:var(--cv-shadow);padding:21px;border-radius:22px;}
+.consumer-address-card.is-default {border-color:#edaa7a;background:linear-gradient(130deg,#fff8f2,#fff 75%);}
+.consumer-address-card-top {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.consumer-address-icon {display:grid;place-items:center;width:43px;height:43px;border-radius:14px;background:#fff0e6;color:var(--cv-orange);}
+.consumer-address-card h3 {font-size:16px;font-weight:850;min-width:0;}
+.consumer-default-tag {display:inline-flex;align-items:center;gap:5px;margin-inline-start:auto;border-radius:999px;background:#e46920;color:#fff;font-size:10px;padding:7px 9px;font-weight:750;}
+.consumer-address-info {display:flex;flex-wrap:wrap;gap:9px 15px;margin-top:16px;padding-bottom:13px;border-bottom:1px solid #eef0f3;}
+.consumer-address-info span {display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#5b616b;}
+.consumer-address-info svg {color:#e06c25;}
+.consumer-address-full {font-size:12px;line-height:2;color:#4e545f;margin-top:15px;min-height:48px;}
+.consumer-postcode {color:#81848b;font-size:11px;margin-top:5px;}
+.consumer-address-actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:18px;}
+.consumer-address-actions button {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:43px;padding:9px 14px;border-radius:12px;border:1px solid #eed8c9;color:#ac5015;background:#fff;font-size:11px;font-weight:800;}
+.consumer-address-actions button:disabled {color:#82858e;background:#f4f5f7;border-color:#e9ebef;cursor:default;}
+.consumer-address-form {background:#fff;border:1px solid #ebeef1;border-radius:22px;padding:20px;box-shadow:var(--cv-shadow);}
+.consumer-address-form h3 {font-size:17px;font-weight:850;margin-bottom:12px;}
+.consumer-address-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.consumer-address-fields label {font-size:12px;font-weight:750;color:#505661;display:flex;flex-direction:column;gap:5px;}
+.consumer-address-fields label.is-wide {grid-column:1/-1;}
+.consumer-address-fields input,.consumer-address-fields textarea {background:#fafbfc;border:1px solid #dfe3ea;border-radius:12px;padding:11px 12px;outline:none;color:#2d3441;font:inherit;font-size:13px;min-width:0;}
+.consumer-address-fields :is(input,textarea):focus {border-color:#e06518;box-shadow:0 0 0 3px #fce6d6;}
+.consumer-address-form-actions {display:flex;gap:9px;margin-top:17px;}
+.consumer-address-form-actions button {display:inline-flex;align-items:center;gap:7px;border-radius:12px;min-height:44px;padding:9px 19px;font-size:12px;font-weight:750;}
+.consumer-address-form-actions button:first-child {background:#e06518;color:#fff;}
+.consumer-address-form-actions button+button {background:#f5f5f7;color:#575c65;}
+
+/* Saved products */
+.consumer-saved-panel {display:grid;gap:21px;min-width:0;}
+.consumer-saved-hero {display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:21px;align-items:center;min-height:155px;padding:23px;border:1px solid #f3e5d9;background:linear-gradient(110deg,#fff5ed,#fff 70%);border-radius:25px;box-shadow:var(--cv-shadow);}
+.consumer-saved-hero-icon {height:88px;width:88px;border-radius:24px;display:flex;align-items:center;justify-content:center;gap:5px;background:#ffecd9;color:#df6c24;}
+.consumer-saved-hero h2 {font-size:23px;font-weight:900;}
+.consumer-saved-hero p {font-size:12px;line-height:1.9;color:var(--cv-muted);}
+.consumer-saved-panel .consumer-saved-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+.consumer-saved-panel .store-product-card {border-radius:22px;border:1px solid #e8ebef;box-shadow:var(--cv-shadow);overflow:hidden;}
+.consumer-saved-panel .store-product-media {aspect-ratio:1.45;background:radial-gradient(ellipse at center,#fff1e4,#fafbfc 70%);}
+.consumer-saved-panel .store-product-media img {object-fit:contain;padding:14px;}
+.consumer-saved-panel .store-product-copy {padding:15px;}
+.consumer-saved-panel .store-product-title {font-size:14px;line-height:1.85;color:var(--cv-ink);}
+.consumer-saved-panel .store-product-bottom {margin-top:auto;display:flex;align-items:center;gap:9px;}
+.consumer-saved-panel .store-product-bottom > span {color:var(--cv-orange-dark);font-weight:800;font-size:12px;}
+.consumer-saved-panel .store-product-bottom a {background:var(--cv-orange);color:white;padding:9px 12px;border-radius:12px;min-height:39px;font-size:11px;}
+.consumer-saved-panel .store-product-bottom a:hover {background:var(--cv-orange-dark);}
+
+/* Bulk code entry */
+.consumer-multicode-panel {display:grid;gap:19px;min-width:0;}
+.consumer-bulk-hero {display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:22px;border:1px solid #f3e4d9;padding:23px;border-radius:24px;background:linear-gradient(115deg,#fff8f1,#fff 72%);box-shadow:var(--cv-shadow);}
+.consumer-bulk-illustration {width:96px;height:96px;background:#fff0e0;color:var(--cv-orange);display:flex;align-items:center;justify-content:center;gap:2px;border-radius:25px;}
+.consumer-bulk-hero h2 {font-size:24px;font-weight:850;}
+.consumer-bulk-hero p {font-size:12px;color:var(--cv-muted);line-height:1.9;}
+.consumer-multicode-panel .portal-bulk-form,.consumer-multicode-panel .portal-bulk-help,.consumer-multicode-panel .portal-bulk-results {background:#fff;border:1px solid #ebedf0;border-radius:24px;box-shadow:var(--cv-shadow);}
+.consumer-multicode-panel .portal-bulk-form textarea {font-size:14px;line-height:2;background:#fafbfc;border-radius:16px;border:1px solid #dadfe7;resize:vertical;}
+.consumer-multicode-panel .portal-bulk-form .store-btn-primary {width:100%;background:var(--cv-orange);border-radius:14px;}
+.consumer-multicode-panel .portal-bulk-help {background:linear-gradient(130deg,#fff,#fff9f5);}
+.consumer-multicode-panel .portal-bulk-row {border:1px solid #eaecef;background:#fafbfc;border-radius:14px;min-width:0;}
+.consumer-bulk-summary {display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#278158;font-size:12px;font-weight:800;}
+.consumer-bulk-summary strong {margin-inline-start:auto;color:#646a76;font-size:11px;}
+
+/* Loyalty levels are loaded from the customer's configured membership program. */
+.consumer-club-page .portal-club {background:#fff;border:1px solid #efe6de;box-shadow:var(--cv-shadow);border-radius:24px;padding:23px;}
+.consumer-club-hero {display:grid;grid-template-columns:100px minmax(0,1fr);align-items:center;gap:22px;min-height:155px;padding:17px 20px;background:linear-gradient(115deg,#fff0e3,#fff 78%);border-radius:22px;}
+.consumer-club-medal {width:93px;height:93px;display:grid;place-items:center;border:6px solid #ffe6c7;background:radial-gradient(circle,#fcb954,#db7918);border-radius:50%;color:#fff;box-shadow:0 7px 18px rgba(189,113,31,.2);}
+.consumer-club-hero h2 {font-size:24px;font-weight:850;}
+.consumer-club-hero h2 strong {color:var(--cv-orange-dark);}
+.consumer-club-hero p {font-size:12px;line-height:1.9;color:#6e737d;}
+.consumer-club-hero .portal-club-badge {display:inline-flex;align-items:center;gap:7px;margin-top:10px;}
+.consumer-club-page .portal-club-volume {margin-top:17px;padding:15px;border-radius:16px;background:#fafbfc;}
+.consumer-club-page .portal-progress {height:16px;border-radius:999px;background:#ecedf0;overflow:hidden;}
+.consumer-club-page .portal-progress > span {background:linear-gradient(90deg,#ed9b4c,#e06518);border-radius:999px;}
+.consumer-club-level-title {margin:17px 0 11px;font-size:17px;font-weight:850;}
+.consumer-club-page .portal-milestones {gap:11px;}
+.consumer-club-page .portal-milestone {background:#fff;border:1px solid #e7e8ed;box-shadow:0 4px 13px rgba(31,39,53,.05);border-radius:19px;padding:16px 10px;}
+.consumer-club-page .portal-milestone.reached {border-color:#e9a979;background:#fff7f1;}
+.consumer-club-page .portal-milestone svg {color:var(--cv-orange);}
+.consumer-club-page .portal-reward-grid {gap:14px;}
+.consumer-club-page .portal-reward-card {border-radius:22px;border:1px solid #e8eaed;background:#fff;box-shadow:var(--cv-shadow);}
+.consumer-club-page .portal-reward-card.is-current {border-color:#edaa79;background:#fff9f5;}
