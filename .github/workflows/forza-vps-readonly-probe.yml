@@ -21,15 +21,15 @@ jobs:
         run: |
           set -u
           BASE='https://87.107.152.92'
-          for route in /ai-forza /api/health /api/ai/forza-voice-info; do
+          for route in /ai-forza /api/health /api/ai/forza-voice-info /api/ai/forza-build-info; do
             echo "CHECK $route"
             curl --noproxy '*' -k -sS --connect-timeout 5 --max-time 12 \
               -o /tmp/forza-public-body \
               -w 'http=%{http_code} type=%{content_type} bytes=%{size_download} total_seconds=%{time_total}\n' \
               "$BASE$route" || echo "UNREACHABLE $route"
             case "$route" in
-              /ai-forza) grep -Eo '(/assets/)?index-[A-Za-z0-9_-]+\\.js' /tmp/forza-public-body | head -1 || true;;
-              /api/health|/api/ai/forza-voice-info) head -c 250 /tmp/forza-public-body || true; echo;;
+              /ai-forza) grep -Eo '(/assets/)?index-[A-Za-z0-9_-]+\.js' /tmp/forza-public-body | head -1 || true;;
+              /api/health|/api/ai/forza-voice-info|/api/ai/forza-build-info) head -c 250 /tmp/forza-public-body || true; echo;;
             esac
           done
           echo "A public endpoint without an embedded immutable build SHA cannot establish deployed Git commit."
