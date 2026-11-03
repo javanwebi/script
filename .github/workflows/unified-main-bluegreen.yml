@@ -25,7 +25,7 @@ jobs:
         run: npm run lint
       - name: Preserve mobile scanner, FORZA swipe, SMS and homepage tests
         run: |
-          node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/supabase-sms-hook.test.ts tests/home-initial-load.test.ts tests/home-image-loading.test.ts tests/home-fast-preview.test.ts tests/home-approved-category-strip.test.ts
+          node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/supabase-sms-hook.test.ts tests/home-initial-load.test.ts tests/home-image-loading.test.ts tests/home-fast-preview.test.ts tests/home-approved-category-strip.test.ts tests/forzaBargeIn.test.ts tests/forzaTurnTelemetry.test.ts
       - name: Verify blue-green script syntax and safe pointers
         run: |
           bash -n ops/deploy-main-bluegreen-vps.sh
@@ -34,6 +34,8 @@ jobs:
           grep -Fq 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK' ops/deploy-main-bluegreen-vps.sh
           grep -Fq 'NGINX_ROLLBACK_OK' ops/deploy-main-bluegreen-vps.sh
           ! grep -Fq "grep -RlF 'صفحه را به بالا بکشید'" ops/deploy-main-bluegreen-vps.sh
+      - name: Syntax-check private Nima service
+        run: python3 -m py_compile scripts/forza_nima_voice_http.py
       - name: Build from merged main source
         run: npm run build
       - name: Assert retained UI, catalog and imagery
