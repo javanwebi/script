@@ -786,104 +786,46 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </p>
                 )}
                 {filteredOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="consumer-order-list-card p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="font-mono font-black text-sm text-slate-900"
-                            dir="ltr"
-                          >
-                            {order.orderNumber}
-                          </span>
-                          <span className="text-slate-300">•</span>
-                          <span
-                            className={`text-xs font-bold ${
-                              order.status === "delivered"
-                                ? "text-emerald-700"
-                                : "text-amber-700"
-                            }`}
-                          >
-                            {orderStatusLabels[order.status]}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {portalLabel("تاریخ ثبت:")}
-                          {order.date}
-                          {portalLabel("• کد رهگیری مرسوله:")}{" "}
-                          <span
-                            className="font-mono font-bold text-slate-800"
-                            dir="ltr"
-                          >
-                            {order.trackingCode || "—"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
+                  <article key={order.id} className="consumer-order-reference-card">
+                    <div className="consumer-order-ref-photo">
+                      {order.items[0] && orderImageByCode.get(order.items[0].code)
+                        ? <ProductImage src={orderImageByCode.get(order.items[0].code)}
+                            alt={order.items[0].name} thumbnail loading="lazy" decoding="async" />
+                        : <Package size={31} aria-hidden="true" />}
+                    </div>
+                    <div className="consumer-order-ref-details">
+                      <strong dir="ltr">{order.orderNumber}</strong>
+                      <small>تاریخ ثبت: {new Date(order.date).toLocaleDateString("fa-IR")}</small>
+                      <h3>{order.items[0]?.name || "سفارش ثبت‌شده"}</h3>
+                      <span>{toPersianDigits(order.items.length)} قلم کالا</span>
+                      <b>{formatPrice(order.totalAmount)} تومان</b>
+                    </div>
+                    <div className="consumer-order-ref-status">
+                      <span className={order.status === "delivered" ? "is-delivered" : order.status === "shipped" ? "is-shipped" : "is-processing"}>
+                        {order.status === "delivered" ? <CheckCircle2 size={15}/> : order.status === "shipped" ? <Truck size={15}/> : <Clock size={15}/>}
+                        {orderStatusLabels[order.status]}
+                      </span>
+                      <div>
                         {resolvedConfig.permissions.allowInvoicePrint && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedReceiptOrder(order)}
-                            className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>{portalLabel("مشاهده فاکتور")}</span>
-                          </button>
+                          <button type="button" onClick={() => setSelectedReceiptOrder(order)}><FileText size={15} /> مشاهده فاکتور</button>
                         )}
                         {resolvedConfig.permissions.allowQuickReorder && (
-                          <button
-                            type="button"
-                            onClick={() => handleReorderItems(order)}
-                            className="px-3 py-1.5 rounded-xl bg-[#E06518] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span>{portalLabel("سفارش مجدد")}</span>
-                          </button>
+                          <button type="button" onClick={() => handleReorderItems(order)}><RefreshCw size={15} /> سفارش مجدد</button>
                         )}
                       </div>
                     </div>
-
-                    <div className="consumer-order-card-preview">
-                      <div className="consumer-order-preview-photo">
-                        {order.items[0] && orderImageByCode.get(order.items[0].code)
-                          ? <ProductImage src={orderImageByCode.get(order.items[0].code)}
-                              alt={order.items[0].name} thumbnail loading="lazy" decoding="async" />
-                          : <Package size={30} aria-hidden="true" />}
-                      </div>
+                    <details className="consumer-order-ref-more">
+                      <summary>جزئیات سفارش و اقلام <ChevronLeft size={14}/></summary>
                       <div>
-                        <span>{order.items[0]?.name || "سفارش ثبت‌شده"}</span>
-                        <small>{toPersianDigits(order.items.length)} قلم کالا</small>
+                        {order.shippingMethod && <p>روش ارسال: {order.shippingMethod}</p>}
+                        {order.trackingCode && <p>کد رهگیری: <bdi dir="ltr">{order.trackingCode}</bdi></p>}
+                        <ul>{order.items.map((it, idx) => (
+                          <li key={idx}><bdi dir="ltr">{it.code}</bdi><span>{it.name}</span><small>{toPersianDigits(it.quantity)} {it.unit} × {formatPrice(it.unitPrice)} تومان</small></li>
+                        ))}</ul>
                       </div>
-                      <strong>{formatPrice(order.totalAmount)} تومان</strong>
-                    </div>
-                    <div className="space-y-2 text-xs">
-                      {order.items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between"
-                        >
-                          <div>
-                            <span
-                              className="font-mono font-bold text-[#E06518] ml-1.5"
-                              dir="ltr"
-                            >
-                              {it.code}
-                            </span>
-                            <span className="font-bold text-slate-800">
-                              {it.name}
-                            </span>
-                          </div>
-                          <div className="font-mono text-slate-700">
-                            {toPersianDigits(it.quantity)} {it.unit} ×{" "}
-                            {formatPrice(it.unitPrice)}
-                            {portalLabel("ت")}
-                          </div>
-                        </div>
-                      ))}
+                    </details>
+                  </article>
+                ))}
                     </div>
                   </div>
                 ))}
