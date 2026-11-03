@@ -371,6 +371,16 @@ for stale in $(docker ps --format '{{.Names}}'); do
 done
 echo '===== VERIFY ONLY ONE WEBSITE HOST PORT IS PUBLISHED ====='
 docker ps --format '{{.Names}} {{.Ports}}' | grep '^sanatpish-' || true
+# Only the current app is allowed to remain running. No database or private
+# voice containers are matched by this website-specific check.
+STALE_ACTIVE="$(docker ps --format '{{.Names}}' | grep -E '^sanatpish-(unified-live-|new$|hotfix-live$|images-live-|firstpaint-live-)' | grep -Fxv "$NAME" || true)"
+if test -n "$STALE_ACTIVE"; then
+  echo "OTHER_WEBSITE_CONTAINERS_STILL_RUNNING - rollback rather than claim one-port success" >&2
+  echo "$STALE_ACTIVE" >&2
+  exit 1
+fi
+ACTUAL_PORT="$(docker port "$NAME" 3000/tcp)"
+test "$ACTUAL_PORT" = "127.0.0.1:$FIXED_PORT"
 echo "SANATPISH_SINGLE_HOST_PORT_DEPLOY_OK port=$FIXED_PORT"
 SUCCESS=1
 echo 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK'
