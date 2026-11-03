@@ -50,9 +50,32 @@ export function normalizePersianTranscript(value: string): string {
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const analysis = analyzePersianSentenceCompletion(text);
-  if (analysis.isMidThought) return hasInterim ? 1900 : 1750;
-  if (hasInterim) return 1100;
-  return Math.min(950, Math.max(700, analysis.recommendedPauseMs - 100));
+  // A provisional browser hypothesis can still gain another word or SKU.
+  if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
+  if (analysis.isComplete && analysis.confidence >= 0.9) {
+    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
+  }
+  if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
+  return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
+}
+
+/**
+ * The browser and microphone VAD must agree on an acoustic pause AND the
+ * recognized words must have stopped changing. This makes interim revisions
+ * ("6202 ... no, 6203") postpone dispatch without an additional model/API.
+ * A null VAD silence means the analyser is unavailable; use text stability.
+ */
+export function forzaTurnRemainingWaitMs(
+  text: string,
+  hasInterim: boolean,
+  transcriptStableMs: number,
+  vadSilenceMs: number | null,
+): number {
+  if (!text.trim()) return 0;
+  const requiredMs = forzaEndOfTurnPauseMs(text, hasInterim);
+  const textRemaining = requiredMs - Math.max(0, transcriptStableMs);
+  const vadRemaining = vadSilenceMs === null ? 0 : requiredMs - Math.max(0, vadSilenceMs);
+  return Math.max(0, Math.ceil(textRemaining), Math.ceil(vadRemaining));
 }
 
 /**
