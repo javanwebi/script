@@ -686,6 +686,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     });
     console.info('[FORZA_LATENCY] phase=tts-headers ms='+Math.round(performance.now()-started)+
       ' status='+response.status);
+    console.info('[FORZA_TTS_BREAKDOWN] queueMs='+
+      (response.headers.get('X-Forza-TTS-Queue-Ms')??'-1')+
+      ' inferMs='+(response.headers.get('X-Forza-TTS-Infer-Ms')??'-1')+
+      ' serverMs='+(response.headers.get('X-Forza-Server-TTS-Ms')??'-1'));
     if(!response.ok)throw new Error('pocket_http_'+response.status);
     if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
       throw new Error('forza_original_pocket_voice_required');
