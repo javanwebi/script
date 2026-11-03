@@ -5435,7 +5435,11 @@ const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
 // Pocket WAV from the original application image.
 const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
-async function renderPocketSpeech(phrase:string):Promise<Buffer>{
+async function renderPocketSpeech(
+  phrase:string,
+  cancel?:AbortSignal,
+  timings?:{queueMs?:number;inferenceMs?:number;upstreamMs?:number},
+):Promise<Buffer>{
   // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
   // does all synthesis. No downloaded neural model is sent to visitors.
   if(!internalForzaVoiceUrl)throw new Error('private_voice_not_configured');
@@ -5447,7 +5451,9 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   const spoken=forzaUnbrokenSpokenText(phrase);
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
-  for(let attempt=0;attempt<8;attempt++){
+  for(let attempt=0;attempt<2;attempt++){
+    if(cancel?.aborted)throw new Error('forza_tts_cancelled');
+    const upstreamStarted=Date.now();
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
       method:'POST',
       headers:{
@@ -5455,14 +5461,21 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
         'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
       },
       body:JSON.stringify({text:spoken}),
-      signal:AbortSignal.timeout(420000),
+      signal:cancel
+        ? AbortSignal.any([cancel,AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
     });
     // One inference slot across visitors. Brief backoff on BUSY only;
     // never retry a 403 token mismatch or an unavailable worker.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
-      if(reason?.error==='voice_busy'&&attempt<7&&Date.now()-started<20000){
-        await new Promise(resolve=>setTimeout(resolve,Math.min(1800,180*(attempt+1))));
+      if(reason?.error==='voice_busy'&&attempt<1&&Date.now()-started<5000){
+        await new Promise<void>((resolve,reject)=>{
+          const delay=setTimeout(()=>{cancel?.removeEventListener('abort',onAbort);resolve()},180);
+          const onAbort=()=>{clearTimeout(delay);reject(new Error('forza_tts_cancelled'))};
+          if(cancel?.aborted)onAbort();
+          else cancel?.addEventListener('abort',onAbort,{once:true});
+        });
         continue;
       }
       throw new Error('private_voice_'+(reason?.error||'unavailable'));
@@ -5476,6 +5489,13 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
     const wav=Buffer.from(payload);
     if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
       throw new Error('private_voice_invalid_wav');
+    if(timings){
+      const queue=response.headers.get('x-forza-queue-ms');
+      const inference=response.headers.get('x-forza-inference-ms');
+      if(queue && /^\d+$/.test(queue))timings.queueMs=Number(queue);
+      if(inference && /^\d+$/.test(inference))timings.inferenceMs=Number(inference);
+      timings.upstreamMs=Date.now()-upstreamStarted;
+    }
     return wav;
   }
   throw new Error('private_voice_busy_timeout');
@@ -5529,18 +5549,33 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
   if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
   const started=Date.now();
+  const cancel=new AbortController();
+  const onDisconnect=()=>cancel.abort(new Error('forza_tts_client_disconnected'));
+  req.once('aborted',onDisconnect);
+  res.once('close',onDisconnect);
+  const timings:{queueMs?:number;inferenceMs?:number;upstreamMs?:number}={};
   try{
-    const wav=await renderPocketSpeech(phrase);
-    if(res.headersSent)return;
+    const wav=await renderPocketSpeech(phrase,cancel.signal,timings);
+    if(cancel.signal.aborted||res.destroyed||res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
+    if(timings.queueMs!==undefined)res.setHeader('X-Forza-Queue-Ms',String(timings.queueMs));
+    if(timings.inferenceMs!==undefined)res.setHeader('X-Forza-Inference-Ms',String(timings.inferenceMs));
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Forza-Voice',forzaVoiceEngine);
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
-    console.info('[FORZA_LATENCY] phase=pocket-server-tts backend='+(internalForzaVoiceUrl?'private':'local')+' ms='+(Date.now()-started));
+    console.info('[FORZA_TTS_STAGE] phase=server_responded turn='+
+      String(req.body?.turnId||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40)+
+      ' totalMs='+(Date.now()-started)+' upstreamMs='+(timings.upstreamMs??-1)+
+      ' queueMs='+(timings.queueMs??-1)+' inferenceMs='+(timings.inferenceMs??-1)+
+      ' wavBytes='+wav.length);
     return res.send(wav);
   }catch(error:any){
-    console.warn('[FORZA Pocket Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
-    if(!res.headersSent)return res.status(503).json({error:'pocket_server_unavailable'});
+    const code=cancel.signal.aborted?'cancelled':String(error?.message||'voice_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
+    console.warn('[FORZA_TTS_STAGE] phase=failed code='+code+' elapsedMs='+(Date.now()-started));
+    if(!res.headersSent&&!res.destroyed)return res.status(503).json({error:'pocket_server_unavailable',errorCode:code});
+  }finally{
+    req.off('aborted',onDisconnect);
+    res.off('close',onDisconnect);
   }
 });
 
