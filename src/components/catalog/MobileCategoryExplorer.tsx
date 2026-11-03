@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./mobile-category-explorer.css";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronLeft, Layers, Search, Factory, Cog, Package, Disc3, Wrench, ArrowLeft, X } from "lucide-react";
 import { CategoryNavigation } from "./CategoryNavigation";
