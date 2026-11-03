@@ -862,11 +862,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
 
       const pocketAbort=new AbortController();
+      const generation=++generationRef.current;
+      activeTurnRef.current={generation,abort:pocketAbort};
+      vadRef.current.reset();
+      startListening(true); // monitor barge-in, without changing the AI status
+      let playerForTurn:ForzaContinuousWav|null=null;
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
       try {
         const payload: any = {
-          history: historyRef.current.slice(-24),
+          history: historyRef.current.slice(-8),
           // First deliver the exact AI words; synthesize audio as a second step.
           deferAudio: true,
         };
@@ -899,7 +904,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 audioMimeType:audioMime || audioBlob.type || 'audio/webm',
                 transcribeOnly:true,
               }),
-              signal:sttAbort.signal,
+              signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
             });
             sttData = await sttResponse.json().catch(()=>null);
           } finally {
@@ -923,7 +928,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
-        const previousHistory=historyRef.current.slice(-24);
+        const previousHistory=historyRef.current.slice(-8);
         const resolvedUserQuery=String(payload.query||q).trim();
         if(resolvedUserQuery){
           setUserText(resolvedUserQuery);
@@ -931,18 +936,44 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
+        let heardEntry:Turn|null=null;
+        const recordHeard=(phrase:string)=>{
+          if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
+          if(!phrase.trim())return;
+          if(!heardEntry){
+            heardEntry={role:'model',text:''};
+            historyRef.current.push(heardEntry);
+          }
+          heardEntry.text=[heardEntry.text,phrase.trim()].filter(Boolean).join(' ').trim();
+        };
+        if(activeTurnRef.current?.generation===generation){
+          activeTurnRef.current.markInterrupted=()=>{
+            if(reply)historyRef.current.push({role:'model',
+              text:'[پاسخ قبلی وسط پخش قطع شد؛ ادامه تولیدشده به مشتری نرسیده است.]'});
+          };
+        }
         continuousVoiceRef.current?.cancel();
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
           ()=>{
+            if(activeTurnRef.current?.generation!==generation)return;
             isAiSpeakingRef.current=true;
             setVoicePending(false);
             setStatus('speaking');
             setTurn('ai');
           },
-          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
+          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] turn='+generation+' wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            if(activeTurnRef.current?.generation!==generation)return;
+            isAiSpeakingRef.current=false;
+            setVoicePending(true);
+            setStatus('thinking');
+          },
+          (stage,ms)=>console.info('[FORZA_AUDIO_STAGE] turn='+generation+
+            ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)),
         );
+        playerForTurn=continuousPlayer;
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
         // Nima: group *complete words* across punctuation, so a full stop
@@ -955,9 +986,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // phrases in bounded lookahead on the same AudioContext clock.
         // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
-          synthesize:requestPocketAudio,
+          synthesize:(phrase,signal)=>requestPocketAudio(phrase,signal,String(generation)),
           player:continuousPlayer,
           signal:pocketAbort.signal,
+          onPhrasePlayed:recordHeard,
           maxConcurrent:2,
           initialBufferSeconds:2,
           maximumInitialWaitMs:120,
@@ -972,6 +1004,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // turn completion, interruption, and any error.
         let firstPhraseQueued=false;
         const queueSpeech=(phrase:string)=>{
+          if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           if(!firstPhraseQueued){
             firstPhraseQueued=true;
             console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
@@ -980,7 +1013,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           activeNimaBuffer.add(phrase);
         };
         const onTextChunk=(_chunk:string,fullText:string)=>{
+          if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           reply=fullText;
+          latestAiTextRef.current=fullText;
           if(!firstTextDelivered&&fullText.trim()){
             firstTextDelivered=true;
             console.info('[FORZA_LATENCY] phase=first-text clientMs='+Math.round(performance.now()-turnStartedAt));
