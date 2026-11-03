@@ -8,23 +8,31 @@ const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||u
 const fail=(res:Response,error:unknown)=>{console.error('[Catalog navigation/direct SKU]',error instanceof Error?error.message:String(error));return res.status(503).json({success:false,message:'ارتباط با پایگاه داده برقرار نشد.'});};
 
 export function registerCatalogNavigationApi(app:Express){
-  // Small homepage-only query: do not aggregate 10k catalog variants before
-  // the first category cards paint. All results come from live PostgreSQL.
+  // Same active Excel-approved category names and order as the PostgreSQL mega-menu.
+  // A small category/group query avoids loading full product catalogue for first paint.
   app.get('/api/catalog/home-categories',async(_req,res)=>{
     res.setHeader('Cache-Control','no-store');
     if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
     try{
       const result=await database().query(
-        `select c.id,c.slug,c.name,c.image_url as image,c.is_active as active
-         from public.catalog_categories c
-         where c.is_active=true and (
-           c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
-           or exists (
-             select 1 from public.catalog_families f
-             where f.category_slug=c.slug and f.is_active=true and f.is_deleted=false
-           )
+        `with ordered_categories as (
+           select c.id,c.slug,c.name,c.image_url as image,c.is_active as active,
+                  g.sort_order as group_sort, member.ordinality as member_sort,
+                  row_number() over(partition by c.slug order by g.sort_order,member.ordinality) as row_rank
+           from public.catalog_navigation_groups g
+           cross join lateral unnest(g.category_slugs) with ordinality as member(slug,ordinality)
+           join public.catalog_categories c on c.slug=member.slug
+           where g.is_active=true
+             and g.id ~ '^excel-v2-[0-9]+$'
+             and c.is_active=true
+             and c.slug ~ '^excel-v2-[0-9]+-[0-9]+$'
+             and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
          )
-         order by c.sort_order,c.name limit 80`);
+         select id,slug,name,image,active
+         from ordered_categories
+         where row_rank=1
+         order by group_sort,member_sort,name
+         limit 80`);
       return res.json({success:true,categories:result.rows.map((row:any)=>({
         id:row.id,slug:row.slug,name:row.name,nameEn:'',
         icon:'Package',description:'',image:row.image||undefined,

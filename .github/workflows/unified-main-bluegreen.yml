@@ -25,7 +25,7 @@ jobs:
         run: npm run lint
       - name: Preserve mobile scanner, FORZA swipe, SMS and homepage tests
         run: |
-          node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/supabase-sms-hook.test.ts tests/home-initial-load.test.ts tests/home-image-loading.test.ts tests/home-fast-preview.test.ts
+          node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/supabase-sms-hook.test.ts tests/home-initial-load.test.ts tests/home-image-loading.test.ts tests/home-fast-preview.test.ts tests/home-approved-category-strip.test.ts
       - name: Verify blue-green script syntax and safe pointers
         run: |
           bash -n ops/deploy-main-bluegreen-vps.sh
