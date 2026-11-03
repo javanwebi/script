@@ -59,11 +59,14 @@ test('interruption clears already queued speech without leaving a blocked promis
   };
   globalThis.fetch=(async()=>new Response(new Uint8Array(44),{status:200})) as typeof fetch;
   try{
-    const queue=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{});
+    let playbackSignals=0;
+    const queue=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{playbackSignals++;});
     const pending=queue.enqueue('blob:interrupt');
     await new Promise(resolve=>setTimeout(resolve,0));
     queue.cancel();
     await pending;
+    await new Promise(resolve=>setTimeout(resolve,40));
+    assert.equal(playbackSignals,0,'cancelled audio must never signal a future start');
     assert.equal(sources.length,1);
     await queue.enqueue('blob:after-cancel');
   } finally{globalThis.fetch=originalFetch;}
