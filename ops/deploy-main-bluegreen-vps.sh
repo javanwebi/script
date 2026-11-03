@@ -103,7 +103,7 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_registry=https://registry.npmmirror.com \
  -e npm_config_maxsockets=2 \
  -e npm_config_fetch_retries=5 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build'
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts tests/catalog-navigation-recovery.test.ts && npm run build'
 test -s "$STAGE/dist/index.html"
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
@@ -138,8 +138,18 @@ if ! docker exec "$OLD" node --import tsx --input-type=module -e '
     const approved=row.groups
       ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
       : {rows:[{total:0}]};
-    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<6) process.exitCode=2;
-    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total);
+    const categories=await database().query(
+      "select count(*)::int as total from public.catalog_categories " +
+      "where slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and is_active=true " +
+      "and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+    console.log("PRODUCTION_NAV_SCHEMA_STATUS",JSON.stringify({
+      approvedGroups:Number(approved.rows[0].total),
+      approvedCategories:Number(categories.rows[0].total),
+      tablesReady:!!(row.groups&&row.assignments&&row.direct)
+    }));
+    if (!row.groups || !row.assignments || !row.direct ||
+        Number(approved.rows[0].total)<14 || Number(categories.rows[0].total)<34) process.exitCode=2;
+    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categories.rows[0].total);
   }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
   finally{await closeDatabase()}
 '; then
@@ -163,8 +173,14 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  try {
   const x=await database().query(
    "select count(*)::int as n from public.catalog_navigation_groups where is_active=true and id ~ \x27^excel-v2-[0-9]+$\x27");
-  if(Number(x.rows[0].n)<6)throw Error("Fewer than six approved menu groups");
+  const cats=await database().query(
+    "select count(*)::int as n from public.catalog_categories where is_active=true " +
+    "and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 " +
+    "and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+  if(Number(x.rows[0].n)<14||Number(cats.rows[0].n)<34)
+    throw Error("Approved Excel navigation incomplete");
   console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
+  console.log("PRODUCTION_NAVIGATION_CATEGORIES_VERIFIED",cats.rows[0].n);
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
@@ -235,8 +251,11 @@ def get(port,path):
   return r.read()
 menu=json.loads(get(new,'/api/catalog/navigation-groups'))
 approved=sorted((g for g in menu.get('groups',[]) if g.get('active',True) and re.fullmatch(r'excel-v2-[0-9]+',g.get('id',''))),key=lambda g:g.get('sortOrder',0))
-assert menu.get('success') and len(approved)>=6,('MISSING_APPROVED_GROUPS',len(approved))
-print('APPROVED_HOME_GROUPS_OK',[g['title'] for g in approved[:6]])
+assert menu.get('success') and len(approved)>=14,('MISSING_APPROVED_GROUPS',len(approved))
+print('APPROVED_HOME_GROUPS_OK',[g['title'] for g in approved[:14]])
+home=json.loads(get(new,'/api/catalog/home-categories'))
+assert home.get('success') and len(home.get('categories',[]))>=34,('MISSING_APPROVED_CATEGORIES',len(home.get('categories',[])))
+print('APPROVED_HOME_CATEGORIES_OK',len(home['categories']))
 for path,key in [('/api/catalog/home-categories','categories'),('/api/catalog/home-preview','products')]:
  x=json.loads(get(new,path))
  assert x.get('success') and x.get(key),('EMPTY_PUBLIC_PROJECTION',path)
