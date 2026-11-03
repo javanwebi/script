@@ -29,7 +29,7 @@ jobs:
       - name: Verify blue-green script syntax and safe pointers
         run: |
           bash -n ops/deploy-main-bluegreen-vps.sh
-          node --import tsx --test tests/production-catalog-recovery.test.ts
+          node --import tsx --test tests/production-catalog-recovery.test.ts tests/catalog-navigation-recovery.test.ts
           bash -n ops/sanatpish-deploy-main.sh
           grep -Fq 'git fetch origin main' ops/sanatpish-deploy-main.sh
           grep -Fq 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK' ops/deploy-main-bluegreen-vps.sh
