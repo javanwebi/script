@@ -12,6 +12,8 @@ import {
   Package,
   Search,
   ArrowLeft,
+  Bookmark,
+  Eye,
 } from "lucide-react";
 import {
   getManagedCatalogProducts,
@@ -20,22 +22,26 @@ import {
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
 import { PortalProductCard } from "./PortalProductCard";
+import { ProductImage } from "../product/ProductImage";
 import { resolvePurchaseLines } from "../../utils/purchaseList";
-import { toPersianDigits } from "../../utils/formatters";
+import { toPersianDigits, formatPrice } from "../../utils/formatters";
 export function PortalTools({
   tab,
   labels,
+  referenceConsumer = false,
 }: {
   tab: string;
   labels: Record<string, string>;
+  referenceConsumer?: boolean;
 }) {
   const label = (s: string) => labels[s] ?? s;
-  const { wishlist } = useWishlist();
+  const { wishlist, toggleWishlist } = useWishlist();
   const { currentUser } = useAuth();
   const { cart, addToCart } = useCart();
   const [entryParams]=useSearchParams();
   const [text, setText] = useState(()=>entryParams.get("sku")?`${entryParams.get("sku")}, 1`:"");
   const [preview, setPreview] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Record<number, boolean>>({});
   const [savedFilter, setSavedFilter] = useState<"all" | "variants" | "single">("all");
   const [message, setMessage] = useState("");
   const [catalogTick, setCatalogTick] = useState(0);
@@ -101,6 +107,47 @@ export function PortalTools({
       setMessage("کپی خودکار در دسترس نیست؛ کدها را از سبد خرید انتخاب کنید.");
     }
   };
+  if (tab === "saved_products" && referenceConsumer)
+    return (
+      <section className="consumer-saved-reference" aria-label="محصولات نشان‌شده">
+        <div className="consumer-saved-hero">
+          <div className="consumer-saved-hero-icon" aria-hidden="true"><Bookmark size={40} /><Package size={25} /></div>
+          <div><span className="consumer-eyebrow">کالاهای منتخب شما</span><h2>{toPersianDigits(saved.length)} محصول ذخیره‌شده</h2><p>محصولات انتخابی شما برای دسترسی سریع‌تر</p></div>
+        </div>
+        <div className="consumer-filter-pills" role="group" aria-label="فیلتر علاقه‌مندی‌ها">
+          {[{id:"all",label:"همه"},{id:"variants",label:"دارای کدهای انتخابی"},{id:"single",label:"تک‌کدی"}].map((f) => (
+            <button key={f.id} type="button" aria-pressed={savedFilter === f.id} onClick={() => setSavedFilter(f.id as typeof savedFilter)}>{f.label}</button>
+          ))}
+        </div>
+        {visibleSaved.length ? (
+          <div className="consumer-saved-reference-grid">
+            {visibleSaved.map((p) => {
+              const price = list ? pricingCreditService.getSkuPriceForList(p.code,p.prices?.retail || 0,list) : p.prices?.retail || 0;
+              const directOrder = !p.variants?.length && !p.inquiryOnly && price > 0;
+              return (
+                <article className="consumer-saved-reference-card" key={p.code}>
+                  <button type="button" className="consumer-saved-bookmark" aria-label={`حذف ${p.name} از نشان‌شده‌ها`} onClick={() => {
+                    [p.code,...(p.variants || []).map((v) => v.code)].filter((code) => wishlist.includes(code)).forEach(toggleWishlist);
+                  }}><Bookmark size={17} fill="currentColor" /></button>
+                  <Link to={`/product/${encodeURIComponent(p.code)}`} className="consumer-saved-reference-image"><ProductImage src={p.images?.[0]} alt={p.name} thumbnail loading="lazy" decoding="async" /></Link>
+                  <div className="consumer-saved-reference-copy">
+                    <span className="consumer-sku" dir="ltr">{p.code}</span>
+                    <h3><Link to={`/product/${encodeURIComponent(p.code)}`}>{p.name}</Link></h3>
+                    <small>{p.categoryName || "قطعه صنعتی"}</small>
+                    <strong>{directOrder ? `${formatPrice(price)} تومان` : "انتخاب کد / استعلام قیمت"}</strong>
+                  </div>
+                  <div className="consumer-saved-reference-actions">
+                    <Link to={`/product/${encodeURIComponent(p.code)}`}><Eye size={15} /> مشاهده محصول</Link>
+                    {directOrder ? <button type="button" onClick={() => {addToCart(p,1);setMessage(`${p.name} به سبد خرید افزوده شد.`);}}><ShoppingCart size={15}/> افزودن به سبد</button> : <Link className="consumer-saved-add" to={`/product/${encodeURIComponent(p.code)}`}><ShoppingCart size={15}/> انتخاب کالا</Link>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : <div className="consumer-empty"><Bookmark size={29}/><h3>{saved.length ? "در این فیلتر کالایی نیست" : "محصولی ذخیره نشده است"}</h3><p>از کاتالوگ محصولات موردعلاقه را نشان‌دار کنید.</p><Link to="/products">مشاهده محصولات</Link></div>}
+        {message && <p role="status" className="portal-tool-status">{message}</p>}
+      </section>
+    );
   if (tab === "saved_products")
     return (
       <section className="portal-tools consumer-saved-panel">
@@ -194,47 +241,48 @@ export function PortalTools({
         </aside>
       </div>
       {preview && (
-        <div className="portal-bulk-results portal-glass">
-          <div className="consumer-bulk-summary"><CheckCircle2 size={20}/><span>نتیجه پردازش لیست</span><strong>{toPersianDigits(priced.length)} ردیف آماده افزودن</strong></div>
-          <h3>
-            {toPersianDigits(rows.length)} {label("ردیف بررسی شد")}
-          </h3>
-          {rows.map((r, i) => (
-            <div key={i} className="portal-bulk-row">
-              <strong dir="ltr">{r.code}</strong>
-              <span>{r.product?.name || "—"}</span>
-              <span>
-                {toPersianDigits(r.quantity || 0)} {label("عدد")}
-              </span>
-              {r.error ? (
-                <small role="status">{r.error}</small>
-              ) : r.product?.inquiryOnly || !r.product?.prices.retail ? (
-                <Link to={`/product/${encodeURIComponent(r.code)}`}>
-                  {label("مشاهده کد و ثبت استعلام")}
-                  <ArrowUpLeft size={14} />
-                </Link>
-              ) : (
-                <small className="ready">{label("آماده افزودن به سبد")}</small>
-              )}
-            </div>
-          ))}
+        <section className="portal-bulk-results portal-glass consumer-bulk-results" aria-label="نتیجه بررسی کدهای خرید">
+          <div className="consumer-bulk-summary"><CheckCircle2 size={20}/><span>نتیجه پردازش لیست</span><strong>{toPersianDigits(rows.length)} ردیف بررسی‌شده</strong></div>
+          <div className="consumer-bulk-table-scroll">
+            <table className="consumer-bulk-table">
+              <thead><tr><th>ردیف</th><th>کد محصول</th><th>نام محصول</th><th>تعداد</th><th>وضعیت</th><th>افزودن</th></tr></thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const ready = Boolean(r.product && !r.error && !r.product.inquiryOnly && r.product.prices.retail > 0);
+                  return (
+                    <tr key={i}>
+                      <td>{toPersianDigits(i + 1)}</td>
+                      <td><bdi dir="ltr">{r.code}</bdi></td>
+                      <td className="consumer-bulk-product">
+                        {r.product?.images?.[0] && <ProductImage src={r.product.images[0]} alt="" thumbnail loading="lazy" />}
+                        <span>{r.product?.name || "کالای نامشخص"}</span>
+                      </td>
+                      <td>{toPersianDigits(r.quantity || 0)}</td>
+                      <td>{r.error ? <span className="consumer-bulk-status is-inquiry">{r.error}</span> :
+                        ready ? <span className="consumer-bulk-status is-ready"><CheckCircle2 size={13}/> معتبر</span> :
+                        <Link className="consumer-bulk-status is-inquiry" to={`/product/${encodeURIComponent(r.code)}`}>نیاز به استعلام</Link>}</td>
+                      <td><input type="checkbox" aria-label={`افزودن ردیف ${i + 1} به سبد`}
+                        disabled={!ready} checked={ready && selectedRows[i] !== false}
+                        onChange={(e) => setSelectedRows((prev) => ({...prev,[i]:e.target.checked}))} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="consumer-bulk-table-note">{toPersianDigits(rows.filter((r) => r.product && !r.error && !r.product.inquiryOnly && r.product.prices.retail > 0).length)} ردیف دارای قیمت برای افزودن به سبد آماده است؛ برای سایر ردیف‌ها استعلام بگیرید.</p>
           {priced.length > 0 && (
-            <button
-              type="button"
-              className="store-btn-primary"
-              onClick={() => {
-                priced.forEach((r) => addToCart(r.product!, r.quantity));
-                setMessage(
-                  `${toPersianDigits(priced.length)} قلم دارای قیمت به سبد افزوده شد؛ سایر ردیف‌ها را بررسی کنید.`,
-                );
-                setPreview(false);
-              }}
-            >
-              <ShoppingCart size={17} />
-              {label("افزودن اقلام دارای قیمت به سبد")}
+            <button type="button" className="store-btn-primary" onClick={() => {
+              const chosen = rows.filter((r,i) => r.product && !r.error && !r.product.inquiryOnly && r.product.prices.retail > 0 && selectedRows[i] !== false);
+              if (!chosen.length) { setMessage("ابتدا ردیف‌های موردنظر را انتخاب کنید."); return; }
+              chosen.forEach((r) => addToCart(r.product!,r.quantity));
+              setMessage(`${toPersianDigits(chosen.length)} ردیف انتخاب‌شده به سبد خرید افزوده شد.`);
+              setPreview(false);
+            }}>
+              <ShoppingCart size={17} /> افزودن ردیف‌های انتخابی به سبد
             </button>
           )}
-        </div>
+        </section>
       )}
       {message && (
         <p role="status" className="portal-tool-status">

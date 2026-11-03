@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   Bell,
   Layers,
+  Headphones,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -183,9 +184,11 @@ export const ConsumerDashboardPage: React.FC = () => {
     if (selectedReceiptOrder) receiptDialogRef.current?.focus();
   }, [selectedReceiptOrder]);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
+  const [visibleProductCount, setVisibleProductCount] = useState(6);
   const [selectedCategorySlug, setSelectedCategorySlug] =
     useState<string>("all");
   const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => { setVisibleProductCount(6); }, [quickSkuQuery, selectedCategorySlug]);
 
   const [addresses, setAddresses] = useState(() =>
     (user?.addresses || []).map((a) => ({
@@ -364,7 +367,7 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const totalSpent = orders.filter((o) => o.paymentStatus === "paid")
     .reduce((acc, o) => acc + o.totalAmount, 0);
-  const activeOrder = orders.find((o) => o.status !== "cancelled");
+  const activeOrder = orders.find((o) => o.status !== "cancelled" && o.status !== "delivered") || orders.find((o) => o.status === "delivered");
   const filteredOrders = orders.filter((o) => orderFilter === "all" || (orderFilter === "processing" ? o.status === "registered" || o.status === "processing" : o.status === orderFilter));
   const filteredReceipts = orders.filter((o) => receiptFilter === "all" || (receiptFilter === "paid" ? o.paymentStatus === "paid" : o.paymentStatus !== "paid"));
   const paidCount = orders.filter((o) => o.paymentStatus === "paid").length;
@@ -497,120 +500,59 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 1: OVERVIEW (پیشخوان کاربری و رهگیری مرسوله)
              =============================================================== */}
           {["saved_products", "purchase_list"].includes(activeTab) && (
-            <PortalTools tab={activeTab} labels={resolvedConfig.labels} />
+            <PortalTools tab={activeTab} labels={resolvedConfig.labels} referenceConsumer />
           )}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Active Shipment Live Tracker */}
+              {/* Screenshot reference: shipment first, then 2×2 account cards, then tracking. */}
+              {activeOrder ? (
+                <section className="consumer-overview-shipment" aria-label="سفارش فعال">
+                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={43} /></span>
+                  <div className="consumer-shipment-copy">
+                    <strong><span className="consumer-live-dot" /> {activeOrder.status === "delivered" ? "آخرین سفارش شما" : "سفارش فعال شما"}</strong>
+                    <span>شماره سفارش: <bdi dir="ltr">{activeOrder.orderNumber}</bdi></span>
+                    <small>{orderStatusLabels[activeOrder.status]}</small>
+                  </div>
+                  <button type="button" onClick={() => setActiveTab("orders")} className="consumer-shipment-track">
+                    <Truck size={18} aria-hidden="true" /> پیگیری سفارش <ChevronLeft size={16} />
+                  </button>
+                </section>
+              ) : (
+                <section className="consumer-overview-shipment is-empty">
+                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={37} /></span>
+                  <div className="consumer-shipment-copy"><strong>هنوز سفارش فعالی ندارید</strong><small>قطعات موردنیاز را از کاتالوگ انتخاب کنید.</small></div>
+                  <button type="button" className="consumer-shipment-track" onClick={() => setActiveTab("quick_buy")}>شروع خرید <ChevronLeft size={16} /></button>
+                </section>
+              )}
+
+              <section className="consumer-overview-stats" aria-label="خلاصه حساب شما">
+                <button type="button" onClick={() => setActiveTab("receipts")}>
+                  <CreditCard size={29} aria-hidden="true" /><span><b>وضعیت حساب</b><small>حساب فعال</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => navigate("/ai-forza")}>
+                  <Headphones size={29} aria-hidden="true" /><span><b>پشتیبانی</b><small>مشاوره و راهنمایی قطعات</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => setActiveTab("orders")}>
+                  <Package size={29} aria-hidden="true" /><span><b>سفارش‌های من</b><small>{toPersianDigits(orders.filter((o) => o.status !== "cancelled" && o.status !== "delivered").length)} سفارش فعال</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => setActiveTab("receipts")}>
+                  <ShoppingCart size={29} aria-hidden="true" /><span><b>مجموع خرید</b><small>{formatPrice(totalSpent)} تومان پرداخت‌شده</small></span><ChevronLeft size={16} />
+                </button>
+              </section>
+
               {activeOrder && (
-                <div className="consumer-active-order bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-bold text-emerald-700">
-                          {activeOrder?.status === "delivered" ? portalLabel("تحویل‌شده")
-                            : activeOrder?.status === "shipped" ? portalLabel("ارسال‌شده")
-                            : activeOrder?.status === "processing" ? portalLabel("در حال آماده‌سازی")
-                            : portalLabel("سفارش ثبت‌شده")}
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span
-                          className="font-mono font-black text-sm text-slate-900"
-                          dir="ltr"
-                        >
-                          {activeOrder?.orderNumber}
-                        </span>
-                      </div>
-                      <h2 className="text-base font-black text-slate-800 mt-1">
-                        {portalLabel("آخرین وضعیت ثبت‌شده سفارش شما")}
-                      </h2>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {resolvedConfig.permissions
-                        .allowExcelPriceListDownload && (
-                        <button
-                          type="button"
-                          onClick={handleDownloadMyPriceListExcel}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
-                        >
-                          <FileSpreadsheet className="w-3.5 h-3.5" />
-                          <span>
-                            {resolvedConfig.uiTexts.excelDownloadButtonLabel}
-                          </span>
-                        </button>
-                      )}
-                      {resolvedConfig.permissions.allowInvoicePrint && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReceiptOrder(activeOrder)}
-                          className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>{portalLabel("مشاهده و چاپ فاکتور")}</span>
-                        </button>
-                      )}
-                      {resolvedConfig.permissions.allowQuickReorder && (
-                        <button
-                          type="button"
-                          onClick={() => activeOrder && handleReorderItems(activeOrder)}
-                          className="px-3.5 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>{portalLabel("تکرار این سفارش")}</span>
-                        </button>
-                      )}
-                    </div>
+                <section className="consumer-overview-tracker">
+                  <div className="consumer-section-head">
+                    <div><span>وضعیت مرسوله</span><h2>آخرین سفارش</h2></div>
+                    <bdi dir="ltr" className="consumer-order-chip">{activeOrder.orderNumber}</bdi>
                   </div>
-
-                  <ConsumerOrderTimeline status={activeOrder.status}
-                    shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
-
-
-                  {/* Order Items Summary */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600 pb-2 border-b border-slate-200">
-                      <span>
-                        {portalLabel("روش ارسال:")}
-                        <strong className="text-slate-900">
-                          {activeOrder?.shippingMethod || "ثبت نشده"}
-                        </strong>
-                      </span>
-                      <span>
-                        {portalLabel("مبلغ کل سفارش:")}{" "}
-                        <strong className="text-emerald-700 font-mono text-sm">
-                          {formatPrice(activeOrder?.totalAmount)}
-                          {portalLabel("تومان")}
-                        </strong>
-                      </span>
-                    </div>
-                    <div className="divide-y divide-slate-200/60">
-                      {activeOrder?.items.map((item, i) => (
-                        <div
-                          key={i}
-                          className="py-2 flex items-center justify-between"
-                        >
-                          <div>
-                            <span
-                              className="font-mono font-bold text-[#E06518] ml-2"
-                              dir="ltr"
-                            >
-                              [{item.code}]
-                            </span>
-                            <span className="font-bold text-slate-800">
-                              {item.name}
-                            </span>
-                          </div>
-                          <div className="font-mono text-slate-700">
-                            {toPersianDigits(item.quantity)} {item.unit} ×{" "}
-                            {formatPrice(item.unitPrice)}
-                            {portalLabel("ت")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <ConsumerOrderTimeline status={activeOrder.status} shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
+                  <div className="consumer-overview-tracker-actions">
+                    {resolvedConfig.permissions.allowInvoicePrint && <button type="button" onClick={() => setSelectedReceiptOrder(activeOrder)}><FileText size={15}/> مشاهده فاکتور</button>}
+                    {resolvedConfig.permissions.allowQuickReorder && <button type="button" onClick={() => handleReorderItems(activeOrder)}><RefreshCw size={15}/> سفارش مجدد</button>}
+                    <button type="button" onClick={() => setActiveTab("orders")}><Truck size={15}/> اطلاعات مرسوله</button>
                   </div>
-                </div>
+                </section>
               )}
 
               <section className="consumer-dash-quick" aria-label="دسترسی سریع">
@@ -661,7 +603,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {catalogProducts.slice(0, 6).map((prod) => {
+                    {catalogProducts.slice(0, 2).map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
                         (firstVar &&
@@ -724,6 +666,16 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
                 </div>
               )}
+              <section className="consumer-forza-card">
+                <div className="consumer-forza-emblem" aria-hidden="true"><img src={forzaBrandImage} alt="" loading="lazy" decoding="async" /></div>
+                <div>
+                  <span>مشاور هوشمند صنعت پیش</span>
+                  <h2>FORZA کنار شماست</h2>
+                  <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
+                </div>
+                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
+              </section>
+              <details className="consumer-overview-extra"><summary>سایر خدمات و گزارش‌های حساب <ChevronLeft size={15}/></summary><div>
               {enabledMenus.some((m) => m.id === "orders") && (
                 <>
                   <PortalInquiries labels={resolvedConfig.labels} />
@@ -744,15 +696,8 @@ export const ConsumerDashboardPage: React.FC = () => {
                     onDetails={() => setActiveTab("club_rewards")}
                   />
                 )}
-              <section className="consumer-forza-card">
-                <div className="consumer-forza-emblem" aria-hidden="true"><img src={forzaBrandImage} alt="" loading="lazy" decoding="async" /></div>
-                <div>
-                  <span>مشاور هوشمند صنعت پیش</span>
-                  <h2>FORZA کنار شماست</h2>
-                  <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
-                </div>
-                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
-              </section>
+
+              </div></details>
             </div>
           )}
 
@@ -844,106 +789,45 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </p>
                 )}
                 {filteredOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="consumer-order-list-card p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="font-mono font-black text-sm text-slate-900"
-                            dir="ltr"
-                          >
-                            {order.orderNumber}
-                          </span>
-                          <span className="text-slate-300">•</span>
-                          <span
-                            className={`text-xs font-bold ${
-                              order.status === "delivered"
-                                ? "text-emerald-700"
-                                : "text-amber-700"
-                            }`}
-                          >
-                            {orderStatusLabels[order.status]}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {portalLabel("تاریخ ثبت:")}
-                          {order.date}
-                          {portalLabel("• کد رهگیری مرسوله:")}{" "}
-                          <span
-                            className="font-mono font-bold text-slate-800"
-                            dir="ltr"
-                          >
-                            {order.trackingCode || "—"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
+                  <article key={order.id} className="consumer-order-reference-card">
+                    <div className="consumer-order-ref-photo">
+                      {order.items[0] && orderImageByCode.get(order.items[0].code)
+                        ? <ProductImage src={orderImageByCode.get(order.items[0].code)}
+                            alt={order.items[0].name} thumbnail loading="lazy" decoding="async" />
+                        : <Package size={31} aria-hidden="true" />}
+                    </div>
+                    <div className="consumer-order-ref-details">
+                      <strong dir="ltr">{order.orderNumber}</strong>
+                      <small>تاریخ ثبت: {new Date(order.date).toLocaleDateString("fa-IR")}</small>
+                      <h3>{order.items[0]?.name || "سفارش ثبت‌شده"}</h3>
+                      <span>{toPersianDigits(order.items.length)} قلم کالا</span>
+                      <b>{formatPrice(order.totalAmount)} تومان</b>
+                    </div>
+                    <div className="consumer-order-ref-status">
+                      <span className={order.status === "delivered" ? "is-delivered" : order.status === "shipped" ? "is-shipped" : "is-processing"}>
+                        {order.status === "delivered" ? <CheckCircle2 size={15}/> : order.status === "shipped" ? <Truck size={15}/> : <Clock size={15}/>}
+                        {orderStatusLabels[order.status]}
+                      </span>
+                      <div>
                         {resolvedConfig.permissions.allowInvoicePrint && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedReceiptOrder(order)}
-                            className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>{portalLabel("مشاهده فاکتور")}</span>
-                          </button>
+                          <button type="button" onClick={() => setSelectedReceiptOrder(order)}><FileText size={15} /> مشاهده فاکتور</button>
                         )}
                         {resolvedConfig.permissions.allowQuickReorder && (
-                          <button
-                            type="button"
-                            onClick={() => handleReorderItems(order)}
-                            className="px-3 py-1.5 rounded-xl bg-[#E06518] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span>{portalLabel("سفارش مجدد")}</span>
-                          </button>
+                          <button type="button" onClick={() => handleReorderItems(order)}><RefreshCw size={15} /> سفارش مجدد</button>
                         )}
                       </div>
                     </div>
-
-                    <div className="consumer-order-card-preview">
-                      <div className="consumer-order-preview-photo">
-                        {order.items[0] && orderImageByCode.get(order.items[0].code)
-                          ? <ProductImage src={orderImageByCode.get(order.items[0].code)}
-                              alt={order.items[0].name} thumbnail loading="lazy" decoding="async" />
-                          : <Package size={30} aria-hidden="true" />}
-                      </div>
+                    <details className="consumer-order-ref-more">
+                      <summary>جزئیات سفارش و اقلام <ChevronLeft size={14}/></summary>
                       <div>
-                        <span>{order.items[0]?.name || "سفارش ثبت‌شده"}</span>
-                        <small>{toPersianDigits(order.items.length)} قلم کالا</small>
+                        {order.shippingMethod && <p>روش ارسال: {order.shippingMethod}</p>}
+                        {order.trackingCode && <p>کد رهگیری: <bdi dir="ltr">{order.trackingCode}</bdi></p>}
+                        <ul>{order.items.map((it, idx) => (
+                          <li key={idx}><bdi dir="ltr">{it.code}</bdi><span>{it.name}</span><small>{toPersianDigits(it.quantity)} {it.unit} × {formatPrice(it.unitPrice)} تومان</small></li>
+                        ))}</ul>
                       </div>
-                      <strong>{formatPrice(order.totalAmount)} تومان</strong>
-                    </div>
-                    <div className="space-y-2 text-xs">
-                      {order.items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between"
-                        >
-                          <div>
-                            <span
-                              className="font-mono font-bold text-[#E06518] ml-1.5"
-                              dir="ltr"
-                            >
-                              {it.code}
-                            </span>
-                            <span className="font-bold text-slate-800">
-                              {it.name}
-                            </span>
-                          </div>
-                          <div className="font-mono text-slate-700">
-                            {toPersianDigits(it.quantity)} {it.unit} ×{" "}
-                            {formatPrice(it.unitPrice)}
-                            {portalLabel("ت")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                    </details>
+                  </article>
                 ))}
               </div>
             </div>
@@ -980,11 +864,11 @@ export const ConsumerDashboardPage: React.FC = () => {
               </div>
               <div className="consumer-section-head">
                 <div><span>کاتالوگ صنعت پیش</span><h2>محصولات و کدهای فنی</h2></div>
-                <small>{toPersianDigits(catalogProducts.length)} نتیجه نمایشی</small>
+                <small>{toPersianDigits(catalogProducts.length)} محصول یافت شد</small>
               </div>
               {catalogProducts.length ? (
                 <div className="consumer-quickbuy-grid">
-                  {catalogProducts.map((prod) => {
+                  {catalogProducts.slice(0, visibleProductCount).map((prod) => {
                     const firstVar = (prod.variants || [])[0];
                     const unitPrice = (firstVar && (firstVar.price || firstVar.prices?.retail)) || prod.prices?.retail || 0;
                     const needsSelection = Boolean(prod.variants?.length);
@@ -1022,6 +906,11 @@ export const ConsumerDashboardPage: React.FC = () => {
                   <p>نام یا کد فنی دیگری امتحان کنید یا تمام دسته‌ها را نمایش دهید.</p>
                   <button type="button" onClick={() => { setQuickSkuQuery(""); setSelectedCategorySlug("all"); }}>نمایش همه محصولات</button>
                 </div>
+              )}
+              {catalogProducts.length > visibleProductCount && (
+                <button type="button" className="consumer-more-products" onClick={() => setVisibleProductCount((count) => count + 6)}>
+                  نمایش محصولات بیشتر <ChevronLeft size={17} />
+                </button>
               )}
               <div className="consumer-quickbuy-footer">
                 {resolvedConfig.permissions.allowExcelPriceListDownload && (
@@ -1087,6 +976,30 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="consumer-empty"><FileText size={29}/><h3>فاکتوری در این وضعیت وجود ندارد</h3><p>پس از ثبت سفارش، جزئیات خرید را اینجا می‌بینید.</p></div>
+              )}
+              {orders[0] && (
+                <section className="consumer-invoice-preview" aria-label="پیش‌نمایش آخرین فاکتور">
+                  <div className="consumer-section-head">
+                    <div><span>بر اساس سفارش ثبت‌شده</span><h2><FileText size={21} aria-hidden="true" /> پیش‌نمایش فاکتور</h2></div>
+                    <button type="button" onClick={() => setSelectedReceiptOrder(orders[0])}>مشاهده کامل <ChevronLeft size={16} /></button>
+                  </div>
+                  <div className="consumer-invoice-paper">
+                    <header><div><strong><Layers size={24} /> صنعت پیش</strong><small>Sanat Pish</small></div><div><b>فاکتور فروش</b><span>Invoice</span></div></header>
+                    <div className="consumer-invoice-paper-meta">
+                      <span>شماره سفارش: <bdi dir="ltr">{orders[0].orderNumber}</bdi></span>
+                      <span>تاریخ: {new Date(orders[0].date).toLocaleDateString("fa-IR")}</span>
+                      <span>خریدار: {user?.fullName || "مشتری صنعت پیش"}</span>
+                    </div>
+                    <div className="consumer-invoice-paper-scroll">
+                      <table><thead><tr><th>شرح کالا</th><th>تعداد</th><th>قیمت واحد</th><th>مبلغ</th></tr></thead>
+                        <tbody>{orders[0].items.map((item, i) => (
+                          <tr key={i}><td>{item.name}<small dir="ltr">{item.code}</small></td><td>{toPersianDigits(item.quantity)}</td><td>{formatPrice(item.unitPrice)}</td><td>{formatPrice(item.unitPrice * item.quantity)}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                    <footer><strong>مبلغ ثبت‌شده: {formatPrice(orders[0].totalAmount)} تومان</strong><span className={orders[0].paymentStatus === "paid" ? "is-paid" : "is-pending"}>{orders[0].paymentStatus === "paid" ? "پرداخت تأییدشده" : "در انتظار تأیید پرداخت"}</span></footer>
+                  </div>
+                </section>
               )}
               <p className="consumer-document-note">اطلاعات نمایش‌داده‌شده از سفارش‌های ثبت‌شده حساب شما خوانده می‌شوند؛ تأیید پرداخت فقط مطابق وضعیت ثبت‌شده در سامانه نمایش داده می‌شود.</p>
             </section>
