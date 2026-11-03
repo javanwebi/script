@@ -235,91 +235,46 @@ if [[ -f "$APP/.env.sms" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.sms'; then
   MOUNTS+=(-v "$APP/.env.sms:/app/.env.sms:ro")
 fi
-echo '===== START NEW CANARY ====='
-CID="$(docker run -d --name "$NAME" --network "$NETWORK" --workdir /app \
- --cpus=1.5 --memory=3g --memory-swap=3g \
- -p "127.0.0.1:$NEXT:3000" --env-file "$ENV_FILE" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 \
- -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
+CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
+ --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
+ -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
- if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:$NEXT/api/health" 2>/dev/null | grep -q '"database":"ok"'; then
-   READY=1
-   echo "CANARY_HEALTHY_AFTER_CHECK=$i"
-   break
- fi
- if test "$(docker inspect "$CID" --format '{{.State.Running}}')" != true; then
-   docker logs --tail 50 "$CID" || true
-   echo CANARY_EXITED
+ if docker exec "$CANARY_NAME" node -e '
+   fetch("http://127.0.0.1:3000/api/health",{signal:AbortSignal.timeout(3000)})
+   .then(async r=>{const j=await r.json();process.exit(r.ok&&j.database==="ok"?0:1)})
+   .catch(()=>process.exit(1))' >/dev/null 2>&1; then READY=1; break; fi
+ if test "$(docker inspect "$CANARY_NAME" --format '{{.State.Running}}')" != true; then
+   docker logs --tail 50 "$CANARY_NAME" || true
+   echo PRIVATE_CANARY_EXITED
    exit 1
  fi
  sleep 1
 done
 test "$READY" = 1
-test "$(docker inspect "$CID" --format '{{.State.OOMKilled}}')" = false
+test "$(docker inspect "$CANARY_NAME" --format '{{.State.OOMKilled}}')" = false
+docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
 
-echo '===== VERIFY FORZA STT JSON API BEFORE TRAFFIC SWITCH ====='
-python3 - "$NEXT" <<'PY'
-import json,sys,urllib.request
-port=sys.argv[1]
-url=f'http://127.0.0.1:{port}/api/ai/forza-stt-info'
-with urllib.request.urlopen(url,timeout=15) as response:
- content_type=response.headers.get('content-type','').lower()
- assert 'application/json' in content_type, ('FORZA_STT_RETURNED_HTML_IN_CANARY',content_type)
- info=json.loads(response.read())
-assert isinstance(info.get('serverSttConfigured'),bool), ('FORZA_STT_BAD_CONTRACT',info)
-assert info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_BAD_PROVIDER',info)
-assert isinstance(info.get('reason'),str), ('FORZA_STT_MISSING_REASON',info)
-print('FORZA_STT_CANARY_API_JSON_OK provider='+info['serverSttProvider'])
-PY
-
-echo '===== CATALOG AND CAMERA CANARY CHECKS ====='
-python3 - "$ACTIVE" "$NEXT" "$STAGE" <<'PY'
-import sys,json,urllib.request,re
-from pathlib import Path
-old,new,stage=sys.argv[1],sys.argv[2],Path(sys.argv[3])
-def get(port,path):
- with urllib.request.urlopen(f'http://127.0.0.1:{port}{path}',timeout=70) as r:
-  return r.read()
-menu=json.loads(get(new,'/api/catalog/navigation-groups'))
-approved=sorted((g for g in menu.get('groups',[]) if g.get('active',True) and re.fullmatch(r'excel-v2-[0-9]+',g.get('id',''))),key=lambda g:g.get('sortOrder',0))
-assert menu.get('success') and len(approved)>=6,('MISSING_APPROVED_GROUPS',len(approved))
-print('APPROVED_HOME_GROUPS_OK',[g['title'] for g in approved[:6]])
-for path,key in [('/api/catalog/home-categories','categories'),('/api/catalog/home-preview','products')]:
- x=json.loads(get(new,path))
- assert x.get('success') and x.get(key),('EMPTY_PUBLIC_PROJECTION',path)
- print('FAST_API_OK',path,len(x[key]))
-def catalog(port):
- data=json.loads(get(port,'/api/runtime'))
- assert data.get('success')
- p=data.get('products',[])
- return {x['code'] for x in p},{(x['code'],v['code']) for x in p for v in x.get('variants',[])}
-a,b=catalog(old),catalog(new)
-assert a==b,('CATALOG_PARITY_FAILED',len(a[0]),len(b[0]),len(a[1]),len(b[1]))
-print('CATALOG_PARITY_OK',len(a[0]),len(a[1]))
-html=get(new,'/')
-m=re.search(rb'/assets/[^"]+\.js',html)
-assert m and len(get(new,m.group().decode()))>10000
-for asset in ('images/scan-industrial-generated.webp','images/precision-scan-technical-overlay.svg'):
- assert get(new,'/'+asset)==(stage/'dist'/asset).read_bytes(),asset
-print('CAMERA_IMAGE_ASSETS_OK')
-PY
-CAMERAJS="$(grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' | head -1)"
-curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$CAMERAJS")" \
- -o /tmp/sanatpish-fullscreen-camera-canary.js
-grep -qF 'full-screen-camera-experience' /tmp/sanatpish-fullscreen-camera-canary.js
-grep -qF 'عکس‌برداری مجدد' /tmp/sanatpish-fullscreen-camera-canary.js
-PROGRESSJS="$(grep -RlF 'vision-analyzing-screen' "$STAGE/dist/assets" --include='*.js' | head -1)"
-curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$PROGRESSJS")"  -o /tmp/sanatpish-vision-redesign-canary.js
-grep -qF 'vision-analyzing-screen' /tmp/sanatpish-vision-redesign-canary.js
-echo VISION_REDESIGN_CANARY_OK
-FORZAJS="$(grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' | head -1)"
-curl --noproxy '*' -fsS --max-time 35 "http://127.0.0.1:$NEXT/assets/$(basename "$FORZAJS")"  -o /tmp/sanatpish-forza-contact-canary.js
-grep -qF 'forza-mobile-contact-sheet' /tmp/sanatpish-forza-contact-canary.js
-grep -qF 'forza-swipe-instruction' /tmp/sanatpish-forza-contact-canary.js
-echo FORZA_CONTACT_CANARY_OK
-echo CAMERA_CANARY_OK
+echo '===== PROMOTE ON SAME FIXED PORT (BRIEF RESTART) ====='
+docker rm -f "$CANARY_NAME" >/dev/null
+CANARY_CID=''
+PROMOTING=1
+docker stop -t 12 "$OLD" >/dev/null
+CID="$(docker run -d --name "$NAME" --restart unless-stopped \
+ --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
+ -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
+ -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+ "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
+READY=0
+for i in $(seq 1 60); do
+ if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:$FIXED_PORT/api/health" 2>/dev/null | grep -q '"database":"ok"'; then READY=1; break; fi
+ test "$(docker inspect "$NAME" --format '{{.State.Running}}')" = true || break
+ sleep 1
+done
+test "$READY" = 1 || { docker logs --tail 50 "$NAME" || true; exit 1; }
+echo "SINGLE_PORT_PROMOTED port=$FIXED_PORT"
 
 echo '===== ATOMIC NGINX TRAFFIC SWITCH ====='
 SWITCH=1
