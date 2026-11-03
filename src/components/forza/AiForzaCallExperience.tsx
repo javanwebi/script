@@ -1173,6 +1173,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         turnPlayer?.cancel();
         if(continuousVoiceRef.current===turnPlayer)continuousVoiceRef.current=null;
         if(turnEpochRef.current===turnEpoch){
+          if(completedVoicePhrasesRef.current.length && !isSpeakerMuted){
+            historyRef.current.push({role:'model',text:completedVoicePhrasesRef.current.join(' ')});
+          }
           activeTurnAbortRef.current=null;
           isAiSpeakingRef.current=false;
           setVoicePending(false);
