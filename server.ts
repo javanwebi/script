@@ -50,6 +50,7 @@ import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
+import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -6214,11 +6215,12 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitDep
   return wavBuffer;
 }
 
-// POST: /api/ai/stt - Transcribe user voice audio into text using Gemini Multimodal Speech
+// POST: /api/ai/stt - optional, separately authenticated speech transcription.
 app.post('/api/ai/stt', async (req, res) => {
   try {
     const { audioBase64, mimeType } = req.body;
-    const apiKey = getGeminiKey();
+    const sttSelection=selectForzaSttProvider(process.env);
+    const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
 
     if (!audioBase64) {
       return res.status(400).json({ error: 'Audio data is required' });
@@ -6883,9 +6885,13 @@ app.post('/api/ai/transcribe', async (req, res) => {
       return res.status(400).json({ success: false, error: 'فایل صوتی ارسال نشده است' });
     }
 
-    const apiKey = getGeminiKey();
+    const sttSelection=selectForzaSttProvider(process.env);
+    const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
     if (!apiKey) {
-      return res.status(503).json({ success: false, error: 'کلید پردازش صوتی Gemini در دسترس نیست' });
+      return res.status(503).json({
+        success:false,errorCode:'stt_not_configured',
+        error:'سرویس مجزای تبدیل گفتار به متن تنظیم نشده است. کلید xKiro فقط برای پاسخ متنی استفاده می‌شود.'
+      });
     }
 
     const cleanAudioData = extractForzaAudioBase64(audioBase64);
@@ -6928,6 +6934,14 @@ app.post('/api/ai/transcribe', async (req, res) => {
   }
 });
 
+// Public, credential-free diagnostics; never expose provider credentials.
+app.get('/api/ai/forza-stt-info',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  const choice=selectForzaSttProvider(process.env);
+  res.json({serverSttConfigured:choice.provider==='gemini',serverSttProvider:choice.provider,
+    reason:choice.reason});
+});
+
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
 app.post('/api/ai/forza-live', async (req, res) => {
   try {
@@ -6935,6 +6949,9 @@ app.post('/api/ai/forza-live', async (req, res) => {
     const turnStartedAt = Date.now();
     let sttFinishedAt = turnStartedAt;
     const apiKey = getGeminiKey();
+    // Chat/vision and speech transcription never share xKiro credentials.
+    const sttSelection=selectForzaSttProvider(process.env);
+    const sttApiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
 
     if (!query && !image && !audioBase64) {
       return res.status(400).json({ error: 'صوت، متن یا تصویر قطعه برای مشاوره الزامی است' });
@@ -6961,7 +6978,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
 
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
-    if (!userQuery && audioBase64 && apiKey) {
+    if (!userQuery && audioBase64 && sttApiKey) {
       try {
         const cleanAudioData = audioBase64.replace(/^data:[^;]+;base64,/, '');
         let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
@@ -6970,24 +6987,24 @@ app.post('/api/ai/forza-live', async (req, res) => {
         }
 
         const aiForStt = new GoogleGenAI({
-          apiKey,
+          apiKey:sttApiKey,
           httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
         });
-
-        const sttResult = await generateWithModelCascade(
-          aiForStt,
-          [{
-            role: 'user',
-            parts: [
-              { inlineData: { mimeType: cleanAudioMime, data: cleanAudioData } },
-              { text: 'گفتار فارسی موجود در این فایل صوتی را با دقت تمام پیاده‌سازی و تایپ کنید. کلمات تخصصی فنی مهندسی مانند تسمه، پولی، یاتاقان، بلبرینگ، دور، شفت، دنده، اینچ، میلیمتر یا استعلام قیمت و مدل‌ها را با املای دقیق فارسی بنویسید. تنها و تنها متن استخراج‌شده را برگردانید و از هرگونه پیشوند، توضیح، برچسب یا گیومه خودداری کنید.' },
-            ],
-          }],
-          undefined,
-          'AI FORZA Voice Input STT',
-          ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'],
-          12000
-        );
+        // One bounded STT attempt: 429/503 must not cascade across three
+        // quota-limited models and freeze a live conversation for 30+ seconds.
+        let sttTimeout:NodeJS.Timeout|undefined;
+        const sttResult = await Promise.race([
+          aiForStt.models.generateContent({
+            model:process.env.FORZA_STT_GEMINI_MODEL||'gemini-3.1-flash-lite',
+            contents:[{role:'user',parts:[
+              {inlineData:{mimeType:cleanAudioMime,data:cleanAudioData}},
+              {text:'گفتار فارسی را دقیق به متن تبدیل کن. کدهای قطعات صنعتی را بدون حدس بنویس؛ فقط متن گفتار را برگردان.'},
+            ]}],
+          }),
+          new Promise<never>((_,reject)=>{
+            sttTimeout=setTimeout(()=>reject(new Error('FORZA_STT_TIMEOUT')),9000);
+          }),
+        ]).finally(()=>{if(sttTimeout)clearTimeout(sttTimeout);});
 
         if (sttResult?.text) {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
@@ -6996,8 +7013,10 @@ app.post('/api/ai/forza-live', async (req, res) => {
       } catch (sttErr: any) {
         sttProviderError = true;
         const message=String(sttErr?.message||'');
-        sttProviderStatus=Number(sttErr?.status||0) ||
-          (/\b403\b|FORBIDDEN|PERMISSION_DENIED/i.test(message)?403:0);
+        sttProviderStatus=Number(sttErr?.status||sttErr?.statusCode||0) ||
+          (/\b429\b|RESOURCE_EXHAUSTED|quota|rate.?limit/i.test(message)?429:
+          /\b403\b|FORBIDDEN|PERMISSION_DENIED/i.test(message)?403:
+          /\b503\b|UNAVAILABLE/i.test(message)?503:0);
         // Don't accidentally print response bodies, voice data or API tokens.
         console.warn('[AI FORZA STT] provider_failure status='+
           (sttProviderStatus||'unknown')+' duration_ms='+(Date.now()-turnStartedAt));
@@ -7007,7 +7026,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // When the provider key resides in Cloudflare, send audio to its
     // authenticated STT endpoint instead of silently substituting a generic
     // question. This is essential for accurate spoken conversations.
-    if (!userQuery && audioBase64 && !apiKey && configuredForzaWorkerUrl()) {
+    if (!userQuery && audioBase64 && !sttApiKey && configuredForzaWorkerUrl()) {
       try {
         const workerUrl = configuredForzaWorkerUrl();
         const sameRecognitionOrigin = new URL(workerUrl).origin === getPartRecognitionWorkerUrl();
@@ -7041,14 +7060,17 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
     if (!userQuery && audioBase64 && !image) {
       // Do not hallucinate an answer to words we could not transcribe.
-      const missingProvider=!apiKey && !configuredForzaWorkerUrl();
+      const missingProvider=!sttApiKey && !configuredForzaWorkerUrl();
       if(sttProviderError||missingProvider){
         return res.status(503).json({
           success:false,
-          errorCode:missingProvider?'stt_not_configured':'stt_provider_unavailable',
+          errorCode:missingProvider?'stt_not_configured':
+            sttProviderStatus===429?'stt_rate_limited':'stt_provider_unavailable',
           error:missingProvider
-            ? 'سرویس تشخیص گفتار سرور تنظیم نشده است. لطفاً سؤال را تایپ کنید.'
-            : 'سرویس تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره تلاش کنید یا سؤال را تایپ کنید.',
+            ? 'کلید xKiro برای تبدیل گفتار به متن کاربرد ندارد. تشخیص گفتار سرور جداگانه تنظیم نشده است؛ لطفاً سؤال را تایپ کنید.'
+            : sttProviderStatus===429
+              ? 'سهمیه یا تعداد درخواست‌های سرویس تشخیص گفتار تکمیل شده است؛ لطفاً سؤال را تایپ کنید.'
+              : 'سرویس تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره تلاش کنید یا سؤال را تایپ کنید.',
         });
       }
       // Speech was received, but the configured recognizer found no words.
