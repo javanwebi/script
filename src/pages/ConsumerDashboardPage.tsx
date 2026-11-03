@@ -591,7 +591,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               </section>
               {/* Quick Product Selection Grid */}
               {resolvedConfig.permissions.allowQuickSkuOrder && (
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="consumer-home-recommendations">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
@@ -618,7 +618,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="consumer-home-product-grid">
                     {catalogProducts.slice(0, 2).map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
@@ -629,17 +629,17 @@ export const ConsumerDashboardPage: React.FC = () => {
                       return (
                         <div
                           key={prod.code}
-                          className="p-4 rounded-2xl border border-slate-200 hover:border-[#E06518] bg-slate-50/50 hover:bg-white transition-all flex flex-col justify-between gap-3"
+                          className="consumer-home-product-card"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1.5 shrink-0 overflow-hidden">
+                          <div className="consumer-home-product-main">
+                            <div className="consumer-home-product-photo">
                               <ProductImage
                                 src={prod.images?.[0]}
                                 alt={prod.name}
                                 className="w-full h-full object-contain"
                               />
                             </div>
-                            <div className="min-w-0">
+                            <div className="consumer-home-product-info">
                               <span
                                 className="inline-block font-mono text-[11px] font-black text-[#E06518]"
                                 dir="ltr"
@@ -656,7 +656,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                          <div className="consumer-home-product-bottom">
                             <div>
                               <span className="text-[10px] text-slate-500 block">
                                 {portalLabel("قیمت واحد:")}
@@ -670,7 +670,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleQuickAddProduct(prod)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-[#E06518] text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                              className="consumer-home-add"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>{portalLabel("انتخاب کد و سفارش")}</span>
@@ -782,6 +782,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     <div><span>سفارش ثبت‌شده</span><h3>آخرین سفارش شما</h3></div>
                     <span className="consumer-order-chip" dir="ltr">{activeOrder.orderNumber}</span>
                   </div>
+                  <span className="consumer-order-parcel"><ParcelArt /></span>
                   <div className="consumer-order-highlight-details">
                     <span><Truck size={16} /> روش ارسال: {activeOrder.shippingMethod || "ثبت نشده"}</span>
                     {activeOrder.trackingCode &&
