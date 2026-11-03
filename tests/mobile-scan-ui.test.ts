@@ -20,7 +20,11 @@ test("mobile scan action uses existing product identification context, not a dup
 test("camera flow captures only a real frame and releases media tracks", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(modal, /navigator\.mediaDevices\?\.getUserMedia/);
-  assert.match(modal, /facingMode: "environment"/);
+  assert.match(modal, /cameraFacingRef\.current === "environment" \? "environment" : "user"/);
+  assert.match(modal, /getCapabilities\?\.\(\)/);
+  assert.match(modal, /applyConstraints\(/);
+  assert.match(modal, /chooseCameraGalleryPhoto/);
+  assert.match(modal, /switchCamera/);
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
@@ -172,4 +176,25 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
   assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+});
+
+test("reference camera presents live video, illuminated corners and circular shutter",()=>{
+ const view=source("src/components/search/AiVisualPartSearchModal.tsx");
+ const style=source("src/components/search/industrial-scan.css");
+ for(const identifier of ["sanat-camera-experience--reference","sanat-camera-experience__laser","sanat-camera-experience__shutter","sanat-camera-experience__instruction","sanat-camera-experience__header-title", "sanat-camera-experience__corner--tl","sanat-camera-experience__corner--tr","sanat-camera-experience__corner--bl","sanat-camera-experience__corner--br"])
+   assert.ok(view.includes(identifier),identifier);
+ for(const phrase of ["شناسایی قطعه با دوربین","قطعه مورد نظر را در قاب قرار دهید","انتخاب عکس از گالری","تعویض دوربین جلو و عقب","ثبت عکس قطعه"])
+   assert.ok(view.includes(phrase),phrase);
+ assert.match(style,/\.sanat-camera-experience__capture \{[\s\S]*?border:3px solid #ff7c18/);
+ assert.match(style,/@media \(max-width: 1023px\)/);
+});
+test("camera gallery holds customer photo locally until explicit confirmation",()=>{
+ const code=source("src/components/search/AiVisualPartSearchModal.tsx");
+ const gallery=code.slice(code.indexOf("const chooseCameraGalleryPhoto"),code.indexOf("const capturePhoto"));
+ assert.match(gallery,/FileReader/);
+ assert.match(gallery,/setCameraReview\(true\)/);
+ assert.doesNotMatch(gallery,/uploadSelectedImage/);
+ assert.match(code,/torchSupported/);
+ assert.match(code,/torch: enabled/);
+ assert.match(code,/handleAnalyze\("quick"\)/);
 });

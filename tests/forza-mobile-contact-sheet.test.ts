@@ -52,3 +52,15 @@ test("swipe up enters the same AI chat route without any visible workspace butto
   assert.match(code, /event\.key === "Escape"/);
   assert.match(code, /document\.body\.style\.overflow = overflow/);
 });
+
+test("reference FORZA overlay has dimmed chat peek, full dark swipe deck and branded contact rows",()=>{
+ const markup=source("src/components/common/AiFloatingButton.tsx");
+ const style=source("src/components/common/floating-quick-actions.css");
+ for(const identifier of ["sp-forza-contact--reference","sp-forza-contact__chat-peek","sp-forza-contact__glow-grid","sp-forza-contact__wa-brand","forza-swipe-instruction"])
+  assert.ok(markup.includes(identifier),identifier);
+ assert.match(markup,/نمونه گفت‌وگو/);
+ assert.match(markup,/صفحه را به بالا بکشید/);
+ assert.match(style,/height:clamp\(415px, 63dvh, 630px\)/);
+ assert.match(style,/background:linear-gradient\(35deg,#ffb13e/);
+ assert.doesNotMatch(markup,/sp-forza-contact__workspace-button/);
+});

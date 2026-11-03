@@ -45,6 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           grep -RlF 'forza-swipe-instruction' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'sanat-camera-experience__laser' dist/assets --include='*.js' >/dev/null
+          grep -RlF 'sp-forza-contact__chat-peek' dist/assets --include='*.js' >/dev/null
           grep -RlF 'full-screen-camera-experience' dist/assets --include='*.js' >/dev/null
           grep -RlF 'sanat-identification-open' dist/assets --include='*.js' >/dev/null
           grep -RlF 'store-scan-action' dist/assets --include='*.js' >/dev/null
