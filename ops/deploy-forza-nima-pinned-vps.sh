@@ -74,10 +74,32 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 echo "===== BUILD PINNED PRIVATE NIMA WITHOUT INTERRUPTING CUSTOMERS ====="
-docker build --pull=false \
-  --label "org.opencontainers.image.revision=$SHA" \
-  --label "com.sanatpish.forza.source-sha256=$FINGERPRINT" \
-  -t "$IMAGE" -f "$STAGE/Dockerfile.forza-nima" "$STAGE"
+# Reuse verified already downloaded Piper weights when possible; source-only
+# updates then work even if international model registries are inaccessible.
+EXPECTED_MODEL_SHA="$(sed -n 's/^checksum="\([a-f0-9]\{64\}\)"/\1/p' "$STAGE/Dockerfile.forza-nima" | head -1)"
+EXPECTED_PIPER_VERSION="$(sed -n 's/.*piper-tts==\([0-9.]*\).*/\1/p' "$STAGE/Dockerfile.forza-nima" | head -1)"
+test -n "$EXPECTED_MODEL_SHA" && test -n "$EXPECTED_PIPER_VERSION" || fail "voice_pins_missing"
+LIVE_MODEL_SHA="$(docker exec "$LIVE" sha256sum /app/voice/fa_IR-gyro-medium.onnx 2>/dev/null | awk '{print $1}' || true)"
+LIVE_PIPER_VERSION="$(docker exec "$LIVE" python -c 'from importlib.metadata import version;print(version("piper-tts"))' 2>/dev/null || true)"
+LIVE_IMAGE_ID="$(docker inspect "$LIVE" --format '{{.Image}}')"
+if test "$LIVE_MODEL_SHA" = "$EXPECTED_MODEL_SHA" && test "$LIVE_PIPER_VERSION" = "$EXPECTED_PIPER_VERSION"; then
+  echo "FORZA_NIMA_OFFLINE_BUILD using_verified_local_model=1"
+  docker build --pull=false \
+    --build-arg "FORZA_BASE_IMAGE=$LIVE_IMAGE_ID" \
+    --label "org.opencontainers.image.revision=$SHA" \
+    --label "com.sanatpish.forza.source-sha256=$FINGERPRINT" \
+    -t "$IMAGE" -f - "$STAGE" <<'DOCKERFILE'
+ARG FORZA_BASE_IMAGE
+FROM ${FORZA_BASE_IMAGE}
+COPY scripts/forza_nima_voice_http.py /app/scripts/forza_nima_voice_http.py
+DOCKERFILE
+else
+  echo "FORZA_NIMA_FULL_PINNED_BUILD required_model_or_engine_update=1"
+  docker build --pull=false \
+    --label "org.opencontainers.image.revision=$SHA" \
+    --label "com.sanatpish.forza.source-sha256=$FINGERPRINT" \
+    -t "$IMAGE" -f "$STAGE/Dockerfile.forza-nima" "$STAGE"
+fi
 
 echo "===== START PRIVATE NIMA CANARY; NO HOST PORT ====="
 docker run -d --name "$CANARY" --restart no \
