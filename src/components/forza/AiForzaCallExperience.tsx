@@ -118,6 +118,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const vadRef = useRef(new ForzaVoiceActivity());
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
+  const detectedSpeechEndAtRef=useRef(0);
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
@@ -387,6 +388,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
             if(vadRef.current.silenceDuration(Date.now())<pauseMs)return;
             setIsUserSpeaking(false);
+            detectedSpeechEndAtRef.current=performance.now();
+            console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
+              Math.round(vadRef.current.silenceDuration(Date.now())));
             if(activeTranscriptRef.current.trim()){
               const text=activeTranscriptRef.current.trim();
               activeTranscriptRef.current='';
@@ -873,6 +877,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const pocketAbort=new AbortController();
       const generation=++generationRef.current;
       activeTurnRef.current={generation,abort:pocketAbort};
+      console.info('[FORZA_TURN] turn='+generation+
+        ' phase=request_preparation_end_to_turn_ms='+
+        (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
       vadRef.current.reset();
       startListening(true); // monitor barge-in, without changing the AI status
       let playerForTurn:ForzaContinuousWav|null=null;
@@ -925,7 +932,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' duration_ms='+Math.round(performance.now()-sttStartedAt));
             throw new Error(sttData?.error||'سرویس تشخیص گفتار پاسخ نداد؛ لطفاً سؤال را تایپ کنید.');
           }
-          console.info('[FORZA_STT] source=server duration_ms='+
+          console.info('[FORZA_STT] turn='+generation+' source=server duration_ms='+
             Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
             String(sttData.userTranscript).trim().length);
           payload.query = String(sttData.userTranscript).trim();
@@ -1017,7 +1024,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!firstPhraseQueued){
             firstPhraseQueued=true;
             console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
-              Math.round(performance.now()-turnStartedAt)+' chars='+phrase.length);
+              Math.round(performance.now()-turnStartedAt)+' turn='+generation+' chars='+phrase.length);
           }
           activeNimaBuffer.add(phrase);
         };
@@ -1027,7 +1034,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           latestAiTextRef.current=fullText;
           if(!firstTextDelivered&&fullText.trim()){
             firstTextDelivered=true;
-            console.info('[FORZA_LATENCY] phase=first-text clientMs='+Math.round(performance.now()-turnStartedAt));
+            console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
+              ' clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
           }
           setAiText(fullText);
@@ -1071,6 +1079,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               }),
               signal:AbortSignal.any([streamController.signal,pocketAbort.signal]),
             });
+            console.info('[FORZA_LATENCY] phase=sse_headers turn='+generation+
+              ' clientMs='+Math.round(performance.now()-turnStartedAt)+
+              ' http='+streamRes.status);
             reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
@@ -1259,6 +1270,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Rebuild all segments; processing only resultIndex loses sentences.
         const recognized = extractPersianSpeechRecognition(event.results);
         const currentSpeech = recognized.text;
+        if(!currentSpeech.trim())return;
         if(isProcessingTurnRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
@@ -1283,6 +1295,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if (vadRef.current.heardSpeech && vadRef.current.silenceDuration(Date.now()) < pauseMs) return;
             if (activeTranscriptRef.current && !isAiSpeakingRef.current && !isProcessingTurnRef.current && statusRef.current === 'listening' && !micMutedRef.current) {
               const textToSend = activeTranscriptRef.current;
+              detectedSpeechEndAtRef.current=performance.now();
+              console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+textToSend.length);
               activeTranscriptRef.current = '';
               hasSpeechSoundRef.current = false;
               setIsUserSpeaking(false);
