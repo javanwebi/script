@@ -4,7 +4,7 @@
  * One session's samples live in RAM and are discarded on navigation.
  */
 export type ForzaMilestone =
-  | 'speech_start' | 'speech_end' | 'stt_final' | 'server_request'
+  | 'speech_start' | 'speech_end' | 'endpoint_detected' | 'stt_final' | 'server_request'
   | 'sse_headers' | 'first_text' | 'first_tts_phrase'
   | 'tts_request' | 'tts_headers' | 'wav_received' | 'audio_decoded'
   | 'audio_started' | 'audio_gap' | 'audio_finished' | 'turn_interrupted';
