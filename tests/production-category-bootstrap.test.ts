@@ -61,6 +61,9 @@ test('wrong or empty database fingerprint rejects bootstrap and rolls back',asyn
      create table public.catalog_families (code text primary key);
    `);
    await assert.rejects(()=>db.exec(sql),/Database fingerprint mismatch/);
+   // A rejected PostgreSQL transaction must be explicitly rolled back before
+   // the same test connection can accept another statement.
+   await db.exec('ROLLBACK;');
    const result=await db.query<{table_name:string|null}>("select to_regclass('public.catalog_navigation_groups')::text as table_name");
    assert.equal(result.rows[0].table_name,null);
  }finally{await db.close();}
