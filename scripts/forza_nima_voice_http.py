@@ -39,7 +39,7 @@ def spoken_text(value):
     return " ".join(PUNCTUATION.sub(" ", value).split())
 
 
-def synthesize_complete(text):
+def synthesize_complete(text, should_cancel=None):
     """Create a single PCM WAV in memory; never introduce per-clause gaps."""
     spoken = spoken_text(text)
     if not spoken:
@@ -48,6 +48,8 @@ def synthesize_complete(text):
     configured = False
     with wave.open(output, "wb") as target:
         for part in engine.synthesize(spoken):
+            if should_cancel and should_cancel():
+                raise ConnectionAbortedError('tts_client_disconnected')
             if not configured:
                 target.setnchannels(part.sample_channels)
                 target.setsampwidth(part.sample_width)
@@ -69,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print("[FORZA Nima]", format % args, file=sys.stderr, flush=True)
 
-    def respond(self, status, payload, content_type="application/json"):
+    def respond(self, status, payload, content_type="application/json", timing=None):
         if isinstance(payload, dict):
             payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -79,6 +81,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         if content_type != "application/json":
             self.send_header("X-Forza-Voice", VOICE_ID)
+            if timing:
+                self.send_header("X-Forza-Voice-Queue-Ms", str(timing["queue_ms"]))
+                self.send_header("X-Forza-Voice-Infer-Ms", str(timing["infer_ms"]))
         self.end_headers()
         try:
             self.wfile.write(payload)
@@ -93,6 +98,15 @@ class Handler(BaseHTTPRequestHandler):
             })
         else:
             self.respond(404, {"error": "not_found"})
+
+    def client_disconnected(self):
+        # Cancellation is best effort: Piper can only stop at a chunk boundary.
+        try:
+            return self.connection.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT) == b""
+        except (BlockingIOError, InterruptedError):
+            return False
+        except OSError:
+            return True
 
     def do_POST(self):
         if self.path not in ("/speak", "/speak-stream"):
@@ -123,27 +137,35 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(400, {"error": "invalid_text"})
             return
 
+        queued_at = time.monotonic()
         if not synthesis_queue.acquire(blocking=False):
             self.respond(503, {"error": "voice_busy"})
             return
-        if not synthesis_slot.acquire(timeout=30):
+        if not synthesis_slot.acquire(timeout=4):
             synthesis_queue.release()
             self.respond(503, {"error": "voice_queue_timeout"})
             return
         start = time.monotonic()
+        queue_ms = round((start - queued_at) * 1000)
         try:
-            wav = synthesize_complete(phrase)
+            if self.client_disconnected():
+                raise ConnectionAbortedError("tts_client_disconnected")
+            wav = synthesize_complete(phrase, self.client_disconnected)
+            infer_ms = round((time.monotonic() - start) * 1000)
+            timing = {"queue_ms": queue_ms, "infer_ms": infer_ms}
             if self.path == "/speak-stream":
                 # The browser's existing framing parser accepts a single
                 # complete WAV, which cannot underrun between model segments.
                 self.respond(200, struct.pack("<I", len(wav)) + wav,
-                             "application/x-forza-wav-frames")
+                             "application/x-forza-wav-frames", timing=timing)
             else:
-                self.respond(200, wav, "audio/wav")
-            print("[FORZA_NIMA_PRODUCTION] chars=%d ms=%d wav_bytes=%d" % (
-                len(phrase), (time.monotonic() - start) * 1000, len(wav)
+                self.respond(200, wav, "audio/wav", timing=timing)
+            print("[FORZA_NIMA_TIMING] queue_ms=%d infer_ms=%d wav_bytes=%d" % (
+                queue_ms, infer_ms, len(wav)
             ), flush=True)
         except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+        except ConnectionAbortedError:
             self.close_connection = True
         except Exception as exc:
             print("[FORZA Nima] generation_error=%s" % type(exc).__name__,
