@@ -106,6 +106,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [particlesFormed, setParticlesFormed] = useState(false);
   const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
   const [voicePending, setVoicePending] = useState(false);
+  const [awaitingNextWav, setAwaitingNextWav] = useState(false);
   const [voiceWaitSeconds, setVoiceWaitSeconds] = useState(0);
   const greetingStartedRef = useRef(false);
   const micAutoStartedRef = useRef(false);
@@ -523,6 +524,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnAbortRef.current = null;
     isProcessingTurnRef.current = false;
     stopAudio();
+    setAwaitingNextWav(false);
     setVoicePending(false);
     if (!callClosedRef.current) {
       setStatus('listening');
@@ -668,6 +670,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? AbortSignal.any([signal,AbortSignal.timeout(420000)])
         : AbortSignal.timeout(420000),
     });
+    console.info('[FORZA_LATENCY] phase=tts-headers ms='+Math.round(performance.now()-started)+
+      ' status='+response.status);
     if(!response.ok)throw new Error('pocket_http_'+response.status);
     if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
       throw new Error('forza_original_pocket_voice_required');
@@ -825,6 +829,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const isCurrentTurn = () => !pocketAbort.signal.aborted &&
         !callClosedRef.current && turnEpochRef.current === turnEpoch;
       isProcessingTurnRef.current = true;
+      setAwaitingNextWav(false);
       setVoicePending(false);
       setErrorNotice(null);
       stopListening();
@@ -920,16 +925,38 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let reply='';
         let firstTextDelivered=false;
         continuousVoiceRef.current?.cancel();
+        let playbackStarted=false;
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
           ()=>{
+            if(!isCurrentTurn())return;
+            if(!playbackStarted){
+              playbackStarted=true;
+              console.info('[FORZA_LATENCY] phase=first-audio-clock-start clientMs='+
+                Math.round(performance.now()-turnStartedAt)+' estimated=1');
+            }
             isAiSpeakingRef.current=true;
+            setAwaitingNextWav(false);
             setVoicePending(false);
             setStatus('speaking');
             setTurn('ai');
           },
-          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
-            ' cause=next_wav_arrived_after_previous_playback'),
+          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] responseId='+responseId+
+            ' wait_ms='+ms+' cause=next_wav_arrived_after_previous_playback'),
+          ()=>{
+            if(!isCurrentTurn())return;
+            // All scheduled sources ended. Do not display "speaking" while
+            // CPU inference/network is still preparing the next WAV.
+            isAiSpeakingRef.current=false;
+            setAwaitingNextWav(true);
+            setVoicePending(true);
+            setStatus('thinking');
+            setTurn('ai');
+            console.info('[FORZA_AUDIO_BUFFER_EMPTY] responseId='+responseId+
+              ' clientMs='+Math.round(performance.now()-turnStartedAt));
+          },
+          (phase,ms)=>console.info('[FORZA_AUDIO_CLOCK] responseId='+responseId+
+            ' phase='+phase+' valueMs='+ms),
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1116,6 +1143,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           activeTurnAbortRef.current=null;
           isAiSpeakingRef.current=false;
           setVoicePending(false);
+          setAwaitingNextWav(false);
           isProcessingTurnRef.current = false;
           setStatus('listening');
           setTurn('user');
@@ -1593,9 +1621,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
               : status === 'speaking'
-              ? 'AI FORZA در حال صحبت...'
+              ? (isSpeakerMuted ? 'صدای فورزا بی‌صدا شده است' : 'AI FORZA در حال صحبت...')
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
+              : status === 'thinking' && awaitingNextWav
+              ? 'صدای قطعه قبلی تمام شد؛ در انتظار ادامه پاسخ صوتی...'
               : status === 'thinking' && voicePending
               ? (voiceWaitSeconds >= 25
                 ? `متن آماده است؛ ساخت صدا طول کشیده (${voiceWaitSeconds} ثانیه)`
