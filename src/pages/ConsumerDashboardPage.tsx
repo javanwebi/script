@@ -919,119 +919,89 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 3: QUICK ORDER BY SKU CODE & CATEGORY
              =============================================================== */}
           {activeTab === "quick_buy" && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <section className="consumer-quickbuy-panel">
+              <div className="consumer-quickbuy-search">
                 <div>
-                  <h3 className="font-black text-base text-slate-800">
-                    {portalLabel(
-                      "جستجو و ثبت سفارش سریع بر اساس کد کالا یا دسته‌بندی",
-                    )}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {portalLabel(
-                      "کد فنی قطعه (مثلاً 34265) یا نام آن را وارد کنید و مستقیماً به سبد خرید اضافه نمایید",
-                    )}
-                  </p>
+                  <span className="consumer-eyebrow">خرید با کد فنی</span>
+                  <h2>قطعه موردنیازتان را پیدا کنید</h2>
+                  <p>نام قطعه، برند یا کد فنی را جستجو کنید. مشخصات هر کد را پیش از سفارش بررسی کنید.</p>
                 </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-72">
-                    <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="search"
-                      value={quickSkuQuery}
-                      onChange={(e) => setQuickSkuQuery(e.target.value)}
-                      placeholder="جستجوی کد کالا یا نام محصول..."
-                      className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-300 text-xs focus:border-[#E06518] outline-none"
-                    />
-                  </div>
-                  {resolvedConfig.permissions.allowExcelPriceListDownload && (
-                    <button
-                      type="button"
-                      onClick={handleDownloadMyPriceListExcel}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>{portalLabel("اکسل لیست قیمت من")}</span>
-                    </button>
-                  )}
-                </div>
+                <label className="consumer-search-field">
+                  <Search size={22} aria-hidden="true" />
+                  <span className="sr-only">جستجوی قطعه</span>
+                  <input type="search" value={quickSkuQuery}
+                    onChange={(e) => setQuickSkuQuery(e.target.value)}
+                    placeholder="نام محصول یا کد فنی…" />
+                  {quickSkuQuery && <button type="button" onClick={() => setQuickSkuQuery("")} aria-label="پاک کردن جستجو">×</button>}
+                </label>
               </div>
-
-              {/* Category Filter Bar */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategorySlug("all")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition ${
-                    selectedCategorySlug === "all"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {portalLabel("همه دسته‌بندی‌ها")}
-                </button>
+              <div className="consumer-categories" role="group" aria-label="فیلتر دسته‌بندی کالا">
+                <button type="button" aria-pressed={selectedCategorySlug === "all"}
+                  onClick={() => setSelectedCategorySlug("all")}><Layers size={17}/> همه دسته‌ها</button>
                 {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.slug}
-                    type="button"
-                    onClick={() => setSelectedCategorySlug(cat.slug)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition ${
-                      selectedCategorySlug === cat.slug
-                        ? "bg-[#E06518] text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
+                  <button type="button" key={cat.slug}
+                    aria-pressed={selectedCategorySlug === cat.slug}
+                    onClick={() => setSelectedCategorySlug(cat.slug)}>{cat.name}</button>
                 ))}
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {catalogProducts.map((prod) => {
-                  const firstVar = (prod.variants || [])[0];
-                  const unitPrice =
-                    (firstVar && (firstVar.price || firstVar.prices?.retail)) ||
-                    prod.prices?.retail ||
-                    0;
-                  return (
-                    <div
-                      key={prod.code}
-                      className="p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between gap-3 bg-slate-50/40 hover:bg-white hover:border-[#E06518] transition"
-                    >
-                      <div>
-                        <span
-                          className="font-mono text-xs font-black text-[#E06518]"
-                          dir="ltr"
-                        >
-                          {portalLabel("کد:")}
-                          {firstVar ? firstVar.code : prod.code}
-                        </span>
-                        <div className="font-bold text-xs text-slate-800 mt-1">
-                          {prod.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          {prod.categoryName}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                        <span className="font-mono font-black text-xs text-emerald-700">
-                          {formatPrice(unitPrice)}
-                          {portalLabel("ت")}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickAddProduct(prod)}
-                          className="px-3 py-1.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold cursor-pointer transition"
-                        >
-                          {portalLabel("انتخاب کد و سفارش")}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="consumer-section-head">
+                <div><span>کاتالوگ صنعت پیش</span><h2>محصولات و کدهای فنی</h2></div>
+                <small>{toPersianDigits(catalogProducts.length)} نتیجه نمایشی</small>
               </div>
-            </div>
+              {catalogProducts.length ? (
+                <div className="consumer-quickbuy-grid">
+                  {catalogProducts.map((prod) => {
+                    const firstVar = (prod.variants || [])[0];
+                    const unitPrice = (firstVar && (firstVar.price || firstVar.prices?.retail)) || prod.prices?.retail || 0;
+                    const needsSelection = Boolean(prod.variants?.length);
+                    return (
+                      <article key={prod.code} className="consumer-quickbuy-card">
+                        <Link className="consumer-quickbuy-media"
+                          to={`/product/${encodeURIComponent(prod.code)}`}
+                          aria-label={`مشاهده ${prod.name}`}>
+                          <ProductImage src={prod.images?.[0]} alt={prod.name}
+                            loading="lazy" decoding="async" thumbnail />
+                        </Link>
+                        <div className="consumer-quickbuy-card-copy">
+                          <span className="consumer-sku" dir="ltr">{firstVar?.code || prod.code}</span>
+                          <h3><Link to={`/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
+                          <p>{prod.categoryName || "قطعه صنعتی"}</p>
+                          <div className="consumer-quickbuy-price">
+                            <span>{!needsSelection && !prod.inquiryOnly && unitPrice > 0
+                              ? `${formatPrice(unitPrice)} تومان`
+                              : "انتخاب کد و استعلام قیمت"}</span>
+                          </div>
+                        </div>
+                        <button type="button" className="consumer-product-cta"
+                          onClick={() => handleQuickAddProduct(prod)}>
+                          <Plus size={16} />
+                          {needsSelection ? "انتخاب کد کالا" : "مشاهده و سفارش"}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="consumer-empty">
+                  <Search size={29}/>
+                  <h3>کالایی با این جستجو پیدا نشد</h3>
+                  <p>نام یا کد فنی دیگری امتحان کنید یا تمام دسته‌ها را نمایش دهید.</p>
+                  <button type="button" onClick={() => { setQuickSkuQuery(""); setSelectedCategorySlug("all"); }}>نمایش همه محصولات</button>
+                </div>
+              )}
+              <div className="consumer-quickbuy-footer">
+                {resolvedConfig.permissions.allowExcelPriceListDownload && (
+                  <button type="button" className="consumer-excel-shortcut" onClick={handleDownloadMyPriceListExcel}>
+                    <FileSpreadsheet size={29}/><span><strong>دانلود اکسل لیست قیمت من</strong><small>در صورت انتشار لیست قیمت برای حساب شما</small></span><ChevronLeft size={19}/>
+                  </button>
+                )}
+                {enabledMenus.some((m) => m.id === "purchase_list") && (
+                  <button type="button" className="consumer-multicode-shortcut" onClick={() => setActiveTab("purchase_list")}>
+                    <Layers size={29}/><span><strong>سفارش سریع با چند کد کالا</strong><small>کدها و تعدادها را یکجا وارد و بررسی کنید</small></span><ChevronLeft size={19}/>
+                  </button>
+                )}
+              </div>
+            </section>
           )}
 
           {/* ===============================================================
