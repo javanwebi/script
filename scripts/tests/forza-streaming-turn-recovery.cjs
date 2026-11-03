@@ -1,6 +1,5 @@
-// Regression: Gemini SSE delivers text quickly but browser Piper is still
-// loading 63 MB. Server same-voice Amir must play and release the turn.
-// Two consecutive turns prove the status cannot remain "processing".
+// Regression: Gemini SSE must deliver text while selected private Nima synthesizes
+// complete ordered phrases; two consecutive turns must always release the lock.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 
@@ -32,11 +31,14 @@ function silentWav(){
    status:200,contentType:'application/javascript',
    body:'window.Vosk={createModel:async()=>({KaldiRecognizer:class{on(){} acceptWaveform(){} remove(){}}})};',
   }));
-  await page.route('**/api/ai/amir-speech',async route=>{
+  await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
+    json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}
+  }));
+  await page.route('**/api/ai/forza-speech',async route=>{
    const req=route.request().postDataJSON();
    synthRequests.push(req.text);
    await route.fulfill({status:200,contentType:'audio/wav',
-     headers:{'X-Forza-Voice':'piper-amir'},body:silentWav()});
+     headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:silentWav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
    sseRequests.push(route.request().postDataJSON().query);
@@ -51,7 +53,9 @@ function silentWav(){
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded'});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:23000});
   assert.equal(await page.getByText('در حال آماده‌سازی صدای خوشامدگویی...').count(),0);
+  let totalNimaPhrases=0;
   for (const prompt of ['تسمه SPA چیست؟','کد 6202ZZ چیست؟']){
+    const start=synthRequests.length;
     const opened=await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').isVisible();
     if(!opened)await page.getByTitle('تایپ پیام متنی').click();
     await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').fill(prompt);
@@ -66,14 +70,14 @@ function silentWav(){
       null,{timeout:16000});
     // Ensure the next turn has actually been submitted.
     assert.equal(sseRequests.at(-1),prompt);
+    const turnPhrases=synthRequests.slice(start);
+    assert.ok(turnPhrases.length>0,'each turn must synthesize private Nima WAV');
+    assert.equal(turnPhrases.join(' '),fullAnswer,'Nima must receive exactly the complete ordered reply');
+    totalNimaPhrases+=turnPhrases.length;
   }
   assert.equal(sseRequests.length,2);
-  assert.ok(synthRequests.length>=6,'long replies must generate multiple same-origin Amir segments');
-  const firstTurn=synthRequests.slice(0,synthRequests.length/2);
-  const secondTurn=synthRequests.slice(synthRequests.length/2);
-  assert.equal(firstTurn.join(' '),fullAnswer,'Amir must receive every word of the first reply');
-  assert.equal(secondTurn.join(' '),fullAnswer,'Amir must receive every word of the second reply');
+  assert.ok(totalNimaPhrases>=2,'both turns must synthesize audio');
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('PASS: consecutive streaming turns recover in <=16s with same-voice Piper Amir and no processing lock');
+  console.log('PASS: consecutive private Nima SSE turns recover and preserve complete ordered speech');
  }finally{await browser.close();}
 })().catch(error=>{console.error('FORZA STREAMING TURN FAIL',error);process.exitCode=1});
