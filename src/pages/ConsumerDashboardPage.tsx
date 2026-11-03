@@ -5,7 +5,7 @@ import { PortalShell } from "../components/portal/PortalShell";
 import { PortalClub } from "../components/portal/PortalClub";
 import forzaBrandImage from "../assets/logo-forza.png";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingBag,
@@ -174,8 +174,12 @@ export const ConsumerDashboardPage: React.FC = () => {
     }
     return map;
   }, [portalTick]);
+  const receiptDialogRef = useRef<HTMLDivElement>(null);
   const [selectedReceiptOrder, setSelectedReceiptOrder] =
     useState<CustomerOrderItem | null>(null);
+  useEffect(() => {
+    if (selectedReceiptOrder) receiptDialogRef.current?.focus();
+  }, [selectedReceiptOrder]);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
   const [selectedCategorySlug, setSelectedCategorySlug] =
     useState<string>("all");
@@ -1171,7 +1175,9 @@ export const ConsumerDashboardPage: React.FC = () => {
 
         {/* Printable Invoice Modal */}
         {selectedReceiptOrder && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div ref={receiptDialogRef} role="dialog" aria-modal="true" aria-label="جزئیات و چاپ فاکتور"
+            tabIndex={-1} onKeyDown={(e) => { if (e.key === "Escape") setSelectedReceiptOrder(null); }}
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
               <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <h4 className="text-sm font-black">
