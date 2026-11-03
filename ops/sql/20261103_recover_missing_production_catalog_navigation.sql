@@ -7,7 +7,7 @@ SET LOCAL statement_timeout = '40s';
 
 -- Verify this resembles the existing Sanat Pish production catalogue before a write.
 -- Approved categories may legitimately be absent on the VPS; never require them up front.
-DO $
+DO $$
 DECLARE legacy_categories integer;
 DECLARE existing_families integer;
 BEGIN
@@ -20,7 +20,7 @@ BEGIN
  IF legacy_categories < 10 OR existing_families < 100 THEN
    RAISE EXCEPTION 'Database fingerprint mismatch; categories %, families %', legacy_categories, existing_families;
  END IF;
-END $;
+END $$;
 
 -- Reviewed 34-category Excel hierarchy, including all nested navigation nodes.
 -- Insert missing slugs only; do not activate, rename or reassign a modified existing row.
@@ -62,7 +62,7 @@ INSERT INTO public.catalog_categories
  ('excel-v2-14-3','excel-v2-14-3','اسکاج صنعتی','Package',NULL,'',1403,true,'{"source":"industrial_megamenu_hierarchy_v2","children":[{"name":"انواع اسکاج","children":[{"name":"اسکاج صنعتی و اسکاج گرد"}]}],"subcategories":["انواع اسکاج"],"routeSlug":"excel-v2-14-3","nameEn":""}'::jsonb)
 ON CONFLICT (slug) DO NOTHING;
 
-DO $
+DO $$
 DECLARE approved_categories integer;
 BEGIN
  SELECT count(*) INTO approved_categories
@@ -154,7 +154,7 @@ COMMIT;
  IF approved_categories < 34 THEN
    RAISE EXCEPTION 'Approved category bootstrap incomplete: %/34. Existing records are not overwritten.', approved_categories;
  END IF;
-END $;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.catalog_navigation_groups (
  id text PRIMARY KEY,
