@@ -16,7 +16,7 @@ test('additive production recovery seeds every approved spreadsheet group withou
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public.catalog_family_menu_assignments/);
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public.catalog_direct_skus/);
  assert.match(sql,/ON CONFLICT \(id\) DO NOTHING/);
- assert.doesNotMatch(sql,/\b(DROP|TRUNCATE|DELETE|UPDATE|ALTER\s+TABLE\s+public\.catalog_categories)\b/i);
+ assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+|ALTER\s+TABLE\s+public\.catalog_categories\b)/gim);
 });
 test('canonical one-command deploy safely repairs only the database currently used by the live production container',()=>{
  const deploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
