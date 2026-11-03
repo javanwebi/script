@@ -30,6 +30,8 @@ export interface ForzaNimaBufferedOptions {
   initialBufferSeconds?: number;
   maximumInitialWaitMs?: number;
   onBuffered?: (info: { bufferedSeconds: number; queuedPhrases: number; started: boolean }) => void;
+  /** Only completed audible phrases count as fully heard. */
+  onPhrasePlayed?: (info: { text: string; index: number; durationSeconds: number }) => void;
 }
 
 export function forzaPcmWavDurationSeconds(wav: Uint8Array): number {
@@ -74,6 +76,7 @@ export class ForzaNimaBufferedSpeech {
   private readonly synthesisPromises: Promise<void>[] = [];
   private readonly scheduledPromises: Promise<void>[] = [];
   private readonly synthesized = new Map<number, Uint8Array>();
+  private readonly originals = new Map<number, string>();
   private nextIndex = 0;
   private nextToQueue = 0;
   private active = 0;
@@ -107,6 +110,7 @@ export class ForzaNimaBufferedSpeech {
     void completion.catch(() => {});
     this.synthesisPromises.push(completion);
     this.tasks.push({index,text,resolve,reject});
+    this.originals.set(index,text);
     this.startReadyJobs();
   }
 
@@ -176,12 +180,19 @@ export class ForzaNimaBufferedSpeech {
     }
     const ready = this.contiguousReady();
     for (let i = 0; i < ready.count; i++) {
-      const audio = this.synthesized.get(this.nextToQueue)!;
+      const index=this.nextToQueue;
+      const audio = this.synthesized.get(index)!;
       this.synthesized.delete(this.nextToQueue++);
+      const phrase=this.originals.get(index)||'';
+      const seconds=forzaPcmWavDurationSeconds(audio);
+      this.originals.delete(index);
       try {
         const played = this.options.player.enqueueWav(audio);
         this.scheduledPromises.push(played);
-        void played.catch(error => {
+        void played.then(()=>{
+          if(!this.cancelled && !this.options.signal?.aborted)
+            this.options.onPhrasePlayed?.({text:phrase,index,durationSeconds:seconds});
+        }).catch(error => {
           this.error ??= error instanceof Error ? error : new Error(String(error));
         });
       } catch (error) {
@@ -217,6 +228,7 @@ export class ForzaNimaBufferedSpeech {
     if (this.initialWait) clearTimeout(this.initialWait);
     this.initialWait = null;
     this.synthesized.clear();
+    this.originals.clear();
     this.tasks.splice(0).forEach(task => task.resolve());
   }
 
