@@ -22,6 +22,8 @@ import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
+import { ForzaTurnTelemetry,forzaSessionLatencySummary } from '../../utils/forzaTurnTelemetry';
+import { shouldInterruptForzaSpeech,forzaInterruptionIntent } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -156,6 +158,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const isProcessingTurnRef = useRef<boolean>(false);
   const activeTurnAbortRef = useRef<AbortController | null>(null);
   const turnEpochRef = useRef(0);
+  const telemetryRef=useRef<ForzaTurnTelemetry|null>(null);
+  const bargeMonitorRef=useRef(false);
+  const microphoneVoicedRef=useRef(false);
+  const generatedAnswerRef=useRef('');
+  const activeTurnContextRef=useRef<{query:string;generated:string;heard:string}|null>(null);
+  const interruptionRef=useRef<{
+    lastQuestion:string;heardText:string;unheardText:string;playedSeconds:number;
+  }|null>(null);
+  const handleUserFinishedSpeakingRef=useRef<
+    (text?:string,audio?:Blob,mime?:string)=>Promise<void>
+  >(async()=>{});
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
   const webSpeechFailedRef = useRef<boolean>(false);
@@ -518,6 +531,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Abort model/TTS requests and invalidate asynchronous work from old turns.
   const interruptActiveTurn = useCallback(() => {
+    const previous=activeTurnContextRef.current;
+    if(previous && isProcessingTurnRef.current){
+      const playedSeconds=continuousVoiceRef.current?.playedSeconds??0;
+      interruptionRef.current={
+        lastQuestion:previous.query,
+        heardText:previous.heard.slice(0,1200),
+        unheardText:previous.generated.slice(0,1500),
+        playedSeconds,
+      };
+    }
+    activeTurnContextRef.current=null;
+    telemetryRef.current?.mark('turn_interrupted',{
+      playedMs:(continuousVoiceRef.current?.playedSeconds??0)*1000
+    });
+    bargeMonitorRef.current=false;
     turnEpochRef.current += 1;
     activeTurnAbortRef.current?.abort();
     activeTurnAbortRef.current = null;
@@ -660,13 +688,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const text=answer.trim();
     if(!text)throw new Error('forza_empty_answer');
     const started=performance.now();
+    const timing=telemetryRef.current;
+    timing?.mark('tts_request',{chars:text.length});
     const response=await fetch('/api/ai/forza-speech',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',
+        ...(timing?{'X-Forza-Turn-Id':timing.turnId}:{})},
       body:JSON.stringify({text}),
       signal:signal
         ? AbortSignal.any([signal,AbortSignal.timeout(420000)])
         : AbortSignal.timeout(420000),
+    });
+    timing?.mark('tts_headers',{
+      proxyHeadersMs:performance.now()-started,
+      queueMs:Number(response.headers.get('X-Forza-Voice-Queue-Ms')||'0'),
+      inferMs:Number(response.headers.get('X-Forza-Voice-Infer-Ms')||'0')
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
     if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
@@ -674,6 +710,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(!(response.headers.get('Content-Type')||'').includes('audio/wav'))
       throw new Error('forza_pocket_full_answer_not_wav');
     const audio=new Uint8Array(await response.arrayBuffer());
+    timing?.mark('wav_received',{bytes:audio.byteLength,requestToWavMs:performance.now()-started});
     if(audio.byteLength<44||audio.byteLength>8_000_000 ||
        String.fromCharCode(...audio.subarray(0,4))!=='RIFF' ||
        String.fromCharCode(...audio.subarray(8,12))!=='WAVE')
