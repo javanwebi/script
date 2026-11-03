@@ -1325,7 +1325,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Preserve the existing provider behind /api/ai/forza-live.
           // The microphone recorder continues; only its finalized audio
           // will be sent if the browser recognizer is unavailable.
-          setMicrophoneError('تشخیص زنده مرورگر در دسترس نیست؛ درخواست پس از ضبط صدا به سرویس فعلی تشخیص گفتار ارسال می‌شود.');
+          setMicrophoneError('تشخیص زنده گفتار مرورگر در دسترس نیست. اگر سرویس مستقل STT روی سرور تنظیم نشده باشد، سؤال را با دکمه «تایپ پیام متنی» وارد کنید.');
         }
       };
 
