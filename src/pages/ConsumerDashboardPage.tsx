@@ -480,29 +480,9 @@ export const ConsumerDashboardPage: React.FC = () => {
           )}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {enabledMenus.some((m) => m.id === "orders") && (
-                <>
-                  <PortalInquiries labels={resolvedConfig.labels} />
-                  <PortalRecentOrders
-                    title={resolvedConfig.uiTexts.ordersSectionTitle}
-                    labels={resolvedConfig.labels}
-                    onOrders={() => setActiveTab("orders")}
-                  />
-                </>
-              )}
-              {resolvedConfig.permissions.showClubBarChart &&
-                enabledMenus.some((m) => m.id === "club_rewards") && (
-                  <PortalClub
-                    portal="consumer"
-                    user={user!}
-                    texts={resolvedConfig.uiTexts}
-                    labels={resolvedConfig.labels}
-                    onDetails={() => setActiveTab("club_rewards")}
-                  />
-                )}
               {/* Active Shipment Live Tracker */}
               {activeOrder && (
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="consumer-active-order bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
                   <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                     <div>
                       <div className="flex items-center gap-2 text-xs">
@@ -562,35 +542,9 @@ export const ConsumerDashboardPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Progress is derived from the recorded order status, never a fixed completed timeline. */}
-                  <ol className="consumer-order-steps grid grid-cols-2 sm:grid-cols-4 gap-3"
-                    aria-label="مراحل سفارش">
-                    {[
-                      { step: "۱. ثبت سفارش", desc: "سفارش ثبت‌شده" },
-                      { step: "۲. آماده‌سازی", desc: "در حال پردازش" },
-                      { step: "۳. ارسال", desc: activeOrder?.trackingCode
-                        ? `کد رهگیری: ${activeOrder.trackingCode}` : "در انتظار کد رهگیری" },
-                      { step: "۴. تحویل", desc: "تحویل به گیرنده" },
-                    ].map((st, idx) => {
-                      const done = idx < trackingStage;
-                      const active = idx === trackingStage - 1 && trackingStage < 4;
-                      return (
-                        <li key={idx} aria-current={active ? "step" : undefined}
-                          className={`p-3.5 rounded-2xl border text-xs ${
-                            active ? "border-[#E06518] bg-orange-50/70"
-                              : done ? "border-emerald-200 bg-emerald-50/50"
-                                : "border-slate-200 bg-slate-50"
-                          }`}>
-                          <div className="flex items-center justify-between mb-1 gap-2">
-                            <span className="font-black text-slate-800">{st.step}</span>
-                            {done ? <CheckCircle2 aria-label="ثبت شده" className="w-4 h-4 text-emerald-600 shrink-0" />
-                              : <Clock aria-label="در انتظار" className="w-4 h-4 text-slate-400 shrink-0" />}
-                          </div>
-                          <div className="text-[11px] text-slate-600 break-words">{st.desc}</div>
-                        </li>
-                      );
-                    })}
-                  </ol>
+                  <ConsumerOrderTimeline status={activeOrder.status}
+                    shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
+
 
                   {/* Order Items Summary */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
@@ -638,6 +592,24 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </div>
               )}
 
+              <section className="consumer-dash-quick" aria-label="دسترسی سریع">
+                <div className="consumer-section-head">
+                  <div><span>کارهای روزانه شما</span><h2>دسترسی سریع</h2></div>
+                  <button type="button" onClick={() => setActiveTab("quick_buy")}>مشاهده کالاها <ChevronLeft size={16} /></button>
+                </div>
+                <div className="consumer-dash-quick-grid">
+                  {[
+                    { id: "orders", title: "سفارش‌های من", Icon: Package },
+                    { id: "quick_buy", title: "خرید سریع", Icon: Zap },
+                    { id: "receipts", title: "فاکتورها", Icon: FileText },
+                    { id: "addresses", title: "آدرس‌ها", Icon: MapPin },
+                  ].filter((x) => enabledMenus.some((m) => m.id === x.id)).map(({ id, title, Icon }) => (
+                    <button type="button" key={id} onClick={() => setActiveTab(id)}>
+                      <Icon size={23} aria-hidden="true" /><span>{title}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
               {/* Quick Product Selection Grid */}
               {resolvedConfig.permissions.allowQuickSkuOrder && (
                 <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
@@ -731,6 +703,35 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
                 </div>
               )}
+              {enabledMenus.some((m) => m.id === "orders") && (
+                <>
+                  <PortalInquiries labels={resolvedConfig.labels} />
+                  <PortalRecentOrders
+                    title={resolvedConfig.uiTexts.ordersSectionTitle}
+                    labels={resolvedConfig.labels}
+                    onOrders={() => setActiveTab("orders")}
+                  />
+                </>
+              )}
+              {resolvedConfig.permissions.showClubBarChart &&
+                enabledMenus.some((m) => m.id === "club_rewards") && (
+                  <PortalClub
+                    portal="consumer"
+                    user={user!}
+                    texts={resolvedConfig.uiTexts}
+                    labels={resolvedConfig.labels}
+                    onDetails={() => setActiveTab("club_rewards")}
+                  />
+                )}
+              <section className="consumer-forza-card">
+                <div className="consumer-forza-emblem" aria-hidden="true"><Sparkles size={32} /></div>
+                <div>
+                  <span>مشاور هوشمند صنعت پیش</span>
+                  <h2>FORZA کنار شماست</h2>
+                  <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
+                </div>
+                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
+              </section>
             </div>
           )}
 
