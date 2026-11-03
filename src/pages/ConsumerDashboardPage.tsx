@@ -435,7 +435,7 @@ export const ConsumerDashboardPage: React.FC = () => {
           {resolvedConfig.permissions.showAnnouncements &&
             activeAnnouncements.length > 0 &&
             activeTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="consumer-announcement-list grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeAnnouncements.map((ann) => {
                   const endLabel =
                     ann.showEndTimeToCustomer && ann.endsAt
