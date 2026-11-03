@@ -749,7 +749,7 @@ export const ConsumerDashboardPage: React.FC = () => {
             />
           )}
           {activeTab === "orders" && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+            <div className="consumer-orders-section bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
                   <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
@@ -777,16 +777,55 @@ export const ConsumerDashboardPage: React.FC = () => {
                 )}
               </div>
 
+              <div className="consumer-filter-pills" role="group" aria-label="فیلتر سفارش‌ها">
+                {[
+                  { key: "all", title: "همه سفارش‌ها", Icon: Layers },
+                  { key: "shipped", title: "در حال ارسال", Icon: Truck },
+                  { key: "delivered", title: "تحویل‌شده", Icon: CheckCircle2 },
+                  { key: "processing", title: "در حال پردازش", Icon: Clock },
+                ].map(({ key, title, Icon }) => (
+                  <button key={key} type="button" aria-pressed={orderFilter === key}
+                    onClick={() => setOrderFilter(key as typeof orderFilter)}>
+                    <Icon size={17} aria-hidden="true" />{title}
+                  </button>
+                ))}
+              </div>
+              <div className="consumer-summary-duo">
+                <div><Package size={23}/><span>تعداد سفارش‌ها</span><strong>{toPersianDigits(orders.length)} سفارش</strong></div>
+                <div><ShoppingBag size={23}/><span>مجموع خریدهای پرداخت‌شده</span><strong>{formatPrice(totalSpent)} تومان</strong></div>
+              </div>
+              {activeOrder && (
+                <section className="consumer-order-highlight" aria-label="آخرین سفارش">
+                  <div className="consumer-order-highlight-head">
+                    <div><span>سفارش ثبت‌شده</span><h3>آخرین سفارش شما</h3></div>
+                    <span className="consumer-order-chip" dir="ltr">{activeOrder.orderNumber}</span>
+                  </div>
+                  <div className="consumer-order-highlight-details">
+                    <span><Truck size={16} /> روش ارسال: {activeOrder.shippingMethod || "ثبت نشده"}</span>
+                    {activeOrder.trackingCode &&
+                      <span><FileText size={16}/> کد رهگیری: <bdi dir="ltr">{activeOrder.trackingCode}</bdi></span>}
+                  </div>
+                  <ConsumerOrderTimeline status={activeOrder.status}
+                    shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
+                  <div className="consumer-order-highlight-actions">
+                    {resolvedConfig.permissions.allowInvoicePrint &&
+                      <button type="button" onClick={() => setSelectedReceiptOrder(activeOrder)}><FileText size={17}/> مشاهده فاکتور</button>}
+                    {resolvedConfig.permissions.allowQuickReorder &&
+                      <button type="button" onClick={() => handleReorderItems(activeOrder)}><RefreshCw size={17}/> سفارش مجدد</button>}
+                  </div>
+                </section>
+              )}
+              <div className="consumer-section-head"><div><span>تاریخچه حساب شما</span><h2>سفارش‌های اخیر</h2></div><strong>{toPersianDigits(filteredOrders.length)} مورد</strong></div>
               <div className="space-y-4">
-                {orders.length === 0 && (
+                {filteredOrders.length === 0 && (
                   <p className="rounded-xl bg-slate-50 p-6 text-sm text-slate-500">
-                    هنوز سفارشی برای این حساب ثبت نشده است.
+                    سفارشی با این وضعیت یافت نشد.
                   </p>
                 )}
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-4"
+                    className="consumer-order-list-card p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
                       <div className="space-y-0.5">
@@ -805,10 +844,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 : "text-amber-700"
                             }`}
                           >
-                            {order.status === "delivered" ? "تحویل‌شده"
-                              : order.status === "shipped" ? "در مسیر ارسال"
-                              : order.status === "processing" ? "در حال آماده‌سازی"
-                              : order.status === "cancelled" ? "لغوشده" : "ثبت‌شده"}
+                            {orderStatusLabels[order.status]}
                           </span>
                         </div>
                         <div className="text-xs text-slate-500">
