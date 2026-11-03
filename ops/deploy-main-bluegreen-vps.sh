@@ -138,8 +138,10 @@ if ! docker exec "$OLD" node --import tsx --input-type=module -e '
     const approved=row.groups
       ? await database().query("select count(*)::int as total from public.catalog_navigation_groups where id ~ \x27^excel-v2-[0-9]+$\x27 and is_active=true")
       : {rows:[{total:0}]};
-    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<6) process.exitCode=2;
-    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total);
+    const categoryCount=await database().query(
+      "select count(*)::int as total from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+    if (!row.groups || !row.assignments || !row.direct || Number(approved.rows[0].total)<14 || Number(categoryCount.rows[0].total)<34) process.exitCode=2;
+    else console.log("PRODUCTION_NAV_SCHEMA_ALREADY_OK", approved.rows[0].total, categoryCount.rows[0].total);
   }catch(error){console.error("PRODUCTION_NAV_SCHEMA_CHECK_FAILED",error.code||"",error.message);process.exitCode=2}
   finally{await closeDatabase()}
 '; then
@@ -163,8 +165,12 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  try {
   const x=await database().query(
    "select count(*)::int as n from public.catalog_navigation_groups where is_active=true and id ~ \x27^excel-v2-[0-9]+$\x27");
-  if(Number(x.rows[0].n)<6)throw Error("Fewer than six approved menu groups");
+  if(Number(x.rows[0].n)<14)throw Error("Expected 14 approved menu groups");
+  const c=await database().query(
+   "select count(*)::int as n from public.catalog_categories where is_active=true and slug ~ \x27^excel-v2-[0-9]+-[0-9]+$\x27 and metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27");
+  if(Number(c.rows[0].n)<34)throw Error("Expected 34 active approved categories, found "+c.rows[0].n);
   console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
+  console.log("PRODUCTION_APPROVED_CATEGORIES_VERIFIED",c.rows[0].n);
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
