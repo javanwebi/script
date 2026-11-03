@@ -184,9 +184,11 @@ export const ConsumerDashboardPage: React.FC = () => {
     if (selectedReceiptOrder) receiptDialogRef.current?.focus();
   }, [selectedReceiptOrder]);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
+  const [visibleProductCount, setVisibleProductCount] = useState(6);
   const [selectedCategorySlug, setSelectedCategorySlug] =
     useState<string>("all");
   const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => { setVisibleProductCount(6); }, [quickSkuQuery, selectedCategorySlug]);
 
   const [addresses, setAddresses] = useState(() =>
     (user?.addresses || []).map((a) => ({
@@ -498,7 +500,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 1: OVERVIEW (پیشخوان کاربری و رهگیری مرسوله)
              =============================================================== */}
           {["saved_products", "purchase_list"].includes(activeTab) && (
-            <PortalTools tab={activeTab} labels={resolvedConfig.labels} />
+            <PortalTools tab={activeTab} labels={resolvedConfig.labels} referenceConsumer />
           )}
           {activeTab === "overview" && (
             <div className="space-y-6">
@@ -601,7 +603,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {catalogProducts.slice(0, 6).map((prod) => {
+                    {catalogProducts.slice(0, 2).map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
                         (firstVar &&
@@ -920,11 +922,11 @@ export const ConsumerDashboardPage: React.FC = () => {
               </div>
               <div className="consumer-section-head">
                 <div><span>کاتالوگ صنعت پیش</span><h2>محصولات و کدهای فنی</h2></div>
-                <small>{toPersianDigits(catalogProducts.length)} نتیجه نمایشی</small>
+                <small>{toPersianDigits(catalogProducts.length)} محصول یافت شد</small>
               </div>
               {catalogProducts.length ? (
                 <div className="consumer-quickbuy-grid">
-                  {catalogProducts.map((prod) => {
+                  {catalogProducts.slice(0, visibleProductCount).map((prod) => {
                     const firstVar = (prod.variants || [])[0];
                     const unitPrice = (firstVar && (firstVar.price || firstVar.prices?.retail)) || prod.prices?.retail || 0;
                     const needsSelection = Boolean(prod.variants?.length);
@@ -962,6 +964,11 @@ export const ConsumerDashboardPage: React.FC = () => {
                   <p>نام یا کد فنی دیگری امتحان کنید یا تمام دسته‌ها را نمایش دهید.</p>
                   <button type="button" onClick={() => { setQuickSkuQuery(""); setSelectedCategorySlug("all"); }}>نمایش همه محصولات</button>
                 </div>
+              )}
+              {catalogProducts.length > visibleProductCount && (
+                <button type="button" className="consumer-more-products" onClick={() => setVisibleProductCount((count) => count + 6)}>
+                  نمایش محصولات بیشتر <ChevronLeft size={17} />
+                </button>
               )}
               <div className="consumer-quickbuy-footer">
                 {resolvedConfig.permissions.allowExcelPriceListDownload && (
@@ -1027,6 +1034,30 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="consumer-empty"><FileText size={29}/><h3>فاکتوری در این وضعیت وجود ندارد</h3><p>پس از ثبت سفارش، جزئیات خرید را اینجا می‌بینید.</p></div>
+              )}
+              {orders[0] && (
+                <section className="consumer-invoice-preview" aria-label="پیش‌نمایش آخرین فاکتور">
+                  <div className="consumer-section-head">
+                    <div><span>بر اساس سفارش ثبت‌شده</span><h2><FileText size={21} aria-hidden="true" /> پیش‌نمایش فاکتور</h2></div>
+                    <button type="button" onClick={() => setSelectedReceiptOrder(orders[0])}>مشاهده کامل <ChevronLeft size={16} /></button>
+                  </div>
+                  <div className="consumer-invoice-paper">
+                    <header><div><strong><Layers size={24} /> صنعت پیش</strong><small>Sanat Pish</small></div><div><b>فاکتور فروش</b><span>Invoice</span></div></header>
+                    <div className="consumer-invoice-paper-meta">
+                      <span>شماره سفارش: <bdi dir="ltr">{orders[0].orderNumber}</bdi></span>
+                      <span>تاریخ: {new Date(orders[0].date).toLocaleDateString("fa-IR")}</span>
+                      <span>خریدار: {user?.fullName || "مشتری صنعت پیش"}</span>
+                    </div>
+                    <div className="consumer-invoice-paper-scroll">
+                      <table><thead><tr><th>شرح کالا</th><th>تعداد</th><th>قیمت واحد</th><th>مبلغ</th></tr></thead>
+                        <tbody>{orders[0].items.map((item, i) => (
+                          <tr key={i}><td>{item.name}<small dir="ltr">{item.code}</small></td><td>{toPersianDigits(item.quantity)}</td><td>{formatPrice(item.unitPrice)}</td><td>{formatPrice(item.unitPrice * item.quantity)}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                    <footer><strong>مبلغ ثبت‌شده: {formatPrice(orders[0].totalAmount)} تومان</strong><span className={orders[0].paymentStatus === "paid" ? "is-paid" : "is-pending"}>{orders[0].paymentStatus === "paid" ? "پرداخت تأییدشده" : "در انتظار تأیید پرداخت"}</span></footer>
+                  </div>
+                </section>
               )}
               <p className="consumer-document-note">اطلاعات نمایش‌داده‌شده از سفارش‌های ثبت‌شده حساب شما خوانده می‌شوند؛ تأیید پرداخت فقط مطابق وضعیت ثبت‌شده در سامانه نمایش داده می‌شود.</p>
             </section>
