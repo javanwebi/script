@@ -52,3 +52,19 @@ test("swipe up enters the same AI chat route without any visible workspace butto
   assert.match(code, /event\.key === "Escape"/);
   assert.match(code, /document\.body\.style\.overflow = overflow/);
 });
+
+test("reference-designed FORZA mobile sheet is a full dark half-sheet with real contact links and non-interactive chat preview",()=>{
+  const code=source("src/components/common/AiFloatingButton.tsx");
+  const css=source("src/components/common/floating-quick-actions.css");
+  assert.match(code,/sp-forza-contact__sheet--reference/);
+  assert.match(code,/sp-forza-contact__chat-preview/);
+  assert.match(code,/sp-forza-contact__preview-bubble--assistant/);
+  assert.match(code,/sp-forza-contact__swipe-copy/);
+  assert.match(code,/صفحه را به بالا بکشید/);
+  assert.match(code,/sp-forza-contact__channels/);
+  assert.match(code,/sp-forza-contact__phone/);
+  assert.match(css,/linear-gradient\(145deg,#203343/);
+  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css,/touch-action:none/);
+  assert.doesNotMatch(code,/sp-forza-contact__workspace-button/);
+});
