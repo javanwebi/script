@@ -533,6 +533,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   }, []);
 
+  const interruptCurrentTurn = useCallback(() => {
+    const active=activeTurnRef.current;
+    if(!active || active.abort.signal.aborted)return;
+    active.markInterrupted?.();
+    // Invalidate callbacks before aborting. The old finally must not cancel
+    // the new user's microphone, player or response.
+    activeTurnRef.current=null;
+    active.abort.abort(new Error('forza_customer_interrupted'));
+    stopAudio();
+    isProcessingTurnRef.current=false;
+    isAiSpeakingRef.current=false;
+    setVoicePending(false);
+    setStatus('listening');
+    setTurn('user');
+    setIsUserSpeaking(true);
+    console.info('[FORZA_TURN] phase=customer-interrupt turn='+active.generation);
+  },[stopAudio,setStatus]);
+  interruptRequestRef.current=interruptCurrentTurn;
+
   useEffect(()=>{
     continuousVoiceRef.current?.setMuted(isSpeakerMuted);
   },[isSpeakerMuted]);
@@ -1117,6 +1136,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
+            // 2-second in-RAM pre-roll while FORZA is responding. No disk
+            // persistence; preserve the first user syllables after barge-in.
+            if(isProcessingTurnRef.current && audioChunksRef.current.length>8)
+              audioChunksRef.current.splice(0,audioChunksRef.current.length-8);
           }
         };
 
@@ -1129,6 +1152,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           hasSpeechSoundRef.current = false;
 
           if (isProcessingTurnRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking') {
+            // MediaRecorder.stop() is asynchronous. Resume RAM-only monitor
+            // capture after the previous turn's recorder has actually stopped.
+            if(!micMutedRef.current && streamRef.current?.active && mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
             return;
           }
 
@@ -1175,12 +1203,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onresult = (event: any) => {
-        if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
-
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
         const recognized = extractPersianSpeechRecognition(event.results);
         const currentSpeech = recognized.text;
+        if(isProcessingTurnRef.current){
+          // RMS alone cannot distinguish the loudspeaker from a person.
+          // Require actual STT words and reject likely self-echo.
+          if(!vadRef.current.heardSpeech ||
+             isForzaProbableEcho(currentSpeech,latestAiTextRef.current))return;
+          interruptRequestRef.current();
+        }
         if (currentSpeech) {
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
@@ -1224,9 +1257,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isRecognitionActiveRef.current = false;
         if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
         // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+        if (isCallActive && !localSttRecognizerRef.current &&
+            (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
           window.setTimeout(() => {
-            if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+            if (isCallActive && !localSttRecognizerRef.current &&
+                (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
               try {
                 rec.start();
                 isRecognitionActiveRef.current = true;
@@ -1353,6 +1388,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const endCall = useCallback(() => {
     callClosedRef.current = true;
+    activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
+    activeTurnRef.current=null;
+    historyRef.current=[];
+    audioChunksRef.current=[];
     stopAudio();
     if (recognitionRef.current) {
       try {
