@@ -13,17 +13,22 @@ export function shouldInterruptForzaSpeech(
   const hasCommand=commands.test(' '+text+' ');
   if(!options.microphoneVoiced)return false;
   if(!hasCommand && (words.length<2 || text.length<7))return false;
+  // A single interim word is too easy to hallucinate from loudspeaker echo.
+  if(hasCommand && words.length===1 && !options.isFinal)return false;
   // Compare only against text actually produced by FORZA. Do not reject
   // explicit corrections merely because they quote a product code.
   const output=normalizePersianTranscript(assistantSpeech).toLowerCase()
     .replace(/[،؛.!؟?:]/g,' ').replace(/\s+/g,' ').trim();
-  if(!hasCommand && output){
+  if(output){
     if(output.includes(text) && text.length>=6)return false;
     const assistantWords=new Set(output.split(' '));
     const matched=words.filter(word=>word.length>2 && assistantWords.has(word)).length;
     if(words.length>=3 && matched/words.length>=0.8)return false;
   }
-  return hasCommand || options.isFinal || words.length>=3;
+  // Generic questions wait for a final ASR hypothesis; clear correction
+  // commands may interrupt on interim text. This favors echo safety over
+  // an unverified sub-300ms speakerphone promise.
+  return hasCommand || options.isFinal;
 }
 export function forzaInterruptionIntent(input:string):
   'stop'|'continue'|'correction'|'new_question'{
