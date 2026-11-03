@@ -276,28 +276,24 @@ done
 test "$READY" = 1 || { docker logs --tail 50 "$NAME" || true; exit 1; }
 echo "SINGLE_PORT_PROMOTED port=$FIXED_PORT"
 
-echo '===== ATOMIC NGINX TRAFFIC SWITCH ====='
-SWITCH=1
-python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$ACTIVE" "$NEXT" "$DOMAIN_ACTIVE" <<'PY'
+echo '===== ONE FIXED PORT FOR ALL PUBLIC WEBSITE VHOSTS ====='
+python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$FIXED_PORT" <<'PY'
 from pathlib import Path
 import re,sys
-a,b,domain,old,new,domain_old=sys.argv[1:]
-paths=[Path(a),Path(b),Path(domain)]
-expected=[old,old,domain_old]
-pattern=re.compile(r'(proxy_pass\s+http://127\.0\.0\.1:)(30(?:0[4-9]|1[0-9]|20))(;)')
-contents=[p.read_text() for p in paths]
-for p,before,port in zip(paths,contents,expected):
- matches=pattern.findall(before)
- assert matches and {match[1] for match in matches}=={port},('UNEXPECTED_PROXY_TARGET',str(p),matches,port)
- assert new not in {match[1] for match in matches},('TARGET_ALREADY_SELECTED',str(p))
-# Prevalidate all three files before writing any. The rollback trap restores
-# all vhosts if the config, HTTP checks, or private voice promotion fails.
-for p,before in zip(paths,contents):
- p.write_text(pattern.sub(lambda m:m.group(1)+new+m.group(3),before))
- print('UPDATED_NGINX',p)
+*files,target=sys.argv[1:]
+pattern=re.compile(r'(proxy_pass\s+http://127\.0\.0\.1:)(30(?:0[0-9]|1[0-9]|20))(;)')
+contents=[Path(p).read_text() for p in files]
+for filename,source in zip(files,contents):
+ matches=pattern.findall(source)
+ assert matches,("NO_APP_UPSTREAM",filename)
+ assert len({m[1] for m in matches})==1,("MIXED_APP_UPSTREAMS",filename)
+for filename,source in zip(files,contents):
+ Path(filename).write_text(pattern.sub(lambda m:m.group(1)+target+m.group(3),source))
+ print("SINGLE_PORT_NGINX_UPDATED",filename,target)
 PY
 nginx -t
 systemctl reload nginx
+
 echo '===== VERIFY PUBLIC HTTPS ====='
 python3 - "$NEXT" <<'PY'
 import sys,ssl,time,json,urllib.request
