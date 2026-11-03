@@ -399,3 +399,10 @@
   .consumer-premium[data-current-section="overview"] .portal-content > .portal-panels {order:2;}
   .consumer-premium[data-current-section="overview"] .portal-content > :is(.portal-discovery-grid,.portal-campaigns,.portal-campaign) {order:3;margin-top:16px;}
 }
+
+
+.consumer-premium .consumer-overview-extra {border:1px solid #ebe9e8;background:linear-gradient(110deg,#fff,#fff9f5);box-shadow:var(--ref-shadow);border-radius:20px;padding:12px 16px;margin-top:0;}
+.consumer-premium .consumer-overview-extra summary {display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;font-weight:850;color:#ae5c2f;cursor:pointer;list-style:none;}
+.consumer-premium .consumer-overview-extra summary::-webkit-details-marker {display:none;}
+.consumer-premium .consumer-overview-extra[open] summary svg {transform:rotate(-90deg);}
+.consumer-premium .consumer-overview-extra > div {display:grid;gap:15px;padding-top:16px;}
