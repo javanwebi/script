@@ -5435,7 +5435,7 @@ const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
 // Pocket WAV from the original application image.
 const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
-async function renderPocketSpeech(phrase:string):Promise<Buffer>{
+async function renderPocketSpeech(phrase:string,clientSignal?:AbortSignal,timings?:{queueMs:number;inferMs:number}):Promise<Buffer>{
   // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
   // does all synthesis. No downloaded neural model is sent to visitors.
   if(!internalForzaVoiceUrl)throw new Error('private_voice_not_configured');
@@ -5448,6 +5448,7 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
   for(let attempt=0;attempt<8;attempt++){
+    if(clientSignal?.aborted)throw new Error('private_voice_client_cancelled');
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
       method:'POST',
       headers:{
@@ -5455,19 +5456,30 @@ async function renderPocketSpeech(phrase:string):Promise<Buffer>{
         'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN,
       },
       body:JSON.stringify({text:spoken}),
-      signal:AbortSignal.timeout(420000),
+      signal:clientSignal
+        ? AbortSignal.any([clientSignal,AbortSignal.timeout(60000)])
+        : AbortSignal.timeout(60000),
     });
     // One inference slot across visitors. Brief backoff on BUSY only;
     // never retry a 403 token mismatch or an unavailable worker.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
       if(reason?.error==='voice_busy'&&attempt<7&&Date.now()-started<20000){
-        await new Promise(resolve=>setTimeout(resolve,Math.min(1800,180*(attempt+1))));
+        await new Promise<void>((resolve,reject)=>{
+          const timer=setTimeout(resolve,Math.min(1800,180*(attempt+1)));
+          clientSignal?.addEventListener('abort',()=>{
+            clearTimeout(timer);reject(new Error('private_voice_client_cancelled'));
+          },{once:true});
+        });
         continue;
       }
       throw new Error('private_voice_'+(reason?.error||'unavailable'));
     }
     if(!response.ok)throw new Error('private_voice_http_'+response.status);
+    if(timings){
+      timings.queueMs=Number(response.headers.get('X-Forza-TTS-Queue-Ms')||-1);
+      timings.inferMs=Number(response.headers.get('X-Forza-TTS-Infer-Ms')||-1);
+    }
     if(!(response.headers.get('content-type')||'').includes('audio/wav'))
       throw new Error('private_voice_invalid_type');
     const payload=await response.arrayBuffer();
@@ -5508,6 +5520,14 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
+// Build provenance is supplied by the deployment script, never inferred from
+// the host's current checkout (which may be ahead of the live blue/green mount).
+app.get('/api/ai/forza-build',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  const sha=process.env.SANATPISH_DEPLOYED_SHA||'';
+  res.json({revision:/^[a-f0-9]{40}$/.test(sha)?sha:null,voice:forzaVoiceEngine});
+});
+
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
 function consumePocketVoiceBudget(req:any):boolean{
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
@@ -5525,22 +5545,32 @@ function consumePocketVoiceBudget(req:any):boolean{
 }
 
 app.post('/api/ai/forza-speech',async(req,res)=>{
+  const controller=new AbortController();
+  const onClose=()=>{if(!res.writableEnded)controller.abort();};
+  res.once('close',onClose);
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
-  if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
-  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  if(!phrase || phrase.length>1000){res.off('close',onClose);return res.status(400).json({error:'pocket_invalid_text'});}
+  if(!consumePocketVoiceBudget(req)){res.off('close',onClose);return res.status(429).json({error:'pocket_rate_limited'});}
   const started=Date.now();
+  const privateTiming={queueMs:-1,inferMs:-1};
   try{
-    const wav=await renderPocketSpeech(phrase);
-    if(res.headersSent)return;
+    const wav=await renderPocketSpeech(phrase,controller.signal,privateTiming);
+    if(res.headersSent||res.destroyed||controller.signal.aborted)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Forza-Voice',forzaVoiceEngine);
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
+    res.setHeader('X-Forza-Server-TTS-Ms',String(Date.now()-started));
+    if(privateTiming.queueMs>=0)res.setHeader('X-Forza-TTS-Queue-Ms',String(privateTiming.queueMs));
+    if(privateTiming.inferMs>=0)res.setHeader('X-Forza-TTS-Infer-Ms',String(privateTiming.inferMs));
     console.info('[FORZA_LATENCY] phase=pocket-server-tts backend='+(internalForzaVoiceUrl?'private':'local')+' ms='+(Date.now()-started));
     return res.send(wav);
   }catch(error:any){
     console.warn('[FORZA Pocket Server] synthesis unavailable',String(error?.message||'voice_error').slice(0,120));
-    if(!res.headersSent)return res.status(503).json({error:'pocket_server_unavailable'});
+    if(!res.headersSent&&!res.destroyed&&!controller.signal.aborted)
+      return res.status(503).json({error:'pocket_server_unavailable'});
+  }finally{
+    res.off('close',onClose);
   }
 });
 
@@ -5831,6 +5861,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  // A provider failure after the first delta must not append an unrelated
+  // offline answer to already-delivered subtitles or speech.
+  let geminiSentText=false;
   try {
     const ai = new GoogleGenAI({
       apiKey,
@@ -5841,7 +5874,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
+    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر مطمئن نیستید سؤال فنی مشخص بپرسید. اگر مشتری کد یا عددی را با «نه» اصلاح کرد، آخرین اصلاح را معتبر بدانید و کد قبلی را انتخاب نکنید. کد صنعتی نامطمئن را حدس نزنید؛ فقط یک سؤال کوتاه برای تأیید بپرسید. «صبر کن» به معنی توقف است و «ادامه بده» به معنی ادامه از بخش شنیده‌شده، نه تکرار کل پاسخ. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
 
 دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
 ۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
@@ -5947,6 +5980,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     for await (const chunk of stream) {
       const chunkText = chunk.text || '';
       if (!chunkText) continue;
+      geminiSentText=true;
       if(!firstTextAt){
         firstTextAt=Date.now();
         console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
@@ -6069,7 +6103,18 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     });
     res.end();
   } catch (err: any) {
-    console.warn('[AI Consult Stream] Stream interruption, activating immediate expert fallback:', err?.message || err);
+    const failureCode=String(err?.code||err?.status||'provider_failure').slice(0,60);
+    console.warn('[AI Consult Stream] Gemini interrupted code='+failureCode+
+      ' partial='+Number(geminiSentText)+' elapsedMs='+(Date.now()-startedAt));
+    if(res.destroyed || res.writableEnded)return;
+    if(geminiSentText){
+      // Deliberately omit 'done': the caller must preserve the partial text,
+      // cancel its current speech queue, and offer a retry instead of
+      // displaying a contradictory completion or repeating earlier audio.
+      sendEvent({type:'error',responseId,errorCode:'forza_upstream_interrupted',
+        message:'دریافت پاسخ کامل نشد؛ متن دریافت‌شده ناقص است. دوباره تلاش کنید.'});
+      return res.end();
+    }
     try {
       const off = consultantFallback(query || '');
       sendEvent({

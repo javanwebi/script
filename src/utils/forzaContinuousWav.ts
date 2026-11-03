@@ -34,6 +34,7 @@ export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private playbackTimers = new Set<ReturnType<typeof setTimeout>>();
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
@@ -43,20 +44,26 @@ export class ForzaContinuousWav {
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
+    private readonly onIdle?: () => void,
+    private readonly onTiming?: (phase:'decode'|'scheduled'|'start'|'ended', ms:number) => void,
   ) {}
 
   /** Decode a server frame immediately, in parallel with the previous frame.
    * Only sample-accurate scheduling is serialized, so network/decode latency
    * cannot add avoidable gaps between already-generated Pocket frames.
    */
-  enqueueWav(wav:Uint8Array):Promise<void>{
+  enqueueWav(wav:Uint8Array, onCompleted?:()=>void):Promise<void>{
     if(this.closed)return Promise.resolve();
     const ctx=this.getContext();
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
     const copy=new Uint8Array(wav.byteLength);
     copy.set(wav);
-    const decoded=ctx.decodeAudioData(copy.buffer);
-    return this.enqueueDecoded(decoded);
+    const decodeStarted=performance.now();
+    const decoded=ctx.decodeAudioData(copy.buffer).then(audio=>{
+      this.onTiming?.('decode',Math.round(performance.now()-decodeStarted));
+      return audio;
+    });
+    return this.enqueueDecoded(decoded,onCompleted);
   }
 
   /** Compatibility path for an already cached same-origin/blob WAV URL. */
@@ -72,7 +79,7 @@ export class ForzaContinuousWav {
     return this.enqueueDecoded(decoded);
   }
 
-  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>):Promise<void>{
+  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>, onCompleted?:()=>void):Promise<void>{
     let resolveFinished!:()=>void;
     let rejectFinished!:(error:Error)=>void;
     const finished=new Promise<void>((resolve,reject)=>{
@@ -122,10 +129,24 @@ export class ForzaContinuousWav {
       source.onended=()=>{
         this.sources.delete(source);
         source.disconnect();
+        if(!this.closed)onCompleted?.();
+        if(!this.closed && this.sources.size===0)this.onIdle?.();
+        this.onTiming?.('ended',Math.round(ctx.currentTime*1000));
         finish();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
-      this.onPlaying();
+      this.onTiming?.('scheduled',Math.round((startAt-ctx.currentTime)*1000));
+      // Scheduling a future buffer is not proof of audible playback. The
+      // speaking indicator should follow the AudioContext start clock.
+      const playDelayMs=Math.max(0,Math.ceil((startAt-ctx.currentTime)*1000));
+      const timer=setTimeout(()=>{
+        this.playbackTimers.delete(timer);
+        if(!this.closed && this.sources.has(source) && ctx.state==='running'){
+          this.onTiming?.('start',Math.round(ctx.currentTime*1000));
+          this.onPlaying();
+        }
+      },playDelayMs);
+      this.playbackTimers.add(timer);
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
     return finished;
   }
@@ -140,6 +161,8 @@ export class ForzaContinuousWav {
     if(this.closed)return;
     this.closed=true;
     this.nextStart=0;
+    for(const timer of this.playbackTimers)clearTimeout(timer);
+    this.playbackTimers.clear();
     for(const source of this.sources){
       try{source.stop();}catch{}
       try{source.disconnect();}catch{}

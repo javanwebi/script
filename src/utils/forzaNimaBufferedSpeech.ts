@@ -12,7 +12,7 @@
  */
 
 export interface ForzaWavScheduler {
-  enqueueWav(wav: Uint8Array): Promise<void>;
+  enqueueWav(wav: Uint8Array,onCompleted?:()=>void): Promise<void>;
 }
 
 interface NimaPhraseTask {
@@ -30,6 +30,7 @@ export interface ForzaNimaBufferedOptions {
   initialBufferSeconds?: number;
   maximumInitialWaitMs?: number;
   onBuffered?: (info: { bufferedSeconds: number; queuedPhrases: number; started: boolean }) => void;
+  onPhraseCompleted?: (text:string,index:number)=>void;
 }
 
 export function forzaPcmWavDurationSeconds(wav: Uint8Array): number {
@@ -74,6 +75,7 @@ export class ForzaNimaBufferedSpeech {
   private readonly synthesisPromises: Promise<void>[] = [];
   private readonly scheduledPromises: Promise<void>[] = [];
   private readonly synthesized = new Map<number, Uint8Array>();
+  private readonly phraseTexts = new Map<number,string>();
   private nextIndex = 0;
   private nextToQueue = 0;
   private active = 0;
@@ -106,6 +108,7 @@ export class ForzaNimaBufferedSpeech {
     // synthesis failures never become an unhandled promise in the meantime.
     void completion.catch(() => {});
     this.synthesisPromises.push(completion);
+    this.phraseTexts.set(index,text);
     this.tasks.push({index,text,resolve,reject});
     this.startReadyJobs();
   }
@@ -176,10 +179,16 @@ export class ForzaNimaBufferedSpeech {
     }
     const ready = this.contiguousReady();
     for (let i = 0; i < ready.count; i++) {
-      const audio = this.synthesized.get(this.nextToQueue)!;
+      const index=this.nextToQueue;
+      const audio = this.synthesized.get(index)!;
+      const phraseText=this.phraseTexts.get(index)||'';
       this.synthesized.delete(this.nextToQueue++);
       try {
-        const played = this.options.player.enqueueWav(audio);
+        const played = this.options.player.enqueueWav(audio,()=>{
+          if(!this.cancelled && !this.options.signal?.aborted)
+            this.options.onPhraseCompleted?.(phraseText,index);
+          this.phraseTexts.delete(index);
+        });
         this.scheduledPromises.push(played);
         void played.catch(error => {
           this.error ??= error instanceof Error ? error : new Error(String(error));
@@ -217,6 +226,7 @@ export class ForzaNimaBufferedSpeech {
     if (this.initialWait) clearTimeout(this.initialWait);
     this.initialWait = null;
     this.synthesized.clear();
+    this.phraseTexts.clear();
     this.tasks.splice(0).forEach(task => task.resolve());
   }
 

@@ -10,6 +10,7 @@ import io
 import json
 import os
 import re
+import select
 import socket
 import struct
 import sys
@@ -39,7 +40,7 @@ def spoken_text(value):
     return " ".join(PUNCTUATION.sub(" ", value).split())
 
 
-def synthesize_complete(text):
+def synthesize_complete(text, cancelled=None):
     """Create a single PCM WAV in memory; never introduce per-clause gaps."""
     spoken = spoken_text(text)
     if not spoken:
@@ -48,6 +49,11 @@ def synthesize_complete(text):
     configured = False
     with wave.open(output, "wb") as target:
         for part in engine.synthesize(spoken):
+            # The HTTP client may have abandoned this turn while inference ran.
+            # Abort between neural output frames instead of consuming CPU for
+            # an entire reply nobody will receive (not preemptible mid-frame).
+            if cancelled and cancelled():
+                raise ConnectionAbortedError("customer_cancelled_voice")
             if not configured:
                 target.setnchannels(part.sample_channels)
                 target.setsampwidth(part.sample_width)
@@ -69,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print("[FORZA Nima]", format % args, file=sys.stderr, flush=True)
 
-    def respond(self, status, payload, content_type="application/json"):
+    def respond(self, status, payload, content_type="application/json", timing=None):
         if isinstance(payload, dict):
             payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -79,11 +85,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         if content_type != "application/json":
             self.send_header("X-Forza-Voice", VOICE_ID)
+            if timing:
+                self.send_header("X-Forza-TTS-Queue-Ms", str(timing["queue_ms"]))
+                self.send_header("X-Forza-TTS-Infer-Ms", str(timing["infer_ms"]))
         self.end_headers()
         try:
             self.wfile.write(payload)
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
+
+    def peer_disconnected(self):
+        try:
+            readable, _, _ = select.select([self.connection], [], [], 0)
+            if not readable:
+                return False
+            return self.connection.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT) == b""
+        except (BlockingIOError, InterruptedError):
+            return False
+        except (OSError, ConnectionError):
+            return True
 
     def do_GET(self):
         if self.path == "/health":
@@ -123,27 +143,31 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(400, {"error": "invalid_text"})
             return
 
+        queued_at = time.monotonic()
         if not synthesis_queue.acquire(blocking=False):
             self.respond(503, {"error": "voice_busy"})
             return
-        if not synthesis_slot.acquire(timeout=30):
+        if not synthesis_slot.acquire(timeout=6):
             synthesis_queue.release()
             self.respond(503, {"error": "voice_queue_timeout"})
             return
         start = time.monotonic()
+        queue_ms = round((start - queued_at) * 1000)
         try:
-            wav = synthesize_complete(phrase)
+            wav = synthesize_complete(phrase, self.peer_disconnected)
+            infer_ms = round((time.monotonic() - start) * 1000)
+            timing = {"queue_ms": queue_ms, "infer_ms": infer_ms}
             if self.path == "/speak-stream":
                 # The browser's existing framing parser accepts a single
                 # complete WAV, which cannot underrun between model segments.
                 self.respond(200, struct.pack("<I", len(wav)) + wav,
-                             "application/x-forza-wav-frames")
+                             "application/x-forza-wav-frames", timing)
             else:
-                self.respond(200, wav, "audio/wav")
-            print("[FORZA_NIMA_PRODUCTION] chars=%d ms=%d wav_bytes=%d" % (
-                len(phrase), (time.monotonic() - start) * 1000, len(wav)
+                self.respond(200, wav, "audio/wav", timing)
+            print("[FORZA_NIMA_PRODUCTION] chars=%d queue_ms=%d infer_ms=%d wav_bytes=%d" % (
+                len(phrase), queue_ms, infer_ms, len(wav)
             ), flush=True)
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             self.close_connection = True
         except Exception as exc:
             print("[FORZA Nima] generation_error=%s" % type(exc).__name__,
