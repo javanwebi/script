@@ -30,6 +30,16 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
 
+/** Distinguish a valid RIFF container from effectively silent decoded audio. */
+export function forzaHasAudiblePcm(buffer:AudioBuffer):boolean {
+  if(buffer.duration<0.6||!buffer.length||typeof buffer.getChannelData!=='function')
+    return true;
+  const pcm=buffer.getChannelData(0);
+  const step=Math.max(1,Math.floor(pcm.length/6000));
+  let peak=0;
+  for(let i=0;i<pcm.length;i+=step)peak=Math.max(peak,Math.abs(pcm[i]));
+  return peak>0.0007;
+}
 export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
@@ -155,6 +165,8 @@ export class ForzaContinuousWav {
       if(this.closed){finish();return;}
       if(!decoded.duration||!Number.isFinite(decoded.duration))
         throw new Error('forza_wav_empty');
+      // An audio/wav HTTP 200 and a valid RIFF header do not mean speech.
+      if(!forzaHasAudiblePcm(decoded))throw new Error('forza_wav_silent');
       const source=ctx.createBufferSource();
       source.buffer=decoded;
       const trimmed=pocketWavWindow(decoded);
