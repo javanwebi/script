@@ -52,7 +52,7 @@ export class ForzaContinuousWav {
    * Only sample-accurate scheduling is serialized, so network/decode latency
    * cannot add avoidable gaps between already-generated Pocket frames.
    */
-  enqueueWav(wav:Uint8Array):Promise<void>{
+  enqueueWav(wav:Uint8Array, onCompleted?:()=>void):Promise<void>{
     if(this.closed)return Promise.resolve();
     const ctx=this.getContext();
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
@@ -63,7 +63,7 @@ export class ForzaContinuousWav {
       this.onTiming?.('decode',Math.round(performance.now()-decodeStarted));
       return audio;
     });
-    return this.enqueueDecoded(decoded);
+    return this.enqueueDecoded(decoded,onCompleted);
   }
 
   /** Compatibility path for an already cached same-origin/blob WAV URL. */
@@ -79,7 +79,7 @@ export class ForzaContinuousWav {
     return this.enqueueDecoded(decoded);
   }
 
-  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>):Promise<void>{
+  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>, onCompleted?:()=>void):Promise<void>{
     let resolveFinished!:()=>void;
     let rejectFinished!:(error:Error)=>void;
     const finished=new Promise<void>((resolve,reject)=>{
@@ -129,6 +129,7 @@ export class ForzaContinuousWav {
       source.onended=()=>{
         this.sources.delete(source);
         source.disconnect();
+        if(!this.closed)onCompleted?.();
         if(!this.closed && this.sources.size===0)this.onIdle?.();
         this.onTiming?.('ended',Math.round(ctx.currentTime*1000));
         finish();
@@ -140,7 +141,7 @@ export class ForzaContinuousWav {
       const playDelayMs=Math.max(0,Math.ceil((startAt-ctx.currentTime)*1000));
       const timer=setTimeout(()=>{
         this.playbackTimers.delete(timer);
-        if(!this.closed && this.sources.has(source)){
+        if(!this.closed && this.sources.has(source) && ctx.state==='running'){
           this.onTiming?.('start',Math.round(ctx.currentTime*1000));
           this.onPlaying();
         }
