@@ -69,6 +69,11 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("FORZA_NIMA_PINNED_CANARY_PASS",s)
         self.assertIn("FORZA_NIMA_PINNED_ROLLBACK_START",s)
         self.assertIn("FORZA_NIMA_PINNED_RELEASE_OK",s)
+        # Bare sha256:... values are not valid Dockerfile FROM references in this build.
+        # Keep the offline base pinned to the running image, using a local tag.
+        self.assertIn('docker tag "$LIVE_IMAGE_ID" "$LOCAL_BASE_IMAGE"',s)
+        self.assertIn('--build-arg "FORZA_BASE_IMAGE=$LOCAL_BASE_IMAGE"',s)
+        self.assertNotIn('--build-arg "FORZA_BASE_IMAGE=$LIVE_IMAGE_ID"',s)
         self.assertIn('docker rename "$LIVE" "$BACKUP"',s)
         self.assertIn('docker start "$LIVE"',s)
         self.assertIn('bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"',b)
