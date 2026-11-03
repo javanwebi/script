@@ -3,6 +3,7 @@ import { PortalRecentOrders } from "../components/portal/PortalRecentOrders";
 import { PortalTools } from "../components/portal/PortalTools";
 import { PortalShell } from "../components/portal/PortalShell";
 import { PortalClub } from "../components/portal/PortalClub";
+import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
 import React, { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -28,6 +29,8 @@ import {
   Download,
   FileSpreadsheet,
   Tag,
+  Heart,
+  ChevronLeft,
   Bell,
   Layers,
 } from "lucide-react";
@@ -160,6 +163,8 @@ export const ConsumerDashboardPage: React.FC = () => {
         unitPrice: item.unitPrice,
       })),
     }));
+  const [orderFilter, setOrderFilter] = useState<"all" | "processing" | "shipped" | "delivered">("all");
+  const [receiptFilter, setReceiptFilter] = useState<"all" | "paid" | "pending">("all");
   const [selectedReceiptOrder, setSelectedReceiptOrder] =
     useState<CustomerOrderItem | null>(null);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
@@ -189,6 +194,7 @@ export const ConsumerDashboardPage: React.FC = () => {
     fullAddress: "",
   });
   const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -287,17 +293,7 @@ export const ConsumerDashboardPage: React.FC = () => {
     }
   };
 
-  const handleAddAddress = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAddress.title.trim() || !newAddress.fullAddress.trim()) return;
-    const next = [
-      ...addresses,
-      {
-        id: crypto.randomUUID(),
-        ...newAddress,
-        isDefault: addresses.length === 0,
-      },
-    ];
+  const persistAddresses = (next: typeof addresses) => {
     setAddresses(next);
     updateProfile({
       addresses: next.map((a) => ({
@@ -312,25 +308,45 @@ export const ConsumerDashboardPage: React.FC = () => {
         isDefault: a.isDefault,
       })),
     });
-    setNewAddress({
-      title: "",
-      receiver: "",
-      phone: "",
-      city: "",
-      postalCode: "",
-      fullAddress: "",
-    });
-    setIsAddingAddress(false);
-    showToast("آدرس جدید تحویل مرسوله ثبت شد.");
   };
+
+  const handleAddAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAddress.title.trim() || !newAddress.fullAddress.trim() || !newAddress.city.trim() || !newAddress.receiver.trim()) return;
+    const next = editingAddressId
+      ? addresses.map((a) => a.id === editingAddressId ? { ...a, ...newAddress } : a)
+      : [...addresses, { id: crypto.randomUUID(), ...newAddress, isDefault: addresses.length === 0 }];
+    persistAddresses(next);
+    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
+    setIsAddingAddress(false);
+    setEditingAddressId(null);
+    showToast("درخواست ذخیره آدرس ارسال شد.");
+  };
+  const handleEditAddress = (address: (typeof addresses)[number]) => {
+    setEditingAddressId(address.id);
+    setNewAddress({
+      title: address.title, receiver: address.receiver, phone: address.phone,
+      city: address.city, postalCode: address.postalCode, fullAddress: address.fullAddress,
+    });
+    setIsAddingAddress(true);
+  };
+  const handleSetDefaultAddress = (id: string) => {
+    persistAddresses(addresses.map((a) => ({ ...a, isDefault: a.id === id })));
+    showToast("درخواست تغییر آدرس پیش‌فرض ارسال شد.");
+  };
+  useEffect(() => {
+    setAddresses((user?.addresses || []).map((a) => ({
+      id: a.id, title: a.title, receiver: a.recipientName, phone: a.recipientPhone,
+      city: a.city, postalCode: a.postalCode, fullAddress: a.fullAddress, isDefault: a.isDefault,
+    })));
+  }, [user?.addresses]);
 
   const totalSpent = orders.filter((o) => o.paymentStatus === "paid")
     .reduce((acc, o) => acc + o.totalAmount, 0);
   const activeOrder = orders.find((o) => o.status !== "cancelled");
-  const trackingStage = activeOrder?.status === "delivered" ? 4
-    : activeOrder?.status === "shipped" ? 3
-    : activeOrder?.status === "processing" ? 2
-    : activeOrder?.status === "registered" ? 1 : 0;
+  const filteredOrders = orders.filter((o) => orderFilter === "all" || (orderFilter === "processing" ? o.status === "registered" || o.status === "processing" : o.status === orderFilter));
+  const filteredReceipts = orders.filter((o) => receiptFilter === "all" || (receiptFilter === "paid" ? o.paymentStatus === "paid" : o.paymentStatus !== "paid"));
+  const paidCount = orders.filter((o) => o.paymentStatus === "paid").length;
 
   return (
     <div dir="rtl">
