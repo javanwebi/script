@@ -84,7 +84,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
     return()=>{mounted=false};
   },[]);
-  useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
+  useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; activeTurnAbortRef.current?.abort(); turnEpochRef.current++; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
 
@@ -818,6 +818,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         interruptActiveTurn();
       }
       const turnEpoch = ++turnEpochRef.current;
+      const userTurnId = 'forza-turn-' + (crypto.randomUUID?.() || (Date.now()+'-'+turnEpoch));
+      const responseId = 'forza-response-' + (crypto.randomUUID?.() || (Date.now()+'-'+turnEpoch));
       const pocketAbort = new AbortController();
       activeTurnAbortRef.current = pocketAbort;
       const isCurrentTurn = () => !pocketAbort.signal.aborted &&
@@ -1008,6 +1010,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               body:JSON.stringify({
                 query:resolvedUserQuery,
                 history:previousHistory,
+                userTurnId,
+                responseId,
                 includeAudio:false,
                 mode:'forza',
               }),
