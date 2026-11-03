@@ -167,7 +167,8 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
   const cats=await database().query(
     "select count(*)::int as n from public.catalog_categories where is_active=true " +
     "and slug ~ '^excel-v2-[0-9]+-[0-9]+
-  console.log("PRODUCTION_NAVIGATION_VERIFIED",x.rows[0].n,cats.rows[0].n);
+  console.log("PRODUCTION_NAVIGATION_GROUPS_VERIFIED",x.rows[0].n);
+  console.log("PRODUCTION_NAVIGATION_CATEGORIES_VERIFIED",cats.rows[0].n);
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
