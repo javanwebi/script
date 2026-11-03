@@ -27,3 +27,15 @@ export function isForzaProbableEcho(recognized:string, spokenAnswer:string):bool
   }
   return false;
 }
+
+/** Deterministic commands; leave corrections and new questions to the LLM. */
+export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction'|'question' {
+  const words=normalize(transcript);
+  if(/^(?:صبر کن|صبر کنید|بس کن|بس کنید|توقف|بسه|ساکت شو)$/.test(words))
+    return 'stop';
+  if(/^(?:ادامه بده|ادامه بدید|ادامه|بقیه را بگو|بقیه رو بگو)$/.test(words))
+    return 'continue';
+  if(/(?:^|\s)(?:نه|منظورم|اصلاح می کنم|اصلاح میکنم|اشتباه گفتم)(?:\s|$)/.test(words))
+    return 'correction';
+  return 'question';
+}
