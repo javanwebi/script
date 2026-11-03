@@ -34,6 +34,7 @@ export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private playbackTimers = new Set<ReturnType<typeof setTimeout>>();
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
@@ -125,7 +126,14 @@ export class ForzaContinuousWav {
         finish();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
-      this.onPlaying();
+      // Scheduling a future buffer is not proof of audible playback. The
+      // speaking indicator should follow the AudioContext start clock.
+      const playDelayMs=Math.max(0,Math.ceil((startAt-ctx.currentTime)*1000));
+      const timer=setTimeout(()=>{
+        this.playbackTimers.delete(timer);
+        if(!this.closed && this.sources.has(source))this.onPlaying();
+      },playDelayMs);
+      this.playbackTimers.add(timer);
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
     return finished;
   }
@@ -140,6 +148,8 @@ export class ForzaContinuousWav {
     if(this.closed)return;
     this.closed=true;
     this.nextStart=0;
+    for(const timer of this.playbackTimers)clearTimeout(timer);
+    this.playbackTimers.clear();
     for(const source of this.sources){
       try{source.stop();}catch{}
       try{source.disconnect();}catch{}
