@@ -384,3 +384,18 @@
   .consumer-premium .consumer-order-ref-details h3 {font-size:10px;}
   .consumer-premium .consumer-order-ref-status button {font-size:8px;}
 }
+
+
+/* Put the customer dashboard before optional marketing placements.
+   A merchant's published banners still render, after the actual account dashboard,
+   while reference's first fold stays dedicated to orders and quick actions. */
+@media (max-width:767px) {
+  .consumer-premium[data-current-section="overview"] .portal-content {
+    display:flex;
+    flex-direction:column;
+  }
+  .consumer-premium[data-current-section="overview"] .portal-content > .portal-heading {order:0;}
+  .consumer-premium[data-current-section="overview"] .portal-content > .consumer-shortcuts {order:1;}
+  .consumer-premium[data-current-section="overview"] .portal-content > .portal-panels {order:2;}
+  .consumer-premium[data-current-section="overview"] .portal-content > :is(.portal-discovery-grid,.portal-campaigns,.portal-campaign) {order:3;margin-top:16px;}
+}
