@@ -10,6 +10,7 @@ test("chosen credentials and persistent one-time SMS authentication", async (t) 
   process.env.PORTAL_DATA_PATH = path.join(dir, "portal.json");
   process.env.PORTAL_SESSION_SECRET =
     "otp-test-session-secret-over-thirty-two-characters";
+  process.env.SMS_PROVIDER = "kavenegar"; // Explicit legacy-provider contract; SMS.ir is the production default.
   delete process.env.KAVENEGAR_API_KEY;
   delete process.env.KAVENEGAR_VERIFY_TEMPLATE;
   const server = http.createServer(handler);
@@ -227,6 +228,7 @@ test("chosen credentials and persistent one-time SMS authentication", async (t) 
     });
   } finally {
     globalThis.fetch = originalFetch;
+    delete process.env.SMS_PROVIDER;
     delete process.env.KAVENEGAR_API_KEY;
     delete process.env.KAVENEGAR_VERIFY_TEMPLATE;
     await new Promise<void>((r) => server.close(() => r()));
