@@ -286,3 +286,166 @@
 @media (max-width: 390px) {
   .sp-vision-entry [data-testid="identification-image-panel"] { min-height: 128px; padding: 18px 12px 10px; }
 }
+
+
+/* Reference-faithful live industrial camera: mobile only.
+   Real getUserMedia preview remains underneath the scan frame. */
+@media (max-width: 1023px) {
+  .sanat-camera-experience--reference {
+    height: 100dvh;
+    min-height: 100dvh;
+    width: 100%;
+    background: #10151a;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__header {
+    min-height: calc(69px + env(safe-area-inset-top));
+    padding: calc(9px + env(safe-area-inset-top)) 13px 9px;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(170deg,#252a2e 0%,#11161b 100%);
+    border-bottom: 1px solid #35383c;
+  }
+  .sanat-camera-experience__header-title {
+    flex: 1; margin:0; color:#fff; font-size:clamp(13px,3.6vw,17px);
+    line-height:1.5; text-align:center; font-weight:900; white-space:nowrap;
+  }
+  .sanat-camera-experience__header-action {
+    flex:0 0 43px; width:43px; height:43px;
+    display:grid; place-items:center; color:#e9ebec;
+    border:1px solid #ffffff2a; border-radius:50%;
+    background:linear-gradient(145deg,#31373d,#181c20);
+    box-shadow:0 5px 13px #0005, inset 0 1px #ffffff21;
+  }
+  .sanat-camera-experience__header-action.is-active {
+    color:#fff; border-color:#f08a38;
+    box-shadow:0 0 0 2px #e0651840,0 0 13px #e06518b0;
+  }
+  .sanat-camera-experience__header-action:disabled { opacity:.48; }
+  .sanat-camera-experience--reference .sanat-camera-experience__stage {
+    flex: 1 1 auto; position:relative; min-height:0;
+    background:#14191d;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__video,
+  .sanat-camera-experience--reference .sanat-camera-experience__preview {
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover;
+  }
+  .sanat-camera-experience__stage-overlay {
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg,#0007 0%,transparent 20%,transparent 74%,#0005 100%);
+  }
+  .sanat-camera-experience__instruction {
+    position:absolute; z-index:3; top:7%; left:50%;
+    transform:translateX(-50%); width:max-content; max-width:calc(100% - 30px);
+    display:flex; flex-direction:row; align-items:center; justify-content:center; gap:9px;
+    background:#161b20c9; border:1px solid #f28a4370; border-radius:999px;
+    padding:10px 14px; box-shadow:0 4px 20px #0007,0 0 16px #e065182a;
+    backdrop-filter:blur(14px); color:#fff; font-size:clamp(10px,2.8vw,12px);
+    font-weight:800; white-space:nowrap;
+  }
+  .sanat-camera-experience__instruction svg { flex-shrink:0; color:#f8a562; }
+  .sanat-camera-experience--reference .sanat-camera-experience__frame {
+    position:absolute; inset:21% 10% 16%; border:none; border-radius:0;
+    background:none; box-shadow:none; pointer-events:none;
+  }
+  .sanat-camera-experience__corner {
+    position:absolute; width:43px; height:43px;
+    border:0 solid #fff; filter:drop-shadow(0 0 6px #ff862e);
+  }
+  .sanat-camera-experience__corner--tl { top:0; left:0; border-top-width:4px; border-left-width:4px; border-top-left-radius:24px; }
+  .sanat-camera-experience__corner--tr { top:0; right:0; border-top-width:4px; border-right-width:4px; border-top-right-radius:24px; }
+  .sanat-camera-experience__corner--bl { bottom:0; left:0; border-bottom-width:4px; border-left-width:4px; border-bottom-left-radius:24px; }
+  .sanat-camera-experience__corner--br { bottom:0; right:0; border-bottom-width:4px; border-right-width:4px; border-bottom-right-radius:24px; }
+  .sanat-camera-experience__laser {
+    position:absolute; top:53%; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,transparent,#ffad51 7%,#ff7b16 50%,#ffad51 93%,transparent);
+    box-shadow:0 0 4px 1px #ff7918,0 0 16px 4px #ff7f1d8c;
+    animation:sanat-camera-laser 3s ease-in-out infinite alternate;
+  }
+  @keyframes sanat-camera-laser {
+    from {top:32%; opacity:.64} to {top:76%;opacity:1}
+  }
+  .sanat-camera-experience__tips {
+    position:absolute; z-index:8; top:15%; inset-inline:5%; padding:16px;
+    border:1px solid #ffb4768a; border-radius:18px;
+    background:#16202ae8; box-shadow:0 14px 40px #0008;
+    backdrop-filter:blur(18px); text-align:right; font-size:12px;
+  }
+  .sanat-camera-experience__tips strong { font-size:14px; color:#ffab68; }
+  .sanat-camera-experience__tips p { margin:9px 0; line-height:1.9; color:#f4f7f9; }
+  .sanat-camera-experience__tips button {
+    border:1px solid #f28a4380; border-radius:10px; padding:7px 17px;
+    background:#e06518; color:#fff; font-weight:800;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__footer {
+    position:relative; flex:0 0 auto; isolation:isolate;
+    min-height:calc(116px + env(safe-area-inset-bottom));
+    padding:16px 20px calc(15px + env(safe-area-inset-bottom));
+    background:linear-gradient(165deg,#33383d,#11171c 86%);
+    border-top:1px solid #ffffff50;
+    border-radius:28px 28px 0 0; margin-top:-15px;
+    box-shadow:0 -6px 25px #0008;
+    overflow:hidden;
+  }
+  .sanat-camera-experience__ambient {
+    pointer-events:none; position:absolute; z-index:-1;
+    inset:auto -10% -55px; height:120px;
+    background:radial-gradient(ellipse at center,#e0651859,transparent 67%);
+    opacity:.42;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__live-actions {
+    display:grid; grid-template-columns:1fr 1.25fr 1fr;
+    align-items:center; justify-items:center; min-height:76px; gap:10px;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__round-control {
+    display:grid; place-items:center;
+    width:56px; height:56px; border:1px solid #ffffff44; border-radius:50%;
+    background:linear-gradient(155deg,#42474d,#1f262d);
+    color:#fff; box-shadow:0 7px 16px #0005,inset 0 1px #ffffff25;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__round-control:disabled {opacity:.35}
+  .sanat-camera-experience--reference .sanat-camera-experience__capture {
+    min-width:0; min-height:0; width:79px; height:79px; padding:0;
+    border:3px solid #ff7c18; border-radius:50%;
+    background:radial-gradient(circle,#ffffff 0 53%,#fffbf6 54% 64%,#151a1e 65%);
+    box-shadow:0 0 0 3px #ffffffeb,0 0 0 6px #e06518,
+      0 0 16px 5px #e06518a8,0 7px 24px #0007;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__shutter {
+    width:60px; height:60px; background:#fff; border:0; border-radius:50%;
+    box-shadow:inset 0 -4px 12px #d3d3d3;
+    color:#e06518;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__capture:disabled {opacity:.48;}
+  .sanat-camera-experience--reference .sanat-camera-experience__actions {
+    position:relative; z-index:2; grid-template-columns:1fr 1fr; gap:9px;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__confirm,
+  .sanat-camera-experience--reference .sanat-camera-experience__retake { min-height:56px; font-size:12px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__error {
+    position:relative; z-index:3; background:#7f1d1dbe;
+  }
+  .sanat-camera-experience--reference .sanat-camera-experience__loading {
+    bottom:32px; z-index:5; font-weight:800;
+  }
+  .sanat-camera-experience--reference button:focus-visible {
+    outline:3px solid #ff8b38; outline-offset:3px;
+  }
+}
+@media (max-width: 370px) {
+  .sanat-camera-experience--reference .sanat-camera-experience__header { padding-inline:9px; gap:5px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__header-action { flex-basis:38px; width:38px; height:38px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__round-control { width:47px; height:47px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__capture { width:69px; height:69px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__shutter { width:54px; height:54px; }
+}
+@media (orientation:landscape) and (max-height:520px) {
+  .sanat-camera-experience--reference .sanat-camera-experience__header { min-height:51px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__footer { min-height:75px; padding-block:7px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__capture { width:60px; height:60px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__shutter { width:48px; height:48px; }
+  .sanat-camera-experience--reference .sanat-camera-experience__round-control { width:43px; height:43px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sanat-camera-experience__laser { animation:none; }
+}
