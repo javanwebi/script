@@ -44,6 +44,8 @@ export class ForzaContinuousWav {
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
+    private readonly onIdle?: () => void,
+    private readonly onTiming?: (phase:'decode'|'scheduled'|'start'|'ended', ms:number) => void,
   ) {}
 
   /** Decode a server frame immediately, in parallel with the previous frame.
@@ -56,7 +58,11 @@ export class ForzaContinuousWav {
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
     const copy=new Uint8Array(wav.byteLength);
     copy.set(wav);
-    const decoded=ctx.decodeAudioData(copy.buffer);
+    const decodeStarted=performance.now();
+    const decoded=ctx.decodeAudioData(copy.buffer).then(audio=>{
+      this.onTiming?.('decode',Math.round(performance.now()-decodeStarted));
+      return audio;
+    });
     return this.enqueueDecoded(decoded);
   }
 
@@ -123,15 +129,21 @@ export class ForzaContinuousWav {
       source.onended=()=>{
         this.sources.delete(source);
         source.disconnect();
+        if(!this.closed && this.sources.size===0)this.onIdle?.();
+        this.onTiming?.('ended',Math.round(ctx.currentTime*1000));
         finish();
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
+      this.onTiming?.('scheduled',Math.round((startAt-ctx.currentTime)*1000));
       // Scheduling a future buffer is not proof of audible playback. The
       // speaking indicator should follow the AudioContext start clock.
       const playDelayMs=Math.max(0,Math.ceil((startAt-ctx.currentTime)*1000));
       const timer=setTimeout(()=>{
         this.playbackTimers.delete(timer);
-        if(!this.closed && this.sources.has(source))this.onPlaying();
+        if(!this.closed && this.sources.has(source)){
+          this.onTiming?.('start',Math.round(ctx.currentTime*1000));
+          this.onPlaying();
+        }
       },playDelayMs);
       this.playbackTimers.add(timer);
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
