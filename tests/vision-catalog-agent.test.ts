@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {runReadOnlyVisionCatalogAgent} from '../src/services/visionCatalogAgent';
+import sharp from 'sharp';
 
 const photos=[
  {id:'a',url:'/storage/products/catalog/e(001).png',label:'test gear',revision:'x',bindings:[{familyCode:'f1',code:'SKU-1',verified:true}]},
@@ -14,6 +15,11 @@ const setup=(replies:any[])=>{
 };
 const userImage='https://example.org/imageai/vision-abc.jpg';
 const origin='https://example.org';
+const testPixels=async()=>{
+ const jpeg=await sharp({create:{width:20,height:20,channels:3,
+   background:{r:88,g:120,b:160}}}).jpeg().toBuffer();
+ return {customerImageBuffer:jpeg,loadCatalogImage:async()=>jpeg};
+};
 
 test('agent exposes only read-only tools and validates observed image ids and verified sku bindings',async()=>{
  const {calls,client}=setup([
@@ -21,7 +27,7 @@ test('agent exposes only read-only tools and validates observed image ids and ve
   {candidates:[{content:{role:'model',parts:[{functionCall:{name:'inspect_catalog_images',args:{image_ids:['a']}}}]}}],functionCalls:[{name:'inspect_catalog_images',args:{image_ids:['a']}}]},
   {text:JSON.stringify({summary:'قطعه مشابه است',matches:[{image_id:'a',relation:'similar',code:'SKU-1',reason:'same teeth'},{image_id:'b',code:'SKU-2',reason:'unknown'}]})}
  ]);
- const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products});
+ const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
  assert.equal(result.modelCalls,3);
  assert.equal(result.inspectedImages,1);
  assert.equal(result.matches.length,1);
@@ -29,9 +35,10 @@ test('agent exposes only read-only tools and validates observed image ids and ve
  assert.equal(result.complete,false);
  const tools=calls[0].config.tools[0].functionDeclarations.map((t:any)=>t.name);
  assert.deepEqual(tools,['browse_catalog','inspect_catalog_images','get_catalog_product']);
- const imageParts=calls[2].contents.at(-1).parts.filter((p:any)=>p.fileData);
+ const imageParts=calls[2].contents.at(-1).parts.filter((p:any)=>p.inlineData);
  assert.equal(imageParts.length,1);
- assert.match(imageParts[0].fileData.fileUri,/catalog-images\/a$/);
+ assert.equal(imageParts[0].inlineData.mimeType,'image/jpeg');
+ assert.ok(Buffer.from(imageParts[0].inlineData.data,'base64').subarray(0,2).equals(Buffer.from([0xff,0xd8])));
 });
 test('unverified code is never promoted to SKU despite model claim',async()=>{
  const {client}=setup([
