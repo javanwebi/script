@@ -100,6 +100,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
+  const speakerMutedRef=useRef(false);
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
   const [isUserSpeaking, setIsUserSpeaking] = useState<boolean>(false);
   // The configured provider speaks via STT -> text -> TTS, not Gemini Live WS.
@@ -532,7 +533,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     isProcessingTurnRef.current = false;
     // Preserve ONLY fully completed audible phrases as conversation history.
     // An LLM response, scheduled WAV, or partial WAV is not proof it was heard.
-    if(completedVoicePhrasesRef.current.length){
+    if(completedVoicePhrasesRef.current.length && !speakerMutedRef.current){
       historyRef.current.push({role:'model',text:completedVoicePhrasesRef.current.join(' ')});
     }
     completedVoicePhrasesRef.current=[];
@@ -547,6 +548,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [stopAudio, setStatus]);
 
   useEffect(()=>{
+    speakerMutedRef.current=isSpeakerMuted;
     continuousVoiceRef.current?.setMuted(isSpeakerMuted);
   },[isSpeakerMuted]);
 
@@ -1005,7 +1007,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           initialBufferSeconds:2,
           maximumInitialWaitMs:120,
           onPhraseCompleted:(text,index)=>{
-            if(!isCurrentTurn()||isSpeakerMuted)return;
+            if(!isCurrentTurn()||speakerMutedRef.current)return;
             if(completedVoiceTurnRef.current!==turnEpoch)return;
             completedVoicePhrasesRef.current.push(text);
             console.info('[FORZA_AUDIO_PLAYED] responseId='+responseId+
@@ -1145,7 +1147,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
             }
             if(isCurrentTurn()){
-              if(!isSpeakerMuted)historyRef.current.push({role:'model',text:reply});
+              if(!speakerMutedRef.current)historyRef.current.push({role:'model',text:reply});
               completedVoicePhrasesRef.current=[];
               setVoiceOutputError(null);
             }
@@ -1177,7 +1179,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         turnPlayer?.cancel();
         if(continuousVoiceRef.current===turnPlayer)continuousVoiceRef.current=null;
         if(turnEpochRef.current===turnEpoch){
-          if(completedVoicePhrasesRef.current.length && !isSpeakerMuted){
+          if(completedVoicePhrasesRef.current.length && !speakerMutedRef.current){
             historyRef.current.push({role:'model',text:completedVoicePhrasesRef.current.join(' ')});
           }
           activeTurnAbortRef.current=null;
@@ -1694,6 +1696,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             onClick={() => {
               setIsSpeakerMuted(prev => {
                 const next = !prev;
+                speakerMutedRef.current=next;
                 if (audioElRef.current) audioElRef.current.muted = next;
                 return next;
               });
