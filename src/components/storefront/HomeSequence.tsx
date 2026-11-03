@@ -14,90 +14,92 @@ import {
   Sparkles,
   Maximize2,
 } from "lucide-react";
-import { CATEGORIES } from "../../data/categories";
 import type { EnhancedCategory } from "../../data/categories";
+import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
 import {homeCategories} from "../../services/homeFirstPaint";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
 
-const categoryArtwork: Record<string, string> = {
-  "تسمه و انتقال نیرو": A.categories.belts,
-  "پولی و انتقال نیرو": A.categories.pulleys,
-  "بلبرینگ و یاتاقان": A.categories.bearings,
+// Only active approved spreadsheet categories that are also in the real mega-menu.
+const APPROVED_CATEGORY_SLUG = /^excel-v2-[0-9]+-[0-9]+$/;
+const HOMEPAGE_CATEGORY_CARD_COUNT = 6;
+const approvedCategoryBySlug = new Map(APPROVED_MENU_CATEGORIES.map(category => [category.slug,category]));
+const initialHomeCategories = [...APPROVED_MENU_GROUPS]
+  .filter(group => group.active !== false)
+  .sort((a,b) => a.sortOrder - b.sortOrder)
+  .flatMap(group => group.categorySlugs.map(slug => approvedCategoryBySlug.get(slug)))
+  .filter((category): category is EnhancedCategory =>
+    Boolean(category && category.active !== false && APPROVED_CATEGORY_SLUG.test(category.slug)))
+  .slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
+const categoryArtworkByGroup:Record<number,string> = {
+  1:A.categories.belts,2:A.categories.conveyor,4:A.categories.pulleys,
+  9:A.categories.chains,13:A.categories.bearings,
 };
-
-const groups = [
-  "تسمه و انتقال نیرو",
-  "پولی و انتقال نیرو",
-  "چرخ و رولر",
-  "ریل و تجهیزات هدایت",
-  "آب‌بندی و قطعات لاستیکی",
-  "بلبرینگ و یاتاقان",
-];
+const categoryGroupIndex = (slug:string):number => {
+  const match=/^excel-v2-([0-9]+)-[0-9]+$/.exec(slug);
+  return match ? Number(match[1]) : 0;
+};
+const filterApprovedHomeCategories = (categories:EnhancedCategory[]) =>
+  categories.filter(category =>
+    category.active !== false && APPROVED_CATEGORY_SLUG.test(category.slug) &&
+    typeof category.name === "string" && category.name.trim().length > 0)
+    .slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
 
 export function HomeCategoryStrip() {
-  // Category cards are independent of the full 10k-SKU /api/runtime hydration.
-  const [available,setAvailable]=React.useState<EnhancedCategory[]>(()=>[...CATEGORIES]);
+  const [available,setAvailable]=React.useState<EnhancedCategory[]>(initialHomeCategories);
   React.useEffect(()=>{
     let alive=true;
-    // The main startup listener installs the database arrays during the same
-    // event dispatch. A microtask observes them only after installation.
-    const syncHydrated=()=>queueMicrotask(()=>{if(alive)setAvailable([...CATEGORIES]);});
-    window.addEventListener('sanat-durable-hydrated',syncHydrated);
+    // Reuse the early PostgreSQL request started before the App import.
     void homeCategories().then(categories=>{
-      // Once /api/runtime has completed, its authoritative taxonomy wins.
-      if(alive && CATEGORIES.length===0 && categories.length)
-        setAvailable(categories);
+      if(alive && categories.length) setAvailable(filterApprovedHomeCategories(categories));
     });
-    return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',syncHydrated);};
+    const refresh=()=>{
+      void fetch("/api/catalog/home-categories",{credentials:"same-origin",cache:"no-store"})
+        .then(response=>response.ok?response.json():null)
+        .then(payload=>{
+          if(alive && payload?.success && Array.isArray(payload.categories))
+            setAvailable(filterApprovedHomeCategories(payload.categories));
+        }).catch(()=>{/* Retain last known approved taxonomy if temporarily offline. */});
+    };
+    window.addEventListener("atlas-categories-updated",refresh);
+    window.addEventListener("catalog-navigation-groups-updated",refresh);
+    window.addEventListener("catalog-family-menu-updated",refresh);
+    return()=>{
+      alive=false;
+      window.removeEventListener("atlas-categories-updated",refresh);
+      window.removeEventListener("catalog-navigation-groups-updated",refresh);
+      window.removeEventListener("catalog-family-menu-updated",refresh);
+    };
   },[]);
-  // Preserve the familiar six tiles. If the active PostgreSQL taxonomy uses
-  // new names, fill remaining slots from active categories instead of showing blanks.
-  const active=available.filter(category=>category.active!==false);
-  const preferred=groups.map(name=>active.find(c=>c.name===name)).filter((c):c is EnhancedCategory=>Boolean(c));
-  const categories=[...preferred,...active.filter(c=>!preferred.some(p=>p.slug===c.slug))].slice(0,6);
   return (
-    <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی محصولات">
+    <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی‌های تأییدشده محصولات">
       <div className="home-category-track">
         <Link className="home-category-all" to="/categories">
           <Layers size={24} />
-          <strong>
-            دسته‌بندی
-            <br />
-            محصولات
-          </strong>
-          <span>
-            مشاهده همه گروه‌ها <ArrowLeft size={15} />
-          </span>
+          <strong>دسته‌بندی<br />محصولات</strong>
+          <span>مشاهده همه گروه‌ها <ArrowLeft size={15}/></span>
         </Link>
-        {categories.length===0 && Array.from({length:6},(_,index)=>(
-          <div key={index} className="home-category-item animate-pulse" aria-hidden="true">
-            <div className="w-16 h-16 rounded-xl bg-slate-100 mx-auto" />
-            <div className="w-20 h-3 rounded bg-slate-100 mx-auto mt-3" />
-          </div>
-        ))}
-        {categories.map((c) => (
-          <Link
-            className="home-category-item"
-            key={c.slug}
-            to={`/category/${c.slug}`}
-          >
-            <img
-              // Bundled hashed WebP images are marketing artwork, not product
-              // catalogue volume paths; the ProductImage resolver rejects them.
-              src={categoryArtwork[c.name] || c.image || A.categories.transmission}
-              alt={c.name}
-              loading="lazy"
-              decoding="async"
-              fetchPriority="low"
-            />
-            <strong>{c.name}</strong>
-            <small>
-              مشاهده قطعات <ArrowUpLeft size={12} />
-            </small>
-          </Link>
-        ))}
+        {available.map(c=>{
+          const image = c.image || categoryArtworkByGroup[categoryGroupIndex(c.slug)];
+          return (
+            <Link className="home-category-item" key={c.slug}
+              to={`/category/${c.slug}`} title={c.name}>
+              {image ? (
+                <img src={image} alt={c.name} loading="lazy" decoding="async" fetchPriority="low" />
+              ) : (
+                <span className="home-category-placeholder" role="img" aria-label={c.name}>
+                  <Layers size={33} aria-hidden="true"/>
+                </span>
+              )}
+              <strong>{c.name}</strong>
+              <small>مشاهده قطعات <ArrowUpLeft size={12}/></small>
+            </Link>
+          );
+        })}
+        {available.length===0 && (
+          <p className="home-category-empty" role="status">در حال حاضر دسته‌بندی فعالی برای نمایش وجود ندارد.</p>
+        )}
       </div>
     </section>
   );

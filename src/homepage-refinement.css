@@ -52,6 +52,14 @@
   object-fit: contain;
   mix-blend-mode: multiply;
 }
+.home-category-placeholder {
+  display:grid; place-items:center; border-radius:12px;
+  color:#cf691f; background:linear-gradient(135deg,#fff5ec,#f4e8dc);
+}
+.home-category-empty {
+  grid-column:span 6; color:#64748b; padding:20px;
+  text-align:center; font-size:12px;
+}
 .home-category-item strong {
   font-size: 11px;
   line-height: 1.8;

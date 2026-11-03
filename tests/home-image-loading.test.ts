@@ -25,8 +25,9 @@ test('hero requests visible slide only, with high priority on mobile',()=>{
 
 test('category marketing artwork bypasses catalog-only product URL resolver',()=>{
  const source=read('src/components/storefront/HomeSequence.tsx');
- assert.ok(source.includes('src={categoryArtwork[c.name] || c.image || A.categories.transmission}'));
- assert.ok(!source.includes('src={categoryArtwork[c.name] || c.image}'));
+ assert.ok(source.includes('const image = c.image || categoryArtworkByGroup[categoryGroupIndex(c.slug)]'));
+ assert.ok(source.includes('src={image}'));
+ assert.ok(!source.includes('A.categories.transmission}'));
 });
 
 test('offscreen images are lazy, low-priority and decoded asynchronously',()=>{
