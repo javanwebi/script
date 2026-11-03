@@ -873,17 +873,48 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
         interruptActiveTurn();
       }
+      if(q && forzaInterruptionIntent(q)==='stop'){
+        // Do not spend model tokens on a pure stop instruction.
+        setUserText(q);
+        return;
+      }
+      const interruptedContext=interruptionRef.current;
+      interruptionRef.current=null;
       const turnEpoch = ++turnEpochRef.current;
       const userTurnId = 'forza-turn-' + (crypto.randomUUID?.() || (Date.now()+'-'+turnEpoch));
       const responseId = 'forza-response-' + (crypto.randomUUID?.() || (Date.now()+'-'+turnEpoch));
       const pocketAbort = new AbortController();
+      const telemetry=new ForzaTurnTelemetry(userTurnId);
+      telemetryRef.current=telemetry;
+      if(speechStartedAtRef.current!==null && speechFinishedAtRef.current!==null){
+        telemetry.markAt('speech_start',speechStartedAtRef.current);
+        telemetry.markAt('speech_end',speechFinishedAtRef.current);
+        if(sttFinalAtRef.current!==null)telemetry.markAt('stt_final',sttFinalAtRef.current);
+        telemetry.duration('speech_detection_ms','speech_start','speech_end');
+      }
+      speechStartedAtRef.current=null;
+      speechFinishedAtRef.current=null;
+      sttFinalAtRef.current=null;
       activeTurnAbortRef.current = pocketAbort;
       const isCurrentTurn = () => !pocketAbort.signal.aborted &&
         !callClosedRef.current && turnEpochRef.current === turnEpoch;
       isProcessingTurnRef.current = true;
+      bargeMonitorRef.current=true;
+      microphoneVoicedRef.current=false;
+      generatedAnswerRef.current='';
+      vadRef.current.reset();
+      setAudioPlaybackPhase('idle');
       setVoicePending(false);
       setErrorNotice(null);
       stopListening();
+      // Browser WebSpeech can be listening even while the AI thinks or
+      // speaks. Audio-only fallback cannot safely distinguish speaker echo.
+      window.setTimeout(()=>{
+        if(!isCurrentTurn()||!bargeMonitorRef.current||micMutedRef.current||
+           isRecognitionActiveRef.current||recognitionFailedRef.current)return;
+        try{recognitionRef.current?.start();isRecognitionActiveRef.current=Boolean(recognitionRef.current);}
+        catch{/* onend/retry might already have started it */}
+      },240);
       // No audio-unlock call here: it can accidentally replay the introduction
       // while the customer's recording is being submitted.
       setStatus('thinking');
@@ -908,7 +939,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let terminalIdleTimer:number|null=null;
       try {
         const payload: any = {
-          history: historyRef.current.slice(-24),
+          history: historyRef.current.slice(-12),
+          interruptionContext: interruptedContext,
           // First deliver the exact AI words; synthesize audio as a second step.
           deferAudio: true,
         };
@@ -958,6 +990,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
             String(sttData.userTranscript).trim().length);
           payload.query = String(sttData.userTranscript).trim();
+          telemetry.mark('stt_final',{sttServerMs:performance.now()-sttStartedAt});
           setUserText(payload.query);
           setMicrophoneError(null);
         }
@@ -967,8 +1000,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // engine voices complete word groups before the LLM reply finishes.
         // Pocket fallback retains its one-request full-answer path.
         const turnStartedAt=performance.now();
-        const previousHistory=historyRef.current.slice(-24);
+        const previousHistory=historyRef.current.slice(-12);
         const resolvedUserQuery=String(payload.query||q).trim();
+        activeTurnContextRef.current={query:resolvedUserQuery,generated:'',heard:''};
         if(resolvedUserQuery){
           setUserText(resolvedUserQuery);
           historyRef.current.push({role:'user',text:resolvedUserQuery});
@@ -979,13 +1013,33 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const continuousPlayer=new ForzaContinuousWav(
           ensureCtx,
           ()=>{
+            if(!isCurrentTurn())return;
             isAiSpeakingRef.current=true;
             setVoicePending(false);
             setStatus('speaking');
             setTurn('ai');
+            telemetry.mark('audio_started');
+            telemetry.duration('question_to_audio_ms','speech_end','audio_started');
+            telemetry.duration('server_to_audio_ms','server_request','audio_started');
           },
-          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms+
-            ' cause=next_wav_arrived_after_previous_playback'),
+          ms=>{
+            if(!isCurrentTurn())return;
+            telemetry.mark('audio_gap',{waitMs:ms});
+            console.warn('[FORZA_AUDIO_UNDERRUN] turnId='+userTurnId+' wait_ms='+ms);
+          },
+          playbackState=>{
+            if(!isCurrentTurn())return;
+            setAudioPlaybackPhase(playbackState);
+            if(playbackState!=='playing'){
+              isAiSpeakingRef.current=false;
+              setStatus('thinking');
+              setVoicePending(playbackState==='buffering'||playbackState==='blocked');
+            }
+          },
+          (decodeMs,bytes)=>{
+            if(!isCurrentTurn())return;
+            telemetry.mark('audio_decoded',{decodeMs,bytes});
+          },
         );
         continuousPlayer.setMuted(isSpeakerMuted);
         continuousVoiceRef.current=continuousPlayer;
@@ -1003,9 +1057,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           synthesize:requestPocketAudio,
           player:continuousPlayer,
           signal:pocketAbort.signal,
-          maxConcurrent:2,
+          // One private CPU inference slot; two speculative requests from
+          // one visitor starve other calls without adding inference capacity.
+          maxConcurrent:1,
           initialBufferSeconds:2,
           maximumInitialWaitMs:120,
+          onPhrasePlayed:info=>{
+            if(isCurrentTurn()&&!continuousPlayer.isMuted&&activeTurnContextRef.current){
+              activeTurnContextRef.current.heard=[
+                activeTurnContextRef.current.heard,info.text
+              ].filter(Boolean).join(' ');
+            }
+          },
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
@@ -1022,12 +1085,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
               Math.round(performance.now()-turnStartedAt)+' chars='+phrase.length);
           }
+          telemetry.mark('first_tts_phrase',{chars:phrase.length});
           activeNimaBuffer.add(phrase);
         };
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(!isCurrentTurn())throw new Error('forza_turn_interrupted');
           reply=fullText;
+          generatedAnswerRef.current=fullText;
+          if(activeTurnContextRef.current)activeTurnContextRef.current.generated=fullText;
           if(!firstTextDelivered&&fullText.trim()){
+            telemetry.mark('first_text');
+            telemetry.duration('server_to_first_text_ms','server_request','first_text');
             firstTextDelivered=true;
             console.info('[FORZA_LATENCY] phase=first-text clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
@@ -1060,12 +1128,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
           const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
+            telemetry.mark('server_request');
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({
                 query:resolvedUserQuery,
                 history:previousHistory,
+                interruptionContext:interruptedContext,
                 userTurnId,
                 responseId,
                 includeAudio:false,
@@ -1073,6 +1143,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               }),
               signal:AbortSignal.any([streamController.signal,pocketAbort.signal]),
             });
+            telemetry.mark('sse_headers',{httpStatus:streamRes.status});
             reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
@@ -1117,7 +1188,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         if(!isCurrentTurn())return;
         if(reply){
-          historyRef.current.push({role:'model',text:reply});
           setAiText(reply);
           try {
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
@@ -1139,8 +1209,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+              if(activeTurnContextRef.current&&!continuousPlayer.isMuted)
+                activeTurnContextRef.current.heard=reply;
             }
-            if(isCurrentTurn())setVoiceOutputError(null);
+            // Do not treat generated-but-unheard tokens as conversation history.
+            if(isCurrentTurn()){
+              const heard=activeTurnContextRef.current?.heard.trim();
+              if(heard)historyRef.current.push({role:'model',text:heard});
+              telemetry.mark('audio_finished',{heardChars:heard?.length||0});
+              console.info('[FORZA_SESSION_LATENCY]',JSON.stringify(forzaSessionLatencySummary()));
+              setVoiceOutputError(null);
+            }
           }catch(error:any){
             if(!isCurrentTurn())return;
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
@@ -1169,6 +1248,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         turnPlayer?.cancel();
         if(continuousVoiceRef.current===turnPlayer)continuousVoiceRef.current=null;
         if(turnEpochRef.current===turnEpoch){
+          activeTurnContextRef.current=null;
+          telemetryRef.current=null;
+          bargeMonitorRef.current=false;
           activeTurnAbortRef.current=null;
           isAiSpeakingRef.current=false;
           setVoicePending(false);
