@@ -5,6 +5,8 @@ on:
       - Dockerfile.forza-nima
       - scripts/forza_nima_voice_http.py
       - docs/forza/NIMA_GYRO_LIVE_STREAM.md
+      - ops/deploy-forza-nima-pinned-vps.sh
+      - ops/deploy-main-bluegreen-vps.sh
       - ops/forza-nima-private-canary-vps.sh
       - ops/forza-nima-go-live-vps.sh
       - ops/sanatpish-deploy.sh
