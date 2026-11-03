@@ -348,11 +348,37 @@ echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
 bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
 bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"
 echo '===== SITE AND PRIVATE VOICE BOTH HEALTHY ====='
+echo '===== STOP OLD WEBSITE CONTAINERS WITHOUT DELETING DATA ====='
+# This phase runs only after new app, TLS routes, catalog and voice succeeded.
+# Never stop Supabase, private voice or another service still referenced by Nginx.
+for stale in $(docker ps --format '{{.Names}}'); do
+ case "$stale" in
+  sanatpish-unified-live-*|sanatpish-new|sanatpish-hotfix-live|sanatpish-images-live-*|sanatpish-firstpaint-live-*)
+   test "$stale" != "$NAME" || continue
+   PUBLISHED="$(docker port "$stale" 3000/tcp 2>/dev/null | sed -n 's/.*127\.0\.0\.1:\([0-9]\+\)$/\1/p' | head -1)"
+   if test -n "$PUBLISHED" &&
+      nginx -T 2>/dev/null | grep -Eq "proxy_pass[[:space:]]+http://127\.0\.0\.1:$PUBLISHED;"; then
+     echo "RETAIN_REFERENCED_CONTAINER name=$stale port=$PUBLISHED"
+   else
+     if docker stop -t 8 "$stale"; then
+       echo "STOPPED_UNUSED_APP name=$stale port=$PUBLISHED"
+     else
+       echo "WARN_UNUSED_APP_STILL_RUNNING name=$stale"
+     fi
+   fi
+   ;;
+ esac
+done
+echo '===== VERIFY ONLY ONE WEBSITE HOST PORT IS PUBLISHED ====='
+docker ps --format '{{.Names}} {{.Ports}}' | grep '^sanatpish-' || true
+echo "SANATPISH_SINGLE_HOST_PORT_DEPLOY_OK port=$FIXED_PORT"
 SUCCESS=1
 echo 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK'
+echo 'SANATPISH_SINGLE_PORT_RELEASE_OK'
 echo "RELEASE_SHA=$EXPECTED"
 echo "NEW_CONTAINER=$NAME"
 echo "NEW_PORT=$NEXT"
 echo "PREVIOUS_CONTAINER=$OLD"
 echo "PREVIOUS_PORT=$ACTIVE"
+echo "HOST_APP_PORTS_TARGET=1"
 echo "ROLLBACK_BACKUP=$BACKUP"
