@@ -497,6 +497,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const AC = window.AudioContext || (window as any).webkitAudioContext;
       if (AC) {
         ctxRef.current = new AC();
+        const context=ctxRef.current;
+        context.addEventListener('statechange',()=>{
+          if(callClosedRef.current)return;
+          if(context.state==='suspended' && statusRef.current==='speaking'){
+            isAiSpeakingRef.current=false;
+            setAwaitingNextWav(true);
+            setVoicePending(true);
+            setStatus('thinking');
+            setVoiceOutputError('پخش صدای مرورگر متوقف شده است. برای فعال‌کردن خروجی صدا صفحه را لمس کنید.');
+            console.warn('[FORZA_AUDIO_CONTEXT] suspended_during_playback=1');
+          }
+        });
       }
     }
     if (ctxRef.current && ctxRef.current.state === 'suspended') {
