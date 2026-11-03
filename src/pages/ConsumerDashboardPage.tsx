@@ -273,11 +273,7 @@ export const ConsumerDashboardPage: React.FC = () => {
   };
 
   const handleDownloadMyPriceListExcel = () => {
-    if (
-      !resolvedConfig.permissions.allowExcelPriceListDownload ||
-      !enabledMenus.some((m) => m.id === "orders")
-    )
-      return;
+    if (!resolvedConfig.permissions.allowExcelPriceListDownload) return;
     const lists = pricingCreditService.getPriceLists();
     const retailPl = lists.find((p) => p.code === "RETAIL" || p.isRetailCash);
     if (!retailPl) {
