@@ -6215,11 +6215,12 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitDep
   return wavBuffer;
 }
 
-// POST: /api/ai/stt - Transcribe user voice audio into text using Gemini Multimodal Speech
+// POST: /api/ai/stt - optional, separately authenticated speech transcription.
 app.post('/api/ai/stt', async (req, res) => {
   try {
     const { audioBase64, mimeType } = req.body;
-    const apiKey = getGeminiKey();
+    const sttSelection=selectForzaSttProvider(process.env);
+    const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
 
     if (!audioBase64) {
       return res.status(400).json({ error: 'Audio data is required' });
@@ -6884,9 +6885,13 @@ app.post('/api/ai/transcribe', async (req, res) => {
       return res.status(400).json({ success: false, error: 'فایل صوتی ارسال نشده است' });
     }
 
-    const apiKey = getGeminiKey();
+    const sttSelection=selectForzaSttProvider(process.env);
+    const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
     if (!apiKey) {
-      return res.status(503).json({ success: false, error: 'کلید پردازش صوتی Gemini در دسترس نیست' });
+      return res.status(503).json({
+        success:false,errorCode:'stt_not_configured',
+        error:'سرویس مجزای تبدیل گفتار به متن تنظیم نشده است. کلید xKiro فقط برای پاسخ متنی استفاده می‌شود.'
+      });
     }
 
     const cleanAudioData = extractForzaAudioBase64(audioBase64);
