@@ -33,7 +33,11 @@ test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart'
     assert.equal(scheduled.length,2);
     assert.ok(Math.abs((scheduled[1]-scheduled[0])-0.4)<0.00001);
     assert.equal(queue.underrunCount,0);
-    assert.equal(speaking.length,2);
+    // enqueue schedules future sound; it cannot claim the audio has
+    // started immediately after decode. Status changes at scheduled time.
+    assert.equal(speaking.length,0);
+    await new Promise(resolve=>setTimeout(resolve,40));
+    assert.equal(speaking.length,1);
     queue.setMuted(true);
     assert.equal(gain.gain.value,0);
     nodes.forEach(s=>s.onended?.());
