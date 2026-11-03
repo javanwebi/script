@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blue/green deployment: optimized homepage + camera, with Nginx rollback.
+# Single-port website deployment: isolated canary WITHOUT a second published app port.
 # Do NOT run directly without SANATPISH_RELEASE_SHA set to a pinned release commit.
 set -Eeuo pipefail
 umask 077
@@ -36,6 +36,11 @@ PY
 )"
 test -n "$ACTIVE"
 echo "ACTIVE_PORT=$ACTIVE"
+FIXED_PORT=3008
+if test "$ACTIVE" != "$FIXED_PORT"; then
+  echo "UNEXPECTED_LIVE_PORT actual=$ACTIVE expected=$FIXED_PORT" >&2
+  exit 1
+fi
 # Tolerate pre-existing domain drift; correct it atomically with the next canary switch.
 DOMAIN_ACTIVE="$(python3 - "$CONF_DOMAIN" <<'PY'
 from pathlib import Path
@@ -59,27 +64,18 @@ done
 test -n "$OLD"
 echo "ACTIVE_CONTAINER=$OLD"
 
-NEXT=''
-# Persistent blue/green deployments leave earlier containers on old ports.
-# Prefer fresh canary ports without interrupting the currently active site.
-for p in 3006 3007 3008 3009 3010 3011 3012 3013 3014 3015 3016 3017 3018 3019 3020; do
- if test "$p" != "$ACTIVE" && ! ss -H -ltn "( sport = :$p )" | grep -q .; then NEXT="$p"; break; fi
-done
-if test -z "$NEXT"; then
-  echo "NO_FREE_BLUEGREEN_PORT_IN_3006_3020" >&2
-  echo "===== RUNNING PORT MAPPINGS ====="
-  docker ps --format 'table {{.Names}}\t{{.Ports}}'
-  exit 1
-fi
-echo "CANARY_PORT=$NEXT"
+NEXT="$FIXED_PORT"
+echo "STABLE_APP_PORT=$NEXT"
 
 STAMP="$(date +%Y%m%d-%H%M%S)-$BASHPID"
 STAGE="/opt/sanatpish-unified-stage-$STAMP"
 NAME="sanatpish-unified-live-$STAMP"
+CANARY_NAME="sanatpish-unified-canary-$STAMP"
 BACKUP="/root/sanatpish-main-rollback-$STAMP"
 ENV_FILE="$(mktemp /tmp/sanatpish-camera-env.XXXXXXXX)"
 CID=''
-SWITCH=0
+CANARY_CID=''
+PROMOTING=0
 SUCCESS=0
 
 cleanup(){
@@ -87,21 +83,33 @@ cleanup(){
  trap - EXIT
  set +e
  if test "$SUCCESS" != 1; then
-   if test "$SWITCH" = 1; then
-     echo '===== ROLLBACK NGINX ====='
-     cp -p "$BACKUP/default" "$CONF1"
-     cp -p "$BACKUP/https" "$CONF2"
-      cp -p "$BACKUP/domain" "$CONF_DOMAIN"
-     if nginx -t && systemctl reload nginx; then
-       echo NGINX_ROLLBACK_OK
+   if test "$PROMOTING" = 1; then
+     echo '===== SINGLE-PORT ROLLBACK ====='
+     # Release the fixed port before restarting the old container.
+     docker rm -f "$NAME" >/dev/null 2>&1 || true
+     if docker start "$OLD" >/dev/null 2>&1; then
+       echo ORIGINAL_SINGLE_PORT_RESTORED
      else
-       echo CRITICAL_NGINX_ROLLBACK_FAILED
-       CID=''
+       echo CRITICAL_ORIGINAL_APP_RESTART_FAILED >&2
+     fi
+     if test -f "$BACKUP/default" && test -f "$BACKUP/https" && test -f "$BACKUP/domain"; then
+       cp -p "$BACKUP/default" "$CONF1"
+       cp -p "$BACKUP/https" "$CONF2"
+       cp -p "$BACKUP/domain" "$CONF_DOMAIN"
+       if nginx -t && systemctl reload nginx; then
+         echo NGINX_ROLLBACK_OK
+       else
+         echo CRITICAL_NGINX_ROLLBACK_FAILED >&2
+       fi
      fi
    fi
-   if test -n "$CID"; then docker rm -f "$CID" >/dev/null 2>&1 || true; fi
-   if [[ "$STAGE" == /opt/sanatpish-unified-stage-* ]]; then rm -rf -- "$STAGE"; fi
    echo DEPLOY_FAILED_PREVIOUS_SITE_PRESERVED
+   if [[ "$STAGE" == /opt/sanatpish-unified-stage-* ]]; then
+     rm -rf -- "$STAGE"
+   fi
+ fi
+ if test -n "$CANARY_CID"; then
+   docker rm -f "$CANARY_NAME" >/dev/null 2>&1 || true
  fi
  rm -f -- "$ENV_FILE"
  exit "$status"
