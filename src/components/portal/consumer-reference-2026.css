@@ -333,3 +333,54 @@
 .consumer-premium .consumer-bulk-table input[type="checkbox"]:disabled {cursor:not-allowed;}
 .consumer-premium .consumer-bulk-table-note {background:#fff4eb;border-radius:13px;padding:11px 13px;font-size:11px;color:#5b5654;line-height:1.8;margin:12px 0;}
 .consumer-premium .consumer-bulk-results > .store-btn-primary {width:100%;background:linear-gradient(120deg,#f48320,#e45a08);border-radius:999px;}
+
+
+/* Orders list follows the reference: product photo on the right, order identity in
+   the middle, real fulfillment status and invoice/reorder actions on the left. */
+.consumer-premium .consumer-order-reference-card {display:grid;grid-template-columns:115px minmax(0,1fr) minmax(145px,auto);grid-template-rows:auto auto;gap:9px 15px;align-items:center;background:linear-gradient(120deg,#fff,#fbfbfc);border:1px solid #ebecef;box-shadow:var(--ref-shadow);border-radius:24px;padding:14px;min-width:0;}
+.consumer-premium .consumer-order-ref-photo {grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:center;height:110px;background:linear-gradient(145deg,#fff,#f7f8fa);border-radius:18px;color:var(--ref-orange);overflow:hidden;}
+.consumer-premium .consumer-order-ref-photo img {width:100%;height:100%;object-fit:contain;}
+.consumer-premium .consumer-order-ref-details {grid-column:2;grid-row:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+.consumer-premium .consumer-order-ref-details strong {font-size:15px;color:#35333b;line-height:1.7;}
+.consumer-premium .consumer-order-ref-details small {font-size:10px;color:#80818a;}
+.consumer-premium .consumer-order-ref-details h3 {font-size:14px;color:#282930;font-weight:850;line-height:1.6;}
+.consumer-premium .consumer-order-ref-details span {font-size:11px;color:#787781;}
+.consumer-premium .consumer-order-ref-details b {font-size:14px;color:var(--ref-orange-deep);font-weight:900;}
+.consumer-premium .consumer-order-ref-status {grid-column:3;grid-row:1;display:flex;flex-direction:column;align-items:stretch;gap:12px;}
+.consumer-premium .consumer-order-ref-status > span {display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:850;white-space:nowrap;}
+.consumer-premium .consumer-order-ref-status > span.is-delivered {background:#e5f7e9;color:#10873f;}
+.consumer-premium .consumer-order-ref-status > span.is-shipped {background:#e4f0ff;color:#156cc8;}
+.consumer-premium .consumer-order-ref-status > span.is-processing {background:#fff0de;color:#b45a10;}
+.consumer-premium .consumer-order-ref-status > div {display:flex;flex-wrap:wrap;gap:6px;}
+.consumer-premium .consumer-order-ref-status button {display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:1;padding:8px;border:1px solid #eee1d7;border-radius:999px;background:#fff;font-size:11px;color:#b95112;font-weight:800;white-space:nowrap;}
+.consumer-premium .consumer-order-ref-more {grid-column:1/-1;grid-row:2;border-top:1px solid #f1f0f2;padding-top:8px;}
+.consumer-premium .consumer-order-ref-more summary {display:flex;align-items:center;justify-content:flex-start;gap:7px;font-size:11px;font-weight:750;color:#8b5c3e;cursor:pointer;list-style:none;}
+.consumer-premium .consumer-order-ref-more summary::-webkit-details-marker {display:none;}
+.consumer-premium .consumer-order-ref-more[open] summary svg {transform:rotate(-90deg);}
+.consumer-premium .consumer-order-ref-more > div {padding-top:10px;font-size:11px;line-height:1.8;color:#4d5059;}
+.consumer-premium .consumer-order-ref-more ul {margin-top:8px;list-style:none;padding:0;}
+.consumer-premium .consumer-order-ref-more li {display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px;border-top:1px dashed #ece7e3;}
+.consumer-premium .consumer-order-ref-more li bdi {color:#cb5b18;font-weight:800;}
+.consumer-premium .consumer-order-ref-more li small {margin-inline-start:auto;color:#6d6d73;}
+@media (max-width:767px) {
+  .consumer-premium .consumer-order-reference-card {grid-template-columns:88px minmax(0,1fr) 90px;gap:5px 7px;padding:9px;border-radius:21px;}
+  .consumer-premium .consumer-order-ref-photo {height:95px;border-radius:15px;}
+  .consumer-premium .consumer-order-ref-details strong {font-size:12px;}
+  .consumer-premium .consumer-order-ref-details small {font-size:9px;line-height:1.5;}
+  .consumer-premium .consumer-order-ref-details h3 {font-size:11px;line-height:1.6;}
+  .consumer-premium .consumer-order-ref-details span {font-size:10px;}
+  .consumer-premium .consumer-order-ref-details b {font-size:11px;}
+  .consumer-premium .consumer-order-ref-status {gap:6px;}
+  .consumer-premium .consumer-order-ref-status > span {font-size:9px;white-space:normal;text-align:center;padding:6px 2px;gap:3px;}
+  .consumer-premium .consumer-order-ref-status > span svg {width:12px;height:12px;flex-shrink:0;}
+  .consumer-premium .consumer-order-ref-status > div {flex-direction:column;gap:4px;}
+  .consumer-premium .consumer-order-ref-status button {min-height:27px;padding:4px 2px;border-radius:12px;font-size:9px;white-space:normal;}
+  .consumer-premium .consumer-order-ref-status button svg {width:12px;height:12px;flex-shrink:0;}
+  .consumer-premium .consumer-order-ref-more summary {font-size:10px;}
+}
+@media (max-width:370px) {
+  .consumer-premium .consumer-order-reference-card {grid-template-columns:70px minmax(0,1fr) 78px;}
+  .consumer-premium .consumer-order-ref-photo {height:82px;}
+  .consumer-premium .consumer-order-ref-details h3 {font-size:10px;}
+  .consumer-premium .consumer-order-ref-status button {font-size:8px;}
+}
