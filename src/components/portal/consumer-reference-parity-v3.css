@@ -236,6 +236,15 @@
     padding:4px 1px 0;
   }
   .consumer-premium .consumer-orders-section {border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;}
+  /* Keep the two order summary cards inside the actual 390px inner sheet. */
+  .consumer-premium .consumer-orders-section, .consumer-premium .consumer-summary-duo,
+  .consumer-premium .consumer-summary-duo > div {min-width:0;width:100%;max-width:100%;box-sizing:border-box;}
+  .consumer-premium .consumer-summary-duo {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .consumer-premium .consumer-summary-duo > div {grid-template-columns:26px minmax(0,1fr);overflow:hidden;}
+  .consumer-premium .consumer-summary-duo > div :is(span,strong) {min-width:0;max-width:100%;overflow-wrap:anywhere;white-space:normal;}
+  .consumer-premium .consumer-orders-section > .consumer-filter-pills {max-width:100%;min-width:0;}
+  .consumer-premium[data-current-section="overview"] .portal-panels > .space-y-6 > .consumer-announcement-list {order:5;min-width:0;}
+
   .consumer-premium .consumer-orders-section > .flex:first-child {display:none;}
   .consumer-premium .consumer-filter-pills {
     gap:6px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;
