@@ -1033,7 +1033,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(/[.!؟؛]\s*$/.test(fullText)){
               terminalIdleTimer=window.setTimeout(()=>{
                 terminalIdleTimer=null;
-                if(pocketAbort.signal.aborted||callClosedRef.current)return;
+                if(pocketAbort.signal.aborted||callClosedRef.current||activeTurnRef.current?.generation!==generation)return;
                 const completed=phrasePlanner.flushTerminalIdle();
                 if(completed.length){
                   console.info('[FORZA_NIMA_FINAL] early_terminal_idle_flush=1 chars='+
@@ -1057,8 +1057,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 history:previousHistory,
                 includeAudio:false,
                 mode:'forza',
+                userTurnId:'turn-'+generation,
+                responseId:'resp-'+generation,
               }),
-              signal:streamController.signal,
+              signal:AbortSignal.any([streamController.signal,pocketAbort.signal]),
             });
             reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
@@ -1071,6 +1073,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             window.clearTimeout(totalTimer);
           }
         } catch(streamError) {
+          if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)throw streamError;
           // Keep the existing complete-response route as a compatibility
           // fallback when streaming has not begun at all.
           if (reply) {
@@ -1088,7 +1091,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify(payload),
-              signal:fallbackAbort.signal,
+              signal:AbortSignal.any([fallbackAbort.signal,pocketAbort.signal]),
             });
             data=await res.json().catch(()=>null);
           } finally {
@@ -1100,8 +1103,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           onTextChunk(reply,reply);
           }
         }
-        if(reply){
-          historyRef.current.push({role:'model',text:reply});
+        if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
           setAiText(reply);
           try {
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
@@ -1123,18 +1125,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
               await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+              recordHeard(reply);
             }
-            if(!callClosedRef.current)setVoiceOutputError(null);
+            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
+              setVoiceOutputError(null);
           }catch(error:any){
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
-            if(!callClosedRef.current)setVoiceOutputError(
+            if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
+              setVoiceOutputError(
               error?.message==='autoplay_permission_required'
                 ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
                 :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
           }
         }
       } catch (err: any) {
+        if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)return;
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
         // A speech-recognition failure is not a TTS/playback failure.
         if (!q) setUserText(previous=>previous.trim());
@@ -1148,8 +1154,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         pocketAbort.abort();
         if(terminalIdleTimer!==null)window.clearTimeout(terminalIdleTimer);
         bufferedNima?.cancel();
-        continuousVoiceRef.current?.cancel();
-        continuousVoiceRef.current=null;
+        playerForTurn?.cancel();
+        if(activeTurnRef.current?.generation!==generation)return;
+        activeTurnRef.current=null;
+        if(continuousVoiceRef.current===playerForTurn)continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
         setVoicePending(false);
         isProcessingTurnRef.current = false;
