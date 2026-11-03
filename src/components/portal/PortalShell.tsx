@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   Heart,
   ClipboardList,
+  Bell,
+  Cog,
 } from "lucide-react";
 import type { Customer } from "../../types";
 import type {
@@ -32,6 +34,7 @@ import "./portal.css";
 import "./portal-storefront.css";
 import "./consumer-premium.css";
 import "./consumer-visual-parity.css";
+import "./consumer-reference-2026.css";
 
 const icons: Record<string, typeof Home> = {
   saved_products: Heart,
@@ -161,6 +164,7 @@ export function PortalShell({
     <div
       className={`customer-portal ${variant === "consumer" ? "consumer-premium" : ""} accent-${texts.headerAccentTheme} density-${appearance.density} glass-${appearance.glass}`}
       dir="rtl"
+      data-current-section={activeTab}
       ref={ref}
     >
       <a className="portal-skip" href="#portal-content">
@@ -197,8 +201,9 @@ export function PortalShell({
       </aside>
       <div className="portal-workspace">
         <header className="portal-topbar portal-glass">
-          <Link to="/" className="portal-top-brand">
-            صنعت پیش
+          <Link to="/" className="portal-top-brand" aria-label="صنعت پیش، بازگشت به فروشگاه">
+            <Cog size={28} aria-hidden="true" />
+            <span>صنعت پیش<small>Sanat Pish</small></span>
           </Link>
           <div className="portal-breadcrumb">
             {label("حساب من")}
@@ -208,6 +213,11 @@ export function PortalShell({
             </span>
           </div>
           <div className="portal-top-actions">
+            {variant === "consumer" && menus.some((m) => m.id === "overview") && (
+              <button type="button" className="consumer-notice-button" onClick={() => select("overview")} aria-label="مشاهده پیشخوان و اطلاعیه‌ها">
+                <Bell size={21} aria-hidden="true" />
+              </button>
+            )}
             <Link to="/products" className="portal-search-link">
               {label("جستجو در محصولات")}
             </Link>
@@ -241,7 +251,7 @@ export function PortalShell({
               <ArrowUpLeft size={16} />
             </Link>
           </div>
-          {variant === "consumer" && (
+          {variant === "consumer" && (activeTab === "overview" || activeTab === "receipts") && (
             <nav className="consumer-shortcuts" aria-label="دسترسی سریع پنل مصرف‌کننده">
               {menus.filter((m) => ["overview", "orders", "addresses"].includes(m.id)).map((m) => (
                 <button type="button" key={m.id} onClick={() => select(m.id)}
@@ -254,7 +264,7 @@ export function PortalShell({
           )}
           {activeTab === "overview" && (
             <>
-              <div className="portal-metrics">
+              {variant !== "consumer" && <div className="portal-metrics">
                 {metrics
                   .filter((m) => m.visible)
                   .map((m, i) => (
@@ -269,7 +279,7 @@ export function PortalShell({
                       <strong>{m.value}</strong>
                     </div>
                   ))}
-              </div>
+              </div>}
               {showDiscovery && banners.length === 0 && (
                 <div className="portal-discovery-grid">
                   <section className="portal-campaign portal-glass">
