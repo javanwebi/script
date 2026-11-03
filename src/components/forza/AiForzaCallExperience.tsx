@@ -166,6 +166,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const microphoneVoicedRef=useRef(false);
   const speechStartedAtRef=useRef<number|null>(null);
   const speechFinishedAtRef=useRef<number|null>(null);
+  const lastVoicedAtRef=useRef<number|null>(null);
   const sttFinalAtRef=useRef<number|null>(null);
   const generatedAnswerRef=useRef('');
   const activeTurnContextRef=useRef<{query:string;generated:string;heard:string}|null>(null);
@@ -378,6 +379,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setIsUserSpeaking(true);
           }
         }
+        if(ordinaryListening && current.speaking)lastVoicedAtRef.current=performance.now();
         microphoneVoicedRef.current=bargeMonitorRef.current
           && (current.speaking || (current.silenceMs>0&&current.silenceMs<1500));
         // During model speech, only independent STT evidence may interrupt.
@@ -888,12 +890,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       telemetryRef.current=telemetry;
       if(speechStartedAtRef.current!==null && speechFinishedAtRef.current!==null){
         telemetry.markAt('speech_start',speechStartedAtRef.current);
-        telemetry.markAt('speech_end',speechFinishedAtRef.current);
+        if(lastVoicedAtRef.current!==null){
+          telemetry.markAt('speech_end',lastVoicedAtRef.current);
+          telemetry.duration('spoken_duration_ms','speech_start','speech_end');
+        }
+        telemetry.markAt('endpoint_detected',speechFinishedAtRef.current);
+        telemetry.duration('endpoint_delay_ms','speech_end','endpoint_detected');
         if(sttFinalAtRef.current!==null)telemetry.markAt('stt_final',sttFinalAtRef.current);
-        telemetry.duration('speech_detection_ms','speech_start','speech_end');
       }
       speechStartedAtRef.current=null;
       speechFinishedAtRef.current=null;
+      lastVoicedAtRef.current=null;
       sttFinalAtRef.current=null;
       activeTurnAbortRef.current = pocketAbort;
       const isCurrentTurn = () => !pocketAbort.signal.aborted &&
