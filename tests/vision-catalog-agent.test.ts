@@ -45,7 +45,7 @@ test('unverified code is never promoted to SKU despite model claim',async()=>{
  {candidates:[{content:{role:'model',parts:[{functionCall:{name:'inspect_catalog_images',args:{image_ids:['b']}}}]}}],functionCalls:[{name:'inspect_catalog_images',args:{image_ids:['b']}}]},
  {text:JSON.stringify({summary:'similar',matches:[{image_id:'b',relation:'similar',code:'SKU-2',reason:'shape'}]})}
  ]);
- const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products});
+ const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
  assert.equal(result.matches[0].code,undefined);
 });
 test('agent refuses insecure customer or catalog origins',async()=>{
