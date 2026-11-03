@@ -1008,77 +1008,54 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 4: RECEIPTS & INVOICES
              =============================================================== */}
           {activeTab === "receipts" && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="font-black text-base text-slate-800">
-                  {portalLabel("فاکتورها و رسیدهای سفارشات من")}
-                </h3>
-                {resolvedConfig.permissions.allowExcelPriceListDownload && (
-                  <button
-                    type="button"
-                    onClick={handleDownloadMyPriceListExcel}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>
-                      {resolvedConfig.uiTexts.excelDownloadButtonLabel}
-                    </span>
-                  </button>
-                )}
+            <section className="consumer-invoices-panel">
+              <div className="consumer-section-head">
+                <div><span>اسناد سفارش‌های شما</span><h2>فاکتورها و رسیدهای خرید</h2></div>
+                {resolvedConfig.permissions.allowExcelPriceListDownload &&
+                  <button type="button" className="consumer-inline-action" onClick={handleDownloadMyPriceListExcel}>
+                    <FileSpreadsheet size={17}/> اکسل لیست قیمت من
+                  </button>}
               </div>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-xs text-right border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
-                    <tr>
-                      <th className="py-3 px-4 font-bold">
-                        {portalLabel("شماره فاکتور")}
-                      </th>
-                      <th className="py-3 px-4 font-bold">
-                        {portalLabel("تاریخ ثبت")}
-                      </th>
-                      <th className="py-3 px-4 font-bold">
-                        {portalLabel("شماره پیگیری پرداخت")}
-                      </th>
-                      <th className="py-3 px-4 font-bold">
-                        {portalLabel("مبلغ کل (تومان)")}
-                      </th>
-                      <th className="py-3 px-4 font-bold">
-                        {portalLabel("عملیات")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {orders.map((o) => (
-                      <tr key={o.id} className="hover:bg-slate-50">
-                        <td
-                          className="py-3 px-4 font-mono font-black text-slate-900"
-                          dir="ltr"
-                        >
-                          {o.orderNumber}
-                        </td>
-                        <td className="py-3 px-4">{o.date}</td>
-                        <td className="py-3 px-4 font-mono text-slate-600">
-                          {o.paymentRef || "—"}
-                        </td>
-                        <td className="py-3 px-4 font-mono font-black text-emerald-700">
-                          {formatPrice(o.totalAmount)}
-                          {portalLabel("ت")}
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedReceiptOrder(o)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer"
-                          >
-                            {portalLabel("مشاهده و چاپ فاکتور")}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="consumer-invoices-summary">
+                <div className="consumer-invoice-illustration"><FileText size={36}/><span>صنعت پیش</span></div>
+                <div><FileText size={21}/><span>کل فاکتورها</span><strong>{toPersianDigits(orders.length)}</strong></div>
+                <div><CheckCircle2 size={21}/><span>پرداخت تأییدشده</span><strong>{toPersianDigits(paidCount)}</strong></div>
+                <div><Clock size={21}/><span>در انتظار پرداخت یا تأیید</span><strong>{toPersianDigits(orders.length - paidCount)}</strong></div>
               </div>
-            </div>
+              <div className="consumer-filter-pills" role="group" aria-label="فیلتر فاکتورها">
+                {[
+                  { id: "all", title: "همه فاکتورها" },
+                  { id: "paid", title: "پرداخت‌شده" },
+                  { id: "pending", title: "در انتظار تأیید" },
+                ].map((item) => (
+                  <button type="button" key={item.id} aria-pressed={receiptFilter === item.id}
+                    onClick={() => setReceiptFilter(item.id as typeof receiptFilter)}>{item.title}</button>
+                ))}
+              </div>
+              {filteredReceipts.length ? (
+                <div className="consumer-invoice-rows">
+                  {filteredReceipts.map((o) => (
+                    <article className="consumer-invoice-row" key={o.id}>
+                      <div className="consumer-invoice-row-icon"><FileText size={23} /></div>
+                      <div className="consumer-invoice-identity"><small>شماره فاکتور / سفارش</small><strong dir="ltr">{o.orderNumber}</strong></div>
+                      <div className="consumer-invoice-date"><small>تاریخ ثبت</small><span>{new Date(o.date).toLocaleDateString("fa-IR")}</span></div>
+                      <div className="consumer-invoice-amount"><small>مبلغ کل</small><strong>{formatPrice(o.totalAmount)} تومان</strong></div>
+                      <div className="consumer-invoice-state">
+                        <span className={o.paymentStatus === "paid" ? "is-paid" : "is-pending"}>
+                          {o.paymentStatus === "paid" ? <CheckCircle2 size={15}/> : <Clock size={15}/>}
+                          {o.paymentStatus === "paid" ? "پرداخت تأییدشده" : o.paymentStatus === "awaiting_payment" ? "در انتظار پرداخت" : "در انتظار تأیید"}
+                        </span>
+                      </div>
+                      <button type="button" className="consumer-inline-action"
+                        onClick={() => setSelectedReceiptOrder(o)}><FileText size={17}/> مشاهده و چاپ</button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="consumer-empty"><FileText size={29}/><h3>فاکتوری در این وضعیت وجود ندارد</h3><p>پس از ثبت سفارش، جزئیات خرید را اینجا می‌بینید.</p></div>
+              )}
+              <p className="consumer-document-note">اطلاعات نمایش‌داده‌شده از سفارش‌های ثبت‌شده حساب شما خوانده می‌شوند؛ تأیید پرداخت فقط مطابق وضعیت ثبت‌شده در سامانه نمایش داده می‌شود.</p>
+            </section>
           )}
 
           {/* ===============================================================
