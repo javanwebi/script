@@ -12,6 +12,9 @@ import {
   Package,
   Search,
   ArrowLeft,
+  Bookmark,
+  Eye,
+  Check,
 } from "lucide-react";
 import {
   getManagedCatalogProducts,
@@ -20,17 +23,20 @@ import {
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
 import { PortalProductCard } from "./PortalProductCard";
+import { ProductImage } from "../product/ProductImage";
 import { resolvePurchaseLines } from "../../utils/purchaseList";
-import { toPersianDigits } from "../../utils/formatters";
+import { toPersianDigits, formatPrice } from "../../utils/formatters";
 export function PortalTools({
   tab,
   labels,
+  referenceConsumer = false,
 }: {
   tab: string;
   labels: Record<string, string>;
+  referenceConsumer?: boolean;
 }) {
   const label = (s: string) => labels[s] ?? s;
-  const { wishlist } = useWishlist();
+  const { wishlist, toggleWishlist } = useWishlist();
   const { currentUser } = useAuth();
   const { cart, addToCart } = useCart();
   const [entryParams]=useSearchParams();
@@ -101,6 +107,47 @@ export function PortalTools({
       setMessage("کپی خودکار در دسترس نیست؛ کدها را از سبد خرید انتخاب کنید.");
     }
   };
+  if (tab === "saved_products" && referenceConsumer)
+    return (
+      <section className="consumer-saved-reference" aria-label="محصولات نشان‌شده">
+        <div className="consumer-saved-hero">
+          <div className="consumer-saved-hero-icon" aria-hidden="true"><Bookmark size={40} /><Package size={25} /></div>
+          <div><span className="consumer-eyebrow">کالاهای منتخب شما</span><h2>{toPersianDigits(saved.length)} محصول ذخیره‌شده</h2><p>محصولات انتخابی شما برای دسترسی سریع‌تر</p></div>
+        </div>
+        <div className="consumer-filter-pills" role="group" aria-label="فیلتر علاقه‌مندی‌ها">
+          {[{id:"all",label:"همه"},{id:"variants",label:"دارای کدهای انتخابی"},{id:"single",label:"تک‌کدی"}].map((f) => (
+            <button key={f.id} type="button" aria-pressed={savedFilter === f.id} onClick={() => setSavedFilter(f.id as typeof savedFilter)}>{f.label}</button>
+          ))}
+        </div>
+        {visibleSaved.length ? (
+          <div className="consumer-saved-reference-grid">
+            {visibleSaved.map((p) => {
+              const price = list ? pricingCreditService.getSkuPriceForList(p.code,p.prices?.retail || 0,list) : p.prices?.retail || 0;
+              const directOrder = !p.variants?.length && !p.inquiryOnly && price > 0;
+              return (
+                <article className="consumer-saved-reference-card" key={p.code}>
+                  <button type="button" className="consumer-saved-bookmark" aria-label={`حذف ${p.name} از نشان‌شده‌ها`} onClick={() => {
+                    [p.code,...(p.variants || []).map((v) => v.code)].filter((code) => wishlist.includes(code)).forEach(toggleWishlist);
+                  }}><Bookmark size={17} fill="currentColor" /></button>
+                  <Link to={`/product/${encodeURIComponent(p.code)}`} className="consumer-saved-reference-image"><ProductImage src={p.images?.[0]} alt={p.name} thumbnail loading="lazy" decoding="async" /></Link>
+                  <div className="consumer-saved-reference-copy">
+                    <span className="consumer-sku" dir="ltr">{p.code}</span>
+                    <h3><Link to={`/product/${encodeURIComponent(p.code)}`}>{p.name}</Link></h3>
+                    <small>{p.categoryName || "قطعه صنعتی"}</small>
+                    <strong>{directOrder ? `${formatPrice(price)} تومان` : "انتخاب کد / استعلام قیمت"}</strong>
+                  </div>
+                  <div className="consumer-saved-reference-actions">
+                    <Link to={`/product/${encodeURIComponent(p.code)}`}><Eye size={15} /> مشاهده محصول</Link>
+                    {directOrder ? <button type="button" onClick={() => {addToCart(p,1);setMessage(`${p.name} به سبد خرید افزوده شد.`);}}><ShoppingCart size={15}/> افزودن به سبد</button> : <Link className="consumer-saved-add" to={`/product/${encodeURIComponent(p.code)}`}><ShoppingCart size={15}/> انتخاب کالا</Link>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : <div className="consumer-empty"><Bookmark size={29}/><h3>{saved.length ? "در این فیلتر کالایی نیست" : "محصولی ذخیره نشده است"}</h3><p>از کاتالوگ محصولات موردعلاقه را نشان‌دار کنید.</p><Link to="/products">مشاهده محصولات</Link></div>}
+        {message && <p role="status" className="portal-tool-status">{message}</p>}
+      </section>
+    );
   if (tab === "saved_products")
     return (
       <section className="portal-tools consumer-saved-panel">
