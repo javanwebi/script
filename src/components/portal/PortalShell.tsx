@@ -31,6 +31,7 @@ import type {
 import "./portal.css";
 import "./portal-storefront.css";
 import "./consumer-premium.css";
+import "./consumer-visual-parity.css";
 
 const icons: Record<string, typeof Home> = {
   saved_products: Heart,
@@ -226,11 +227,13 @@ export function PortalShell({
         <main id="portal-content" className="portal-content">
           <div className="portal-heading">
             <div>
-              <p>{variant === "consumer" && activeTab !== "overview" ? "پنل مصرف‌کننده صنعت پیش" : texts.heroWelcomePrefix}</p>
+              <p>{variant === "consumer"
+                ? activeTab === "overview" ? `سلام، ${user.fullName || "مشتری عزیز"}` : "پنل مصرف‌کننده صنعت پیش"
+                : texts.heroWelcomePrefix}</p>
               <h1 ref={title} tabIndex={-1}>
-                {variant === "consumer" && activeTab !== "overview" ? consumerSectionTitles[activeTab] || company : company}
+                {variant === "consumer" ? activeTab === "overview" ? "پنل مصرف‌کننده صنعت پیش" : consumerSectionTitles[activeTab] || company : company}
               </h1>
-              <p>{variant === "consumer" && activeTab !== "overview" ? consumerSectionDescriptions[activeTab] || texts.heroSubtitle : texts.heroSubtitle}</p>
+              <p>{variant === "consumer" ? activeTab === "overview" ? "مدیریت سفارش‌ها، پیگیری مرسوله و خرید سریع قطعات" : consumerSectionDescriptions[activeTab] || texts.heroSubtitle : texts.heroSubtitle}</p>
             </div>
             <Link to="/products" className="portal-primary">
               <ShoppingBag size={17} />
