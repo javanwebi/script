@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./mobile-category-explorer.css";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronLeft, Layers, Search, Factory, Cog, Package, Disc3, Wrench, ArrowLeft, X } from "lucide-react";
@@ -7,6 +7,7 @@ import type { EnhancedCategory } from "../../data/categories";
 import { resolveCategorySlug } from "../../data/categories";
 import { STORE_ASSETS } from "../../assets/images";
 import { toPersianDigits } from "../../utils/formatters";
+import { getManagedCatalogProducts, subscribeCatalogChanges } from "../../data/mockGenerator";
 
 type GroupSection = {
   id: string;
@@ -53,6 +54,20 @@ export function MobileCategoryExplorer({
   onNavigate?: () => void;
 }) {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(revision => revision + 1)), []);
+  const productImageByCategory = useMemo(() => {
+    const images = new Map<string, string>();
+    for (const product of getManagedCatalogProducts()) {
+      if (product.active === false || !product.categorySlug || !product.images?.[0]) continue;
+      const slug = resolveCategorySlug(product.categorySlug);
+      if (!images.has(slug)) images.set(slug, product.images[0]);
+    }
+    return images;
+  }, [catalogRevision]);
+  const actualCategoryImage = (category: EnhancedCategory) =>
+    (typeof category.image === "string" && category.image.trim()) ||
+    productImageByCategory.get(resolveCategorySlug(category.slug)) || imageForCategory(category);
   const activeGroup = sections.find(group => group.id === selectedGroupId) || sections[0] || null;
   const featured = activeGroup?.categories[0];
   const count = sections.reduce((sum, group) => sum + group.categories.length, 0);
@@ -109,7 +124,7 @@ export function MobileCategoryExplorer({
           {activeGroup && featured ? (
             <>
               <article className="sanat-mobile-category-feature">
-                <img src={imageForCategory(featured)} alt="" loading="lazy" decoding="async" />
+                <img src={actualCategoryImage(featured)} alt="" loading="lazy" decoding="async" />
                 <div>
                   <small>گروه انتخاب‌شده</small>
                   <h3>{activeGroup.title}</h3>
@@ -125,7 +140,7 @@ export function MobileCategoryExplorer({
                   return (
                     <article key={category.slug} className="sanat-mobile-category-item">
                       <Link to={categoryUrl(category)} onClick={onNavigate} className="sanat-mobile-category-item-link">
-                        <img src={imageForCategory(category)} alt="" loading="lazy" decoding="async" />
+                        <img src={actualCategoryImage(category)} alt="" loading="lazy" decoding="async" />
                         <span>{category.name}</span>
                         <ChevronLeft size={16} aria-hidden="true" />
                       </Link>
