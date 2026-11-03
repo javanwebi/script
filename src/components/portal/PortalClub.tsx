@@ -43,28 +43,37 @@ export function PortalClub({
     .filter((m) => volume >= m.minPurchaseVolume)
     .at(-1);
   const next = milestones.find((m) => m.minPurchaseVolume > volume);
-  const max = Math.max(...milestones.map((m) => m.minPurchaseVolume), 1);
-  const progress = Math.min(100, Math.round((volume / max) * 100));
+  const currentFloor = current?.minPurchaseVolume || 0;
+  const nextCeiling = next?.minPurchaseVolume || Math.max(currentFloor, 1);
+  const progress = next
+    ? Math.min(100, Math.max(0, Math.round(((volume - currentFloor) / Math.max(1, nextCeiling - currentFloor)) * 100)))
+    : milestones.length ? 100 : 0;
   const rewards = details
     ? pricingCreditService.getRewardsForCustomer(user)
     : [];
   return (
-    <div className="space-y-5">
+    <div className={portal === "consumer" ? "consumer-club-page space-y-5" : "space-y-5"}>
       {showChart && (
         <section
           className="portal-club portal-glass"
           aria-label={texts.clubChartTitle}
         >
-          <div className="portal-club-top">
-            <div>
-              <h2>{texts.clubChartTitle}</h2>
-              <p>{texts.clubChartSubtitle}</p>
+          {portal === "consumer" ? (
+            <div className="consumer-club-hero">
+              <span className="consumer-club-medal" aria-hidden="true"><Award size={48}/></span>
+              <div>
+                <span className="consumer-eyebrow">باشگاه مشتریان صنعت پیش</span>
+                <h2>سطح فعلی: <strong>{current?.publicTitle || "عضو باشگاه"}</strong></h2>
+                <p>{texts.clubChartSubtitle}</p>
+                <span className="portal-club-badge"><Award size={17}/>{current?.publicTitle || "عضو باشگاه"}</span>
+              </div>
             </div>
-            <span className="portal-club-badge">
-              <Award size={18} />
-              {current?.publicTitle || "عضو باشگاه"}
-            </span>
-          </div>
+          ) : (
+            <div className="portal-club-top">
+              <div><h2>{texts.clubChartTitle}</h2><p>{texts.clubChartSubtitle}</p></div>
+              <span className="portal-club-badge"><Award size={18}/>{current?.publicTitle || "عضو باشگاه"}</span>
+            </div>
+          )}
           <p className="portal-club-volume">
             {label("حجم خرید ثبت‌شده")}
             <strong>{number(volume)}</strong>تومان
@@ -74,13 +83,14 @@ export function PortalClub({
               <div
                 className="portal-progress"
                 role="progressbar"
-                aria-label="پیشرفت خرید تا آخرین مرحله باشگاه"
+                aria-label={next ? `پیشرفت تا سطح ${next.publicTitle}` : "پیشرفت عضویت باشگاه"}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={progress}
               >
                 <span style={{ width: `${progress}%` }} />
               </div>
+              {portal === "consumer" && <h3 className="consumer-club-level-title">سطوح عضویت باشگاه</h3>}
               <div className="portal-milestones">
                 {milestones.map((m) => (
                   <div
