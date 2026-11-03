@@ -10,6 +10,7 @@ import io
 import json
 import os
 import re
+import select
 import socket
 import struct
 import sys
@@ -39,7 +40,7 @@ def spoken_text(value):
     return " ".join(PUNCTUATION.sub(" ", value).split())
 
 
-def synthesize_complete(text):
+def synthesize_complete(text, cancelled=None):
     """Create a single PCM WAV in memory; never introduce per-clause gaps."""
     spoken = spoken_text(text)
     if not spoken:
@@ -48,6 +49,11 @@ def synthesize_complete(text):
     configured = False
     with wave.open(output, "wb") as target:
         for part in engine.synthesize(spoken):
+            # The HTTP client may have abandoned this turn while inference ran.
+            # Abort between neural output frames instead of consuming CPU for
+            # an entire reply nobody will receive (not preemptible mid-frame).
+            if cancelled and cancelled():
+                raise ConnectionAbortedError("customer_cancelled_voice")
             if not configured:
                 target.setnchannels(part.sample_channels)
                 target.setsampwidth(part.sample_width)
@@ -87,6 +93,17 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
+
+    def peer_disconnected(self):
+        try:
+            readable, _, _ = select.select([self.connection], [], [], 0)
+            if not readable:
+                return False
+            return self.connection.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT) == b""
+        except (BlockingIOError, InterruptedError):
+            return False
+        except (OSError, ConnectionError):
+            return True
 
     def do_GET(self):
         if self.path == "/health":
@@ -137,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         start = time.monotonic()
         queue_ms = round((start - queued_at) * 1000)
         try:
-            wav = synthesize_complete(phrase)
+            wav = synthesize_complete(phrase, self.peer_disconnected)
             infer_ms = round((time.monotonic() - start) * 1000)
             timing = {"queue_ms": queue_ms, "infer_ms": infer_ms}
             if self.path == "/speak-stream":
@@ -150,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
             print("[FORZA_NIMA_PRODUCTION] chars=%d queue_ms=%d infer_ms=%d wav_bytes=%d" % (
                 len(phrase), queue_ms, infer_ms, len(wav)
             ), flush=True)
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             self.close_connection = True
         except Exception as exc:
             print("[FORZA Nima] generation_error=%s" % type(exc).__name__,
