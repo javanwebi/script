@@ -1254,6 +1254,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           activeTurnAbortRef.current=null;
           isAiSpeakingRef.current=false;
           setVoicePending(false);
+          setAudioPlaybackPhase('idle');
           isProcessingTurnRef.current = false;
           setStatus('listening');
           setTurn('user');
@@ -1761,6 +1762,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
               : status === 'speaking'
               ? 'AI FORZA در حال صحبت...'
+              : audioPlaybackPhase==='blocked'
+              ? 'پخش صوت متوقف شده؛ مجوز صدا و AudioContext را بررسی کنید'
+              : audioPlaybackPhase==='muted'
+              ? 'بلندگوی فورزا بی‌صداست'
+              : audioPlaybackPhase==='buffering' && status==='thinking'
+              ? 'صدای بخش بعدی هنوز آماده نیست؛ در انتظار TTS...'
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
               : status === 'thinking' && voicePending
