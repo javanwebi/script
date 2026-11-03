@@ -5732,6 +5732,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       ? input : prefix+'-'+crypto.randomBytes(6).toString('hex');
   const responseId = safeId(clientResponseId,'resp');
   const userTurnId = safeId(clientTurnId,'turn');
+  console.info('[FORZA_SERVER_TIMING]',JSON.stringify({
+    turnId:userTurnId,phase:'request_received',epochMs:startedAt
+  }));
   const interruption=lowLatencyVoice&&rawInterruption&&typeof rawInterruption==='object'
     ? {
       lastQuestion:String(rawInterruption.lastQuestion||'').slice(0,400),
@@ -5809,6 +5812,10 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         catalogContext,
         signal: clientAbort.signal,
         onDelta: (chunk, textSoFar) => {
+          if(!providerSentText)console.info('[FORZA_SERVER_TIMING]',JSON.stringify({
+            turnId:userTurnId,phase:'first_provider_delta',provider:textProvider,
+            afterRequestMs:Date.now()-startedAt
+          }));
           providerSentText=true;
           sendEvent({ type: 'text_chunk', responseId, chunk, textSoFar });
         },
