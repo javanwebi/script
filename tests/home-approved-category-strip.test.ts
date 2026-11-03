@@ -4,14 +4,17 @@ import {test} from 'node:test';
 
 const source=(file:string)=>readFileSync(file,'utf8');
 
-test('homepage uses approved spreadsheet category slugs, live API and matching links',()=>{
+test('homepage uses approved top-level groups rather than six sibling category names',()=>{
  const view=source('src/components/storefront/HomeSequence.tsx');
  assert.match(view,/APPROVED_MENU_CATEGORIES/);
  assert.match(view,/APPROVED_MENU_GROUPS/);
- assert.match(view,/APPROVED_CATEGORY_SLUG\.test\(category\.slug\)/);
+ assert.match(view,/displayedGroups/);
+ assert.match(view,/group\.title/);
+ assert.match(view,/fetch\("\/api\/catalog\/navigation-groups"/);
  assert.match(view,/homeCategories\(\)/);
  assert.match(view,/HOMEPAGE_CATEGORY_CARD_COUNT = 6/);
- assert.match(view,/to=\{`\/category\/\$\{c\.slug\}`\}/);
+ assert.match(view,/to=\{`\/categories#menu-group-\$\{group\.id\}`\}/);
+ assert.match(source('src/pages/AllCategoriesPage.tsx'),/id=\{`menu-group-\$\{section\.id\}`\}/);
  assert.doesNotMatch(view,/const groups = \[/);
  assert.doesNotMatch(view,/"پولی و انتقال نیرو"|"چرخ و رولر"|"بلبرینگ و یاتاقان"/);
 });

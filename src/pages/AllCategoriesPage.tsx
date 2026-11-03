@@ -42,6 +42,14 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 export const AllCategoriesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  useEffect(()=>{
+    const target=window.location.hash.slice(1);
+    if(!/^menu-group-excel-v2-[0-9]+$/.test(target))return;
+    const frame=requestAnimationFrame(()=>{
+      document.getElementById(target)?.scrollIntoView({block:"start",behavior:"auto"});
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[]);
   const [importedCategories, setImportedCategories] = useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
   const [importedGroups, setImportedGroups] = useState<Array<{
     id: string; title: string; categorySlugs: string[];
@@ -183,7 +191,7 @@ export const AllCategoriesPage: React.FC = () => {
         {/* Grouped exactly as the main menu hierarchy in Supabase. */}
         <div className="space-y-9">
           {categorySections.map(section => (
-            <section key={section.id} className="space-y-4">
+            <section id={`menu-group-${section.id}`} key={section.id} className="space-y-4 scroll-mt-28">
               {section.title && (
                 <h2 className="border-r-4 border-[#E56B1E] pr-3 text-xl font-black text-[#484344]">
                   {section.title}
