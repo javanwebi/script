@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
@@ -162,6 +162,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const isProcessingTurnRef = useRef<boolean>(false);
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
+  const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
@@ -236,6 +237,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!vadRef.current.heardSpeech || isForzaProbableEcho(transcript,latestAiTextRef.current))return;
           interruptRequestRef.current();
         }
+        if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
+          lastTranscriptChangedAtRef.current=Date.now();
+        }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
         hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
       };
@@ -258,6 +262,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setStatus('listening');
       setTurn('user');
       activeTranscriptRef.current = '';
+      lastTranscriptChangedAtRef.current = 0;
       hasSpeechSoundRef.current = false;
       audioChunksRef.current = [];
     }
@@ -383,29 +388,42 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
             : 1000;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
-          silenceTimerRef.current=window.setTimeout(()=>{
+          const tryFinalize=()=>{
             silenceTimerRef.current=null;
-            if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
-            if(vadRef.current.silenceDuration(Date.now())<pauseMs)return;
+            if(isProcessingTurnRef.current||isAiSpeakingRef.current||
+               statusRef.current!=='listening'||micMutedRef.current)return;
+            const candidate=activeTranscriptRef.current.trim();
+            const acousticSilence=vadRef.current.silenceDuration(Date.now());
+            const wait=candidate
+              ? forzaTurnRemainingWaitMs(
+                  candidate,speechInterimRef.current,
+                  Date.now()-lastTranscriptChangedAtRef.current,
+                  vadRef.current.heardSpeech?acousticSilence:null)
+              : Math.max(0,1000-acousticSilence);
+            if(wait>0){
+              silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
+              return;
+            }
             setIsUserSpeaking(false);
             detectedSpeechEndAtRef.current=performance.now();
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
-              Math.round(vadRef.current.silenceDuration(Date.now())));
-            if(activeTranscriptRef.current.trim()){
-              const text=activeTranscriptRef.current.trim();
+              Math.round(acousticSilence));
+            if(candidate){
               activeTranscriptRef.current='';
+              lastTranscriptChangedAtRef.current=0;
               hasSpeechSoundRef.current=false;
               vadRef.current.reset();
-              void handleUserFinishedSpeaking(text);
+              void handleUserFinishedSpeaking(candidate);
             }else if(mediaRecorderRef.current?.state==='recording'){
-              // MediaRecorder.onstop dispatches the audio to Worker STT.
+              // Preserve the server STT fallback when browser STT is unavailable.
               mediaRecorderRef.current.stop();
               vadRef.current.reset();
             }else{
               hasSpeechSoundRef.current=false;
               vadRef.current.reset();
             }
-          },remaining);
+          };
+          silenceTimerRef.current=window.setTimeout(tryFinalize,remaining);
         }
       }catch(err){
         console.warn('[FORZA] Audio analyser failed',(err as any)?.name||'audio_error');
@@ -1289,6 +1307,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           interruptRequestRef.current();
         }
         if (currentSpeech) {
+          if(currentSpeech!==activeTranscriptRef.current ||
+             speechInterimRef.current!==recognized.hasInterim){
+            lastTranscriptChangedAtRef.current=Date.now();
+          }
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
@@ -1298,21 +1320,30 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setIsUserSpeaking(true);
 
           const pauseMs = forzaEndOfTurnPauseMs(currentSpeech, recognized.hasInterim);
-
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = window.setTimeout(() => {
-            silenceTimerRef.current = null;
-            if (vadRef.current.heardSpeech && vadRef.current.silenceDuration(Date.now()) < pauseMs) return;
-            if (activeTranscriptRef.current && !isAiSpeakingRef.current && !isProcessingTurnRef.current && statusRef.current === 'listening' && !micMutedRef.current) {
-              const textToSend = activeTranscriptRef.current;
-              detectedSpeechEndAtRef.current=performance.now();
-              console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+textToSend.length);
-              activeTranscriptRef.current = '';
-              hasSpeechSoundRef.current = false;
-              setIsUserSpeaking(false);
-              void handleUserFinishedSpeaking(textToSend);
+          const tryFinalize=()=>{
+            silenceTimerRef.current=null;
+            if(isAiSpeakingRef.current||isProcessingTurnRef.current||
+               statusRef.current!=='listening'||micMutedRef.current)return;
+            const candidate=activeTranscriptRef.current.trim();
+            if(!candidate)return;
+            const wait=forzaTurnRemainingWaitMs(
+              candidate,speechInterimRef.current,
+              Date.now()-lastTranscriptChangedAtRef.current,
+              vadRef.current.heardSpeech?vadRef.current.silenceDuration(Date.now()):null);
+            if(wait>0){
+              silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
+              return;
             }
-          }, pauseMs);
+            detectedSpeechEndAtRef.current=performance.now();
+            console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length);
+            activeTranscriptRef.current='';
+            lastTranscriptChangedAtRef.current=0;
+            hasSpeechSoundRef.current=false;
+            setIsUserSpeaking(false);
+            void handleUserFinishedSpeaking(candidate);
+          };
+          silenceTimerRef.current=window.setTimeout(tryFinalize,pauseMs);
         }
       };
 

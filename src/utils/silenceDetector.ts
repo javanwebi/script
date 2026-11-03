@@ -21,152 +21,79 @@ export interface PersianSentenceAnalysis {
  * Differentiates between completed inquiries, polite terminations, and mid-sentence pauses.
  */
 export function analyzePersianSentenceCompletion(text: string): PersianSentenceAnalysis {
-  const clean = (text || '')
-    .trim()
-    .replace(/[،,؛;]/g, ' ')
-    .replace(/\s+/g, ' ');
+  const raw = String(text || '').trim().replace(/ي/g, 'ی').replace(/ك/g, 'ک');
+  const ellipsis = /(?:\.{2,}|…)\s*$/.test(raw);
+  const clean = raw.replace(/[.?!؟…]+$/g, '').replace(/[،,؛;]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
 
-  if (!clean || clean.length < 2) {
-    return {
-      isComplete: false,
-      isQuestion: false,
-      isMidThought: true,
-      confidence: 0,
-      recommendedPauseMs: 1800,
-      detectedReason: 'متن بسیار کوتاه یا در انتظار صحبت کاربر است',
-    };
+  const decision = (
+    isComplete: boolean, isQuestion: boolean, isMidThought: boolean,
+    confidence: number, recommendedPauseMs: number, detectedReason: string,
+  ): PersianSentenceAnalysis => ({
+    isComplete, isQuestion, isMidThought, confidence, recommendedPauseMs, detectedReason,
+  });
+
+  if (clean.length < 2) {
+    return decision(false, false, true, 0, 2200, 'گفتار کوتاه یا ناتمام');
   }
 
-  // 1. Terminal punctuation check (Strongest indicator)
-  if (/[.?!؟]$/.test(clean)) {
-    const isQ = /[?؟]/.test(clean);
-    return {
-      isComplete: true,
-      isQuestion: isQ,
-      isMidThought: false,
-      confidence: 0.98,
-      recommendedPauseMs: 850,
-      detectedReason: isQ ? 'علامت سوال در پایان جمله' : 'نقطه پایان جمله',
-    };
+  // Ending a clause with a connector, self-correction, or incomplete request
+  // is not the same as ending a conversational turn. Check this BEFORE
+  // punctuation: Chrome may auto-insert a full stop on an interim hypothesis.
+  const waitingForContinuation =
+    /(?:^|\s)(?:و|که|چون|چونکه|برای|تا|اما|ولی|یا|اگر|یعنی|مثلا|مثلاً|بعد|بعدش|سپس|با|از|در|روی|به|همراه|همچنین|منظورم|میخوام|می‌خوام|میخواهم|می‌خواهم|میخواستم|می‌خواستم|میشه|می‌شه|لطفا|لطفاً|یه|یک|آیا|چطور|چگونه|چقدر|چند|کدام|کدوم|چه|چی|نه)$/.test(clean) ||
+    /(?:نیاز\s+دارم|لازم\s+دارم|برای\s+اینکه|در\s+واقع|به\s+عبارت\s+دیگر|از\s+طرفی|به\s+همراه|صبر\s+کن\s+تا|میخوام\s+بگم|می‌خوام\s+بگم)$/.test(clean);
+  if (waitingForContinuation || ellipsis) {
+    return decision(false, false, true, 0.15, 2250,
+      'در انتظار ادامه جمله، مشخصات کالا یا اصلاح مشتری');
   }
 
-  // 2. Mid-thought connector words at the end (User definitely needs more time)
-  const midThoughtEndingPattern =
-    /(?:\s|^)(و|که|چون|چونکه|برای|برای\s+اینکه|مثلا|مثلاً|اما|ولی|یا|اگر|یعنی|در\s+واقع|به\s+عبارت\s+دیگر|سپس|بعد|بعدش|همچنین|به\s+همراه|با|از\s+طرفی)$/i;
-
-  if (midThoughtEndingPattern.test(clean)) {
-    return {
-      isComplete: false,
-      isQuestion: false,
-      isMidThought: true,
-      confidence: 0.1,
-      recommendedPauseMs: 2200, // Longer grace period for thought continuation
-      detectedReason: 'حرف ربط در انتهای کلام (مکث موقت بین جمله)',
-    };
+  // Stand-alone commands are complete. A longer sentence starting with
+  // "صبر کن" is NOT necessarily complete ("صبر کن توضیح بدم ...").
+  if (/^(?:سلام|درود|خداحافظ|ممنون|ممنونم|متشکرم|سپاس|صبر\s+کن|بس\s+کن|ادامه\s+بده|قطع\s+کن|متوقف\s+شو|دوباره\s+بگو)$/.test(clean)) {
+    return decision(true, false, false, 0.98, 650, 'فرمان یا عبارت مستقل');
   }
 
-  // 3. Persian Interrogative / Question endings (High confidence sentence end)
-  const questionEndings = [
-    /(?:چیست|چیه|چنده|چقدره|چقدر\s+است|کدام\s+است|کدومه|کدوم\s+است|چطوریه|چگونه\s+است|کجاست|چند\s+تومنه|چند\s+در\s+میاد)$/i,
-    /(?:داری|دارید|دارین|موجود\s+دارید|موجود\s+دارین|موجود\s+هست|موجوده|امکانش\s+هست|میشه|می‌شه|میشه\s+بگید)$/i,
-    /(?:چه\s+فرقی\s+دارند|چه\s+فرقی\s+دارن|چه\s+تفاوتی\s+داره|کدوم\s+بهتره|کدام\s+بهتر\s+است|بهتره|درسته)$/i,
-    /(?:آیا\s+.+)$/i,
-    /(?:کی\s+می‌رسه|کی\s+آماده\s+می‌شه|کی\s+ارسال\s+می‌شه|ضمانت\s+داره|گارانتی\s+داره)$/i,
-  ];
-
-  for (const pattern of questionEndings) {
-    if (pattern.test(clean)) {
-      return {
-        isComplete: true,
-        isQuestion: true,
-        isMidThought: false,
-        confidence: 0.95,
-        recommendedPauseMs: 950, // Prompt cutoff for finished questions
-        detectedReason: 'پرسش و استعلام پایانی کاربر',
-      };
-    }
+  // Do not infer that "آیا این تسمه ..." is a complete question merely
+  // because it starts with آیا. Wait for the predicate or question ending.
+  const questionEnd =
+    /(?:چیست|چیه|چنده|چقدره|چقدر\s+است|کدام\s+است|کدومه|کدوم\s+است|چطوریه|چگونه\s+است|کجاست|چند\s+تومنه|چند\s+در\s+میاد|قیمتش\s+چنده|کدوم\s+بهتره|کدام\s+بهتر\s+است|چه\s+فرقی\s+دارن|چه\s+فرقی\s+دارند|چه\s+تفاوتی\s+داره|موجود\s+دارید|موجود\s+دارین|موجود\s+هست|موجوده|داری|دارید|دارین|امکانش\s+هست|درسته|بهتره|چنده\s+الان|کی\s+می‌رسه|کی\s+آماده\s+می‌شه|کی\s+ارسال\s+می‌شه|گارانتی\s+داره|ضمانت\s+داره)$/.test(clean);
+  if (questionEnd) {
+    return decision(true, true, false, 0.96, 750, 'پرسش دارای پایان مشخص');
   }
 
-  // 4. Persian Request / Inquiry / Imperative Verbs
-  const requestEndings = [
-    /(?:می‌خواهم|میخوام|می‌خوام|میخواستم|می‌خواستم|نیاز\s+دارم|لازم\s+دارم)$/i,
-    /(?:بگید|بفرمایید|توضیح\s+دهید|توضیح\s+بدید|راهنمایی\s+کنید|راهنمایی\s+بفرمایید|کمکم\s+کنید)$/i,
-    /(?:محاسبه\s+کنید|معادل‌یابی\s+کنید|پیشنهاد\s+دهید|پیشنهاد\s+بدید|معرفی\s+کنید)$/i,
-    /(?:پیش‌فاکتور\s+می‌خوام|پیش\s+فاکتور\s+بدید|استعلام\s+قیمت\s+می‌خواهم|ارسال\s+کنید|صادر\s+کنید|ثبت\s+کنید)$/i,
-  ];
-
-  for (const pattern of requestEndings) {
-    if (pattern.test(clean)) {
-      return {
-        isComplete: true,
-        isQuestion: false,
-        isMidThought: false,
-        confidence: 0.92,
-        recommendedPauseMs: 1000,
-        detectedReason: 'فعل درخواستی و پایانی جمله',
-      };
-    }
+  const requestEnd =
+    /(?:بگید|بفرمایید|توضیح\s+دهید|توضیح\s+بدید|راهنمایی\s+کنید|راهنمایی\s+بفرمایید|کمکم\s+کنید|محاسبه\s+کنید|معادل‌یابی\s+کنید|پیشنهاد\s+دهید|پیشنهاد\s+بدید|معرفی\s+کنید|ثبت\s+کنید|صادر\s+کنید|ارسال\s+کنید|پیش‌فاکتور\s+بدید|پیش\s+فاکتور\s+بدید|بفرستید|بگو|بفرست|بدونم|میشه\s+بگید|می‌شه\s+بگید)$/.test(clean);
+  if (requestEnd) {
+    return decision(true, false, false, 0.94, 800, 'درخواست مشخص و قابل پاسخ');
   }
 
-  // 5. Politeness / Closing Tokens
-  const politeEndings = [
-    /(?:ممنون|ممنونم|متشکرم|تشکر|خیلی\s+ممنون|سپاسگزارم|سپاس|لطفاً|لطفا|دستت\s+درد\s+نکنه|دستتون\s+درد\s+نکنه)$/i,
-    /(?:سلام|درود|خسته\s+نباشید|خداحافظ|روز\s+خوش|موفق\s+باشید)$/i,
-  ];
-
-  for (const pattern of politeEndings) {
-    if (pattern.test(clean)) {
-      return {
-        isComplete: true,
-        isQuestion: false,
-        isMidThought: false,
-        confidence: 0.9,
-        recommendedPauseMs: 950,
-        detectedReason: 'عبارت تشکر یا اختتام مکالمه',
-      };
-    }
+  // Question punctuation is helpful but not sufficient to override an
+  // unfinished prefix such as "آیا این تسمه" or "یه تسمه می‌خوام".
+  const hasQuestionMark = /[?؟]\s*$/.test(raw);
+  const hasTerminalPunctuation = /[.!?؟]\s*$/.test(raw) && !ellipsis;
+  const startsWithUnfinishedQuestion = /^(?:آیا|چطور|چگونه|چرا|چه|کدام|کدوم)\s+/.test(clean)
+    && !/(?:است|هست|نیست|داره|دارند|دارد|ندارد|می‌شود|میشه|می‌شه|شد|شده|کنم|کنیم|بکنم|بکنیم|می‌کنه|میکنه)$/.test(clean);
+  if (hasTerminalPunctuation && !startsWithUnfinishedQuestion) {
+    return decision(true, hasQuestionMark, false, 0.91, 850,
+      'نشانه پایان جمله همراه با ساختار قابل قبول');
   }
 
-  // 6. Common terminal Persian verbs (بود، شد، رفت، دارد، کرد، است، نیست)
-  const commonVerbs = [
-    /(?:هست|نیست|دارد|ندارد|است|شد|شده|شده\s+است|می‌شود|میشه|کرد|کرده|می‌کند|میکنه|بفرستید|باشه|بزنید)$/i,
-  ];
-
-  for (const pattern of commonVerbs) {
-    if (pattern.test(clean)) {
-      return {
-        isComplete: true,
-        isQuestion: false,
-        isMidThought: false,
-        confidence: 0.85,
-        recommendedPauseMs: 1150,
-        detectedReason: 'فعل خبری استاندارد در پایان جمله',
-      };
-    }
+  // A verb is evidence, not proof, of completion. Keep a moderate silence
+  // window when a customer may append another size, model or specification.
+  if (/(?:است|هست|نیست|دارد|ندارد|داره|شد|شده|می‌شود|می‌شه|میشه|کرد|کرده|باشه)$/.test(clean)) {
+    return decision(true, false, false, 0.77, 1100, 'فعل پایانی محتمل');
   }
 
-  // 7. General fallback: if sentence has at least 3 words, default to natural conversational pause
-  const wordCount = clean.split(/\s+/).length;
-  if (wordCount >= 4) {
-    return {
-      isComplete: true,
-      isQuestion: false,
-      isMidThought: false,
-      confidence: 0.72,
-      recommendedPauseMs: 1350, // Balanced natural conversation pause
-      detectedReason: 'مکث پس از بیان عبارت کامل',
-    };
+  // NEVER classify a four-word fragment as definitely complete. The customer
+  // may still be forming a Persian sentence or spelling an industrial code.
+  if (clean.split(/\s+/).length >= 4) {
+    return decision(false, false, false, 0.48, 1550,
+      'جمله با پایان نامطمئن؛ منتظر پایداری متن و سکوت');
   }
 
-  // Default short utterance
-  return {
-    isComplete: false,
-    isQuestion: false,
-    isMidThought: true,
-    confidence: 0.45,
-    recommendedPauseMs: 1700,
-    detectedReason: 'عبارت کوتاه در حال تکمیل',
-  };
+  return decision(false, false, true, 0.3, 1900,
+    'عبارت کوتاه یا مشخصات ناتمام');
 }
 
 /**
