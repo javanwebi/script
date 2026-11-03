@@ -666,6 +666,16 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
                 </div>
               )}
+              <section className="consumer-forza-card">
+                <div className="consumer-forza-emblem" aria-hidden="true"><img src={forzaBrandImage} alt="" loading="lazy" decoding="async" /></div>
+                <div>
+                  <span>مشاور هوشمند صنعت پیش</span>
+                  <h2>FORZA کنار شماست</h2>
+                  <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
+                </div>
+                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
+              </section>
+              <details className="consumer-overview-extra"><summary>سایر خدمات و گزارش‌های حساب <ChevronLeft size={15}/></summary><div>
               {enabledMenus.some((m) => m.id === "orders") && (
                 <>
                   <PortalInquiries labels={resolvedConfig.labels} />
@@ -686,15 +696,8 @@ export const ConsumerDashboardPage: React.FC = () => {
                     onDetails={() => setActiveTab("club_rewards")}
                   />
                 )}
-              <section className="consumer-forza-card">
-                <div className="consumer-forza-emblem" aria-hidden="true"><img src={forzaBrandImage} alt="" loading="lazy" decoding="async" /></div>
-                <div>
-                  <span>مشاور هوشمند صنعت پیش</span>
-                  <h2>FORZA کنار شماست</h2>
-                  <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
-                </div>
-                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
-              </section>
+
+              </div></details>
             </div>
           )}
 
