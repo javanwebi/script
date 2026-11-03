@@ -5831,6 +5831,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  // A provider failure after the first delta must not append an unrelated
+  // offline answer to already-delivered subtitles or speech.
+  let geminiSentText=false;
   try {
     const ai = new GoogleGenAI({
       apiKey,
@@ -5947,6 +5950,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     for await (const chunk of stream) {
       const chunkText = chunk.text || '';
       if (!chunkText) continue;
+      geminiSentText=true;
       if(!firstTextAt){
         firstTextAt=Date.now();
         console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
@@ -6069,7 +6073,18 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     });
     res.end();
   } catch (err: any) {
-    console.warn('[AI Consult Stream] Stream interruption, activating immediate expert fallback:', err?.message || err);
+    const failureCode=String(err?.code||err?.status||'provider_failure').slice(0,60);
+    console.warn('[AI Consult Stream] Gemini interrupted code='+failureCode+
+      ' partial='+Number(geminiSentText)+' elapsedMs='+(Date.now()-startedAt));
+    if(res.destroyed || res.writableEnded)return;
+    if(geminiSentText){
+      // Deliberately omit 'done': the caller must preserve the partial text,
+      // cancel its current speech queue, and offer a retry instead of
+      // displaying a contradictory completion or repeating earlier audio.
+      sendEvent({type:'error',responseId,errorCode:'forza_upstream_interrupted',
+        message:'دریافت پاسخ کامل نشد؛ متن دریافت‌شده ناقص است. دوباره تلاش کنید.'});
+      return res.end();
+    }
     try {
       const off = consultantFallback(query || '');
       sendEvent({
