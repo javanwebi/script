@@ -1182,6 +1182,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,interruptActiveTurn]
   );
 
+  useEffect(()=>{
+    handleUserFinishedSpeakingRef.current=handleUserFinishedSpeaking;
+  },[handleUserFinishedSpeaking]);
+
   // Setup MediaRecorder for robust audio capture and fallback STT
   const setupMediaRecorder = useCallback(
     (stream: MediaStream) => {
@@ -1250,14 +1254,31 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onresult = (event: any) => {
-        if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
+        const detectingBarge=bargeMonitorRef.current && isProcessingTurnRef.current;
+        if(!detectingBarge && (isAiSpeakingRef.current ||
+           statusRef.current==='thinking'||isProcessingTurnRef.current))return;
 
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
         const recognized = extractPersianSpeechRecognition(event.results);
         const currentSpeech = recognized.text;
+        if(detectingBarge){
+          if(!shouldInterruptForzaSpeech(currentSpeech,generatedAnswerRef.current,{
+            microphoneVoiced:microphoneVoicedRef.current,
+            isFinal:!recognized.hasInterim
+          }))return;
+          // Barge-in is a confirmed NEW customer utterance, not a new
+          // request yet. Stop output now; keep listening until end-of-turn.
+          interruptActiveTurn();
+          vadRef.current.reset();
+          vadRef.current.sample(0.04,Date.now());
+          speechStartedAtRef.current=performance.now();
+          speechFinishedAtRef.current=null;
+          sttFinalAtRef.current=null;
+        }
         if (currentSpeech) {
           speechInterimRef.current = recognized.hasInterim;
+          if(!recognized.hasInterim)sttFinalAtRef.current=performance.now();
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
           setUserText(currentSpeech);
@@ -1276,7 +1297,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               activeTranscriptRef.current = '';
               hasSpeechSoundRef.current = false;
               setIsUserSpeaking(false);
-              void handleUserFinishedSpeaking(textToSend);
+              speechFinishedAtRef.current=performance.now();
+              if(forzaInterruptionIntent(textToSend)==='stop' && interruptionRef.current){
+                // "صبر کن" means stop; await the next actual question.
+                setUserText(textToSend);
+                return;
+              }
+              void handleUserFinishedSpeakingRef.current(textToSend);
             }
           }, pauseMs);
         }
@@ -1298,10 +1325,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onend = () => {
         isRecognitionActiveRef.current = false;
         if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
-        // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+        // Re-arm STT during model/TTS output as well. Real microphone
+        // evidence + echo rejection gates interruption; not RMS alone.
+        if (isCallActive && !localSttRecognizerRef.current && !isMicMuted) {
           window.setTimeout(() => {
-            if (isCallActive && !localSttRecognizerRef.current && !isAiSpeakingRef.current && statusRef.current !== 'thinking' && !isProcessingTurnRef.current && !isMicMuted) {
+            if (isCallActive && !localSttRecognizerRef.current && !isMicMuted &&
+                (statusRef.current==='listening'||bargeMonitorRef.current)) {
               try {
                 rec.start();
                 isRecognitionActiveRef.current = true;
@@ -1315,7 +1344,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch {
       return null;
     }
-  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn]);
+  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn,interruptActiveTurn]);
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
