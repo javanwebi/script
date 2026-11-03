@@ -109,3 +109,35 @@ test('cancelled queued phrases never schedule extra speaker audio',async()=>{
   assert.deepEqual(scheduled,[]);
   await assert.rejects(engine.finish(),/aborted/);
 });
+
+test('conversation history accepts only fully completed audio, never queued WAVs',async()=>{
+  let finishPlaying!:()=>void;
+  const played:string[]=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(2.1),
+    player:{enqueueWav:()=>new Promise<void>(resolve=>{finishPlaying=resolve})},
+    onPhrasePlayed:phrase=>played.push(phrase),
+  });
+  engine.add('برای تسمه مدل دستگاه لازم است');
+  await flush();
+  assert.deepEqual(played,[],'a synthesized WAV is not heard speech');
+  finishPlaying();
+  await engine.finish();
+  assert.deepEqual(played,['برای تسمه مدل دستگاه لازم است']);
+});
+
+test('interruption does not mark a cancelled queued WAV as heard',async()=>{
+  let stop!:()=>void;
+  const played:string[]=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(2.2),
+    player:{enqueueWav:()=>new Promise<void>(resolve=>{stop=resolve})},
+    onPhrasePlayed:phrase=>played.push(phrase),
+  });
+  engine.add('این جمله هنوز شنیده نشده');
+  await flush();
+  engine.cancel();
+  stop();
+  await flush();
+  assert.deepEqual(played,[]);
+});

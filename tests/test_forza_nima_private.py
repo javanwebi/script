@@ -20,7 +20,11 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("piper-nima-gyro-medium",worker)
         self.assertIn("io.BytesIO()",worker)
         self.assertIn("application/x-forza-wav-frames",worker)
-        self.assertIn("synthesis_slot = threading.BoundedSemaphore(1)",worker)
+        self.assertIn("queue_condition = threading.Condition()",worker)
+        self.assertIn("queue_waiters = deque()",worker)
+        self.assertIn("MAX_QUEUE_WAIT_SEC = 2.5",worker)
+        self.assertIn("X-Forza-Queue-Ms",worker)
+        self.assertIn("client_disconnected",worker)
         self.assertNotIn("open('/tmp/",worker)
         self.assertNotIn("write_bytes(",worker)
 
@@ -53,6 +57,24 @@ class NimaCandidateTests(unittest.TestCase):
         rollback=(ROOT/"ops/forza-nima-rollback-vps.sh").read_text(encoding="utf-8")
         self.assertIn("pocket-farsi-v2",rollback)
         self.assertIn("FORZA_POCKET_ROLLBACK_PASS",rollback)
+
+    def test_main_deploy_calls_private_voice_from_pinned_stage_with_rollback(self):
+        pinned=ROOT/"ops/deploy-forza-nima-pinned-vps.sh"
+        bluegreen=ROOT/"ops/deploy-main-bluegreen-vps.sh"
+        subprocess.run(["bash","-n",str(pinned)],check=True,capture_output=True)
+        subprocess.run(["bash","-n",str(bluegreen)],check=True,capture_output=True)
+        s=pinned.read_text(encoding="utf-8")
+        b=bluegreen.read_text(encoding="utf-8")
+        self.assertIn("com.sanatpish.forza.source-sha256",s)
+        self.assertIn("FORZA_NIMA_PINNED_CANARY_PASS",s)
+        self.assertIn("FORZA_NIMA_PINNED_ROLLBACK_START",s)
+        self.assertIn("FORZA_NIMA_PINNED_RELEASE_OK",s)
+        self.assertIn('docker rename "$LIVE" "$BACKUP"',s)
+        self.assertIn('docker start "$LIVE"',s)
+        self.assertIn('bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"',b)
+        self.assertLess(b.index("PINNED PRIVATE NIMA CANARY"),b.index("SUCCESS=1"))
+        for forbidden in ("docker volume rm","docker system prune","git reset --hard"):
+            self.assertNotIn(forbidden,s)
 
     def test_live_switch_rebuilds_stale_checked_out_app_before_voice_cutover(self):
         deploy=ROOT/"ops/sanatpish-deploy.sh"

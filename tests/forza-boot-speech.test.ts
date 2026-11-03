@@ -18,7 +18,7 @@ test('FORZA renders live words but requests only one original Pocket WAV per com
   assert.match(frontend,/setAiText\(fullText\)/);
   assert.match(frontend,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text\}\)/);
+  assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
   assert.match(frontend,/phase=whole-pocket-wav-ready/);

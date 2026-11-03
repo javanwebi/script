@@ -34,6 +34,8 @@ export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private startedSources = new Set<AudioBufferSourceNode>();
+  private startTimers = new Set<ReturnType<typeof setTimeout>>();
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
@@ -43,6 +45,8 @@ export class ForzaContinuousWav {
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
+    private readonly onIdle?: () => void,
+    private readonly onStage?: (stage:string, elapsedMs:number) => void,
   ) {}
 
   /** Decode a server frame immediately, in parallel with the previous frame.
@@ -55,7 +59,11 @@ export class ForzaContinuousWav {
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
     const copy=new Uint8Array(wav.byteLength);
     copy.set(wav);
-    const decoded=ctx.decodeAudioData(copy.buffer);
+    const decodeStarted=performance.now();
+    const decoded=ctx.decodeAudioData(copy.buffer).then(result=>{
+      this.onStage?.('decode_ready',Math.round(performance.now()-decodeStarted));
+      return result;
+    });
     return this.enqueueDecoded(decoded);
   }
 
@@ -119,13 +127,38 @@ export class ForzaContinuousWav {
       }
       const startAt=Math.max(earliest,this.nextStart);
       this.nextStart=startAt+trimmed.duration;
+      let startTimer:ReturnType<typeof setTimeout>|null=null;
       source.onended=()=>{
+        if(startTimer!==null){
+          clearTimeout(startTimer);
+          this.startTimers.delete(startTimer);
+        }
+        this.startedSources.delete(source);
         this.sources.delete(source);
         source.disconnect();
         finish();
+        if(!this.closed && this.startedSources.size===0){
+          // A missing future WAV means buffering, not audible speech.
+          this.onIdle?.();
+          this.onStage?.('playback_idle',0);
+        }
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
-      this.onPlaying();
+      this.onStage?.('audio_scheduled',Math.round((startAt-ctx.currentTime)*1000));
+      // Scheduling a future WebAudio source is NOT evidence that it started.
+      // Start status follows its AudioContext clock time, not fetch/decode.
+      startTimer=setTimeout(()=>{
+        if(startTimer!==null)this.startTimers.delete(startTimer);
+        if(this.closed || !this.sources.has(source))return;
+        if(ctx.state!=='running'){
+          this.onStage?.('audio_context_'+ctx.state,0);
+          return;
+        }
+        this.startedSources.add(source);
+        this.onStage?.('playback_started',0);
+        this.onPlaying();
+      },Math.max(0,(startAt-ctx.currentTime)*1000));
+      this.startTimers.add(startTimer);
     }).catch(error=>finish(error instanceof Error?error:new Error(String(error))));
     return finished;
   }
@@ -140,6 +173,9 @@ export class ForzaContinuousWav {
     if(this.closed)return;
     this.closed=true;
     this.nextStart=0;
+    for(const timer of this.startTimers)clearTimeout(timer);
+    this.startTimers.clear();
+    this.startedSources.clear();
     for(const source of this.sources){
       try{source.stop();}catch{}
       try{source.disconnect();}catch{}

@@ -315,6 +315,10 @@ assert health.get('status')=='ok' and health.get('database')=='ok'
 print('PUBLIC_HTTPS_AND_DATABASE_OK')
 PY
 test "$(docker inspect "$CID" --format '{{.State.Running}}')" = true
+echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
+bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"
+bash "$STAGE/ops/deploy-forza-nima-pinned-vps.sh" "$EXPECTED" "$NAME" "$NETWORK" "$STAGE"
+echo '===== SITE AND PRIVATE VOICE BOTH HEALTHY ====='
 SUCCESS=1
 echo 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK'
 echo "RELEASE_SHA=$EXPECTED"

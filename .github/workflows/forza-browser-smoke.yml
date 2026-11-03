@@ -86,6 +86,8 @@ jobs:
       - run: node scripts/tests/forza-greeting-fallback.cjs
       - run: node scripts/tests/forza-streaming-turn-recovery.cjs
       - run: node scripts/tests/forza-reply-before-audio.cjs
-      - name: Actual Persian Amir voice synthesis in Chromium
-        run: node scripts/tests/forza-amir-real-browser.cjs
-        timeout-minutes: 7
+      # The old real-Amir/WASM browser experiment is retained in the repo,
+      # but Nima is now a private server-side voice, not a browser ONNX model.
+      # Its isolated tests are also required by the dedicated Nima workflow.
+      - name: Validate selected private Nima voice safety instead of retired Amir WASM
+        run: python3 tests/test_forza_nima_private.py
