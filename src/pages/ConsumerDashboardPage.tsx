@@ -367,7 +367,7 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const totalSpent = orders.filter((o) => o.paymentStatus === "paid")
     .reduce((acc, o) => acc + o.totalAmount, 0);
-  const activeOrder = orders.find((o) => o.status !== "cancelled");
+  const activeOrder = orders.find((o) => o.status !== "cancelled" && o.status !== "delivered") || orders.find((o) => o.status === "delivered");
   const filteredOrders = orders.filter((o) => orderFilter === "all" || (orderFilter === "processing" ? o.status === "registered" || o.status === "processing" : o.status === orderFilter));
   const filteredReceipts = orders.filter((o) => receiptFilter === "all" || (receiptFilter === "paid" ? o.paymentStatus === "paid" : o.paymentStatus !== "paid"));
   const paidCount = orders.filter((o) => o.paymentStatus === "paid").length;
@@ -509,7 +509,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 <section className="consumer-overview-shipment" aria-label="سفارش فعال">
                   <span className="consumer-shipment-package" aria-hidden="true"><Package size={43} /></span>
                   <div className="consumer-shipment-copy">
-                    <strong><span className="consumer-live-dot" /> سفارش فعال شما</strong>
+                    <strong><span className="consumer-live-dot" /> {activeOrder.status === "delivered" ? "آخرین سفارش شما" : "سفارش فعال شما"}</strong>
                     <span>شماره سفارش: <bdi dir="ltr">{activeOrder.orderNumber}</bdi></span>
                     <small>{orderStatusLabels[activeOrder.status]}</small>
                   </div>
