@@ -200,3 +200,194 @@
   .sp-forza-contact__sheet { animation:none; }
   .sp-forza-contact__arrow { animation:none; opacity:1; color:#ffac6f; transform:none; filter:none; }
 }
+
+
+/* Reference-exact mobile FORZA composition: translucent sample dialogue + navy swipe sheet. */
+@media (max-width: 1023px) {
+  .sp-forza-contact--reference {
+    position:fixed; inset:0; z-index:130;
+    font-family:inherit; overflow:hidden;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__backdrop {
+    z-index:0; background:rgba(25,31,40,.54); backdrop-filter:blur(4px);
+  }
+  .sp-forza-contact__chat-peek {
+    position:absolute; top:calc(16px + env(safe-area-inset-top));
+    left:12px; right:12px; z-index:1; pointer-events:none;
+    display:flex; flex-direction:column; align-items:stretch; gap:10px;
+    color:#151d28;
+  }
+  .sp-forza-contact__chat-title {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:15px; font-weight:900; color:#101820;
+    padding:0 7px 5px; text-shadow:0 1px 1px #fff;
+  }
+  .sp-forza-contact__chat-demo-label {
+    margin:0 6px 0 0; align-self:flex-start; font-size:9px;
+    color:#42536a; background:#ffffffc5; border-radius:999px;
+    padding:4px 9px; font-weight:700;
+  }
+  .sp-forza-contact__message {
+    max-width:84%; padding:12px 14px; border-radius:17px;
+    font-size:12px; font-weight:650; line-height:1.8;
+    box-shadow:0 4px 18px #0000000c; background:#edf0f5d9;
+    color:#313b46;
+  }
+  .sp-forza-contact__message--ai {
+    align-self:flex-end; display:flex; align-items:center; gap:10px;
+    border-radius:18px 18px 4px 18px;
+  }
+  .sp-forza-contact__bot-mark {
+    font-size:22px; color:#e06518; background:#fff; border-radius:50%;
+    width:36px; height:36px; display:grid; place-items:center; flex:0 0 auto;
+  }
+  .sp-forza-contact__message--customer {
+    align-self:flex-start; background:#ffffffaf; border-radius:18px 18px 18px 4px;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__sheet {
+    z-index:3; inset-inline:0; bottom:0;
+    height:clamp(415px, 63dvh, 630px); max-height:86dvh;
+    border-radius:35px 35px 0 0;
+    background:linear-gradient(145deg,#203746 0%,#101c27 55%,#0a131e 100%);
+    border:1px solid #ffffff2c; border-bottom:0;
+    color:#fff; box-shadow:0 -14px 42px #0005, inset 0 1px #ffffff27;
+    overflow:hidden; display:flex; flex-direction:column; isolation:isolate;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__sheet::before {
+    content:""; position:absolute; pointer-events:none; z-index:-1;
+    top:0; left:0; right:0; height:170px;
+    background:linear-gradient(135deg,transparent 20%,#ff7a1828 22%,transparent 24%);
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe {
+    flex:0 0 32px; align-items:center; justify-content:flex-start;
+    padding:11px 0 3px; touch-action:none;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__handle {
+    width:54px; height:6px; background:linear-gradient(#fff,#d8e1ea);
+    box-shadow:0 0 9px #fff9; border-radius:999px;
+  }
+  .sp-forza-contact__close--corner {
+    position:absolute; z-index:5; right:12px; top:11px;
+    opacity:.35; width:29px; height:29px; min-width:29px; border:0;
+    background:none; color:#e6edf3; display:grid; place-items:center;
+    border-radius:50%; padding:0;
+  }
+  .sp-forza-contact__reference-body {
+    flex:1; overflow-y:auto; overflow-x:hidden;
+    display:flex; flex-direction:column;
+    padding:0 clamp(12px,4vw,23px) calc(15px + env(safe-area-inset-bottom));
+    overscroll-behavior:contain;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe-cta {
+    flex:0 0 auto; display:flex; flex-direction:column; gap:6px;
+    align-items:center; justify-content:center;
+    margin:0; min-height:0; padding:0 0 13px; border:none; border-radius:0;
+    background:transparent; box-shadow:none; cursor:grab;
+    text-align:center; touch-action:none;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe-visual {
+    width:76px; height:73px; flex:0 0 73px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe-arrows {
+    height:66px; color:#fe9b42; justify-content:center;
+    filter:drop-shadow(0 0 8px #ed6417b0);
+  }
+  .sp-forza-contact--reference .sp-forza-contact__arrow {
+    flex:0 0 29px; width:29px; height:29px;
+    margin-block:-6px; stroke-width:3.3;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe-copy {
+    text-align:center; width:100%; padding-inline:10px;
+  }
+  .sp-forza-contact__swipe-copy h2 {
+    margin:0; color:white;
+    font-size:clamp(18px,5.1vw,24px);
+    line-height:1.47; font-weight:950;
+    text-shadow:0 2px 6px #0004;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__swipe-copy p {
+    color:#d5dee8; font-size:clamp(10px,2.9vw,12px);
+    line-height:1.8; font-weight:550;
+    max-width:340px; margin:10px auto 0;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channels {
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:9px; padding:13px 0 14px;
+    margin-top:auto;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; min-width:0; min-height:79px;
+    padding:9px 3px 7px; border:1px solid #ffffff22;
+    border-radius:16px; background:linear-gradient(150deg,#34414c8c,#1d2b36c7);
+    box-shadow:inset 0 1px #ffffff1a;
+    color:#fff; font-size:11px; text-align:center;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel strong {font-weight:800}
+  .sp-forza-contact--reference .sp-forza-contact__channel-icon {
+    width:38px; height:38px; border:0; border-radius:11px;
+    color:#fff; box-shadow:0 3px 12px #0006;
+    display:grid; place-items:center;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel--whatsapp .sp-forza-contact__channel-icon {
+    background:linear-gradient(145deg,#2bd35c,#03952d); color:white;
+  }
+  .sp-forza-contact__wa-brand { position:relative; display:grid; place-items:center; width:30px; height:30px; }
+  .sp-forza-contact__wa-brand svg:last-child { position:absolute; top:7px; left:8px; }
+  .sp-forza-contact--reference .sp-forza-contact__channel--telegram .sp-forza-contact__channel-icon {
+    background:linear-gradient(145deg,#37c1ee,#078ccc); color:white;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel--telegram svg { fill:#fff; stroke:#fff; }
+  .sp-forza-contact--reference .sp-forza-contact__channel--instagram .sp-forza-contact__channel-icon {
+    background:linear-gradient(35deg,#ffb13e 0%,#f03377 48%,#8625ed 100%);
+    color:white;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel--eitaa .sp-forza-contact__channel-icon {
+    background:linear-gradient(145deg,#ffb443,#eb6900); color:white;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__eitaa-symbol {
+    font-family:Georgia,serif; font-weight:900; font-size:31px; color:#fff;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel.is-unavailable .sp-forza-contact__channel-icon {
+    opacity:.88;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__channel small {
+    color:#acb9c4; font-size:9px; line-height:1; margin:0;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__phone {
+    flex:0 0 auto; width:100%; min-height:65px;
+    display:flex; justify-content:center; align-items:center; gap:19px;
+    border:1px solid #e06518; border-radius:16px;
+    background:linear-gradient(145deg,#3b3f44,#22282f);
+    box-shadow:0 0 0 1px #ed711636,0 9px 20px #0004,inset 0 1px #ffffff21;
+    padding:12px 16px; margin-bottom:0; color:#fff; text-decoration:none;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__phone-icon {
+    flex:0 0 auto; width:38px; height:38px; display:grid; place-items:center;
+    color:#f17719; background:none; box-shadow:none;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__phone-copy {
+    flex:0 1 auto; display:block; min-width:0;
+    font-size:clamp(17px,4.9vw,24px); letter-spacing:.02em;
+    text-align:center; direction:ltr; font-weight:900;
+  }
+  .sp-forza-contact--reference .sp-forza-contact__phone-copy strong { font-weight:900; white-space:nowrap; }
+  .sp-forza-contact__glow-grid {
+    position:absolute; z-index:-1; bottom:-25px; left:0; right:0;
+    height:90px; pointer-events:none;
+    background:radial-gradient(ellipse at bottom,#ff751c72,transparent 68%),
+      repeating-linear-gradient(160deg,transparent 0 9px,#ff790b27 10px,transparent 11px);
+    mask-image:linear-gradient(to top,#000,transparent);
+  }
+}
+@media (max-width:370px) {
+  .sp-forza-contact--reference .sp-forza-contact__sheet { height:clamp(400px,68dvh,590px); }
+  .sp-forza-contact--reference .sp-forza-contact__reference-body { padding-inline:10px; }
+  .sp-forza-contact--reference .sp-forza-contact__channels {gap:5px}
+  .sp-forza-contact--reference .sp-forza-contact__swipe-copy h2 {font-size:17px}
+  .sp-forza-contact--reference .sp-forza-contact__channel {min-height:74px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .sp-forza-contact--reference .sp-forza-contact__arrow {animation:none;opacity:1;transform:none;filter:none;}
+}
