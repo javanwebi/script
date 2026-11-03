@@ -37,7 +37,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { getManagedCatalogProducts } from "../data/mockGenerator";
-import { CATEGORIES } from "../data/categories";
+
 import { toPersianDigits } from "../utils/formatters";
 import { ProductImage } from "../components/product/ProductImage";
 import {
@@ -142,6 +142,7 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const orders: CustomerOrderItem[] = customerOrders
     .filter((o) => o.customerId === user?.id)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .map((o) => ({
       id: o.id,
       orderNumber: o.orderNumber,
@@ -208,6 +209,16 @@ export const ConsumerDashboardPage: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Expose only category names and slugs from active, adopted catalog rows.
+  const availableCategories = useMemo(() => {
+    const categories = new Map<string, string>();
+    for (const p of getManagedCatalogProducts()) {
+      if (p.active !== false && p.categorySlug && p.categoryName) {
+        categories.set(p.categorySlug, p.categoryName);
+      }
+    }
+    return [...categories].map(([slug, name]) => ({ slug, name }));
+  }, [portalTick]);
   // Catalog products with category filter & search
   const catalogProducts = useMemo(() => {
     const all = getManagedCatalogProducts().filter((p) => p.active !== false);
@@ -954,7 +965,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               <div className="consumer-categories" role="group" aria-label="فیلتر دسته‌بندی کالا">
                 <button type="button" aria-pressed={selectedCategorySlug === "all"}
                   onClick={() => setSelectedCategorySlug("all")}><Layers size={17}/> همه دسته‌ها</button>
-                {CATEGORIES.map((cat) => (
+                {availableCategories.map((cat) => (
                   <button type="button" key={cat.slug}
                     aria-pressed={selectedCategorySlug === cat.slug}
                     onClick={() => setSelectedCategorySlug(cat.slug)}>{cat.name}</button>
