@@ -33,11 +33,14 @@ test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart'
     assert.equal(scheduled.length,2);
     assert.ok(Math.abs((scheduled[1]-scheduled[0])-0.4)<0.00001);
     assert.equal(queue.underrunCount,0);
-    assert.equal(speaking.length,2);
+    assert.equal(speaking.length,0,'scheduled audio must not be labelled playing before its start time');
+    await new Promise(resolve=>setTimeout(resolve,45));
+    assert.equal(speaking.length,1,'only the first WAV has reached its AudioContext start clock');
     queue.setMuted(true);
     assert.equal(gain.gain.value,0);
     nodes.forEach(s=>s.onended?.());
     await Promise.all([a,b]);
+    queue.cancel(); // Clear the second future start notification.
   } finally {globalThis.fetch=originalFetch;}
 });
 
@@ -57,11 +60,14 @@ test('interruption clears already queued speech without leaving a blocked promis
   };
   globalThis.fetch=(async()=>new Response(new Uint8Array(44),{status:200})) as typeof fetch;
   try{
-    const queue=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{});
+    let playbackSignals=0;
+    const queue=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{playbackSignals++;});
     const pending=queue.enqueue('blob:interrupt');
     await new Promise(resolve=>setTimeout(resolve,0));
     queue.cancel();
     await pending;
+    await new Promise(resolve=>setTimeout(resolve,40));
+    assert.equal(playbackSignals,0,'cancelled audio must never signal a future start');
     assert.equal(sources.length,1);
     await queue.enqueue('blob:after-cancel');
   } finally{globalThis.fetch=originalFetch;}
