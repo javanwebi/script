@@ -4,6 +4,7 @@ on:
     branches: [design/consumer-premium-dashboard-20261101]
     paths:
       - 'src/components/portal/**'
+      - 'tests/consumer-reference-parity-v3.test.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'src/components/portal/**'
+      - 'tests/consumer-reference-parity-v3.test.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
@@ -30,6 +32,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run lint
+      - name: Reference parity source tests
+        run: node --import tsx --test tests/consumer-reference-parity-v3.test.ts
       - name: Production bundle
         run: npm run build
       - name: Install browser dependencies
