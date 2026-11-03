@@ -1854,6 +1854,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: مرورگر / سرویس فعلی سرور
           </div>
         )}
+        {audioPlaybackPhase==='blocked' && greetingFinishedRef.current && (
+          <button type="button"
+            className="pointer-events-auto self-end rounded-xl border border-orange-400 bg-black/90 px-4 py-2 text-xs font-bold text-orange-100"
+            onClick={()=>{
+              const context=ensureCtx();
+              void context?.resume().catch(()=>{
+                setVoiceOutputError('مرورگر صدا را متوقف کرده؛ روی صفحه کلیک کنید یا مجوز پخش را بررسی کنید.');
+              });
+            }}>
+            فعال‌سازی دوباره صدای فورزا
+          </button>
+        )}
         {microphoneError && (
           <div role="alert" className="pointer-events-auto self-end flex max-w-sm flex-col gap-2 rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-right text-xs text-amber-200">
             <span>{microphoneError}</span>
