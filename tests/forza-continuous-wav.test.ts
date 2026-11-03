@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ForzaContinuousWav,pocketWavWindow} from '../src/utils/forzaContinuousWav';
+import {ForzaContinuousWav,pocketWavWindow,forzaHasAudiblePcm} from '../src/utils/forzaContinuousWav';
 
 test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart',async()=>{
   const originalFetch=globalThis.fetch;
@@ -114,4 +114,12 @@ test('trims isolated WAV leading/trailing silence but keeps breath margins',()=>
   assert.ok(window.duration>0.58&&window.duration<0.72,JSON.stringify(window));
   const silent={...decoded,getChannelData:()=>new Float32Array(24000)};
   assert.deepEqual(pocketWavWindow(silent as unknown as AudioBuffer),{offset:0,duration:1});
+});
+
+test('a valid WAV decoding to silence is NOT proof of an audible TTS response',()=>{
+  const silent={duration:3,length:72000,sampleRate:24000,
+    getChannelData:()=>new Float32Array(72000)};
+  assert.equal(forzaHasAudiblePcm(silent as unknown as AudioBuffer),false);
+  const pcm=new Float32Array(72000);pcm.fill(0.08,10000,61000);
+  assert.equal(forzaHasAudiblePcm({...silent,getChannelData:()=>pcm} as unknown as AudioBuffer),true);
 });
