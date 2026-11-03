@@ -5520,6 +5520,14 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
+// Build provenance is supplied by the deployment script, never inferred from
+// the host's current checkout (which may be ahead of the live blue/green mount).
+app.get('/api/ai/forza-build',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  const sha=process.env.SANATPISH_DEPLOYED_SHA||'';
+  res.json({revision:/^[a-f0-9]{40}$/.test(sha)?sha:null,voice:forzaVoiceEngine});
+});
+
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
 function consumePocketVoiceBudget(req:any):boolean{
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
