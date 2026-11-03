@@ -84,8 +84,16 @@ LIVE_PIPER_VERSION="$(docker exec "$LIVE" python -c 'from importlib.metadata imp
 LIVE_IMAGE_ID="$(docker inspect "$LIVE" --format '{{.Image}}')"
 if test "$LIVE_MODEL_SHA" = "$EXPECTED_MODEL_SHA" && test "$LIVE_PIPER_VERSION" = "$EXPECTED_PIPER_VERSION"; then
   echo "FORZA_NIMA_OFFLINE_BUILD using_verified_local_model=1"
+  # A bare sha256:<image-id> is not a valid local FROM reference: BuildKit
+  # may try docker.io/library/sha256 and fail even though the image exists.
+  # Tag the verified running image with a valid local-only name instead.
+  [[ "$LIVE_IMAGE_ID" =~ ^sha256:[a-f0-9]{64}$ ]] || fail "invalid_live_voice_image_id"
+  LOCAL_BASE_IMAGE="sanatpish/forza-nima-local-base:${LIVE_IMAGE_ID#sha256:}"
+  docker image inspect "$LIVE_IMAGE_ID" >/dev/null || fail "live_voice_base_image_not_cached"
+  docker tag "$LIVE_IMAGE_ID" "$LOCAL_BASE_IMAGE"
+  test "$(docker image inspect "$LOCAL_BASE_IMAGE" --format '{{.Id}}')" = "$LIVE_IMAGE_ID" || fail "local_voice_base_image_mismatch"
   docker build --pull=false \
-    --build-arg "FORZA_BASE_IMAGE=$LIVE_IMAGE_ID" \
+    --build-arg "FORZA_BASE_IMAGE=$LOCAL_BASE_IMAGE" \
     --label "org.opencontainers.image.revision=$SHA" \
     --label "com.sanatpish.forza.source-sha256=$FINGERPRINT" \
     -t "$IMAGE" -f - "$STAGE" <<'DOCKERFILE'
