@@ -49,6 +49,7 @@ export class ForzaContinuousWav {
     private readonly onPlaying: () => void,
     private readonly onUnderrun?: (ms:number) => void,
     private readonly onPlaybackState?: (state:'idle'|'playing'|'buffering'|'blocked'|'muted') => void,
+    private readonly onDecode?: (ms:number,bytes:number) => void,
   ) {}
 
   private publish(state: 'idle'|'playing'|'buffering'|'blocked'|'muted'): void {
@@ -98,7 +99,11 @@ export class ForzaContinuousWav {
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
     const copy=new Uint8Array(wav.byteLength);
     copy.set(wav);
-    const decoded=ctx.decodeAudioData(copy.buffer);
+    const started=performance.now();
+    const decoded=ctx.decodeAudioData(copy.buffer).then(buffer=>{
+      this.onDecode?.(performance.now()-started,wav.byteLength);
+      return buffer;
+    });
     return this.enqueueDecoded(decoded);
   }
 
@@ -192,6 +197,7 @@ export class ForzaContinuousWav {
     }
     return seconds;
   }
+  get isMuted():boolean{return this.muted;}
   get isActuallyPlaying():boolean {
     return !this.closed && !this.muted && this.audibleSources.size>0 &&
       this.getContext()?.state==='running';
