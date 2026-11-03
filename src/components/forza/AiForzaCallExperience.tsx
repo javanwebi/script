@@ -108,6 +108,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [particlesFormed, setParticlesFormed] = useState(false);
   const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
   const [voicePending, setVoicePending] = useState(false);
+  const [audioPlaybackPhase,setAudioPlaybackPhase]=useState<
+    'idle'|'playing'|'buffering'|'blocked'|'muted'
+  >('idle');
   const [voiceWaitSeconds, setVoiceWaitSeconds] = useState(0);
   const greetingStartedRef = useRef(false);
   const micAutoStartedRef = useRef(false);
@@ -161,6 +164,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const telemetryRef=useRef<ForzaTurnTelemetry|null>(null);
   const bargeMonitorRef=useRef(false);
   const microphoneVoicedRef=useRef(false);
+  const speechStartedAtRef=useRef<number|null>(null);
+  const speechFinishedAtRef=useRef<number|null>(null);
+  const sttFinalAtRef=useRef<number|null>(null);
   const generatedAnswerRef=useRef('');
   const activeTurnContextRef=useRef<{query:string;generated:string;heard:string}|null>(null);
   const interruptionRef=useRef<{
@@ -330,11 +336,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       frame=requestAnimationFrame(check);
       if(timestamp-lastCheck<55)return;
       lastCheck=timestamp;
-      if(statusRef.current==='speaking'){
-        setAudioLevel(0.4+Math.random()*0.22);
-        return;
+      // Always observe the microphone. During FORZA output we still collect
+      // VAD evidence, but NEVER interrupt on RMS alone (speaker echo/noise).
+      const ordinaryListening=statusRef.current==='listening'&&!isProcessingTurnRef.current;
+      if(!ordinaryListening && !bargeMonitorRef.current){
+        vadRef.current.reset();
+        microphoneVoicedRef.current=false;
       }
-      if(statusRef.current!=='listening'||!greetingFinishedRef.current||micMutedRef.current||isAiSpeakingRef.current||isProcessingTurnRef.current){
+      if(!greetingFinishedRef.current||micMutedRef.current||
+         (!ordinaryListening&&!bargeMonitorRef.current)){
         vadRef.current.reset();
         setAudioLevel(0);
         return;
@@ -362,9 +372,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const current=vadRef.current.sample(rms,Date.now());
         setAudioLevel(current.level);
         if(current.speechStarted){
-          hasSpeechSoundRef.current=true;
-          setIsUserSpeaking(true);
+          if(ordinaryListening){
+            hasSpeechSoundRef.current=true;
+            speechStartedAtRef.current=performance.now();
+            setIsUserSpeaking(true);
+          }
         }
+        microphoneVoicedRef.current=bargeMonitorRef.current
+          && (current.speaking || (current.silenceMs>0&&current.silenceMs<1500));
+        // During model speech, only independent STT evidence may interrupt.
+        if(!ordinaryListening)return;
         // 650-900ms after a clearly finished question, ~1.7s for an
         // unfinished Persian thought. Worker audio STT is the safety net.
         if(current.speaking){
@@ -382,13 +399,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             silenceTimerRef.current=null;
             if(isProcessingTurnRef.current||isAiSpeakingRef.current||statusRef.current!=='listening')return;
             if(vadRef.current.silenceDuration(Date.now())<pauseMs)return;
+            speechFinishedAtRef.current=performance.now();
             setIsUserSpeaking(false);
             if(activeTranscriptRef.current.trim()){
               const text=activeTranscriptRef.current.trim();
               activeTranscriptRef.current='';
               hasSpeechSoundRef.current=false;
               vadRef.current.reset();
-              void handleUserFinishedSpeaking(text);
+              void handleUserFinishedSpeakingRef.current(text);
             }else if(mediaRecorderRef.current?.state==='recording'){
               // MediaRecorder.onstop dispatches the audio to Worker STT.
               mediaRecorderRef.current.stop();
@@ -520,6 +538,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     currentBufferSourceRef.current = null;
     try { source?.stop(); } catch {}
     isAiSpeakingRef.current = false;
+    setAudioPlaybackPhase('idle');
     const a = audioElRef.current;
     if (a) {
       try {
