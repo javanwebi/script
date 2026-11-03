@@ -75,6 +75,39 @@ const customer = {
         assert.ok(await sidebar.isVisible(), "desktop must show its section sidebar");
         assert.ok(!(await bottomNav.isVisible()), "desktop should not show the mobile dock");
       }
+      if (width === 390 || width === 1440) {
+        const screens = [
+          { id: "orders", label: "سفارشات و رهگیری مرسوله", title: "سفارش‌ها و رهگیری مرسوله" },
+          { id: "quick_buy", label: "ثبت سفارش سریع", title: "خرید سریع قطعات" },
+          { id: "club_rewards", label: "باشگاه مشتریان", title: "باشگاه مشتریان" },
+          { id: "saved_products", label: "محصولات نشان‌شده", title: "محصولات نشان‌شده" },
+          { id: "purchase_list", label: "لیست خرید چندکدی", title: "لیست خرید چندکدی" },
+          { id: "receipts", label: "فاکتورها و رسیدها", title: "فاکتورها و رسیدها" },
+          { id: "addresses", label: "آدرس‌ها و اطلاعات تحویل", title: "آدرس‌ها و اطلاعات تحویل" },
+        ];
+        for (const screen of screens) {
+          if (width < 1024) {
+            await bottomNav.locator("button").last().click();
+            await page.locator("dialog[open]").getByRole("button", { name: screen.label, exact: false }).click();
+          } else {
+            await sidebar.getByRole("button", { name: screen.label, exact: false }).click();
+          }
+          await page.locator(".portal-heading h1").waitFor();
+          const title = await page.locator(".portal-heading h1").textContent();
+          assert.equal(title?.trim(), screen.title, `incorrect page title for ${screen.id}`);
+          const bounds = await page.evaluate(() => ({
+            viewport: document.documentElement.clientWidth,
+            page: document.documentElement.scrollWidth,
+          }));
+          assert.ok(bounds.page <= bounds.viewport + 3,
+            `horizontal overflow at ${width}px in ${screen.id}: ${JSON.stringify(bounds)}`);
+          await page.screenshot({ path: `${out}/consumer-portal-${width}-${screen.id}.png`, fullPage: true });
+          console.log(`PASS consumer page ${screen.id} at ${width}px`);
+        }
+        await page.getByRole("button", { name: /افزودن آدرس جدید/ }).click();
+        await page.getByRole("heading", { name: "ثبت آدرس جدید" }).waitFor();
+        await page.locator(".consumer-address-fields input").first().fill("آدرس آزمایشی");
+      }
       console.log(`PASS consumer portal ${width}px, no horizontal overflow; screenshot saved`);
       await page.close();
     }
