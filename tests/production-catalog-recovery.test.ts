@@ -38,3 +38,17 @@ test('canonical one-command deploy safely repairs only the database currently us
  assert.match(deploy,/SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK/);
  assert.ok(deploy.indexOf('PRODUCTION_NAVIGATION_GROUPS_VERIFIED') < deploy.indexOf("echo '===== START NEW CANARY ====='"));
 });
+
+test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',()=>{
+ const script=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
+ assert.match(script,/FORZA_STT_CANARY_API_JSON_OK/);
+ assert.match(script,/FORZA_STT_PUBLIC_API_RETURNED_HTML/);
+ assert.match(script,/PUBLIC_FORZA_STT_API_JSON_OK/);
+ assert.match(script,/api\/ai\/forza-stt-info/);
+ assert.match(script,/application\/json/);
+ assert.ok(script.indexOf("FORZA_STT_CANARY_API_JSON_OK") < script.indexOf("echo '===== ATOMIC NGINX TRAFFIC SWITCH ====='"),
+   'private canary API must be JSON before touching Nginx');
+ assert.ok(script.indexOf("PUBLIC_FORZA_STT_API_JSON_OK") < script.indexOf("SUCCESS=1"),
+   'public HTTPS API must be JSON before successful publish');
+ assert.match(script,/NGINX_ROLLBACK_OK/);
+});
