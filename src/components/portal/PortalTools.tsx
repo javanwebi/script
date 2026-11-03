@@ -9,6 +9,10 @@ import {
   CheckCircle2,
   ShoppingCart,
   Copy,
+  Layers,
+  Package,
+  Search,
+  ArrowLeft,
 } from "lucide-react";
 import {
   getManagedCatalogProducts,
@@ -33,6 +37,7 @@ export function PortalTools({
   const [entryParams]=useSearchParams();
   const [text, setText] = useState(()=>entryParams.get("sku")?`${entryParams.get("sku")}, 1`:"");
   const [preview, setPreview] = useState(false);
+  const [savedFilter, setSavedFilter] = useState<"all" | "variants" | "single">("all");
   const [message, setMessage] = useState("");
   const [catalogTick, setCatalogTick] = useState(0);
   useEffect(
@@ -52,6 +57,7 @@ export function PortalTools({
       ),
     [catalog, wishlist],
   );
+  const visibleSaved = saved.filter((p) => savedFilter === "all" || (savedFilter === "variants" ? Boolean(p.variants?.length) : !p.variants?.length));
   const parsedRows = useMemo(
     () => resolvePurchaseLines(text, catalog),
     [text, catalog],
@@ -98,42 +104,42 @@ export function PortalTools({
   };
   if (tab === "saved_products")
     return (
-      <section className="portal-tools">
-        <div className="portal-tools-heading">
+      <section className="portal-tools consumer-saved-panel">
+        <div className="consumer-saved-hero">
+          <div className="consumer-saved-hero-icon" aria-hidden="true"><Heart size={38}/><Package size={22}/></div>
           <div>
-            <span className="store-eyebrow">{label("برای خریدهای بعدی")}</span>
-            <h2>
-              <Heart size={20} />
-              {label("محصولات نشان‌شده")}
-            </h2>
-            <p>
-              {label(
-                "کالاهای موردنیازتان را نگه دارید و کد و سایز مناسب را انتخاب کنید.",
-              )}
-            </p>
+            <span className="consumer-eyebrow">{label("فهرست منتخب شما")}</span>
+            <h2>{toPersianDigits(saved.length)} محصول نشان‌شده</h2>
+            <p>محصولاتی که برای دسترسی سریع‌تر ذخیره کرده‌اید. تصویر و کد از کاتالوگ سایت خوانده می‌شود.</p>
           </div>
-          <Link to="/products" className="store-btn-secondary">
-            {label("مشاهده محصولات")}
-            <ArrowUpLeft size={16} />
-          </Link>
+          <Link to="/products" className="consumer-inline-action"><Search size={17}/> جستجوی محصولات</Link>
         </div>
-        {saved.length ? (
-          <div className="store-product-grid">
-            {saved.map((p) => (
-              <PortalProductCard key={p.code} product={p} />
-            ))}
+        <div className="consumer-filter-pills" role="group" aria-label="فیلتر محصولات نشان‌شده">
+          {[
+            { id: "all", label: "همه" },
+            { id: "variants", label: "دارای کدهای انتخابی" },
+            { id: "single", label: "تک‌کدی" },
+          ].map((filter) => (
+            <button key={filter.id} type="button" aria-pressed={savedFilter === filter.id}
+              onClick={() => setSavedFilter(filter.id as typeof savedFilter)}>{filter.label}</button>
+          ))}
+        </div>
+        {visibleSaved.length ? (
+          <div className="store-product-grid consumer-saved-grid">
+            {visibleSaved.map((p) => <PortalProductCard key={p.code} product={p}/>)}
           </div>
         ) : (
-          <div className="portal-tool-empty">
+          <div className="consumer-empty">
             <Heart size={30} />
-            <h3>{label("هنوز محصولی نشان نکرده‌اید")}</h3>
-            <p>{label("قلب کنار محصولات را بزنید تا اینجا در دسترس باشند.")}</p>
+            <h3>{saved.length ? "در این گروه محصول نشان‌شده‌ای ندارید" : "هنوز محصولی نشان نکرده‌اید"}</h3>
+            <p>{saved.length ? "فیلتر دیگری انتخاب کنید." : "قلب کنار محصولات را بزنید تا اینجا در دسترس باشند."}</p>
+            <Link to="/products">مشاهده محصولات <ArrowLeft size={16}/></Link>
           </div>
         )}
       </section>
     );
   return (
-    <section className="portal-tools">
+    <section className="portal-tools consumer-multicode-panel">
       <div className="portal-tools-heading">
         <div>
           <span className="store-eyebrow">
@@ -150,6 +156,11 @@ export function PortalTools({
           </p>
         </div>
       </div>
+      <div className="consumer-bulk-hero">
+        <span className="consumer-bulk-illustration" aria-hidden="true"><ClipboardList size={39}/><Package size={25}/></span>
+        <div><span className="consumer-eyebrow">ثبت سفارش گروهی</span><h2>{label("لیست خرید چندکدی")}</h2>
+          <p>کدهای واقعی کاتالوگ و تعداد موردنیاز را خط‌به‌خط وارد کنید؛ نتیجه را پیش از اضافه کردن به سبد بررسی کنید.</p></div>
+      </div>
       <div className="portal-bulk-layout">
         <div className="portal-bulk-form portal-glass">
           <label htmlFor="portal-bulk-input">{label("کد کالا، تعداد")}</label>
@@ -157,7 +168,7 @@ export function PortalTools({
             id="portal-bulk-input"
             dir="ltr"
             rows={7}
-            placeholder={"80301, 2\n41068, 5"}
+            placeholder={"CODE-1, 2\nCODE-2, 5"}
             value={text}
             maxLength={15000}
             onChange={(e) => {
@@ -201,6 +212,7 @@ export function PortalTools({
       </div>
       {preview && (
         <div className="portal-bulk-results portal-glass">
+          <div className="consumer-bulk-summary"><CheckCircle2 size={20}/><span>نتیجه پردازش لیست</span><strong>{toPersianDigits(priced.length)} ردیف آماده افزودن</strong></div>
           <h3>
             {toPersianDigits(rows.length)} {label("ردیف بررسی شد")}
           </h3>
