@@ -7,6 +7,7 @@ import { CATEGORIES, getManagedCategories, resolveCategorySlug } from "../../dat
 import type { CategoryNode, EnhancedCategory } from "../../data/categories";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
+import { MobileCategoryExplorer } from "./MobileCategoryExplorer";
 import { toPersianDigits } from "../../utils/formatters";
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
 
@@ -181,7 +182,8 @@ export function ReferenceMegaMenu({
 
       return sections.map(section => ({
         ...section,
-        categories: section.categories.filter(category => categoryMatches(category, search)),
+        categories: section.categories.filter(category =>
+          section.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) || categoryMatches(category, search)),
       })).filter(section => section.categories.length);
     }
 
@@ -199,17 +201,12 @@ export function ReferenceMegaMenu({
 
   if (compact) {
     return (
-      <div className="reference-catalog-mobile" dir="rtl">
-        {orderedCategories.map(category => (
-          <section key={category.slug}>
-            <h3><Layers size={17} />{category.name}</h3>
-            <Link className="reference-view-all" to={categoryHref(category)} onClick={onNavigate}>
-              مشاهده همه محصولات <ArrowLeft size={14} />
-            </Link>
-            <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} onNavigate={onNavigate} />
-          </section>
-        ))}
-      </div>
+      <MobileCategoryExplorer
+        sections={navigationSections}
+        search={search}
+        onSearch={setSearch}
+        onNavigate={onNavigate}
+      />
     );
   }
 

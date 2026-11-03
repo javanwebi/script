@@ -110,7 +110,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
         </button>
       </nav>
       <dialog
-        className="store-mobile-sheet"
+        className={sheet === "categories" ? "store-mobile-sheet is-category-explorer" : "store-mobile-sheet"}
         ref={dialog}
         onCancel={() => setSheet(null)}
         onClose={() => {
@@ -127,7 +127,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
             <small>صنعت پیش</small>
             <h2 id="store-sheet-title">
               {sheet === "categories"
-                ? "دسته‌بندی قطعات"
+                ? "دسته‌بندی محصولات"
                 : "راهنمای خرید و پشتیبانی"}
             </h2>
           </div>
@@ -141,16 +141,9 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
           </button>
         </div>
         {sheet === "categories" ? (
-          <>
-            <Link className="store-sheet-all" to="/products">
-              <Search size={18} />
-              جستجو در همه محصولات
-              <ArrowUpLeft size={17} />
-            </Link>
-            <div className="store-mobile-category-tree">
-              <ReferenceMegaMenu compact />
-            </div>
-          </>
+          <div className="store-mobile-category-tree" data-testid="store-mobile-category-tree">
+            <ReferenceMegaMenu compact onNavigate={() => setSheet(null)} />
+          </div>
         ) : (
           <div className="store-support-links">
             <Link to="/ai-consult">
