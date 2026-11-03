@@ -390,3 +390,17 @@
   .consumer-premium .portal-topbar,.consumer-premium .portal-sidebar,.consumer-premium .portal-mobile-nav,
   .consumer-premium .portal-heading,.consumer-premium .consumer-shortcuts {display:none!important;}
 }
+
+.consumer-order-card-preview {display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:14px;padding:11px 13px;border:1px solid #f0e8e2;border-radius:16px;background:linear-gradient(115deg,#fffaf6,#fff);}
+.consumer-order-preview-photo {width:76px;height:76px;display:grid;place-items:center;padding:9px;background:#fff;border:1px solid #f0e9e4;border-radius:13px;color:#d5783e;}
+.consumer-order-preview-photo img {width:100%;height:100%;object-fit:contain;}
+.consumer-order-card-preview > div:nth-child(2) {min-width:0;}
+.consumer-order-card-preview > div:nth-child(2) span {font-size:13px;font-weight:800;color:#303441;display:block;}
+.consumer-order-card-preview small {display:block;color:#8a8d96;font-size:10px;margin-top:3px;}
+.consumer-order-card-preview strong {color:#ae4b15;font-size:14px;font-weight:850;white-space:nowrap;}
+@media (max-width:767px) {
+  .consumer-order-card-preview {grid-template-columns:58px minmax(0,1fr);gap:10px;padding:9px;}
+  .consumer-order-preview-photo {width:58px;height:58px;padding:5px;}
+  .consumer-order-card-preview > div:nth-child(2) span {font-size:11px;}
+  .consumer-order-card-preview strong {grid-column:2;white-space:normal;font-size:12px;}
+}
