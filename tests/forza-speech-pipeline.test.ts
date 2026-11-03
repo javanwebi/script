@@ -50,3 +50,26 @@ test('Chrome MediaRecorder codec-specific data URLs are valid for Worker STT',()
   assert.equal(extractForzaAudioBase64(base64),base64);
   assert.throws(()=>extractForzaAudioBase64('data:audio/webm;codecs=opus,'+base64),/Invalid encoded audio/);
 });
+
+test('live STT replaces interim hypotheses and preserves a self-corrected industrial code',()=>{
+  const initial=extractPersianSpeechRecognition([
+    result('تسمه SPA 1250 برای موتور',false),
+  ]);
+  assert.equal(initial.text,'تسمه SPA 1250 برای موتور');
+  const revised=extractPersianSpeechRecognition([
+    result('تسمه SPA 1250 برای موتور 6202 نه 6203',false),
+  ]);
+  assert.equal(revised.text,'تسمه SPA 1250 برای موتور 6202 نه 6203');
+  assert.equal((revised.text.match(/SPA 1250/g)||[]).length,1);
+  const final=extractPersianSpeechRecognition([
+    result('تسمه SPA 1250 برای موتور 6202 نه 6203',true),
+  ]);
+  assert.equal(final.text,revised.text);
+  assert.equal(final.hasInterim,false);
+});
+
+test('industrial codes and physical units survive browser transcript normalization',()=>{
+  const input='SPA 1250 و 6202ZZ با لقی C3 و فشار ۶ بار و سرعت ۱۴۵۰ دور در دقیقه';
+  assert.equal(normalizePersianTranscript(input),input);
+  assert.equal(normalizePersianTranscript('6202ZZ نه، 6203ZZ'),'6202ZZ نه، 6203ZZ');
+});
