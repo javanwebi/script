@@ -1034,14 +1034,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               </div>
               <div className="consumer-section-head">
                 <div><span>{toPersianDigits(addresses.length)} نشانی ثبت‌شده</span><h2>آدرس‌های من</h2></div>
-                <button type="button" className="consumer-address-add" aria-expanded={isAddingAddress}
-                  onClick={() => {
-                    setEditingAddressId(null);
-                    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
-                    setIsAddingAddress(!isAddingAddress);
-                  }}>
-                  <Plus size={17}/>{isAddingAddress ? "بستن فرم" : "افزودن آدرس جدید"}
-                </button>
+
               </div>
               {isAddingAddress && (
                 <form onSubmit={handleAddAddress} className="consumer-address-form">
@@ -1101,6 +1094,14 @@ export const ConsumerDashboardPage: React.FC = () => {
               ) : (
                 <div className="consumer-empty"><MapPin size={29}/><h3>هنوز آدرسی ثبت نشده است</h3><p>برای دریافت سفارش، اولین نشانی تحویل خود را اضافه کنید.</p></div>
               )}
+                <button type="button" className="consumer-address-add" aria-expanded={isAddingAddress}
+                  onClick={() => {
+                    setEditingAddressId(null);
+                    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
+                    setIsAddingAddress(!isAddingAddress);
+                  }}>
+                  <Plus size={17}/>{isAddingAddress ? "بستن فرم" : "افزودن آدرس جدید"}
+                </button>
               <aside className="consumer-address-delivery-note">
                 <LocationArt />
                 <div><h3>ثبت سریع اطلاعات تحویل</h3><p>برای ارسال دقیق سفارش‌ها، اطلاعات گیرنده، شهر و نشانی تحویل را تکمیل کنید.</p></div>
