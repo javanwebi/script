@@ -5435,7 +5435,7 @@ const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
 // Pocket WAV from the original application image.
 const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
-async function renderPocketSpeech(phrase:string,clientSignal?:AbortSignal):Promise<Buffer>{
+async function renderPocketSpeech(phrase:string,clientSignal?:AbortSignal,timings?:{queueMs:number;inferMs:number}):Promise<Buffer>{
   // The Node catalog API NEVER loads Pocket ONNX; the private Ubuntu service
   // does all synthesis. No downloaded neural model is sent to visitors.
   if(!internalForzaVoiceUrl)throw new Error('private_voice_not_configured');
@@ -5476,6 +5476,10 @@ async function renderPocketSpeech(phrase:string,clientSignal?:AbortSignal):Promi
       throw new Error('private_voice_'+(reason?.error||'unavailable'));
     }
     if(!response.ok)throw new Error('private_voice_http_'+response.status);
+    if(timings){
+      timings.queueMs=Number(response.headers.get('X-Forza-TTS-Queue-Ms')||-1);
+      timings.inferMs=Number(response.headers.get('X-Forza-TTS-Infer-Ms')||-1);
+    }
     if(!(response.headers.get('content-type')||'').includes('audio/wav'))
       throw new Error('private_voice_invalid_type');
     const payload=await response.arrayBuffer();
@@ -5540,13 +5544,17 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   if(!phrase || phrase.length>1000){res.off('close',onClose);return res.status(400).json({error:'pocket_invalid_text'});}
   if(!consumePocketVoiceBudget(req)){res.off('close',onClose);return res.status(429).json({error:'pocket_rate_limited'});}
   const started=Date.now();
+  const privateTiming={queueMs:-1,inferMs:-1};
   try{
-    const wav=await renderPocketSpeech(phrase,controller.signal);
+    const wav=await renderPocketSpeech(phrase,controller.signal,privateTiming);
     if(res.headersSent||res.destroyed||controller.signal.aborted)return;
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Forza-Voice',forzaVoiceEngine);
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
+    res.setHeader('X-Forza-Server-TTS-Ms',String(Date.now()-started));
+    if(privateTiming.queueMs>=0)res.setHeader('X-Forza-TTS-Queue-Ms',String(privateTiming.queueMs));
+    if(privateTiming.inferMs>=0)res.setHeader('X-Forza-TTS-Infer-Ms',String(privateTiming.inferMs));
     console.info('[FORZA_LATENCY] phase=pocket-server-tts backend='+(internalForzaVoiceUrl?'private':'local')+' ms='+(Date.now()-started));
     return res.send(wav);
   }catch(error:any){
