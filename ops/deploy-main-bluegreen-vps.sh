@@ -231,6 +231,21 @@ done
 test "$READY" = 1
 test "$(docker inspect "$CID" --format '{{.State.OOMKilled}}')" = false
 
+echo '===== VERIFY FORZA STT JSON API BEFORE TRAFFIC SWITCH ====='
+python3 - "$NEXT" <<'PY'
+import json,sys,urllib.request
+port=sys.argv[1]
+url=f'http://127.0.0.1:{port}/api/ai/forza-stt-info'
+with urllib.request.urlopen(url,timeout=15) as response:
+ content_type=response.headers.get('content-type','').lower()
+ assert 'application/json' in content_type, ('FORZA_STT_RETURNED_HTML_IN_CANARY',content_type)
+ info=json.loads(response.read())
+assert isinstance(info.get('serverSttConfigured'),bool), ('FORZA_STT_BAD_CONTRACT',info)
+assert info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_BAD_PROVIDER',info)
+assert isinstance(info.get('reason'),str), ('FORZA_STT_MISSING_REASON',info)
+print('FORZA_STT_CANARY_API_JSON_OK provider='+info['serverSttProvider'])
+PY
+
 echo '===== CATALOG AND CAMERA CANARY CHECKS ====='
 python3 - "$ACTIVE" "$NEXT" "$STAGE" <<'PY'
 import sys,json,urllib.request,re
@@ -312,6 +327,15 @@ for i in range(10):
 else:raise AssertionError('HTTPS_BUILD_MISMATCH')
 health=json.loads(get('https://127.0.0.1/api/health'))
 assert health.get('status')=='ok' and health.get('database')=='ok'
+# SPA fallback returns index.html with HTTP 200 for unknown API routes.
+# Treat that as a deployment failure; Nginx rollback stays armed.
+with urllib.request.urlopen('https://127.0.0.1/api/ai/forza-stt-info',timeout=15,context=ctx) as stt_response:
+ content_type=stt_response.headers.get('content-type','').lower()
+ assert 'application/json' in content_type, ('FORZA_STT_PUBLIC_API_RETURNED_HTML',content_type)
+ stt_info=json.loads(stt_response.read())
+assert isinstance(stt_info.get('serverSttConfigured'),bool), ('FORZA_STT_PUBLIC_BAD_CONTRACT',stt_info)
+assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
 print('PUBLIC_HTTPS_AND_DATABASE_OK')
 PY
 test "$(docker inspect "$CID" --format '{{.State.Running}}')" = true
