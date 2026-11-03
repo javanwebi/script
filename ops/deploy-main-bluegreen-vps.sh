@@ -14,7 +14,11 @@ test "$(git -C "$APP" cat-file -t "$EXPECTED")" = commit
 
 CONF1="$(readlink -f /etc/nginx/sites-enabled/default)"
 CONF2="$(readlink -f /etc/nginx/sites-enabled/sanatpish-https.conf)"
-test -f "$CONF1" && test -f "$CONF2" && test "$CONF1" != "$CONF2"
+# The public .com domain has a separate virtual host from the IP/default ones.
+CONF_DOMAIN="$(readlink -f /etc/nginx/sites-enabled/sanatpish-domain-20261103.conf)"
+test -f "$CONF1" && test -f "$CONF2" && test -f "$CONF_DOMAIN"
+test "$CONF1" != "$CONF2" && test "$CONF1" != "$CONF_DOMAIN" && test "$CONF2" != "$CONF_DOMAIN"
+grep -Eq 'server_name[[:space:]]+sanatpish\.com[[:space:]]+www\.sanatpish\.com;' "$CONF_DOMAIN"
 nginx -t
 echo '===== READ LIVE NGINX TARGET ====='
 ACTIVE="$(python3 - "$CONF1" "$CONF2" <<'PY'
@@ -32,6 +36,20 @@ PY
 )"
 test -n "$ACTIVE"
 echo "ACTIVE_PORT=$ACTIVE"
+# Tolerate pre-existing domain drift; correct it atomically with the next canary switch.
+DOMAIN_ACTIVE="$(python3 - "$CONF_DOMAIN" <<'PY'
+from pathlib import Path
+import re,sys
+s=Path(sys.argv[1]).read_text()
+ports=set(re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(30(?:0[4-9]|1[0-9]|20));',s))
+assert len(ports)==1,('UNEXPECTED_DOMAIN_PROXY_TARGET',ports)
+print(next(iter(ports)))
+PY
+)"
+echo "DOMAIN_PORT_BEFORE=$DOMAIN_ACTIVE"
+if test "$DOMAIN_ACTIVE" != "$ACTIVE"; then
+  echo "DOMAIN_PORT_DRIFT_DETECTED origin=$ACTIVE domain=$DOMAIN_ACTIVE"
+fi
 curl --noproxy '*' -fsS --max-time 12 "http://127.0.0.1:$ACTIVE/api/health" | grep -q '"database":"ok"'
 curl --noproxy '*' -kfsS --max-time 12 'https://127.0.0.1/api/health' | grep -q '"database":"ok"'
 OLD=''
@@ -73,6 +91,7 @@ cleanup(){
      echo '===== ROLLBACK NGINX ====='
      cp -p "$BACKUP/default" "$CONF1"
      cp -p "$BACKUP/https" "$CONF2"
+      cp -p "$BACKUP/domain" "$CONF_DOMAIN"
      if nginx -t && systemctl reload nginx; then
        echo NGINX_ROLLBACK_OK
      else
@@ -179,6 +198,7 @@ echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
 mkdir -m 700 -p "$BACKUP"
 cp -p "$CONF1" "$BACKUP/default"
 cp -p "$CONF2" "$BACKUP/https"
+cp -p "$CONF_DOMAIN" "$BACKUP/domain"
 docker inspect "$OLD" | python3 -c '
 import json,sys
 env=json.load(sys.stdin)[0]["Config"]["Env"]
@@ -295,19 +315,23 @@ echo CAMERA_CANARY_OK
 
 echo '===== ATOMIC NGINX TRAFFIC SWITCH ====='
 SWITCH=1
-python3 - "$CONF1" "$CONF2" "$ACTIVE" "$NEXT" <<'PY'
+python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$ACTIVE" "$NEXT" "$DOMAIN_ACTIVE" <<'PY'
 from pathlib import Path
-import sys
-a,b,old,new=sys.argv[1:]
-before=f'proxy_pass http://127.0.0.1:{old};'
-after=f'proxy_pass http://127.0.0.1:{new};'
-files=[Path(a),Path(b)]
-contents=[p.read_text() for p in files]
-assert all(before in s for s in contents)
-assert all(after not in s for s in contents)
-for f,s in zip(files,contents):
- f.write_text(s.replace(before,after))
- print('UPDATED_NGINX',f)
+import re,sys
+a,b,domain,old,new,domain_old=sys.argv[1:]
+paths=[Path(a),Path(b),Path(domain)]
+expected=[old,old,domain_old]
+pattern=re.compile(r'(proxy_pass\s+http://127\.0\.0\.1:)(30(?:0[4-9]|1[0-9]|20))(;)')
+contents=[p.read_text() for p in paths]
+for p,before,port in zip(paths,contents,expected):
+ matches=pattern.findall(before)
+ assert matches and {match[1] for match in matches}=={port},('UNEXPECTED_PROXY_TARGET',str(p),matches,port)
+ assert new not in {match[1] for match in matches},('TARGET_ALREADY_SELECTED',str(p))
+# Prevalidate all three files before writing any. The rollback trap restores
+# all vhosts if the config, HTTP checks, or private voice promotion fails.
+for p,before in zip(paths,contents):
+ p.write_text(pattern.sub(lambda m:m.group(1)+new+m.group(3),before))
+ print('UPDATED_NGINX',p)
 PY
 nginx -t
 systemctl reload nginx
@@ -338,6 +362,28 @@ assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLI
 print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
 print('PUBLIC_HTTPS_AND_DATABASE_OK')
 PY
+echo '===== VERIFY DOMAIN AND IP ROUTE TO SAME RELEASE ====='
+python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$NEXT" <<'PY'
+from pathlib import Path
+import re,sys
+*paths,new=sys.argv[1:]
+pattern=r'proxy_pass\s+http://127\.0\.0\.1:(30(?:0[4-9]|1[0-9]|20));'
+for filename in paths:
+ ports=set(re.findall(pattern,Path(filename).read_text()))
+ assert ports=={new},('NGINX_VHOST_DRIFT_AFTER_SWITCH',filename,ports,new)
+ print('NGINX_VHOST_MATCH',filename,'port='+new)
+PY
+EXPECTED_HTML="$(curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:$NEXT/")"
+for DOMAIN in sanatpish.com www.sanatpish.com; do
+  DOMAIN_HTML="$(curl --noproxy '*' -kfsS --max-time 25 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/")"
+  if test "$DOMAIN_HTML" != "$EXPECTED_HTML"; then
+    echo "DOMAIN_BUILD_MISMATCH domain=$DOMAIN port=$NEXT" >&2
+    exit 1
+  fi
+  curl --noproxy '*' -kfsS --max-time 15 --resolve "$DOMAIN:443:127.0.0.1" \
+    "https://$DOMAIN/api/health" | grep -q '"database":"ok"'
+  echo "DOMAIN_BUILD_AND_DATABASE_OK domain=$DOMAIN port=$NEXT"
+done
 test "$(docker inspect "$CID" --format '{{.State.Running}}')" = true
 echo '===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION ====='
 bash -n "$STAGE/ops/deploy-forza-nima-pinned-vps.sh"

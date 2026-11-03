@@ -31,6 +31,7 @@ jobs:
           bash -n ops/deploy-main-bluegreen-vps.sh
           node --import tsx --test tests/production-catalog-recovery.test.ts
           node --import tsx --test tests/production-category-bootstrap.test.ts
+          node --import tsx --test tests/bluegreen-domain-routing.test.ts
           bash -n ops/sanatpish-deploy-main.sh
           bash -n ops/deploy-forza-nima-pinned-vps.sh
           grep -Fq 'PINNED PRIVATE NIMA CANARY' ops/deploy-main-bluegreen-vps.sh
