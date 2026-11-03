@@ -1,0 +1,352 @@
+/* The Sanat Pish homepage's mobile bottom-dock category drawer.
+   Scoped to the categories dialog; the support dialog and desktop mega menu remain unchanged.
+   Categories, rows and links are supplied by the approved Excel taxonomy, not sample art data. */
+@media (max-width: 1023px) {
+  .storefront .store-mobile-sheet.is-category-explorer[open] {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: auto 0 calc(84px + env(safe-area-inset-bottom));
+    width: calc(100vw - 14px);
+    max-width: 640px;
+    height: min(80dvh, 810px);
+    max-height: calc(100dvh - 106px - env(safe-area-inset-bottom));
+    margin: 0 auto;
+    padding: 24px 12px 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.94);
+    border-top: 0;
+    border-radius: 29px 29px 18px 18px;
+    background: linear-gradient(145deg,#fff,#fafbfc);
+    color: #24262b;
+    box-shadow: 0 13px 52px rgba(22,28,40,.27);
+    direction: rtl;
+  }
+  .storefront .store-mobile-sheet.is-category-explorer::backdrop {
+    background: rgba(29,29,33,.38);
+    backdrop-filter: blur(2.5px);
+  }
+  .storefront .store-mobile-sheet.is-category-explorer::before {
+    content: "";
+    flex-shrink: 0;
+    position: absolute;
+    top: 9px;
+    left: calc(50% - 22px);
+    width: 44px;
+    height: 5px;
+    background: #b8b9bf;
+    border-radius: 999px;
+  }
+  .storefront .is-category-explorer .store-sheet-heading {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 11px;
+    min-height: 50px;
+    padding: 0 3px;
+  }
+  .storefront .is-category-explorer .store-sheet-heading > div {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .storefront .is-category-explorer .store-sheet-heading h2 {
+    color: #25252a;
+    font-weight: 900;
+    font-size: clamp(18px, 5vw, 23px);
+    line-height: 1.5;
+  }
+  .storefront .is-category-explorer .store-sheet-heading small {display:none;}
+  .storefront .is-category-explorer .store-sheet-heading > button {
+    width: 39px;
+    height: 39px;
+    flex-shrink: 0;
+    border: 1px solid #e7e9ed;
+    border-radius: 50%;
+    background: #fafafa;
+    color: #33353e;
+    box-shadow: 0 2px 7px rgba(33,35,40,.07);
+  }
+  .storefront .is-category-explorer .store-mobile-category-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    overflow: hidden;
+  }
+  .storefront .sanat-mobile-category-explorer {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: #292b32;
+    direction: rtl;
+  }
+  .storefront .sanat-mobile-category-search {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 9px;
+    min-height: 50px;
+    padding: 8px 13px;
+    border: 1px solid #eaebef;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(32,38,48,.10);
+    color: #ed670f;
+  }
+  .storefront .sanat-mobile-category-search:focus-within {
+    border-color: #e56b1e;
+    box-shadow: 0 0 0 3px #ffdfc7, 0 4px 16px rgba(32,38,48,.07);
+  }
+  .storefront .sanat-mobile-category-search input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #25262d;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    text-align: right;
+  }
+  .storefront .sanat-mobile-category-search input::placeholder { color: #898b95; font-weight: 500; }
+  .storefront .sanat-mobile-category-search button {
+    display: grid;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    border: 0;
+    background: #f3f4f6;
+    color: #5d6068;
+    border-radius: 50%;
+  }
+  .storefront .sanat-mobile-category-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 7px;
+    font-weight: 750;
+    font-size: 11px;
+    padding: 0 4px 0;
+    min-height: 25px;
+    flex-shrink: 0;
+    color: #30313a;
+  }
+  .storefront .sanat-mobile-category-meta > span { display: flex; align-items: center; gap: 5px; }
+  .storefront .sanat-mobile-category-meta > span svg { color: #e66a18; }
+  .storefront .sanat-mobile-category-meta small { font-size: 10px; color: #848790; font-weight: 700; }
+  .storefront .sanat-mobile-category-columns {
+    display: grid;
+    grid-template-columns: minmax(114px, 39%) minmax(0, 1fr);
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    direction: rtl;
+    gap: 9px;
+    padding-bottom: 1px;
+  }
+  .storefront .sanat-mobile-category-rail {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding: 2px 4px 10px 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    border-left: 1px solid #e1e4e9;
+  }
+  .storefront .sanat-mobile-category-group {
+    min-height: 69px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 10px 8px;
+    border: 1px solid #e7e8ec;
+    border-radius: 17px;
+    background: linear-gradient(130deg,#fff,#f9fafb);
+    box-shadow: 0 2px 6px rgba(34,36,45,.06);
+    color: #33343c;
+    text-align: center;
+    transition: color .16s, background .16s, border-color .16s;
+  }
+  .storefront .sanat-mobile-category-group > svg:first-child {color:#72747a;stroke-width:1.7; flex-shrink:0;}
+  .storefront .sanat-mobile-category-group > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 1.55;
+    font-weight: 800;
+  }
+  .storefront .sanat-mobile-category-group .sanat-mobile-category-group-chevron { display:none; }
+  .storefront .sanat-mobile-category-group.is-selected {
+    background: linear-gradient(135deg,#ff881f 0%,#eb5d08 90%);
+    color: #fff;
+    border-color: #f36a13;
+    box-shadow: 0 4px 13px rgba(220,92,15,.23);
+  }
+  .storefront .sanat-mobile-category-group.is-selected > svg {color:#fff;}
+  .storefront .sanat-mobile-category-results {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding: 2px 3px 16px 2px;
+  }
+  .storefront .sanat-mobile-category-feature {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 72px;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 9px;
+    min-height: 137px;
+    background: linear-gradient(112deg,#fff2e6,#fff9f4 65%,#fff1e5);
+    border: 1px solid #f8decb;
+    border-radius: 19px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(44,34,28,.08);
+  }
+  .storefront .sanat-mobile-category-feature > img {
+    grid-column: 2;
+    grid-row: 1;
+    width: 72px;
+    height: 95px;
+    max-width: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+  }
+  .storefront .sanat-mobile-category-feature > div {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-start;
+  }
+  .storefront .sanat-mobile-category-feature small { color: #b9531a; font-size: 9px; font-weight: 850; }
+  .storefront .sanat-mobile-category-feature h3 { color: #2b2c30; font-size: 12px; line-height: 1.65; font-weight: 900; overflow-wrap: anywhere; }
+  .storefront .sanat-mobile-category-feature span { color: #60636e; font-size: 10px; line-height: 1.65; }
+  .storefront .sanat-mobile-category-feature a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 32px;
+    width: 100%;
+    padding: 5px 3px;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(130deg,#ff8629,#dc5409);
+    font-size: 10px;
+    font-weight: 800;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.5;
+    box-shadow: 0 3px 9px rgba(234,98,12,.18);
+  }
+  .storefront .sanat-mobile-category-sublist { display:grid; gap:7px; margin-top:12px; }
+  .storefront .sanat-mobile-category-item {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #ebedf0;
+    border-radius: 15px;
+    background: linear-gradient(130deg,#fff,#fefefe);
+    box-shadow: 0 2px 7px rgba(35,37,43,.065);
+  }
+  .storefront .sanat-mobile-category-item-link {
+    display:grid;
+    grid-template-columns: 42px minmax(0,1fr) 13px;
+    align-items:center;
+    gap:5px;
+    min-height: 60px;
+    padding: 7px 6px;
+    text-decoration: none;
+    color: #303139;
+  }
+  .storefront .sanat-mobile-category-item-link img {width:42px;height:43px;object-fit:contain;}
+  .storefront .sanat-mobile-category-item-link span {min-width:0;overflow-wrap:anywhere;line-height:1.65;font-size:11px;font-weight:850;}
+  .storefront .sanat-mobile-category-item-link > svg {color:#767980;flex-shrink:0;}
+  .storefront .sanat-mobile-category-subdetails {border-top:1px solid #f0f0f1;padding:0 7px 5px;}
+  .storefront .sanat-mobile-category-subdetails > summary {
+    display:flex;justify-content:space-between;align-items:center;gap:6px;
+    min-height:32px;
+    color:#b65720;
+    cursor:pointer;
+    list-style:none;
+    font-size:10px;
+    font-weight:750;
+  }
+  .storefront .sanat-mobile-category-subdetails > summary::-webkit-details-marker {display:none;}
+  .storefront .sanat-mobile-category-subdetails[open] > summary svg {transform:rotate(180deg);}
+  .storefront .sanat-mobile-category-subdetails > ul {
+    display:grid;
+    gap:7px;
+    padding:4px 0 8px;
+  }
+  .storefront .sanat-mobile-category-subdetails > ul li {min-width:0;}
+  .storefront .sanat-mobile-category-subdetails > ul li :is(a,button,summary) {font-size:10px!important;line-height:1.7!important;}
+  .storefront .sanat-mobile-category-browse {
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    min-height:42px;
+    padding:10px 7px;
+    margin-top:13px;
+    border:1px solid #efc5a6;
+    background:#fff7f0;
+    color:#c15715;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:850;
+    text-align:center;
+  }
+  .storefront .sanat-mobile-category-no-match,
+  .storefront .sanat-mobile-category-empty {padding:20px 10px;line-height:1.9;color:#646974;font-size:11px;}
+  .storefront .sanat-mobile-category-empty {display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;}
+  .storefront .sanat-mobile-category-empty > svg {color:#e16818;}
+  .storefront .sanat-mobile-category-empty strong {font-size:12px;}
+  .storefront .sanat-mobile-category-empty button,
+  .storefront .sanat-mobile-category-empty a {
+    border-radius:999px;padding:9px 11px;background:#fff3e9;color:#aa4b13;font-size:11px;font-weight:800;
+  }
+  .storefront .is-category-explorer :is(a,button,summary,input):focus-visible {
+    outline: 3px solid #e56b1e;
+    outline-offset: 2px;
+  }
+}
+@media (max-width: 375px) {
+  .storefront .sanat-mobile-category-columns {grid-template-columns:minmax(108px,38%) minmax(0,1fr);gap:6px;}
+  .storefront .sanat-mobile-category-group {min-height:64px;padding:7px 5px;}
+  .storefront .sanat-mobile-category-group > span {font-size:10px;}
+  .storefront .sanat-mobile-category-feature {grid-template-columns:minmax(0,1fr) 55px;padding:8px 6px;}
+  .storefront .sanat-mobile-category-feature > img {width:55px;height:83px;}
+  .storefront .sanat-mobile-category-feature h3 {font-size:11px;}
+  .storefront .sanat-mobile-category-item-link {grid-template-columns:35px minmax(0,1fr) 12px;gap:3px;min-height:57px;padding:6px 4px;}
+  .storefront .sanat-mobile-category-item-link img {width:35px;height:38px;}
+  .storefront .sanat-mobile-category-item-link span {font-size:10px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .storefront .sanat-mobile-category-explorer *,
+  .storefront .sanat-mobile-category-explorer *::before,
+  .storefront .sanat-mobile-category-explorer *::after { transition:none!important;animation:none!important; }
+}
