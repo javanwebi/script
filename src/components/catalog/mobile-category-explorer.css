@@ -9,7 +9,7 @@
     inset: auto 0 calc(84px + env(safe-area-inset-bottom));
     width: calc(100vw - 14px);
     max-width: 640px;
-    height: min(80dvh, 810px);
+    height: min(68dvh, 670px);
     max-height: calc(100dvh - 106px - env(safe-area-inset-bottom));
     margin: 0 auto;
     padding: 24px 12px 12px;
@@ -23,8 +23,8 @@
     direction: rtl;
   }
   .storefront .store-mobile-sheet.is-category-explorer::backdrop {
-    background: rgba(29,29,33,.38);
-    backdrop-filter: blur(2.5px);
+    background: linear-gradient(to top, transparent 0 84px, rgba(29,29,33,.38) 85px 100%);
+    backdrop-filter: none;
   }
   .storefront .store-mobile-sheet.is-category-explorer::before {
     content: "";
@@ -165,18 +165,18 @@
     padding: 2px 4px 10px 2px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 7px;
     border-left: 1px solid #e1e4e9;
   }
   .storefront .sanat-mobile-category-group {
-    min-height: 69px;
+    min-height: 57px;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 10px 8px;
+    padding: 7px 6px;
     border: 1px solid #e7e8ec;
     border-radius: 17px;
     background: linear-gradient(130deg,#fff,#f9fafb);
@@ -217,7 +217,7 @@
     align-items: center;
     gap: 7px;
     padding: 11px 9px;
-    min-height: 137px;
+    min-height: 124px;
     background: linear-gradient(112deg,#fff2e6,#fff9f4 65%,#fff1e5);
     border: 1px solid #f8decb;
     border-radius: 19px;
@@ -228,7 +228,7 @@
     grid-column: 2;
     grid-row: 1;
     width: 72px;
-    height: 95px;
+    height: 87px;
     max-width: 100%;
     object-fit: contain;
     mix-blend-mode: multiply;
