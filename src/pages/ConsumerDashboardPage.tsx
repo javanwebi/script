@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { getManagedCatalogProducts } from "../data/mockGenerator";
+import { getManagedCatalogProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 
 import { toPersianDigits } from "../utils/formatters";
 import { ProductImage } from "../components/product/ProductImage";
@@ -87,6 +87,8 @@ export const ConsumerDashboardPage: React.FC = () => {
   }, [user, navigate]);
 
   const [portalTick, setPortalTick] = useState(0);
+  const [catalogTick, setCatalogTick] = useState(0);
+  useEffect(() => subscribeCatalogChanges(() => setCatalogTick((tick) => tick + 1)), []);
   useEffect(() => {
     const onUpdate = () => setPortalTick((t) => t + 1);
     window.addEventListener("atlas-portal-content-updated", onUpdate);
@@ -173,7 +175,7 @@ export const ConsumerDashboardPage: React.FC = () => {
       if (p.code && p.images?.[0]) map.set(p.code, p.images[0]);
     }
     return map;
-  }, [portalTick]);
+  }, [catalogTick]);
   const receiptDialogRef = useRef<HTMLDivElement>(null);
   const [selectedReceiptOrder, setSelectedReceiptOrder] =
     useState<CustomerOrderItem | null>(null);
@@ -223,7 +225,7 @@ export const ConsumerDashboardPage: React.FC = () => {
       }
     }
     return [...categories].map(([slug, name]) => ({ slug, name }));
-  }, [portalTick]);
+  }, [catalogTick]);
   // Catalog products with category filter & search
   const catalogProducts = useMemo(() => {
     const all = getManagedCatalogProducts().filter((p) => p.active !== false);
@@ -245,7 +247,7 @@ export const ConsumerDashboardPage: React.FC = () => {
         )
       : byCat;
     return filtered.slice(0, 24);
-  }, [quickSkuQuery, selectedCategorySlug]);
+  }, [quickSkuQuery, selectedCategorySlug, catalogTick]);
 
   const handleQuickAddProduct = (product: any) => {
     if (
