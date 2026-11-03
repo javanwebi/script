@@ -160,6 +160,7 @@ CID="$(docker run -d --name "$NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$NEXT:3000" --env-file "$ENV_FILE" \
  -e PORT=3000 -e SANATPISH_SERVE_DIST=1 \
+ -e SANATPISH_RELEASE_SHA="$EXPECTED" \
  -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
