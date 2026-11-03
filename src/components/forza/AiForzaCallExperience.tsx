@@ -22,7 +22,7 @@ import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
-import { isForzaProbableEcho } from '../../utils/forzaBargeIn';
+import { isForzaProbableEcho, forzaTurnIntent } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -850,6 +850,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (!q && !audioBlob) return;
       if (!greetingFinishedRef.current) return;
       if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
+      if(q && forzaTurnIntent(q)==='stop'){
+        // A pure stop command should not trigger an extra AI response.
+        setUserText(q);
+        setIsUserSpeaking(false);
+        setStatus('listening');
+        setTurn('user');
+        activeTranscriptRef.current='';
+        vadRef.current.reset();
+        return;
+      }
 
       isProcessingTurnRef.current = true;
       setVoicePending(false);
