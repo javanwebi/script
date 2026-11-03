@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   Bell,
   Layers,
+  Headphones,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -501,116 +502,55 @@ export const ConsumerDashboardPage: React.FC = () => {
           )}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Active Shipment Live Tracker */}
+              {/* Screenshot reference: shipment first, then 2×2 account cards, then tracking. */}
+              {activeOrder ? (
+                <section className="consumer-overview-shipment" aria-label="سفارش فعال">
+                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={43} /></span>
+                  <div className="consumer-shipment-copy">
+                    <strong><span className="consumer-live-dot" /> سفارش فعال شما</strong>
+                    <span>شماره سفارش: <bdi dir="ltr">{activeOrder.orderNumber}</bdi></span>
+                    <small>{orderStatusLabels[activeOrder.status]}</small>
+                  </div>
+                  <button type="button" onClick={() => setActiveTab("orders")} className="consumer-shipment-track">
+                    <Truck size={18} aria-hidden="true" /> پیگیری سفارش <ChevronLeft size={16} />
+                  </button>
+                </section>
+              ) : (
+                <section className="consumer-overview-shipment is-empty">
+                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={37} /></span>
+                  <div className="consumer-shipment-copy"><strong>هنوز سفارش فعالی ندارید</strong><small>قطعات موردنیاز را از کاتالوگ انتخاب کنید.</small></div>
+                  <button type="button" className="consumer-shipment-track" onClick={() => setActiveTab("quick_buy")}>شروع خرید <ChevronLeft size={16} /></button>
+                </section>
+              )}
+
+              <section className="consumer-overview-stats" aria-label="خلاصه حساب شما">
+                <button type="button" onClick={() => setActiveTab("receipts")}>
+                  <CreditCard size={29} aria-hidden="true" /><span><b>وضعیت حساب</b><small>حساب فعال</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => navigate("/ai-forza")}>
+                  <Headphones size={29} aria-hidden="true" /><span><b>پشتیبانی</b><small>مشاوره و راهنمایی قطعات</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => setActiveTab("orders")}>
+                  <Package size={29} aria-hidden="true" /><span><b>سفارش‌های من</b><small>{toPersianDigits(orders.filter((o) => o.status !== "cancelled" && o.status !== "delivered").length)} سفارش فعال</small></span><ChevronLeft size={16} />
+                </button>
+                <button type="button" onClick={() => setActiveTab("receipts")}>
+                  <ShoppingCart size={29} aria-hidden="true" /><span><b>مجموع خرید</b><small>{formatPrice(totalSpent)} تومان پرداخت‌شده</small></span><ChevronLeft size={16} />
+                </button>
+              </section>
+
               {activeOrder && (
-                <div className="consumer-active-order bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-bold text-emerald-700">
-                          {activeOrder?.status === "delivered" ? portalLabel("تحویل‌شده")
-                            : activeOrder?.status === "shipped" ? portalLabel("ارسال‌شده")
-                            : activeOrder?.status === "processing" ? portalLabel("در حال آماده‌سازی")
-                            : portalLabel("سفارش ثبت‌شده")}
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span
-                          className="font-mono font-black text-sm text-slate-900"
-                          dir="ltr"
-                        >
-                          {activeOrder?.orderNumber}
-                        </span>
-                      </div>
-                      <h2 className="text-base font-black text-slate-800 mt-1">
-                        {portalLabel("آخرین وضعیت ثبت‌شده سفارش شما")}
-                      </h2>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {resolvedConfig.permissions
-                        .allowExcelPriceListDownload && (
-                        <button
-                          type="button"
-                          onClick={handleDownloadMyPriceListExcel}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
-                        >
-                          <FileSpreadsheet className="w-3.5 h-3.5" />
-                          <span>
-                            {resolvedConfig.uiTexts.excelDownloadButtonLabel}
-                          </span>
-                        </button>
-                      )}
-                      {resolvedConfig.permissions.allowInvoicePrint && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReceiptOrder(activeOrder)}
-                          className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>{portalLabel("مشاهده و چاپ فاکتور")}</span>
-                        </button>
-                      )}
-                      {resolvedConfig.permissions.allowQuickReorder && (
-                        <button
-                          type="button"
-                          onClick={() => activeOrder && handleReorderItems(activeOrder)}
-                          className="px-3.5 py-2 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>{portalLabel("تکرار این سفارش")}</span>
-                        </button>
-                      )}
-                    </div>
+                <section className="consumer-overview-tracker">
+                  <div className="consumer-section-head">
+                    <div><span>وضعیت مرسوله</span><h2>آخرین سفارش</h2></div>
+                    <bdi dir="ltr" className="consumer-order-chip">{activeOrder.orderNumber}</bdi>
                   </div>
-
-                  <ConsumerOrderTimeline status={activeOrder.status}
-                    shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
-
-
-                  {/* Order Items Summary */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600 pb-2 border-b border-slate-200">
-                      <span>
-                        {portalLabel("روش ارسال:")}
-                        <strong className="text-slate-900">
-                          {activeOrder?.shippingMethod || "ثبت نشده"}
-                        </strong>
-                      </span>
-                      <span>
-                        {portalLabel("مبلغ کل سفارش:")}{" "}
-                        <strong className="text-emerald-700 font-mono text-sm">
-                          {formatPrice(activeOrder?.totalAmount)}
-                          {portalLabel("تومان")}
-                        </strong>
-                      </span>
-                    </div>
-                    <div className="divide-y divide-slate-200/60">
-                      {activeOrder?.items.map((item, i) => (
-                        <div
-                          key={i}
-                          className="py-2 flex items-center justify-between"
-                        >
-                          <div>
-                            <span
-                              className="font-mono font-bold text-[#E06518] ml-2"
-                              dir="ltr"
-                            >
-                              [{item.code}]
-                            </span>
-                            <span className="font-bold text-slate-800">
-                              {item.name}
-                            </span>
-                          </div>
-                          <div className="font-mono text-slate-700">
-                            {toPersianDigits(item.quantity)} {item.unit} ×{" "}
-                            {formatPrice(item.unitPrice)}
-                            {portalLabel("ت")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <ConsumerOrderTimeline status={activeOrder.status} shippingMethod={activeOrder.shippingMethod} trackingCode={activeOrder.trackingCode} />
+                  <div className="consumer-overview-tracker-actions">
+                    {resolvedConfig.permissions.allowInvoicePrint && <button type="button" onClick={() => setSelectedReceiptOrder(activeOrder)}><FileText size={15}/> مشاهده فاکتور</button>}
+                    {resolvedConfig.permissions.allowQuickReorder && <button type="button" onClick={() => handleReorderItems(activeOrder)}><RefreshCw size={15}/> سفارش مجدد</button>}
+                    <button type="button" onClick={() => setActiveTab("orders")}><Truck size={15}/> اطلاعات مرسوله</button>
                   </div>
-                </div>
+                </section>
               )}
 
               <section className="consumer-dash-quick" aria-label="دسترسی سریع">
