@@ -20,7 +20,7 @@ test("mobile scan action uses existing product identification context, not a dup
 test("camera flow captures only a real frame and releases media tracks", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   assert.match(modal, /navigator\.mediaDevices\?\.getUserMedia/);
-  assert.match(modal, /facingMode: "environment"/);
+  assert.match(modal, /facingMode: facing/);
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
@@ -172,4 +172,24 @@ test("identification hides mobile dock with React state, scoped class and CSS fa
   assert.match(css, /body\.sanat-identification-open \.storefront \.store-bottom-nav/);
   assert.match(css, /\.storefront\.no-mobile-dock \.store-ai-quick-actions/);
   assert.match(source("src/components/search/AiVisualPartSearchModal.tsx"), /fullScreen=\{fullScreen \|\| initialCamera \|\| cameraFlowActive \|\| currentStep === "analyzing"\}/);
+});
+
+test("reference-design scanner has actual gallery, reversible lens and flash controls, a round shutter and scan-line", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const css = source("src/components/search/industrial-scan.css");
+  assert.match(modal, /sanat-camera-reference/);
+  assert.match(modal, /sanat-camera-experience__instruction/);
+  assert.match(modal, /sanat-camera-experience__scan-line/);
+  assert.match(modal, /sanat-camera-experience__shutter/);
+  assert.match(modal, /aria-label="انتخاب عکس از گالری"/);
+  assert.match(modal, /onClick=\{switchCamera\}/);
+  assert.match(modal, /onClick=\{capturePhoto\} disabled=\{!isCameraReady\}/);
+  assert.match(modal, /onClick=\{\(\) => void toggleTorch\(\)\}/);
+  assert.match(modal, /setCameraReview\(true\)/);
+  assert.match(modal, /reader\.readAsDataURL\(file\)/);
+  assert.match(css, /sanat-camera-reference/);
+  assert.match(css, /sanat-camera-experience__scan-line/);
+  assert.match(css, /sanat-camera-experience__capture/);
+  assert.match(css, /object-fit: cover/);
+  assert.match(css, /safe-area-inset-bottom/);
 });
