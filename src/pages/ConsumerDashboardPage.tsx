@@ -1062,122 +1062,82 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 5: SHIPPING ADDRESSES
              =============================================================== */}
           {activeTab === "addresses" && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-base text-slate-800">
-                  {portalLabel("آدرس‌های ثبت‌شده جهت ارسال مرسولات")}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingAddress(!isAddingAddress)}
-                  className="px-4 py-2 rounded-xl bg-[#E06518] text-white text-xs font-bold cursor-pointer"
-                >
-                  {portalLabel("+ افزودن آدرس جدید")}
+            <section className="consumer-address-panel">
+              <div className="consumer-address-profile">
+                <div className="consumer-avatar" aria-hidden="true"><User size={34}/></div>
+                <div><span>اطلاعات حساب مصرف‌کننده</span><h2>{user?.fullName || "حساب مشتری"}</h2><bdi dir="ltr">{user?.phone || "شماره تماس ثبت نشده"}</bdi></div>
+                <span className="consumer-role-tag">حساب مصرف‌کننده</span>
+              </div>
+              <div className="consumer-section-head">
+                <div><span>{toPersianDigits(addresses.length)} نشانی ثبت‌شده</span><h2>آدرس‌های من</h2></div>
+                <button type="button" className="consumer-address-add" aria-expanded={isAddingAddress}
+                  onClick={() => {
+                    setEditingAddressId(null);
+                    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
+                    setIsAddingAddress(!isAddingAddress);
+                  }}>
+                  <Plus size={17}/>{isAddingAddress ? "بستن فرم" : "افزودن آدرس جدید"}
                 </button>
               </div>
-
               {isAddingAddress && (
-                <form
-                  onSubmit={handleAddAddress}
-                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input
-                      type="text"
-                      required
-                      placeholder="عنوان آدرس (مثلاً کارگاه مرکزی)"
-                      value={newAddress.title}
-                      onChange={(e) =>
-                        setNewAddress({ ...newAddress, title: e.target.value })
-                      }
-                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                    />
-                    <input
-                      type="text"
-                      required
-                      placeholder="نام تحویل‌گیرنده"
-                      value={newAddress.receiver}
-                      onChange={(e) =>
-                        setNewAddress({
-                          ...newAddress,
-                          receiver: e.target.value,
-                        })
-                      }
-                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                    />
-                    <input
-                      type="text"
-                      dir="ltr"
-                      placeholder="شماره تماس"
-                      value={newAddress.phone}
-                      onChange={(e) =>
-                        setNewAddress({ ...newAddress, phone: e.target.value })
-                      }
-                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white font-mono"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input type="text" required placeholder="شهر" value={newAddress.city}
+                <form onSubmit={handleAddAddress} className="consumer-address-form">
+                  <h3>{editingAddressId ? "ویرایش آدرس" : "ثبت آدرس جدید"}</h3>
+                  <div className="consumer-address-fields">
+                    <label>عنوان آدرس <input type="text" required value={newAddress.title}
+                      onChange={(e) => setNewAddress({ ...newAddress, title: e.target.value })}
+                      placeholder="خانه، محل کار یا انبار" /></label>
+                    <label>نام تحویل‌گیرنده <input type="text" required value={newAddress.receiver}
+                      onChange={(e) => setNewAddress({ ...newAddress, receiver: e.target.value })}
+                      placeholder="نام و نام خانوادگی" /></label>
+                    <label>شماره تماس <input type="tel" dir="ltr" inputMode="tel" value={newAddress.phone}
+                      onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+                      placeholder="شماره تلفن گیرنده" /></label>
+                    <label>شهر <input type="text" required value={newAddress.city}
                       onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white" />
-                    <input type="text" inputMode="numeric" placeholder="کد پستی"
-                      value={newAddress.postalCode}
+                      placeholder="نام شهر" /></label>
+                    <label>کد پستی <input type="text" inputMode="numeric" dir="ltr" value={newAddress.postalCode}
                       onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
-                      className="px-3 py-2 rounded-xl border border-slate-300 bg-white" />
+                      placeholder="کد پستی" /></label>
+                    <label className="is-wide">نشانی دقیق <textarea rows={3} required value={newAddress.fullAddress}
+                      onChange={(e) => setNewAddress({ ...newAddress, fullAddress: e.target.value })}
+                      placeholder="خیابان، پلاک، واحد و توضیحات تحویل" /></label>
                   </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="نشانی دقیق پستی..."
-                    value={newAddress.fullAddress}
-                    onChange={(e) =>
-                      setNewAddress({
-                        ...newAddress,
-                        fullAddress: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold cursor-pointer"
-                    >
-                      {portalLabel("ذخیره آدرس")}
-                    </button>
+                  <div className="consumer-address-form-actions">
+                    <button type="submit"><CheckCircle2 size={17}/> ذخیره آدرس</button>
+                    <button type="button" onClick={() => { setIsAddingAddress(false); setEditingAddressId(null); }}>انصراف</button>
                   </div>
                 </form>
               )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {addresses.map((addr) => (
-                  <div
-                    key={addr.id}
-                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-sm text-slate-900">
-                        {addr.title}
-                      </span>
-                      {addr.isDefault && (
-                        <span className="text-emerald-700 text-[11px] font-bold">
-                          {portalLabel("آدرس پیش‌فرض")}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 leading-relaxed">
-                      {addr.fullAddress}
-                    </p>
-                    <div className="text-[11px] text-slate-500 pt-1">
-                      {portalLabel("تحویل‌گیرنده:")}
-                      <strong>{addr.receiver}</strong>
-                      {portalLabel("• تلفن:")}{" "}
-                      <span className="font-mono">{addr.phone}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+              {addresses.length ? (
+                <div className="consumer-address-grid">
+                  {addresses.map((address) => (
+                    <article key={address.id} className={address.isDefault ? "consumer-address-card is-default" : "consumer-address-card"}>
+                      <div className="consumer-address-card-top">
+                        <span className="consumer-address-icon"><MapPin size={22}/></span>
+                        <h3>{address.title}</h3>
+                        {address.isDefault && <span className="consumer-default-tag"><CheckCircle2 size={15}/> آدرس پیش‌فرض</span>}
+                      </div>
+                      <div className="consumer-address-info">
+                        <span><MapPin size={17}/>{address.city || "شهر ثبت نشده"}</span>
+                        <span><User size={17}/> {address.receiver || "تحویل‌گیرنده ثبت نشده"}</span>
+                        {address.phone && <span><CreditCard size={17}/><bdi dir="ltr">{address.phone}</bdi></span>}
+                      </div>
+                      <p className="consumer-address-full">{address.fullAddress}</p>
+                      {address.postalCode && <p className="consumer-postcode">کد پستی: <bdi dir="ltr">{address.postalCode}</bdi></p>}
+                      <div className="consumer-address-actions">
+                        <button type="button" onClick={() => handleEditAddress(address)}><FileText size={16}/> ویرایش</button>
+                        <button type="button" aria-pressed={Boolean(address.isDefault)} disabled={Boolean(address.isDefault)}
+                          onClick={() => handleSetDefaultAddress(address.id)}>
+                          <CheckCircle2 size={16}/>{address.isDefault ? "انتخاب‌شده" : "انتخاب به عنوان پیش‌فرض"}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="consumer-empty"><MapPin size={29}/><h3>هنوز آدرسی ثبت نشده است</h3><p>برای دریافت سفارش، اولین نشانی تحویل خود را اضافه کنید.</p></div>
+              )}
+            </section>
           )}
         </div>
 
