@@ -165,6 +165,13 @@ export const ConsumerDashboardPage: React.FC = () => {
     }));
   const [orderFilter, setOrderFilter] = useState<"all" | "processing" | "shipped" | "delivered">("all");
   const [receiptFilter, setReceiptFilter] = useState<"all" | "paid" | "pending">("all");
+  const orderImageByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of getManagedCatalogProducts()) {
+      if (p.code && p.images?.[0]) map.set(p.code, p.images[0]);
+    }
+    return map;
+  }, [portalTick]);
   const [selectedReceiptOrder, setSelectedReceiptOrder] =
     useState<CustomerOrderItem | null>(null);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
@@ -884,6 +891,19 @@ export const ConsumerDashboardPage: React.FC = () => {
                       </div>
                     </div>
 
+                    <div className="consumer-order-card-preview">
+                      <div className="consumer-order-preview-photo">
+                        {order.items[0] && orderImageByCode.get(order.items[0].code)
+                          ? <ProductImage src={orderImageByCode.get(order.items[0].code)}
+                              alt={order.items[0].name} thumbnail loading="lazy" decoding="async" />
+                          : <Package size={30} aria-hidden="true" />}
+                      </div>
+                      <div>
+                        <span>{order.items[0]?.name || "سفارش ثبت‌شده"}</span>
+                        <small>{toPersianDigits(order.items.length)} قلم کالا</small>
+                      </div>
+                      <strong>{formatPrice(order.totalAmount)} تومان</strong>
+                    </div>
                     <div className="space-y-2 text-xs">
                       {order.items.map((it, idx) => (
                         <div
