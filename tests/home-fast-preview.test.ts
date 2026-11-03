@@ -62,7 +62,9 @@ test('first paint prefetches SQL-light categories and small product previews',()
  assert.match(boot,/\x2fapi\x2fcatalog\x2fhome-preview/);
  assert.match(home,/homeCategories\(\)/);
  assert.match(featured,/homeProducts\(\)/);
- assert.match(home,/queueMicrotask/);
+ // The homepage now reads the approved taxonomy independently from legacy runtime hydration.
+ assert.match(home,/APPROVED_MENU_CATEGORIES/);
+ assert.doesNotMatch(home,/sanat-durable-hydrated/);
  assert.match(featured,/queueMicrotask/);
  assert.match(nav,/app\.get\('\x2fapi\x2fcatalog\x2fhome-categories'/);
  const quickRoute=nav.slice(nav.indexOf("app.get('/api/catalog/home-categories'"),nav.indexOf('// PostgreSQL is the authoritative source'));
