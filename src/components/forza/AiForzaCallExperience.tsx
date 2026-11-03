@@ -862,7 +862,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       completedVoiceTurnRef.current=turnEpoch;
       activeTurnAbortRef.current = pocketAbort;
       console.info('[FORZA_LATENCY] phase=turn-captured userTurnId='+userTurnId+
-        ' sinceSpeechStartMs='+(firstSpeechAtRef.current?Math.round(turnCaptureAt-firstSpeechAtRef.current):-1));
+        ' sinceSpeechStartMs='+(firstSpeechAtRef.current && turnCaptureAt-firstSpeechAtRef.current<30000
+          ? Math.round(turnCaptureAt-firstSpeechAtRef.current):-1)+
+        ' sinceFinalSttMs='+(finalSttAtRef.current && turnCaptureAt-finalSttAtRef.current<30000
+          ? Math.round(turnCaptureAt-finalSttAtRef.current):-1));
       const isCurrentTurn = () => !pocketAbort.signal.aborted &&
         !callClosedRef.current && turnEpochRef.current === turnEpoch;
       isProcessingTurnRef.current = true;
