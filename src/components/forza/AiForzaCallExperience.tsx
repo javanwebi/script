@@ -1028,6 +1028,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             telemetry.mark('audio_started');
             telemetry.duration('question_to_audio_ms','speech_end','audio_started');
             telemetry.duration('server_to_audio_ms','server_request','audio_started');
+            telemetry.duration('tts_first_request_to_wav_ms','tts_request','wav_received');
+            telemetry.duration('wav_to_audio_start_ms','wav_received','audio_started');
           },
           ms=>{
             if(!isCurrentTurn())return;
@@ -1093,6 +1095,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               Math.round(performance.now()-turnStartedAt)+' chars='+phrase.length);
           }
           telemetry.mark('first_tts_phrase',{chars:phrase.length});
+          telemetry.duration('first_text_to_speakable_ms','first_text','first_tts_phrase');
           activeNimaBuffer.add(phrase);
         };
         const onTextChunk=(_chunk:string,fullText:string)=>{
@@ -1136,6 +1139,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
             telemetry.mark('server_request');
+            telemetry.duration('stt_final_to_request_ms','stt_final','server_request');
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
