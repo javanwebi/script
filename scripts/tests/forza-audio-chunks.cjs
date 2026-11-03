@@ -18,6 +18,8 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     const greeting='سَلام، بِه صَنعَت پیش خُوش آمَدید. مَن فورزا هَستَم وَ بَرایِ رَهنَمایی شُما آمادِه‌اَم.';
     const fullAnswer='سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است. لطفاً کد فنی را بفرمایید.';
     let streamCalls=0;
+    let privateNimaCalls=0;
+    const nimaPhrases=[];
     await page.addInitScript(()=>{
       window.__micRequested=false;
       const original=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
@@ -27,6 +29,18 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
       };
     });
     await mockLocalVoice(page,wave);
+    await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
+      json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}
+    }));
+    await page.route('**/api/ai/forza-speech',async route=>{
+      privateNimaCalls++;
+      const request=route.request().postDataJSON();
+      assert.ok(typeof request.text==='string' && request.text.trim().length>0);
+      nimaPhrases.push(request.text);
+      await route.fulfill({status:200,contentType:'audio/wav',
+        headers:{'X-Forza-Voice':'piper-nima-gyro-medium','Cache-Control':'no-store'},
+        body:wave});
+    });
     await page.route('**/api/ai/consult-stream',async route=>{
       streamCalls++;
       const request=route.request().postDataJSON();
@@ -59,8 +73,9 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
     assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
     const ttsTexts=await page.evaluate(()=>window.__forzaAmirSpoken);
-    assert.ok(ttsTexts.length>=1,'must synthesize reply speech locally with Amir');
-    assert.ok(ttsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
-    console.log('PASS: automatic mic acquisition; no retry/unlock buttons; greeting and streamed reply TTS (mock audio).');
+    assert.equal(ttsTexts.length,0,'Nima must not invoke the retired local Amir TTS');
+    assert.ok(privateNimaCalls>=1,'must request selected private Piper Nima speech');
+    assert.ok(nimaPhrases.every(x=>x.length<=1000),'Nima speech requests must stay bounded');
+    console.log('PASS: automatic mic; no retry/unlock; SSE text and selected private Nima reply WAV (mock audio).');
   } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
