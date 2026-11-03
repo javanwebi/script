@@ -5744,7 +5744,17 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       'اصلاح نهایی را ترجیح بده؛ در «ادامه بده» از بخش شنیده‌شده ادامه بده؛ '+
       'اگر کد فنی مهم مبهم است فقط همان کد را کوتاه تأیید بگیر. پاسخ طولانی را از ابتدا تکرار نکن.\\n'
     : '';
-  const catalogContext=consultantCatalogContext(String(query||''))+interruptionPrompt;
+  const technicalSpeechRules=lowLatencyVoice
+    ? '\\nدستورالعمل تشخیص گفتار: جملهٔ مشتری ممکن است شامل اصلاح در همان نوبت باشد؛ '+
+      'در «۶۲۰۲، نه، ۶۲۰۳» اصلاح آخر اولویت دارد. کد صنعتی، عدد و واحد را حدس نزن؛ '+
+      'اگر کد مهم نامطمئن است فقط همان مورد را کوتاه بپرس. پاسخ را کوتاه و قابل تلفظ نگه دار.\\n'
+    : '';
+  const contextStartedAt=Date.now();
+  const catalogContext=consultantCatalogContext(String(query||''))+interruptionPrompt+technicalSpeechRules;
+  console.info('[FORZA_SERVER_TIMING]',JSON.stringify({
+    turnId:userTurnId,phase:'catalog_context',ms:Date.now()-contextStartedAt,
+    contextChars:catalogContext.length
+  }));
 
   console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=${mode || 'desk'} endpoint=/api/ai/consult-stream timestamp=${new Date().toISOString()}`);
 
