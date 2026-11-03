@@ -16,90 +16,80 @@ import {
 } from "lucide-react";
 import type { EnhancedCategory } from "../../data/categories";
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
-import {homeCategories} from "../../services/homeFirstPaint";
+import type { ApprovedMenuGroup } from "../../data/approvedMenuFallback";
+import { homeCategories } from "../../services/homeFirstPaint";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
 
-// Only active approved spreadsheet categories that are also in the real mega-menu.
-const APPROVED_CATEGORY_SLUG = /^excel-v2-[0-9]+-[0-9]+$/;
+// The homepage cards represent the top-level mega-menu groups, NOT child categories.
 const HOMEPAGE_CATEGORY_CARD_COUNT = 6;
-const approvedCategoryBySlug = new Map(APPROVED_MENU_CATEGORIES.map(category => [category.slug,category]));
-const initialHomeCategories = [...APPROVED_MENU_GROUPS]
-  .filter(group => group.active !== false)
-  .sort((a,b) => a.sortOrder - b.sortOrder)
-  .flatMap(group => group.categorySlugs.map(slug => approvedCategoryBySlug.get(slug)))
-  .filter((category): category is EnhancedCategory =>
-    Boolean(category && category.active !== false && APPROVED_CATEGORY_SLUG.test(category.slug)))
-  .slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
-const categoryArtworkByGroup:Record<number,string> = {
-  1:A.categories.belts,2:A.categories.conveyor,4:A.categories.pulleys,
-  9:A.categories.chains,13:A.categories.bearings,
+const validGroup = (group:ApprovedMenuGroup) =>
+  group.active !== false && /^excel-v2-[0-9]+$/.test(group.id) && Boolean(group.title?.trim());
+const displayedGroups = (groups:ApprovedMenuGroup[]) =>
+  groups.filter(validGroup).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
+const groupArt:Record<number,string> = {
+  1:A.categories.belts, 2:A.categories.conveyor,
+  3:A.categories.conveyor, 4:A.categories.pulleys,
+  9:A.categories.chains, 13:A.categories.bearings
 };
-const categoryGroupIndex = (slug:string):number => {
-  const match=/^excel-v2-([0-9]+)-[0-9]+$/.exec(slug);
-  return match ? Number(match[1]) : 0;
-};
-const filterApprovedHomeCategories = (categories:EnhancedCategory[]) =>
-  categories.filter(category =>
-    category.active !== false && APPROVED_CATEGORY_SLUG.test(category.slug) &&
-    typeof category.name === "string" && category.name.trim().length > 0)
-    .slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
+const groupNumber = (id:string) => Number(/^excel-v2-([0-9]+)$/.exec(id)?.[1] || 0);
 
 export function HomeCategoryStrip() {
-  const [available,setAvailable]=React.useState<EnhancedCategory[]>(initialHomeCategories);
+  const [groups,setGroups]=React.useState<ApprovedMenuGroup[]>(()=>displayedGroups([...APPROVED_MENU_GROUPS]));
+  const [categories,setCategories]=React.useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
   React.useEffect(()=>{
     let alive=true;
-    // Reuse the early PostgreSQL request started before the App import.
-    void homeCategories().then(categories=>{
-      if(alive && categories.length) setAvailable(filterApprovedHomeCategories(categories));
+    // Reuse fast prefetch for any assigned category artwork, without altering group titles.
+    void homeCategories().then(rows=>{
+      if(alive && rows.length) setCategories(rows.filter(category=>category.active!==false && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug)));
     });
     const refresh=()=>{
-      void fetch("/api/catalog/home-categories",{credentials:"same-origin",cache:"no-store"})
+      void fetch("/api/catalog/navigation-groups",{credentials:"same-origin",cache:"no-store"})
         .then(response=>response.ok?response.json():null)
         .then(payload=>{
-          if(alive && payload?.success && Array.isArray(payload.categories))
-            setAvailable(filterApprovedHomeCategories(payload.categories));
-        }).catch(()=>{/* Retain last known approved taxonomy if temporarily offline. */});
+          if(!alive || !payload?.success || !Array.isArray(payload.groups))return;
+          const approved=displayedGroups(payload.groups as ApprovedMenuGroup[]);
+          if(approved.length)setGroups(approved);
+        }).catch(()=>{/* Preserve the reviewed spreadsheet group names offline. */});
     };
-    window.addEventListener("atlas-categories-updated",refresh);
+    refresh();
     window.addEventListener("catalog-navigation-groups-updated",refresh);
-    window.addEventListener("catalog-family-menu-updated",refresh);
+    window.addEventListener("atlas-categories-updated",refresh);
     return()=>{
       alive=false;
-      window.removeEventListener("atlas-categories-updated",refresh);
       window.removeEventListener("catalog-navigation-groups-updated",refresh);
-      window.removeEventListener("catalog-family-menu-updated",refresh);
+      window.removeEventListener("atlas-categories-updated",refresh);
     };
   },[]);
+  const categoryBySlug=React.useMemo(()=>new Map(categories.map(category=>[category.slug,category])),[categories]);
   return (
-    <section id="home-categories" className="home-category-strip" aria-label="دسته‌بندی‌های تأییدشده محصولات">
+    <section id="home-categories" className="home-category-strip" aria-label="گروه‌های اصلی دسته‌بندی محصولات">
       <div className="home-category-track">
         <Link className="home-category-all" to="/categories">
-          <Layers size={24} />
-          <strong>دسته‌بندی<br />محصولات</strong>
+          <Layers size={24}/>
+          <strong>دسته‌بندی<br/>محصولات</strong>
           <span>مشاهده همه گروه‌ها <ArrowLeft size={15}/></span>
         </Link>
-        {available.map(c=>{
-          const image = c.image || categoryArtworkByGroup[categoryGroupIndex(c.slug)];
+        {groups.map(group=>{
+          const image=group.imageUrl ||
+            group.categorySlugs.map(slug=>categoryBySlug.get(slug)?.image).find(Boolean) ||
+            groupArt[groupNumber(group.id)];
           return (
-            <Link className="home-category-item" key={c.slug}
-              to={`/category/${c.slug}`} title={c.name}>
+            <Link className="home-category-item home-category-group" key={group.id}
+              to={`/categories#menu-group-${group.id}`} title={group.title}>
               {image ? (
-                <img src={image} alt={c.name} loading="lazy" decoding="async" fetchPriority="low" />
+                <img src={image} alt={group.title} loading="lazy" decoding="async" fetchPriority="low"/>
               ) : (
-                <span className="home-category-placeholder" role="img" aria-label={c.name}>
+                <span className="home-category-placeholder" role="img" aria-label={group.title}>
                   <Layers size={33} aria-hidden="true"/>
                 </span>
               )}
-              <strong>{c.name}</strong>
-              <small>مشاهده قطعات <ArrowUpLeft size={12}/></small>
+              <strong>{group.title}</strong>
+              <small>مشاهده دسته‌ها <ArrowUpLeft size={12}/></small>
             </Link>
           );
         })}
-        {available.length===0 && (
-          <p className="home-category-empty" role="status">در حال حاضر دسته‌بندی فعالی برای نمایش وجود ندارد.</p>
-        )}
       </div>
     </section>
   );
