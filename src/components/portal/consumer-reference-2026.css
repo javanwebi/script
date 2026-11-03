@@ -266,3 +266,70 @@
   .consumer-premium .portal-mobile-nav,.consumer-premium .consumer-notice-button,.consumer-premium .consumer-saved-bookmark {display:none!important;}
   .consumer-premium .consumer-invoice-paper {box-shadow:none;border-color:#bbb;}
 }
+
+
+/* Refined product tile: product photo on the right, technical code on the left,
+   exactly as the phone screenshot reads in RTL. */
+@media (max-width:767px) {
+  .consumer-premium .consumer-quickbuy-card {
+    display:grid;
+    grid-template-columns:46% minmax(0,1fr);
+    grid-template-rows:minmax(143px,auto) auto;
+    align-items:stretch;
+  }
+  .consumer-premium .consumer-quickbuy-media {
+    grid-column:1;grid-row:1;
+    height:100%;min-height:142px;
+    display:flex;align-items:center;justify-content:center;
+    background:transparent;padding:7px 2px;
+  }
+  .consumer-premium .consumer-quickbuy-media img {
+    display:block;width:100%;height:132px;object-fit:contain;
+  }
+  .consumer-premium .consumer-quickbuy-card-copy {
+    grid-column:2;grid-row:1;min-width:0;padding:10px 4px 5px 8px;
+    align-items:flex-start;justify-content:space-between;
+  }
+  .consumer-premium .consumer-quickbuy-card-copy .consumer-sku {max-width:100%;overflow-wrap:anywhere;font-size:9px;}
+  .consumer-premium .consumer-quickbuy-card h3 {min-height:0;font-size:11px;margin-top:4px;}
+  .consumer-premium .consumer-quickbuy-price {padding-top:6px;margin-top:4px;}
+  .consumer-premium .consumer-product-cta {
+    grid-column:1/-1;grid-row:2;min-height:37px;margin:0 8px 9px;
+  }
+  .consumer-premium .consumer-saved-reference-card {
+    display:grid;grid-template-columns:44% minmax(0,1fr);
+    grid-template-rows:minmax(135px,auto) auto;padding:9px 7px;gap:3px 5px;
+  }
+  .consumer-premium .consumer-saved-reference-image {
+    grid-column:1;grid-row:1;min-height:135px;height:100%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .consumer-premium .consumer-saved-reference-image img {width:100%;height:130px;object-fit:contain;}
+  .consumer-premium .consumer-saved-reference-copy {
+    grid-column:2;grid-row:1;align-items:flex-start;justify-content:center;min-height:130px;
+  }
+  .consumer-premium .consumer-saved-reference-actions {grid-column:1/-1;grid-row:2;}
+  .consumer-premium .consumer-saved-reference-copy h3 {font-size:10px;}
+  .consumer-premium .consumer-saved-reference-copy strong {font-size:10px;}
+  .consumer-premium .consumer-saved-bookmark {left:7px;top:7px;}
+}
+/* Bulk order result presentation: compact HTML table and actual row selection. */
+.consumer-premium .consumer-bulk-results {min-width:0;}
+.consumer-premium .consumer-bulk-table-scroll {width:100%;overflow-x:auto;border:1px solid #ececee;border-radius:17px;}
+.consumer-premium .consumer-bulk-table {border-collapse:separate;border-spacing:0;width:100%;min-width:565px;text-align:right;table-layout:auto;}
+.consumer-premium .consumer-bulk-table th {padding:11px 10px;background:#f0f1f3;border-bottom:1px solid #e7e7ea;color:#3c4048;font-size:11px;white-space:nowrap;}
+.consumer-premium .consumer-bulk-table td {padding:9px 8px;border-bottom:1px solid #edeef1;color:#30323a;font-size:11px;vertical-align:middle;white-space:nowrap;}
+.consumer-premium .consumer-bulk-table tbody tr:last-child td {border-bottom:0;}
+.consumer-premium .consumer-bulk-table tbody tr:nth-child(even) {background:#fafafa;}
+.consumer-premium .consumer-bulk-table td:first-child {font-weight:800;}
+.consumer-premium .consumer-bulk-table bdi {font-weight:800;color:#252831;}
+.consumer-premium .consumer-bulk-product {display:flex;align-items:center;gap:8px;min-width:175px;}
+.consumer-premium .consumer-bulk-product img {height:35px;width:40px;object-fit:contain;border-radius:7px;}
+.consumer-premium .consumer-bulk-product span {white-space:normal;max-width:165px;font-size:11px;font-weight:700;line-height:1.6;}
+.consumer-premium .consumer-bulk-status {display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:6px 9px;font-size:10px;font-weight:750;}
+.consumer-premium .consumer-bulk-status.is-ready {background:#e6f9ed;color:#138242;}
+.consumer-premium .consumer-bulk-status.is-inquiry {background:#fff0e4;color:#b64b10;white-space:normal;}
+.consumer-premium .consumer-bulk-table input[type="checkbox"] {accent-color:#ee6710;width:17px;height:17px;cursor:pointer;}
+.consumer-premium .consumer-bulk-table input[type="checkbox"]:disabled {cursor:not-allowed;}
+.consumer-premium .consumer-bulk-table-note {background:#fff4eb;border-radius:13px;padding:11px 13px;font-size:11px;color:#5b5654;line-height:1.8;margin:12px 0;}
+.consumer-premium .consumer-bulk-results > .store-btn-primary {width:100%;background:linear-gradient(120deg,#f48320,#e45a08);border-radius:999px;}
