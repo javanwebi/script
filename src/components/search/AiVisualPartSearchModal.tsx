@@ -1046,7 +1046,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
                 <button
                   type="button"
-                  onClick={startCamera}
+                  onClick={() => void startCamera()}
                   className="h-12 bg-white hover:bg-slate-50 active:scale-[0.98] text-[#2B313A] border border-slate-200 hover:border-slate-300 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Camera className="w-4 h-4 text-slate-600" />
