@@ -7,8 +7,9 @@ test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart'
   const scheduled:number[]=[];
   const nodes:Array<{start:(when:number)=>void;onended:(()=>void)|null;disconnect:()=>void;stop:()=>void}> = [];
   const gain={gain:{value:1},connect(){},disconnect(){}};
+  const simulatedStart=performance.now();
   const ctx={
-    state:'running',currentTime:10,
+    state:'running',get currentTime(){return 10+(performance.now()-simulatedStart)/1000;},
     createBufferSource(){
       const source={
         buffer:null as unknown,onended:null as null|(()=>void),
