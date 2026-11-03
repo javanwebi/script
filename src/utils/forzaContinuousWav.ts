@@ -77,13 +77,18 @@ export class ForzaContinuousWav {
         return;
       }
       const slice=this.playbackSlices.get(source);
-      if(slice) slice.started=true;
+      const entering=!slice?.started;
+      if(slice)slice.started=true;
       this.audibleSources.add(source);
       if(this.muted)this.publish('muted');
-      else {
+      else if(entering || this.playbackState!=='playing'){
         this.publish('playing');
         this.onPlaying();
       }
+      // Continue monitoring: mobile Safari can suspend AudioContext after
+      // playback has started. Previously the UI kept saying "speaking".
+      timer=setTimeout(poll,90);
+      this.playbackTimers.add(timer);
     };
     let timer:ReturnType<typeof setTimeout>=setTimeout(poll,0);
     this.playbackTimers.add(timer);
@@ -205,7 +210,10 @@ export class ForzaContinuousWav {
   setMuted(muted:boolean):void {
     this.muted=muted;
     if(this.gain)this.gain.gain.value=muted?0:1;
-    if(!this.closed && this.audibleSources.size) this.publish(muted?'muted':'playing');
+    if(!this.closed && this.audibleSources.size){
+      this.publish(muted?'muted':'playing');
+      if(!muted && this.getContext()?.state==='running')this.onPlaying();
+    }
   }
 
   cancel():void {
