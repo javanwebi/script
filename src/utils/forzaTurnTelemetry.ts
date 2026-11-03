@@ -27,7 +27,9 @@ export class ForzaTurnTelemetry {
   private readonly stamps=new Map<ForzaMilestone,number>();
   constructor(readonly turnId:string,private readonly clock:()=>number=()=>performance.now()){}
   mark(phase:ForzaMilestone,extra:Record<string,number>={}):number {
-    const now=this.clock();
+    return this.markAt(phase,this.clock(),extra);
+  }
+  markAt(phase:ForzaMilestone,now:number,extra:Record<string,number>={}):number {
     if(!this.stamps.has(phase))this.stamps.set(phase,now);
     console.info('[FORZA_TIMING]',JSON.stringify({turnId:this.turnId,phase,
       sinceStartMs:Math.round(now-(this.stamps.get('speech_start')??this.stamps.get('server_request')??now)),
