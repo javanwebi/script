@@ -21,6 +21,9 @@ import {
   ClipboardList,
   Bell,
   Cog,
+  Layers,
+  Award,
+  ArrowRight,
 } from "lucide-react";
 import type { Customer } from "../../types";
 import type {
@@ -35,6 +38,7 @@ import "./portal-storefront.css";
 import "./consumer-premium.css";
 import "./consumer-visual-parity.css";
 import "./consumer-reference-2026.css";
+import "./consumer-reference-parity-v3.css";
 
 const icons: Record<string, typeof Home> = {
   saved_products: Heart,
@@ -122,7 +126,9 @@ export function PortalShell({
     title.current?.focus({ preventScroll: true });
   };
   const navButton = (m: PortalMenuItemConfig, compact = false) => {
-    const Icon = icons[m.id] || FileText;
+    const Icon = compact && variant === "consumer"
+      ? (m.id === "orders" ? Layers : m.id === "club_rewards" ? Award : icons[m.id] || FileText)
+      : (icons[m.id] || FileText);
     return (
       <button
         type="button"
@@ -245,6 +251,9 @@ export function PortalShell({
               </h1>
               <p>{variant === "consumer" ? activeTab === "overview" ? "مدیریت سفارش‌ها، پیگیری مرسوله و خرید سریع قطعات" : consumerSectionDescriptions[activeTab] || texts.heroSubtitle : texts.heroSubtitle}</p>
             </div>
+            {variant === "consumer" && ["saved_products", "purchase_list"].includes(activeTab) && (
+              <button type="button" className="consumer-reference-back" aria-label="بازگشت به پیشخوان" onClick={() => select("overview")}><ArrowRight size={21} /></button>
+            )}
             <Link to="/products" className="portal-primary">
               <ShoppingBag size={17} />
               {texts.primaryCtaLabel}

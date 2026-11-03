@@ -2,6 +2,7 @@ import { PortalInquiries } from "../components/portal/PortalInquiries";
 import { PortalRecentOrders } from "../components/portal/PortalRecentOrders";
 import { PortalTools } from "../components/portal/PortalTools";
 import { PortalShell } from "../components/portal/PortalShell";
+import { ParcelArt, InvoiceArt, LocationArt } from "../components/portal/ConsumerReferenceArt";
 import { PortalClub } from "../components/portal/PortalClub";
 import forzaBrandImage from "../assets/logo-forza.png";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
@@ -434,7 +435,7 @@ export const ConsumerDashboardPage: React.FC = () => {
           {resolvedConfig.permissions.showAnnouncements &&
             activeAnnouncements.length > 0 &&
             activeTab === "overview" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="consumer-announcement-list grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeAnnouncements.map((ann) => {
                   const endLabel =
                     ann.showEndTimeToCustomer && ann.endsAt
@@ -507,7 +508,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               {/* Screenshot reference: shipment first, then 2×2 account cards, then tracking. */}
               {activeOrder ? (
                 <section className="consumer-overview-shipment" aria-label="سفارش فعال">
-                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={43} /></span>
+                  <span className="consumer-shipment-package"><ParcelArt /></span>
                   <div className="consumer-shipment-copy">
                     <strong><span className="consumer-live-dot" /> {activeOrder.status === "delivered" ? "آخرین سفارش شما" : "سفارش فعال شما"}</strong>
                     <span>شماره سفارش: <bdi dir="ltr">{activeOrder.orderNumber}</bdi></span>
@@ -519,7 +520,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </section>
               ) : (
                 <section className="consumer-overview-shipment is-empty">
-                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={37} /></span>
+                  <span className="consumer-shipment-package"><ParcelArt /></span>
                   <div className="consumer-shipment-copy"><strong>هنوز سفارش فعالی ندارید</strong><small>قطعات موردنیاز را از کاتالوگ انتخاب کنید.</small></div>
                   <button type="button" className="consumer-shipment-track" onClick={() => setActiveTab("quick_buy")}>شروع خرید <ChevronLeft size={16} /></button>
                 </section>
@@ -555,6 +556,21 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </section>
               )}
 
+              {!activeOrder && (
+                <section className="consumer-overview-tracker is-awaiting-order" aria-label="پیگیری مرسوله">
+                  <div className="consumer-section-head">
+                    <div><span>رهگیری سفارش</span><h2><Package size={19} /> آخرین سفارش</h2></div>
+                    <span className="consumer-order-chip">هنوز سفارشی ندارید</span>
+                  </div>
+                  <ol className="consumer-empty-timeline" aria-label="مراحل ارسال سفارش">
+                    {[{Icon:ShoppingBag,label:"ثبت سفارش"},{Icon:Package,label:"بسته‌بندی"},{Icon:Truck,label:"ارسال"},{Icon:CheckCircle2,label:"تحویل"}].map(({Icon,label}) => (
+                      <li key={label}><span><Icon size={17}/></span><small>{label}</small></li>
+                    ))}
+                  </ol>
+                  <p className="consumer-empty-shipment-note"><Truck size={17}/> به‌محض ثبت اولین سفارش، وضعیت واقعی مرسوله شما اینجا نمایش داده می‌شود.</p>
+                </section>
+              )}
+
               <section className="consumer-dash-quick" aria-label="دسترسی سریع">
                 <div className="consumer-section-head">
                   <div><span>کارهای روزانه شما</span><h2>دسترسی سریع</h2></div>
@@ -575,7 +591,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               </section>
               {/* Quick Product Selection Grid */}
               {resolvedConfig.permissions.allowQuickSkuOrder && (
-                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="consumer-home-recommendations">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
@@ -602,7 +618,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="consumer-home-product-grid">
                     {catalogProducts.slice(0, 2).map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
@@ -613,17 +629,17 @@ export const ConsumerDashboardPage: React.FC = () => {
                       return (
                         <div
                           key={prod.code}
-                          className="p-4 rounded-2xl border border-slate-200 hover:border-[#E06518] bg-slate-50/50 hover:bg-white transition-all flex flex-col justify-between gap-3"
+                          className="consumer-home-product-card"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1.5 shrink-0 overflow-hidden">
+                          <div className="consumer-home-product-main">
+                            <div className="consumer-home-product-photo">
                               <ProductImage
                                 src={prod.images?.[0]}
                                 alt={prod.name}
                                 className="w-full h-full object-contain"
                               />
                             </div>
-                            <div className="min-w-0">
+                            <div className="consumer-home-product-info">
                               <span
                                 className="inline-block font-mono text-[11px] font-black text-[#E06518]"
                                 dir="ltr"
@@ -640,7 +656,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                          <div className="consumer-home-product-bottom">
                             <div>
                               <span className="text-[10px] text-slate-500 block">
                                 {portalLabel("قیمت واحد:")}
@@ -654,7 +670,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleQuickAddProduct(prod)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-[#E06518] text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                              className="consumer-home-add"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>{portalLabel("انتخاب کد و سفارش")}</span>
@@ -766,6 +782,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     <div><span>سفارش ثبت‌شده</span><h3>آخرین سفارش شما</h3></div>
                     <span className="consumer-order-chip" dir="ltr">{activeOrder.orderNumber}</span>
                   </div>
+                  <span className="consumer-order-parcel"><ParcelArt /></span>
                   <div className="consumer-order-highlight-details">
                     <span><Truck size={16} /> روش ارسال: {activeOrder.shippingMethod || "ثبت نشده"}</span>
                     {activeOrder.trackingCode &&
@@ -940,7 +957,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </button>}
               </div>
               <div className="consumer-invoices-summary">
-                <div className="consumer-invoice-illustration"><FileText size={36}/><span>صنعت پیش</span></div>
+                <div className="consumer-invoice-illustration"><InvoiceArt /></div>
                 <div><FileText size={21}/><span>کل فاکتورها</span><strong>{toPersianDigits(orders.length)}</strong></div>
                 <div><CheckCircle2 size={21}/><span>پرداخت تأییدشده</span><strong>{toPersianDigits(paidCount)}</strong></div>
                 <div><Clock size={21}/><span>در انتظار پرداخت یا تأیید</span><strong>{toPersianDigits(orders.length - paidCount)}</strong></div>
@@ -1017,14 +1034,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               </div>
               <div className="consumer-section-head">
                 <div><span>{toPersianDigits(addresses.length)} نشانی ثبت‌شده</span><h2>آدرس‌های من</h2></div>
-                <button type="button" className="consumer-address-add" aria-expanded={isAddingAddress}
-                  onClick={() => {
-                    setEditingAddressId(null);
-                    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
-                    setIsAddingAddress(!isAddingAddress);
-                  }}>
-                  <Plus size={17}/>{isAddingAddress ? "بستن فرم" : "افزودن آدرس جدید"}
-                </button>
+
               </div>
               {isAddingAddress && (
                 <form onSubmit={handleAddAddress} className="consumer-address-form">
@@ -1084,6 +1094,18 @@ export const ConsumerDashboardPage: React.FC = () => {
               ) : (
                 <div className="consumer-empty"><MapPin size={29}/><h3>هنوز آدرسی ثبت نشده است</h3><p>برای دریافت سفارش، اولین نشانی تحویل خود را اضافه کنید.</p></div>
               )}
+                <button type="button" className="consumer-address-add" aria-expanded={isAddingAddress}
+                  onClick={() => {
+                    setEditingAddressId(null);
+                    setNewAddress({ title: "", receiver: "", phone: "", city: "", postalCode: "", fullAddress: "" });
+                    setIsAddingAddress(!isAddingAddress);
+                  }}>
+                  <Plus size={17}/>{isAddingAddress ? "بستن فرم" : "افزودن آدرس جدید"}
+                </button>
+              <aside className="consumer-address-delivery-note">
+                <LocationArt />
+                <div><h3>ثبت سریع اطلاعات تحویل</h3><p>برای ارسال دقیق سفارش‌ها، اطلاعات گیرنده، شهر و نشانی تحویل را تکمیل کنید.</p></div>
+              </aside>
             </section>
           )}
         </div>

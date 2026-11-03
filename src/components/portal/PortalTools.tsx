@@ -23,6 +23,7 @@ import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
 import { PortalProductCard } from "./PortalProductCard";
 import { ProductImage } from "../product/ProductImage";
+import { ParcelArt } from "./ConsumerReferenceArt";
 import { resolvePurchaseLines } from "../../utils/purchaseList";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 export function PortalTools({
@@ -111,7 +112,7 @@ export function PortalTools({
     return (
       <section className="consumer-saved-reference" aria-label="محصولات نشان‌شده">
         <div className="consumer-saved-hero">
-          <div className="consumer-saved-hero-icon" aria-hidden="true"><Bookmark size={40} /><Package size={25} /></div>
+          <div className="consumer-saved-hero-icon"><ParcelArt /></div>
           <div><span className="consumer-eyebrow">کالاهای منتخب شما</span><h2>{toPersianDigits(saved.length)} محصول ذخیره‌شده</h2><p>محصولات انتخابی شما برای دسترسی سریع‌تر</p></div>
         </div>
         <div className="consumer-filter-pills" role="group" aria-label="فیلتر علاقه‌مندی‌ها">
@@ -145,6 +146,11 @@ export function PortalTools({
             })}
           </div>
         ) : <div className="consumer-empty"><Bookmark size={29}/><h3>{saved.length ? "در این فیلتر کالایی نیست" : "محصولی ذخیره نشده است"}</h3><p>از کاتالوگ محصولات موردعلاقه را نشان‌دار کنید.</p><Link to="/products">مشاهده محصولات</Link></div>}
+        <aside className="consumer-saved-forza-banner">
+          <span className="consumer-saved-forza-symbol"><Heart size={27}/></span>
+          <div><h3>پیشنهادهای مشابه برای شما</h3><p>محصولات مرتبط را از کاتالوگ واقعی صنعت پیش جستجو کنید.</p></div>
+          <Link to="/products">مشاهده محصولات <ArrowLeft size={16}/></Link>
+        </aside>
         {message && <p role="status" className="portal-tool-status">{message}</p>}
       </section>
     );
@@ -187,7 +193,7 @@ export function PortalTools({
   return (
     <section className="portal-tools consumer-multicode-panel">
       <div className="consumer-bulk-hero">
-        <span className="consumer-bulk-illustration" aria-hidden="true"><ClipboardList size={39}/><Package size={25}/></span>
+        <span className="consumer-bulk-illustration"><ParcelArt /></span>
         <div><span className="consumer-eyebrow">ثبت سفارش گروهی</span><h2>{label("لیست خرید چندکدی")}</h2>
           <p>کدهای واقعی کاتالوگ و تعداد موردنیاز را خط‌به‌خط وارد کنید؛ نتیجه را پیش از اضافه کردن به سبد بررسی کنید.</p></div>
       </div>
@@ -214,8 +220,8 @@ export function PortalTools({
             onClick={() => setPreview(true)}
             disabled={!text.trim()}
           >
+            <Search size={18} />
             {label("بررسی لیست خرید")}
-            <CheckCircle2 size={16} />
           </button>
         </div>
         <aside className="portal-bulk-help portal-glass">

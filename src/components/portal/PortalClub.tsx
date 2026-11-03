@@ -1,4 +1,5 @@
 import React from "react";
+import { MedalArt } from "./ConsumerReferenceArt";
 import {
   Award,
   Gift,
@@ -60,7 +61,7 @@ export function PortalClub({
         >
           {portal === "consumer" ? (
             <div className="consumer-club-hero">
-              <span className="consumer-club-medal" aria-hidden="true"><Award size={48}/></span>
+              <span className="consumer-club-medal"><MedalArt /></span>
               <div>
                 <span className="consumer-eyebrow">باشگاه مشتریان صنعت پیش</span>
                 <h2>سطح فعلی: <strong>{current?.publicTitle || "عضو باشگاه"}</strong></h2>

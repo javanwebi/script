@@ -67,6 +67,17 @@ const customer = {
         assert.ok(!(await sidebar.isVisible()), "desktop sidebar should be hidden on mobile");
         await bottomNav.locator("button").nth(1).click();
         await page.getByRole("heading", { name: "سفارش‌ها و رهگیری مرسوله" }).waitFor();
+        const orderSummary = await page.locator(".consumer-summary-duo > div").evaluateAll(cards =>
+          cards.map(card => {
+            const b = card.getBoundingClientRect();
+            return { left: b.left, right: b.right, width: b.width };
+          }));
+        assert.equal(orderSummary.length, 2, "retail order overview needs two summary tiles");
+        for (const card of orderSummary) {
+          assert.ok(card.left >= -3 && card.right <= width + 3,
+            "order summary clipped outside mobile viewport: " + JSON.stringify({width, card}));
+        }
+
         await bottomNav.locator("button").last().click();
         await page.locator("dialog[open]").waitFor();
         await page.locator("dialog[open]").getByRole("button", { name: /آدرس‌ها و اطلاعات تحویل/ }).click();
