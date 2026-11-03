@@ -1,4 +1,18 @@
-# One canonical release: main → isolated build → blue/green → HTTPS
+# One canonical release: main → isolated build → single fixed app port → HTTPS
+
+## Single published website port (2026-11-04)
+
+The production site now uses **one permanent host loopback application port: 127.0.0.1:3008**. The HTTPS public entry point remains Nginx on TCP 443. All three storefront virtual hosts (IP/default, IP HTTPS, and `sanatpish.com` / `www.sanatpish.com`) proxy to the same running container at port 3008.
+
+The existing `sudo sanatpish-deploy-main` entrypoint fetches the pinned `main` commit, then dispatches to `ops/deploy-single-port-vps.sh`. It does **not** rotate through 3006–3020 anymore. Releases are built in an isolated Git archive, and preflight is performed in a **private Docker-network canary with no published host port**. It compares the actual PostgreSQL product/SKU projection with the active site, checks API/voice and real frontend assets, and preserves existing secrets and storage mounts.
+
+After canary checks pass, the active site is stopped and its replacement binds the **same** port 3008. This requires a **brief interruption of website requests** during promotion; strictly one host-published app port and uninterrupted overlap are incompatible without introducing a different proxy/socket architecture.
+
+On a promotion failure, the new container is removed, the original container is restarted on 3008, and the backed-up Nginx virtual hosts are restored. After all checks pass, unused historical site containers are **stopped, never removed**. Databases, Supabase, and the private FORZA voice container are excluded from cleanup. The script refuses to stop an old application whose port remains referenced by an Nginx proxy.
+
+**Scope:** This is a single port for the **website app**. Supabase/PostgreSQL and the private Piper voice service still need their own internal/network ports and should not be collapsed into the website port.
+
+**One-time prerequisite:** The initial live IP/default vhosts must already point at the known-good 3008 website container (from the verified 2026-11-04 VPS output). If the live server moves to a different port, the script fails before any traffic change rather than stopping a mystery container.
 
 **Never deploy a feature branch directly to production.** Production source of truth is `origin/main` in `javanwebi/script`. Both ChatGPT projects and all other contributors must branch from the latest main, push their changes, and merge reviewed pull requests into main. Do not reset main or replace the running site with a standalone branch copy.
 
@@ -28,7 +42,7 @@ Every later update needs only:
 sudo sanatpish-deploy-main
 ```
 
-The command does not checkout, clean, reset, or modify tracked files under `/opt/sanatpish`. It archives exactly the fetched commit into an isolated stage, builds and tests, launches a new canary, checks catalog parity, then switches Nginx with rollback. The previous production container is preserved for immediate rollback.
+The command does not checkout, clean, reset, or modify tracked files under `/opt/sanatpish`. It archives exactly the fetched commit into an isolated stage, builds and tests a private no-host-port canary, checks catalog parity, then replaces the single fixed-port app with rollback. The previous production container is stopped and preserved for immediate rollback.
 
 ### Working in multiple chats
 
