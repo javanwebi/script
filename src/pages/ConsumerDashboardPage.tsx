@@ -2,6 +2,7 @@ import { PortalInquiries } from "../components/portal/PortalInquiries";
 import { PortalRecentOrders } from "../components/portal/PortalRecentOrders";
 import { PortalTools } from "../components/portal/PortalTools";
 import { PortalShell } from "../components/portal/PortalShell";
+import { ParcelArt, InvoiceArt, LocationArt } from "../components/portal/ConsumerReferenceArt";
 import { PortalClub } from "../components/portal/PortalClub";
 import forzaBrandImage from "../assets/logo-forza.png";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
@@ -507,7 +508,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               {/* Screenshot reference: shipment first, then 2×2 account cards, then tracking. */}
               {activeOrder ? (
                 <section className="consumer-overview-shipment" aria-label="سفارش فعال">
-                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={43} /></span>
+                  <span className="consumer-shipment-package"><ParcelArt /></span>
                   <div className="consumer-shipment-copy">
                     <strong><span className="consumer-live-dot" /> {activeOrder.status === "delivered" ? "آخرین سفارش شما" : "سفارش فعال شما"}</strong>
                     <span>شماره سفارش: <bdi dir="ltr">{activeOrder.orderNumber}</bdi></span>
@@ -519,7 +520,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </section>
               ) : (
                 <section className="consumer-overview-shipment is-empty">
-                  <span className="consumer-shipment-package" aria-hidden="true"><Package size={37} /></span>
+                  <span className="consumer-shipment-package"><ParcelArt /></span>
                   <div className="consumer-shipment-copy"><strong>هنوز سفارش فعالی ندارید</strong><small>قطعات موردنیاز را از کاتالوگ انتخاب کنید.</small></div>
                   <button type="button" className="consumer-shipment-track" onClick={() => setActiveTab("quick_buy")}>شروع خرید <ChevronLeft size={16} /></button>
                 </section>
@@ -552,6 +553,21 @@ export const ConsumerDashboardPage: React.FC = () => {
                     {resolvedConfig.permissions.allowQuickReorder && <button type="button" onClick={() => handleReorderItems(activeOrder)}><RefreshCw size={15}/> سفارش مجدد</button>}
                     <button type="button" onClick={() => setActiveTab("orders")}><Truck size={15}/> اطلاعات مرسوله</button>
                   </div>
+                </section>
+              )}
+
+              {!activeOrder && (
+                <section className="consumer-overview-tracker is-awaiting-order" aria-label="پیگیری مرسوله">
+                  <div className="consumer-section-head">
+                    <div><span>رهگیری سفارش</span><h2><Package size={19} /> آخرین سفارش</h2></div>
+                    <span className="consumer-order-chip">هنوز سفارشی ندارید</span>
+                  </div>
+                  <ol className="consumer-empty-timeline" aria-label="مراحل ارسال سفارش">
+                    {[{Icon:ShoppingBag,label:"ثبت سفارش"},{Icon:Package,label:"بسته‌بندی"},{Icon:Truck,label:"ارسال"},{Icon:CheckCircle2,label:"تحویل"}].map(({Icon,label}) => (
+                      <li key={label}><span><Icon size={17}/></span><small>{label}</small></li>
+                    ))}
+                  </ol>
+                  <p className="consumer-empty-shipment-note"><Truck size={17}/> به‌محض ثبت اولین سفارش، وضعیت واقعی مرسوله شما اینجا نمایش داده می‌شود.</p>
                 </section>
               )}
 
@@ -940,7 +956,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </button>}
               </div>
               <div className="consumer-invoices-summary">
-                <div className="consumer-invoice-illustration"><FileText size={36}/><span>صنعت پیش</span></div>
+                <div className="consumer-invoice-illustration"><InvoiceArt /></div>
                 <div><FileText size={21}/><span>کل فاکتورها</span><strong>{toPersianDigits(orders.length)}</strong></div>
                 <div><CheckCircle2 size={21}/><span>پرداخت تأییدشده</span><strong>{toPersianDigits(paidCount)}</strong></div>
                 <div><Clock size={21}/><span>در انتظار پرداخت یا تأیید</span><strong>{toPersianDigits(orders.length - paidCount)}</strong></div>
@@ -1084,6 +1100,10 @@ export const ConsumerDashboardPage: React.FC = () => {
               ) : (
                 <div className="consumer-empty"><MapPin size={29}/><h3>هنوز آدرسی ثبت نشده است</h3><p>برای دریافت سفارش، اولین نشانی تحویل خود را اضافه کنید.</p></div>
               )}
+              <aside className="consumer-address-delivery-note">
+                <LocationArt />
+                <div><h3>ثبت سریع اطلاعات تحویل</h3><p>برای ارسال دقیق سفارش‌ها، اطلاعات گیرنده، شهر و نشانی تحویل را تکمیل کنید.</p></div>
+              </aside>
             </section>
           )}
         </div>
