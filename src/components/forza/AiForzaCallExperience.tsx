@@ -22,6 +22,7 @@ import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
+import { isForzaProbableEcho } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -150,6 +151,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const statusRef = useRef<ForzaStatus>('idle');
   const historyRef = useRef<Turn[]>([]);
+  const activeTurnRef = useRef<{generation:number; abort:AbortController; markInterrupted?:()=>void}|null>(null);
+  const generationRef = useRef(0);
+  const interruptRequestRef = useRef<() => void>(()=>{});
+  const latestAiTextRef = useRef('');
   const isAiSpeakingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
   const isRecognitionActiveRef = useRef<boolean>(false);
@@ -201,7 +206,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const node=ctx.createScriptProcessor(4096,1,1),sink=ctx.createGain();
       sink.gain.value=0;
       node.onaudioprocess=(event:AudioProcessingEvent)=>{
-        if(statusRef.current!=='listening'||micMutedRef.current||isProcessingTurnRef.current||isAiSpeakingRef.current)return;
+        if(micMutedRef.current || !greetingFinishedRef.current ||
+           (statusRef.current!=='listening' && !isProcessingTurnRef.current))return;
         try{localSttRecognizerRef.current?.acceptWaveform(event.inputBuffer);}
         catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
       };
@@ -219,12 +225,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
       localSttFinalRef.current='';
       const update=(value:string,isFinal:boolean)=>{
-        if(localSttRecognizerRef.current!==recognizer||isAiSpeakingRef.current||
-           isProcessingTurnRef.current||statusRef.current!=='listening')return;
+        if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
+           (statusRef.current!=='listening'&&!isProcessingTurnRef.current))return;
         const words=value.trim();
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
+        if(isProcessingTurnRef.current){
+          if(!vadRef.current.heardSpeech || isForzaProbableEcho(transcript,latestAiTextRef.current))return;
+          interruptRequestRef.current();
+        }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
         hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
       };
@@ -237,16 +247,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[]);
 
   // Start/Stop voice listening helpers
-  const startListening = useCallback(() => {
-    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
+  const startListening = useCallback((monitorOnly=false) => {
+    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
+        (!monitorOnly && (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current))) {
       return;
     }
 
-    setStatus('listening');
-    setTurn('user');
-    activeTranscriptRef.current = '';
-    hasSpeechSoundRef.current = false;
-    audioChunksRef.current = [];
+    if(!monitorOnly){
+      setStatus('listening');
+      setTurn('user');
+      activeTranscriptRef.current = '';
+      hasSpeechSoundRef.current = false;
+      audioChunksRef.current = [];
+    }
 
     // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
     const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
@@ -255,8 +268,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       try {
         recognitionRef.current.start();
         isRecognitionActiveRef.current = true;
-      } catch {
-        recognitionFailedRef.current = true;
+      } catch(error:any) {
+        // Chrome may still be finishing the previous recognizer; its onend
+        // callback will restart monitoring. This is not a permanent failure.
+        if(error?.name!=='InvalidStateError')recognitionFailedRef.current = true;
       }
     }
     const recorder = mediaRecorderRef.current;
@@ -315,11 +330,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       frame=requestAnimationFrame(check);
       if(timestamp-lastCheck<55)return;
       lastCheck=timestamp;
-      if(statusRef.current==='speaking'){
-        setAudioLevel(0.4+Math.random()*0.22);
-        return;
-      }
-      if(statusRef.current!=='listening'||!greetingFinishedRef.current||micMutedRef.current||isAiSpeakingRef.current||isProcessingTurnRef.current){
+      if(!greetingFinishedRef.current || micMutedRef.current ||
+         (statusRef.current!=='listening' && !isProcessingTurnRef.current)){
         vadRef.current.reset();
         setAudioLevel(0);
         return;
@@ -348,10 +360,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setAudioLevel(current.level);
         if(current.speechStarted){
           hasSpeechSoundRef.current=true;
-          setIsUserSpeaking(true);
+          // During TTS this is only a VAD *candidate*. WebSpeech/local STT
+          // must provide non-echo words before cancelling the AI response.
+          if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
+          else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
         // 650-900ms after a clearly finished question, ~1.7s for an
         // unfinished Persian thought. Worker audio STT is the safety net.
+        if(isProcessingTurnRef.current){
+          if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
+          return;
+        }
         if(current.speaking){
           if(silenceTimerRef.current){
             clearTimeout(silenceTimerRef.current);
