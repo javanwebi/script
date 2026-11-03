@@ -114,6 +114,7 @@ grep -RlF 'forza-mobile-contact-sheet' "$STAGE/dist/assets" --include='*.js' >/d
 grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'forza-swipe-instruction' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'store-scan-action' "$STAGE/dist/assets" --include='*.js' >/dev/null
+grep -RlF 'home-category-group' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/dev/null
 grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
 test -s "$STAGE/dist/images/scan-industrial-generated.webp"
@@ -186,6 +187,10 @@ old,new,stage=sys.argv[1],sys.argv[2],Path(sys.argv[3])
 def get(port,path):
  with urllib.request.urlopen(f'http://127.0.0.1:{port}{path}',timeout=70) as r:
   return r.read()
+menu=json.loads(get(new,'/api/catalog/navigation-groups'))
+approved=sorted((g for g in menu.get('groups',[]) if g.get('active',True) and re.fullmatch(r'excel-v2-[0-9]+',g.get('id',''))),key=lambda g:g.get('sortOrder',0))
+assert menu.get('success') and len(approved)>=6,('MISSING_APPROVED_GROUPS',len(approved))
+print('APPROVED_HOME_GROUPS_OK',[g['title'] for g in approved[:6]])
 for path,key in [('/api/catalog/home-categories','categories'),('/api/catalog/home-preview','products')]:
  x=json.loads(get(new,path))
  assert x.get('success') and x.get(key),('EMPTY_PUBLIC_PROJECTION',path)
