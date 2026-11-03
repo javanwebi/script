@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
+import { Bot, ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
 
 // Geometric Cognivo orange logo icon matching the reference design
@@ -115,12 +115,6 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
       className: "sp-forza-contact__channel--whatsapp",
     },
     {
-      label: "ایتا",
-      href: optionalSocialLink(import.meta.env.VITE_SANATPISH_EITAA_URL, "eitaa.com"),
-      icon: <span className="sp-forza-contact__eitaa-symbol" aria-hidden="true">e</span>,
-      className: "sp-forza-contact__channel--eitaa",
-    },
-    {
       label: "تلگرام",
       href: optionalSocialLink(import.meta.env.VITE_SANATPISH_TELEGRAM_URL, "t.me"),
       icon: <Send size={23} strokeWidth={1.8}/>,
@@ -131,6 +125,12 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
       href: optionalSocialLink(import.meta.env.VITE_SANATPISH_INSTAGRAM_URL, "instagram.com"),
       icon: <Instagram size={23} strokeWidth={1.8}/>,
       className: "sp-forza-contact__channel--instagram",
+    },
+    {
+      label: "ایتا",
+      href: optionalSocialLink(import.meta.env.VITE_SANATPISH_EITAA_URL, "eitaa.com"),
+      icon: <span className="sp-forza-contact__eitaa-symbol" aria-hidden="true">e</span>,
+      className: "sp-forza-contact__channel--eitaa",
     },
   ];
   return (
@@ -166,8 +166,22 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
     {showAssistant && sheetOpen && createPortal(
       <div className="sp-forza-contact" dir="rtl">
         <div className="sp-forza-contact__backdrop" onClick={() => setSheetOpen(false)} aria-hidden="true" />
+        {/* A non-interactive preview of the chat destination, visible above the half-sheet. */}
+        <div className="sp-forza-contact__chat-preview" aria-hidden="true">
+          <header className="sp-forza-contact__preview-header">
+            <span className="sp-forza-contact__preview-title">مشاوره هوش مصنوعی فورزا</span>
+            <Bot size={23} />
+          </header>
+          <div className="sp-forza-contact__preview-bubble sp-forza-contact__preview-bubble--assistant">
+            <span className="sp-forza-contact__preview-robot"><Bot size={19}/></span>
+            سلام! من فورزا هستم، دستیار هوشمند صنعت پیش.
+          </div>
+          <div className="sp-forza-contact__preview-bubble sp-forza-contact__preview-bubble--user">
+            می‌توانم برای انتخاب و شناسایی قطعات صنعتی کمکتان کنم.
+          </div>
+        </div>
         <section
-          className="sp-forza-contact__sheet"
+          className="sp-forza-contact__sheet sp-forza-contact__sheet--reference"
           role="dialog"
           aria-modal="true"
           aria-labelledby="sp-forza-contact-title"
@@ -180,25 +194,44 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
           style={{ transform: dragOffset ? `translateY(-${dragOffset}px)` : undefined }}
         >
           <div className="sp-forza-contact__swipe" aria-hidden="true">
-            <span className="sp-forza-contact__handle" />
-            <ChevronUp size={17}/>
+            <span className="sp-forza-contact__handle"/>
+          </div>
+          <button ref={closeButton} className="sp-forza-contact__close"
+            type="button" onClick={() => setSheetOpen(false)} aria-label="بستن راه‌های ارتباطی">
+            <X size={18}/>
+          </button>
+          <div
+            className="sp-forza-contact__swipe-cta"
+            data-testid="forza-swipe-instruction"
+            role="link"
+            tabIndex={0}
+            aria-label="برای ورود به میزکار هوش مصنوعی، این پنل را با انگشت به بالا بکشید یا با صفحه‌کلید Enter بزنید."
+            onKeyDown={event => {
+              if (event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openWorkspace();
+              }
+            }}
+          >
+            <div className="sp-forza-contact__swipe-visual" aria-hidden="true">
+              <div className="sp-forza-contact__swipe-arrows">
+                <ChevronUp size={29} className="sp-forza-contact__arrow sp-forza-contact__arrow--top" />
+                <ChevronUp size={29} className="sp-forza-contact__arrow sp-forza-contact__arrow--middle" />
+                <ChevronUp size={29} className="sp-forza-contact__arrow sp-forza-contact__arrow--bottom" />
+              </div>
+            </div>
+            <div className="sp-forza-contact__swipe-copy">
+              <h2 id="sp-forza-contact-title">
+                برای مشاوره هوش مصنوعی
+                <span>صفحه را به بالا بکشید</span>
+              </h2>
+              <p id="sp-forza-contact-desc">
+                از طریق فورزا (FORZA) با ما در ارتباط باشید و مشاوره تخصصی
+                برای انتخاب و تأمین قطعات صنعتی دریافت کنید.
+              </p>
+            </div>
           </div>
           <div className="sp-forza-contact__inner">
-            <header className="sp-forza-contact__header">
-              <div>
-                <span className="sp-forza-contact__eyebrow">SANAT PISH / FORZA</span>
-                <h2 id="sp-forza-contact-title">چطور می‌تونیم کمکتون کنیم؟</h2>
-                <p id="sp-forza-contact-desc">برای مشاوره خرید، یافتن قطعه یا استعلام فنی، راه ارتباطی دلخواهتان را انتخاب کنید.</p>
-              </div>
-              <button ref={closeButton} className="sp-forza-contact__close" type="button" onClick={() => setSheetOpen(false)} aria-label="بستن راه‌های ارتباطی"><X size={20}/></button>
-            </header>
-
-            <a className="sp-forza-contact__phone" href="tel:03535254703">
-              <span className="sp-forza-contact__phone-icon"><Phone size={21}/></span>
-              <span className="sp-forza-contact__phone-copy"><strong>تماس با کارشناسان فروش</strong><span dir="ltr">۰۳۵-۳۵۲۵۴۷۰۳</span></span>
-              <span className="sp-forza-contact__phone-action">تماس</span>
-            </a>
-
             <div className="sp-forza-contact__channels" aria-label="پیام‌رسان‌ها و شبکه‌های اجتماعی">
               {channels.map(channel => channel.href ? (
                 <a key={channel.label} href={channel.href} target="_blank" rel="noopener noreferrer"
@@ -215,33 +248,13 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
                 </div>
               ))}
             </div>
-
-          </div>
-          <div
-            className="sp-forza-contact__swipe-cta"
-            data-testid="forza-swipe-instruction"
-            role="link"
-            tabIndex={0}
-            aria-label="برای باز کردن میزکار هوش مصنوعی FORZA، انگشت خود را روی فلش‌ها گذاشته و از پایین به بالا بکشید. با صفحه‌کلید نیز می‌توانید کلید فلش بالا یا Enter را بزنید."
-            onKeyDown={event => {
-              if (event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                openWorkspace();
-              }
-            }}
-          >
-            <div className="sp-forza-contact__swipe-visual" aria-hidden="true">
-              <span className="sp-forza-contact__swipe-line" />
-              <div className="sp-forza-contact__swipe-arrows">
-                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--top" />
-                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--middle" />
-                <ChevronUp size={26} className="sp-forza-contact__arrow sp-forza-contact__arrow--bottom" />
-              </div>
-            </div>
-            <div className="sp-forza-contact__swipe-copy">
-              <strong>برای مشاوره هوش مصنوعی، به بالا بکشید</strong>
-              <p>انگشتتان را روی فلش‌ها بگذارید و از پایین به بالا بکشید تا وارد میزکار FORZA و گفت‌وگو شوید.</p>
-            </div>
+            <a className="sp-forza-contact__phone" href="tel:03535254703">
+              <span className="sp-forza-contact__phone-copy">
+                <strong>تماس با کارشناسان صنعت پیش</strong>
+                <span dir="ltr">۰۳۵-۳۵۲۵۴۷۰۳</span>
+              </span>
+              <span className="sp-forza-contact__phone-icon"><Phone size={24}/></span>
+            </a>
           </div>
         </section>
       </div>,
