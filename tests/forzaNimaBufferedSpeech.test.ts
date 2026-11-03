@@ -109,3 +109,23 @@ test('cancelled queued phrases never schedule extra speaker audio',async()=>{
   assert.deepEqual(scheduled,[]);
   await assert.rejects(engine.finish(),/aborted/);
 });
+
+test('Nima reports only actually completed phrases, never a merely queued WAV',async()=>{
+  const playing:Array<()=>void>=[];
+  const spoken:string[]=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(1),
+    player:{enqueueWav(_wav,onCompleted){playing.push(onCompleted||(()=>{}));return Promise.resolve()}},
+    onPhraseCompleted:(phrase)=>spoken.push(phrase),
+    maximumInitialWaitMs:1,
+  });
+  engine.add('SPA 1250');
+  engine.add('6202ZZ');
+  await engine.finish();
+  assert.deepEqual(spoken,[],'scheduling is not equivalent to heard speech');
+  playing[0]();
+  assert.deepEqual(spoken,['SPA 1250']);
+  engine.cancel();
+  playing[1]();
+  assert.deepEqual(spoken,['SPA 1250'],'late WAV completion after cancel is ignored');
+});
