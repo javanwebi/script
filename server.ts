@@ -5837,6 +5837,12 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       });
     } catch {}
 
+    // A failed upstream request must not masquerade as an instant AI answer.
+    if(lowLatencyVoice && !workerText){
+      sendEvent({type:'error',responseId,errorCode:'voice_model_unavailable',
+        message:'سرویس مشاوره صوتی در دسترس نیست؛ لطفاً دوباره تلاش کنید.'});
+      return res.end();
+    }
     const textToDeliver = workerText || consultantFallback(query || '').reply;
     sendEvent({ type: 'text_chunk', responseId, chunk: textToDeliver, textSoFar: textToDeliver });
     if (includeAudio) {
@@ -5866,6 +5872,10 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  const geminiAbort=new AbortController();
+  const onGeminiDisconnect=()=>geminiAbort.abort(new Error('forza_client_gone'));
+  res.once('close',onGeminiDisconnect);
+  let geminiSentText=false;
   try {
     const ai = new GoogleGenAI({
       apiKey,
@@ -5919,6 +5929,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     let stream: any = null;
     let activeStreamModel = '';
     for (const modelCandidate of streamCandidateModels) {
+      if(geminiAbort.signal.aborted)return;
       const cooldownUntil=forzaStreamModelCooldowns.get(modelCandidate)||0;
       if(lowLatencyVoice && cooldownUntil>Date.now())continue;
       try {
@@ -5927,10 +5938,11 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           contents,
           ...(lowLatencyVoice ? {
             config: {
+              abortSignal: geminiAbort.signal,
               thinkingConfig: { thinkingLevel: modelCandidate==='gemini-3.8-flash' ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
               maxOutputTokens: 256,
             },
-          } : {}),
+          } : {config:{abortSignal:geminiAbort.signal}}),
         });
         stream = testStream;
         activeStreamModel = modelCandidate;
@@ -5980,8 +5992,10 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
     let firstTextAt=0;
     for await (const chunk of stream) {
+      if(geminiAbort.signal.aborted)return;
       const chunkText = chunk.text || '';
       if (!chunkText) continue;
+      geminiSentText=true;
       if(!firstTextAt){
         firstTextAt=Date.now();
         console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
@@ -6093,6 +6107,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       };
     }
 
+    if(geminiAbort.signal.aborted)return;
     if(lowLatencyVoice){
       console.info(`[FORZA_LATENCY] phase=done model=${activeStreamModel} ttftMs=${firstTextAt?firstTextAt-startedAt:-1} totalMs=${Date.now()-startedAt} chars=${fullAccumulatedText.length}`);
     }
@@ -6104,7 +6119,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     });
     res.end();
   } catch (err: any) {
-    console.warn('[AI Consult Stream] Stream interruption, activating immediate expert fallback:', err?.message || err);
+    if(geminiAbort.signal.aborted)return;
+    console.warn('[AI Consult Stream] Stream error code='+String(err?.code||err?.name||'unknown').slice(0,60)+
+      ' partial='+Number(geminiSentText));
+    if(lowLatencyVoice || geminiSentText){
+      sendEvent({type:'error',responseId,errorCode:'model_stream_incomplete',
+        message:'پاسخ مدل کامل نشد؛ لطفاً سؤال را دوباره بپرسید.'});
+      return res.end();
+    }
     try {
       const off = consultantFallback(query || '');
       sendEvent({
@@ -6121,6 +6143,8 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       });
     } catch {}
     res.end();
+  }finally{
+    res.off('close',onGeminiDisconnect);
   }
 });
 
