@@ -101,7 +101,7 @@
   .sp-forza-contact__sheet {
     position:fixed; z-index:132; inset-inline:0; bottom:0;
     width:min(100%,520px); margin-inline:auto;
-    height:max(56dvh, min(425px, 76dvh));
+    height: max(56dvh, min(425px, 76dvh));
     max-height:88dvh;
     overflow:hidden; display:flex; flex-direction:column;
     border-radius:31px 31px 0 0;
@@ -276,7 +276,7 @@
   .sp-forza-contact__inner {gap:9px;}
   .sp-forza-contact__phone {min-height:59px;}
 }
-@media (min-width:1024px) {
+@media (min-width: 1024px) {
   .sp-forza-contact {display:none;}
 }
 @media (prefers-reduced-motion:reduce) {
