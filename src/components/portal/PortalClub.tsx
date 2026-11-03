@@ -58,15 +58,22 @@ export function PortalClub({
           className="portal-club portal-glass"
           aria-label={texts.clubChartTitle}
         >
-          <div className="consumer-club-hero">
-            <span className="consumer-club-medal" aria-hidden="true"><Award size={48}/></span>
-            <div>
-              <span className="consumer-eyebrow">باشگاه مشتریان صنعت پیش</span>
-              <h2>سطح فعلی: <strong>{current?.publicTitle || "عضو باشگاه"}</strong></h2>
-              <p>{texts.clubChartSubtitle}</p>
-              <span className="portal-club-badge"><Award size={17}/>{current?.publicTitle || "عضو باشگاه"}</span>
+          {portal === "consumer" ? (
+            <div className="consumer-club-hero">
+              <span className="consumer-club-medal" aria-hidden="true"><Award size={48}/></span>
+              <div>
+                <span className="consumer-eyebrow">باشگاه مشتریان صنعت پیش</span>
+                <h2>سطح فعلی: <strong>{current?.publicTitle || "عضو باشگاه"}</strong></h2>
+                <p>{texts.clubChartSubtitle}</p>
+                <span className="portal-club-badge"><Award size={17}/>{current?.publicTitle || "عضو باشگاه"}</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="portal-club-top">
+              <div><h2>{texts.clubChartTitle}</h2><p>{texts.clubChartSubtitle}</p></div>
+              <span className="portal-club-badge"><Award size={18}/>{current?.publicTitle || "عضو باشگاه"}</span>
+            </div>
+          )}
           <p className="portal-club-volume">
             {label("حجم خرید ثبت‌شده")}
             <strong>{number(volume)}</strong>تومان
@@ -83,7 +90,7 @@ export function PortalClub({
               >
                 <span style={{ width: `${progress}%` }} />
               </div>
-              <h3 className="consumer-club-level-title">سطوح عضویت باشگاه</h3>
+              {portal === "consumer" && <h3 className="consumer-club-level-title">سطوح عضویت باشگاه</h3>}
               <div className="portal-milestones">
                 {milestones.map((m) => (
                   <div
