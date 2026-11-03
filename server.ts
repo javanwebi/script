@@ -5716,11 +5716,35 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
 const forzaStreamModelCooldowns=new Map<string,number>();
 app.post('/api/ai/consult-stream', async (req, res) => {
   const startedAt=Date.now();
-  const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
+  const { query, history, responseId: clientResponseId, userTurnId: clientTurnId,
+    interruptionContext: rawInterruption, includeAudio, mode } = req.body;
   const lowLatencyVoice=mode==='forza';
-  const catalogContext=consultantCatalogContext(String(query||''));
-  const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  // These identifiers are diagnostic data, not arbitrary log lines.
+  const safeId=(input:unknown,prefix:string)=>typeof input==='string' &&
+    /^[A-Za-z0-9_-]{1,90}$/.test(input)
+      ? input : prefix+'-'+crypto.randomBytes(6).toString('hex');
+  const responseId = safeId(clientResponseId,'resp');
+  const userTurnId = safeId(clientTurnId,'turn');
+  const interruption=lowLatencyVoice&&rawInterruption&&typeof rawInterruption==='object'
+    ? {
+      lastQuestion:String(rawInterruption.lastQuestion||'').slice(0,400),
+      heardText:String(rawInterruption.heardText||'').slice(0,1100),
+      unheardText:String(rawInterruption.unheardText||'').slice(0,1100),
+      playedSeconds:Math.max(0,Math.min(120,Number(rawInterruption.playedSeconds)||0)),
+    } : null;
+  // Only the completed audible prefix is dialogue history; text already
+  // generated but not played must never be treated as a reply the user heard.
+  const interruptionPrompt=interruption
+    ? '\\nمکالمه قبلی قطع شده است. سؤال قبلی مشتری: '+
+      interruption.lastQuestion+'\\nبخشی از پاسخ که کامل پخش شده: '+
+      (interruption.heardText||'هیچ عبارت کاملی تأیید نشده')+
+      '\\nمتن تولیدشده اما لزوماً شنیده‌نشده (صرفاً برای جلوگیری از تکرار): '+
+      interruption.unheardText+
+      '\\nگفتار جدید مشتری را نسبت به همان سؤال تفسیر کن. در «نه، منظورم...» '+
+      'اصلاح نهایی را ترجیح بده؛ در «ادامه بده» از بخش شنیده‌شده ادامه بده؛ '+
+      'اگر کد فنی مهم مبهم است فقط همان کد را کوتاه تأیید بگیر. پاسخ طولانی را از ابتدا تکرار نکن.\\n'
+    : '';
+  const catalogContext=consultantCatalogContext(String(query||''))+interruptionPrompt;
 
   console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=${mode || 'desk'} endpoint=/api/ai/consult-stream timestamp=${new Date().toISOString()}`);
 
