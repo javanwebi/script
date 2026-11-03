@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ShoppingCart,
   Copy,
-  Layers,
   Package,
   Search,
   ArrowLeft,
@@ -140,22 +139,6 @@ export function PortalTools({
     );
   return (
     <section className="portal-tools consumer-multicode-panel">
-      <div className="portal-tools-heading">
-        <div>
-          <span className="store-eyebrow">
-            {label("کمتر تایپ کنید، دقیق‌تر سفارش دهید")}
-          </span>
-          <h2>
-            <ClipboardList size={20} />
-            {label("لیست خرید چندکدی")}
-          </h2>
-          <p>
-            {label(
-              "کد کالا و تعداد را در هر خط وارد کنید؛ ابتدا نتیجه را بررسی کنید.",
-            )}
-          </p>
-        </div>
-      </div>
       <div className="consumer-bulk-hero">
         <span className="consumer-bulk-illustration" aria-hidden="true"><ClipboardList size={39}/><Package size={25}/></span>
         <div><span className="consumer-eyebrow">ثبت سفارش گروهی</span><h2>{label("لیست خرید چندکدی")}</h2>
