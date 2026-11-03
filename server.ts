@@ -5526,6 +5526,13 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
+// Immutable deployment fingerprint for future client/server source comparison.
+// Existing deployments may legitimately report releaseSha=null until republished.
+app.get('/api/ai/forza-build-info',(_req,res)=>{
+  const candidate=String(process.env.SANATPISH_RELEASE_SHA||'');
+  res.setHeader('Cache-Control','no-store');
+  res.json({releaseSha:/^[a-f0-9]{40}$/.test(candidate)?candidate:null,voice:forzaVoiceEngine});
+});
 
 const pocketTtsBudget=new Map<string,{count:number;until:number}>();
 function consumePocketVoiceBudget(req:any):boolean{
