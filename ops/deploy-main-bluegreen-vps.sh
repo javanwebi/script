@@ -7,6 +7,17 @@ export GIT_TERMINAL_PROMPT=0
 APP=/opt/sanatpish
 EXPECTED="$SANATPISH_RELEASE_SHA"
 [[ "$EXPECTED" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_RELEASE_SHA"; exit 1; }
+# Mandatory single-port dispatcher. The older rotating-port implementation
+# below is retained only for reference; it is intentionally unreachable.
+# The installed /usr/local/sbin/sanatpish-deploy-main wrapper remains usable.
+SINGLE_TMP="$(mktemp /tmp/sanatpish-single-port.XXXXXXXX.sh)"
+trap 'rm -f -- "$SINGLE_TMP"' EXIT
+git -C "$APP" show "$EXPECTED:ops/deploy-single-port-vps.sh" > "$SINGLE_TMP"
+bash -n "$SINGLE_TMP"
+echo "===== SINGLE-PUBLISHED-APP-PORT DEPLOY ====="
+bash "$SINGLE_TMP"
+exit 0
+
 exec 9>/run/lock/sanatpish-main-release.lock
 flock -w 15 9 || { echo "DEPLOY_LOCK_BUSY"; exit 1; }
 test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/script.git
