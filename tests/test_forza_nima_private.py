@@ -85,7 +85,9 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("new ForzaNimaBufferedSpeech({",frontend)
         self.assertIn("await activeNimaBuffer.finish()",frontend)
         self.assertIn("bufferedNima?.cancel()",frontend)
-        self.assertIn("maxConcurrent:2",frontend)
+        # Single-slot CPU worker: one in-flight phrase per visitor prevents
+        # the second speculative request from monopolizing a global queue.
+        self.assertIn("maxConcurrent:1",frontend)
         self.assertIn("initialBufferSeconds:2",frontend)
         self.assertIn("phase=nima-incremental-finished",frontend)
         self.assertIn("incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'",backend)

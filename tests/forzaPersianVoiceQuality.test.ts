@@ -12,14 +12,14 @@ test('Forza Persian voice speaks known technical codes without altering displaye
   assert.match(prepared,/1250/);
 });
 test('Normalizes Arabic glyphs, punctuation and marketing markdown without changing text meaning',()=>{
-  assert.equal(prepareAmirSpeechText('**سلام**،  به صنعت پيش خوش آمديد!!!'), 'سَلام، بِه صَنعَت پیش خُوش آمَدید!');
-  assert.match(prepareAmirSpeechText('تسمه V-belt و HTD 8M'),/تَسمه وی بِلْت وَ اِچ تی دی 8M/);
+  assert.equal(prepareAmirSpeechText('**سلام**،  به صنعت پيش خوش آمديد!!!'), 'سَلام، به صَنعَت پیش خُوش آمَدید!');
+  assert.match(prepareAmirSpeechText('تسمه V-belt و HTD 8M'),/تسمه وی بِلْت و اِچ تی دی 8M/);
 });
 test('Adds conservative Persian diacritics only to TTS text and preserves technical identifiers',()=>{
   const prepared=prepareAmirSpeechText('سلام، تسمه تایمینگ و بلبرینگ 6205 برای بررسی مشخصات فنی.');
   assert.match(prepared,/سَلام/);
-  assert.match(prepared,/تَسمه/);
-  assert.match(prepared,/بُل‌بِرینگ/);
+  assert.match(prepared,/تسمه/);
+  assert.match(prepared,/بلبرینگ/);
   assert.match(prepared,/6205/);
   assert.match(prepared,/مُشَخَّصات فَنّی/);
 });

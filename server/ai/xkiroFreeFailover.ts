@@ -92,7 +92,12 @@ export async function streamXkiroFreePool(
 ): Promise<FreeXkiroResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   if (accountRateLimitUntil > Date.now()) throw new BaiConsultError('xkiro_rate_limited_retry_later');
+  const catalogStarted=performance.now();
   const verified = await listVerifiedXkiroFreeChatModels(fetchImpl);
+  if(options.voice)console.info('[FORZA_PROVIDER_TIMING]',JSON.stringify({
+    phase:'xkiro_verified_free_catalog',ms:Math.round(performance.now()-catalogStarted),
+    modelCount:verified.length
+  }));
   const preferred = verified.includes(options.model) ? options.model : null;
   const rotated = verified.slice(roundRobin % verified.length).concat(verified.slice(0, roundRobin % verified.length));
   roundRobin += 1;
@@ -104,6 +109,7 @@ export async function streamXkiroFreePool(
     if (attempted >= cap) break;
     if ((cooldowns.get(model) || 0) > Date.now()) continue;
     attempted++;
+    const attemptStarted=performance.now();
     let delivered = false;
     try {
       const result = await streamXkiroConsult({
@@ -119,11 +125,19 @@ export async function streamXkiroFreePool(
         },
       });
       cooldowns.delete(model);
+      if(options.voice)console.info('[FORZA_PROVIDER_TIMING]',JSON.stringify({
+        phase:'xkiro_model_stream',model,attempt:attempted,
+        ms:Math.round(performance.now()-attemptStarted),firstTokenMs:result.firstTokenMs
+      }));
       return result;
     } catch (error: unknown) {
       if (delivered) throw error; // Never replay a partial response.
       const code = error instanceof BaiConsultError ? error.code : 'upstream_network_error';
       lastCode = code;
+      if(options.voice)console.warn('[FORZA_PROVIDER_TIMING]',JSON.stringify({
+        phase:'xkiro_model_error',model,attempt:attempted,
+        ms:Math.round(performance.now()-attemptStarted),code
+      }));
       // Invalid account credentials, depleted wallet, malformed inputs and
       // general 400 errors are not fixed by moving to another model.
       if (/^http_(400|401|402)(_|$)/.test(code)) throw error;

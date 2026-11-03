@@ -1,0 +1,45 @@
+name: FORZA one-time live Nima HTTP latency sample
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/forza-live-tts-sample.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-tts-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Five serialized WAV-only requests; no customer audio saved
+        shell: bash
+        run: |
+          set -u
+          : >/tmp/forza-sample-times.txt
+          for attempt in 1 2 3 4 5; do
+            echo "TTS_SAMPLE=$attempt"
+            result="$(curl --noproxy '*' -k --silent --show-error --connect-timeout 6 --max-time 32 \
+              -X POST 'https://87.107.152.92/api/ai/forza-speech' \
+              -H 'Content-Type: application/json' \
+              --data '{"text":"سلام، درباره تسمه SPA 1250 راهنمایی می‌کنید؟"}' \
+              -D /tmp/forza-sample-headers -o /dev/null \
+              -w '%{http_code} %{time_total} %{size_download}' || true)"
+            echo "result=$result"
+            grep -iE '^(X-Forza-Voice:|Server-Timing:|X-Forza-Voice-Queue-Ms:|X-Forza-Voice-Infer-Ms:)' /tmp/forza-sample-headers || true
+            set -- $result
+            if [[ "${1:-}" == 200 && "${2:-}" =~ ^[0-9.]+$ && "${3:-0}" -gt 44 ]]; then
+              echo "$2" >> /tmp/forza-sample-times.txt
+            fi
+          done
+          python3 - <<'PY'
+          import math,statistics
+          samples=[float(v)*1000 for v in open('/tmp/forza-sample-times.txt') if v.strip()]
+          if samples:
+              ordered=sorted(samples)
+              print('WAV_HTTP_LATENCY_MS n=%d mean=%.0f median=%.0f p95=%.0f min=%.0f max=%.0f' % (
+                  len(samples), statistics.mean(samples), statistics.median(samples),
+                  ordered[math.ceil(len(samples)*.95)-1], ordered[0], ordered[-1]))
+          else:
+              print('WAV_HTTP_LATENCY_MS no confirmed 200/WAV samples')
+          print('These are HTTP WAV transfer times, NOT audible start, ASR latency, or end-to-end voice response.')
+          PY

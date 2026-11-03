@@ -18,6 +18,15 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     const greeting='سَلام، بِه صَنعَت پیش خُوش آمَدید. مَن فورزا هَستَم وَ بَرایِ رَهنَمایی شُما آمادِه‌اَم.';
     const fullAnswer='سلام، قطعه در کاتالوگ صنعت پیش ثبت شده است. لطفاً کد فنی را بفرمایید.';
     let streamCalls=0;
+    const nimaTtsTexts=[];
+    await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({
+      json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true},
+    }));
+    await page.route('**/api/ai/forza-speech',async route=>{
+      nimaTtsTexts.push(String(route.request().postDataJSON()?.text||''));
+      await route.fulfill({status:200,contentType:'audio/wav',
+        headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wave});
+    });
     await page.addInitScript(()=>{
       window.__micRequested=false;
       const original=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
@@ -58,9 +67,8 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await page.waitForFunction(()=>document.body.innerText.includes('لطفاً کد فنی'),{},{timeout:20000});
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
     assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
-    const ttsTexts=await page.evaluate(()=>window.__forzaAmirSpoken);
-    assert.ok(ttsTexts.length>=1,'must synthesize reply speech locally with Amir');
-    assert.ok(ttsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
-    console.log('PASS: automatic mic acquisition; no retry/unlock buttons; greeting and streamed reply TTS (mock audio).');
+    assert.ok(nimaTtsTexts.length>=1,'must stream reply phrases to selected private Nima HTTP TTS');
+    assert.ok(nimaTtsTexts.every(x=>x.length<=240),'speech phrases must be bounded');
+    console.log('PASS: automatic mic acquisition; greeting and streamed reply via mock private Nima WAV.');
   } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
