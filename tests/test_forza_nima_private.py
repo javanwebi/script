@@ -20,7 +20,11 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("piper-nima-gyro-medium",worker)
         self.assertIn("io.BytesIO()",worker)
         self.assertIn("application/x-forza-wav-frames",worker)
-        self.assertIn("synthesis_slot = threading.BoundedSemaphore(1)",worker)
+        self.assertIn("queue_condition = threading.Condition()",worker)
+        self.assertIn("queue_waiters = deque()",worker)
+        self.assertIn("MAX_QUEUE_WAIT_SEC = 2.5",worker)
+        self.assertIn("X-Forza-Queue-Ms",worker)
+        self.assertIn("client_disconnected",worker)
         self.assertNotIn("open('/tmp/",worker)
         self.assertNotIn("write_bytes(",worker)
 
