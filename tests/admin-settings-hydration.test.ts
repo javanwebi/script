@@ -43,3 +43,10 @@ test('full-table data download requires fresh owner password and is not a restor
  assert.match(exportApi,/read only/);
  assert.match(exportApi,/physical Supabase Storage objects/);
 });
+
+test('protected archive handles client disconnect and waits for stream completion',()=>{
+ assert.match(exportApi,/gz\.on\('error'/);
+ assert.match(exportApi,/await finished\(out\)/);
+ assert.match(exportApi,/await finished\(res\)/);
+ assert.match(exportApi,/exportRunning=false/);
+});
