@@ -119,7 +119,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   };
 
   const consumeEvent = (event: string) => {
-    const data = event.split('\n')
+    const data = event.split(/\r?\n/)
       .filter(line => line.startsWith('data:'))
       .map(line => line.slice(5).trimStart()).join('\n').trim();
     if (data) parseData(data);
@@ -178,12 +178,15 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     while (!finished) {
       const { value, done } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+      // Do not normalize CRLF separately in each network chunk: a provider
+      // can split the \r and \n bytes across reads, leaving `\r\n\r\n`
+      // permanently hidden from an indexOf("\n\n") parser.
+      buffer += decoder.decode(value, { stream: true });
       if (buffer.length > 128_000) throw new BaiConsultError('oversized_sse_frame');
-      let index: number;
-      while ((index = buffer.indexOf('\n\n')) >= 0) {
-        const event = buffer.slice(0, index);
-        buffer = buffer.slice(index + 2);
+      let boundary:RegExpExecArray|null;
+      while ((boundary = /\r?\n\r?\n/.exec(buffer)) !== null) {
+        const event = buffer.slice(0, boundary.index);
+        buffer = buffer.slice(boundary.index + boundary[0].length);
         consumeEvent(event);
         if (finished) break;
       }

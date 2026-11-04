@@ -73,3 +73,62 @@ test('first Pocket phrase starts on a complete natural sentence',()=>{
   assert.equal(ready?.phrase+' '+ready?.rest,'من فورزا هستم و در خدمت شما هستم. حالا کد فنی قطعه را بفرمایید.');
   assert.ok(ready!.phrase.length>=28);
 });
+
+test('instrumented SSE records provider and first real delta without buffering or fake completion',async()=>{
+  const frames=[
+    'data: {"type":"start","timestamp":1740000000}\n\n',
+    'data: {"type":"provider","provider":"xkiro"}\n\n',
+    'data: {"type":"text_chunk","chunk":"بلبرینگ 6202ZZ"}\n\n',
+    'data: {"type":"done","fullText":"بلبرینگ 6202ZZ"}\n\n',
+  ];
+  const stages:string[]=[];const visible:string[]=[];
+  const stream=new ReadableStream<Uint8Array>({start(c){
+    for(const frame of frames)c.enqueue(new TextEncoder().encode(frame));
+    c.close();
+  }});
+  const text=await consumeForzaTextStream(
+    new Response(stream,{status:200}),
+    chunk=>visible.push(chunk),
+    (stage,info)=>stages.push(stage+(info?.provider?':'+info.provider:'')),
+  );
+  assert.equal(text,'بلبرینگ 6202ZZ');
+  assert.deepEqual(visible,['بلبرینگ 6202ZZ']);
+  assert.deepEqual(stages,['start','provider:xkiro','first_delta','done']);
+});
+
+test('a network EOF after partial words is tracked as incomplete, never a successful done',async()=>{
+  const stages:string[]=[];
+  const stream=new ReadableStream<Uint8Array>({start(c){
+    c.enqueue(new TextEncoder().encode(
+      'data: {"type":"start"}\n\ndata: {"type":"text_chunk","chunk":"SPA 1250"}\n\n'
+    ));
+    c.close();
+  }});
+  await assert.rejects(
+    consumeForzaTextStream(new Response(stream),()=>{},stage=>stages.push(stage)),
+    /forza_stream_incomplete/,
+  );
+  assert.deepEqual(stages,['start','first_delta','incomplete']);
+});
+
+
+test('SSE revised done is an error, not a new successful speech turn',async()=>{
+  const frames=[
+    'data: {"type":"start"}\n\n',
+    'data: {"type":"text_chunk","chunk":"یاتاقان 6202ZZ"}\n\n',
+    'data: {"type":"done","fullText":"یاتاقان 6203ZZ"}\n\n',
+  ];
+  const stages:string[]=[];const spoken:string[]=[];
+  const input=new ReadableStream<Uint8Array>({start(c){
+    for(const frame of frames)c.enqueue(new TextEncoder().encode(frame));
+    c.close();
+  }});
+  await assert.rejects(
+    consumeForzaTextStream(new Response(input),part=>spoken.push(part),
+      (stage,info)=>stages.push(stage+(info?.code?':'+info.code:''))),
+    /forza_stream_revised_after_delta/
+  );
+  assert.deepEqual(spoken,['یاتاقان 6202ZZ']);
+  assert.ok(stages.includes('error:forza_stream_revised_after_delta'));
+  assert.equal(stages.includes('done'),false);
+});

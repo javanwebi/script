@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isForzaProbableEcho,forzaTurnIntent} from '../src/utils/forzaBargeIn';
+import {isForzaProbableEcho,shouldIgnoreForzaSpeakerEcho,forzaTurnIntent} from '../src/utils/forzaBargeIn';
 
 test('does not interrupt for spoken speaker echo',()=>{
   assert.equal(isForzaProbableEcho('برای انتخاب تسمه باید توان موتور',
@@ -27,4 +27,40 @@ test('stop is silent, continue and corrections preserve a conversational request
   assert.equal(forzaTurnIntent('نه منظورم دستگاه بسته بندی است'), 'correction');
   assert.equal(forzaTurnIntent('صبر کن توضیح بدم'), 'question');
   assert.equal(forzaTurnIntent('SPA 1250 و C3'), 'question');
+});
+
+test('only recent actually played multi-word phrases can suppress loudspeaker echo',()=>{
+  const speaking='برای انتخاب تسمه باید توان موتور و اندازه پولی را بدانم';
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,false),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('توان موتور',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('دستگاه',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('صبر کن',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('بس کن',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('نه',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('ادامه بده',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('نه، برای دستگاه بسته بندی میخوام',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('6203ZZ C3 SPA',speaking,true),false);
+});
+
+test('repeated colloquial Persian stop words cancel locally without a new model turn',()=>{
+  for(const command of [
+    'وایسا','وایسا وایسا','وایستا','وایستا، وایستا',
+    'صبر کن صبر کن','یه لحظه','یک لحظه','بس کن بس کن',
+    'توقف!','ساکت شو','وایسا صبر کن',
+  ]) {
+    assert.equal(forzaTurnIntent(command),'stop',command);
+    assert.equal(shouldIgnoreForzaSpeakerEcho(command,command,true),false,
+      'explicit stop must never be mistaken for an echo');
+  }
+  for(const correction of [
+    'صبر کن، منظورم تسمه بسته بندی بود',
+    'وایسا، نه منظورم 6203ZZ است',
+    'یه لحظه بگو SPA 1250 موجوده؟',
+    'وایسا توضیح بدم',
+  ]) {
+    assert.notEqual(forzaTurnIntent(correction),'stop',correction);
+  }
 });

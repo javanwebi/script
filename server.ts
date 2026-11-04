@@ -55,6 +55,7 @@ import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroC
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
+import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -529,7 +530,15 @@ app.get('/api/health', async (req, res) => {
   try{
   if(process.env.NODE_ENV==='production' && !databaseEnabled())return res.status(503).json({status:'unavailable',database:'not-configured'});
   if(databaseEnabled())await database().query('select 1');
-  res.json({ status: 'ok', database:databaseEnabled()?'ok':'development-only', time: new Date().toISOString() });
+  res.json({
+    status:'ok',
+    database:databaseEnabled()?'ok':'development-only',
+    time:new Date().toISOString(),
+    // Exact pinned canary/live SHA from the safe deploy script, never guessed
+    // from host git HEAD (which may differ from the running container).
+    revision:/^[a-f0-9]{40}$/.test(process.env.SANATPISH_RELEASE_SHA||'')
+      ?process.env.SANATPISH_RELEASE_SHA:'unknown',
+  });
   }catch{return res.status(503).json({status:'unavailable',database:'unavailable'});}
 });
 
@@ -5401,7 +5410,10 @@ app.post('/api/ai/consult', async (req, res) => {
   }
 });
 
-// Buffer cache for ultra-fast progressive TTS synthesis
+// A bounded RAM-only cache is allowed; customer speech and WAV must never
+// be written to or reloaded from the legacy disk cache. Existing user files
+// are left untouched; do not delete them automatically.
+const FORZA_CUSTOMER_AUDIO_RAM_ONLY=true;
 const ttsBufferCache = new Map<string, Buffer>();
 
 const FORZA_TTS_DISK_CACHE_DIR = process.env.FORZA_TTS_CACHE_DIR
@@ -5415,6 +5427,7 @@ function forzaTtsDiskCachePath(text: string, voice = 'Charon'): string {
 }
 
 async function readForzaTtsDiskCache(text: string, voice = 'Charon'): Promise<Buffer | null> {
+  if(FORZA_CUSTOMER_AUDIO_RAM_ONLY)return null;
   try {
     const filePath = forzaTtsDiskCachePath(text, voice);
     const stat = await fs.promises.stat(filePath);
@@ -5447,6 +5460,7 @@ async function pruneForzaTtsDiskCache(): Promise<void> {
 }
 
 async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Charon'): Promise<void> {
+  if(FORZA_CUSTOMER_AUDIO_RAM_ONLY)return;
   if (!text || !audio?.length || classifyForzaAudio(audio, 'audio/wav') !== 'wav') return;
   try {
     await fs.promises.mkdir(FORZA_TTS_DISK_CACHE_DIR, { recursive: true });
@@ -5571,26 +5585,28 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
-const pocketTtsBudget=new Map<string,{count:number;until:number}>();
-function consumePocketVoiceBudget(req:any):boolean{
+const pocketVoiceBudget=new ForzaTtsBudget();
+function consumePocketVoiceBudget(req:any,res:any):boolean{
+  // Keep req.ip from Express's effective trust-proxy configuration.
+  // Never accept a client-supplied X-Forwarded-For or turn ID as proof of
+  // identity; a separate hard cap is enforced on the network address.
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
-  const now=Date.now();
-  let budget=pocketTtsBudget.get(key);
-  if(!budget || now>=budget.until){
-    budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
-  }
-  if(budget.count>=24)return false;
-  budget.count++;
-  if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
-    if(item.until<now)pocketTtsBudget.delete(ip);
-  }
-  return true;
+  const turnId=String(req.body?.turnId||'legacy');
+  const decision=pocketVoiceBudget.consume(key,turnId);
+  if(decision.ok)return true;
+  res.setHeader('Retry-After',String(decision.retryAfterSeconds));
+  res.setHeader('Cache-Control','no-store');
+  res.status(429).json({error:'forza_tts_rate_limited',
+    errorCode:decision.reason==='turn'?'forza_turn_limit':'forza_network_limit'});
+  console.warn('[FORZA_TTS_BUDGET] phase=rejected reason='+decision.reason+
+    ' retryAfterSeconds='+decision.retryAfterSeconds);
+  return false;
 }
 
 app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
-  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  if(!consumePocketVoiceBudget(req,res))return;
   const started=Date.now();
   const cancel=new AbortController();
   const onDisconnect=()=>cancel.abort(new Error('forza_tts_client_disconnected'));
@@ -5630,7 +5646,7 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
   if(!internalForzaVoiceUrl || !process.env.FORZA_VOICE_TOKEN)
     return res.status(503).json({error:'private_voice_not_configured'});
-  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  if(!consumePocketVoiceBudget(req,res))return;
 
   const controller=new AbortController();
   const onDisconnect=()=>controller.abort();
@@ -5758,9 +5774,12 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const startedAt=Date.now();
   const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
   const lowLatencyVoice=mode==='forza';
-  const catalogContext=consultantCatalogContext(String(query||''));
-  const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  // Ids are for timing correlation only; user-controlled content must never
+  // enter console output, error text or HTTP response headers.
+  const id = (value:unknown,fallback:string)=>String(value||fallback)
+    .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)||fallback;
+  const responseId=id(clientResponseId,'resp-'+startedAt);
+  const userTurnId=id(clientTurnId,'turn-'+startedAt);
 
   console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=${mode || 'desk'} endpoint=/api/ai/consult-stream timestamp=${new Date().toISOString()}`);
 
@@ -5771,14 +5790,28 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   res.setHeader('Content-Encoding', 'none');
   res.flushHeaders?.();
 
+  let firstServerDelta=false;
   const sendEvent = (data: any) => {
+    if(data?.type==='text_chunk' && !firstServerDelta){
+      firstServerDelta=true;
+      console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+        ' phase=node_first_delta ms='+(Date.now()-startedAt)+
+        ' chars='+String(data.chunk||'').length);
+    }
     try {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
       (res as any).flush?.();
     } catch {}
   };
 
-  sendEvent({ type: 'start', responseId, timestamp: Date.now() });
+  sendEvent({ type: 'start', responseId, userTurnId, timestamp: startedAt });
+  // Crucial: the initial SSE event is sent before any synchronous catalog
+  // preprocessing or outbound model discovery, exposing their real latency.
+  const catalogStartedAt=Date.now();
+  const catalogContext=consultantCatalogContext(String(query||''));
+  if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+    ' phase=catalog_ready ms='+(Date.now()-startedAt)+
+    ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
@@ -5787,10 +5820,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
   const textProvider = xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
   const textModel = xkiroModel || baiModel;
+  if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+    ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
+    ' elapsedMs='+(Date.now()-startedAt));
   const textApiKey = textProvider === 'xkiro'
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
   if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
+    if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:textProvider});
     // Do not replace a provider's already-streamed partial answer with a
     // second provider's answer: the user would see one response then hear another.
     let providerSentText=false;
@@ -5857,6 +5894,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
   const apiKey = getGeminiKey();
   if (!apiKey) {
+    if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:'worker_complete_text'});
     let workerText = '';
     try {
       const workerMessages: Array<{ role: string; content: any }> = [
@@ -5917,6 +5955,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:'gemini'});
   const geminiAbort=new AbortController();
   const onGeminiDisconnect=()=>geminiAbort.abort(new Error('forza_client_gone'));
   res.once('close',onGeminiDisconnect);

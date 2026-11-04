@@ -13,8 +13,7 @@ export function isForzaProbableEcho(recognized:string, spokenAnswer:string):bool
   const answer=normalize(spokenAnswer);
   if(!speech || !answer)return false;
   // Intentional corrections and explicit interruption commands take priority.
-  if(/^(?:نه|صبر کن|بس کن|توقف|ادامه بده|منظورم|نه منظورم)(?:\s|$)/.test(speech))
-    return false;
+  if(forzaTurnIntent(speech)!=='question') return false;
   if(answer.includes(speech))return true;
   const words=speech.split(' ').filter(Boolean);
   if(words.length < 3)return false;
@@ -28,10 +27,28 @@ export function isForzaProbableEcho(recognized:string, spokenAnswer:string):bool
   return false;
 }
 
+/** Conservative gate for loudspeaker bleed during real audio playback.
+ * Unlike diarization, this cannot know who spoke. Single-word reactions and
+ * explicit corrections always get through; the test requires 3+ tokens.
+ */
+export function shouldIgnoreForzaSpeakerEcho(
+  recognized:string,actuallyPlayingText:string,recentPlayback:boolean,
+):boolean {
+  if(!recentPlayback)return false;
+  // One- or two-word Chrome interim hypotheses can be the beginning of
+  // FORZA's own loudspeaker output. Cancelling immediately on "برای" would
+  // defeat the 3-word full-echo check before it can ever run.
+  // Explicit corrections, stop and continuation commands take priority.
+  if(forzaTurnIntent(recognized)!=='question')return false;
+  return isForzaProbableEcho(recognized,actuallyPlayingText);
+}
+
 /** Deterministic commands; leave corrections and new questions to the LLM. */
 export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction'|'question' {
   const words=normalize(transcript);
-  if(/^(?:صبر کن|صبر کنید|بس کن|بس کنید|توقف|بسه|ساکت شو)$/.test(words))
+  // A *pure* command may be repeated while the microphone remains open.
+  // Do not treat "صبر کن، منظورم 6203ZZ بود" as a stop command.
+  if(/^(?:(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت شو)(?:\s+|$))+$/u.test(words))
     return 'stop';
   if(/^(?:ادامه بده|ادامه بدید|ادامه|بقیه را بگو|بقیه رو بگو)$/.test(words))
     return 'continue';

@@ -20,6 +20,7 @@ export interface ForzaWavScheduler {
 interface NimaPhraseTask {
   index: number;
   text: string;
+  queuedAt: number;
   resolve: () => void;
   reject: (error: Error) => void;
 }
@@ -35,6 +36,9 @@ export interface ForzaNimaBufferedOptions {
   /** Called only after an ordered WAV source has ended without cancellation. */
   onPhrasePlayed?: (phrase: string) => void;
   onPhraseProgress?: (phrase:string,info:ForzaWavPlaybackProgress) => void;
+  onPhraseReady?: (info:{
+    index:number;waitMs:number;fetchMs:number;wavBytes:number;durationMs:number
+  })=>void;
 }
 
 export function forzaPcmWavDurationSeconds(wav: Uint8Array): number {
@@ -113,7 +117,7 @@ export class ForzaNimaBufferedSpeech {
     void completion.catch(() => {});
     this.synthesisPromises.push(completion);
     this.phraseTexts.set(index,text);
-    this.tasks.push({index,text,resolve,reject});
+    this.tasks.push({index,text,resolve,reject,queuedAt:performance.now()});
     this.startReadyJobs();
   }
 
@@ -121,6 +125,7 @@ export class ForzaNimaBufferedSpeech {
     while (!this.cancelled && !this.error &&
            this.active < this.maxConcurrent && this.tasks.length) {
       const task = this.tasks.shift()!;
+      const fetchStartedAt=performance.now();
       this.active++;
       void Promise.resolve()
         .then(() => {
@@ -134,6 +139,13 @@ export class ForzaNimaBufferedSpeech {
             return;
           }
           const duration = forzaPcmWavDurationSeconds(wav);
+          this.options.onPhraseReady?.({
+            index:task.index,
+            waitMs:Math.max(0,Math.round(fetchStartedAt-task.queuedAt)),
+            fetchMs:Math.round(performance.now()-fetchStartedAt),
+            wavBytes:wav.byteLength,
+            durationMs:Math.round(duration*1000),
+          });
           this.totalBufferedSeconds += duration;
           this.synthesized.set(task.index, wav);
           task.resolve();

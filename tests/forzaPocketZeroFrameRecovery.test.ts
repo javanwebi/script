@@ -19,7 +19,7 @@ test('full-answer Pocket needs no stream fallback or zero-frame retry',()=>{
 test('one complete answer only is spoken; no partial packet can be replayed',()=>{
   assert.match(ui,/await consumeForzaTextStream/);
   assert.match(ui,/if \(reply\) \{/);
-  assert.match(ui,/Text stream incomplete; refusing partial speech/);
+  assert.match(ui,/Text stream incomplete; refusing unverified trailing speech/);
   assert.doesNotMatch(ui,/readForzaWavFrames|scheduledPlaybacks|onScheduled/);
 });
 

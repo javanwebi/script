@@ -36,6 +36,22 @@ export function extractPersianSpeechRecognition(
   };
 }
 
+/** Drop Chrome results already dispatched as the previous customer turn.
+ * WebSpeech results are cumulative while recognition stays alive for barge-in.
+ * Without a per-turn cursor, a previous final sentence is repeated as a
+ * fresh correction during the next AI reply.
+ */
+export function extractPersianSpeechSince(
+  results:ArrayLike<BrowserSpeechResult>,
+  consumedResultCount:number,
+):ReturnType<typeof extractPersianSpeechRecognition>{
+  const start=Number.isFinite(consumedResultCount)
+    ?Math.max(0,Math.min(results.length,Math.floor(consumedResultCount))):0;
+  const remaining:BrowserSpeechResult[]=[];
+  for(let i=start;i<results.length;i++)remaining.push(results[i]);
+  return extractPersianSpeechRecognition(remaining);
+}
+
 export function normalizePersianTranscript(value: string): string {
   return String(value || '')
     .replace(/[\u064A]/g, 'ی')
