@@ -176,3 +176,31 @@ export function preserveStaffCommercialFields(identity:StaffIdentity,existing:un
  };
  return merge(existing,incoming);
 }
+
+/** Prevent product edit permission from silently granting SKU deletion,
+ * gallery editing or category reassignment through a full-family payload. */
+export function assertStaffCatalogStructure(identity:StaffIdentity,existing:unknown,incoming:unknown){
+ if(identity.admin || !identity.staff || !existing)return;
+ const from=existing as Record<string,any>;
+ const to=incoming && typeof incoming==='object'?incoming as Record<string,any>:{};
+ const oldVariants=Array.isArray(from.variants)?from.variants:[];
+ const nextVariants=Array.isArray(to.variants)?to.variants:oldVariants;
+ const oldIds=new Set(oldVariants.map((v:any)=>String(v.code)));
+ const nextIds=new Set(nextVariants.map((v:any)=>String(v.code)));
+ for(const id of nextIds)if(!oldIds.has(id) && !canStaff(identity,'products','create'))throw forbidden();
+ for(const id of oldIds)if(!nextIds.has(id) && !canStaff(identity,'products','delete'))throw forbidden();
+ if(!canStaff(identity,'products','images')){
+  for(const key of ['images','galleryImages']){
+   if(key in to && JSON.stringify(to[key])!==JSON.stringify(from[key]))throw forbidden();
+  }
+  for(const current of nextVariants){
+   const previous=oldVariants.find((v:any)=>v.code===current.code);
+   if(previous && 'images' in current && JSON.stringify(current.images)!==JSON.stringify(previous.images))throw forbidden();
+  }
+ }
+ if(!canStaff(identity,'products','categories')){
+  for(const key of ['categorySlug','categoryName','submenu','subcategory','menuCategory','menuSubmenu','menuLeaf','menuGroup']){
+   if(key in to && JSON.stringify(to[key])!==JSON.stringify(from[key]))throw forbidden();
+  }
+ }
+}
