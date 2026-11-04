@@ -1196,6 +1196,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
               onTextChunk(chunk,fullText);
+            },(stage,info)=>{
+              const code=String(info?.code||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
+              const provider=String(info?.provider||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32);
+              // Client and server clocks are NOT assumed synchronized. Match
+              // the same turn id in Node logs to separate transport, model
+              // TTFT, TTS queue, inference, WAV transfer and audio decode.
+              console.info('[FORZA_TEXT_STAGE] turn='+generation+' phase=browser_'+stage+
+                ' clientMs='+Math.round(performance.now()-turnStartedAt)+
+                (provider?' provider='+provider:'')+(code?' code='+code:''));
             });
             reply=callPlainText.complete(rawFinal);
             if(!reply)throw new Error('forza_empty_stream');
@@ -1210,8 +1219,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (reply) {
             // An interrupted or incomplete SSE is not a complete answer.
             // Never send the visible partial transcript to the TTS engine.
-            console.warn('[FORZA] Text stream incomplete; refusing partial speech');
-            throw new Error('پاسخ هوش مصنوعی کامل دریافت نشد. لطفاً دوباره تلاش کنید.');
+            console.warn('[FORZA] Text stream incomplete; refusing unverified trailing speech');
+            // Do not allow an incomplete source to keep playing stale queued
+            // audio. History stores only WAVs actually completed before this
+            // interruption, not all text displayed in the subtitle.
+            playerForTurn?.cancel();
+            activeTurnRef.current?.markInterrupted?.();
+            throw new Error('جریان پاسخ هوش مصنوعی ناقص ماند؛ متن دریافت‌شده حفظ شد. می‌توانید سؤال را دوباره بپرسید یا ادامه دهید.');
           } else {
           const fallbackAbort=new AbortController();
           const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);
