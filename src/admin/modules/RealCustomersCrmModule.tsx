@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
 import { CustomerAccountAccessModal } from './CustomerAccountAccessModal';
+import { CustomerNewAccessFields, emptyCustomerAccess, type NewCustomerAccessDraft } from './CustomerNewAccessFields';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
   FileText, Wallet, MessageCircle, Package, ChevronLeft, ChevronRight,
-  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2, Download
+  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2, Download, KeyRound, Copy
 } from 'lucide-react';
 
 type Customer = {
@@ -52,7 +53,7 @@ function Metric({label,value,Icon}:{label:string;value:string;Icon:React.Element
 }
 
 export const RealCustomersCrmModule: React.FC = () => {
-  const [kind,setKind] = useState<'retail'|'high_volume'>('high_volume');
+  const [kind,setKind] = useState<'retail'|'high_volume'>('retail');
   const [section,setSection] = useState<'customers'|'tickets'>('customers');
   const [q,setQ] = useState('');
   const [page,setPage] = useState(1);
@@ -73,10 +74,18 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [commercial,setCommercial] = useState<Customer|null>(null);
   const [accessCustomer,setAccessCustomer] = useState<Customer|null>(null);
   const [canManageAccess,setCanManageAccess] = useState(false);
+  const [smsConfigured,setSmsConfigured] = useState(false);
+  const [newAccess,setNewAccess] = useState<NewCustomerAccessDraft>(emptyCustomerAccess);
+  const [issued,setIssued] = useState<{username:string;password:string;preview:string;smsSent:boolean;smsWarning?:string}|null>(null);
   useEffect(()=>{
     let live=true;
     void fetch('/api/admin/crm/credentials/config',{credentials:'same-origin',cache:'no-store'})
-      .then(r=>{if(live)setCanManageAccess(r.ok);}).catch(()=>{if(live)setCanManageAccess(false);});
+      .then(async r=>{
+        const config=r.ok?await r.json():null;
+        if(!live)return;
+        setCanManageAccess(r.ok);
+        setSmsConfigured(config?.smsConfigured===true);
+      }).catch(()=>{if(live){setCanManageAccess(false);setSmsConfigured(false);}});
     return ()=>{live=false;};
   },[]);
 
@@ -115,6 +124,15 @@ export const RealCustomersCrmModule: React.FC = () => {
   };
   const save = async (event: React.FormEvent) => {
     event.preventDefault();if(!form)return;
+    if(!editing && newAccess.enabled){
+      if(!canManageAccess){setError('ساخت حساب فقط برای مدیر اصلی فعال است.');return;}
+      if(!/^[a-z][a-z0-9_]{3,31}$/.test(newAccess.username.trim().toLowerCase())){setError('نام کاربری باید ۴ تا ۳۲ نویسه انگلیسی و با حرف شروع شود.');return;}
+      if(newAccess.password.length<12 || newAccess.password.length>128){setError('رمز اولیه باید بین ۱۲ تا ۱۲۸ نویسه باشد.');return;}
+      if(!newAccess.confirmedPhone){setError('مالکیت شماره مشتری را تأیید کنید.');return;}
+      if(newAccess.sendSms && (!smsConfigured || !newAccess.messageTemplate.includes('{username}') || !newAccess.messageTemplate.includes('{password}'))){
+        setError('متن پیامک باید نام کاربری و رمز داشته باشد و SMS.ir فعال باشد.');return;
+      }
+    }
     setBusy(true);setError('');
     try {
       let updatedId=editing?.id;
@@ -123,10 +141,28 @@ export const RealCustomersCrmModule: React.FC = () => {
         updatedId=result.id || editing.id;
         setNotice('اطلاعات واقعی مشتری ذخیره شد.');
       } else {
-        const result=await api<{message:string}>('/api/admin/crm/customers',{method:'POST',body:JSON.stringify(form)});
-        setNotice(result.message);
+        const created=await api<{id:string;message:string}>('/api/admin/crm/customers',{method:'POST',body:JSON.stringify(form)});
+        updatedId=created.id;
+        setNotice(created.message);
+        if(newAccess.enabled){
+          try{
+            const result=await api<{username:string;smsSent:boolean;smsWarning?:string}>('/api/admin/crm/customers/'+encodeURIComponent(created.id)+'/credentials',{
+              method:'POST',body:JSON.stringify({operation:'create',username:newAccess.username.trim().toLowerCase(),
+                password:newAccess.password,sendSms:newAccess.sendSms,messageTemplate:newAccess.messageTemplate})
+            });
+            const preview=newAccess.messageTemplate.replace(/\{(username|password|smsName|loginUrl)\}/g,(_match,key)=>
+              ({username:result.username,password:newAccess.password,smsName:form.name,
+                loginUrl:'https://www.sanatpish.com/login'} as Record<string,string>)[key]||'');
+            setIssued({username:result.username,password:newAccess.password,preview,smsSent:result.smsSent,smsWarning:result.smsWarning});
+            setNotice('مشتری و حساب ورود واقعی او ساخته شدند.');
+          }catch(e){
+            // Contact is saved already; never retry its creation or duplicate customer records.
+            setNotice('مشتری ثبت شد، اما حساب ورود ایجاد نشد. از پرونده او دوباره اقدام کنید.');
+            setError('ساخت حساب ورود ناموفق بود: '+(e instanceof Error?e.message:'خطای سرویس ورود'));
+          }
+        }
       }
-      setForm(null);setEditing(null);refresh();
+      setForm(null);setEditing(null);setNewAccess(emptyCustomerAccess());refresh();
       if(updatedId && detail) await openDetail(updatedId);
     } catch(e) {setError(e instanceof Error?e.message:'ثبت مشتری ممکن نشد.');}
     finally {setBusy(false);}
