@@ -13,6 +13,7 @@ import {
   Search,
   ScanLine,
 } from "lucide-react";
+import { SanatPishLogo } from "../common/BrandIdentity";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { toPersianDigits } from "../../utils/formatters";
@@ -124,7 +125,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
       >
         <div className="store-sheet-heading">
           <div>
-            <small>صنعت پیش</small>
+            <SanatPishLogo className="h-7 w-20 object-contain object-right" alt="لوگوی صنعت پیش" />
             <h2 id="store-sheet-title">
               {sheet === "categories"
                 ? "دسته‌بندی محصولات"
