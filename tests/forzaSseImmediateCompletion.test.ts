@@ -65,7 +65,7 @@ test('FORZA never treats a dropped SSE connection as a complete answer for TTS',
   assert.ok(partials.length>0,'displayed partial subtitles are allowed; TTS is not');
 });
 
-test('completed SSE fullText overrides mismatched intermediate chunks before one TTS call',async()=>{
+test('revised SSE done cannot override technical words that were already delivered to speech',async()=>{
   const final='تسمه مدل SPA 1250 برای انتقال نیرو انتخاب می‌شود.';
   const partial='تسمه مدل B';
   const stream=new ReadableStream<Uint8Array>({
@@ -75,8 +75,13 @@ test('completed SSE fullText overrides mismatched intermediate chunks before one
       c.close();
     },
   });
-  let display='';
-  const answer=await consumeForzaTextStream(new Response(stream),(_chunk,fullText)=>{display=fullText;});
-  assert.equal(display,final);
-  assert.equal(answer,final);
+  const displayed:string[]=[];const stages:string[]=[];
+  await assert.rejects(
+    consumeForzaTextStream(new Response(stream),(_chunk,fullText)=>displayed.push(fullText),
+      (stage)=>stages.push(stage)),
+    /forza_stream_revised_after_delta/,
+  );
+  assert.deepEqual(displayed,[partial],'do not play a revised second answer');
+  assert.ok(stages.includes('error'));
+  assert.equal(stages.includes('done'),false);
 });
