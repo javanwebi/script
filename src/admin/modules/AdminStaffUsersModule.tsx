@@ -98,6 +98,7 @@ export const AdminStaffUsersModule:React.FC=()=>{
     <h4 className="text-base font-black text-[#55565A]">{draft.id?'ویرایش حساب '+draft.username:'تعریف حساب کارمند جدید'}</h4>
     {draft.id&&<button type="button" onClick={clear} className="flex items-center gap-2 text-sm text-slate-500"><RotateCcw size={16}/> انصراف از ویرایش</button>}
    </div>
+   <p className="text-xs text-slate-500">در صورت نداشتن ایمیل، حساب با شناسه داخلی ساخته می‌شود؛ بازنشانی رمز توسط مدیر اصلی انجام خواهد شد.</p>
    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <label className="space-y-1.5 text-sm font-semibold text-slate-600">نام و نام خانوادگی
      <input required maxLength={160} minLength={2} value={draft.name} onChange={e=>setDraft(v=>({...v,name:e.target.value}))} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#E56B1E]" placeholder="نام کارمند"/>
@@ -105,8 +106,8 @@ export const AdminStaffUsersModule:React.FC=()=>{
     <label className="space-y-1.5 text-sm font-semibold text-slate-600">نام کاربری
      <input required disabled={!!draft.id} autoComplete="off" dir="ltr" pattern="[a-z][a-z0-9_]{3,31}" value={draft.username} onChange={e=>setDraft(v=>({...v,username:e.target.value.toLowerCase()}))} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#E56B1E] disabled:bg-slate-100" placeholder="catalog_editor"/>
     </label>
-    <label className="space-y-1.5 text-sm font-semibold text-slate-600">ایمیل ورود
-     <input required disabled={!!draft.id} autoComplete="off" dir="ltr" type="email" value={draft.email} onChange={e=>setDraft(v=>({...v,email:e.target.value}))} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#E56B1E] disabled:bg-slate-100" placeholder="staff@example.com"/>
+    <label className="space-y-1.5 text-sm font-semibold text-slate-600">ایمیل (اختیاری)
+     <input disabled={!!draft.id} autoComplete="off" dir="ltr" type="email" value={draft.email} onChange={e=>setDraft(v=>({...v,email:e.target.value}))} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#E56B1E] disabled:bg-slate-100" placeholder="staff@example.com"/>
     </label>
     {!draft.id&&<label className="space-y-1.5 text-sm font-semibold text-slate-600">رمز عبور اختصاصی
      <input required autoComplete="new-password" type="password" minLength={12} maxLength={128} value={draft.password} onChange={e=>setDraft(v=>({...v,password:e.target.value}))} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#E56B1E]" placeholder="حداقل ۱۲ کاراکتر"/>
