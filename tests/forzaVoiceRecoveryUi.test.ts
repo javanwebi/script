@@ -63,3 +63,13 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   assert.match(vad,/window\.clearInterval\(micPoll\)/);
   assert.doesNotMatch(vad,/requestAnimationFrame|cancelAnimationFrame/);
 });
+
+test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
+  const start=ui.indexOf("if(q && forzaTurnIntent(q)==='stop')");
+  const end=ui.indexOf('// Chrome keeps final results',start);
+  assert.ok(start>=0 && end>start);
+  const stop=ui.slice(start,end);
+  assert.match(stop,/recognitionConsumedCountRef\.current=recognitionResultCountRef\.current/);
+  assert.match(stop,/localSttFinalRef\.current=''/);
+  assert.match(stop,/return;/);
+});
