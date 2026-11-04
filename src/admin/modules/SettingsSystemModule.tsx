@@ -29,7 +29,24 @@ import { toPersianDigits } from '../../utils/formatters';
 export const SettingsSystemModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'roles' | 'gateways_sms' | 'audit' | 'backup'>('roles');
 
-  const [settings, setSettings] = useState<SystemSettings>(() => adminService.getSettings());
+  // A missing optional settings document must not crash all four admin tabs.
+  // Never fabricate a persisted settings document when the database is unavailable.
+  const [initialSettings] = useState(() => {
+    try {
+      const value = adminService.getSettings();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
+      return { value, error: '' };
+    }
+    catch { return { value: {} as SystemSettings, error: 'تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ تا برقراری اتصال، ویرایش تنظیمات غیرفعال است.' }; }
+  });
+  const [settings, setSettings] = useState<SystemSettings>(initialSettings.value);
+  const [settingsError, setSettingsError] = useState(initialSettings.error);
+  const paymentGateways = {
+    zarinpal: { enabled: false, merchantId: '', ...settings.paymentGateways?.zarinpal },
+    saman: { enabled: false, terminalId: '', ...settings.paymentGateways?.saman },
+    mellat: { enabled: false, terminalId: '', ...settings.paymentGateways?.mellat },
+  };
+  const smsConfig = { apiKey: '', senderNumber: '', ...settings.smsConfig };
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => adminService.getAdminUsers());
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>(() => adminService.getAuditLogs());
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>(() => adminService.getSmsLogs());
@@ -40,13 +57,19 @@ export const SettingsSystemModule: React.FC = () => {
   const [isTestSmsSent, setIsTestSmsSent] = useState(false);
 
   const refreshData = () => {
-    setSettings(adminService.getSettings());
+    try {
+      const value = adminService.getSettings();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
+      setSettings(value); setSettingsError('');
+    }
+    catch { setSettingsError('تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ لطفاً وضعیت اتصال را بررسی کنید.'); }
     setAdminUsers(adminService.getAdminUsers());
     setAuditLogs(adminService.getAuditLogs());
     setSmsLogs(adminService.getSmsLogs());
   };
 
   const handleSaveSettings = (updated: SystemSettings) => {
+    if (settingsError) { alert(settingsError); return; }
     setSettings(updated);
     adminService.saveSettings(updated);
     alert('تنظیمات سیستم با موفقیت ذخیره گردید.');
@@ -113,6 +136,12 @@ export const SettingsSystemModule: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {settingsError && (
+        <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+          {settingsError}
+        </p>
+      )}
 
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
@@ -266,14 +295,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={settings.paymentGateways.zarinpal.enabled}
+                      checked={paymentGateways.zarinpal.enabled}
                       onChange={e =>
                         handleSaveSettings({
                           ...settings,
                           paymentGateways: {
-                            ...settings.paymentGateways,
+                            ...paymentGateways,
                             zarinpal: {
-                              ...settings.paymentGateways.zarinpal,
+                              ...paymentGateways.zarinpal,
                               enabled: e.target.checked,
                             },
                           },
@@ -288,14 +317,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="text-slate-500 block mb-1">کد مرچنت تستی (Merchant ID)</label>
                   <input
                     type="text"
-                    value={settings.paymentGateways.zarinpal.merchantId}
+                    value={paymentGateways.zarinpal.merchantId}
                     onChange={e =>
                       setSettings({
                         ...settings,
                         paymentGateways: {
-                          ...settings.paymentGateways,
+                          ...paymentGateways,
                           zarinpal: {
-                            ...settings.paymentGateways.zarinpal,
+                            ...paymentGateways.zarinpal,
                             merchantId: e.target.value,
                           },
                         },
@@ -313,14 +342,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={settings.paymentGateways.saman.enabled}
+                      checked={paymentGateways.saman.enabled}
                       onChange={e =>
                         handleSaveSettings({
                           ...settings,
                           paymentGateways: {
-                            ...settings.paymentGateways,
+                            ...paymentGateways,
                             saman: {
-                              ...settings.paymentGateways.saman,
+                              ...paymentGateways.saman,
                               enabled: e.target.checked,
                             },
                           },
@@ -335,14 +364,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="text-slate-500 block mb-1">کد ترمینال سامان</label>
                   <input
                     type="text"
-                    value={settings.paymentGateways.saman.terminalId}
+                    value={paymentGateways.saman.terminalId}
                     onChange={e =>
                       setSettings({
                         ...settings,
                         paymentGateways: {
-                          ...settings.paymentGateways,
+                          ...paymentGateways,
                           saman: {
-                            ...settings.paymentGateways.saman,
+                            ...paymentGateways.saman,
                             terminalId: e.target.value,
                           },
                         },
@@ -360,14 +389,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={settings.paymentGateways.mellat.enabled}
+                      checked={paymentGateways.mellat.enabled}
                       onChange={e =>
                         handleSaveSettings({
                           ...settings,
                           paymentGateways: {
-                            ...settings.paymentGateways,
+                            ...paymentGateways,
                             mellat: {
-                              ...settings.paymentGateways.mellat,
+                              ...paymentGateways.mellat,
                               enabled: e.target.checked,
                             },
                           },
@@ -382,14 +411,14 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="text-slate-500 block mb-1">ترمینال به‌پرداخت</label>
                   <input
                     type="text"
-                    value={settings.paymentGateways.mellat.terminalId}
+                    value={paymentGateways.mellat.terminalId}
                     onChange={e =>
                       setSettings({
                         ...settings,
                         paymentGateways: {
-                          ...settings.paymentGateways,
+                          ...paymentGateways,
                           mellat: {
-                            ...settings.paymentGateways.mellat,
+                            ...paymentGateways.mellat,
                             terminalId: e.target.value,
                           },
                         },
@@ -413,11 +442,11 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="text-slate-500 block mb-1">کلید وب‌سرویس (API Key)</label>
                   <input
                     type="password"
-                    value={settings.smsConfig.apiKey}
+                    value={smsConfig.apiKey}
                     onChange={e =>
                       setSettings({
                         ...settings,
-                        smsConfig: { ...settings.smsConfig, apiKey: e.target.value },
+                        smsConfig: { ...smsConfig, apiKey: e.target.value },
                       })
                     }
                     className="w-full h-8 px-2.5 rounded-lg border border-slate-200 font-mono outline-none"
@@ -428,11 +457,11 @@ export const SettingsSystemModule: React.FC = () => {
                   <label className="text-slate-500 block mb-1">سرشماره خط اختصاصی ارسال</label>
                   <input
                     type="text"
-                    value={settings.smsConfig.senderNumber}
+                    value={smsConfig.senderNumber}
                     onChange={e =>
                       setSettings({
                         ...settings,
-                        smsConfig: { ...settings.smsConfig, senderNumber: e.target.value },
+                        smsConfig: { ...smsConfig, senderNumber: e.target.value },
                       })
                     }
                     className="w-full h-8 px-2.5 rounded-lg border border-slate-200 font-mono outline-none"
