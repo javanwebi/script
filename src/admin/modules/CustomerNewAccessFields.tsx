@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Eye, EyeOff, KeyRound, RefreshCw, Send } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, RefreshCw, Send } from 'lucide-react';
 
 // Draft credentials exist only in the browser until the contact is created.
 // The API stores the password solely in Supabase Auth, never in CRM.
