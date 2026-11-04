@@ -12,6 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 import { IRAN_PROVINCES, ACTIVITY_FIELDS } from "../../data/iranLocations";
 import { normalizeIranianMobile } from "../../utils/usernameGenerator";
 import { STORE_ASSETS as A } from "../../assets/images";
+import { SanatPishLogo } from "../common/BrandIdentity";
 import { RegisterPayload } from "../../types";
 import { portalRequest, hydratePortal } from "../../services/portalRepository";
 import { PhoneLogin } from "./PhoneLogin";
@@ -160,10 +161,10 @@ export function AccountAccess({
       <aside className="account-access-story">
         <img src={A.authIndustrialHero} alt="" />
         <div>
-          <span className="account-symbol">
-            <Layers size={30} />
+          <span className="account-symbol" aria-hidden="true"><Layers size={26} /></span>
+          <span className="inline-flex items-center justify-center w-36 h-14 rounded-xl bg-white/95 p-2">
+            <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
           </span>
-          <p>صنعت پیش</p>
           <h2>
             از انتخاب هوشمند
             <br />
