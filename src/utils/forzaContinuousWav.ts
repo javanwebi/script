@@ -46,6 +46,7 @@ export class ForzaContinuousWav {
   }>();
   private startedSources = new Set<AudioBufferSourceNode>();
   private startTimers = new Set<ReturnType<typeof setTimeout>>();
+  private contextMonitors = new Set<ReturnType<typeof setInterval>>();
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
@@ -114,7 +115,21 @@ export class ForzaContinuousWav {
       if(this.closed){finish();return;}
       const ctx=this.getContext();
       if(!ctx)throw new Error('forza_audio_context_unavailable');
-      if(ctx.state==='suspended')await ctx.resume();
+      if(ctx.state==='suspended'){
+        // Some browsers keep resume() unresolved without a user gesture.
+        // A bounded failure is preferable to an indefinite "speaking" pill.
+        let timeout:ReturnType<typeof setTimeout>|undefined;
+        try{
+          await Promise.race([
+            ctx.resume(),
+            new Promise<never>((_,reject)=>{
+              timeout=setTimeout(()=>reject(new Error('forza_audio_context_suspended')),3000);
+            }),
+          ]);
+        }finally{
+          if(timeout)clearTimeout(timeout);
+        }
+      }
       if(this.closed){finish();return;}
       if(ctx.state!=='running')throw new Error('forza_audio_context_suspended');
       const decoded=await decodedPromise;
@@ -141,7 +156,23 @@ export class ForzaContinuousWav {
       const progress={startsAt:startAt,durationMs:trimmed.duration*1000,onProgress,started:false};
       this.progress.set(source,progress);
       let startTimer:ReturnType<typeof setTimeout>|null=null;
+      let suspendedSince=0;
+      const contextMonitor=setInterval(()=>{
+        if(this.closed||!this.sources.has(source))return;
+        if(ctx.state==='running'){suspendedSince=0;return;}
+        if(!suspendedSince){
+          suspendedSince=Date.now();
+          this.onStage?.('audio_context_'+ctx.state,0);
+          this.onIdle?.();
+        }else if(Date.now()-suspendedSince>=5000){
+          finish(new Error('forza_audio_context_suspended'));
+          this.cancel();
+        }
+      },500);
+      this.contextMonitors.add(contextMonitor);
       source.onended=()=>{
+        clearInterval(contextMonitor);
+        this.contextMonitors.delete(contextMonitor);
         if(startTimer!==null){
           clearTimeout(startTimer);
           this.startTimers.delete(startTimer);
@@ -193,6 +224,8 @@ export class ForzaContinuousWav {
     this.nextStart=0;
     for(const timer of this.startTimers)clearTimeout(timer);
     this.startTimers.clear();
+    for(const monitor of this.contextMonitors)clearInterval(monitor);
+    this.contextMonitors.clear();
     this.startedSources.clear();
     const ctx=this.getContext();
     for(const source of this.sources){
