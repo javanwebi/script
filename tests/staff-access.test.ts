@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sanitizeStaffPermissions,canStaff,namespacePermission,catalogMutationPermission,assertStaffDocumentChange,assertStaffCommercialFields,preserveStaffCommercialFields} from '../server/db/staffPermissions';
+import {sanitizeStaffPermissions,canStaff,namespacePermission,catalogMutationPermission,assertStaffDocumentChange,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from '../server/db/staffPermissions';
 
 test('unknown sections and actions are removed, view is required',()=>{
  const safe=sanitizeStaffPermissions({products:['edit','delete','view','view','super_admin'],settings:['view'],crm:['edit'],bulk_import:['view','import']});
@@ -53,4 +53,14 @@ test('redacted commercial placeholders preserve original server values on metada
  assert.equal(result.variants[0].name,'new');
  assert.equal(result.variants[0].price,120);
  assert.equal(result.variants[0].stock,4);
+});
+
+test('editing a family never implicitly grants SKU deletion or image/category rights',()=>{
+ const editor={staff:true,permissions:{products:['view','edit']}};
+ const before={code:'F1',categorySlug:'old',images:['/storage/products/a.webp'],variants:[{code:'S1',images:[]}]};
+ assert.throws(()=>assertStaffCatalogStructure(editor,before,{...before,variants:[]}));
+ assert.throws(()=>assertStaffCatalogStructure(editor,before,{...before,variants:[...before.variants,{code:'S2'}]}));
+ assert.throws(()=>assertStaffCatalogStructure(editor,before,{...before,images:['/storage/products/b.webp']}));
+ assert.throws(()=>assertStaffCatalogStructure(editor,before,{...before,categorySlug:'new'}));
+ assert.doesNotThrow(()=>assertStaffCatalogStructure({staff:true,permissions:{products:['view','edit','images','categories','create','delete']}},before,{...before,images:['other'],variants:[]}));
 });
