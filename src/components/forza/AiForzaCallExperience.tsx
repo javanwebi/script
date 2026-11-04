@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechRecognition, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
@@ -173,6 +173,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const activeTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
+  const recognitionResultCountRef=useRef(0);
+  const recognitionConsumedCountRef=useRef(0);
   const serverSttConfiguredRef=useRef<boolean|null>(null);
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
@@ -583,6 +585,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
+    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
+    // first syllables; older chunks may contain FORZA's own speaker output.
+    audioChunksRef.current=audioChunksRef.current.slice(-2);
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -907,6 +912,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         return;
       }
 
+      // Chrome keeps final results from older turns while recognition stays
+      // open to hear interruptions. Mark them consumed instead of stopping
+      // and restarting the mic (which drops first syllables).
+      recognitionConsumedCountRef.current=recognitionResultCountRef.current;
+      localSttFinalRef.current='';
       isProcessingTurnRef.current = true;
       setVoicePending(false);
       setVoiceStage('text');
@@ -1397,12 +1407,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       rec.onstart = () => {
         isRecognitionActiveRef.current = true;
+        recognitionResultCountRef.current=0;
+        recognitionConsumedCountRef.current=0;
       };
 
       rec.onresult = (event: any) => {
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
-        const recognized = extractPersianSpeechRecognition(event.results);
+        const total=Number(event.results?.length||0);
+        if(total<recognitionConsumedCountRef.current)
+          recognitionConsumedCountRef.current=0;
+        recognitionResultCountRef.current=total;
+        const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current);
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
         if(isProcessingTurnRef.current){
