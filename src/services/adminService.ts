@@ -1926,30 +1926,5 @@ ERR-001,تسمه بدون قیمت تستی,نامشخص,ناشناخته,0,-5`;
     this.logAction('حذف مقاله وبلاگ', id, 'مقاله از کاتالوگ حذف گردید');
   },
 
-  exportBackupJson(): string {
-    const fullBackup = {
-      timestamp: new Date().toISOString(),
-      products: this.getProducts(),
-      categories: this.getCategories(),
-      brands: this.getBrands(),
-      orders: this.getOrders(),
-      inquiries: this.getInquiries(),
-      customers: this.getCustomers(),
-      agencies: this.getActiveAgencies(),
-      auditLogs: this.getAuditLogs(),
-      settings: this.getSettings(),
-    };
-    return JSON.stringify(fullBackup, null, 2);
-  },
 
-  resetToInitial(): void {
-    Object.values(STORAGE_KEYS).forEach(k => {
-      try {
-        durableStorage.removeItem(k);
-      } catch {
-        // ignore
-      }
-    });
-    this.logAction('بازنشانی سیستم', 'تمام پایگاه داده', 'سامانه به داده‌های اولیه ریست شد.');
-  },
 };
