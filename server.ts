@@ -53,6 +53,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5488,7 +5489,7 @@ async function renderPocketSpeech(
   const spoken=forzaUnbrokenSpokenText(phrase);
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
-  for(let attempt=0;attempt<2;attempt++){
+  for(let attempt=0;attempt<3;attempt++){
     if(cancel?.aborted)throw new Error('forza_tts_cancelled');
     const upstreamStarted=Date.now();
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
@@ -5502,20 +5503,23 @@ async function renderPocketSpeech(
         ? AbortSignal.any([cancel,AbortSignal.timeout(30_000)])
         : AbortSignal.timeout(30_000),
     });
-    // One inference slot across visitors. Brief backoff on BUSY only;
-    // never retry a 403 token mismatch or an unavailable worker.
+    // The private CPU engine accepts one active job and one waiter. Preserve
+    // ordered audio; retry only known transient 503s within a short budget.
+    // The response is an error (no WAV delivered), so a retry cannot replay
+    // audible speech. Never retry auth failures or arbitrary upstream errors.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
-      if(reason?.error==='voice_busy'&&attempt<1&&Date.now()-started<5000){
-        await new Promise<void>((resolve,reject)=>{
-          const delay=setTimeout(()=>{cancel?.removeEventListener('abort',onAbort);resolve()},180);
-          const onAbort=()=>{clearTimeout(delay);reject(new Error('forza_tts_cancelled'))};
-          if(cancel?.aborted)onAbort();
-          else cancel?.addEventListener('abort',onAbort,{once:true});
-        });
+      const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,Date.now()-started);
+      if(retryDelay!==null){
+        console.info('[FORZA_TTS_RETRY] reason='+reason?.error+
+          ' attempt='+(attempt+1)+' waitMs='+retryDelay+
+          ' elapsedMs='+(Date.now()-started));
+        await waitForForzaVoiceRetry(retryDelay,cancel);
         continue;
       }
-      throw new Error('private_voice_'+(reason?.error||'unavailable'));
+      const safeReason=reason?.error&&/^[a-z_]{1,40}$/.test(reason.error)
+        ?reason.error:'unavailable';
+      throw new Error('private_voice_'+safeReason);
     }
     if(!response.ok)throw new Error('private_voice_http_'+response.status);
     if(!(response.headers.get('content-type')||'').includes('audio/wav'))
