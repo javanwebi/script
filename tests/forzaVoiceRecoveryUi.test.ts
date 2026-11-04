@@ -29,12 +29,23 @@ test('text correction can stop a pending/playing answer and does not block on UI
   assert.match(ui,/voiceStage === 'playing'/);
 });
 
-test('no fake 60fps, sync health or high-density mobile avatar fallback',()=>{
-  assert.match(ui,/navigator\.hardwareConcurrency/);
-  assert.match(ui,/setQuality\(prev=>prev==='high'\?'balanced':'low'\)/);
-  assert.match(avatar,/stride>1 && Math\.random\(\)>=1\/stride/);
-  assert.match(avatar,/quality==='low'\?4/);
+test('restored original full-density particle identity and classic FORZA HUD',()=>{
+  assert.match(ui,/const \[quality\] = useState<'high'>\('high'\)/);
+  assert.match(avatar,/const layers = buildLayers\(decode\(B64\)\)/);
+  assert.match(avatar,/tier: 'ULTRA'/);
+  assert.doesNotMatch(avatar,/stride>1|const thinning=|Math\.random\(\)>=1\/stride/);
+  assert.doesNotMatch(ui,/setQuality\(|poorFpsSamplesRef/);
+  assert.match(ui,/PROCEDURAL IDENTITY/);
+  assert.match(ui,/PARTICLE MESH · REALTIME GPU/);
+  assert.match(ui,/SYNC <b className="text-white">—<\/b>/);
+  assert.match(ui,/AI FORZA در حال صحبت/);
   assert.doesNotMatch(ui,/99\.4%|200K\+ PARTICLES|:'60 FPS'/);
+});
+
+test('stop remains accessible but does not expand the original status pill',()=>{
+  assert.match(ui,/<Square size=\{13\} fill="currentColor" \/>/);
+  assert.match(ui,/aria-label="توقف پاسخ فورزا"/);
+  assert.doesNotMatch(ui,/className="rounded-md border border-orange-400\/60 px-2 py-1/);
 });
 
 test('AudioContext remains measurable and fails closed instead of silently showing playing forever',()=>{
