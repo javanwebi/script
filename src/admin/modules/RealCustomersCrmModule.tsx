@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
+import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
@@ -67,6 +68,7 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [detailTab,setDetailTab] = useState<'profile'|'orders'|'finance'|'tickets'>('profile');
   const [detailsLoading,setDetailsLoading] = useState(false);
   const [busy,setBusy] = useState(false);
+  const [commercial,setCommercial] = useState<Customer|null>(null);
 
   useEffect(()=>{
     const controller = new AbortController();
@@ -231,6 +233,7 @@ export const RealCustomersCrmModule: React.FC = () => {
       </form>
     </div>}
 
+    {commercial && <RealCrmCommercialEditor customer={commercial} onClose={()=>setCommercial(null)} onSaved={()=>{const id=commercial.id;setCommercial(null);setNotice('شرایط تجاری واقعی مشتری ذخیره شد.');refresh();void openDetail(id);}}/>}
     {detailsLoading && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#1A2230]/50"><div className="rounded-2xl bg-white p-6 text-sm"><Loader2 className="ml-2 inline h-5 w-5 animate-spin"/>دریافت پرونده...</div></div>}
     {detail && <div className="fixed inset-0 z-[90] bg-[#1A2230]/60" role="dialog" aria-modal="true">
       <div className="mr-auto flex h-full w-full max-w-3xl flex-col bg-[#F7F8FA] shadow-2xl">
@@ -261,7 +264,9 @@ export const RealCustomersCrmModule: React.FC = () => {
               <button disabled={busy} onClick={()=>void approval(detail.customer)} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-3 text-xs font-bold text-white disabled:opacity-50">
                 {detail.customer.approved_b2b?<ShieldAlert className="h-4 w-4"/>:<ShieldCheck className="h-4 w-4"/>}
                 {detail.customer.approved_b2b?'تغییر به خرید تکی':'تأیید خرید بالا'}
-              </button></div>
+              </button>
+              {detail.customer.approved_b2b && <button onClick={()=>setCommercial(detail.customer)} className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-xs font-bold text-orange-700">تنظیم گرید، قیمت‌نامه و اعتبار</button>}
+            </div>
           </>}
           {detailTab==='orders' && <div className={card+' divide-y divide-slate-100 p-4'}>
             {detail.orders.length?detail.orders.map(o=><div key={o.id} className="flex flex-wrap justify-between gap-2 py-3 text-xs"><div><b className="text-slate-800">{o.id}</b><p className="mt-1 text-slate-500">{date(o.created_at)} · {o.status}</p></div><b>{orderMoney(o)}</b></div>)
