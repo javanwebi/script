@@ -54,23 +54,22 @@ export function PortalTools({
     () => getManagedCatalogProducts().filter((p) => p.active !== false),
     [catalogTick],
   );
+  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
   const saved = useMemo(
-    () =>
-      catalog.filter(
-        (p) =>
-          wishlist.includes(p.code) ||
-          p.variants?.some((v) => wishlist.includes(v.code)),
-      ),
-    [catalog, wishlist],
+    () => catalog.filter((p) =>
+      wishlistSet.has(p.code) || p.variants?.some((v) => wishlistSet.has(v.code))),
+    [catalog, wishlistSet],
   );
-  const visibleSaved = saved.filter((p) => savedFilter === "all" || (savedFilter === "variants" ? Boolean(p.variants?.length) : !p.variants?.length));
+  const visibleSaved = useMemo(() => saved.filter((p) =>
+    savedFilter === "all" || (savedFilter === "variants" ? Boolean(p.variants?.length) : !p.variants?.length)),
+    [saved, savedFilter]);
   const parsedRows = useMemo(
-    () => resolvePurchaseLines(text, catalog),
-    [text, catalog],
+    () => tab === "purchase_list" ? resolvePurchaseLines(text, catalog) : [],
+    [text, catalog, tab],
   );
-  const list = currentUser
+  const list = useMemo(() => currentUser
     ? pricingCreditService.getPriceListForCustomer(currentUser)
-    : undefined;
+    : undefined, [currentUser, catalogTick]);
   const rows = parsedRows.map((row) => {
     if (!row.product || row.error) return row;
     const price = list
