@@ -76,8 +76,8 @@ PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]|(?<!\d)\.|\.(?!\d)")
 def spoken_text(value):
     # Defense in depth: even a non-FORZA caller must never make the male
     # speaker recite Markdown markers or bare URLs. Do not alter part codes.
-    value = re.sub(r"(?i)(?:https?://|www\\.)\\S+", " ", value)
-    value = re.sub(r"(?<=\\d)\\s*\\*\\s*(?=\\d)", " در ", value)
+    value = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
+    value = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", value)
     value = re.sub(r"[*\x60#]", " ", value)
     return " ".join(PUNCTUATION.sub(" ", value).split())
 
