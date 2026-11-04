@@ -16,7 +16,6 @@ const MODULES=[
  {id:'orders',label:'سفارش‌ها',actions:[['view','مشاهده'],['edit','ویرایش']]},
  {id:'clients',label:'مشتریان ما',actions:[['view','مشاهده'],['create','افزودن'],['edit','ویرایش'],['delete','حذف']]},
  {id:'reports',label:'گزارش‌ها',actions:[['view','مشاهده']]},
- {id:'settings',label:'تنظیمات سامانه',actions:[['view','مشاهده'],['edit','ویرایش']]},
 ] as const;
 
 const emptyDraft=()=>({id:'',username:'',name:'',email:'',password:'',active:true,permissions:{} as StaffPermissionMap});
