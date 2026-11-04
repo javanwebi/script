@@ -86,7 +86,8 @@ export const AdminLayout: React.FC = () => {
   // Sync tab with URL if needed
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/admin/reports/')) setActiveTab('reports');
+    if (path.includes('/admin/staff-users')) setActiveTab('staff_users');
+    else if (path.includes('/admin/reports/')) setActiveTab('reports');
     else if (path.includes('/admin/products')) setActiveTab('products');
     else if (path.includes('/admin/bulk-import')) setActiveTab('bulk_import');
     else if (path.includes('/admin/inquiries')) setActiveTab('inquiries');
@@ -242,7 +243,10 @@ export const AdminLayout: React.FC = () => {
   const currentModule=navItems.find(item=>item.id===activeTab);
   const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!)
     .filter(item=>item && canView(item.id) && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
-  const selectModule=(id:string)=>{if(!canView(id))return;setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
+  const selectModule=(id:string)=>{if(!canView(id))return;setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');
+    if(id==='staff_users')navigate('/admin/staff-users');
+    else if(location.pathname.startsWith('/admin/reports/')||location.pathname.startsWith('/admin/staff-users'))navigate('/admin');
+  };
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     if(!canView(activeTab))return <section role="alert" className="rounded-2xl border border-orange-200 bg-white p-8 text-sm font-bold text-slate-600">مجوز مشاهده این بخش برای حساب شما فعال نیست.</section>;
