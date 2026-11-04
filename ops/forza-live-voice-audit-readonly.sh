@@ -44,12 +44,22 @@ for endpoint in /api/ai/forza-voice-info /api/ai/forza-stt-info; do
   echo
 done
 
-echo "===== ACTIVE CONTAINER RELEASE ENV (only SHA, never full env) ====="
+echo "===== ACTIVE CONTAINER SOURCE FINGERPRINTS (NO SOURCE CONTENT) ====="
 while IFS= read -r name; do
   [[ "$name" == sanatpish* ]] || continue
   printf '%s ' "$name"
   docker exec "$name" sh -c 'printf "revision="; printenv SANATPISH_RELEASE_SHA || printf "unknown\\n"' \
     2>/dev/null || echo CONTAINER_ENV_UNAVAILABLE
+  printf '%s ' "$name"
+  docker inspect "$name" --format '{{range .Mounts}}{{if eq .Destination "/app"}}stage={{.Source}}{{end}}{{end}}' \
+    2>/dev/null || echo STAGE_UNKNOWN
+  for file in server.ts src/components/forza/AiForzaCallExperience.tsx src/utils/forzaSpeechPipeline.ts; do
+    printf 'file=%s ' "$file"
+    printf 'live_sha256='
+    docker exec "$name" sha256sum "/app/$file" 2>/dev/null | awk '{print $1}' || true
+    printf 'host_HEAD_sha256='
+    git show "HEAD:$file" 2>/dev/null | sha256sum | awk '{print $1}' || true
+  done
 done < <(docker ps --format '{{.Names}}')
 
 echo "===== PRIVATE VOICE METADATA/COUNTS ONLY (last 30m) ====="
