@@ -698,7 +698,7 @@ registerCatalogNavigationApi(app);
 app.get('/api/catalog/overrides', async (req, res) => {
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');
   try {const identity=await getPortalIdentity(req);const db=loadCatalogOverridesDb();
-  return res.json({status:'ok',success:true,data:(adoptedSchema()?(identity.admin||canStaff(identity,'products')):identity.canReadCommerce)?db:publicCatalog(db)});
+  return res.json({status:'ok',success:true,data:(adoptedSchema()?(identity.admin||canStaff(identity,'products','prices')):identity.canReadCommerce)?db:publicCatalog(db)});
   }catch {return res.status(503).json({success:false,message:'دریافت کاتالوگ ممکن نشد.'});}
 });
 
