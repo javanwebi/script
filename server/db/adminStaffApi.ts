@@ -13,6 +13,16 @@ function notifyStaffChanged() {
   catch { staffListeners.delete(listener); }
  }
 }
+async function auditStaffAction(actor:string,action:string,target:string){
+ try{
+  await database().query(`
+    insert into public.audit_logs(id,user_id,user_name,user_role,action,entity,target,details,created_at)
+    select $1,$2,coalesce(nullif(p.full_name,''),p.username),'super_admin',
+           $3,'staff_users',$4,'عملیات مدیریت کارکنان ثبت شد.',now()
+    from public.user_profiles p where p.id=$2`,
+    [crypto.randomUUID(),actor,action,target]);
+ }catch{console.warn('[Staff audit] Could not append administration event');}
+}
 const fail=(status:number,message:string)=>Object.assign(new Error(message),{status});
 const usernamePattern=/^[a-z][a-z0-9_]{3,31}$/;
 const emailPattern=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,6 +107,7 @@ export function registerAdminStaffApi(app:Express){
       insert into app_private.admin_staff_accounts(user_id,permissions,created_by)
       values($1,$2::jsonb,$3)`,[createdId,JSON.stringify(permissions),creator]);
    });
+   await auditStaffAction(creator,'ایجاد حساب کارمند',createdId);
    notifyStaffChanged();
    return res.status(201).json({success:true,id:createdId});
   }catch(e){
@@ -107,7 +118,7 @@ export function registerAdminStaffApi(app:Express){
  });
  app.patch('/api/admin/staff/:id',async(req,res)=>{
   try{
-   await owner(req);
+   const actor=await owner(req);
    const id=String(req.params.id||'');
    if(!uuidPattern.test(id))throw fail(400,'شناسه کاربر نامعتبر است.');
    const active=req.body?.active;
@@ -128,13 +139,14 @@ export function registerAdminStaffApi(app:Express){
     return result.rowCount;
    });
    if(!count)throw fail(404,'حساب کارمند یافت نشد.');
+   await auditStaffAction(actor,'ویرایش حساب و مجوزها',id);
    notifyStaffChanged();
    return res.json({success:true});
   }catch(e){return respond(res,e);}
  });
  app.post('/api/admin/staff/:id/reset-password',async(req,res)=>{
   try{
-   await owner(req);
+   const actor=await owner(req);
    const id=String(req.params.id||'');
    const password=req.body?.password;
    if(!uuidPattern.test(id))throw fail(400,'شناسه کاربر نامعتبر است.');
@@ -143,6 +155,7 @@ export function registerAdminStaffApi(app:Express){
      throw fail(404,'کارمند یافت نشد.');
    const result=await adminAuth().auth.admin.updateUserById(id,{password});
    if(result.error)throw fail(503,'بازنشانی رمز کارمند انجام نشد.');
+   await auditStaffAction(actor,'تغییر رمز کارمند',id);
    notifyStaffChanged();
    return res.json({success:true});
   }catch(e){return respond(res,e);}
