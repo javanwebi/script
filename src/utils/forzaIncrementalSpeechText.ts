@@ -88,6 +88,13 @@ export class ForzaIncrementalSpeechText {
     // still streaming; punctuation is kept in subtitles, and the private
     // Nima worker removes spoken punctuation without adding long pauses.
     const first = this.emitted === 0;
+    // A completed initial sentence can be dispatched before the next SSE
+    // token. Do not hold "سلام." behind the 38-character word threshold.
+    // A digit followed by "." may be the beginning of a decimal instead.
+    if (first && text.length <= 38 &&
+        /[.!؟؛]\s*$/u.test(text) &&
+        !/[0-9۰-۹]\.\s*$/u.test(text))
+      return text.length;
     const limit = first ? 38 : 66;
     const minWordCut = first ? 22 : 42;
     if (text.length < limit) return 0;
