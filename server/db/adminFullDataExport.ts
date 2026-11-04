@@ -34,7 +34,11 @@ export function registerFullDataExport(app:Express){
    const key=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY;
    if(!url||!key)throw securityError(503,'تأیید هویت دوباره Supabase هنوز تنظیم نشده است.');
    const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
-   const credentials=actor.email?{email:actor.email,password}:actor.phone?{phone:actor.phone,password}:null;
+   // Reverify against actual Auth login identifiers, not profile display fields.
+   const identity=await database().query('select email,phone from auth.users where id=$1',[actor.id]);
+   const authEmail=String(identity.rows[0]?.email||'');
+   const authPhone=String(identity.rows[0]?.phone||'');
+   const credentials=authEmail?{email:authEmail,password}:authPhone?{phone:authPhone,password}:null;
    if(!credentials)throw securityError(403,'برای دانلود باید ایمیل یا تلفن حساب اصلی در Supabase Auth ثبت شده باشد.');
    const result=await client.auth.signInWithPassword(credentials);
    if(result.error||result.data.user?.id!==actor.id){
