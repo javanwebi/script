@@ -120,6 +120,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
   const detectedSpeechEndAtRef=useRef(0);
+  // Memory-only, non-content latency samples (never transcripts or PCM).
+  const endToPlaybackSamplesRef=useRef<number[]>([]);
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
@@ -907,6 +909,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const generation=++generationRef.current;
       activeTurnRef.current={generation,abort:pocketAbort};
       console.info('[FORZA_TURN] turn='+generation+
+        ' phase=request_sent endToRequestMs='+
+        (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+      console.info('[FORZA_TURN] turn='+generation+
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
       vadRef.current.reset();
@@ -981,6 +986,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         let reply='';
         let firstTextDelivered=false;
+        let firstPlaybackLogged=false;
         let heardEntry:Turn|null=null;
         const recordHeard=(phrase:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
@@ -1015,10 +1021,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
             setStatus('thinking');
           },
-          (stage,ms)=>console.info('[FORZA_AUDIO_STAGE] turn='+generation+
-            ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
-            ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current
-              ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1)),
+          (stage,ms)=>{
+            if(stage==='playback_started'&&!firstPlaybackLogged){
+              firstPlaybackLogged=true;
+              if(detectedSpeechEndAtRef.current>0){
+                const latency=Math.round(performance.now()-detectedSpeechEndAtRef.current);
+                const samples=endToPlaybackSamplesRef.current;
+                samples.push(latency);
+                if(samples.length>200)samples.shift();
+                const ordered=[...samples].sort((a,b)=>a-b);
+                const median=ordered[Math.floor((ordered.length-1)*0.5)];
+                const p95=ordered[Math.ceil(ordered.length*0.95)-1];
+                console.info('[FORZA_END_TO_AUDIO] turn='+generation+' ms='+latency+
+                  ' n='+ordered.length+' medianMs='+median+' p95Ms='+p95+
+                  ' estimatedAudioEnd=1 noPrivateContent=1');
+              }
+            }
+            console.info('[FORZA_AUDIO_STAGE] turn='+generation+
+              ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
+              ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current
+                ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+          },
         );
         playerForTurn=continuousPlayer;
         continuousPlayer.setMuted(isSpeakerMuted);
@@ -1342,7 +1365,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
               ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
-            console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length);
+            console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
+              ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
+                ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
             activeTranscriptRef.current='';
             lastTranscriptChangedAtRef.current=0;
             hasSpeechSoundRef.current=false;
@@ -1479,7 +1504,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setGreetingPhase('needs-permission');
       setStatus('idle');
       setTurn('ai');
-      setVoiceOutputError('صدای خوشامدگویی امیر پخش نشد. روی «شروع مکالمه» بزنید تا دوباره امتحان شود.');
+      setVoiceOutputError('صدای خوشامدگویی فورزا پخش نشد. روی «شروع مکالمه» بزنید تا دوباره امتحان شود.');
     });
     return ()=>{
       active=false;
