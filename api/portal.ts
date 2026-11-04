@@ -1034,6 +1034,8 @@ export async function getPortalIdentity(req: IncomingMessage):Promise<{admin:boo
     const identity = await supabaseIdentity(req);
     if (identity.admin || identity.staff || !identity.user)
       return {...identity,canReadCommerce:identity.admin || canStaff(identity,'products','prices')};
+    if(identity.user.mustChangePassword===true)
+      return {...identity,canReadCommerce:false};
     // Only the permission documents are required to authorize catalogue reads.
     // Do not materialize all CRM customers, orders or admin configuration here.
     const [layouts,overrides] = await Promise.all([
