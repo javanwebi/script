@@ -238,7 +238,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       sink.gain.value=0;
       node.onaudioprocess=(event:AudioProcessingEvent)=>{
         if(micMutedRef.current || !greetingFinishedRef.current ||
-           (statusRef.current!=='listening' && !isProcessingTurnRef.current))return;
+           (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
+            !isAiSpeakingRef.current))return;
         try{localSttRecognizerRef.current?.acceptWaveform(event.inputBuffer);}
         catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
       };
@@ -257,12 +258,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttFinalRef.current='';
       const update=(value:string,isFinal:boolean)=>{
         if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
-           (statusRef.current!=='listening'&&!isProcessingTurnRef.current))return;
+           (statusRef.current!=='listening'&&!isProcessingTurnRef.current &&
+            !isAiSpeakingRef.current))return;
         const words=value.trim();
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        if(isProcessingTurnRef.current){
+        if(isProcessingTurnRef.current||isAiSpeakingRef.current){
           if(!vadRef.current.heardSpeech)return;
           if(likelySpeakerEcho(transcript)){
             console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
@@ -370,7 +372,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(timestamp-lastCheck<55)return;
       lastCheck=timestamp;
       if(!greetingFinishedRef.current || micMutedRef.current ||
-         (statusRef.current!=='listening' && !isProcessingTurnRef.current)){
+         (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
+          !isAiSpeakingRef.current)){
         vadRef.current.reset();
         setAudioLevel(0);
         return;
@@ -835,7 +838,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[ensureCtx,isSpeakerMuted,playPocketFullAnswer,setStatus]);
 
   const speakText = useCallback(async (text: string) => {
-    stopListening();
+    if(text===GREETING_TEXT){
+      stopListening();
+    }else{
+      // Manual replay must remain interruptible, including while generating.
+      heardSpeechEchoRef.current=text;
+      startListening(true);
+    }
     setVoiceOutputError(null);
     setStatus(text === GREETING_TEXT ? 'idle' : 'thinking');
     setTurn('ai');
@@ -851,7 +860,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     // Request and play one complete WAV. No network/player chunk boundaries.
     if(text.trim())await playSpeechPhrase(text.trim());
-  }, [playSpeechPhrase,setStatus,stopListening]);
+  }, [playSpeechPhrase,setStatus,stopListening,startListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -865,7 +874,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
         : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
     } finally {
-      if (greetingFinishedRef.current) startListening();
+      if(greetingFinishedRef.current && !isProcessingTurnRef.current &&
+         !activeTranscriptRef.current.trim())startListening();
     }
   },[aiText,playDataUrl,speakText,startListening,stopListening]);
 
@@ -1465,7 +1475,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current);
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
-        if(isProcessingTurnRef.current){
+        if(isProcessingTurnRef.current||isAiSpeakingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
           if(!vadRef.current.heardSpeech)return;
