@@ -89,8 +89,11 @@ export const AdminLayout: React.FC = () => {
     else if (path.includes('/admin/agencies')) setActiveTab('agencies');
     else if (path.includes('/admin/grading') || path.includes('/admin/credit')) setActiveTab('customer_grading');
     else if (path.includes('/admin/settings')) setActiveTab('settings');
-    else if (path === '/admin' || path === '/admin/') setActiveTab('dashboard');
-  }, [location.pathname]);
+    else if (path === '/admin' || path === '/admin/') {
+      const pendingModule = (location.state as {adminModule?: unknown} | null)?.adminModule;
+      setActiveTab(typeof pendingModule === 'string' ? pendingModule : 'dashboard');
+    }
+  }, [location.pathname, location.state]);
 
   // Scroll to top when active tab changes
   useEffect(() => {
@@ -217,7 +220,16 @@ export const AdminLayout: React.FC = () => {
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
   const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
-  const selectModule=(id:string)=>{setActiveTab(id);setIsMobileSidebarOpen(false);setGlobalSearchQuery('');if(location.pathname.startsWith('/admin/reports/'))navigate('/admin');};
+  const selectModule=(id:string)=>{
+    setActiveTab(id);
+    setIsMobileSidebarOpen(false);
+    setGlobalSearchQuery('');
+    if(id==='settings'){
+      if(location.pathname!=='/admin/settings')navigate('/admin/settings');
+    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings')){
+      navigate('/admin',{state:{adminModule:id}});
+    }
+  };
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     switch (activeTab) {
