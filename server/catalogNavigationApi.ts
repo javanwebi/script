@@ -2,6 +2,7 @@ import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
+import {canStaff} from './db/staffPermissions';
 
 const clean=(value:unknown,max=150)=>typeof value==='string'?value.trim().slice(0,max):'';
 const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||url.startsWith('/storage/categories/'))&&!url.includes('..'))||(/^https:\/\/[^\s]+$/i.test(url)&&url.length<=2000);
@@ -125,7 +126,7 @@ export function registerCatalogNavigationApi(app:Express){
   // Shared read source for catalogue, image audit, and product editor; RLS-protected table is server-only.
   app.get('/api/catalog/menu-family-assignments',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!canStaff(await getPortalIdentity(req),'products'))return res.status(403).json({success:false,message:'مجوز مشاهده کاتالوگ لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
         `select a.family_code as "familyCode",a.category_slug as "categorySlug",
