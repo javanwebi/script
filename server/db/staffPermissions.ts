@@ -116,3 +116,32 @@ export function assertStaffDocumentChange(identity:StaffIdentity,domain:string,k
 function forbidden():Error & {status:number}{
  return Object.assign(new Error('اجازه افزودن، ویرایش یا حذف این اطلاعات را ندارید.'),{status:403});
 }
+
+/** Prevent a catalogue editor from smuggling stock/price changes through whole-family JSON. */
+export function assertStaffCommercialFields(identity:StaffIdentity,existing:unknown,incoming:unknown){
+ if(identity.admin || canStaff(identity,'products','prices'))return;
+ const sensitive=/^(prices?|base_price|retail_price|wholesale_price|dealer_price|unit_price|stock|stock_known|stock_reserved|inquiry_only|currency|cost|discount|credit|commercial)/i;
+ const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
+ const walk=(from:unknown,to:unknown):void=>{
+  if(!to || typeof to!=='object')return;
+  if(Array.isArray(to)){
+   const before=Array.isArray(from)?from:[];
+   for(let i=0;i<to.length;i++){
+    const value=to[i];
+    const code=value && typeof value==='object' && !Array.isArray(value) ? (value as any).code : undefined;
+    const previous=code ? before.find(item=>item && typeof item==='object' && (item as any).code===code):before[i];
+    walk(previous,value);
+   }
+   return;
+  }
+  const previous=from && typeof from==='object' && !Array.isArray(from)?from as Record<string,unknown>:{};
+  for(const [key,value] of Object.entries(to)){
+   const old=previous[key];
+   if(sensitive.test(key)){
+    const absent=old===undefined && (value===undefined || value===null || value===false || value===0 || value==='');
+    if(!same(old,value) && !absent)throw forbidden();
+   }else walk(old,value);
+  }
+ };
+ walk(existing,incoming);
+}
