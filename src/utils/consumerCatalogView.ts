@@ -43,8 +43,10 @@ export function resolveCurrentRetailReorder(
     ? undefined
     : family.variants?.find((item) => item.code.toLocaleLowerCase() === normalized);
   if (!isFamily && !variant) return null;
-  if (variant && (variant.active === false || variant.inquiryOnly)) return null;
-  if (family.inquiryOnly && !variant) return null;
+  // Families with variants require an exact currently published SKU choice.
+  if (isFamily && family.variants?.some((item) => item.active !== false)) return null;
+  if (variant && (variant.active === false || variant.inquiryOnly || (variant.stockKnown && (variant.stock ?? 0) <= 0))) return null;
+  if (!variant && (family.inquiryOnly || (family.stockKnown && family.stock <= 0))) return null;
 
   const variantPrice = variant?.prices?.retail ?? variant?.price;
   const retail = variant ? variantPrice : family.prices?.retail;
