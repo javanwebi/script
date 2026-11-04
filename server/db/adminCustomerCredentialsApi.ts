@@ -135,56 +135,73 @@ export function registerAdminCustomerCredentialsApi(app:Express){
    let selectedPhone='';
    let displayName='';
    let username='';
+   // Validate the chosen SMS before changing Auth credentials.
+   if(doSms)renderCrmCredentialSms(template,{
+    username:clean(req.body?.username,64),password:String(req.body?.password||''),
+    smsName:'م'.repeat(160)
+   });
    try{
-    await transaction(async tx=>{
-     if(op==='create'){
-      const record=await findCrm(tx,key.id);
-      if(record.auth_user_id)throw fail(409,'این مشتری حساب ورود دارد؛ رمز را بازنشانی کنید.');
-      selectedPhone=normalizeCrmPhone(record.phone);
-      displayName=record.name||'مشتری';
+    if(op==='create'){
+      // Do not hold a CRM row lock while calling Supabase Auth: the verified
+      // phone trigger itself may acquire a CRM row lock.
+      const preview=(await client.query("select id,auth_user_id,name,phone from public.crm_customers where id=$1",[key.id])).rows[0];
+      if(!preview)throw fail(404,'مخاطب CRM پیدا نشد.');
+      if(preview.auth_user_id)throw fail(409,'این مشتری حساب ورود دارد؛ رمز را بازنشانی کنید.');
+      selectedPhone=normalizeCrmPhone(preview.phone);
+      displayName=preview.name||'مشتری';
       const chosen=validateCredentials(req.body,selectedPhone);username=chosen.username;
-      await uniqueUsername(tx,username);
-      const existing=await tx.query(
-       "select id from public.user_profiles where right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$1 union all select id from auth.users where right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$1 limit 1",
-       [selectedPhone.slice(-10)]);
-      if(existing.rowCount)throw fail(409,'این موبایل قبلاً حساب دارد؛ حساب تکراری ایجاد نمی‌شود.');
+      const conflicts=await client.query(
+       "select id from public.user_profiles where lower(username)=$1 or right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$2 "+
+       "union all select id from auth.users where right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$2 limit 1",
+       [username,selectedPhone.slice(-10)]);
+      if(conflicts.rowCount)throw fail(409,'نام کاربری یا شماره تلفن قبلاً برای حساب دیگری ثبت شده است.');
       const create=await adminAuth().auth.admin.createUser({
        phone:'+98'+selectedPhone.slice(1),password:chosen.password,phone_confirm:true,
        app_metadata:{account_kind:'customer',provisioned_by:'crm'}
       });
-      if(create.error||!create.data.user)throw fail(503,'ساخت حساب احراز هویت انجام نشد؛ اتصال Supabase و اطلاعات ورودی را بررسی کنید.');
+      if(create.error||!create.data.user)throw fail(503,'ساخت حساب در Supabase Auth انجام نشد.');
       createdId=create.data.user.id;
-      const approved=record.approved_b2b===true&&record.approval_status==='approved';
-      await tx.query(
-       "insert into public.user_profiles(id,legacy_user_id,phone,email,username,full_name,company_name,role,status,approved_b2b,can_view_prices,can_view_stock,province,city,grade_code,assigned_price_list_id,credit_limit,credit_used,wallet_balance,club_points,preferences) "+
-       "values($1,$2,$3,$4,$5,$6,$7,$8::public.app_role_type,'active', $9,true,true,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb) "+
-       "on conflict(id) do update set username=excluded.username,full_name=excluded.full_name,company_name=excluded.company_name,phone=excluded.phone,email=excluded.email,role=excluded.role,approved_b2b=excluded.approved_b2b,preferences=user_profiles.preferences||excluded.preferences,updated_at=now()",
-       [createdId,record.id,selectedPhone,record.email||null,username,record.name,record.company,
-        approved?'club':'client',approved,record.province,record.city,
-        approved?record.grade_code:null,approved?record.assigned_price_list_id:null,
-        approved?record.credit_limit:0,approved?record.used_credit:0,approved?record.wallet_balance:0,
-        approved?record.points:0,JSON.stringify({mustChangePassword:true,onboardingCompleted:approved})]
-      );
-      const link=await tx.query('update public.crm_customers set auth_user_id=$2,updated_at=now() where id=$1 and auth_user_id is null returning id',[record.id,createdId]);
-      if(!link.rowCount)throw fail(409,'اتصال CRM به حساب جدید ناموفق بود.');
-     }else{
-      const profile=await profileForReset(tx,key);
-      selectedPhone=normalizeCrmPhone(profile.phone);
-      displayName=profile.full_name||'مشتری';
-      const chosen=validateCredentials(req.body,selectedPhone);username=chosen.username;
-      await uniqueUsername(tx,username,profile.id);
-      // The Auth API is the only holder of a password hash. No CRM password column is touched.
-      const result=await adminAuth().auth.admin.updateUserById(profile.id,{password:chosen.password});
-      if(result.error)throw fail(503,'بازنشانی رمز در Supabase Auth انجام نشد.');
-      await tx.query(
-       "update public.user_profiles set username=$2,preferences=preferences||'{\"mustChangePassword\":true}'::jsonb,updated_at=now() where id=$1",
-       [profile.id,username]);
-     }
-     await audit(tx,identity,op==='create'?'ایجاد حساب ورود مشتری':'بازنشانی رمز اولیه مشتری',key.id);
-    });
+      await transaction(async tx=>{
+       const record=await findCrm(tx,key.id);
+       if(record.auth_user_id && record.auth_user_id!==createdId)throw fail(409,'این مشتری هم‌زمان به حساب دیگری متصل شده است.');
+       await uniqueUsername(tx,username,createdId);
+       const approved=record.approved_b2b===true&&record.approval_status==='approved';
+       await tx.query(
+        "insert into public.user_profiles(id,legacy_user_id,phone,email,username,full_name,company_name,role,status,approved_b2b,can_view_prices,can_view_stock,province,city,grade_code,assigned_price_list_id,credit_limit,credit_used,wallet_balance,club_points,preferences) "+
+        "values($1,$2,$3,$4,$5,$6,$7,$8::public.app_role_type,'active',$9,true,true,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb) "+
+        "on conflict(id) do update set username=excluded.username,full_name=excluded.full_name,company_name=excluded.company_name,phone=excluded.phone,email=excluded.email,role=excluded.role,approved_b2b=excluded.approved_b2b,preferences=user_profiles.preferences||excluded.preferences,updated_at=now()",
+        [createdId,record.id,selectedPhone,record.email||null,username,record.name,record.company,
+         approved?'club':'client',approved,record.province,record.city,
+         approved?record.grade_code:null,approved?record.assigned_price_list_id:null,
+         approved?record.credit_limit:0,approved?record.used_credit:0,approved?record.wallet_balance:0,
+         approved?record.points:0,JSON.stringify({mustChangePassword:true,onboardingCompleted:approved})]
+       );
+       const link=await tx.query('update public.crm_customers set auth_user_id=$2,updated_at=now() where id=$1 and (auth_user_id is null or auth_user_id=$2) returning id',[record.id,createdId]);
+       if(!link.rowCount)throw fail(409,'اتصال CRM به حساب جدید ناموفق بود.');
+       await audit(tx,identity,'ایجاد حساب ورود مشتری',key.id);
+      });
+    }else{
+      await transaction(async tx=>{
+       const profile=await profileForReset(tx,key);
+       selectedPhone=normalizeCrmPhone(profile.phone);
+       displayName=profile.full_name||'مشتری';
+       const chosen=validateCredentials(req.body,selectedPhone);username=chosen.username;
+       await uniqueUsername(tx,username,profile.id);
+       const result=await adminAuth().auth.admin.updateUserById(profile.id,{password:chosen.password});
+       if(result.error)throw fail(503,'بازنشانی رمز در Supabase Auth انجام نشد.');
+       await tx.query(
+        "update public.user_profiles set username=$2,preferences=preferences||'{\"mustChangePassword\":true}'::jsonb,updated_at=now() where id=$1",
+        [profile.id,username]);
+       await audit(tx,identity,'بازنشانی رمز اولیه مشتری',key.id);
+      });
+    }
    }catch(e){
-    // Only undo the Auth identity newly created by this request, never an existing customer.
-    if(createdId){try{await adminAuth().auth.admin.deleteUser(createdId);}catch{console.error('[Customer credentials] New Auth rollback unavailable');}}
+    if(createdId){
+      // Never delete an existing identity. Only attempt to roll back a newly
+      // provisioned Auth user after a failed CRM linking transaction.
+      try{await adminAuth().auth.admin.deleteUser(createdId);}
+      catch{console.error('[Customer credentials] New Auth rollback unavailable');}
+    }
     throw e;
    }
    const smsBody=doSms?renderCrmCredentialSms(template,{username,password:req.body.password,smsName:displayName}):null;
