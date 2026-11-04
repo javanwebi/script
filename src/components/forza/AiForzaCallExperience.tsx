@@ -1151,10 +1151,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             window.clearTimeout(fallbackTimer);
           }
           if (!res.ok || !data?.success) throw new Error(data?.error||'server-error');
-          reply = String(data.text||'').trim();
-          if (!reply) throw new Error('forza_empty_response');
-          onTextChunk(reply,reply);
-          reply=callPlainText.complete(reply);
+          const rawFallback = String(data.text||'').trim();
+          if (!rawFallback) throw new Error('forza_empty_response');
+          onTextChunk(rawFallback,rawFallback);
+          reply=callPlainText.complete(rawFallback);
           }
         }
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
