@@ -58,7 +58,8 @@ test("eight screens keep real data while using reference composition and correct
   assert.match(css,/prefers-reduced-motion/);
   assert.match(css,/focus-visible/);
   assert.match(css,/direction:rtl/);
-  assert.match(page,/catalogProducts\.slice\(0, 2\)/);
+  assert.match(page,/suggestedProducts\.map\(\(prod\)/);
+  assert.match(page,/catalog\.slice\(0, 2\)/);
   assert.match(page,/orders\.filter/);
   assert.match(page,/formatPrice\(totalSpent\)/);
   assert.match(page,/user\?\.addresses/);
