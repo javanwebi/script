@@ -1,12 +1,8 @@
-import { PortalInquiries } from "../components/portal/PortalInquiries";
-import { PortalRecentOrders } from "../components/portal/PortalRecentOrders";
-import { PortalTools } from "../components/portal/PortalTools";
 import { PortalShell } from "../components/portal/PortalShell";
 import { ParcelArt, InvoiceArt, LocationArt } from "../components/portal/ConsumerReferenceArt";
-import { PortalClub } from "../components/portal/PortalClub";
 import forzaBrandImage from "../assets/logo-forza.png";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
-import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from "react";
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue, Suspense } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingBag,
@@ -50,6 +46,12 @@ import {
   PortalAnnouncementItem,
 } from "../services/portalContentService";
 import { pricingCreditService } from "../services/pricingCreditService";
+const PortalInquiries = React.lazy(() => import("../components/portal/PortalInquiries").then((m) => ({ default: m.PortalInquiries })));
+const PortalRecentOrders = React.lazy(() => import("../components/portal/PortalRecentOrders").then((m) => ({ default: m.PortalRecentOrders })));
+const PortalTools = React.lazy(() => import("../components/portal/PortalTools").then((m) => ({ default: m.PortalTools })));
+const PortalClub = React.lazy(() => import("../components/portal/PortalClub").then((m) => ({ default: m.PortalClub })));
+const panelFallback = <div className="consumer-panel-skeleton" role="status" aria-live="polite">در حال آماده‌سازی بخش انتخاب‌شده…</div>;
+
 
 const formatPrice = (amount: number | undefined) =>
   new Intl.NumberFormat("fa-IR").format(amount ?? 0);
@@ -224,6 +226,7 @@ export const ConsumerDashboardPage: React.FC = () => {
     fullAddress: "",
   });
   const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -480,7 +483,9 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 1: OVERVIEW (پیشخوان کاربری و رهگیری مرسوله)
              =============================================================== */}
           {["saved_products", "purchase_list"].includes(activeTab) && (
-            <PortalTools tab={activeTab} labels={resolvedConfig.labels} referenceConsumer />
+            <Suspense fallback={panelFallback}>
+              <PortalTools tab={activeTab} labels={resolvedConfig.labels} referenceConsumer />
+            </Suspense>
           )}
           {activeTab === "overview" && (
             <div className="space-y-6">
@@ -670,7 +675,9 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </div>
                 <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
               </section>
-              <details className="consumer-overview-extra"><summary>سایر خدمات و گزارش‌های حساب <ChevronLeft size={15}/></summary><div>
+              <details className="consumer-overview-extra" onToggle={(event) => setExtraOpen(event.currentTarget.open)}>
+                <summary>سایر خدمات و گزارش‌های حساب <ChevronLeft size={15}/></summary>
+                {extraOpen && <Suspense fallback={panelFallback}><div>
               {enabledMenus.some((m) => m.id === "orders") && (
                 <>
                   <PortalInquiries labels={resolvedConfig.labels} />
@@ -692,7 +699,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   />
                 )}
 
-              </div></details>
+              </div></Suspense>}</details>
             </div>
           )}
 
@@ -700,6 +707,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 2: ORDERS & MY PRICE LIST DOWNLOAD
              =============================================================== */}
           {activeTab === "club_rewards" && (
+            <Suspense fallback={panelFallback}>
             <PortalClub
               portal="consumer"
               user={user!}
@@ -708,6 +716,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               details
               showChart={resolvedConfig.permissions.showClubBarChart}
             />
+            </Suspense>
           )}
           {activeTab === "orders" && (
             <div className="consumer-orders-section bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
