@@ -69,7 +69,8 @@ export class ForzaCallPlainText {
     this.append(c);
     // A complete short sentence must not wait for the next SSE token/done.
     // Do not flush a possible decimal such as "3." prematurely.
-    if (/[.!؟؛]$/u.test(this.word) && !/[0-9۰-۹]\.$/u.test(this.word))
+    if (/[.!؟؛]$/u.test(this.word) && !/[0-9۰-۹]\.$/u.test(this.word) &&
+        !/^(?:https?:\/\/|www\.)/i.test(this.word))
       this.flushWord();
   }
   push(fullText: string): string {
