@@ -955,6 +955,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setStatus('listening');
         setTurn('user');
         activeTranscriptRef.current='';
+        // Keep Chrome's cumulative recognition from replaying the stop words
+        // as the next customer turn when the recognizer remains active.
+        recognitionConsumedCountRef.current=recognitionResultCountRef.current;
+        localSttFinalRef.current='';
+        lastTranscriptChangedAtRef.current=0;
         vadRef.current.reset();
         return;
       }
