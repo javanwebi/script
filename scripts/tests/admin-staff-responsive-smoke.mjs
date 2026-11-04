@@ -29,7 +29,7 @@ for(const width of [390,1440]){
    if(pathname.startsWith('/api/admin/staff/'))return json({success:true});
    return json({success:false},404);
   });
-  await page.goto('http://127.0.0.1:4173/admin/settings',{waitUntil:'domcontentloaded',timeout:25000});
+  await page.goto('http://127.0.0.1:4173/admin/staff-users',{waitUntil:'domcontentloaded',timeout:25000});
   await page.getByText('کاربران و دسترسی‌های سازمانی').waitFor({timeout:25000});
   await page.getByText('کارمند آزمایشی تست').waitFor({timeout:12000});
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+12);
