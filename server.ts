@@ -3,6 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
+import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
@@ -405,6 +406,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
   }
 });
 registerAdminStaffApi(app);
+registerAdminCustomersApi(app);
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
