@@ -54,6 +54,9 @@ interface ProductsModuleProps {
 }
 
 export const ProductsModule: React.FC<ProductsModuleProps> = () => {
+  const actor=adminService.getCurrentAdmin();
+  const canAction=(permission:string)=>actor?.role==='super_admin' || (actor?.permissions?.products||[]).includes(permission);
+  const forbid=(permission:string)=>{if(canAction(permission))return false;window.alert('اجازه انجام این عملیات برای حساب شما فعال نیست.');return true;};
   const [activeSubTab, setActiveSubTab] = useState<'products' | 'categories' | 'brands'>('products');
 
   // Full catalog state (all 1,383+ families & 10,435+ SKUs)
@@ -96,6 +99,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [brandBadgeAccent, setBrandBadgeAccent] = useState('#E06518');
 
   const handleOpenCategoryModal = (cat?: Category,candidateImage = '') => {
+    if(forbid('categories'))return;
     setCategoryImageCandidate(candidateImage&&!candidateImage.startsWith('blob:')?candidateImage:'');
     if (cat) {
       setEditingCategory({
@@ -125,6 +129,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleSaveCategoryModal = async () => {
+    if(forbid('categories'))return;
     if (!editingCategory || !editingCategory.name.trim()) return;
     const finalSlug =
       editingCategory.slug.trim() ||
@@ -157,6 +162,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleCategoryImageUpload = async (file: File) => {
+    if(forbid('images'))return;
     setCategorySaveError('');
     setCategoryImageUploading(true);
     try {
@@ -174,6 +180,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleDeleteCategoryItem = (slug: string) => {
+    if(forbid('delete'))return;
     adminService.deleteCategory(slug);
     setCategories(adminService.getCategories());
   };
@@ -249,6 +256,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleSaveBrandModal = () => {
+    if(forbid('categories'))return;
     if (!editingBrand || !editingBrand.name.trim()) return;
     const cleanId =
       editingBrand.id.trim() ||
@@ -277,6 +285,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleDeleteBrandItem = (id: string) => {
+    if(forbid('delete'))return;
     adminService.deleteBrand(id);
     setBrands(adminService.getBrands());
   };
@@ -536,6 +545,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Save Family + Variants + Images + Prices to Database
   const handleSaveDraftFamily = async () => {
+    if(forbid(isCreatingNewFamily?'create':'edit'))return;
     if (!draftFamily || familySavePending) return;
     if (!draftFamily.name.trim()) {
       setSaveFeedback('لطفاً نام خانواده محصول را وارد کنید.');
@@ -669,6 +679,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Toggle Family Active/Inactive directly from table
   const handleToggleFamilyActive = (product: Product) => {
+    if(forbid('edit'))return;
     const updated: Product = {
       ...product,
       active: product.active === false ? true : false,
@@ -679,6 +690,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   // Reset Family to Workbook Default
   const handleResetFamily = (code: string) => {
+    if(forbid('delete'))return;
     adminService.resetProductToDefault(code);
     refreshProducts();
   };
@@ -833,6 +845,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, replaceId?: string) => {
+    if(forbid('images'))return;
     const file=e.target.files?.[0];
     e.target.value='';
     if(!file||!draftFamily)return;
@@ -1048,6 +1061,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           });
         }}
         onAssignDirectSku={async input=>{
+          if(forbid('edit'))return;
           const response=await fetch('/api/catalog/direct-skus',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
@@ -1058,6 +1072,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
         onAssignSku={async input=>{
+          if(forbid('sku_move'))return;
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             signal:AbortSignal.timeout(20000),body:JSON.stringify(input)
@@ -1095,6 +1110,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         }}
       />
 
+      {!canAction('edit') && !canAction('create') && <div role="status" className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+        دسترسی شما به ویرایش کالا محدود است. عملیات غیرمجاز در سرور نیز مسدود می‌شوند.
+       </div>}
       {/* 1. HEADER & GLOBAL STATS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1676,6 +1694,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             <button
               type="button"
               onClick={() => handleOpenCategoryModal()}
+              disabled={!canAction('categories')}
               className="px-4 py-2.5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <FolderPlus className="w-4 h-4" />

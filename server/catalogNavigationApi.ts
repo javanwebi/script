@@ -2,6 +2,7 @@ import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
+import {canStaff} from './db/staffPermissions';
 
 const clean=(value:unknown,max=150)=>typeof value==='string'?value.trim().slice(0,max):'';
 const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||url.startsWith('/storage/categories/'))&&!url.includes('..'))||(/^https:\/\/[^\s]+$/i.test(url)&&url.length<=2000);
@@ -125,7 +126,7 @@ export function registerCatalogNavigationApi(app:Express){
   // Shared read source for catalogue, image audit, and product editor; RLS-protected table is server-only.
   app.get('/api/catalog/menu-family-assignments',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!canStaff(await getPortalIdentity(req),'products'))return res.status(403).json({success:false,message:'مجوز مشاهده کاتالوگ لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
         `select a.family_code as "familyCode",a.category_slug as "categorySlug",
@@ -141,7 +142,7 @@ export function registerCatalogNavigationApi(app:Express){
 
   app.get('/api/catalog/menu-unassigned',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!canStaff(await getPortalIdentity(req),'products'))return res.status(403).json({success:false,message:'مجوز مشاهده کاتالوگ لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
         `select f.code,f.name,f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
@@ -156,7 +157,7 @@ export function registerCatalogNavigationApi(app:Express){
 
   app.post('/api/catalog/menu-family-assignment',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'دسترسی مدیریت لازم است.'});
+      if(!canStaff(await getPortalIdentity(req),'products','categories'))return res.status(403).json({success:false,message:'مجوز تغییر دسته‌بندی لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const familyCode=clean(req.body?.familyCode,180),categorySlug=clean(req.body?.categorySlug,90);
       const submenu=clean(req.body?.submenu,180),leaf=clean(req.body?.leaf,250);
@@ -186,7 +187,7 @@ export function registerCatalogNavigationApi(app:Express){
   app.get('/api/catalog/navigation-groups',async(req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,groups:[]});
-      const withInactive=req.query.includeInactive==='1'&&(await getPortalIdentity(req)).admin;
+      const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
       const rows=await database().query(
         'select id,title,icon_key as "iconKey",image_url as "imageUrl",category_slugs as "categorySlugs",sort_order as "sortOrder",is_active as active from public.catalog_navigation_groups '+(withInactive?'':'where is_active=true ')+'order by sort_order,id');
       return res.json({success:true,groups:rows.rows});
@@ -195,7 +196,7 @@ export function registerCatalogNavigationApi(app:Express){
 
   app.post('/api/catalog/navigation-groups',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه تغییر گروه‌بندی را دارد.'});
+      if(!canStaff(await getPortalIdentity(req),'products','categories'))return res.status(403).json({success:false,message:'مجوز تغییر گروه‌بندی لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const title=clean(req.body?.title,120), iconKey=clean(req.body?.iconKey,32)||'layers';
       const id=clean(req.body?.id,90)||crypto.randomUUID();
@@ -223,15 +224,17 @@ export function registerCatalogNavigationApi(app:Express){
   app.get('/api/catalog/direct-skus',async(req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,items:[]});
-      const withInactive=req.query.includeInactive==='1'&&(await getPortalIdentity(req)).admin;
+      const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
       const rows=await database().query('select sku_code as "skuCode",name,category_slug as "categorySlug",category_name as "categoryName",submenu,subcategory,brand,image_url as "imageUrl",technical_specs as "technicalSpecs",price_snapshot as "priceSnapshot",source_family_code as "sourceFamilyCode",is_active as active from public.catalog_direct_skus '+(withInactive?'':'where is_active=true ')+'order by updated_at desc,sku_code limit 5000');
-      return res.json({success:true,items:rows.rows});
+      const identity=await getPortalIdentity(req);
+      const canReadPrices=identity.canReadCommerce || canStaff(identity,'products','prices');
+      return res.json({success:true,items:canReadPrices?rows.rows:rows.rows.map(row=>({...row,priceSnapshot:{}}))});
     }catch(error){return fail(res,error);}
   });
 
   app.post('/api/catalog/direct-skus',async(req,res)=>{
     try{
-      if(!(await getPortalIdentity(req)).admin)return res.status(403).json({success:false,message:'فقط مدیر سایت مجاز است.'});
+      if(!canStaff(await getPortalIdentity(req),'products','edit'))return res.status(403).json({success:false,message:'مجوز ویرایش کالا لازم است.'});
       if(!databaseEnabled())return res.status(503).json({success:false});
       const skuCode=clean(req.body?.skuCode,128),categorySlug=clean(req.body?.categorySlug,180),imageUrl=clean(req.body?.imageUrl,2000);
       const submenu=clean(req.body?.submenu,180),subcategory=clean(req.body?.subcategory,180);
