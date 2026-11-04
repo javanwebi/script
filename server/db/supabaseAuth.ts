@@ -148,6 +148,11 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
  if(!profile || !profile.active || (body.action==='admin_login' && profile.role!=='admin' && !staff)){
   cookies(req,res,null);throw error(403,'این حساب دسترسی لازم را ندارد.');
  }
+ // Report actual successful staff logins, never invented browser timestamps.
+ if(staff){
+  try{await database().query('update public.user_profiles set last_login_at=now() where id=$1',[p.id]);}
+  catch{console.warn('[Staff Login] Unable to update last-login timestamp');}
+ }
  send(200,{success:true,user:safe(profile),admin:profile.role==='admin',staff,permissions,
   staffUser:staff?{id:p.id,username:p.username,name:p.full_name,email:p.email,role:'staff',permissions}:undefined,
   requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
