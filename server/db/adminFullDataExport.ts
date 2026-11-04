@@ -4,6 +4,7 @@ import {createHash,randomBytes,timingSafeEqual} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {createGzip} from 'node:zlib';
 import {once} from 'node:events';
+import {finished} from 'node:stream/promises';
 import {database} from './connection';
 import {securityOwner,securityError,securityFailure,securityAudit} from './adminSecurityApi';
 
@@ -81,6 +82,8 @@ export function registerFullDataExport(app:Express){
    res.setHeader('Content-Type','application/gzip');
    res.setHeader('Content-Disposition','attachment; filename="sanatpish-db-data-'+new Date().toISOString().slice(0,10)+'.ndjson.gz"');
    gz=createGzip({level:3});
+   // A cancelled download must not create an unhandled zlib error in the Node process.
+   gz.on('error',()=>{if(!res.destroyed)res.destroy();});
    gz.pipe(res);
    const out=gz;
    res.on('close',()=>{if(!res.writableFinished)out.destroy(new Error('DOWNLOAD_ABORTED'));});
@@ -114,6 +117,9 @@ export function registerFullDataExport(app:Express){
    await append(out,{kind:'complete',tableCount:catalog.rows.length},res);
    await conn.query('commit');conn.release();conn=undefined;
    out.end();
+   // Wait until all compressed bytes have left the stream before releasing the export lock.
+   await finished(out);
+   await finished(res);
    await securityAudit(ownerInfo,'خروجی تمام داده‌ها','database','آرشیو فشرده جدول‌های دیتابیس پس از تأیید دوباره رمز ورود صادر شد.');
   }catch(e){
    if(conn){await conn.query('rollback').catch(()=>{});conn.release();}
