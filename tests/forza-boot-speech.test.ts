@@ -15,8 +15,9 @@ test('FORZA active session does not remount during catalog hydration',()=>{
 });
 test('FORZA renders live words but requests only one original Pocket WAV per complete reply',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
-  assert.match(frontend,/setAiText\(fullText\)/);
-  assert.match(frontend,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
+  assert.match(frontend,/reply=callPlainText\.push\(fullText\)/);
+  assert.match(frontend,/setAiText\(reply\)/);
+  assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
   assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);

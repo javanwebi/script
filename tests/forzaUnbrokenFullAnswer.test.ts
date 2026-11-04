@@ -27,12 +27,14 @@ test('normalization never truncates the complete reply',()=>{
   assert.equal(forzaUnbrokenSpokenText('  '),'');
 });
 
-test('full answer is sent once after final SSE; no progressive phrase queue remains',()=>{
+test('Pocket fallback keeps one complete WAV while selected Nima streams ordered phrases',()=>{
   const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
   const server=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
   const worker=readFileSync(new URL('../scripts/forza_pocket_worker.py',import.meta.url),'utf8');
-  assert.match(ui,/reply=await consumeForzaTextStream/);
-  assert.match(ui,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort\.signal\)/);
+  assert.match(ui,/const rawFinal=await consumeForzaTextStream/);
+  assert.match(ui,/reply=callPlainText\.complete\(rawFinal\)/);
+  assert.match(ui,/await activeNimaBuffer\.finish\(\)/);
+  assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort\.signal\)/);
   assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
   assert.match(ui,/await player\.enqueueWav\(audio\)/);
   assert.doesNotMatch(ui,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);

@@ -30,10 +30,20 @@ export function pocketWavWindow(buffer:AudioBuffer):{offset:number;duration:numb
   return {offset:begin/buffer.sampleRate,duration:(finish-begin)/buffer.sampleRate};
 }
 
+export interface ForzaWavPlaybackProgress {
+  phase: 'started' | 'finished' | 'interrupted';
+  playedMs: number;
+  durationMs: number;
+}
+
 export class ForzaContinuousWav {
   private scheduleTail: Promise<void> = Promise.resolve();
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private progress = new Map<AudioBufferSourceNode,{
+    startsAt:number; durationMs:number; onProgress?: (event:ForzaWavPlaybackProgress)=>void;
+    started:boolean;
+  }>();
   private startedSources = new Set<AudioBufferSourceNode>();
   private startTimers = new Set<ReturnType<typeof setTimeout>>();
   private pending = new Set<() => void>();
@@ -53,7 +63,7 @@ export class ForzaContinuousWav {
    * Only sample-accurate scheduling is serialized, so network/decode latency
    * cannot add avoidable gaps between already-generated Pocket frames.
    */
-  enqueueWav(wav:Uint8Array):Promise<void>{
+  enqueueWav(wav:Uint8Array,onProgress?: (event:ForzaWavPlaybackProgress)=>void):Promise<void>{
     if(this.closed)return Promise.resolve();
     const ctx=this.getContext();
     if(!ctx)return Promise.reject(new Error('forza_audio_context_unavailable'));
@@ -64,7 +74,7 @@ export class ForzaContinuousWav {
       this.onStage?.('decode_ready',Math.round(performance.now()-decodeStarted));
       return result;
     });
-    return this.enqueueDecoded(decoded);
+    return this.enqueueDecoded(decoded,onProgress);
   }
 
   /** Compatibility path for an already cached same-origin/blob WAV URL. */
@@ -80,7 +90,8 @@ export class ForzaContinuousWav {
     return this.enqueueDecoded(decoded);
   }
 
-  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>):Promise<void>{
+  private enqueueDecoded(decodedPromise:Promise<AudioBuffer>,
+    onProgress?: (event:ForzaWavPlaybackProgress)=>void):Promise<void>{
     let resolveFinished!:()=>void;
     let rejectFinished!:(error:Error)=>void;
     const finished=new Promise<void>((resolve,reject)=>{
@@ -127,6 +138,8 @@ export class ForzaContinuousWav {
       }
       const startAt=Math.max(earliest,this.nextStart);
       this.nextStart=startAt+trimmed.duration;
+      const progress={startsAt:startAt,durationMs:trimmed.duration*1000,onProgress,started:false};
+      this.progress.set(source,progress);
       let startTimer:ReturnType<typeof setTimeout>|null=null;
       source.onended=()=>{
         if(startTimer!==null){
@@ -135,6 +148,9 @@ export class ForzaContinuousWav {
         }
         this.startedSources.delete(source);
         this.sources.delete(source);
+        this.progress.delete(source);
+        if(!this.closed)progress.onProgress?.({phase:'finished',
+          playedMs:progress.durationMs,durationMs:progress.durationMs});
         source.disconnect();
         finish();
         if(!this.closed && this.startedSources.size===0){
@@ -155,6 +171,8 @@ export class ForzaContinuousWav {
           return;
         }
         this.startedSources.add(source);
+        progress.started=true;
+        progress.onProgress?.({phase:'started',playedMs:0,durationMs:progress.durationMs});
         this.onStage?.('playback_started',0);
         this.onPlaying();
       },Math.max(0,(startAt-ctx.currentTime)*1000));
@@ -176,11 +194,20 @@ export class ForzaContinuousWav {
     for(const timer of this.startTimers)clearTimeout(timer);
     this.startTimers.clear();
     this.startedSources.clear();
+    const ctx=this.getContext();
     for(const source of this.sources){
+      const meta=this.progress.get(source);
+      if(meta){
+        const playedMs=meta.started && ctx
+          ? Math.max(0,Math.min(meta.durationMs,(ctx.currentTime-meta.startsAt)*1000)) : 0;
+        meta.onProgress?.({phase:'interrupted',playedMs,durationMs:meta.durationMs});
+      }
+      source.onended=null;
       try{source.stop();}catch{}
       try{source.disconnect();}catch{}
     }
     this.sources.clear();
+    this.progress.clear();
     try{this.gain?.disconnect();}catch{}
     this.gain=null;
     for(const resolve of [...this.pending])resolve();

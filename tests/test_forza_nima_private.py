@@ -2,7 +2,10 @@
 """Offline source checks for Nima/Piper deploy candidate. No model files/network."""
 from pathlib import Path
 import subprocess
+import sys
+import types
 import unittest
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -27,6 +30,44 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("client_disconnected",worker)
         self.assertNotIn("open('/tmp/",worker)
         self.assertNotIn("write_bytes(",worker)
+
+    def test_private_worker_provides_privacy_safe_error_identity_and_bounded_fifo(self):
+        # Import with a fake Piper module; no ONNX model, keys, network or WAV.
+        worker=(ROOT/"scripts/forza_nima_voice_http.py").read_text(encoding="utf-8")
+        scope={"__name__":"forza_nima_offline_probe"}
+        fake_piper=types.ModuleType("piper")
+        fake_piper.PiperVoice=object
+        with patch.dict(sys.modules,{"piper":fake_piper}):
+            exec(compile(worker,"forza_nima_voice_http.py","exec"),scope)
+        try:
+            raise RuntimeError("confidential customer words must never be logged")
+        except RuntimeError as exc:
+            diagnostic=scope["generation_error_diagnostics"](exc)
+        self.assertIn("type=RuntimeError",diagnostic)
+        self.assertIn("module=builtins",diagnostic)
+        self.assertIn("site=",diagnostic)
+        self.assertNotIn("confidential",diagnostic)
+        self.assertNotIn("/app/",diagnostic)
+        self.assertNotIn("customer words",diagnostic)
+        spoken=scope["spoken_text"]("**قطر** تسمه SPA 1250 برابر 10*20 است. https://example.com/test")
+        self.assertIn("SPA 1250",spoken)
+        self.assertIn("10 در 20",spoken)
+        self.assertNotIn("*",spoken)
+        self.assertNotIn("https",spoken)
+        self.assertNotIn("example.com",spoken)
+
+        # A busy inference slot + a waiting request fails fast, without
+        # unbounded threads or a second inference on the same model.
+        scope["queue_busy"]=True
+        scope["queue_waiters"].append(object())
+        wait,error=scope["acquire_inference"](lambda:False)
+        self.assertIsNone(wait)
+        self.assertEqual(error,"voice_busy")
+        scope["queue_waiters"].clear()
+        scope["MAX_QUEUE_WAIT_SEC"]=0.001
+        wait,error=scope["acquire_inference"](lambda:False)
+        self.assertIsNone(wait)
+        self.assertEqual(error,"voice_queue_timeout")
 
     def test_canary_does_not_modify_site_or_voice(self):
         script=ROOT/"ops/forza-nima-private-canary-vps.sh"

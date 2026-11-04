@@ -8,7 +8,7 @@ const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 test('full-answer Pocket needs no stream fallback or zero-frame retry',()=>{
   assert.doesNotMatch(ui,/allowFallback:true|zero-frame-recover|ForzaLiveSpeechQueue/);
   assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(ui,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
+  assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
   assert.match(ui,/await player\.enqueueWav\(audio\)/);
   assert.match(ui,/X-Forza-Voice/);
   assert.match(ui,/pocket-farsi-v2/);

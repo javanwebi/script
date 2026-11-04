@@ -53,6 +53,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5488,7 +5489,7 @@ async function renderPocketSpeech(
   const spoken=forzaUnbrokenSpokenText(phrase);
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
   const started=Date.now();
-  for(let attempt=0;attempt<2;attempt++){
+  for(let attempt=0;attempt<3;attempt++){
     if(cancel?.aborted)throw new Error('forza_tts_cancelled');
     const upstreamStarted=Date.now();
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
@@ -5502,20 +5503,23 @@ async function renderPocketSpeech(
         ? AbortSignal.any([cancel,AbortSignal.timeout(30_000)])
         : AbortSignal.timeout(30_000),
     });
-    // One inference slot across visitors. Brief backoff on BUSY only;
-    // never retry a 403 token mismatch or an unavailable worker.
+    // The private CPU engine accepts one active job and one waiter. Preserve
+    // ordered audio; retry only known transient 503s within a short budget.
+    // The response is an error (no WAV delivered), so a retry cannot replay
+    // audible speech. Never retry auth failures or arbitrary upstream errors.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
-      if(reason?.error==='voice_busy'&&attempt<1&&Date.now()-started<5000){
-        await new Promise<void>((resolve,reject)=>{
-          const delay=setTimeout(()=>{cancel?.removeEventListener('abort',onAbort);resolve()},180);
-          const onAbort=()=>{clearTimeout(delay);reject(new Error('forza_tts_cancelled'))};
-          if(cancel?.aborted)onAbort();
-          else cancel?.addEventListener('abort',onAbort,{once:true});
-        });
+      const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,Date.now()-started);
+      if(retryDelay!==null){
+        console.info('[FORZA_TTS_RETRY] reason='+reason?.error+
+          ' attempt='+(attempt+1)+' waitMs='+retryDelay+
+          ' elapsedMs='+(Date.now()-started));
+        await waitForForzaVoiceRetry(retryDelay,cancel);
         continue;
       }
-      throw new Error('private_voice_'+(reason?.error||'unavailable'));
+      const safeReason=reason?.error&&/^[a-z_]{1,40}$/.test(reason.error)
+        ?reason.error:'unavailable';
+      throw new Error('private_voice_'+safeReason);
     }
     if(!response.ok)throw new Error('private_voice_http_'+response.status);
     if(!(response.headers.get('content-type')||'').includes('audio/wav'))
@@ -5856,7 +5860,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       const workerMessages: Array<{ role: string; content: any }> = [
         {
           role: 'system',
-          content: 'شما مشاور فنی صنعت پیش هستید. پاسخ کوتاه و تخصصی فارسی باشد. اصلاح کاربر مثل «۶۲۰۲ نه ۶۲۰۳» یعنی کد آخر معتبر است. اگر پاسخ قبلی قطع شده، «ادامه بده» باید فقط بخش شنیده‌نشده را از زمینه موجود ادامه دهد؛ کد نامطمئن را تأیید بگیرد.'+catalogContext,
+          content: (lowLatencyVoice
+            ? 'شما FORZA، مشاور صوتی فارسی صنعت پیش هستید. فقط متن ساده فارسی، بدون ستاره، بولت، Markdown، جدول، backtick و URL خام بدهید. کوتاه و مستقیم پاسخ دهید؛ جواب سلام طبیعی و کوتاه است. به «خیلی ضعیفه» با پرسش کوتاه درباره قسمت مشکل‌دار پاسخ دهید. در اصلاح «۶۲۰۲ نه ۶۲۰۳» فقط مقدار آخر معتبر است. بخش قطع‌شده را شنیده‌شده فرض نکنید. کد نامطمئن را تأیید بگیرید.'
+            : 'شما مشاور فنی صنعت پیش هستید. پاسخ کوتاه و تخصصی فارسی باشد. اصلاح کاربر مثل «۶۲۰۲ نه ۶۲۰۳» یعنی کد آخر معتبر است. اگر پاسخ قبلی قطع شده، «ادامه بده» باید فقط بخش شنیده‌نشده را از زمینه موجود ادامه دهد؛ کد نامطمئن را تأیید بگیرد.')+catalogContext,
         },
       ];
       if (Array.isArray(history)) {
@@ -5923,7 +5929,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. هنگام اصلاح «۶۲۰۲، نه ۶۲۰۳» فقط مقدار جدید را ملاک بگیرید. اگر پاسخ قبلی قطع شد، فقط متن واقعاً پخش‌شده را شنیده‌شده فرض کنید. برای «ادامه بده» از همان نقطه ادامه دهید، و برای سؤال یا مشخصات جدید مسیر پاسخ را اصلاح کنید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر کد مهم مبهم بود کوتاه تأیید بگیرید و حدس نزنید. از جدول و قالب‌بندی Markdown استفاده نکنید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
+    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. هنگام اصلاح «۶۲۰۲، نه ۶۲۰۳» فقط مقدار جدید را ملاک بگیرید. اگر پاسخ قبلی قطع شد، فقط متن واقعاً پخش‌شده را شنیده‌شده فرض کنید. برای «ادامه بده» از همان نقطه ادامه دهید، و برای سؤال یا مشخصات جدید مسیر پاسخ را اصلاح کنید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر کد مهم مبهم بود کوتاه تأیید بگیرید و حدس نزنید. فقط متن ساده فارسی بدهید: بدون ستاره، Markdown، بولت، جدول، backtick، URL خام یا علامت تزئینی. برای سلام پاسخ سلام طبیعی بدهید. اگر مشتری گفت «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. «دارم بررسی می‌کنم» را فقط هنگام عملیات واقعی و زمان‌بر و یک بار بگویید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
 
 دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
 ۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.

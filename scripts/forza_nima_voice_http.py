@@ -74,7 +74,35 @@ PUNCTUATION = re.compile(r"[،,؛;:!?؟…—–\[\]{}()]|(?<!\d)\.|\.(?!\d)")
 
 
 def spoken_text(value):
+    # Defense in depth: even a non-FORZA caller must never make the male
+    # speaker recite Markdown markers or bare URLs. Do not alter part codes.
+    value = re.sub(r"(?i)(?:https?://|www\.)\S+", " ", value)
+    value = re.sub(r"(?<=\d)\s*\*\s*(?=\d)", " در ", value)
+    value = re.sub(r"[*\x60#]", " ", value)
     return " ".join(PUNCTUATION.sub(" ", value).split())
+
+
+def generation_error_diagnostics(exc):
+    """Non-content error identity for ONNX/Piper failures.
+
+    Never log the exception message: phonemizers may include user words in it.
+    The final Python traceback frame (module basename and line) is sufficient
+    to distinguish a Piper/phonemizer issue from ONNX or WAV generation.
+    """
+    kind = re.sub(r"[^A-Za-z0-9_]", "_", type(exc).__name__)[:64]
+    module = re.sub(r"[^A-Za-z0-9_]", "_",
+                    type(exc).__module__.split(".")[-1])[:64]
+    trace = exc.__traceback__
+    while trace and trace.tb_next:
+        trace = trace.tb_next
+    site = "unknown"
+    if trace:
+        filename = re.sub(r"[^A-Za-z0-9_.-]", "_",
+                          Path(trace.tb_frame.f_code.co_filename).name)[:64]
+        site = "%s:%d" % (filename, trace.tb_lineno)
+    cause = re.sub(r"[^A-Za-z0-9_]", "_",
+                   type(exc.__cause__).__name__ if exc.__cause__ else "none")[:64]
+    return "type=%s module=%s cause=%s site=%s" % (kind, module, cause, site)
 
 
 def synthesize_complete(text, disconnected=lambda: False):
@@ -180,6 +208,8 @@ class Handler(BaseHTTPRequestHandler):
         queue_ms, queue_error = acquire_inference(self.client_disconnected)
         if queue_error:
             if queue_error != "client_gone":
+                print("[FORZA_NIMA_REJECT] reason=%s" % queue_error,
+                      file=sys.stderr, flush=True)
                 self.respond(503, {"error": queue_error})
             return
         start = time.monotonic()
@@ -200,8 +230,13 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, InterruptedError):
             self.close_connection = True
         except Exception as exc:
-            print("[FORZA Nima] generation_error=%s" % type(exc).__name__,
-                  file=sys.stderr, flush=True)
+            # A production Error type alone is not actionable. Report safe
+            # exception identity and source location without exception text,
+            # phonemes, transcripts, audio or private runtime paths.
+            print("[FORZA Nima] generation_error=%s %s queue_ms=%d inference_elapsed_ms=%d chars=%d" % (
+                type(exc).__name__, generation_error_diagnostics(exc),
+                queue_ms, round((time.monotonic()-start)*1000), len(phrase)
+            ), file=sys.stderr, flush=True)
             if not self.wfile.closed:
                 try:
                     self.respond(503, {"error": "voice_unavailable"})
