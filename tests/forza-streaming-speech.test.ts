@@ -110,3 +110,25 @@ test('a network EOF after partial words is tracked as incomplete, never a succes
   );
   assert.deepEqual(stages,['start','first_delta','incomplete']);
 });
+
+
+test('SSE revised done is an error, not a new successful speech turn',async()=>{
+  const frames=[
+    'data: {"type":"start"}\n\n',
+    'data: {"type":"text_chunk","chunk":"یاتاقان 6202ZZ"}\n\n',
+    'data: {"type":"done","fullText":"یاتاقان 6203ZZ"}\n\n',
+  ];
+  const stages:string[]=[];const spoken:string[]=[];
+  const input=new ReadableStream<Uint8Array>({start(c){
+    for(const frame of frames)c.enqueue(new TextEncoder().encode(frame));
+    c.close();
+  }});
+  await assert.rejects(
+    consumeForzaTextStream(new Response(input),part=>spoken.push(part),
+      (stage,info)=>stages.push(stage+(info?.code?':'+info.code:''))),
+    /forza_stream_revised_after_delta/
+  );
+  assert.deepEqual(spoken,['یاتاقان 6202ZZ']);
+  assert.ok(stages.includes('error:forza_stream_revised_after_delta'));
+  assert.equal(stages.includes('done'),false);
+});
