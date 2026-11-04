@@ -12,7 +12,7 @@ export const STAFF_SECTIONS = {
   orders: ['view','edit'],
   clients: ['view','create','edit','delete'],
   reports: ['view'],
-  settings: ['view','edit'],
+
 } as const;
 export type StaffPermissions = Record<string,string[]>;
 export type StaffIdentity = {admin?:boolean;staff?:boolean;permissions?:StaffPermissions};
@@ -63,7 +63,8 @@ export function namespacePermission(identity:StaffIdentity,domain:string,write=f
   if(section==='settings' && key==='hyper_sanat_stock_v2')return canStaff(identity,'products','prices');
   // Credentials, payment gateways and system backups are super-admin-only.
   if(section==='settings')return false;
-  return canStaff(identity,section,write?'edit':'view');
+  if(!write)return canStaff(identity,section,'view');
+  return canStaff(identity,section,'edit')||canStaff(identity,section,'create')||canStaff(identity,section,'delete');
 }
 export function catalogMutationPermission(path:string):[string,string]{
   if(path.includes('/overrides/bulk'))return ['bulk_import','import'];
@@ -73,4 +74,45 @@ export function catalogMutationPermission(path:string):[string,string]{
   if(path.includes('/overrides/reset-family') || /^\/overrides\/family\//.test(path))return ['products','delete'];
   if(path.includes('/overrides/family') || path.includes('/direct-skus'))return ['products','edit'];
   return ['__forbidden__','__forbidden__'];
+}
+
+/** Verify mutations against the actual previous database document, not browser flags.
+ * Append-only, edit-only and delete-only users cannot exchange their privileges. */
+export function assertStaffDocumentChange(identity:StaffIdentity,domain:string,key:string,before:unknown,after:unknown):void{
+ if(identity.admin===true)return;
+ const section=namespaceSections[domain];
+ if(!section || !namespacePermission(identity,domain,true,key))throw forbidden();
+ if(section==='products' && domain==='catalog_overrides' && !canStaff(identity,'products','prices'))throw forbidden();
+ if(section==='customer_grading' || section==='agencies' || section==='orders' ||
+    section==='settings' || section==='products'){
+   if(!canStaff(identity,section,'edit'))throw forbidden();
+   return;
+ }
+ if(!Array.isArray(before) && !Array.isArray(after)){
+   if(JSON.stringify(before)!==JSON.stringify(after) && !canStaff(identity,section,'edit'))throw forbidden();
+   return;
+ }
+ if(!Array.isArray(after))throw forbidden();
+ const old=Array.isArray(before)?before:[];
+ const identifiable=(items:unknown[])=>{
+   const result=new Map<string,unknown>();
+   for(const item of items){
+     if(!item || typeof item!=='object' || Array.isArray(item))throw forbidden();
+     const row=item as Record<string,unknown>;
+     const id=['id','code','slug','phone','key'].map(key=>row[key]).find(x=>typeof x==='string' && x.length>0);
+     if(typeof id!=='string' || result.has(id))throw forbidden();
+     result.set(id,item);
+   }
+   return result;
+ };
+ const previous=identifiable(old),next=identifiable(after);
+ for(const [id,value] of next){
+   if(!previous.has(id)){
+     if(!canStaff(identity,section,'create'))throw forbidden();
+   }else if(JSON.stringify(previous.get(id))!==JSON.stringify(value) && !canStaff(identity,section,'edit'))throw forbidden();
+ }
+ for(const id of previous.keys())if(!next.has(id) && !canStaff(identity,section,'delete'))throw forbidden();
+}
+function forbidden():Error & {status:number}{
+ return Object.assign(new Error('اجازه افزودن، ویرایش یا حذف این اطلاعات را ندارید.'),{status:403});
 }
