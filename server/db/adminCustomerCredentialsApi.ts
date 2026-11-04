@@ -103,7 +103,7 @@ async function findCrm(client:SqlClient,id:string){
 async function profileForReset(client:SqlClient,key:ReturnType<typeof parseKey>){
  const id=key.source==='crm'?(await findCrm(client,key.id)).auth_user_id:key.id;
  if(!id)throw fail(409,'حساب ورود هنوز ساخته نشده است؛ از ساخت حساب استفاده کنید.');
- const record=await client.query("select id,username,phone,role::text as role,full_name from public.user_profiles where id=$1 and role in ('client','club') for update",[id]);
+ const record=await client.query("select id,username,phone,role::text as role,full_name from public.user_profiles where id=$1 and role in ('client','club') and status='active' for update",[id]);
  if(!record.rowCount)throw fail(403,'این کاربر حساب مشتری معمولی یا عمده ندارد.');
  const profile=record.rows[0];
  if(!profile.phone)throw fail(409,'شماره موبایل برای این حساب ثبت نشده است.');
