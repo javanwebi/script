@@ -54,7 +54,7 @@ const base = [
   "union all",
   "select 'profile:' || u.id as id, 'profile' as source, null::text as crm_id, u.id as user_id,",
   "u.full_name as name, u.company_name as company, u.phone, u.email, u.city, u.province,",
-  "u.approved_b2b, u.grade_code, u.assigned_price_list_id, u.credit_limit,",
+  "coalesce(u.approved_b2b,false) as approved_b2b, u.grade_code, u.assigned_price_list_id, u.credit_limit,",
   "u.credit_used, u.current_debt, null::text as notes,",
   "case when u.approved_b2b then 'approved' else 'pending' end as approval_status,",
   "u.username,u.last_login_at,u.created_at,true as has_login",
@@ -131,13 +131,13 @@ export function registerAdminCustomersApi(app: Express) {
       const page = Math.min(100000, Math.max(1, Number.parseInt(String(req.query.page || 1), 10) || 1));
       const limit = 25;
       const conditions = ["($1='' or b.name ilike '%' || $1 || '%' or coalesce(b.company,'') ilike '%' || $1 || '%' or coalesce(b.phone,'') like '%' || $1 || '%')"];
-      if (kind !== 'all') conditions.push(kind === 'high_volume' ? 'b.approved_b2b=true' : 'b.approved_b2b=false');
+      if (kind !== 'all') conditions.push(kind === 'high_volume' ? 'coalesce(b.approved_b2b,false)=true' : 'coalesce(b.approved_b2b,false)=false');
       const where = 'where ' + conditions.join(' and ');
       const values = [q];
       const [rows, total, summary] = await Promise.all([
         database().query("select " + cols + " " + selection + " " + where + " order by b.created_at desc,b.id desc limit " + limit + " offset $2", [q,(page-1)*limit]),
         database().query("select count(*)::int as total from (" + base + ") b " + where, values),
-        database().query("select count(*)::int as total,count(*) filter(where approved_b2b)::int as high_volume,count(*) filter(where not approved_b2b)::int as retail from (" + base + ") b")
+        database().query("select count(*)::int as total,count(*) filter(where coalesce(approved_b2b,false))::int as high_volume,count(*) filter(where not coalesce(approved_b2b,false))::int as retail from (" + base + ") b")
       ]);
       res.json({ success: true, customers: rows.rows, total: total.rows[0]?.total || 0, page, pageSize: limit, counts: summary.rows[0] });
     } catch (e) { respond(res, e); }
@@ -148,7 +148,7 @@ export function registerAdminCustomersApi(app: Express) {
     try {
       await guard(req,res);
       const kind=req.query.kind==='high_volume'?'high_volume':req.query.kind==='retail'?'retail':'all';
-      const where=kind==='high_volume'?'where b.approved_b2b=true':kind==='retail'?'where b.approved_b2b=false':'';
+      const where=kind==='high_volume'?'where coalesce(b.approved_b2b,false)=true':kind==='retail'?'where coalesce(b.approved_b2b,false)=false':'';
       const rows=await database().query(
         "select " + cols + " " + selection + " " + where + " order by b.created_at desc,b.id desc limit 50001");
       if(rows.rows.length>50000)throw fail(413,'تعداد مشتریان برای یک خروجی بیش از حد مجاز است؛ خروجی صفحه‌بندی‌شده لازم است.');
@@ -267,10 +267,14 @@ export function registerAdminCustomersApi(app: Express) {
           const record = await client.query('select id,auth_user_id from public.crm_customers where id=$1 for update',[key.id]);
           if (!record.rowCount) throw fail(404,'مشتری یافت نشد.');
           await client.query("update public.crm_customers set approved_b2b=$2,approval_status=$3,updated_at=now() where id=$1",[key.id,approved,approved?'approved':'pending']);
-          if (record.rows[0].auth_user_id)
-            await client.query("update public.user_profiles set approved_b2b=$2,updated_at=now() where id=$1 and role::text not in ('super_admin','warehouse_operator','sales_manager')",[record.rows[0].auth_user_id,approved]);
+          if (record.rows[0].auth_user_id) {
+            const linked=await client.query(
+              "update public.user_profiles set approved_b2b=$2,role=(case when $2 then 'club' else 'client' end)::public.app_role_type,updated_at=now() where id=$1 and role::text in ('client','club') returning id",
+              [record.rows[0].auth_user_id,approved]);
+            if(!linked.rowCount)throw fail(409,'حساب متصل قابل انتقال نیست؛ فقط نقش مشتری خرید تکی یا خرید بالا مجاز است.');
+          }
         } else {
-          const updated=await client.query("update public.user_profiles set approved_b2b=$2,updated_at=now() where id=$1 and role::text not in ('super_admin','warehouse_operator','sales_manager') returning id",[key.id,approved]);
+          const updated=await client.query("update public.user_profiles set approved_b2b=$2,role=(case when $2 then 'club' else 'client' end)::public.app_role_type,updated_at=now() where id=$1 and role::text in ('client','club') returning id",[key.id,approved]);
           if (!updated.rowCount) throw fail(404,'مشتری یافت نشد.');
         }
         await audit(client,identity,approved?'ارتقای مشتری به خرید بالا':'بازگشت مشتری به خرید تکی',key.id,'مجوز پنل مشتری تغییر کرد؛ سفارش‌ها و سوابق مالی حفظ شدند.');

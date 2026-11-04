@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
 import { CustomerAccountAccessModal } from './CustomerAccountAccessModal';
+import { CustomerNewAccessFields, emptyCustomerAccess, type NewCustomerAccessDraft } from './CustomerNewAccessFields';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
   FileText, Wallet, MessageCircle, Package, ChevronLeft, ChevronRight,
-  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2, Download
+  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2, Download, KeyRound, Copy
 } from 'lucide-react';
 
 type Customer = {
@@ -52,7 +53,7 @@ function Metric({label,value,Icon}:{label:string;value:string;Icon:React.Element
 }
 
 export const RealCustomersCrmModule: React.FC = () => {
-  const [kind,setKind] = useState<'retail'|'high_volume'>('high_volume');
+  const [kind,setKind] = useState<'retail'|'high_volume'>('retail');
   const [section,setSection] = useState<'customers'|'tickets'>('customers');
   const [q,setQ] = useState('');
   const [page,setPage] = useState(1);
@@ -73,10 +74,18 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [commercial,setCommercial] = useState<Customer|null>(null);
   const [accessCustomer,setAccessCustomer] = useState<Customer|null>(null);
   const [canManageAccess,setCanManageAccess] = useState(false);
+  const [smsConfigured,setSmsConfigured] = useState(false);
+  const [newAccess,setNewAccess] = useState<NewCustomerAccessDraft>(emptyCustomerAccess);
+  const [issued,setIssued] = useState<{username:string;password:string;preview:string;smsSent:boolean;smsWarning?:string}|null>(null);
   useEffect(()=>{
     let live=true;
     void fetch('/api/admin/crm/credentials/config',{credentials:'same-origin',cache:'no-store'})
-      .then(r=>{if(live)setCanManageAccess(r.ok);}).catch(()=>{if(live)setCanManageAccess(false);});
+      .then(async r=>{
+        const config=r.ok?await r.json():null;
+        if(!live)return;
+        setCanManageAccess(r.ok);
+        setSmsConfigured(config?.smsConfigured===true);
+      }).catch(()=>{if(live){setCanManageAccess(false);setSmsConfigured(false);}});
     return ()=>{live=false;};
   },[]);
 
@@ -115,6 +124,15 @@ export const RealCustomersCrmModule: React.FC = () => {
   };
   const save = async (event: React.FormEvent) => {
     event.preventDefault();if(!form)return;
+    if(!editing && newAccess.enabled){
+      if(!canManageAccess){setError('ساخت حساب فقط برای مدیر اصلی فعال است.');return;}
+      if(!/^[a-z][a-z0-9_]{3,31}$/.test(newAccess.username.trim().toLowerCase())){setError('نام کاربری باید ۴ تا ۳۲ نویسه انگلیسی و با حرف شروع شود.');return;}
+      if(newAccess.password.length<12 || newAccess.password.length>128){setError('رمز اولیه باید بین ۱۲ تا ۱۲۸ نویسه باشد.');return;}
+      if(!newAccess.confirmedPhone){setError('مالکیت شماره مشتری را تأیید کنید.');return;}
+      if(newAccess.sendSms && (!smsConfigured || !newAccess.messageTemplate.includes('{username}') || !newAccess.messageTemplate.includes('{password}'))){
+        setError('متن پیامک باید نام کاربری و رمز داشته باشد و SMS.ir فعال باشد.');return;
+      }
+    }
     setBusy(true);setError('');
     try {
       let updatedId=editing?.id;
@@ -123,10 +141,28 @@ export const RealCustomersCrmModule: React.FC = () => {
         updatedId=result.id || editing.id;
         setNotice('اطلاعات واقعی مشتری ذخیره شد.');
       } else {
-        const result=await api<{message:string}>('/api/admin/crm/customers',{method:'POST',body:JSON.stringify(form)});
-        setNotice(result.message);
+        const created=await api<{id:string;message:string}>('/api/admin/crm/customers',{method:'POST',body:JSON.stringify(form)});
+        updatedId=created.id;
+        setNotice(created.message);
+        if(newAccess.enabled){
+          try{
+            const result=await api<{username:string;smsSent:boolean;smsWarning?:string}>('/api/admin/crm/customers/'+encodeURIComponent(created.id)+'/credentials',{
+              method:'POST',body:JSON.stringify({operation:'create',username:newAccess.username.trim().toLowerCase(),
+                password:newAccess.password,sendSms:newAccess.sendSms,messageTemplate:newAccess.messageTemplate})
+            });
+            const preview=newAccess.messageTemplate.replace(/\{(username|password|smsName|loginUrl)\}/g,(_match,key)=>
+              ({username:result.username,password:newAccess.password,smsName:form.name,
+                loginUrl:'https://www.sanatpish.com/login'} as Record<string,string>)[key]||'');
+            setIssued({username:result.username,password:newAccess.password,preview,smsSent:result.smsSent,smsWarning:result.smsWarning});
+            setNotice('مشتری و حساب ورود واقعی او ساخته شدند.');
+          }catch(e){
+            // Contact is saved already; never retry its creation or duplicate customer records.
+            setNotice('مشتری ثبت شد، اما حساب ورود ایجاد نشد. از پرونده او دوباره اقدام کنید.');
+            setError('ساخت حساب ورود ناموفق بود: '+(e instanceof Error?e.message:'خطای سرویس ورود'));
+          }
+        }
       }
-      setForm(null);setEditing(null);refresh();
+      setForm(null);setEditing(null);setNewAccess(emptyCustomerAccess());refresh();
       if(updatedId && detail) await openDetail(updatedId);
     } catch(e) {setError(e instanceof Error?e.message:'ثبت مشتری ممکن نشد.');}
     finally {setBusy(false);}
@@ -163,12 +199,12 @@ export const RealCustomersCrmModule: React.FC = () => {
     <div className={card+' flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between'}>
       <div><div className="flex items-center gap-2"><Users className="h-6 w-6 text-[#E56B1E]"/>
         <h2 className="text-lg font-black text-[#34363B] sm:text-xl">مشتریان و مدیریت ارتباط با مشتری (CRM)</h2></div>
-        <p className="mt-2 text-xs leading-6 text-slate-500">اطلاعات مستقیماً از PostgreSQL خوانده می‌شود؛ سفارش و اعتبار آزمایشی نمایش داده نمی‌شود.</p>
+        <p className="mt-2 text-xs leading-6 text-slate-500">ثبت‌نام‌های تأییدشده سایت در «خرید تکی» نمایش داده می‌شوند؛ می‌توان نوع پنل را تغییر داد و نام کاربری و رمز اختصاص داد.</p>
       </div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={refresh} aria-label="بارگذاری مجدد" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><RefreshCw className="h-5 w-5"/></button>
         <button type="button" disabled={exporting} onClick={()=>void exportData()} className="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-xs font-bold text-orange-700 disabled:opacity-50"><Download className="h-4 w-4"/>{exporting?'دریافت...':'خروجی CSV واقعی'}</button>
-        <button type="button" onClick={()=>{setEditing(null);setForm(emptyForm(kind));setError('');}} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-3 text-sm font-bold text-white hover:bg-[#CC5812]"><UserPlus className="h-4 w-4"/>افزودن مشتری</button>
+        <button type="button" onClick={()=>{setEditing(null);setForm(emptyForm(kind));setNewAccess(emptyCustomerAccess());setError('');}} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-3 text-sm font-bold text-white hover:bg-[#CC5812]"><UserPlus className="h-4 w-4"/>افزودن مشتری</button>
       </div>
     </div>
     <nav className="flex flex-wrap gap-2" aria-label="بخش‌های مدیریت مشتریان">
@@ -213,6 +249,8 @@ export const RealCustomersCrmModule: React.FC = () => {
               <td className="px-4 py-4"><div className="flex gap-2">
                 <button onClick={()=>void openDetail(c.id)} className="flex items-center gap-1 rounded-lg bg-orange-50 px-3 py-2 font-bold text-[#BF5719]"><Eye className="h-4 w-4"/>پرونده</button>
                 <button onClick={()=>edit(c)} className="rounded-lg border border-slate-200 px-3 py-2 text-slate-700">ویرایش</button>
+                 {canManageAccess && <button onClick={()=>setAccessCustomer(c)} className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 font-bold text-orange-700"><KeyRound className="h-4 w-4"/>{c.has_login?'مدیریت ورود':'ساخت پنل'}</button>}
+                 <button disabled={busy} onClick={()=>void approval(c)} className="rounded-lg border border-slate-200 px-3 py-2 text-slate-700 disabled:opacity-50">{c.approved_b2b?'انتقال به خرید تکی':'انتقال به خرید بالا'}</button>
               </div></td>
             </tr>)}
           </tbody>
@@ -223,7 +261,9 @@ export const RealCustomersCrmModule: React.FC = () => {
           <div className="mt-3 flex items-center gap-2 text-xs text-slate-500"><Phone className="h-4 w-4"/>{c.phone||'شماره ثبت نشده'}</div>
           <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-xs"><span>سفارش: {nf(c.order_count)}</span><b>{money(c.total_spent)}</b></div>
           <div className="mt-3 flex gap-2"><button onClick={()=>void openDetail(c.id)} className="flex-1 rounded-xl bg-[#FFF1E6] p-2.5 text-xs font-bold text-[#B45215]">مشاهده پرونده</button>
-            <button onClick={()=>edit(c)} className="rounded-xl border border-slate-200 px-4 text-xs">ویرایش</button></div>
+            <button onClick={()=>edit(c)} className="rounded-xl border border-slate-200 px-4 text-xs">ویرایش</button>
+             {canManageAccess && <button onClick={()=>setAccessCustomer(c)} className="rounded-xl border border-orange-200 px-3 text-xs font-bold text-orange-700">{c.has_login?'رمز':'ساخت پنل'}</button>}
+             <button disabled={busy} onClick={()=>void approval(c)} className="rounded-xl border border-slate-200 px-3 text-xs disabled:opacity-50">{c.approved_b2b?'خرید تکی':'خرید بالا'}</button></div>
         </div>)}</div>
         </>}
       <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
@@ -251,16 +291,34 @@ export const RealCustomersCrmModule: React.FC = () => {
             <button type="button" onClick={()=>fieldSet('kind','retail')} className={'rounded-xl px-4 py-3 text-xs '+(form.kind==='retail'?'bg-[#E56B1E] text-white':'border border-slate-200')}>خرید تکی</button>
             <button type="button" onClick={()=>fieldSet('kind','high_volume')} className={'rounded-xl px-4 py-3 text-xs '+(form.kind==='high_volume'?'bg-[#E56B1E] text-white':'border border-slate-200')}>خرید بالا</button>
           </div>
-          <p className="mt-2 text-xs leading-6 text-amber-700">ثبت مخاطب CRM به معنی ایجاد حساب ورود نیست؛ ورود به پنل تنها پس از ثبت‌نام و احراز هویت امکان‌پذیر است.</p>
+          <p className="mt-2 text-xs leading-6 text-slate-600">ثبت‌نام‌کنندگان سایت به‌صورت پیش‌فرض خرید تکی هستند. در ادامه می‌توان حساب ورود آن‌ها را مدیریت یا نوع پنل را تغییر داد.</p>
         </div>}
-        <label className="mt-4 block space-y-1.5"><span className="text-xs font-bold text-slate-600">یادداشت داخلی CRM</span>
+        {!editing && <CustomerNewAccessFields value={newAccess} onChange={setNewAccess}
+           customerName={form.name} canManage={canManageAccess} smsConfigured={smsConfigured}/>}
+         {editing && canManageAccess && <button type="button" className="mt-4 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-xs font-bold text-orange-700" onClick={()=>{setAccessCustomer(editing);setForm(null);setEditing(null);}}><KeyRound className="h-4 w-4"/>مدیریت نام کاربری و بازنشانی رمز عبور</button>}
+         <label className="mt-4 block space-y-1.5"><span className="text-xs font-bold text-slate-600">یادداشت داخلی CRM</span>
           <textarea className="min-h-24 w-full resize-y rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-[#E56B1E]" maxLength={4000} value={form.notes} onChange={e=>fieldSet('notes',e.target.value)}/></label>
         <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={()=>{setForm(null);setEditing(null);}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm">انصراف</button>
           <button disabled={busy} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-5 py-3 text-sm font-bold text-white disabled:opacity-60"><Save className="h-4 w-4"/>{busy?'در حال ثبت...':'ذخیره اطلاعات'}</button></div>
       </form>
     </div>}
 
-    {accessCustomer && <CustomerAccountAccessModal customer={accessCustomer} onClose={()=>setAccessCustomer(null)}
+    {issued && <div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3" role="dialog" aria-modal="true" aria-label="اطلاعات حساب ایجادشده">
+       <div className="max-h-[90dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
+         <h3 className="text-lg font-black text-emerald-700">حساب ورود مشتری با موفقیت ایجاد شد.</h3>
+         <p className="text-xs leading-6 text-slate-600">رمز موقت فقط در همین صفحه نمایش داده می‌شود و پس از بستن قابل بازیابی نیست.</p>
+         <div className="rounded-xl bg-slate-50 p-3 text-sm"><div>نام کاربری: <b dir="ltr" className="select-all">{issued.username}</b></div>
+           <div className="mt-2">رمز اولیه: <b dir="ltr" className="select-all">{issued.password}</b></div></div>
+         {issued.smsSent && <p className="text-xs text-emerald-700">درخواست SMS.ir پذیرفته شد؛ تحویل قطعی نیازمند گزارش اپراتور است.</p>}
+         {issued.smsWarning && <p className="text-xs text-amber-700">{issued.smsWarning}</p>}
+         <pre dir="rtl" className="whitespace-pre-wrap rounded-xl border border-slate-200 p-3 font-sans text-xs leading-7">{issued.preview}</pre>
+         <div className="flex flex-wrap justify-end gap-2">
+           <button type="button" onClick={()=>void navigator.clipboard.writeText(issued.preview).catch(()=>setError('کپی خودکار انجام نشد.'))} className="flex items-center gap-2 rounded-xl border border-orange-200 px-4 py-2.5 text-xs text-orange-700"><Copy className="h-4 w-4"/>کپی متن</button>
+           <button type="button" onClick={()=>setIssued(null)} className="rounded-xl bg-[#E56B1E] px-4 py-2.5 text-xs font-bold text-white">پایان</button>
+         </div>
+       </div>
+     </div>}
+     {accessCustomer && <CustomerAccountAccessModal customer={accessCustomer} onClose={()=>setAccessCustomer(null)}
       onSaved={()=>{setNotice('اطلاعات حساب ورود مشتری در Supabase Auth ذخیره شد.');refresh();void openDetail(accessCustomer.id);}}/>}
     {commercial && <RealCrmCommercialEditor customer={commercial} onClose={()=>setCommercial(null)} onSaved={()=>{const id=commercial.id;setCommercial(null);setNotice('شرایط تجاری واقعی مشتری ذخیره شد.');refresh();void openDetail(id);}}/>}
     {detailsLoading && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#1A2230]/50"><div className="rounded-2xl bg-white p-6 text-sm"><Loader2 className="ml-2 inline h-5 w-5 animate-spin"/>دریافت پرونده...</div></div>}
