@@ -5400,7 +5400,10 @@ app.post('/api/ai/consult', async (req, res) => {
   }
 });
 
-// Buffer cache for ultra-fast progressive TTS synthesis
+// A bounded RAM-only cache is allowed; customer speech and WAV must never
+// be written to or reloaded from the legacy disk cache. Existing user files
+// are left untouched; do not delete them automatically.
+const FORZA_CUSTOMER_AUDIO_RAM_ONLY=true;
 const ttsBufferCache = new Map<string, Buffer>();
 
 const FORZA_TTS_DISK_CACHE_DIR = process.env.FORZA_TTS_CACHE_DIR
@@ -5414,6 +5417,7 @@ function forzaTtsDiskCachePath(text: string, voice = 'Charon'): string {
 }
 
 async function readForzaTtsDiskCache(text: string, voice = 'Charon'): Promise<Buffer | null> {
+  if(FORZA_CUSTOMER_AUDIO_RAM_ONLY)return null;
   try {
     const filePath = forzaTtsDiskCachePath(text, voice);
     const stat = await fs.promises.stat(filePath);
@@ -5446,6 +5450,7 @@ async function pruneForzaTtsDiskCache(): Promise<void> {
 }
 
 async function writeForzaTtsDiskCache(text: string, audio: Buffer, voice = 'Charon'): Promise<void> {
+  if(FORZA_CUSTOMER_AUDIO_RAM_ONLY)return;
   if (!text || !audio?.length || classifyForzaAudio(audio, 'audio/wav') !== 'wav') return;
   try {
     await fs.promises.mkdir(FORZA_TTS_DISK_CACHE_DIR, { recursive: true });
