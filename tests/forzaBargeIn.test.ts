@@ -44,3 +44,23 @@ test('only recent actually played multi-word phrases can suppress loudspeaker ec
   assert.equal(shouldIgnoreForzaSpeakerEcho('نه، برای دستگاه بسته بندی میخوام',speaking,true),false);
   assert.equal(shouldIgnoreForzaSpeakerEcho('6203ZZ C3 SPA',speaking,true),false);
 });
+
+test('repeated colloquial Persian stop words cancel locally without a new model turn',()=>{
+  for(const command of [
+    'وایسا','وایسا وایسا','وایستا','وایستا، وایستا',
+    'صبر کن صبر کن','یه لحظه','یک لحظه','بس کن بس کن',
+    'توقف!','ساکت شو','وایسا صبر کن',
+  ]) {
+    assert.equal(forzaTurnIntent(command),'stop',command);
+    assert.equal(shouldIgnoreForzaSpeakerEcho(command,command,true),false,
+      'explicit stop must never be mistaken for an echo');
+  }
+  for(const correction of [
+    'صبر کن، منظورم تسمه بسته بندی بود',
+    'وایسا، نه منظورم 6203ZZ است',
+    'یه لحظه بگو SPA 1250 موجوده؟',
+    'وایسا توضیح بدم',
+  ]) {
+    assert.notEqual(forzaTurnIntent(correction),'stop',correction);
+  }
+});
