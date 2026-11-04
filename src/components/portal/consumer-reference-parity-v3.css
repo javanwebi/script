@@ -426,6 +426,39 @@
   .consumer-premium .consumer-invoices-summary {grid-template-columns:56px repeat(3,minmax(0,1fr));}
   .consumer-premium .consumer-invoice-illustration {width:56px;}
 }
+/* Loading states for the lazily loaded secondary panels; no layout jump on mobile. */
+.consumer-premium .consumer-panel-skeleton {
+  min-height: 138px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1px solid #ececf0;
+  border-radius: 22px;
+  background: linear-gradient(105deg,#fff 20%,#fff6f0 50%,#fff 80%);
+  color: #9a552c;
+  box-shadow: var(--cv3-shadow);
+  font-size: 12px;
+  font-weight: 800;
+}
+.consumer-premium .consumer-search-pending {
+  color: #93512b;
+  font-size: 11px;
+  padding-inline: 12px;
+}
+.consumer-premium .consumer-home-no-products {
+  grid-column: 1 / -1;
+  padding: 22px 12px;
+  border: 1px dashed #e6bd9f;
+  border-radius: 16px;
+  background: #fff9f5;
+  text-align: center;
+  color: #895b43;
+  font-size: 12px;
+}
+@media (max-width:767px) {
+  .consumer-premium .consumer-panel-skeleton {min-height: 128px;padding:14px;}
+}
 @media (prefers-reduced-motion: reduce) {
   .consumer-premium :is(.portal-mobile-nav .portal-nav-item,.consumer-quickbuy-card,.consumer-product-cta,
   .consumer-saved-reference-card,.consumer-overview-shipment,.consumer-forza-card) {transition:none!important;animation:none!important;transform:none!important;}

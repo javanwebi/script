@@ -101,20 +101,36 @@ export function PortalShell({
     user.fullName?.trim().split(/\s+/).slice(1).join(" ") ||
     user.fullName ||
     "حساب من";
-  // Preserve real table semantics on desktop, expose the same records as labelled cards on mobile.
+  // Make newly inserted tables responsive without rescanning all rows on
+  // every React render (search typing and order filters cause frequent renders).
   useEffect(() => {
-    ref.current?.querySelectorAll("table").forEach((table) => {
-      const labels = [...table.querySelectorAll("thead th")].map(
-        (th) => th.textContent || "",
-      );
-      table.querySelectorAll("tbody tr").forEach((row) =>
-        [...row.children].forEach((cell, index) => {
-          if (cell.tagName === "TD")
-            cell.setAttribute("data-label", labels[index] || "");
-        }),
-      );
-    });
-  });
+    const root = ref.current;
+    if (!root) return;
+    let frame: number | null = null;
+    const labelRows = () => {
+      frame = null;
+      root.querySelectorAll("table").forEach((table) => {
+        const headings = [...table.querySelectorAll("thead th")].map((th) => th.textContent || "");
+        table.querySelectorAll("tbody tr").forEach((row) => {
+          [...row.children].forEach((cell, index) => {
+            if (cell.tagName === "TD" && cell.getAttribute("data-label") !== (headings[index] || "")) {
+              cell.setAttribute("data-label", headings[index] || "");
+            }
+          });
+        });
+      });
+    };
+    const schedule = () => {
+      if (frame === null) frame = window.requestAnimationFrame(labelRows);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(root, { childList: true, subtree: true });
+    schedule();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, []);
   useEffect(() => {
     if (more) dialog.current?.showModal();
     else if (dialog.current?.open) dialog.current.close();
