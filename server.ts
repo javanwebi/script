@@ -3,7 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
-import {canStaff,catalogMutationPermission} from './server/db/staffPermissions';
+import {canStaff,catalogMutationPermission,assertStaffCommercialFields} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -412,7 +412,25 @@ app.use('/api/catalog', (req, res, next) => {
   if(req.method==='GET' || req.method==='HEAD')return next();
   void (async()=>{
     const identity=await getPortalIdentity(req);
-    const [section,action]=catalogMutationPermission(req.path);
+    let [section,action]=catalogMutationPermission(req.path);
+    if(identity.staff && req.path==='/overrides/family'){
+      const candidate=req.body?.family;
+      const code=String(candidate?.code||'').trim();
+      if(!code)return res.status(400).json({success:false,message:'کد خانواده نامعتبر است.'});
+      const current=(await readProducts()).find((product:any)=>product.code===code);
+      action=current?'edit':'create';
+      assertStaffCommercialFields(identity,current,candidate);
+    }
+    if(identity.staff && req.path==='/overrides/bulk'){
+      if(Array.isArray(req.body?.data?.deletedCodes) && req.body.data.deletedCodes.length &&
+         !canStaff(identity,'products','delete'))return res.status(403).json({success:false,message:'مجوز حذف کالا لازم است.'});
+      const families=req.body?.data?.families;
+      if(families && typeof families==='object'){
+        const current=new Map((await readProducts()).map((product:any)=>[product.code,product]));
+        for(const [code,family] of Object.entries(families))
+          assertStaffCommercialFields(identity,current.get(code),family);
+      }
+    }
     if(!canStaff(identity,section,action))return res.status(403).json({success:false,message:'اجازه انجام این عملیات کاتالوگ را ندارید.'});
     if(req.headers.origin && new URL(req.headers.origin).host!==req.headers.host)
       return res.status(403).json({success:false,message:'مبدأ درخواست معتبر نیست.'});
