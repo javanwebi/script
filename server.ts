@@ -5809,6 +5809,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
   if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
+    if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:textProvider});
     // Do not replace a provider's already-streamed partial answer with a
     // second provider's answer: the user would see one response then hear another.
     let providerSentText=false;
@@ -5875,6 +5876,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
   const apiKey = getGeminiKey();
   if (!apiKey) {
+    if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:'worker_complete_text'});
     let workerText = '';
     try {
       const workerMessages: Array<{ role: string; content: any }> = [
@@ -5935,6 +5937,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     return res.end();
   }
 
+  if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:'gemini'});
   const geminiAbort=new AbortController();
   const onGeminiDisconnect=()=>geminiAbort.abort(new Error('forza_client_gone'));
   res.once('close',onGeminiDisconnect);
