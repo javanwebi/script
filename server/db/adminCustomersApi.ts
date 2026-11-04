@@ -243,4 +243,33 @@ export function registerAdminCustomersApi(app: Express) {
       res.json({success:true});
     } catch (e) { respond(res,e); }
   });
+  // Preserve the existing ticket-reply capability, now backed by support_tickets.
+  app.get('/api/admin/crm/tickets', async (req,res) => {
+    try {
+      await guard(req,res);
+      const result=await database().query(
+        "select id,user_id,customer_name,phone,subject,status,messages,created_at,updated_at from public.support_tickets order by updated_at desc limit 100");
+      res.json({success:true,tickets:result.rows});
+    } catch(e) {respond(res,e);}
+  });
+
+  app.post('/api/admin/crm/tickets/:id/reply', async (req,res) => {
+    try {
+      const identity=await guard(req,res,'edit');
+      const id=text(req.params.id,120), message=text(req.body?.message,3000);
+      if(!id || !message)throw fail(400,'شناسه تیکت و متن پاسخ الزامی است.');
+      await transaction(async client=>{
+        const found=await client.query('select id,messages from public.support_tickets where id=$1 for update',[id]);
+        if(!found.rowCount)throw fail(404,'تیکت پیدا نشد.');
+        const old=Array.isArray(found.rows[0].messages)?found.rows[0].messages:[];
+        const reply={id:'crm-reply-'+uuid(),sender:'support',senderName:identity.user?.fullName||'پشتیبانی صنعت پیش',message,timestamp:new Date().toISOString()};
+        await client.query(
+          "update public.support_tickets set messages=$2::jsonb,status='answered',updated_at=now() where id=$1",
+          [id,JSON.stringify([...old,reply])]);
+        await audit(client,identity,'پاسخ به تیکت',id,'پاسخ ثبت‌شده در تیکت CRM');
+      });
+      res.json({success:true});
+    }catch(e){respond(res,e);}
+  });
+
 }
