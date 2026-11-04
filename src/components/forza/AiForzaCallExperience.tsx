@@ -152,6 +152,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
   const continuousVoiceRef=useRef<ForzaContinuousWav|null>(null);
+  const manualReplayAbortRef=useRef<AbortController|null>(null);
+  const isManualReplayPendingRef=useRef(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -239,7 +241,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       node.onaudioprocess=(event:AudioProcessingEvent)=>{
         if(micMutedRef.current || !greetingFinishedRef.current ||
            (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
-            !isAiSpeakingRef.current))return;
+            !isAiSpeakingRef.current && !isManualReplayPendingRef.current))return;
         try{localSttRecognizerRef.current?.acceptWaveform(event.inputBuffer);}
         catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
       };
@@ -259,12 +261,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const update=(value:string,isFinal:boolean)=>{
         if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
            (statusRef.current!=='listening'&&!isProcessingTurnRef.current &&
-            !isAiSpeakingRef.current))return;
+            !isAiSpeakingRef.current&&!isManualReplayPendingRef.current))return;
         const words=value.trim();
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        if(isProcessingTurnRef.current||isAiSpeakingRef.current){
+        if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           if(!vadRef.current.heardSpeech)return;
           if(likelySpeakerEcho(transcript)){
             console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
@@ -373,7 +375,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       lastCheck=timestamp;
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
-          !isAiSpeakingRef.current)){
+          !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
         vadRef.current.reset();
         setAudioLevel(0);
         return;
@@ -572,6 +574,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const stopAudio = useCallback(() => {
+    manualReplayAbortRef.current?.abort(new Error('forza_manual_replay_stopped'));
+    manualReplayAbortRef.current=null;
+    isManualReplayPendingRef.current=false;
     continuousVoiceRef.current?.cancel();
     continuousVoiceRef.current=null;
     try { window.speechSynthesis?.cancel(); } catch {}
@@ -595,7 +600,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted){
       // Manual replay has no LLM turn but must still be interruptible.
-      if(continuousVoiceRef.current){
+      if(continuousVoiceRef.current||isManualReplayPendingRef.current){
         stopAudio();
         setVoicePending(false);
         setVoiceStage('idle');
@@ -812,6 +817,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const playSpeechPhrase=useCallback(async(phrase:string):Promise<void>=>{
     continuousVoiceRef.current?.cancel();
+    const controller=new AbortController();
+    manualReplayAbortRef.current=controller;
+    isManualReplayPendingRef.current=true;
     const player=new ForzaContinuousWav(ensureCtx,()=>{
       isAiSpeakingRef.current=true;
       setVoicePending(false);
@@ -821,19 +829,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
-      await playPocketFullAnswer(phrase,player);
-      if(!callClosedRef.current)setVoiceOutputError(null);
+      await playPocketFullAnswer(phrase,player,controller.signal);
+      if(!callClosedRef.current&&!controller.signal.aborted)setVoiceOutputError(null);
     }catch(error:any){
-      if(!callClosedRef.current)setVoiceOutputError(
+      if(!callClosedRef.current&&!controller.signal.aborted)setVoiceOutputError(
         error?.message==='autoplay_permission_required'
           ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
           :'صدای FORZA از سرور Ubuntu دریافت نشد؛ متن پاسخ نمایش داده شده است.');
-      console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
+      if(!controller.signal.aborted)
+        console.warn('[FORZA Pocket Ubuntu] phrase failed',String(error?.message||'error').slice(0,90));
       throw error;
     }finally{
       player.cancel();
       if(continuousVoiceRef.current===player)continuousVoiceRef.current=null;
-      isAiSpeakingRef.current=false;
+      if(manualReplayAbortRef.current===controller){
+        manualReplayAbortRef.current=null;
+        isManualReplayPendingRef.current=false;
+        isAiSpeakingRef.current=false;
+      }
     }
   },[ensureCtx,isSpeakerMuted,playPocketFullAnswer,setStatus]);
 
@@ -843,6 +856,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }else{
       // Manual replay must remain interruptible, including while generating.
       heardSpeechEchoRef.current=text;
+      isManualReplayPendingRef.current=true;
       startListening(true);
     }
     setVoiceOutputError(null);
@@ -1475,7 +1489,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current);
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
-        if(isProcessingTurnRef.current||isAiSpeakingRef.current){
+        if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
           if(!vadRef.current.heardSpeech)return;
