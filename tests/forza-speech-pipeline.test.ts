@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extractPersianSpeechRecognition, forzaEndOfTurnPauseMs,
+  extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
@@ -49,4 +49,15 @@ test('Chrome MediaRecorder codec-specific data URLs are valid for Worker STT',()
   assert.equal(extractForzaAudioBase64('data:audio/wav;base64,'+base64),base64);
   assert.equal(extractForzaAudioBase64(base64),base64);
   assert.throws(()=>extractForzaAudioBase64('data:audio/webm;codecs=opus,'+base64),/Invalid encoded audio/);
+});
+
+
+test('continuous browser recognition does not replay final results from the previous customer turn',()=>{
+  const previous=[result('تسمه SPA 1250 لازم دارم',true)];
+  assert.equal(extractPersianSpeechSince(previous,1).text,'');
+  const corrected=[...previous,result('نه، بلبرینگ 6202ZZ با لقی C3',false)];
+  assert.equal(extractPersianSpeechSince(corrected,1).text,'نه، بلبرینگ 6202ZZ با لقی C3');
+  corrected[1]=result('نه، بلبرینگ 6203ZZ با لقی C3',true);
+  assert.equal(extractPersianSpeechSince(corrected,1).finalText,'نه، بلبرینگ 6203ZZ با لقی C3');
+  assert.equal(extractPersianSpeechSince([result('سؤال جدید',true)],2).text,'');
 });
