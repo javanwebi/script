@@ -9,7 +9,7 @@ import {sanitizeStaffPermissions} from './staffPermissions';
 const staffListeners = new Set<Response>();
 function notifyStaffChanged() {
  for (const listener of staffListeners) {
-  try { listener.write('event: staff-updated\\ndata: {}\\n\\n'.replaceAll('\\n','\n')); }
+  try { listener.write('event: staff-updated\ndata: {}\n\n'); }
   catch { staffListeners.delete(listener); }
  }
 }
@@ -51,7 +51,7 @@ export function registerAdminStaffApi(app:Express){
    const heartbeat=setInterval(()=>{
     try{res.write(': keep-alive\n\n');}catch{clearInterval(heartbeat);staffListeners.delete(res);}
    },25000);
-   req.on('close',()=>{clearInterval(heartbeat);staffListeners.delete(res);});
+   res.on('close',()=>{clearInterval(heartbeat);staffListeners.delete(res);});
   }catch(e){return respond(res,e);}
  });
  app.get('/api/admin/staff',async(req,res)=>{
