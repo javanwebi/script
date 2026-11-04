@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sanitizeStaffPermissions,canStaff,namespacePermission,catalogMutationPermission,assertStaffDocumentChange,assertStaffCommercialFields} from '../server/db/staffPermissions';
+import {sanitizeStaffPermissions,canStaff,namespacePermission,catalogMutationPermission,assertStaffDocumentChange,assertStaffCommercialFields,preserveStaffCommercialFields} from '../server/db/staffPermissions';
 
 test('unknown sections and actions are removed, view is required',()=>{
  const safe=sanitizeStaffPermissions({products:['edit','delete','view','view','super_admin'],settings:['view'],crm:['edit'],bulk_import:['view','import']});
@@ -40,4 +40,17 @@ test('catalog editor cannot edit commercial data without price permission',()=>{
  assert.throws(()=>assertStaffCommercialFields(identity,before,{...valid,variants:[{code:'sku',price:1}]}));
  assert.throws(()=>assertStaffCommercialFields(identity,before,{...valid,variants:[{code:'sku',stock:500}]}));
  assert.doesNotThrow(()=>assertStaffCommercialFields({staff:true,permissions:{products:['view','edit','prices']}},before,{...before,prices:{retail:1}}));
+});
+
+test('redacted commercial placeholders preserve original server values on metadata update',()=>{
+ const staff={staff:true,permissions:{products:['view','edit']}};
+ const original={code:'A1',name:'old',prices:{base:100,retail:120},variants:[{code:'S1',price:120,stock:4,name:'old'}]};
+ const redacted={code:'A1',name:'new',prices:{base:0,retail:0},variants:[{code:'S1',price:0,stock:0,name:'new'}]};
+ assert.doesNotThrow(()=>assertStaffCommercialFields(staff,original,redacted));
+ const result=preserveStaffCommercialFields(staff,original,redacted) as typeof original;
+ assert.equal(result.name,'new');
+ assert.equal(result.prices.retail,120);
+ assert.equal(result.variants[0].name,'new');
+ assert.equal(result.variants[0].price,120);
+ assert.equal(result.variants[0].stock,4);
 });
