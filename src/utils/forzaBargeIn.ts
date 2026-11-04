@@ -36,7 +36,11 @@ export function shouldIgnoreForzaSpeakerEcho(
   recognized:string,actuallyPlayingText:string,recentPlayback:boolean,
 ):boolean {
   if(!recentPlayback)return false;
-  if(normalize(recognized).split(' ').filter(Boolean).length<3)return false;
+  // One- or two-word Chrome interim hypotheses can be the beginning of
+  // FORZA's own loudspeaker output. Cancelling immediately on "برای" would
+  // defeat the 3-word full-echo check before it can ever run.
+  // Explicit corrections, stop and continuation commands take priority.
+  if(forzaTurnIntent(recognized)!=='question')return false;
   return isForzaProbableEcho(recognized,actuallyPlayingText);
 }
 
