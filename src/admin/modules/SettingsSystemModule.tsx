@@ -20,7 +20,6 @@ import {
 import {
   adminService,
   SystemSettings,
-  AdminUser,
   AdminAuditLog,
   SmsLog,
 } from '../../services/adminService';
@@ -30,7 +29,6 @@ export const SettingsSystemModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'roles' | 'gateways_sms' | 'audit' | 'backup'>('roles');
 
   const [settings, setSettings] = useState<SystemSettings>(() => adminService.getSettings());
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => adminService.getAdminUsers());
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>(() => adminService.getAuditLogs());
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>(() => adminService.getSmsLogs());
 
@@ -41,7 +39,6 @@ export const SettingsSystemModule: React.FC = () => {
 
   const refreshData = () => {
     setSettings(adminService.getSettings());
-    setAdminUsers(adminService.getAdminUsers());
     setAuditLogs(adminService.getAuditLogs());
     setSmsLogs(adminService.getSmsLogs());
   };
@@ -226,28 +223,9 @@ export const SettingsSystemModule: React.FC = () => {
             از گزینه «کاربران و دسترسی‌ها» در منوی اصلی پنل مدیریت استفاده کنید.
             رمز عبور کاربران در Supabase Auth نگهداری می‌شود و مجوزهای واقعی در سرور بررسی می‌شوند.
           </div>
-          {/* The operational staff registry is served from its dedicated owner-only route. */}
-                    {/* Admin Users List */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-sm text-[#55565A]">کاربران مجاز به ورود به پنل مدیریت</h3>
-            </div>
-
-            {!adminUsers.length&&<p className="rounded-xl border border-dashed border-[#DDDEE2] px-4 py-6 text-sm text-[#77787C]">کاربران و وضعیت جاری را در بخش «کاربران و دسترسی‌ها» مدیریت کنید.</p>}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {adminUsers.map(user => (
-                <div key={user.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-[#55565A]">{user.name}</span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white border border-slate-200">
-                      {user.role}
-                    </span>
-                  </div>
-                  <div className="text-slate-500 font-mono">نام کاربری: {user.username}</div>
-                  <div className="text-[10px] text-slate-400">آخرین ورود: {user.lastLogin || 'امروز'}</div>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[#55565A] font-bold">فهرست زنده کارکنان و مجوزهای هر بخش در صفحه مدیریت کاربران قرار دارد.</p>
+            <a href="/admin/staff-users" className="rounded-xl bg-[#E56B1E] px-4 py-2 text-sm font-bold text-white">کاربران و دسترسی‌ها</a>
           </div>
         </div>
       )}
