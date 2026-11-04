@@ -13,6 +13,7 @@ export class ForzaCallPlainText {
   private urlDepth = 0;
   private lineStart = true;
   private pendingNumericStar = false;
+  private linePrefix = '';
 
   private flushWord(): void {
     if (!this.word) return;
@@ -53,6 +54,29 @@ export class ForzaCallPlainText {
       else if (c === ')' && --this.urlDepth <= 0) this.state = 'text';
       return;
     }
+    // Buffer possible Markdown line prefixes until the following character
+    // proves whether they are formatting or part of a technical number.
+    if (this.lineStart) {
+      if (this.linePrefix) {
+        const prefix=this.linePrefix;
+        if ((/^#+$/u.test(prefix) && c === '#') ||
+            (/^[0-9۰-۹]{1,2}$/u.test(prefix) && /[0-9۰-۹]/u.test(c))) {
+          this.linePrefix += c; return;
+        }
+        if (/^[0-9۰-۹]{1,2}$/u.test(prefix) && (c==='.' || c===')')) {
+          this.linePrefix += c; return;
+        }
+        if (/\s/u.test(c) &&
+            (/^#+$/u.test(prefix) || /^[•-]$/u.test(prefix) ||
+             /^[0-9۰-۹]{1,2}[.)]$/u.test(prefix))) {
+          this.linePrefix=''; this.lineStart=false; return;
+        }
+        this.append(prefix);
+        this.linePrefix=''; this.lineStart=false;
+      } else if (c==='#' || c==='•' || c==='-' || /[0-9۰-۹]/u.test(c)) {
+        this.linePrefix=c; return;
+      }
+    }
     if (c === '[') { this.state = 'label'; return; }
     // Formatting-only marks are never emitted, including across SSE chunks.
     if (c === '*') {
@@ -61,8 +85,7 @@ export class ForzaCallPlainText {
     }
     if (c.charCodeAt(0) === 96 || c === '~') return;
     if (c === '!' && next === '[') return;
-    if ((c === '#' || c === '•' || c === '-') && this.lineStart &&
-        (next === ' ' || next === '\t')) return;
+    if ((c === '#' || c === '•') && this.lineStart) return;
     if (c === '|' && (next === '|' || next === ' ')) { this.append(' '); return; }
     if (c === '\r' || c === '\n') { this.append(' '); this.lineStart = true; return; }
     if (!/\s/u.test(c)) this.lineStart = false;
@@ -83,6 +106,8 @@ export class ForzaCallPlainText {
   complete(fullText: string): string {
     this.push(fullText);
     if (this.state === 'label') this.append(this.label);
+    if (this.linePrefix) this.append(this.linePrefix);
+    this.linePrefix='';
     this.state = 'text';
     this.label = '';
     this.flushWord();
@@ -103,6 +128,6 @@ function spokenNumber(value: string): string {
 }
 /** Spoken only. Do not alter the display or product/engineering codes. */
 export function forzaSpokenPlainText(text: string): string {
-  return text.replace(/([0-9۰-۹]{1,2})\s*[×xX]\s*([0-9۰-۹]{1,2})/gu,
+  return text.replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
     (_whole, a: string, b: string) => spokenNumber(a) + ' در ' + spokenNumber(b));
 }
