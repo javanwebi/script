@@ -62,6 +62,8 @@ dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env.forza-voice'), quiet: true });
 // Server-side SMS credentials; ignored by Git and never sent to the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
+// Server-only staff administration key. Never include it in Vite assets or the browser.
+dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key
