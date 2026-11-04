@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
+import { CustomerAccountAccessModal } from './CustomerAccountAccessModal';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
@@ -10,7 +11,7 @@ import {
 
 type Customer = {
   id: string; source: 'crm' | 'profile'; crm_id: string | null; user_id: string | null;
-  name: string; company: string | null; phone: string | null; email: string | null;
+  name: string; company: string | null; phone: string | null; username?:string|null; email: string | null;
   city: string | null; province: string | null; notes: string | null;
   approved_b2b: boolean; has_login: boolean; approval_status: string;
   grade_code: string | null; assigned_price_list_id: string | null;
@@ -70,6 +71,14 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [busy,setBusy] = useState(false);
   const [exporting,setExporting] = useState(false);
   const [commercial,setCommercial] = useState<Customer|null>(null);
+  const [accessCustomer,setAccessCustomer] = useState<Customer|null>(null);
+  const [canManageAccess,setCanManageAccess] = useState(false);
+  useEffect(()=>{
+    let live=true;
+    void fetch('/api/admin/crm/credentials/config',{credentials:'same-origin',cache:'no-store'})
+      .then(r=>{if(live)setCanManageAccess(r.ok);}).catch(()=>{if(live)setCanManageAccess(false);});
+    return ()=>{live=false;};
+  },[]);
 
   useEffect(()=>{
     const controller = new AbortController();
@@ -251,6 +260,8 @@ export const RealCustomersCrmModule: React.FC = () => {
       </form>
     </div>}
 
+    {accessCustomer && <CustomerAccountAccessModal customer={accessCustomer} onClose={()=>setAccessCustomer(null)}
+      onSaved={()=>{setNotice('اطلاعات حساب ورود مشتری در Supabase Auth ذخیره شد.');refresh();void openDetail(accessCustomer.id);}}/>}
     {commercial && <RealCrmCommercialEditor customer={commercial} onClose={()=>setCommercial(null)} onSaved={()=>{const id=commercial.id;setCommercial(null);setNotice('شرایط تجاری واقعی مشتری ذخیره شد.');refresh();void openDetail(id);}}/>}
     {detailsLoading && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#1A2230]/50"><div className="rounded-2xl bg-white p-6 text-sm"><Loader2 className="ml-2 inline h-5 w-5 animate-spin"/>دریافت پرونده...</div></div>}
     {detail && <div className="fixed inset-0 z-[90] bg-[#1A2230]/60" role="dialog" aria-modal="true">
@@ -283,6 +294,10 @@ export const RealCustomersCrmModule: React.FC = () => {
                 {detail.customer.approved_b2b?<ShieldAlert className="h-4 w-4"/>:<ShieldCheck className="h-4 w-4"/>}
                 {detail.customer.approved_b2b?'تغییر به خرید تکی':'تأیید خرید بالا'}
               </button>
+              {canManageAccess && <button onClick={()=>setAccessCustomer(detail.customer)}
+                className="flex items-center gap-2 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-xs font-bold text-[#A64B14]">
+                {detail.customer.has_login?'مدیریت نام کاربری و بازنشانی رمز':'ساخت نام کاربری، رمز و فعال‌سازی پنل'}
+              </button>}
               {detail.customer.approved_b2b && <button onClick={()=>setCommercial(detail.customer)} className="rounded-xl border border-orange-200 bg-white px-4 py-3 text-xs font-bold text-orange-700">تنظیم گرید، قیمت‌نامه و اعتبار</button>}
             </div>
           </>}
