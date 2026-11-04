@@ -245,6 +245,73 @@ export function registerAdminCustomersApi(app: Express) {
       res.json({success:true});
     } catch (e) { respond(res,e); }
   });
+
+  // Only commercial managers can assign verified grades, price lists or credit limits.
+  app.get('/api/admin/crm/commercial-options', async (req,res) => {
+    try {
+      const identity=await guard(req,res);
+      if(!identity.admin&&!canStaff(identity,'customer_grading','view'))throw fail(403,'مجوز مشاهده گرید و قیمت‌نامه لازم است.');
+      const [grades,priceLists]=await Promise.all([
+        database().query("select grade_code,title,discount_percent,credit_limit from public.customer_grade_configs order by grade_code"),
+        database().query("select id,name,currency from public.price_lists where is_active=true order by name")
+      ]);
+      res.json({success:true,grades:grades.rows,priceLists:priceLists.rows});
+    }catch(e){respond(res,e);}
+  });
+
+  app.patch('/api/admin/crm/customers/:key/commercial', async (req,res) => {
+    try{
+      const identity=await guard(req,res,'edit');
+      if(!identity.admin&&!canStaff(identity,'customer_grading','edit'))
+        throw fail(403,'تنظیم گرید، قیمت‌نامه و اعتبار نیاز به مجوز مدیریت مشتریان عمده دارد.');
+      const key=customerKey(req.params.key);
+      const grade=text(req.body?.grade_code,60)||null;
+      const priceList=text(req.body?.assigned_price_list_id,100)||null;
+      const creditLimit=Number(req.body?.credit_limit);
+      if(typeof req.body?.credit_limit!=='number'||!Number.isSafeInteger(creditLimit)||creditLimit<0||creditLimit>1e15)
+        throw fail(400,'سقف اعتبار باید عدد صحیح غیرمنفی باشد.');
+      await transaction(async client=>{
+        if(grade && !(await client.query('select 1 from public.customer_grade_configs where grade_code=$1',[grade])).rowCount)
+          throw fail(400,'گرید انتخاب‌شده در دیتابیس وجود ندارد.');
+        if(priceList && !(await client.query('select 1 from public.price_lists where id=$1 and is_active=true',[priceList])).rowCount)
+          throw fail(400,'قیمت‌نامه انتخاب‌شده فعال نیست.');
+        if(key.source==='crm'){
+          const row=await client.query(
+            'select id,auth_user_id,approved_b2b,used_credit from public.crm_customers where id=$1 for update',[key.id]);
+          if(!row.rowCount)throw fail(404,'مشتری یافت نشد.');
+          let current=row.rows[0];
+          if(current.auth_user_id){
+            const profile=await client.query(
+              "select id,approved_b2b,credit_used from public.user_profiles where id=$1 and role::text not in ('super_admin','warehouse_operator','sales_manager') for update",
+              [current.auth_user_id]);
+            if(!profile.rowCount)throw fail(409,'پروفایل معتبر متصل به این مشتری پیدا نشد.');
+            current={...current,approved_b2b:profile.rows[0].approved_b2b,used_credit:profile.rows[0].credit_used};
+          }
+          if(!current.approved_b2b)throw fail(409,'تخصیص شرایط عمده فقط برای مشتری تأییدشده مجاز است.');
+          if(creditLimit<Number(current.used_credit||0))throw fail(409,'سقف اعتبار نمی‌تواند کمتر از اعتبار مصرف‌شده باشد.');
+          await client.query(
+            'update public.crm_customers set grade_code=$2,assigned_price_list_id=$3,credit_limit=$4,updated_at=now() where id=$1',
+            [key.id,grade,priceList,creditLimit]);
+          if(current.auth_user_id)await client.query(
+            'update public.user_profiles set grade_code=$2,assigned_price_list_id=$3,credit_limit=$4,updated_at=now() where id=$1',
+            [current.auth_user_id,grade,priceList,creditLimit]);
+        }else{
+          const row=await client.query(
+            "select id,approved_b2b,credit_used from public.user_profiles where id=$1 and role::text not in ('super_admin','warehouse_operator','sales_manager') for update",
+            [key.id]);
+          if(!row.rowCount)throw fail(404,'مشتری پیدا نشد.');
+          if(!row.rows[0].approved_b2b)throw fail(409,'برای تخصیص شرایط عمده ابتدا مشتری را تأیید کنید.');
+          if(creditLimit<Number(row.rows[0].credit_used||0))throw fail(409,'سقف اعتبار نمی‌تواند کمتر از اعتبار مصرف‌شده باشد.');
+          await client.query(
+            'update public.user_profiles set grade_code=$2,assigned_price_list_id=$3,credit_limit=$4,updated_at=now() where id=$1',
+            [key.id,grade,priceList,creditLimit]);
+        }
+        await audit(client,identity,'تغییر شرایط تجاری مشتری',key.id,'گرید: '+(grade||'ندارد')+'؛ قیمت‌نامه: '+(priceList||'ندارد')+'؛ سقف اعتبار: '+creditLimit);
+      });
+      res.json({success:true});
+    }catch(e){respond(res,e);}
+  });
+
   // Preserve the existing ticket-reply capability, now backed by support_tickets.
   app.get('/api/admin/crm/tickets', async (req,res) => {
     try {
