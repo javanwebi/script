@@ -23,7 +23,7 @@ import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
-import { forzaTurnIntent } from '../../utils/forzaBargeIn';
+import { forzaTurnIntent, isForzaProbableEcho } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -182,6 +182,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const webSpeechFailedRef = useRef<boolean>(false);
   const recognitionResultCountRef=useRef(0);
   const recognitionConsumedCountRef=useRef(0);
+  // Compare only to speech entering the WebAudio player, not the LLM's
+  // unspoken answer. Acoustic echo suppression is NOT diarization.
+  const heardSpeechEchoRef=useRef('');
+  const lastForzaPlaybackAtRef=useRef(0);
+  const likelySpeakerEcho=(words:string)=>{
+    const recentPlayback=isAiSpeakingRef.current ||
+      (lastForzaPlaybackAtRef.current>0 && Date.now()-lastForzaPlaybackAtRef.current<1500);
+    // Preserve short reactions, stop commands and corrections.
+    return recentPlayback && words.trim().split(/\s+/u).length>=3 &&
+      isForzaProbableEcho(words,heardSpeechEchoRef.current);
+  };
   const serverSttConfiguredRef=useRef<boolean|null>(null);
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
@@ -254,6 +265,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!transcript)return;
         if(isProcessingTurnRef.current){
           if(!vadRef.current.heardSpeech)return;
+          if(likelySpeakerEcho(transcript)){
+            console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
+            return;
+          }
           interruptRequestRef.current();
         }
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
@@ -924,6 +939,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // and restarting the mic (which drops first syllables).
       recognitionConsumedCountRef.current=recognitionResultCountRef.current;
       localSttFinalRef.current='';
+      heardSpeechEchoRef.current='';
+      lastForzaPlaybackAtRef.current=0;
       isProcessingTurnRef.current = true;
       setVoicePending(false);
       setVoiceStage('text');
@@ -1068,6 +1085,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ()=>{
             if(activeTurnRef.current?.generation!==generation)return;
             isAiSpeakingRef.current=true;
+            lastForzaPlaybackAtRef.current=Date.now();
             setVoicePending(false);
             setVoiceStage('playing');
             setStatus('speaking');
@@ -1132,6 +1150,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' wavBytes='+info.wavBytes+' wavDurationMs='+info.durationMs);
           },
           onPhraseProgress:(phrase,progress)=>{
+            if(progress.phase==='started'){
+              heardSpeechEchoRef.current=phrase;
+              lastForzaPlaybackAtRef.current=Date.now();
+            }else if(progress.phase==='finished'){
+              lastForzaPlaybackAtRef.current=Date.now();
+            }
             if(progress.phase==='interrupted' && progress.playedMs>0 &&
                progress.playedMs<progress.durationMs && !speakerMutedRef.current){
               interruptedPhrase={text:phrase,playedMs:progress.playedMs,
@@ -1299,6 +1323,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
+              heardSpeechEchoRef.current=reply;
               await playPocketFullAnswer(forzaSpokenPlainText(reply),continuousPlayer,pocketAbort.signal);
               recordHeard(reply);
             }
@@ -1440,6 +1465,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
           if(!vadRef.current.heardSpeech)return;
+          if(likelySpeakerEcho(currentSpeech)){
+            console.info('[FORZA_STT] source=browser echo_candidate_ignored=1');
+            return;
+          }
           interruptRequestRef.current();
         }
         if (currentSpeech) {
