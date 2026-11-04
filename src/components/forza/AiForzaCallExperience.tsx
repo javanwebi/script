@@ -161,6 +161,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const historyRef = useRef<Turn[]>([]);
   const activeTurnRef = useRef<{generation:number; abort:AbortController; markInterrupted?:()=>void}|null>(null);
   const generationRef = useRef(0);
+  // Not an authentication credential; a per-page correlation label used for
+  // fair rate limits and debugging. No speech, audio or identity is stored.
+  const callIdRef=useRef(Math.random().toString(36).slice(2,12));
   const interruptRequestRef = useRef<() => void>(()=>{});
   const isAiSpeakingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
@@ -1098,7 +1101,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // phrases in bounded lookahead on the same AudioContext clock.
         // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
-          synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,String(generation)),
+          synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
+            'call-'+callIdRef.current+'-turn-'+generation),
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
@@ -1184,8 +1188,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 history:previousHistory,
                 includeAudio:false,
                 mode:'forza',
-                userTurnId:'turn-'+generation,
-                responseId:'resp-'+generation,
+                userTurnId:'call-'+callIdRef.current+'-turn-'+generation,
+                responseId:'call-'+callIdRef.current+'-response-'+generation,
               }),
               signal:AbortSignal.any([streamController.signal,pocketAbort.signal]),
             });
@@ -1283,7 +1287,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               setVoiceOutputError(
               error?.message==='autoplay_permission_required'
                 ?'برای پخش صوت یک‌بار صفحه را لمس کنید.'
-                :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
+                :error?.message==='pocket_http_429'
+                  ?'ظرفیت موقت سرویس صوتی تکمیل است. کمی بعد دوباره تلاش کنید؛ متن پاسخ حفظ شده است.'
+                  :'تولید یا پخش صدای کامل FORZA انجام نشد؛ متن پاسخ همچنان نمایش داده شده است.');
           }
         }
       } catch (err: any) {
