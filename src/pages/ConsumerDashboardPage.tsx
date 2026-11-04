@@ -6,7 +6,7 @@ import { ParcelArt, InvoiceArt, LocationArt } from "../components/portal/Consume
 import { PortalClub } from "../components/portal/PortalClub";
 import forzaBrandImage from "../assets/logo-forza.png";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingBag,
@@ -39,7 +39,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { getManagedCatalogProducts, subscribeCatalogChanges } from "../data/mockGenerator";
+import { getManagedCatalogProducts, getProductByCode, subscribeCatalogChanges } from "../data/mockGenerator";
+import { searchConsumerProducts, resolveCurrentRetailReorder } from "../utils/consumerCatalogView";
 
 import { toPersianDigits } from "../utils/formatters";
 import { ProductImage } from "../components/product/ProductImage";
@@ -90,6 +91,9 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const [portalTick, setPortalTick] = useState(0);
   const [catalogTick, setCatalogTick] = useState(0);
+  // Catalog normalisation is O(families + SKUs). Do it once per catalog revision.
+  const catalog = useMemo(() => getManagedCatalogProducts().filter((p) => p.active !== false), [catalogTick]);
+  const suggestedProducts = useMemo(() => catalog.slice(0, 2), [catalog]);
   useEffect(() => subscribeCatalogChanges(() => setCatalogTick((tick) => tick + 1)), []);
   useEffect(() => {
     const onUpdate = () => setPortalTick((t) => t + 1);
@@ -145,7 +149,7 @@ export const ConsumerDashboardPage: React.FC = () => {
     }
   }, [enabledMenus, activeTab]);
 
-  const orders: CustomerOrderItem[] = customerOrders
+  const orders: CustomerOrderItem[] = useMemo(() => customerOrders
     .filter((o) => o.customerId === user?.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .map((o) => ({
@@ -168,16 +172,20 @@ export const ConsumerDashboardPage: React.FC = () => {
         unit: item.unit,
         unitPrice: item.unitPrice,
       })),
-    }));
+    })), [customerOrders, user?.id]);
   const [orderFilter, setOrderFilter] = useState<"all" | "processing" | "shipped" | "delivered">("all");
   const [receiptFilter, setReceiptFilter] = useState<"all" | "paid" | "pending">("all");
   const orderImageByCode = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of getManagedCatalogProducts()) {
-      if (p.code && p.images?.[0]) map.set(p.code, p.images[0]);
-    }
-    return map;
-  }, [catalogTick]);
+    const codes = new Set(orders.map((order) => order.items[0]?.code).filter((code): code is string => Boolean(code)));
+    const images = new Map<string, string>();
+    codes.forEach((code) => {
+      const product = getProductByCode(code);
+      const variant = product?.variants?.find((entry) => entry.code.toLowerCase() === code.toLowerCase());
+      const image = variant?.images?.[0] || product?.images?.[0];
+      if (image) images.set(code, image);
+    });
+    return images;
+  }, [catalogTick, orders]);
   const receiptDialogRef = useRef<HTMLDivElement>(null);
   const [selectedReceiptOrder, setSelectedReceiptOrder] =
     useState<CustomerOrderItem | null>(null);
@@ -185,10 +193,13 @@ export const ConsumerDashboardPage: React.FC = () => {
     if (selectedReceiptOrder) receiptDialogRef.current?.focus();
   }, [selectedReceiptOrder]);
   const [quickSkuQuery, setQuickSkuQuery] = useState("");
+  const deferredQuickSkuQuery = useDeferredValue(quickSkuQuery);
   const [visibleProductCount, setVisibleProductCount] = useState(6);
   const [selectedCategorySlug, setSelectedCategorySlug] =
     useState<string>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimeout.current) clearTimeout(toastTimeout.current); }, []);
   useEffect(() => { setVisibleProductCount(6); }, [quickSkuQuery, selectedCategorySlug]);
 
   const [addresses, setAddresses] = useState(() =>
@@ -216,42 +227,26 @@ export const ConsumerDashboardPage: React.FC = () => {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
+    if (toastTimeout.current) clearTimeout(toastTimeout.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+    toastTimeout.current = setTimeout(() => { setToast(null); toastTimeout.current = null; }, 3500);
   };
 
-  // Expose only category names and slugs from active, adopted catalog rows.
   const availableCategories = useMemo(() => {
     const categories = new Map<string, string>();
-    for (const p of getManagedCatalogProducts()) {
-      if (p.active !== false && p.categorySlug && p.categoryName) {
-        categories.set(p.categorySlug, p.categoryName);
-      }
+    for (const product of catalog) {
+      if (product.categorySlug && product.categoryName)
+        categories.set(product.categorySlug, product.categoryName);
     }
     return [...categories].map(([slug, name]) => ({ slug, name }));
-  }, [catalogTick]);
-  // Catalog products with category filter & search
-  const catalogProducts = useMemo(() => {
-    const all = getManagedCatalogProducts().filter((p) => p.active !== false);
-    const byCat =
-      selectedCategorySlug === "all"
-        ? all
-        : all.filter((p) => p.categorySlug === selectedCategorySlug);
-    const q = quickSkuQuery.trim().toLowerCase();
-    const filtered = q
-      ? byCat.filter(
-          (p) =>
-            p.code.toLowerCase().includes(q) ||
-            p.name.toLowerCase().includes(q) ||
-            (p.variants || []).some(
-              (v) =>
-                v.code.toLowerCase().includes(q) ||
-                v.name.toLowerCase().includes(q),
-            ),
-        )
-      : byCat;
-    return filtered.slice(0, 24);
-  }, [quickSkuQuery, selectedCategorySlug, catalogTick]);
+  }, [catalog]);
+
+  // Search the entire real catalog, but never search hidden tabs or render all results.
+  const catalogProducts = useMemo(() => (
+    activeTab === "quick_buy"
+      ? searchConsumerProducts(catalog, deferredQuickSkuQuery, selectedCategorySlug)
+      : []
+  ), [catalog, deferredQuickSkuQuery, selectedCategorySlug, activeTab]);
 
   const handleQuickAddProduct = (product: any) => {
     if (
@@ -264,34 +259,18 @@ export const ConsumerDashboardPage: React.FC = () => {
   };
 
   const handleReorderItems = (order: CustomerOrderItem) => {
-    if (!order || !resolvedConfig.permissions.allowQuickReorder) return;
-    const catalog = getManagedCatalogProducts();
-    order.items.forEach((item) => {
-      const found = catalog.find(
-        (p) =>
-          p.code === item.code || p.variants?.some((v) => v.code === item.code),
-      );
-      if (found) {
-        addToCart(
-          {
-            ...found,
-            code: item.code,
-            name: item.name,
-            prices: {
-              base: item.unitPrice,
-              retail: item.unitPrice,
-              wholesale: item.unitPrice,
-              dealer: item.unitPrice,
-            },
-            inquiryOnly: false,
-          },
-          item.quantity,
-        );
-      }
-    });
-    showToast(
-      `اقلام سفارش ${order.orderNumber} مجدداً به سبد خرید شما افزوده شد.`,
-    );
+    if (!resolvedConfig.permissions.allowQuickReorder) return;
+    let added = 0;
+    for (const item of order.items) {
+      const current = resolveCurrentRetailReorder(item.code, item.quantity, getProductByCode);
+      if (!current) continue;
+      addToCart(current.product, current.quantity);
+      added += 1;
+    }
+    const missing = order.items.length - added;
+    showToast(added
+      ? `${toPersianDigits(added)} قلم با قیمت فعلی کاتالوگ به سبد افزوده شد${missing ? `؛ ${toPersianDigits(missing)} قلم نیاز به انتخاب یا استعلام مجدد دارد.` : "."}`
+      : "کدهای این سفارش اکنون قابل خرید مستقیم نیستند؛ لطفاً کالاها را دوباره از کاتالوگ انتخاب کنید.");
   };
 
   const handleDownloadMyPriceListExcel = () => {
@@ -366,18 +345,18 @@ export const ConsumerDashboardPage: React.FC = () => {
     })));
   }, [user?.addresses]);
 
-  const totalSpent = orders.filter((o) => o.paymentStatus === "paid")
-    .reduce((acc, o) => acc + o.totalAmount, 0);
+  const totalSpent = useMemo(() => orders.filter((o) => o.paymentStatus === "paid")
+    .reduce((acc, o) => acc + o.totalAmount, 0), [orders]);
   const activeOrder = orders.find((o) => o.status !== "cancelled" && o.status !== "delivered") || orders.find((o) => o.status === "delivered");
   const filteredOrders = orders.filter((o) => orderFilter === "all" || (orderFilter === "processing" ? o.status === "registered" || o.status === "processing" : o.status === orderFilter));
   const filteredReceipts = orders.filter((o) => receiptFilter === "all" || (receiptFilter === "paid" ? o.paymentStatus === "paid" : o.paymentStatus !== "paid"));
-  const paidCount = orders.filter((o) => o.paymentStatus === "paid").length;
+  const paidCount = useMemo(() => orders.filter((o) => o.paymentStatus === "paid").length, [orders]);
 
   return (
     <div dir="rtl">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-5 left-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-center gap-2.5 text-xs font-bold">
+        <div role="status" aria-live="polite" className="fixed bottom-5 left-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-center gap-2.5 text-xs font-bold">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toast}</span>
         </div>
@@ -619,7 +598,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
 
                   <div className="consumer-home-product-grid">
-                    {catalogProducts.slice(0, 2).map((prod) => {
+                    {suggestedProducts.map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
                         (firstVar &&
@@ -854,7 +833,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               TAB 3: QUICK ORDER BY SKU CODE & CATEGORY
              =============================================================== */}
           {activeTab === "quick_buy" && (
-            <section className="consumer-quickbuy-panel">
+            <section className="consumer-quickbuy-panel" aria-busy={quickSkuQuery !== deferredQuickSkuQuery}>
               <div className="consumer-quickbuy-search">
                 <div>
                   <span className="consumer-eyebrow">خرید با کد فنی</span>
@@ -881,7 +860,7 @@ export const ConsumerDashboardPage: React.FC = () => {
               </div>
               <div className="consumer-section-head">
                 <div><span>کاتالوگ صنعت پیش</span><h2>محصولات و کدهای فنی</h2></div>
-                <small>{toPersianDigits(catalogProducts.length)} محصول یافت شد</small>
+                <small aria-live="polite">{toPersianDigits(catalogProducts.length)} محصول یافت شد</small>
               </div>
               {catalogProducts.length ? (
                 <div className="consumer-quickbuy-grid">
