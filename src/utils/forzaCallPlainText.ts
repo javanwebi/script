@@ -21,12 +21,12 @@ export class ForzaCallPlainText {
   }
   private append(value: string): void {
     if (!value) return;
-    if (/\s/u.test(value)) {
-      this.flushWord();
-      if (this.output && !this.output.endsWith(' ')) this.output += ' ';
-      return;
+    for (const ch of value) {
+      if (/\s/u.test(ch)) {
+        this.flushWord();
+        if (this.output && !this.output.endsWith(' ')) this.output += ' ';
+      } else this.word += ch;
     }
-    this.word += value;
   }
   private accept(c: string, next: string): void {
     if (this.state === 'label') {
