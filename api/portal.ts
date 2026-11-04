@@ -1,5 +1,7 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
+import {canStaff,namespacePermission} from "../server/db/staffPermissions";
+import {domainFor} from "../server/db/namespaces";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal,readDocument} from "../server/db/repository";
 import crypto from "node:crypto";
@@ -199,7 +201,7 @@ async function session(
   req: IncomingMessage,
   db: Database,
 ): Promise<{ admin: boolean; user?: Row }> {
-  if(databaseEnabled())return supabaseIdentity(req,db);
+  if(databaseEnabled())return supabaseIdentity(req);
   const cookie = (req.headers.cookie || "")
     .split(";")
     .map((s) => s.trim())
@@ -474,6 +476,21 @@ export default async function handler(
     }
     if (databaseEnabled() && adoptedSchema() && req.method === "GET") {
       const auth = await supabaseIdentity(req);
+      // Staff receive only the admin modules explicitly granted by the owner.
+      if(auth.staff){
+        const wanted=keys.filter(key=>namespacePermission(auth,domainFor(key)||'',false,key));
+        const [revisionRow,documents]=await Promise.all([
+          postgresDatabase().query("select revision from app_private.portal_version where singleton=true"),
+          Promise.all(wanted.map(async key=>[key,await readDocument(postgresDatabase(),key,'global')] as const))
+        ]);
+        const values=Object.fromEntries(documents.filter(([,value])=>value!==undefined));
+        return send(200,{success:true,smsAvailable:process.env.SUPABASE_SMS_READY==='true',
+          revision:Number(revisionRow.rows[0]?.revision||0),user:null,admin:false,
+          staff:true,permissions:auth.permissions,
+          staffUser:{id:auth.user?.authUserId,username:auth.user?.username,name:auth.user?.fullName,
+            email:auth.user?.email,role:'staff',permissions:auth.permissions},
+          values});
+      }
       // Administrators require the full editable portal. Customer sessions do not.
       if (!auth.admin) {
         const wanted = auth.user
@@ -858,7 +875,13 @@ export default async function handler(
       return send(200, { success: true, user: safeUser(auth.user!) });
     }
     if (body.action === "save") {
-      if (!auth.admin) fail(403, "فقط مدیر اجازه ویرایش دارد.");
+      if (!auth.admin && !auth.staff) fail(403, "دسترسی ویرایش مدیریت لازم است.");
+      if(auth.staff){
+        for(const key of Object.keys(body.values||{})){
+          if(!namespacePermission(auth,domainFor(key)||'',true,key))
+            fail(403,"شما مجوز ویرایش این بخش را ندارید.");
+        }
+      }
       if (body.revision !== revision)
         fail(409, "اطلاعات توسط نشست دیگری تغییر کرده است؛ صفحه را تازه کنید.");
       for (const [key, value] of Object.entries(body.values || {})) {
@@ -1008,7 +1031,8 @@ export async function getPortalIdentity(req: IncomingMessage) {
   if(databaseEnabled() && !/(?:^|;)\s*sp_access=/.test(req.headers.cookie || ''))return {admin:false,user:undefined,canReadCommerce:false};
   if (databaseEnabled() && adoptedSchema()) {
     const identity = await supabaseIdentity(req);
-    if (identity.admin || !identity.user) return {...identity,canReadCommerce:identity.admin};
+    if (identity.admin || identity.staff || !identity.user)
+      return {...identity,canReadCommerce:identity.admin || canStaff(identity,'products','prices')};
     // Only the permission documents are required to authorize catalogue reads.
     // Do not materialize all CRM customers, orders or admin configuration here.
     const [layouts,overrides] = await Promise.all([
