@@ -109,6 +109,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [particlesFormed, setParticlesFormed] = useState(false);
   const [greetingPhase, setGreetingPhase] = useState<'forming'|'preparing'|'speaking'|'needs-permission'|'complete'|'error'>('forming');
   const [voicePending, setVoicePending] = useState(false);
+  // Distinguish an in-flight LLM from an available WAV and from an
+  // AudioContext source actually playing. Never infer sound from text alone.
+  const [voiceStage,setVoiceStage]=useState<'idle'|'text'|'synthesizing'|'buffering'|'playing'|'error'>('idle');
   const [voiceWaitSeconds, setVoiceWaitSeconds] = useState(0);
   const greetingStartedRef = useRef(false);
   const micAutoStartedRef = useRef(false);
@@ -561,7 +564,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const interruptCurrentTurn = useCallback(() => {
     const active=activeTurnRef.current;
-    if(!active || active.abort.signal.aborted)return;
+    if(!active || active.abort.signal.aborted){
+      // Manual replay has no LLM turn but must still be interruptible.
+      if(continuousVoiceRef.current){
+        stopAudio();
+        setVoicePending(false);
+        setVoiceStage('idle');
+        setStatus('listening');
+        setTurn('user');
+      }
+      return;
+    }
     // Invalidate callbacks before aborting. The old finally must not cancel
     // the new user's microphone, player or response.
     activeTurnRef.current=null;
@@ -572,6 +585,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     isProcessingTurnRef.current=false;
     isAiSpeakingRef.current=false;
     setVoicePending(false);
+    setVoiceStage('idle');
     setStatus('listening');
     setTurn('user');
     setIsUserSpeaking(true);
@@ -873,7 +887,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const q = (textToSend || '').trim();
       if (!q && !audioBlob) return;
       if (!greetingFinishedRef.current) return;
-      if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return;
+      if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
+        // A typed correction or stop command must not be locked out while
+        // FORZA is generating or playing the previous answer.
+        if(!q)return;
+        interruptCurrentTurn();
+      }
       if(q && forzaTurnIntent(q)==='stop'){
         // A pure stop command should not trigger an extra AI response.
         setUserText(q);
@@ -887,8 +906,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       isProcessingTurnRef.current = true;
       setVoicePending(false);
+      setVoiceStage('text');
       setErrorNotice(null);
-      stopListening();
+      // Keep browser/local recognition and mic recording alive during the
+      // model request. Stopping then immediately restarting WebSpeech loses
+      // the first syllable of a customer interruption on some browsers.
+      // Only the previous transcript is cleared; VAD resets below.
       // No audio-unlock call here: it can accidentally replay the introduction
       // while the customer's recording is being submitted.
       setStatus('thinking');
@@ -1026,6 +1049,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(activeTurnRef.current?.generation!==generation)return;
             isAiSpeakingRef.current=true;
             setVoicePending(false);
+            setVoiceStage('playing');
             setStatus('speaking');
             setTurn('ai');
           },
@@ -1035,6 +1059,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(activeTurnRef.current?.generation!==generation)return;
             isAiSpeakingRef.current=false;
             setVoicePending(true);
+            setVoiceStage('buffering');
             setStatus('thinking');
           },
           (stage,ms)=>{
@@ -1101,6 +1126,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           if(!firstPhraseQueued){
             firstPhraseQueued=true;
+            setVoiceStage('synthesizing');
             console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
               Math.round(performance.now()-turnStartedAt)+' turn='+generation+' chars='+phrase.length);
           }
@@ -1124,18 +1150,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               terminalIdleTimer=null;
             }
             for(const phrase of phrasePlanner.push(reply))queueSpeech(phrase);
-            if(/[.!؟؛]\s*$/.test(reply)){
-              terminalIdleTimer=window.setTimeout(()=>{
-                terminalIdleTimer=null;
-                if(pocketAbort.signal.aborted||callClosedRef.current||activeTurnRef.current?.generation!==generation)return;
-                const completed=phrasePlanner.flushTerminalIdle();
-                if(completed.length){
-                  console.info('[FORZA_NIMA_FINAL] early_terminal_idle_flush=1 chars='+
-                    completed.reduce((sum,phrase)=>sum+phrase.length,0));
-                  for(const phrase of completed)queueSpeech(phrase);
-                }
-              },300);
-            }
+            // Flush complete held groups after a bounded provider idle, even
+            // if the answer has not reached its final punctuation or SSE done.
+            // Incomplete suffix words and unfinished part codes remain held.
+            terminalIdleTimer=window.setTimeout(()=>{
+              terminalIdleTimer=null;
+              if(pocketAbort.signal.aborted||callClosedRef.current||
+                 activeTurnRef.current?.generation!==generation)return;
+              const completed=/[.!؟؛]\s*$/.test(reply)
+                ? phrasePlanner.flushTerminalIdle()
+                : phrasePlanner.flushStableIdle();
+              if(completed.length){
+                console.info('[FORZA_NIMA_FINAL] bounded_idle_flush=1 chars='+
+                  completed.reduce((sum,phrase)=>sum+phrase.length,0));
+                for(const phrase of completed)queueSpeech(phrase);
+              }
+            },380);
           }
         };
         try {
@@ -1232,6 +1262,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(null);
           }catch(error:any){
+            setVoiceStage('error');
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
@@ -1259,6 +1290,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         playerForTurn?.cancel();
         if(activeTurnRef.current?.generation!==generation)return;
         activeTurnRef.current=null;
+        setVoiceStage('idle');
         if(continuousVoiceRef.current===playerForTurn)continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
         setVoicePending(false);
@@ -1268,7 +1300,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -1586,7 +1618,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [onClose, stopAudio]);
 
   const submitUserText = (text: string) => {
-    if (!greetingFinishedRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) return false;
+    if (!greetingFinishedRef.current || !text.trim()) return false;
+    detectedSpeechEndAtRef.current=0; // typed turns have no acoustic end
     void handleUserFinishedSpeaking(text);
     return true;
   };
@@ -1928,7 +1961,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             />
             <button
               type="submit"
-              disabled={!customInput.trim() || greetingPhase !== 'complete' || status === 'thinking' || status === 'speaking'}
+              disabled={!customInput.trim() || greetingPhase !== 'complete'}
               className="p-2 rounded-lg bg-[#E06518] hover:bg-[#C95210] disabled:opacity-40 text-white transition-all cursor-pointer"
               title="ارسال به هوش مصنوعی"
             >
