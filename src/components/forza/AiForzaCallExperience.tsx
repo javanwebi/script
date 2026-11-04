@@ -1821,14 +1821,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
-              : status === 'speaking'
-              ? 'AI FORZA در حال صحبت...'
+              : status === 'speaking' && isSpeakerMuted
+              ? 'پخش صدا فعال است اما بلندگوی فورزا بی‌صداست'
+              : status === 'speaking' && voiceStage === 'playing'
+              ? 'پخش صوت فورزا در جریان است'
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
+              : voiceStage === 'buffering'
+              ? `پخش فعلاً متوقف است؛ منتظر قطعه صوتی بعدی (${voiceWaitSeconds} ثانیه)`
+              : voiceStage === 'synthesizing'
+              ? `در حال تولید نخستین قطعه صوتی (${voiceWaitSeconds} ثانیه)`
+              : voiceStage === 'text'
+              ? 'در حال دریافت متن پاسخ از سرویس هوش مصنوعی...'
               : status === 'thinking' && voicePending
-              ? (voiceWaitSeconds >= 25
-                ? `متن آماده است؛ ساخت صدا طول کشیده (${voiceWaitSeconds} ثانیه)`
-                : `پاسخ آماده است؛ در حال تولید صدا (${voiceWaitSeconds} ثانیه)` )
+              ? 'منتظر آماده‌شدن پخش صوت...'
               : status === 'thinking'
               ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
               : 'AI FORZA آماده می‌شود...'}
@@ -1842,6 +1848,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 : 'bg-[#e06518] shadow-[0_0_8px_#e06518]'
             }`}
           />
+          {(isProcessingTurnRef.current || isAiSpeakingRef.current || voicePending) && greetingPhase === 'complete' && (
+            <button type="button"
+              onClick={interruptCurrentTurn}
+              className="rounded-md border border-orange-400/60 px-2 py-1 text-[11px] font-semibold text-orange-100 hover:bg-orange-600/30"
+              title="توقف فوری پاسخ و ادامه شنیدن صدای مشتری"
+              aria-label="توقف پاسخ فورزا">
+              توقف پاسخ
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
