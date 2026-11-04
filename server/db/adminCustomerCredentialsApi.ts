@@ -216,6 +216,10 @@ export function registerAdminCustomerCredentialsApi(app:Express){
    if(doSms&&smsBody){
     try{await sendCrmCredentialSms(selectedPhone,smsBody);smsSent=true;}
     catch{smsWarning='حساب ذخیره شد اما پیامک ارسال نشد؛ اطلاعات ورود را از همین صفحه به‌صورت امن تحویل دهید.';}
+    // Audit delivery acceptance/failure, but NEVER store the message or password.
+    try{
+     await transaction(async tx=>audit(tx,identity,smsSent?'درخواست پیامک دسترسی پذیرفته شد':'ارسال پیامک دسترسی ناموفق بود',key.id));
+    }catch{console.error('[Customer credentials] SMS status audit unavailable');}
    }
    // Password is deliberately absent from API responses and all audit/log records.
    res.status(op==='create'?201:200).json({success:true,username,phone:selectedPhone,hasLogin:true,smsSent,smsWarning,
