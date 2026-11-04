@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Settings,
   Shield,
@@ -38,7 +38,7 @@ export const SettingsSystemModule: React.FC = () => {
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
       return { value, error: '' };
     }
-    catch { return { value: {} as SystemSettings, error: 'تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ تا برقراری اتصال، ویرایش تنظیمات غیرفعال است.' }; }
+    catch { return { value: {} as SystemSettings, error: 'سند تنظیمات عمومی در داده‌های دریافت‌شده از پایگاه داده موجود نیست؛ ویرایش درگاه و پیامک تا بازیابی اطلاعات غیرفعال است.' }; }
   });
   const [settings, setSettings] = useState<SystemSettings>(initialSettings.value);
   const [settingsError, setSettingsError] = useState(initialSettings.error);
@@ -63,11 +63,27 @@ export const SettingsSystemModule: React.FC = () => {
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
       setSettings(value); setSettingsError('');
     }
-    catch { setSettingsError('تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ لطفاً وضعیت اتصال را بررسی کنید.'); }
+    catch { setSettingsError('سند تنظیمات عمومی هنوز از دیتابیس دریافت نشده است؛ وضعیت بارگذاری یا وجود رکورد تنظیمات را بررسی کنید.'); }
     setAdminUsers(adminService.getAdminUsers());
     setAuditLogs(adminService.getAuditLogs());
     setSmsLogs(adminService.getSmsLogs());
   };
+
+  // The staff workspace uses its own protected API, not system-settings.
+  // A missing gateway settings projection must never look like a staff/DB outage.
+  useEffect(() => {
+    const onHydrated = () => refreshData();
+    window.addEventListener('sanat-durable-hydrated', onHydrated);
+    window.addEventListener('atlas-session-updated', onHydrated);
+    return () => {
+      window.removeEventListener('sanat-durable-hydrated', onHydrated);
+      window.removeEventListener('atlas-session-updated', onHydrated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'gateways_sms') refreshData();
+  }, [activeTab]);
 
   const handleSaveSettings = (updated: SystemSettings) => {
     if (settingsError) { alert(settingsError); return; }
@@ -138,7 +154,7 @@ export const SettingsSystemModule: React.FC = () => {
         </div>
       </div>
 
-      {settingsError && (
+      {activeTab === 'gateways_sms' && settingsError && (
         <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
           {settingsError}
         </p>
@@ -200,7 +216,7 @@ export const SettingsSystemModule: React.FC = () => {
 
       {/* --- TAB 2: GATEWAYS & SMS --- */}
       {activeTab === 'gateways_sms' && (
-        <div className="space-y-6">
+        <fieldset disabled={Boolean(settingsError)} className="min-w-0 space-y-6 disabled:opacity-80">
           {/* Payment Gateways Config */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-black text-sm text-[#55565A]">پیکربندی درگاه‌های پرداخت آنلاین بانکی</h3>
@@ -452,7 +468,7 @@ export const SettingsSystemModule: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
       )}
 
       {/* --- TAB 3: AUDIT LOG --- */}
