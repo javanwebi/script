@@ -27,7 +27,7 @@ const emptyForm = (kind: FormValues['kind']): FormValues => ({ name:'',company:'
 const nf = (value: number | string | null | undefined) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Number(value || 0));
 const money = (value: number | string | null | undefined) => nf(value) + ' تومان';
 const date = (value: string | null | undefined) => value ? new Date(value).toLocaleDateString('fa-IR') : 'ثبت نشده';
-const orderMoney = (o: Order) => money(Number(o.final_amount ?? o.total_amount ?? 0) / (o.currency === 'IRR' ? 10 : 1));
+const orderMoney = (o: Order) => money(Number(o.final_amount && Number(o.final_amount) !== 0 ? o.final_amount : o.total_amount || 0) / (o.currency === 'IRR' ? 10 : 1));
 const card = 'rounded-2xl border border-[#ECEEF0] bg-white shadow-[0_4px_24px_rgba(32,40,52,.03)]';
 const field = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-[#E56B1E] focus:ring-2 focus:ring-[#E56B1E]/10';
 async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
