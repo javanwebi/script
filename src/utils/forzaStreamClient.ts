@@ -40,23 +40,23 @@ export async function consumeForzaTextStream(
       fullText += msg.chunk;
       onChunk(msg.chunk, fullText);
     } else if (msg.type === 'done') {
-      sawDone = true;
-      onStage?.('done');
-      if (typeof msg.fullText !== 'string') return;
-      // A provider/proxy can deliver its final fullText without having sent
-      // every delta frame. Feed any missing suffix to both subtitles and TTS.
-      const finalText=msg.fullText;
-      if(finalText.startsWith(fullText) && finalText.length>fullText.length){
-        const remaining=finalText.slice(fullText.length);
-        fullText=finalText;
-        onChunk(remaining,fullText);
-      } else if(finalText!==fullText){
-        // The explicit completed answer is authoritative. A missed, revised
-        // or out-of-order delta must NEVER make Pocket speak a partial reply.
-        // Reconcile subtitles with the final text before one TTS request.
-        fullText=finalText;
-        onChunk('',fullText);
+      // An authoritative done is valid only when it extends prior deltas.
+      // Revising words that have already entered a TTS request must NEVER be
+      // reported as a completed response, or re-spoken from the beginning.
+      if (typeof msg.fullText === 'string') {
+        const finalText=msg.fullText;
+        if(!finalText.startsWith(fullText)){
+          onStage?.('error',{code:'forza_stream_revised_after_delta'});
+          throw new Error('forza_stream_revised_after_delta');
+        }
+        if(finalText.length>fullText.length){
+          const remaining=finalText.slice(fullText.length);
+          fullText=finalText;
+          onChunk(remaining,fullText);
+        }
       }
+      sawDone=true;
+      onStage?.('done');
     }
   };
   try {
