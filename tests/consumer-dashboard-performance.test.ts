@@ -6,7 +6,8 @@ import type { Product } from "../src/types";
 
 const family = (overrides: Record<string, unknown> = {}): Product => ({
   code: "UNIT-FAMILY-001", name: "تسمه صنعتی", brand: "SAMPLE-BRAND", categorySlug: "belts",
-  categoryName: "تسمه", active: true, inquiryOnly: false,
+  categoryName: "تسمه", subcategory: "narrow", technicalSpecs: [], stock: 4, unit: "عدد", tags: [],
+  active: true, inquiryOnly: false,
   prices: { base: 120, retail: 180, wholesale: 120, dealer: 120 },
   images: [], variants: [
     { code: "UNIT-SKU-701", name: "تسمه SPA 701", size: "701", price: 250, active: true },
