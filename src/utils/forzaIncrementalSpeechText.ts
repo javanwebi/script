@@ -47,6 +47,18 @@ export class ForzaIncrementalSpeechText {
     return output;
   }
 
+  /** A fully bounded idle flush for an already complete word group.
+   * Holding the middle group until another 66 characters arrive causes a
+   * long silent gap whenever the model pauses. Never flush the unfinished
+   * suffix: the next SSE chunk may still complete that last word or SKU.
+   */
+  flushStableIdle(): string[] {
+    if(!this.heldPhrase)return [];
+    const phrase=this.heldPhrase;
+    this.heldPhrase='';
+    return [phrase];
+  }
+
   /**
    * An upstream provider may stream the last visible words and leave SSE open
    * several seconds before sending its authoritative `done` event. If the
