@@ -25,14 +25,11 @@ test('Markdown links show only title and never reveal a split raw URL',()=>{
 });
 
 test('inline backticks, titles and standalone URLs cannot be voiced',()=>{
-  const end=chunks('# مشخصات ' + String.fromCharCode(96) +
-    'SPA 1250' + String.fromCharCode(96) + ' https://example.com/belt')[ 
-      '# مشخصات '.length+2*'SPA 1250'.length+30] || '';
   const projector=new ForzaCallPlainText();
   const txt='# مشخصات ' + String.fromCharCode(96) +
     'SPA 1250' + String.fromCharCode(96) + ' https://example.com/belt';
   assert.equal(projector.complete(txt),'مشخصات SPA 1250');
-  assert.ok(!end.includes('*'));
+  assert.ok(!projector.complete(txt).includes('*'));
 });
 
 test('spoken dimension operator is meaningful, while original technical codes are unchanged',()=>{
