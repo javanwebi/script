@@ -41,7 +41,8 @@ test('reject an SSE final event that revised the already spoken prefix', () => {
 test('old progressive SSE clause experiment remains unused for full-answer Pocket',async()=>{
   const {readFile}=await import('node:fs/promises');
   const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
-  assert.match(source,/await playPocketFullAnswer\(reply,continuousPlayer,pocketAbort.signal\)/);
+  assert.match(source,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
+  assert.match(source,/new ForzaNimaBufferedSpeech\(/);
   assert.doesNotMatch(source,/ForzaLiveSpeechQueue|earlyPlayback|earlyClause|VITE_FORZA_EARLY_TTS/);
   assert.match(source,/await consumeForzaTextStream/);
 });
