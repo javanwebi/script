@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isForzaProbableEcho,forzaTurnIntent} from '../src/utils/forzaBargeIn';
+import {isForzaProbableEcho,shouldIgnoreForzaSpeakerEcho,forzaTurnIntent} from '../src/utils/forzaBargeIn';
 
 test('does not interrupt for spoken speaker echo',()=>{
   assert.equal(isForzaProbableEcho('برای انتخاب تسمه باید توان موتور',
@@ -27,4 +27,14 @@ test('stop is silent, continue and corrections preserve a conversational request
   assert.equal(forzaTurnIntent('نه منظورم دستگاه بسته بندی است'), 'correction');
   assert.equal(forzaTurnIntent('صبر کن توضیح بدم'), 'question');
   assert.equal(forzaTurnIntent('SPA 1250 و C3'), 'question');
+});
+
+test('only recent actually played multi-word phrases can suppress loudspeaker echo',()=>{
+  const speaking='برای انتخاب تسمه باید توان موتور و اندازه پولی را بدانم';
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,false),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('توان موتور',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('صبر کن',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('نه، برای دستگاه بسته بندی میخوام',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('6203ZZ C3 SPA',speaking,true),false);
 });
