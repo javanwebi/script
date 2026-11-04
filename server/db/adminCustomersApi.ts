@@ -59,7 +59,7 @@ const base = [
 ].join(' ');
 
 const completed = "o.status::text in ('confirmed','packing','shipped','delivered') and coalesce(o.payment_status,'') not in ('failed','refunded','cancelled')";
-const amount = "coalesce(o.final_amount,o.total_amount,0) / case when o.currency='IRR' then 10 else 1 end";
+const amount = "coalesce(nullif(o.final_amount,0),o.total_amount,0) / case when o.currency='IRR' then 10 else 1 end";
 const stats = [
   "left join lateral (select count(*)::int as order_count,",
   "coalesce(sum(" + amount + "),0)::numeric as total_spent, max(o.created_at) as last_order_at",
