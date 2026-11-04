@@ -1,13 +1,17 @@
 export type ForzaStreamEvent =
-  | {type:'start';responseId?:string}
+  | {type:'start';responseId?:string;userTurnId?:string;timestamp?:number}
+  | {type:'provider';provider?:string}
   | {type:'text_chunk';chunk:string;textSoFar?:string}
   | {type:'done';fullText?:string}
-  | {type:'error';message?:string};
+  | {type:'error';message?:string;errorCode?:string};
+export type ForzaStreamStage = 'start'|'provider'|'first_delta'|'done'|'error'|'incomplete';
+
 
 /** Decode SSE incrementally; never wait for the full response body. */
 export async function consumeForzaTextStream(
   response: Response,
   onChunk: (chunk: string, textSoFar: string) => void,
+  onStage?: (stage:ForzaStreamStage,info?:{code?:string;provider?:string})=>void,
 ): Promise<string> {
   if (!response.ok || !response.body) throw new Error('forza_stream_unavailable');
   const reader = response.body.getReader();
@@ -15,18 +19,29 @@ export async function consumeForzaTextStream(
   let pending = '';
   let fullText = '';
   let sawDone = false;
+  let sawDelta = false;
   const dispatch = (frame: string) => {
     const lines = frame.split(/\r?\n/).filter(line => line.startsWith('data:'));
     if (!lines.length) return;
     const raw = lines.map(line => line.slice(5).trimStart()).join('\n');
     let msg: ForzaStreamEvent;
     try {msg = JSON.parse(raw) as ForzaStreamEvent;} catch {return;}
-    if (msg.type === 'error') throw new Error(msg.message || 'forza_stream_failed');
+    if (msg.type === 'start') onStage?.('start');
+    if (msg.type === 'provider') onStage?.('provider',{provider:msg.provider});
+    if (msg.type === 'error') {
+      onStage?.('error',{code:msg.errorCode});
+      throw new Error(msg.message || 'forza_stream_failed');
+    }
     if (msg.type === 'text_chunk' && typeof msg.chunk === 'string') {
+      if(!sawDelta && msg.chunk.trim()){
+        sawDelta=true;
+        onStage?.('first_delta');
+      }
       fullText += msg.chunk;
       onChunk(msg.chunk, fullText);
     } else if (msg.type === 'done') {
       sawDone = true;
+      onStage?.('done');
       if (typeof msg.fullText !== 'string') return;
       // A provider/proxy can deliver its final fullText without having sent
       // every delta frame. Feed any missing suffix to both subtitles and TTS.
@@ -69,7 +84,10 @@ export async function consumeForzaTextStream(
     }
     // Network EOF is NOT the end of an AI answer. Without the explicit
     // final SSE event, the UI must never send a partial answer to TTS.
-    if (!sawDone) throw new Error('forza_stream_incomplete');
+    if (!sawDone) {
+      onStage?.('incomplete');
+      throw new Error('forza_stream_incomplete');
+    }
     return fullText.trim();
   } finally {
     // A server/proxy may keep an SSE connection open after its final 'done'
