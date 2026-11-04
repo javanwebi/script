@@ -157,7 +157,7 @@ export function registerAdminCustomerCredentialsApi(app:Express){
       if(conflicts.rowCount)throw fail(409,'نام کاربری یا شماره تلفن قبلاً برای حساب دیگری ثبت شده است.');
       const create=await adminAuth().auth.admin.createUser({
        phone:'+98'+selectedPhone.slice(1),password:chosen.password,phone_confirm:true,
-       app_metadata:{account_kind:'customer',provisioned_by:'crm'}
+       app_metadata:{account_kind:'customer',provisioned_by:'crm',crm_password_change_required:true}
       });
       if(create.error||!create.data.user)throw fail(503,'ساخت حساب در Supabase Auth انجام نشد.');
       createdId=create.data.user.id;
@@ -187,7 +187,13 @@ export function registerAdminCustomerCredentialsApi(app:Express){
        displayName=profile.full_name||'مشتری';
        const chosen=validateCredentials(req.body,selectedPhone);username=chosen.username;
        await uniqueUsername(tx,username,profile.id);
-       const result=await adminAuth().auth.admin.updateUserById(profile.id,{password:chosen.password});
+       const admin=adminAuth();
+       const existingAuth=await admin.auth.admin.getUserById(profile.id);
+       if(existingAuth.error||!existingAuth.data.user)throw fail(409,'کاربر در سرویس احراز هویت پیدا نشد.');
+       const result=await admin.auth.admin.updateUserById(profile.id,{
+        password:chosen.password,
+        app_metadata:{...existingAuth.data.user.app_metadata,crm_password_change_required:true}
+       });
        if(result.error)throw fail(503,'بازنشانی رمز در Supabase Auth انجام نشد.');
        await tx.query(
         "update public.user_profiles set username=$2,preferences=preferences||'{\"mustChangePassword\":true}'::jsonb,updated_at=now() where id=$1",
