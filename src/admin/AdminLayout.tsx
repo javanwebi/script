@@ -36,7 +36,7 @@ import { ProductsModule } from './modules/ProductsModule';
 import { BulkImportModule } from './modules/BulkImportModule';
 import { PricingInquiriesModule } from './modules/PricingInquiriesModule';
 import { OrdersModule } from './modules/OrdersModule';
-import { CustomersCrmModule } from './modules/CustomersCrmModule';
+import { RealCustomersCrmModule } from './modules/RealCustomersCrmModule';
 import { AgenciesAdminModule } from './modules/AgenciesAdminModule';
 import { CustomerGradingModule } from './modules/CustomerGradingModule';
 import { ContentStudioModule } from './modules/ContentStudioModule';
@@ -301,7 +301,7 @@ export const AdminLayout: React.FC = () => {
       case 'orders':
         return <OrdersModule />;
       case 'crm':
-        return <CustomersCrmModule />;
+        return <RealCustomersCrmModule />;
       case 'clients':
         return <ClientsAdminModule />;
       case 'agencies':
