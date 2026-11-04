@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 
-const root=new URL('../',import.meta.url);
 const source=readFileSync(new URL('../ops/forza-live-voice-audit-readonly.sh',import.meta.url),'utf8');
 const deploy=readFileSync(new URL('../ops/deploy-single-port-vps.sh',import.meta.url),'utf8');
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
