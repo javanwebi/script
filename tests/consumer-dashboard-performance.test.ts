@@ -62,6 +62,8 @@ test("dashboard does not repeatedly normalize catalog or render unopened detail 
   assert.equal((page.match(/getManagedCatalogProducts\(\)/g)||[]).length,1);
   assert.match(page,/useDeferredValue\(quickSkuQuery\)/);
   assert.match(page,/searchConsumerProducts\(catalog, deferredQuickSkuQuery, selectedCategorySlug\)/);
+  assert.match(page,/const needsSkuSelection = Boolean\(prod\.variants\?\.length\)/);
+  assert.match(page,/!needsSkuSelection && !prod\.inquiryOnly && unitPrice > 0/);
   assert.doesNotMatch(page,/filtered\.slice\(0, 24\)/);
   assert.match(page,/catalogProducts\.slice\(0, visibleProductCount\)/);
   assert.match(page,/resolveCurrentRetailReorder\(item\.code, item\.quantity, getProductByCode\)/);
