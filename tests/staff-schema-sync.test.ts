@@ -32,3 +32,17 @@ test('schema application requires a restorable backup and protects existing data
  assert.match(script,/has_table_privilege/);
  assert.match(script,/STAFF_DB_INSTALL_OK/);
 });
+
+test('Postgres discovery accepts only supabase-db, not Supabase Postgres Meta',()=>{
+ const matcher=String.raw`$1=="supabase-db" && $2 ~ /^supabase\/postgres:/ {print $1}`;
+ const running = [
+  'sanatpish-unified-live-20261104-205748-3434601 node:22-bookworm',
+  'supabase-rest postgrest/postgrest:v14.18',
+  'supabase-meta supabase/postgres-meta:v0.100.0',
+  'supabase-db supabase/postgres:17.6.1.136',
+  'supabase-auth supabase/gotrue:v2.197.0'
+ ].join('\n')+'\n';
+ assert.ok(script.includes("awk '"+matcher+"'"));
+ const selected=execFileSync('awk',[matcher],{input:running,encoding:'utf8'}).trim().split('\n');
+ assert.deepEqual(selected,['supabase-db']);
+});

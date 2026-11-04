@@ -30,7 +30,12 @@ done
 test -n "$LIVE" || { echo APP_CONTAINER_NOT_FOUND; exit 1; }
 echo "APP_CONTAINER=$LIVE"
 
-mapfile -t CANDIDATES < <(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($0) ~ /supabase-db|supabase\/postgres/ {print $1}')
+# Match the actual PostgreSQL engine only; supabase/postgres-meta is a separate API service.
+# Restrict to the confirmed self-hosted container name and image, never a fuzzy substring.
+mapfile -t CANDIDATES < <(
+  docker ps --format '{{.Names}} {{.Image}}' |
+    awk '$1=="supabase-db" && $2 ~ /^supabase\/postgres:/ {print $1}'
+)
 if ((${#CANDIDATES[@]}!=1)); then
   echo "EXPECTED_ONE_SELF_HOSTED_POSTGRES_FOUND=${#CANDIDATES[@]}"
   docker ps --format '{{.Names}} {{.Image}}'
