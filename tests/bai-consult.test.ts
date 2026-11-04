@@ -214,3 +214,29 @@ test('xKiro never converts timeout EOF or finish_reason length into a final answ
     onDelta:()=>{},
   }), (e:unknown)=>e instanceof BaiConsultError&&e.code==='provider_stream_incomplete');
 });
+
+
+test('xKiro provider SSE streams CRLF delimiters when CR and LF arrive in separate TCP reads',async()=>{
+  const events=[
+    'data: {"choices":[{"delta":{"content":"بلبرینگ "}}]}',
+    'data: {"choices":[{"delta":{"content":"6203ZZ C3"}}]}',
+    'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}',
+  ].join('\r\n\r\n')+'\r\n\r\n';
+  const bytes=new TextEncoder().encode(events);
+  const stream=new ReadableStream<Uint8Array>({
+    start(c){
+      // Single-byte chunks reproduce the CR/LF split seen behind proxies.
+      for(let i=0;i<bytes.length;i++)c.enqueue(bytes.subarray(i,i+1));
+      c.close();
+    },
+  });
+  const chunks:string[]=[];
+  const result=await streamXkiroConsult({
+    apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',
+    query:'بلبرینگ چیست؟',voice:true,
+    fetchImpl:(async()=>new Response(stream,{headers:{'Content-Type':'text/event-stream'}})) as typeof fetch,
+    onDelta:chunk=>chunks.push(chunk),
+  });
+  assert.deepEqual(chunks,['بلبرینگ ','6203ZZ C3']);
+  assert.equal(result.text,'بلبرینگ 6203ZZ C3');
+});
