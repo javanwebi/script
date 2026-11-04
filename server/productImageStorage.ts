@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import express from 'express';
 import {databaseEnabled,transaction} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
+import {canStaff} from './db/staffPermissions';
 
 const MAX_UPLOAD_BYTES=8*1024*1024;
 const MAX_PIXELS=24_000_000;
@@ -125,7 +126,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    let temporary='';
    try{
     const identity=await getPortalIdentity(req);
-    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر می‌تواند تصویر دسته‌بندی بارگذاری کند.'});
+    if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز تصاویر کاتالوگ لازم است.'});
     if(!databaseEnabled())return res.status(503).json({success:false,message:'دیتابیس متصل نیست.'});
     const raw=req.body;
     if(!Buffer.isBuffer(raw) || !raw.length || raw.length>MAX_UPLOAD_BYTES)
@@ -169,7 +170,7 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
   let committed=false;
   try{
    const identity=await getPortalIdentity(req);
-   if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر سایت اجازه بارگذاری تصاویر کالا را دارد.'});
+   if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز آپلود تصویر کالا لازم است.'});
    if(!databaseEnabled())return res.status(503).json({success:false,message:'اتصال به PostgreSQL الزامی است.'});
    const binaryUpload=Buffer.isBuffer(req.body);
    const requestedFamily=binaryUpload?req.query.familyCode:req.body?.familyCode;

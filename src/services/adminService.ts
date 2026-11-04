@@ -106,7 +106,8 @@ export interface AdminUser {
   id: string;
   username: string;
   name: string;
-  role: 'super_admin' | 'sales_manager' | 'warehouse_operator';
+  role: 'super_admin' | 'sales_manager' | 'warehouse_operator' | 'staff';
+  permissions?: Record<string,string[]>;
   email: string;
   lastLogin: string;
 }
@@ -399,9 +400,17 @@ export const adminService = {
   },
 
   async login(username: string, pass: string): Promise<AdminUser | null> {
-    await portalRequest({ action: 'admin_login', username, password: pass });
-    await hydratePortal();
-    const user: AdminUser = { id: 'admin', username, name: 'مدیریت صنعت پیش', role: 'super_admin', email: '', lastLogin: new Date().toISOString() };
+    const authenticated=await portalRequest({ action: 'admin_login', username, password: pass });
+    const session=await hydratePortal();
+    if(!session.admin && !session.staff)throw new Error('این حساب به مدیریت دسترسی ندارد.');
+    const staff=authenticated.staffUser || session.staffUser;
+    const user: AdminUser = session.staff
+      ? {id:String(staff?.id || ''),username:String(staff?.username || username),
+         name:String(staff?.name || username),role:'staff',email:String(staff?.email || ''),
+         permissions:session.permissions || {},lastLogin:new Date().toISOString()}
+      : { id: String(session.user?.authUserId || 'admin'), username,
+          name: String(session.user?.fullName || 'مدیریت صنعت پیش'),
+          role: 'super_admin', email: String(session.user?.email || ''), lastLogin: new Date().toISOString() };
     durableStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, JSON.stringify(user));
     return user;
   },

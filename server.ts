@@ -2,6 +2,8 @@ import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
+import {registerAdminStaffApi} from './server/db/adminStaffApi';
+import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -60,6 +62,8 @@ dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env.forza-voice'), quiet: true });
 // Server-side SMS credentials; ignored by Git and never sent to the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
+// Server-only staff administration key. Never include it in Vite assets or the browser.
+dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key
@@ -364,7 +368,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
   res.setHeader('Cache-Control','private, no-store');
   try{
     const identity=await getPortalIdentity(req);
-    if(!identity.admin)return res.status(403).json({success:false,message:'دسترسی مدیر لازم است.'});
+    if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز بررسی تصاویر کاتالوگ لازم است.'});
     if(!databaseEnabled())return res.status(503).json({success:false,message:'اطلاعات تصاویر باید از دیتابیس بارگذاری شوند.'});
     const result=await database().query(`
       select a.file_name,a.sha256,a.observed_description,a.reason,
@@ -399,6 +403,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
     return res.status(503).json({success:false,message:'خواندن بررسی تصاویر از دیتابیس ممکن نشد.'});
   }
 });
+registerAdminStaffApi(app);
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
@@ -406,8 +411,39 @@ app.get('/api/catalog/variant-review/:code',publicVariantReviewApi);
 app.get('/api/catalog/home-preview',publicHomePreviewApi);
 app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
 app.use('/api/catalog', (req, res, next) => {
-  if (req.method === 'GET' || req.method === 'HEAD') return next();
-  void requirePortalAdmin(req, res, next);
+  if(req.method==='GET' || req.method==='HEAD')return next();
+  void (async()=>{
+    const identity=await getPortalIdentity(req);
+    let [section,action]=catalogMutationPermission(req.path);
+    if(identity.staff && req.path.endsWith('/overrides/family')){
+      const candidate=req.body?.family;
+      const code=String(candidate?.code||'').trim();
+      if(!code)return res.status(400).json({success:false,message:'کد خانواده نامعتبر است.'});
+      const current=(await readProducts()).find((product:any)=>product.code===code);
+      action=current?'edit':'create';
+      assertStaffCommercialFields(identity,current,candidate);
+      assertStaffCatalogStructure(identity,current,candidate);
+      req.body.family=preserveStaffCommercialFields(identity,current,candidate);
+    }
+    if(identity.staff && req.path.endsWith('/overrides/bulk')){
+      if(Array.isArray(req.body?.data?.deletedCodes) && req.body.data.deletedCodes.length &&
+         !canStaff(identity,'products','delete'))return res.status(403).json({success:false,message:'مجوز حذف کالا لازم است.'});
+      const families=req.body?.data?.families;
+      if(families && typeof families==='object'){
+        const current=new Map((await readProducts()).map((product:any)=>[product.code,product]));
+        for(const [code,family] of Object.entries(families))
+          {
+            assertStaffCommercialFields(identity,current.get(code),family);
+            assertStaffCatalogStructure(identity,current.get(code),family);
+            families[code]=preserveStaffCommercialFields(identity,current.get(code),family);
+          }
+      }
+    }
+    if(!canStaff(identity,section,action))return res.status(403).json({success:false,message:'اجازه انجام این عملیات کاتالوگ را ندارید.'});
+    if(req.headers.origin && new URL(req.headers.origin).host!==req.headers.host)
+      return res.status(403).json({success:false,message:'مبدأ درخواست معتبر نیست.'});
+    next();
+  })().catch(()=>res.status(503).json({success:false,message:'بررسی دسترسی کاربر ممکن نشد.'}));
 });
 registerProductImageStorage(app,async()=>{
   const fresh=await readProducts();
@@ -586,7 +622,7 @@ async function saveCatalogOverridesDb(db: CatalogOverridesDb, transferSku?: {sku
 app.post('/api/catalog/sku-transfer',async(req,res)=>{
   try{
     const identity=await getPortalIdentity(req);
-    if(!identity.admin)return res.status(403).json({success:false,message:'فقط مدیر می‌تواند کد کالا را منتقل کند.'});
+    if(!canStaff(identity,'products','sku_move'))return res.status(403).json({success:false,message:'مجوز انتقال کالا ندارید.'});
     if(!databaseEnabled()||!adoptedSchema())return res.status(503).json({success:false,message:'انتقال کد کالا به دیتابیس اصلی متصل نیاز دارد.'});
     const targetFamilyCode=String(req.body?.targetFamilyCode||'').trim();
     const skuCode=String(req.body?.skuCode||'').trim();
@@ -688,7 +724,7 @@ registerCatalogNavigationApi(app);
 app.get('/api/catalog/overrides', async (req, res) => {
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');
   try {const identity=await getPortalIdentity(req);const db=loadCatalogOverridesDb();
-  return res.json({status:'ok',success:true,data:(adoptedSchema()?identity.admin:identity.canReadCommerce)?db:publicCatalog(db)});
+  return res.json({status:'ok',success:true,data:(adoptedSchema()?(identity.admin||canStaff(identity,'products','prices')):identity.canReadCommerce)?db:publicCatalog(db)});
   }catch {return res.status(503).json({success:false,message:'دریافت کاتالوگ ممکن نشد.'});}
 });
 

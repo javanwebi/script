@@ -42,6 +42,7 @@ import { CustomerGradingModule } from './modules/CustomerGradingModule';
 import { ContentStudioModule } from './modules/ContentStudioModule';
 import { AnnouncementsAdminModule } from './modules/AnnouncementsAdminModule';
 import { SettingsSystemModule } from './modules/SettingsSystemModule';
+import { AdminStaffUsersModule } from './modules/AdminStaffUsersModule';
 import { ClientsAdminModule } from './modules/ClientsAdminModule';
 import { pricingCreditService } from '../services/pricingCreditService';
 import { toPersianDigits } from '../utils/formatters';
@@ -58,7 +59,15 @@ export const AdminLayout: React.FC = () => {
     let mounted = true;
     const sync = (event: Event) => {
       const data = (event as CustomEvent).detail;
-      if (mounted) setCurrentUser(data.admin ? { id: 'admin', username: 'admin', name: 'مدیریت صنعت پیش', role: 'super_admin', email: '', lastLogin: '' } : null);
+      if (mounted) setCurrentUser(data.admin
+        ? {id:String(data.user?.authUserId||'admin'),username:String(data.user?.username||'admin'),
+            name:String(data.user?.fullName||'مدیریت صنعت پیش'),role:'super_admin',
+            email:String(data.user?.email||''),lastLogin:''}
+        : data.staff && data.staffUser
+        ? {id:String(data.staffUser.id),username:String(data.staffUser.username),
+            name:String(data.staffUser.name),role:'staff',email:String(data.staffUser.email||''),
+            permissions:data.permissions||{},lastLogin:''}
+        : null);
     };
     const status = (event: Event) => { if (mounted) setSaveStatus((event as CustomEvent).detail); };
     window.addEventListener('atlas-session-updated', sync);
@@ -78,7 +87,8 @@ export const AdminLayout: React.FC = () => {
   // Sync tab with URL if needed
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/admin/reports/')) setActiveTab('reports');
+    if (path.includes('/admin/staff-users')) setActiveTab('staff_users');
+    else if (path.includes('/admin/reports/')) setActiveTab('reports');
     else if (path.includes('/admin/products')) setActiveTab('products');
     else if (path.includes('/admin/bulk-import')) setActiveTab('bulk_import');
     else if (path.includes('/admin/inquiries')) setActiveTab('inquiries');
@@ -101,10 +111,19 @@ export const AdminLayout: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [activeTab]);
 
+  useEffect(()=>{
+    if(currentUser?.role!=='staff')return;
+    const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
+    if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
+  },[currentUser,activeTab]);
+
   if (checking) return <div role="status" className="p-16 text-center">در حال بررسی دسترسی مدیریت…</div>;
   if (!currentUser) {
     return <AdminLogin onLoginSuccess={user => setCurrentUser(user)} />;
   }
+
+  const canView=(section:string)=>currentUser.role==='super_admin'
+    || (currentUser.permissions?.[section]||[]).includes('view');
 
   // Real-time notification counters
   const pendingInquiries = adminService.getInquiries().filter(i => i.status === 'pending');
@@ -204,6 +223,12 @@ export const AdminLayout: React.FC = () => {
       icon: Settings,
       badge: null,
     },
+    {
+      id: 'staff_users',
+      label: 'کاربران و دسترسی‌ها',
+      icon: Users,
+      badge: null,
+    },
   ];
 
   // Grouping and navigation are UI only. Never substitute menu visibility for server-side permissions.
@@ -211,28 +236,33 @@ export const AdminLayout: React.FC = () => {
     {title:'نمای کلی',ids:['dashboard']},
     {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
     {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
-    {title:'سامانه',ids:['settings']},
+    {title:'سامانه',ids:['settings','staff_users']},
   ];
   const descriptions:Record<string,string>={
     dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
     crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
     products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
-    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات، کاربران و امنیت',reports:'رتبه‌بندی فروش'
+    announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات و امنیت',staff_users:'ساخت کاربران واقعی و مدیریت مجوزها',reports:'رتبه‌بندی فروش'
   };
   const currentModule=navItems.find(item=>item.id===activeTab);
-  const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!).filter(item=>item && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
+  const visibleGroups=groups.map(g=>({...g,items:g.ids.map(id=>navItems.find(item=>item.id===id)!)
+    .filter(item=>item && canView(item.id) && (item.label+' '+descriptions[item.id]).includes(globalSearchQuery.trim()))})).filter(g=>g.items.length);
   const selectModule=(id:string)=>{
+    if(!canView(id))return;
     setActiveTab(id);
     setIsMobileSidebarOpen(false);
     setGlobalSearchQuery('');
     if(id==='settings'){
       if(location.pathname!=='/admin/settings')navigate('/admin/settings');
-    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings')){
+    }else if(id==='staff_users'){
+      if(location.pathname!=='/admin/staff-users')navigate('/admin/staff-users');
+    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings') || location.pathname.startsWith('/admin/staff-users')){
       navigate('/admin',{state:{adminModule:id}});
     }
   };
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
+    if(!canView(activeTab))return <section role="alert" className="rounded-2xl border border-orange-200 bg-white p-8 text-sm font-bold text-slate-600">مجوز مشاهده این بخش برای حساب شما فعال نیست.</section>;
     switch (activeTab) {
       case 'reports': {
         const path=location.pathname;
@@ -278,6 +308,8 @@ export const AdminLayout: React.FC = () => {
         return <AgenciesAdminModule />;
       case 'settings':
         return <SettingsSystemModule />;
+      case 'staff_users':
+        return <AdminStaffUsersModule />;
       default:
         return <AdminDashboard onNavigateTab={t => setActiveTab(t)} />;
     }
@@ -517,12 +549,12 @@ export const AdminLayout: React.FC = () => {
             <button type="button" onClick={()=>setShowModuleGuide(v=>!v)} className="rounded-xl border border-[#F4C5A3] px-3 py-2 text-xs font-bold text-[#B34D10] hover:bg-[#FFF3EA]">{showModuleGuide?'بستن راهنمای بخش‌ها':'راهنمای بخش‌ها'}</button>
           </section>
           {showModuleGuide&&<section className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-label="راهنمای ماژول‌ها">
-            {navItems.map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
+            {navItems.filter(item=>canView(item.id)).map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
           </section>}
           {renderModuleContent()}
           <div className="h-16 md:hidden" aria-hidden="true" />
           <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-            {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
+            {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).filter(item=>canView(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}
             <button type="button" onClick={()=>setIsMobileSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] text-[#55565A]"><Menu size={18}/>همه بخش‌ها</button>
           </nav>
         </main>

@@ -6,6 +6,7 @@ import {adoptedNamespaces,readAdoptedProducts,toman} from './adopted';
 import {readDocument,writeDocument,readProducts,conflict} from './repository';
 import {domainFor,canWriteCustomerNamespace,publicReadable} from './namespaces';
 import {getPortalIdentity} from '../../api/portal';
+import {canStaff,namespacePermission,assertStaffDocumentChange} from './staffPermissions';
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
@@ -94,9 +95,11 @@ export async function runtimeApi(req:Request,res:Response){
   if(req.method==='GET'){
    const metadata=(await database().query('select namespace,scope_id,version from app_private.document_versions where scope_id=$1 or scope_id=$2',[scope,'global'])).rows;
    const values:Record<string,unknown>={},versions:Record<string,number>={};
-   const permitted=metadata.filter(row=>domainFor(row.namespace) && (row.scope_id!== 'global' || identity.admin || publicReadable.has(row.namespace)));
+   const permitted=metadata.filter(row=>domainFor(row.namespace) && (identity.staff
+     ? (row.scope_id==='global' && namespacePermission(identity,domainFor(row.namespace)||'',false,row.namespace))
+     : (row.scope_id!== 'global' || identity.admin || publicReadable.has(row.namespace))));
    const seen=new Set(permitted.map(row=>row.namespace));
-   const supplemental=adoptedSchema()?adoptedNamespaces().filter(key=>!seen.has(key) && (identity.admin || publicReadable.has(key))):[];
+   const supplemental=adoptedSchema()?adoptedNamespaces().filter(key=>!seen.has(key) && (identity.staff?namespacePermission(identity,domainFor(key)||'',false,key):(identity.admin || publicReadable.has(key)))):[];
    // Parallel reads eliminate sequential cross-region round trips. Cache only
    // public global documents, never private user or admin datasets.
    let guestProducts:unknown;
@@ -107,41 +110,53 @@ export async function runtimeApi(req:Request,res:Response){
      ] : []),
      ...permitted.map(async row=>{
        const key=row.namespace;
-       const value=row.scope_id==='global' && !identity.admin && publicReadable.has(key)
+       const value=row.scope_id==='global' && !identity.admin && !identity.staff && publicReadable.has(key)
          ? await cachedPublicDocument(key)
          : await readDocument(database(),key,row.scope_id);
        values[key]=value;
        versions[key]=Number(row.version);
      }),
      ...supplemental.map(async key=>{
-       const value=!identity.admin && publicReadable.has(key)
+       const value=!identity.admin && !identity.staff && publicReadable.has(key)
          ? await cachedPublicDocument(key)
          : await readDocument(database(),key,'global');
        if(value!==undefined){values[key]=value;versions[key]=0;}
      })
    ]);
-   if(identity.user)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
-   const products=!identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
+   if(identity.user && !identity.staff)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
+   const products=identity.staff
+    ? (canStaff(identity,'products')?await readProducts():[])
+    : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
     const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
     const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
     const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
     for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
     return data;
    }):await readProducts();
-   const visibleProducts=identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
-   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,products:identity.admin?visibleProducts:compactCatalogReviews(visibleProducts)});
+   const visibleProducts=identity.staff && !canStaff(identity,'products','prices')
+    ? publicCatalog(products)
+    : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
+   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,products:identity.admin || identity.staff?visibleProducts:compactCatalogReviews(visibleProducts)});
   }
   checkOrigin(req);
   const key=String(req.body?.key || '');const domain=domainFor(key);if(!domain)throw Object.assign(new Error('بخش داده معتبر نیست.'),{status:400});
   const customerId=identity.user?.id || 'guest';
-  if(!identity.admin && !canWriteCustomerNamespace(key,customerId))throw Object.assign(new Error('اجازه تغییر این اطلاعات را ندارید.'),{status:403});
-  if(identity.user && req.body?.userId!==identity.user.id)throw Object.assign(new Error('حساب فعال تغییر کرده است؛ صفحه را تازه کنید.'),{status:409});
+  if(identity.staff && !namespacePermission(identity,domain,false,key))
+    throw Object.assign(new Error('دسترسی به این بخش مجاز نیست.'),{status:403});
+  if(identity.staff && !namespacePermission(identity,domain,true,key))
+    throw Object.assign(new Error('مجوز ویرایش این بخش را ندارید.'),{status:403});
+  if(!identity.admin && !identity.staff && !canWriteCustomerNamespace(key,customerId))throw Object.assign(new Error('اجازه تغییر این اطلاعات را ندارید.'),{status:403});
+  if(identity.user && !identity.staff && req.body?.userId!==identity.user.id)throw Object.assign(new Error('حساب فعال تغییر کرده است؛ صفحه را تازه کنید.'),{status:409});
   if(JSON.stringify(req.body?.value).length>4*1024*1024)throw Object.assign(new Error('حجم داده بیش از حد است.'),{status:413});
-  const target=identity.admin && !canWriteCustomerNamespace(key,customerId)?'global':scope;
+  const target=(identity.admin || identity.staff) && !canWriteCustomerNamespace(key,customerId)?'global':scope;
   const version=await transaction(async client=>{
     await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[target+':'+key]);
     const current=Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || 0);
     if(Number(req.body?.version)!==current)throw conflict();
+    if(identity.staff){
+      const existing=await readDocument(client,key,target);
+      assertStaffDocumentChange(identity,domain,key,existing,req.body.value);
+    }
     await writeDocument(client,key,req.body.value,target,identity.user?.id);
     return Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || current);
   });if(target==='global'){sharedDocumentCache.delete(key);publicCatalogCache=undefined;}return res.json({success:true,version});

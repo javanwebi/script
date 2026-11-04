@@ -235,6 +235,11 @@ if [[ -f "$APP/.env.sms" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.sms'; then
   MOUNTS+=(-v "$APP/.env.sms:/app/.env.sms:ro")
 fi
+# Preserve the optional server-only staff Auth secret alongside existing SMS mounts.
+if [[ -f "$APP/.env.staff" ]] &&
+   ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.staff'; then
+  MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
+fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
