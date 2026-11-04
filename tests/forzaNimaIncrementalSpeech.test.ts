@@ -151,3 +151,30 @@ test('new text after terminal idle flush is still streamed and voiced once in or
   const remaining=[...planner.push(full),...planner.complete(full)];
   assert.equal([...early,...remaining].join(' ').replace(/\s+/g,' ').trim(),full);
 });
+
+
+test('middle completed speech group leaves the idle holdback without duplicated words',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const first='برای انتخاب قطعات صنعتی مورد نیاز ابتدا مدل دستگاه را بفرمایید و ';
+  const next=first+'سپس کد دقیق قطعه را از روی برچسب یا دفترچه فنی ارسال کنید. ';
+  const early=planner.push(first);
+  const middle=planner.push(next);
+  const idle=planner.flushStableIdle();
+  assert.ok(early.length>0);
+  assert.ok(idle.length>0||middle.length>0);
+  assert.deepEqual(planner.flushStableIdle(),[]);
+  const whole=next+'این شماره را با کاتالوگ موجود تطبیق می‌دهیم.';
+  const ending=[...planner.push(whole),...planner.complete(whole)];
+  assert.equal([...early,...middle,...idle,...ending].join(' ').replace(/\\s+/g,' ').trim(),whole.trim());
+});
+
+test('idle flush never invents or voices unfinished trailing SKU characters',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const prefix='مشخصات و اندازه فنی انتخاب دستگاه را بفرمایید تا بررسی کنیم سپ';
+  const before=planner.push(prefix);
+  const idle=planner.flushStableIdle();
+  assert.ok(!idle.some(x=>x.endsWith('سپ')),'an unfinished word must remain in the SSE tail');
+  const whole=prefix+'س نام سازنده را نیز اعلام کنید.';
+  const phrases=[...before,...idle,...planner.complete(whole)];
+  assert.equal(phrases.join(' ').replace(/\\s+/g,' ').trim(),whole);
+});
