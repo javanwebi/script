@@ -105,16 +105,17 @@ export const RealCustomersCrmModule: React.FC = () => {
     event.preventDefault();if(!form)return;
     setBusy(true);setError('');
     try {
+      let updatedId=editing?.id;
       if (editing) {
-        await api('/api/admin/crm/customers/'+encodeURIComponent(editing.id),{method:'PATCH',body:JSON.stringify(form)});
+        const result=await api<{id?:string}>('/api/admin/crm/customers/'+encodeURIComponent(editing.id),{method:'PATCH',body:JSON.stringify(form)});
+        updatedId=result.id || editing.id;
         setNotice('اطلاعات واقعی مشتری ذخیره شد.');
       } else {
         const result=await api<{message:string}>('/api/admin/crm/customers',{method:'POST',body:JSON.stringify(form)});
         setNotice(result.message);
       }
-      const id=editing?.id;
       setForm(null);setEditing(null);refresh();
-      if(id && detail) await openDetail(id);
+      if(updatedId && detail) await openDetail(updatedId);
     } catch(e) {setError(e instanceof Error?e.message:'ثبت مشتری ممکن نشد.');}
     finally {setBusy(false);}
   };
