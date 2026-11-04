@@ -32,7 +32,11 @@ export const SettingsSystemModule: React.FC = () => {
   // A missing optional settings document must not crash all four admin tabs.
   // Never fabricate a persisted settings document when the database is unavailable.
   const [initialSettings] = useState(() => {
-    try { return { value: adminService.getSettings(), error: '' }; }
+    try {
+      const value = adminService.getSettings();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
+      return { value, error: '' };
+    }
     catch { return { value: {} as SystemSettings, error: 'تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ تا برقراری اتصال، ویرایش تنظیمات غیرفعال است.' }; }
   });
   const [settings, setSettings] = useState<SystemSettings>(initialSettings.value);
@@ -53,7 +57,11 @@ export const SettingsSystemModule: React.FC = () => {
   const [isTestSmsSent, setIsTestSmsSent] = useState(false);
 
   const refreshData = () => {
-    try { setSettings(adminService.getSettings()); setSettingsError(''); }
+    try {
+      const value = adminService.getSettings();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid settings');
+      setSettings(value); setSettingsError('');
+    }
     catch { setSettingsError('تنظیمات سامانه از پایگاه داده بارگذاری نشده است؛ لطفاً وضعیت اتصال را بررسی کنید.'); }
     setAdminUsers(adminService.getAdminUsers());
     setAuditLogs(adminService.getAuditLogs());
