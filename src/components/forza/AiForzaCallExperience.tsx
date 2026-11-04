@@ -1329,7 +1329,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(null);
           }catch(error:any){
-            setVoiceStage('error');
+            if(activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted)
+              setVoiceStage('error');
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
