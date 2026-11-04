@@ -226,6 +226,7 @@ export const SettingsSystemModule: React.FC = () => {
             از گزینه «کاربران و دسترسی‌ها» در منوی اصلی پنل مدیریت استفاده کنید.
             رمز عبور کاربران در Supabase Auth نگهداری می‌شود و مجوزهای واقعی در سرور بررسی می‌شوند.
           </div>
+          {/* The operational staff registry is served from its dedicated owner-only route. */}
                     {/* Admin Users List */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
