@@ -13,8 +13,7 @@ export function isForzaProbableEcho(recognized:string, spokenAnswer:string):bool
   const answer=normalize(spokenAnswer);
   if(!speech || !answer)return false;
   // Intentional corrections and explicit interruption commands take priority.
-  if(/^(?:نه|صبر کن|بس کن|توقف|ادامه بده|منظورم|نه منظورم)(?:\s|$)/.test(speech))
-    return false;
+  if(forzaTurnIntent(speech)!=='question') return false;
   if(answer.includes(speech))return true;
   const words=speech.split(' ').filter(Boolean);
   if(words.length < 3)return false;
@@ -47,7 +46,9 @@ export function shouldIgnoreForzaSpeakerEcho(
 /** Deterministic commands; leave corrections and new questions to the LLM. */
 export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction'|'question' {
   const words=normalize(transcript);
-  if(/^(?:صبر کن|صبر کنید|بس کن|بس کنید|توقف|بسه|ساکت شو)$/.test(words))
+  // A *pure* command may be repeated while the microphone remains open.
+  // Do not treat "صبر کن، منظورم 6203ZZ بود" as a stop command.
+  if(/^(?:(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت شو)(?:\s+|$))+$/u.test(words))
     return 'stop';
   if(/^(?:ادامه بده|ادامه بدید|ادامه|بقیه را بگو|بقیه رو بگو)$/.test(words))
     return 'continue';
