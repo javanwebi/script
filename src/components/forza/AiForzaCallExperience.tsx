@@ -909,9 +909,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const generation=++generationRef.current;
       activeTurnRef.current={generation,abort:pocketAbort};
       console.info('[FORZA_TURN] turn='+generation+
-        ' phase=request_sent endToRequestMs='+
-        (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
-      console.info('[FORZA_TURN] turn='+generation+
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
       vadRef.current.reset();
@@ -1121,6 +1118,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
           const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
+            console.info('[FORZA_LATENCY] phase=llm_request_sent turn='+generation+
+              ' endToRequestMs='+(detectedSpeechEndAtRef.current
+                ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
             const streamRes=await fetch('/api/ai/consult-stream',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
