@@ -42,13 +42,16 @@ const customer = {
       await page.locator(".consumer-shortcuts").waitFor();
       // Real image must load in the account header: avoid a visually blank brand
       // even when the source tests and TypeScript both pass.
-      await page.locator(".portal-top-brand .portal-official-logo").waitFor({ state: "attached" });
-      await page.waitForFunction(() => {
-        const image = document.querySelector(".portal-top-brand .portal-official-logo");
+      const brandSelector = width < 1024
+        ? ".portal-top-brand .portal-official-logo"
+        : ".portal-brand .portal-official-logo";
+      await page.locator(brandSelector).waitFor({ state: "visible" });
+      await page.waitForFunction((selector) => {
+        const image = document.querySelector(selector);
         return image && image.complete && image.naturalWidth > 0;
-      }, { timeout: 30000 });
-      assert.equal(await page.locator(".portal-top-brand .portal-official-logo").count(), 1,
-        "consumer header must render exactly one official corporate brand image");
+      }, brandSelector, { timeout: 30000 });
+      assert.equal(await page.locator(brandSelector).count(), 1,
+        "visible customer header must render exactly one official corporate brand image");
 
       assert.equal(await page.locator(".consumer-overview-extra .portal-club").count(),0,
         "collapsed overview reports must not render the club until requested");
