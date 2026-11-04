@@ -16,10 +16,15 @@ const emailOk = (value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v
 const portalKind = (value: unknown) => value === 'high_volume' ? 'high_volume' : 'retail';
 const uuid = () => crypto.randomUUID();
 const customerKey = (value: unknown) => {
-  const key = text(value, 160);
-  if (!/^(crm:[a-zA-Z0-9_-]{1,100}|profile:[0-9a-f-]{36})$/i.test(key))
-    throw fail(400, 'شناسه مشتری معتبر نیست.');
-  return { source: key.startsWith('crm:') ? 'crm' : 'profile', id: key.split(':').slice(1).join(':') };
+  const key = text(value, 200);
+  if (key.startsWith('crm:')) {
+    const id=key.slice(4);
+    if(!id || id.length>160 || /[\u0000-\u001f]/.test(id))throw fail(400,'شناسه مشتری نامعتبر است.');
+    return {source:'crm' as const,id};
+  }
+  if (key.startsWith('profile:') && /^[0-9a-f-]{36}$/i.test(key.slice(8)))
+    return {source:'profile' as const,id:key.slice(8)};
+  throw fail(400,'شناسه مشتری معتبر نیست.');
 };
 export function normalizeCrmPhone(raw: unknown): string {
   const digits = String(raw || '')
