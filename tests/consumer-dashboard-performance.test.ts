@@ -39,7 +39,8 @@ test("reorder uses current catalog SKU price, never historical invoice price", (
   assert.equal(sku?.product.code, "UNIT-SKU-701");
   assert.equal(sku?.product.prices.retail, 250);
   assert.equal(sku?.quantity, 3);
-  assert.equal(resolveCurrentRetailReorder("UNIT-FAMILY-001", 1, find)?.product.prices.retail, 180);
+  assert.equal(resolveCurrentRetailReorder("UNIT-FAMILY-001", 1, find), null, "a family with variants requires an exact SKU");
+  assert.equal(resolveCurrentRetailReorder("UNIT-FAMILY-001", 1, () => family({variants: []}))?.product.prices.retail, 180);
 });
 
 test("reorder rejects removed, inactive, unpriced and inquiry-only codes", () => {
@@ -50,6 +51,8 @@ test("reorder rejects removed, inactive, unpriced and inquiry-only codes", () =>
   assert.equal(resolveCurrentRetailReorder("UNIT-FAMILY-001", 1, find(family({prices:{base:0,retail:0,wholesale:0,dealer:0}}))), null);
   assert.equal(resolveCurrentRetailReorder("UNIT-SKU-701", 1, find(family({variants:[{code:"UNIT-SKU-701",name:"inactive",size:"701",price:200,active:false}]}))), null);
   assert.equal(resolveCurrentRetailReorder("UNIT-SKU-701", 1, find(family({variants:[{code:"UNIT-SKU-701",name:"inquiry",size:"701",inquiryOnly:true,price:200}]}))), null);
+  assert.equal(resolveCurrentRetailReorder("UNIT-SKU-701", 1, find(family({variants:[{code:"UNIT-SKU-701",name:"sold out",size:"701",price:200,stockKnown:true,stock:0}]}))), null);
+  assert.equal(resolveCurrentRetailReorder("UNIT-FAMILY-001", 1, find(family({variants:[],stockKnown:true,stock:0}))), null);
 });
 
 test("dashboard does not repeatedly normalize catalog or render unopened detail tabs", () => {
