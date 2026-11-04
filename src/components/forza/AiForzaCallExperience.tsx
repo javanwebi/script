@@ -167,6 +167,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const activeTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
+  const serverSttConfiguredRef=useRef<boolean|null>(null);
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -930,6 +931,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
 
         if (audioBlob) {
+          // Avoid a guaranteed futile 15-second transcription attempt when
+          // Chrome STT failed and the optional server provider is disabled.
+          // If provider discovery was unavailable, retain existing fallback.
+          if(serverSttConfiguredRef.current===false){
+            console.warn('[FORZA_STT] source=server fallback_not_configured=1');
+            throw new Error('تشخیص گفتار سروری فعال نیست و مرورگر نتوانست صحبت شما را به متن تبدیل کند. فعلاً از «تایپ پیام متنی» استفاده کنید.');
+          }
           const reader = new FileReader();
           const base64Promise = new Promise<string>((resolve, reject) => {
             reader.onloadend = () => resolve(reader.result as string);
@@ -1480,6 +1488,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // STT uses the existing browser recognizer with the current server-side
   // fallback. No Diba model download or browser-side model startup occurs.
+
+  // Discover the optional transcription fallback independently of the
+  // text AI provider. Browser streaming STT still works when this is false.
+  // A failed discovery does not disable the existing compatibility path.
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'})
+      .then(async response=>response.ok?await response.json():null)
+      .then((info:{serverSttConfigured?:boolean}|null)=>{
+        if(!controller.signal.aborted&&typeof info?.serverSttConfigured==='boolean')
+          serverSttConfiguredRef.current=info.serverSttConfigured;
+      })
+      .catch(()=>{});
+    return ()=>controller.abort();
+  },[]);
 
   // Acquire permission while the particle animation forms; audio input stays
   // muted for transcription until the greeting has finished.
