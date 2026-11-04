@@ -11,6 +11,7 @@ import {
   Eye,
   Loader2,
   RotateCcw,
+  Square,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
@@ -94,14 +95,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  const [quality, setQuality] = useState<'high'|'balanced'|'low'>(()=>{
-    if(typeof window==='undefined')return 'balanced';
-    const cpu=navigator.hardwareConcurrency||4;
-    const mobile=window.matchMedia('(max-width: 767px)').matches;
-    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    return mobile||cpu<=4||reduced?'low':'high';
-  });
-  const poorFpsSamplesRef=useRef(0);
+  // Keep the original high-fidelity silhouette and particle density.
+  // Microphone VAD now runs independently of Three.js, so a low render FPS
+  // must never silently replace the avatar with a sparse/different design.
+  const [quality] = useState<'high'>('high');
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [showTextInput, setShowTextInput] = useState<boolean>(false);
@@ -1775,20 +1772,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         audioLevel={audioLevel}
         quality={quality}
         background={true}
-        onStats={s => {
-          setStats(prev => ({ ...prev, ...s }));
-          // Three consecutive low-FPS samples justify one density downgrade.
-          // This does not run model/STT on the visual animation frame.
-          if(typeof s.fps==='number'&&s.fps<23){
-            poorFpsSamplesRef.current++;
-            if(poorFpsSamplesRef.current>=3){
-              poorFpsSamplesRef.current=0;
-              setQuality(prev=>prev==='high'?'balanced':'low');
-            }
-          }else if(typeof s.fps==='number'){
-            poorFpsSamplesRef.current=0;
-          }
-        }}
+        onStats={s => setStats(prev => ({ ...prev, ...s }))}
         onFormed={() => setParticlesFormed(true)}
       />
 
@@ -1838,10 +1822,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           {/* Bottom-Left Metric: Sync % & Realtime status */}
           <div className="hud-block hud-bottom-left">
             <div className="text-[11px] text-[#dee2e5] font-mono">
-              RENDER <b className="text-white">{stats.fps!==null?`${stats.fps} FPS`:'—'}</b>
+              SYNC <b className="text-white">—</b>
             </div>
             <div className="hud-dim text-[10px] text-[#dee2e5]/70 font-mono tracking-wider">
-              PARTICLE MESH · WEBGL
+              PARTICLE MESH · REALTIME GPU
             </div>
           </div>
 
@@ -1950,21 +1934,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
               : status === 'speaking' && isSpeakerMuted
-              ? 'پخش صدا فعال است اما بلندگوی فورزا بی‌صداست'
+              ? 'صدای فورزا بی‌صداست'
               : status === 'speaking' && voiceStage === 'playing'
-              ? 'پخش صوت فورزا در جریان است'
+              ? 'AI FORZA در حال صحبت...'
               : greetingPhase === 'preparing'
               ? 'AI FORZA در حال خوشامدگویی...'
               : voiceStage === 'buffering'
-              ? `پخش فعلاً متوقف است؛ منتظر قطعه صوتی بعدی (${voiceWaitSeconds} ثانیه)`
+              ? 'در انتظار ادامه صدا...'
               : voiceStage === 'synthesizing'
-              ? `در حال تولید نخستین قطعه صوتی (${voiceWaitSeconds} ثانیه)`
+              ? 'در حال تولید صدا...'
               : voiceStage === 'text'
-              ? 'در حال دریافت متن پاسخ از سرویس هوش مصنوعی...'
+              ? 'در انتظار پاسخ فورزا...'
               : status === 'thinking' && voicePending
-              ? 'منتظر آماده‌شدن پخش صوت...'
+              ? 'در انتظار پخش صوت...'
               : status === 'thinking'
-              ? 'درخواست ارسال شد؛ در انتظار نخستین متن پاسخ...'
+              ? 'در انتظار پاسخ فورزا...'
               : 'AI FORZA آماده می‌شود...'}
           </span>
           <span
@@ -1979,10 +1963,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           {(isProcessingTurnRef.current || isAiSpeakingRef.current || voicePending) && greetingPhase === 'complete' && (
             <button type="button"
               onClick={interruptCurrentTurn}
-              className="rounded-md border border-orange-400/60 px-2 py-1 text-[11px] font-semibold text-orange-100 hover:bg-orange-600/30"
+              className="p-1 rounded-md text-[#dee2e5]/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               title="توقف فوری پاسخ و ادامه شنیدن صدای مشتری"
               aria-label="توقف پاسخ فورزا">
-              توقف پاسخ
+              <Square size={13} fill="currentColor" />
             </button>
           )}
           <button
