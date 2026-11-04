@@ -267,8 +267,12 @@ export function registerAdminCustomersApi(app: Express) {
           const record = await client.query('select id,auth_user_id from public.crm_customers where id=$1 for update',[key.id]);
           if (!record.rowCount) throw fail(404,'مشتری یافت نشد.');
           await client.query("update public.crm_customers set approved_b2b=$2,approval_status=$3,updated_at=now() where id=$1",[key.id,approved,approved?'approved':'pending']);
-          if (record.rows[0].auth_user_id)
-            await client.query("update public.user_profiles set approved_b2b=$2,role=(case when $2 then 'club' else 'client' end)::public.app_role_type,updated_at=now() where id=$1 and role::text in ('client','club')",[record.rows[0].auth_user_id,approved]);
+          if (record.rows[0].auth_user_id) {
+            const linked=await client.query(
+              "update public.user_profiles set approved_b2b=$2,role=(case when $2 then 'club' else 'client' end)::public.app_role_type,updated_at=now() where id=$1 and role::text in ('client','club') returning id",
+              [record.rows[0].auth_user_id,approved]);
+            if(!linked.rowCount)throw fail(409,'حساب متصل قابل انتقال نیست؛ فقط نقش مشتری خرید تکی یا خرید بالا مجاز است.');
+          }
         } else {
           const updated=await client.query("update public.user_profiles set approved_b2b=$2,role=(case when $2 then 'club' else 'client' end)::public.app_role_type,updated_at=now() where id=$1 and role::text in ('client','club') returning id",[key.id,approved]);
           if (!updated.rowCount) throw fail(404,'مشتری یافت نشد.');
