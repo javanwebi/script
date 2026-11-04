@@ -46,6 +46,7 @@ import {
   PortalAnnouncementItem,
 } from "../services/portalContentService";
 import { pricingCreditService } from "../services/pricingCreditService";
+import type { Product } from "../types";
 const PortalInquiries = React.lazy(() => import("../components/portal/PortalInquiries").then((m) => ({ default: m.PortalInquiries })));
 const PortalRecentOrders = React.lazy(() => import("../components/portal/PortalRecentOrders").then((m) => ({ default: m.PortalRecentOrders })));
 const PortalTools = React.lazy(() => import("../components/portal/PortalTools").then((m) => ({ default: m.PortalTools })));
@@ -251,13 +252,13 @@ export const ConsumerDashboardPage: React.FC = () => {
       : []
   ), [catalog, deferredQuickSkuQuery, selectedCategorySlug, activeTab]);
 
-  const handleQuickAddProduct = (product: any) => {
+  const handleQuickAddProduct = (product: Product) => {
     if (
       !resolvedConfig.permissions.allowQuickSkuOrder ||
       !enabledMenus.some((m) => m.id === "quick_buy")
     )
       return;
-    navigate(`/product/${product.code}`);
+    navigate(`/product/${encodeURIComponent(product.code)}`);
     return;
   };
 
@@ -603,6 +604,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   </div>
 
                   <div className="consumer-home-product-grid">
+                    {!suggestedProducts.length && <p className="consumer-home-no-products" role="status">هنوز کالای قابل نمایش در کاتالوگ منتشر نشده است.</p>}
                     {suggestedProducts.map((prod) => {
                       const firstVar = (prod.variants || [])[0];
                       const unitPrice =
@@ -858,6 +860,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   {quickSkuQuery && <button type="button" onClick={() => setQuickSkuQuery("")} aria-label="پاک کردن جستجو">×</button>}
                 </label>
               </div>
+              {quickSkuQuery !== deferredQuickSkuQuery && <p className="consumer-search-pending" role="status">در حال به‌روزرسانی نتایج جستجو…</p>}
               <div className="consumer-categories" role="group" aria-label="فیلتر دسته‌بندی کالا">
                 <button type="button" aria-pressed={selectedCategorySlug === "all"}
                   onClick={() => setSelectedCategorySlug("all")}><Layers size={17}/> همه دسته‌ها</button>
