@@ -102,6 +102,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
+  const speakerMutedRef=useRef(false);
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
   const [isUserSpeaking, setIsUserSpeaking] = useState<boolean>(false);
   // The configured provider speaks via STT -> text -> TTS, not Gemini Live WS.
@@ -158,7 +159,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const activeTurnRef = useRef<{generation:number; abort:AbortController; markInterrupted?:()=>void}|null>(null);
   const generationRef = useRef(0);
   const interruptRequestRef = useRef<() => void>(()=>{});
-  const latestAiTextRef = useRef('');
   const isAiSpeakingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
   const isRecognitionActiveRef = useRef<boolean>(false);
@@ -561,12 +561,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const interruptCurrentTurn = useCallback(() => {
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted)return;
-    active.markInterrupted?.();
     // Invalidate callbacks before aborting. The old finally must not cancel
     // the new user's microphone, player or response.
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
+    // Playback cancellation has now measured a partially played WAV.
+    active.markInterrupted?.();
     isProcessingTurnRef.current=false;
     isAiSpeakingRef.current=false;
     setVoicePending(false);
@@ -578,6 +579,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   interruptRequestRef.current=interruptCurrentTurn;
 
   useEffect(()=>{
+    speakerMutedRef.current=isSpeakerMuted;
     continuousVoiceRef.current?.setMuted(isSpeakerMuted);
   },[isSpeakerMuted]);
 
@@ -985,7 +987,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         let firstTextDelivered=false;
         let firstPlaybackLogged=false;
         let heardEntry:Turn|null=null;
+        let interruptedPhrase:{text:string;playedMs:number;durationMs:number}|null=null;
         const recordHeard=(phrase:string)=>{
+          if(speakerMutedRef.current)return;
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           if(!phrase.trim())return;
           if(!heardEntry){
@@ -996,8 +1000,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         if(activeTurnRef.current?.generation===generation){
           activeTurnRef.current.markInterrupted=()=>{
-            if(reply)historyRef.current.push({role:'model',
-              text:'[پاسخ قبلی وسط پخش قطع شد؛ ادامه تولیدشده به مشتری نرسیده است.]'});
+            if(!reply)return;
+            const partial=interruptedPhrase;
+            const note=partial
+              ? 'عبارت «'+partial.text+'» فقط '+Math.round(partial.playedMs)+
+                ' از '+Math.round(partial.durationMs)+' میلی‌ثانیه پخش شد و کامل شنیده‌شده نیست.'
+              : 'عبارت جدیدِ در حال ساخت یا صف، پخش کامل نداشته است.';
+            historyRef.current.push({role:'model',
+              text:'[پاسخ قطع شد. فقط عبارت‌های کاملِ قبلی شنیده‌شده محسوب شوند. '+
+                note+' اگر کاربر گفت ادامه بده از آخرین عبارت کامل شروع کن؛ متن ساخته‌شده بعدی را شنیده‌شده فرض نکن.]'});
           };
         }
         continuousVoiceRef.current?.cancel();
@@ -1058,6 +1069,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
+          onPhraseProgress:(phrase,progress)=>{
+            if(progress.phase==='interrupted' && progress.playedMs>0 &&
+               progress.playedMs<progress.durationMs && !speakerMutedRef.current){
+              interruptedPhrase={text:phrase,playedMs:progress.playedMs,
+                durationMs:progress.durationMs};
+            }
+          },
           maxConcurrent:2,
           initialBufferSeconds:2,
           maximumInitialWaitMs:120,
@@ -1083,7 +1101,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           reply=callPlainText.push(fullText);
-          latestAiTextRef.current=reply;
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
             console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
