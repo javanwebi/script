@@ -23,7 +23,7 @@ import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
-import { forzaTurnIntent, isForzaProbableEcho } from '../../utils/forzaBargeIn';
+import { forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -189,9 +189,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const likelySpeakerEcho=(words:string)=>{
     const recentPlayback=isAiSpeakingRef.current ||
       (lastForzaPlaybackAtRef.current>0 && Date.now()-lastForzaPlaybackAtRef.current<1500);
-    // Preserve short reactions, stop commands and corrections.
-    return recentPlayback && words.trim().split(/\s+/u).length>=3 &&
-      isForzaProbableEcho(words,heardSpeechEchoRef.current);
+    return shouldIgnoreForzaSpeakerEcho(
+      words,heardSpeechEchoRef.current,recentPlayback);
   };
   const serverSttConfiguredRef=useRef<boolean|null>(null);
 
