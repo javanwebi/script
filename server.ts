@@ -3,7 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
-import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields} from './server/db/staffPermissions';
+import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -420,6 +420,7 @@ app.use('/api/catalog', (req, res, next) => {
       const current=(await readProducts()).find((product:any)=>product.code===code);
       action=current?'edit':'create';
       assertStaffCommercialFields(identity,current,candidate);
+      assertStaffCatalogStructure(identity,current,candidate);
       req.body.family=preserveStaffCommercialFields(identity,current,candidate);
     }
     if(identity.staff && req.path.endsWith('/overrides/bulk')){
@@ -431,6 +432,7 @@ app.use('/api/catalog', (req, res, next) => {
         for(const [code,family] of Object.entries(families))
           {
             assertStaffCommercialFields(identity,current.get(code),family);
+            assertStaffCatalogStructure(identity,current.get(code),family);
             families[code]=preserveStaffCommercialFields(identity,current.get(code),family);
           }
       }
