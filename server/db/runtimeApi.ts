@@ -6,7 +6,7 @@ import {adoptedNamespaces,readAdoptedProducts,toman} from './adopted';
 import {readDocument,writeDocument,readProducts,conflict} from './repository';
 import {domainFor,canWriteCustomerNamespace,publicReadable} from './namespaces';
 import {getPortalIdentity} from '../../api/portal';
-import {canStaff,namespacePermission} from './staffPermissions';
+import {canStaff,namespacePermission,assertStaffDocumentChange} from './staffPermissions';
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
@@ -153,6 +153,10 @@ export async function runtimeApi(req:Request,res:Response){
     await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[target+':'+key]);
     const current=Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || 0);
     if(Number(req.body?.version)!==current)throw conflict();
+    if(identity.staff){
+      const existing=await readDocument(client,key,target);
+      assertStaffDocumentChange(identity,domain,key,existing,req.body.value);
+    }
     await writeDocument(client,key,req.body.value,target,identity.user?.id);
     return Number((await client.query('select version from app_private.document_versions where scope_id=$1 and namespace=$2',[target,key])).rows[0]?.version || current);
   });if(target==='global'){sharedDocumentCache.delete(key);publicCatalogCache=undefined;}return res.json({success:true,version});
