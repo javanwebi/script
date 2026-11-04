@@ -54,7 +54,7 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
- if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','logout'].includes(body.action))return false;
+ if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
  const auth=client();
@@ -72,6 +72,33 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   const result=await auth.auth.signInWithOtp({phone:number.e164,options:{shouldCreateUser:true}});
   if(result.error)throw error(503,'ارسال کد تأیید انجام نشد؛ تنظیمات پیامک Supabase Auth را بررسی کنید.');
   send(201,{success:true,requiresPhoneVerification:true,isNewUser:true,message:'کد تأیید شماره را وارد کنید.'});return true;
+ }
+ if(body.action==='initial_password_change'){
+  const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');
+  if(!token||!refresh)throw error(401,'ابتدا با رمز اولیه وارد حساب شوید.');
+  const who=await auth.auth.getUser(token);
+  const verified=who.data.user;
+  if(who.error||!verified)throw error(401,'نشست ورود معتبر نیست.');
+  const account=(await database().query(
+   "select id,username,phone,role::text as role,status::text as status,preferences from public.user_profiles where id=$1",
+   [verified.id])).rows[0];
+  if(!account||account.status!=='active'||!['client','club'].includes(account.role))
+   throw error(403,'مجوز تغییر رمز اولیه برای این حساب وجود ندارد.');
+  if(account.preferences?.mustChangePassword!==true)
+   throw error(409,'این حساب رمز اولیه فعال ندارد.');
+  const password=body.password;
+  if(typeof password!=='string'||password.length<12||password.length>128||
+     password===account.username||password===account.phone||password===String(account.phone||'').replace(/^\+98/,'0'))
+   throw error(400,'رمز جدید باید حداقل ۱۲ نویسه و متفاوت از شماره و نام کاربری باشد.');
+  const restore=await auth.auth.setSession({access_token:token,refresh_token:refresh});
+  if(restore.error)throw error(401,'نشست ورود منقضی شده است.');
+  const changed=await auth.auth.updateUser({password});
+  if(changed.error)throw error(400,'تغییر رمز در سرویس احراز هویت انجام نشد.');
+  await database().query(
+   "update public.user_profiles set preferences=jsonb_set(preferences,'{mustChangePassword}','false'::jsonb,true),updated_at=now() where id=$1 and (preferences->>'mustChangePassword')='true'",
+   [verified.id]);
+  const current=await identityProfile(verified.id);
+  send(200,{success:true,user:safe(current),requiresPasswordChange:false,message:'رمز دائمی جدید ذخیره شد.'});return true;
  }
  if(body.action==='registration_credentials'){
   const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!token || !refresh)throw error(401,'ابتدا شماره موبایل را تأیید کنید.');
@@ -155,6 +182,6 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
  }
  send(200,{success:true,user:safe(profile),admin:profile.role==='admin',staff,permissions,
   staffUser:staff?{id:p.id,username:p.username,name:p.full_name,email:p.email,role:'staff',permissions}:undefined,
-  requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
+  requiresCredentials:profile.registrationCredentialsPending===true,requiresPasswordChange:profile.mustChangePassword===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }
