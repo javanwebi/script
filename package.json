@@ -16,7 +16,7 @@
     "cap:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "apk:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
-    "test:portal": "node --import tsx --test tests/portal*.test.ts",
+    "test:portal": "node --import tsx --test tests/portal*.test.ts tests/staff-access.test.ts",
     "db:plan": "node --import tsx scripts/database/migrate.ts plan",
     "db:migrate": "node --import tsx scripts/database/migrate.ts apply",
     "db:import": "node --import tsx scripts/database/migrate.ts import",

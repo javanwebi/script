@@ -98,7 +98,7 @@ async function loadPortal() {
   if(databaseStorageEnabled())await refreshDurableStorage();
   hydrateMemory(()=>{
   revision = data.revision;
-  isAdmin = data.admin;
+  isAdmin = data.admin === true || data.staff === true;
   for (const key of PORTAL_CACHE_KEYS) {
     const value = data.values?.[key];
     if (value !== undefined) durableStorage.setItem(key, JSON.stringify(value));
