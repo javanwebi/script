@@ -71,7 +71,7 @@ export function catalogMutationPermission(path:string):[string,string]{
   if(path.includes('/category-images/upload') || path.includes('/product-images/upload'))return ['products','images'];
   if(path.includes('/menu-family-assignment') || path.includes('/navigation-groups'))return ['products','categories'];
   if(path.includes('/sku-transfer'))return ['products','sku_move'];
-  if(path.includes('/overrides/reset-family') || /^\/overrides\/family\//.test(path))return ['products','delete'];
+  if(path.includes('/overrides/reset-family') || path.includes('/overrides/family/'))return ['products','delete'];
   if(path.includes('/overrides/family') || path.includes('/direct-skus'))return ['products','edit'];
   return ['__forbidden__','__forbidden__'];
 }
