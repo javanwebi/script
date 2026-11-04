@@ -171,11 +171,10 @@ interface CachedLayers {
   totalCount: number;
 }
 
-const cachedLayers=new Map<number,CachedLayers>();
+let cachedLayers: CachedLayers | null = null;
 
-function buildLayers(data: Uint8Array,stride=1): CachedLayers {
-  const cached=cachedLayers.get(stride);
-  if(cached)return cached;
+function buildLayers(data: Uint8Array): CachedLayers {
+  if (cachedLayers) return cachedLayers;
 
   const sharpPos: number[] = [];
   const sharpCol: number[] = [];
@@ -191,10 +190,6 @@ function buildLayers(data: Uint8Array,stride=1): CachedLayers {
       const b = data[i + 2] / 255;
       const l = Math.max(r, g * 1.1, b);
       if (l < 0.06) continue;
-      // Keep full fidelity on strong desktops, but do not allocate/render
-      // 130k moving GPU points on weak phones. Random sampling preserves
-      // the original silhouette better than regularly spaced stripes.
-      if(stride>1 && Math.random()>=1/stride)continue;
       if (Math.random() > Math.pow(Math.min(1, l * 1.5), 1.6)) continue;
 
       const [wx, wy] = toWorld(x + (Math.random() - 0.5) * 0.3, y + (Math.random() - 0.5) * 0.3);
@@ -244,7 +239,7 @@ function buildLayers(data: Uint8Array,stride=1): CachedLayers {
     }
   }
 
-  const built:CachedLayers = {
+  cachedLayers = {
     sharp: {
       pos: new Float32Array(sharpPos),
       col: new Float32Array(sharpCol),
@@ -264,9 +259,7 @@ function buildLayers(data: Uint8Array,stride=1): CachedLayers {
     totalCount: sharpSeed.length + glowSeed.length,
   };
 
-  if(cachedLayers.size>=2)cachedLayers.clear();
-  cachedLayers.set(stride,built);
-  return built;
+  return cachedLayers;
 }
 
 function makePoints(
@@ -393,8 +386,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         return;
       }
 
-      const pr = Math.min(window.devicePixelRatio || 1,
-        quality === 'high'?2:quality==='balanced'?1.25:1);
+      const pr = Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1.5);
       renderer.setPixelRatio(pr);
       renderer.setClearColor(0x080402, 1);
       renderer.domElement.style.width = '100%';
@@ -413,8 +405,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         uSpeech: { value: 0 },
       };
 
-      const thinning=quality==='low'?4:quality==='balanced'?2:1;
-      const layers = buildLayers(decode(B64),thinning);
+      const layers = buildLayers(decode(B64));
       const { pts: glowPts, mat: glowMat } = makePoints(layers.glow, shared, CELL * 4 * 3.0, 0.1, 1);
       const { pts: sharpPts, mat: sharpMat } = makePoints(layers.sharp, shared, CELL * 0.75, 1.55, 0.7);
       scene.add(glowPts, sharpPts);
@@ -529,8 +520,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           lastFpsTime = now;
           props.current.onStats?.({
             fps,
-            tier: props.current.quality==='low'?'LITE':
-              props.current.quality==='balanced'?'BALANCED':'ULTRA',
+            tier: 'ULTRA',
             renderMs: Math.round(renderMs * 10) / 10,
             particles: layers.totalCount + N,
           });
