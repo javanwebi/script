@@ -1385,8 +1385,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             audioChunksRef.current.push(e.data);
             // 2-second in-RAM pre-roll while FORZA is responding. No disk
             // persistence; preserve the first user syllables after barge-in.
-            if(isProcessingTurnRef.current && audioChunksRef.current.length>8)
-              audioChunksRef.current.splice(0,audioChunksRef.current.length-8);
+            // Hard RAM cap also while the customer leaves the microphone
+            // open for hours. Keep 45s for optional post-recording STT and a
+            // 2s tail during model speech to reduce memory and self-echo.
+            const maxChunks=isProcessingTurnRef.current?8:180;
+            if(audioChunksRef.current.length>maxChunks)
+              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
           }
         };
 
