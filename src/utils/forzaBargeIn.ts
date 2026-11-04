@@ -28,6 +28,18 @@ export function isForzaProbableEcho(recognized:string, spokenAnswer:string):bool
   return false;
 }
 
+/** Conservative gate for loudspeaker bleed during real audio playback.
+ * Unlike diarization, this cannot know who spoke. Single-word reactions and
+ * explicit corrections always get through; the test requires 3+ tokens.
+ */
+export function shouldIgnoreForzaSpeakerEcho(
+  recognized:string,actuallyPlayingText:string,recentPlayback:boolean,
+):boolean {
+  if(!recentPlayback)return false;
+  if(normalize(recognized).split(' ').filter(Boolean).length<3)return false;
+  return isForzaProbableEcho(recognized,actuallyPlayingText);
+}
+
 /** Deterministic commands; leave corrections and new questions to the LLM. */
 export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction'|'question' {
   const words=normalize(transcript);
