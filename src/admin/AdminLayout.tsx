@@ -106,6 +106,12 @@ export const AdminLayout: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [activeTab]);
 
+  useEffect(()=>{
+    if(currentUser?.role!=='staff')return;
+    const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
+    if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
+  },[currentUser,activeTab]);
+
   if (checking) return <div role="status" className="p-16 text-center">در حال بررسی دسترسی مدیریت…</div>;
   if (!currentUser) {
     return <AdminLogin onLoginSuccess={user => setCurrentUser(user)} />;
@@ -113,11 +119,6 @@ export const AdminLayout: React.FC = () => {
 
   const canView=(section:string)=>currentUser.role==='super_admin'
     || (currentUser.permissions?.[section]||[]).includes('view');
-  useEffect(()=>{
-    if(currentUser?.role!=='staff')return;
-    const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
-    if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
-  },[currentUser,activeTab]);
 
   // Real-time notification counters
   const pendingInquiries = adminService.getInquiries().filter(i => i.status === 'pending');
