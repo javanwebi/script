@@ -25,6 +25,7 @@ import {
   SmsLog,
 } from '../../services/adminService';
 import { toPersianDigits } from '../../utils/formatters';
+import { AdminStaffUsersModule } from './AdminStaffUsersModule';
 
 export const SettingsSystemModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'roles' | 'gateways_sms' | 'audit' | 'backup'>('roles');
@@ -122,7 +123,7 @@ export const SettingsSystemModule: React.FC = () => {
             <span>تنظیمات کلان، امنیت، درگاه‌ها و لاگ سیستم</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            ماتریس دسترسی نقش‌ها (RBAC)، اتصال به درگاه‌های پرداخت، سامانه پیامک و پشتیبان‌گیری کامل از پایگاه داده.
+            مدیریت کاربران واقعی، سطح دسترسی سروری، درگاه‌ها و تاریخچه سامانه.
           </p>
         </div>
 
@@ -154,7 +155,7 @@ export const SettingsSystemModule: React.FC = () => {
           }`}
         >
           <Shield className="w-4 h-4" />
-          <span>نقش‌ها و دسترسی‌ها (RBAC)</span>
+          <span>کاربران و دسترسی‌های واقعی</span>
         </button>
 
         <button
@@ -194,91 +195,8 @@ export const SettingsSystemModule: React.FC = () => {
         </button>
       </div>
 
-      {/* --- TAB 1: ROLES & RBAC MATRIX --- */}
-      {activeTab === 'roles' && (
-        <div className="space-y-6">
-          {/* RBAC Matrix */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <div>
-              <h3 className="font-black text-sm text-[#55565A]">الگوی نقش‌ها و دسترسی‌ها</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                الگوی نمایشی سطح دسترسی هر واحد؛ مجوز واقعی کاربران باید در سرور اعمال شود.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 font-bold text-[#55565A]">
-                    <th className="py-3 px-4">ماژول / عملیات</th>
-                    <th className="py-3 px-4 text-center">مدیر ارشد (Superadmin)</th>
-                    <th className="py-3 px-4 text-center">مدیر فروش و CRM</th>
-                    <th className="py-3 px-4 text-center">انباردار و لجستیک</th>
-                    <th className="py-3 px-4 text-center">حسابداری و مالی</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {[
-                    { title: 'مشاهده داشبورد و شاخص‌های مالی', s: true, sa: true, w: false, a: true },
-                    { title: 'تعریف و ویرایش کالاها و قیمت پایه', s: true, sa: true, w: false, a: false },
-                    { title: 'ایمپورت گروهی اکسل و تغییر ضرایب', s: true, sa: true, w: false, a: false },
-                    { title: 'پاسخ به استعلام‌ها و صدور پیش‌فاکتور', s: true, sa: true, w: false, a: true },
-                    { title: 'تأیید فیش‌های بانکی و اعتبارسنجی', s: true, sa: false, w: false, a: true },
-                    { title: 'ثبت بارنامه و تغییر وضعیت بسته‌بندی', s: true, sa: false, w: true, a: false },
-                    { title: 'تأیید نمایندگی و تخصیص سقف اعتبار', s: true, sa: true, w: false, a: true },
-                    { title: 'تغییر تنظیمات درگاه و خروجی بکاپ', s: true, sa: false, w: false, a: false },
-                  ].map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-bold text-slate-800">{row.title}</td>
-                      <td className="py-3 px-4 text-center">
-                        {row.s ? <CheckCircle className="w-4 h-4 text-emerald-600 mx-auto" /> : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {row.sa ? <CheckCircle className="w-4 h-4 text-emerald-600 mx-auto" /> : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {row.w ? <CheckCircle className="w-4 h-4 text-emerald-600 mx-auto" /> : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {row.a ? <CheckCircle className="w-4 h-4 text-emerald-600 mx-auto" /> : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#F4C5A3] bg-[#FFF9F5] px-5 py-4 text-xs leading-7 text-[#8A480D]">
-            <strong className="block text-sm">دسترسی کارکنان باید واقعی و امن باشد</strong>
-            این ماتریس در نسخه فعلی صرفاً جهت آشنایی با نقش‌ها است و امکان ساخت حساب کاربری فراهم نمی‌کند.
-            برای افزودن کارمند، نام کاربری، رمز عبور و تعیین دسترسی هر بخش، ابتدا باید ثبت امن کاربران در Supabase Auth
-            و بررسی مجوز هر عملیات در API پیاده‌سازی شود. رمز عبور در مرورگر یا حافظه موقت ذخیره نخواهد شد.
-          </div>
-                    {/* Admin Users List */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-sm text-[#55565A]">کاربران مجاز به ورود به پنل مدیریت</h3>
-            </div>
-
-            {!adminUsers.length&&<p className="rounded-xl border border-dashed border-[#DDDEE2] px-4 py-6 text-sm text-[#77787C]">هنوز حساب کارمند مجزایی به سیستم متصل نشده است.</p>}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {adminUsers.map(user => (
-                <div key={user.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-[#55565A]">{user.name}</span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white border border-slate-200">
-                      {user.role}
-                    </span>
-                  </div>
-                  <div className="text-slate-500 font-mono">نام کاربری: {user.username}</div>
-                  <div className="text-[10px] text-slate-400">آخرین ورود: {user.lastLogin || 'امروز'}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Live owner-only staff account workspace; no sample roles or browser-only permissions. */}
+      {activeTab === 'roles' && <AdminStaffUsersModule />}
 
       {/* --- TAB 2: GATEWAYS & SMS --- */}
       {activeTab === 'gateways_sms' && (
