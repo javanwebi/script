@@ -49,6 +49,12 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertNotIn("confidential",diagnostic)
         self.assertNotIn("/app/",diagnostic)
         self.assertNotIn("customer words",diagnostic)
+        spoken=scope["spoken_text"]("**قطر** تسمه SPA 1250 برابر 10*20 است. https://example.com/test")
+        self.assertIn("SPA 1250",spoken)
+        self.assertIn("10 در 20",spoken)
+        self.assertNotIn("*",spoken)
+        self.assertNotIn("https",spoken)
+        self.assertNotIn("example.com",spoken)
 
         # A busy inference slot + a waiting request fails fast, without
         # unbounded threads or a second inference on the same model.
