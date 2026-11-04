@@ -1093,8 +1093,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 const ordered=[...samples].sort((a,b)=>a-b);
                 const median=ordered[Math.floor((ordered.length-1)*0.5)];
                 const p95=ordered[Math.ceil(ordered.length*0.95)-1];
+                const mean=Math.round(ordered.reduce((sum,ms)=>sum+ms,0)/ordered.length);
                 console.info('[FORZA_END_TO_AUDIO] turn='+generation+' ms='+latency+
-                  ' n='+ordered.length+' medianMs='+median+' p95Ms='+p95+
+                  ' n='+ordered.length+' meanMs='+mean+' medianMs='+median+' p95Ms='+p95+
                   ' estimatedAudioEnd=1 noPrivateContent=1');
               }
             }
@@ -1123,6 +1124,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
+          onPhraseReady:info=>{
+            if(activeTurnRef.current?.generation!==generation)return;
+            console.info('[FORZA_TTS_STAGE] turn='+generation+
+              ' phase=phrase_wav_ready index='+info.index+
+              ' queueClientMs='+info.waitMs+' requestClientMs='+info.fetchMs+
+              ' wavBytes='+info.wavBytes+' wavDurationMs='+info.durationMs);
+          },
           onPhraseProgress:(phrase,progress)=>{
             if(progress.phase==='interrupted' && progress.playedMs>0 &&
                progress.playedMs<progress.durationMs && !speakerMutedRef.current){
