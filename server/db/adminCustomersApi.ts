@@ -192,6 +192,8 @@ export function registerAdminCustomersApi(app: Express) {
       const kind = portalKind(req.body?.kind);
       const id = 'crm-' + uuid();
       await transaction(async client => {
+        // Serialize concurrent creates of the same verified phone suffix.
+        await client.query('select pg_advisory_xact_lock(hashtext($1))',[phone.slice(-10)]);
         const duplicate = await client.query(
           "select 1 from public.crm_customers where right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$1 union all select 1 from public.user_profiles where right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'),10)=$1 limit 1",
           [phone.slice(-10)]
