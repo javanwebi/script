@@ -94,7 +94,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  const [quality, setQuality] = useState('high');
+  const [quality, setQuality] = useState<'high'|'balanced'|'low'>(()=>{
+    if(typeof window==='undefined')return 'balanced';
+    const cpu=navigator.hardwareConcurrency||4;
+    const mobile=window.matchMedia('(max-width: 767px)').matches;
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return mobile||cpu<=4||reduced?'low':'high';
+  });
+  const poorFpsSamplesRef=useRef(0);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [showTextInput, setShowTextInput] = useState<boolean>(false);
@@ -1696,7 +1703,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         audioLevel={audioLevel}
         quality={quality}
         background={true}
-        onStats={s => setStats(prev => ({ ...prev, ...s }))}
+        onStats={s => {
+          setStats(prev => ({ ...prev, ...s }));
+          // Three consecutive low-FPS samples justify one density downgrade.
+          // This does not run model/STT on the visual animation frame.
+          if(typeof s.fps==='number'&&s.fps<23){
+            poorFpsSamplesRef.current++;
+            if(poorFpsSamplesRef.current>=3){
+              poorFpsSamplesRef.current=0;
+              setQuality(prev=>prev==='high'?'balanced':'low');
+            }
+          }else if(typeof s.fps==='number'){
+            poorFpsSamplesRef.current=0;
+          }
+        }}
         onFormed={() => setParticlesFormed(true)}
       />
 
@@ -1717,7 +1737,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               <div>
                 <div className="hud-title text-white tracking-widest text-base font-black">- FORZA</div>
                 <div className="hud-dim text-[10px] tracking-wider text-[#dee2e5]/80">
-                  HUMAN SYSTEMS / 001 · {stats.particles ? `${stats.particles.toLocaleString('en')} PARTICLES` : '200K+ PARTICLES'}
+                  HUMAN SYSTEMS / 001 · {stats.particles ? `${stats.particles.toLocaleString('en')} PARTICLES` : 'PARTICLES —'}
                 </div>
               </div>
               <div className="bars h-4">
@@ -1733,7 +1753,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           {/* Top-Left Telemetry Status directly under exit button */}
           <div className="hud-block hud-top-left">
             <div className="hud-dim text-[10px] tabular-nums text-[#dee2e5]/70 tracking-wider font-mono">
-              {stats.tier} · {stats.fps ? `${stats.fps} FPS` : '60 FPS'} · {formatTime(seconds)}
+              {stats.tier} · {stats.fps!==null ? `${stats.fps} FPS` : 'FPS —'} · {formatTime(seconds)}
             </div>
           </div>
 
@@ -1746,10 +1766,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           {/* Bottom-Left Metric: Sync % & Realtime status */}
           <div className="hud-block hud-bottom-left">
             <div className="text-[11px] text-[#dee2e5] font-mono">
-              SYNC <b className="text-white">۹۹.۴%</b>
+              RENDER <b className="text-white">{stats.fps!==null?`${stats.fps} FPS`:'—'}</b>
             </div>
             <div className="hud-dim text-[10px] text-[#dee2e5]/70 font-mono tracking-wider">
-              PARTICLE MESH · REALTIME GPU
+              PARTICLE MESH · WEBGL
             </div>
           </div>
 
