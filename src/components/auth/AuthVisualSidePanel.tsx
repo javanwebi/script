@@ -1,5 +1,6 @@
 import React from 'react';
 import { STORE_ASSETS } from '../../assets/images';
+import { SanatPishLogo } from '../common/BrandIdentity';
 import { Headphones, Zap, ShieldCheck, Sparkles, Building2, Award, Truck, Gift } from 'lucide-react';
 
 interface AuthVisualSidePanelProps {
@@ -40,19 +41,13 @@ export const AuthVisualSidePanel: React.FC<AuthVisualSidePanelProps> = ({
           <span>{badgeText}</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E06518] to-[#C95210] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-[#E06518]/30">
-            ص
-          </div>
-          <div>
-            <div className="flex items-center gap-1 font-black text-xl tracking-tight text-white">
-              <span className="text-[#E06518]">صنعت‌</span>
-              <span className="text-slate-100">پیش</span>
-            </div>
-            <p className="text-[11px] text-slate-300 font-medium">
-              تأمین تخصصی قطعات خطوط تولید و کارخانجات
-            </p>
-          </div>
+        <div className="flex flex-col items-start gap-2">
+          <span className="inline-flex items-center rounded-2xl bg-white/95 px-3 py-1.5">
+            <SanatPishLogo className="w-[155px] h-[59px] object-contain" alt="لوگوی صنعت پیش" priority />
+          </span>
+          <p className="text-[11px] text-slate-200 font-medium">
+            تأمین تخصصی قطعات خطوط تولید و کارخانجات
+          </p>
         </div>
       </div>
 

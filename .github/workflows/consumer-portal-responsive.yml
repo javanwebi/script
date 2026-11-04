@@ -4,6 +4,13 @@ on:
     branches: [design/consumer-premium-dashboard-20261101]
     paths:
       - 'src/components/portal/**'
+      - 'src/components/common/BrandIdentity.tsx'
+      - 'src/components/common/AiFloatingButton.tsx'
+      - 'src/assets/forza-workspace-mark.svg'
+      - 'src/components/layout/**'
+      - 'src/admin/**'
+      - 'src/components/auth/**'
+      - 'tests/official-brand-logo-placement.test.ts'
       - 'tests/consumer-reference-parity-v3.test.ts'
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
@@ -14,6 +21,13 @@ on:
     branches: [main]
     paths:
       - 'src/components/portal/**'
+      - 'src/components/common/BrandIdentity.tsx'
+      - 'src/components/common/AiFloatingButton.tsx'
+      - 'src/assets/forza-workspace-mark.svg'
+      - 'src/components/layout/**'
+      - 'src/admin/**'
+      - 'src/components/auth/**'
+      - 'tests/official-brand-logo-placement.test.ts'
       - 'tests/consumer-reference-parity-v3.test.ts'
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
@@ -36,6 +50,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run lint
+      - name: Official website and FORZA logo placement tests
+        run: node --import tsx --test tests/official-brand-logo-placement.test.ts
       - name: Reference parity source tests
         run: node --import tsx --test tests/consumer-reference-parity-v3.test.ts
       - name: Retail catalog correctness and render performance

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { SanatPishLogo } from "../components/common/BrandIdentity";
 import { adminService, AdminUser } from "../services/adminService";
 export const AdminLogin: React.FC<{
   onLoginSuccess: (user: AdminUser) => void;
@@ -30,10 +31,11 @@ export const AdminLogin: React.FC<{
         onSubmit={submit}
         className="w-full max-w-md space-y-5 rounded-3xl border bg-white p-8 shadow-sm"
       >
-        <ShieldCheck className="text-[#E06518]" size={36} />
-        <h1 className="text-xl font-black text-[#55565A]">
-          ورود مدیریت صنعت پیش
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SanatPishLogo className="w-44 h-16 object-contain object-right" alt="لوگوی صنعت پیش" priority />
+          <ShieldCheck className="text-[#E06518]" size={30} aria-hidden="true" />
+        </div>
+        <h1 className="text-xl font-black text-[#55565A]">ورود به پنل مدیریت</h1>
         {error && (
           <p
             role="alert"

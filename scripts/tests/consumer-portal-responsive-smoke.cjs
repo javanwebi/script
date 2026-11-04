@@ -40,6 +40,19 @@ const customer = {
       await page.goto(base + "/consumer-dashboard", { waitUntil: "domcontentloaded" });
       await page.locator(".customer-portal.consumer-premium").waitFor({ timeout: 30000 });
       await page.locator(".consumer-shortcuts").waitFor();
+      // Real image must load in the account header: avoid a visually blank brand
+      // even when the source tests and TypeScript both pass.
+      const brandSelector = width < 1024
+        ? ".portal-top-brand .portal-official-logo"
+        : ".portal-brand .portal-official-logo";
+      await page.locator(brandSelector).waitFor({ state: "visible" });
+      await page.waitForFunction((selector) => {
+        const image = document.querySelector(selector);
+        return image && image.complete && image.naturalWidth > 0;
+      }, brandSelector, { timeout: 30000 });
+      assert.equal(await page.locator(brandSelector).count(), 1,
+        "visible customer header must render exactly one official corporate brand image");
+
       assert.equal(await page.locator(".consumer-overview-extra .portal-club").count(),0,
         "collapsed overview reports must not render the club until requested");
       await page.screenshot({ path: `${out}/consumer-portal-${width}.png`, fullPage: true });

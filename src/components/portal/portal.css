@@ -71,6 +71,35 @@
   font-weight: 400;
   color: #87888d;
 }
+/* Shared official corporate logo lockup for consumer and industrial account panels. */
+.portal-brand-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: min(176px, 100%);
+  height: 59px;
+  padding: 2px;
+}
+.portal-official-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+  flex-shrink: 0;
+}
+.portal-brand-description {display: none;}
+.portal-top-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 134px;
+  height: 43px;
+  background: rgba(255,255,255,.95);
+  border-radius: 13px;
+  padding: 3px 7px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.09);
+}
 .portal-brand-mark {
   color: var(--portal-accent);
   background: #fff1e5;

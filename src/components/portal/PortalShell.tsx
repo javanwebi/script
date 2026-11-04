@@ -1,4 +1,5 @@
 import { STORE_ASSETS } from "../../assets/images";
+import { SanatPishLogo } from "../common/BrandIdentity";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -20,7 +21,6 @@ import {
   Heart,
   ClipboardList,
   Bell,
-  Cog,
   Layers,
   Award,
   ArrowRight,
@@ -193,13 +193,11 @@ export function PortalShell({
         {label("رفتن به محتوای پنل")}
       </a>
       <aside className="portal-sidebar portal-glass">
-        <Link to="/" className="portal-brand">
-          <span className="portal-brand-mark">
-            <Building2 size={26} />
+        <Link to="/" className="portal-brand" aria-label="صنعت پیش، بازگشت به فروشگاه">
+          <span className="portal-brand-logo-frame">
+            <SanatPishLogo className="portal-official-logo" alt="" />
           </span>
-          <span>
-            صنعت پیش<small>{label("همراه خرید صنعتی شما")}</small>
-          </span>
+          <span className="portal-brand-description"><small>{label("همراه خرید صنعتی شما")}</small></span>
         </Link>
         <div className="portal-company">
           <Building2 size={18} />
@@ -224,8 +222,9 @@ export function PortalShell({
       <div className="portal-workspace">
         <header className="portal-topbar portal-glass">
           <Link to="/" className="portal-top-brand" aria-label="صنعت پیش، بازگشت به فروشگاه">
-            <Cog size={28} aria-hidden="true" />
-            <span>صنعت پیش<small>Sanat Pish</small></span>
+            <span className="portal-top-logo-frame">
+              <SanatPishLogo className="portal-official-logo" alt="" priority />
+            </span>
           </Link>
           <div className="portal-breadcrumb">
             {label("حساب من")}

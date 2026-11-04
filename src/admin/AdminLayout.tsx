@@ -27,6 +27,7 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { adminService, AdminUser } from '../services/adminService';
+import { SanatPishLogo } from '../components/common/BrandIdentity';
 import { portalContentService } from '../services/portalContentService';
 import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
@@ -302,20 +303,11 @@ export const AdminLayout: React.FC = () => {
         {/* Top Branding */}
         <div>
           <div className="p-4 border-b border-[#ECEDEF] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E06518] to-amber-600 flex items-center justify-center font-black text-white shadow-md">
-                AT
-              </div>
-              <div>
-                <h1 className="font-black text-sm tracking-tight text-[#55565A]">
-                  صنعت پیش (پیش به صنعت)
-                </h1>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    سامانه مدیریت متمرکز B2B
-                  </span>
-                </div>
+            <div className="min-w-0 flex flex-col items-start gap-1.5">
+              <SanatPishLogo className="block w-[152px] h-[55px] object-contain object-right" alt="لوگوی صنعت پیش" priority />
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] text-slate-500 font-medium">سامانه مدیریت متمرکز B2B</span>
               </div>
             </div>
 

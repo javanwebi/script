@@ -3,28 +3,24 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Bot, ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
+import forzaWorkspaceMark from "../../assets/forza-workspace-mark.svg";
 
-// Geometric Cognivo orange logo icon matching the reference design
+/** FORZA workspace emblem derived from the user-supplied orange triangular logo.
+ * Kept under the old component name to preserve every existing call site.
+ */
 export const CognivoGeometricLogo: React.FC<{
   className?: string;
   size?: number;
 }> = ({ className = "w-5 h-5", size }) => (
-  <svg
-    viewBox="0 0 40 40"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
+  <img
+    src={forzaWorkspaceMark}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="async"
+    className={`object-contain shrink-0 ${className}`}
     style={size ? { width: size, height: size } : undefined}
-  >
-    <rect x="5" y="11" width="17" height="5" rx="1.5" fill="#E06518" />
-    <rect x="11" y="5" width="5" height="17" rx="1.5" fill="#E06518" />
-    <rect x="18" y="24" width="17" height="5" rx="1.5" fill="#E06518" />
-    <rect x="24" y="18" width="5" height="17" rx="1.5" fill="#E06518" />
-    <rect x="24" y="11" width="11" height="5" rx="1.5" fill="#E06518" />
-    <rect x="5" y="24" width="11" height="5" rx="1.5" fill="#E06518" />
-    <rect x="11" y="24" width="5" height="11" rx="1.5" fill="#E06518" />
-    <rect x="24" y="5" width="5" height="11" rx="1.5" fill="#E06518" />
-  </svg>
+  />
 );
 
 /* Keep FORZA's existing destination while adding direct access to the original support sheet. */
