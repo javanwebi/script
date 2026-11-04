@@ -38,8 +38,8 @@ async function identityProfile(authUserId:string){
   walletBalance:Number(row.wallet_balance),clubPoints:row.club_points};
 }
 export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
- const token=cookie(req,'sp_access');if(!token)return {admin:false};
- const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false};}
+ const token=cookie(req,'sp_access');if(!token)return {admin:false,staff:false,permissions:{},user:undefined};
+ const result=await client().auth.getUser(token);if(result.error){if(result.error.status && result.error.status>=500)throw error(503,'بررسی ورود در دسترس نیست.');return {admin:false,staff:false,permissions:{},user:undefined};}
  const user=db ? db.users.find(profile=>profile.authUserId===result.data.user.id && profile.active!==false) : await identityProfile(result.data.user.id);
  const admin=user?.active!==false && user?.role==='admin';
  let staff=false,permissions={};
