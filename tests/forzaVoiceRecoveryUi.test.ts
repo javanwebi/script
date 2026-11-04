@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
+const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
+
+test('new FORZA turns retain the mic instead of stopping live WebSpeech before AI playback',()=>{
+  const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
+  const to=ui.indexOf('// Setup MediaRecorder',from);
+  assert.ok(from>0 && to>from);
+  const turn=ui.slice(from,to);
+  assert.doesNotMatch(turn,/\bstopListening\(\)/,'no dropped microphone frames at each request');
+  assert.match(turn,/startListening\(true\)/,'monitor STT while model/TTS runs');
+  assert.match(turn,/recognitionConsumedCountRef\.current=recognitionResultCountRef\.current/);
+  assert.match(turn,/activeTurnRef\.current\?\.generation!==generation/);
+  assert.match(turn,/activeNimaBuffer\.finish\(\)/);
+  assert.match(turn,/bounded_idle_flush=1/);
+});
+
+test('text correction can stop a pending/playing answer and does not block on UI thinking state',()=>{
+  assert.match(ui,/interruptCurrentTurn\(\);/);
+  assert.match(ui,/const submitUserText = \(text: string\)/);
+  assert.match(ui,/onClick=\{interruptCurrentTurn\}/);
+  assert.match(ui,/توقف پاسخ فورزا/);
+  assert.match(ui,/const \[voiceStage,setVoiceStage\]/);
+  assert.match(ui,/voiceStage === 'buffering'/);
+  assert.match(ui,/voiceStage === 'playing'/);
+});
+
+test('no fake 60fps, sync health or high-density mobile avatar fallback',()=>{
+  assert.match(ui,/navigator\.hardwareConcurrency/);
+  assert.match(ui,/setQuality\(prev=>prev==='high'\?'balanced':'low'\)/);
+  assert.match(avatar,/stride>1 && Math\.random\(\)>=1\/stride/);
+  assert.match(avatar,/quality==='low'\?4/);
+  assert.doesNotMatch(ui,/99\.4%|200K\+ PARTICLES|:'60 FPS'/);
+});
+
+test('AudioContext remains measurable and fails closed instead of silently showing playing forever',()=>{
+  assert.match(audio,/forza_audio_context_suspended/);
+  assert.match(audio,/this\.contextMonitors\.add\(contextMonitor\)/);
+  assert.match(audio,/this\.onIdle\?\.\(\)/);
+  assert.match(audio,/phase:'started'/);
+  assert.match(audio,/phase:'interrupted'/);
+});
