@@ -521,7 +521,7 @@ export default async function handler(
       }
     }
     const db = await readDb();
-    const auth = await session(req, db);
+    const auth = await session(req, db) as {admin:boolean;staff?:boolean;permissions?:Record<string,string[]>;user?:Row};
     if (req.method === "GET") {
       const guestAnnouncements = Array.isArray(
         db.values.atlas_portal_content_announcements_v1,
@@ -1027,7 +1027,7 @@ export async function requirePortalAdmin(
 }
 
 /** Resolves a signed session against the current persisted user and revocation version. */
-export async function getPortalIdentity(req: IncomingMessage) {
+export async function getPortalIdentity(req: IncomingMessage):Promise<{admin:boolean;staff?:boolean;permissions?:Record<string,string[]>;user?:Row;canReadCommerce:boolean}> {
   if(databaseEnabled() && !/(?:^|;)\s*sp_access=/.test(req.headers.cookie || ''))return {admin:false,user:undefined,canReadCommerce:false};
   if (databaseEnabled() && adoptedSchema()) {
     const identity = await supabaseIdentity(req);
