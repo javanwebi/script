@@ -884,9 +884,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     try {
       await speakText(text);
     } catch (error:any) {
-      setVoiceOutputError(error?.message === 'autoplay_permission_required'
-        ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
-        : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
+      // An intentional customer interruption is not a TTS outage.
+      const code=String(error?.message||error?.name||'');
+      if(!/aborted|stopped|interrupted|cancelled/i.test(code))
+        setVoiceOutputError(code === 'autoplay_permission_required'
+          ? 'برای پخش صدا، یک بار صفحه را لمس یا کلیک کنید.'
+          : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
     } finally {
       if(greetingFinishedRef.current && !isProcessingTurnRef.current &&
          !activeTranscriptRef.current.trim())startListening();
