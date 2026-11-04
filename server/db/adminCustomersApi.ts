@@ -138,6 +138,32 @@ export function registerAdminCustomersApi(app: Express) {
     } catch (e) { respond(res, e); }
   });
 
+  // Export actual, authorized customer data with an explicit row bound (no fake totals).
+  app.get('/api/admin/crm/export', async (req,res) => {
+    try {
+      await guard(req,res);
+      const kind=req.query.kind==='high_volume'?'high_volume':req.query.kind==='retail'?'retail':'all';
+      const where=kind==='high_volume'?'where b.approved_b2b=true':kind==='retail'?'where b.approved_b2b=false':'';
+      const rows=await database().query(
+        "select " + cols + " " + selection + " " + where + " order by b.created_at desc,b.id desc limit 50001");
+      if(rows.rows.length>50000)throw fail(413,'تعداد مشتریان برای یک خروجی بیش از حد مجاز است؛ خروجی صفحه‌بندی‌شده لازم است.');
+      const safe=(value:unknown)=>{
+        let cell=String(value??'');
+        if(/^\s*[=+\-@]/.test(cell))cell="'"+cell;
+        return '"'+cell.replace(/"/g,'""')+'"';
+      };
+      const header=['شناسه','نام مشتری','مجموعه','موبایل','ایمیل','استان','شهر','نوع مشتری','وضعیت حساب','تعداد سفارش تأییدشده','مجموع خرید تأییدشده (تومان)','آخرین سفارش','سقف اعتبار (تومان)','اعتبار مصرف‌شده (تومان)'];
+      const lines=[header.map(safe).join(',')];
+      for(const c of rows.rows){
+        lines.push([c.id,c.name,c.company,c.phone,c.email,c.province,c.city,c.approved_b2b?'خرید بالا':'خرید تکی',
+          c.has_login?'دارای حساب ثبت‌نامی':'فقط مخاطب CRM',c.order_count,c.total_spent,c.last_order_at,c.credit_limit,c.credit_used].map(safe).join(','));
+      }
+      res.setHeader('Content-Type','text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition','attachment; filename="sanatpish-crm-'+kind+'.csv"');
+      res.end('\uFEFF'+lines.join('\r\n'));
+    }catch(e){respond(res,e);}
+  });
+
   app.get('/api/admin/crm/customers/:key', async (req, res) => {
     try {
       await guard(req, res);
