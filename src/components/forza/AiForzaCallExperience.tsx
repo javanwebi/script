@@ -365,14 +365,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // segment finishes; Chrome SpeechRecognition may finish even sooner.
   useEffect(() => {
     let active=true;
-    let frame=0;
-    let lastCheck=0;
     let samples=new Uint8Array(512);
-    const check=(timestamp:number)=>{
+    // Mic end-of-turn must not depend on Three.js frames. On weak devices
+    // the avatar can fall to 7 FPS while a 55ms audio poll remains active.
+    // This timer is not a replacement for a future AudioWorklet VAD:
+    // browsers may throttle background-tab timers.
+    const check=()=>{
       if(!active)return;
-      frame=requestAnimationFrame(check);
-      if(timestamp-lastCheck<55)return;
-      lastCheck=timestamp;
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
           !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
@@ -467,10 +466,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.warn('[FORZA] Audio analyser failed',(err as any)?.name||'audio_error');
       }
     };
-    frame=requestAnimationFrame(check);
+    const micPoll=window.setInterval(check,55);
     return()=>{
       active=false;
-      cancelAnimationFrame(frame);
+      window.clearInterval(micPoll);
       if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
     };
   },[]);
