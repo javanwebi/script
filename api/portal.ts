@@ -1,6 +1,6 @@
 import {database as postgresDatabase} from '../server/db/connection';
 import {supabaseIdentity,supabaseAuthAction,refreshAuth} from "../server/db/supabaseAuth";
-import {canStaff,namespacePermission} from "../server/db/staffPermissions";
+import {canStaff,namespacePermission,assertStaffDocumentChange} from "../server/db/staffPermissions";
 import {domainFor} from "../server/db/namespaces";
 import {databaseEnabled,adoptedSchema} from "../server/db/connection";
 import {readPortal,writePortal,readDocument} from "../server/db/repository";
@@ -880,6 +880,7 @@ export default async function handler(
         for(const key of Object.keys(body.values||{})){
           if(!namespacePermission(auth,domainFor(key)||'',true,key))
             fail(403,"شما مجوز ویرایش این بخش را ندارید.");
+          assertStaffDocumentChange(auth,domainFor(key)||'',key,db.values[key],body.values[key]);
         }
       }
       if (body.revision !== revision)
