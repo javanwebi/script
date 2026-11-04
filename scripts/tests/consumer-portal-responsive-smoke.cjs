@@ -40,6 +40,8 @@ const customer = {
       await page.goto(base + "/consumer-dashboard", { waitUntil: "domcontentloaded" });
       await page.locator(".customer-portal.consumer-premium").waitFor({ timeout: 30000 });
       await page.locator(".consumer-shortcuts").waitFor();
+      assert.equal(await page.locator(".consumer-overview-extra .portal-club").count(),0,
+        "collapsed overview reports must not render the club until requested");
       await page.screenshot({ path: `${out}/consumer-portal-${width}.png`, fullPage: true });
 
       const scroll = await page.evaluate(() => ({
@@ -104,6 +106,14 @@ const customer = {
             await sidebar.getByRole("button", { name: screen.label, exact: false }).click();
           }
           await page.locator(".portal-heading h1").waitFor();
+          const panelSelectors = {
+            orders: ".consumer-orders-section", quick_buy: ".consumer-quickbuy-panel",
+            club_rewards: ".consumer-club-page", saved_products: ".consumer-saved-reference",
+            purchase_list: ".consumer-multicode-panel", receipts: ".consumer-invoices-panel",
+            addresses: ".consumer-address-panel",
+          };
+          // The four secondary portal panels are lazy-loaded, so wait for their real UI.
+          await page.locator(panelSelectors[screen.id]).waitFor({ timeout: 30000 });
           const title = await page.locator(".portal-heading h1").textContent();
           assert.equal(title?.trim(), screen.title, `incorrect page title for ${screen.id}`);
           const bounds = await page.evaluate(() => ({
@@ -113,6 +123,19 @@ const customer = {
           assert.ok(bounds.page <= bounds.viewport + 3,
             `horizontal overflow at ${width}px in ${screen.id}: ${JSON.stringify(bounds)}`);
           await page.screenshot({ path: `${out}/consumer-portal-${width}-${screen.id}.png`, fullPage: true });
+          if (screen.id === "quick_buy") {
+            const input = page.locator(".consumer-search-field input");
+            await input.fill("UNIT-DOES-NOT-EXIST-999999");
+            await page.locator(".consumer-quickbuy-panel[aria-busy='false']").waitFor();
+            await page.getByText("کالایی با این جستجو پیدا نشد").waitFor();
+            await input.fill("");
+            await page.locator(".consumer-quickbuy-panel[aria-busy='false']").waitFor();
+          }
+          if (screen.id === "purchase_list") {
+            await page.locator("#portal-bulk-input").fill("UNIT-NONEXISTENT-999, 2");
+            await page.getByRole("button", {name: /بررسی لیست خرید/}).click();
+            await page.locator(".consumer-bulk-results").waitFor();
+          }
           console.log(`PASS consumer page ${screen.id} at ${width}px`);
         }
         await page.getByRole("button", { name: /افزودن آدرس جدید/ }).click();
