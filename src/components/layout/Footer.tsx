@@ -17,20 +17,9 @@ import {
   Award,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
+import { SanatPishFooterLogo } from '../common/BrandIdentity';
 import { CATEGORIES } from '../../data/categories';
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
-
-// Minimalist Two-tone Geometric Brand Mark
-const AtlasLogoMark: React.FC<{ className?: string }> = ({ className = 'w-9 h-9' }) => (
-  <svg viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Left slant leg with solid slate */}
-    <path d="M42 4 L10 82 L26 82 L48 28 Z" fill="#2B313A" />
-    {/* Right slant leg with brand subtle orange */}
-    <path d="M48 4 L88 82 L72 82 L56 46 Z" fill="#E06518" />
-    {/* Ribbon fold facet */}
-    <path d="M26 60 L74 60 L65 46 L17 46 Z" fill="#777A7D" />
-  </svg>
-);
 
 // Official Iran Ministry of Industry Emblem SVG
 const MimtEmblemSvg: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
@@ -122,16 +111,11 @@ export const Footer: React.FC = () => {
             
             {/* 1. BRAND & NEWSLETTER COLUMN */}
             <div className="space-y-3.5 text-right lg:pl-3">
-              <Link to="/" className="inline-flex items-center gap-3 group">
-                <img fetchPriority="low" decoding="async" loading="lazy" src={STORE_ASSETS.sanatPishLogo} alt="صنعت پیش" className="w-12 h-12 sm:w-14 sm:h-14 group-hover:scale-105 transition-transform shrink-0 object-contain" />
-                <div className="flex flex-col text-right">
-                  <span className="text-xl sm:text-2xl font-black tracking-tight text-[#2B313A] leading-tight">
-                    صنعت پیش
-                  </span>
-                  <span className="text-[11px] sm:text-xs font-bold text-[#E06518] mt-0.5 leading-none">
-                    پیش به صنعت | بازرگانی اطلس از ۱۳۶۶
-                  </span>
-                </div>
+              <Link to="/" className="inline-flex flex-col items-start gap-1.5 group" aria-label="لوگوی صنعت پیش، بازگشت به فروشگاه">
+                <SanatPishFooterLogo className="block w-[176px] h-[68px] sm:w-[200px] sm:h-[76px] object-contain object-right group-hover:scale-[1.02] transition-transform" />
+                <span className="text-[11px] sm:text-xs font-bold text-[#C95210] leading-relaxed">
+                  پیش به صنعت | بازرگانی اطلس از ۱۳۶۶
+                </span>
               </Link>
 
               <h3 className="text-xs sm:text-[13px] font-bold text-[#2B313A] pt-0.5">
@@ -560,17 +544,12 @@ export const Footer: React.FC = () => {
       <div className="relative z-10 border-t border-[#3F4550] bg-[#2B313A] text-slate-300 py-3.5 px-4 sm:px-6 lg:px-8">
         <div className="max-w-[1520px] mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-xs text-slate-300">
-            <div className="flex items-center gap-1.5">
-              <AtlasLogoMark className="w-4 h-4 shrink-0" />
-              <div className="flex flex-col text-right">
-                <span className="font-black text-white text-xs tracking-tight leading-none">
-                  صنعت پیش
-                </span>
-                <span className="text-[8px] font-bold text-[#E06518] leading-none mt-0.5">
-                  پیش به صنعت | اطلس ۱۳۶۶
-                </span>
-              </div>
-            </div>
+            <Link to="/" className="flex items-center gap-2" aria-label="بازگشت به صنعت پیش">
+              <span className="rounded-md bg-white/95 px-1 py-0.5">
+                <SanatPishFooterLogo className="w-[77px] h-8 object-contain" />
+              </span>
+              <span className="text-[9px] font-bold text-[#F28C45]">پیش به صنعت | اطلس ۱۳۶۶</span>
+            </Link>
             <span className="text-slate-600 hidden sm:inline">|</span>
             <span className="text-slate-300 text-[11px]">
               © ۱۴۰۴ صنعت پیش (بازرگانی تسمه اطلس از سال ۱۳۶۶) | پیش به صنعت | تمامی حقوق محفوظ است.
