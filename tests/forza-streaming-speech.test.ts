@@ -76,10 +76,10 @@ test('first Pocket phrase starts on a complete natural sentence',()=>{
 
 test('instrumented SSE records provider and first real delta without buffering or fake completion',async()=>{
   const frames=[
-    'data: {"type":"start","timestamp":1740000000}\\n\\n',
-    'data: {"type":"provider","provider":"xkiro"}\\n\\n',
-    'data: {"type":"text_chunk","chunk":"بلبرینگ 6202ZZ"}\\n\\n',
-    'data: {"type":"done","fullText":"بلبرینگ 6202ZZ"}\\n\\n',
+    'data: {"type":"start","timestamp":1740000000}\n\n',
+    'data: {"type":"provider","provider":"xkiro"}\n\n',
+    'data: {"type":"text_chunk","chunk":"بلبرینگ 6202ZZ"}\n\n',
+    'data: {"type":"done","fullText":"بلبرینگ 6202ZZ"}\n\n',
   ];
   const stages:string[]=[];const visible:string[]=[];
   const stream=new ReadableStream<Uint8Array>({start(c){
@@ -100,7 +100,7 @@ test('a network EOF after partial words is tracked as incomplete, never a succes
   const stages:string[]=[];
   const stream=new ReadableStream<Uint8Array>({start(c){
     c.enqueue(new TextEncoder().encode(
-      'data: {"type":"start"}\\n\\ndata: {"type":"text_chunk","chunk":"SPA 1250"}\\n\\n'
+      'data: {"type":"start"}\n\ndata: {"type":"text_chunk","chunk":"SPA 1250"}\n\n'
     ));
     c.close();
   }});
