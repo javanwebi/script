@@ -3,7 +3,7 @@ import {registerProductImageStorage,prepareProductStorage,productStorageDirector
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
 import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
-import {canStaff,catalogMutationPermission,assertStaffCommercialFields} from './server/db/staffPermissions';
+import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
 import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
@@ -420,6 +420,7 @@ app.use('/api/catalog', (req, res, next) => {
       const current=(await readProducts()).find((product:any)=>product.code===code);
       action=current?'edit':'create';
       assertStaffCommercialFields(identity,current,candidate);
+      req.body.family=preserveStaffCommercialFields(identity,current,candidate);
     }
     if(identity.staff && req.path.endsWith('/overrides/bulk')){
       if(Array.isArray(req.body?.data?.deletedCodes) && req.body.data.deletedCodes.length &&
@@ -428,7 +429,10 @@ app.use('/api/catalog', (req, res, next) => {
       if(families && typeof families==='object'){
         const current=new Map((await readProducts()).map((product:any)=>[product.code,product]));
         for(const [code,family] of Object.entries(families))
-          assertStaffCommercialFields(identity,current.get(code),family);
+          {
+            assertStaffCommercialFields(identity,current.get(code),family);
+            families[code]=preserveStaffCommercialFields(identity,current.get(code),family);
+          }
       }
     }
     if(!canStaff(identity,section,action))return res.status(403).json({success:false,message:'اجازه انجام این عملیات کاتالوگ را ندارید.'});
