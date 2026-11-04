@@ -12,6 +12,7 @@ export class ForzaCallPlainText {
   private state: 'text'|'label'|'after-label'|'url' = 'text';
   private urlDepth = 0;
   private lineStart = true;
+  private pendingNumericStar = false;
 
   private flushWord(): void {
     if (!this.word) return;
@@ -29,6 +30,12 @@ export class ForzaCallPlainText {
     }
   }
   private accept(c: string, next: string): void {
+    // An ASCII '*' between two digits is a dimension operator, not Markdown.
+    // Hold it for one character so a split SSE chunk cannot erase 10*20.
+    if (this.pendingNumericStar) {
+      if (/[0-9۰-۹]/u.test(c) && /[0-9۰-۹]$/u.test(this.word)) this.word += '×';
+      this.pendingNumericStar = false;
+    }
     if (this.state === 'label') {
       if (c === ']') {
         this.append(this.label);
@@ -48,7 +55,11 @@ export class ForzaCallPlainText {
     }
     if (c === '[') { this.state = 'label'; return; }
     // Formatting-only marks are never emitted, including across SSE chunks.
-    if (c === '*' || c.charCodeAt(0) === 96 || c === '~') return;
+    if (c === '*') {
+      if (/[0-9۰-۹]$/u.test(this.word)) this.pendingNumericStar = true;
+      return;
+    }
+    if (c.charCodeAt(0) === 96 || c === '~') return;
     if (c === '!' && next === '[') return;
     if ((c === '#' || c === '•' || c === '-') && this.lineStart &&
         (next === ' ' || next === '\t')) return;
