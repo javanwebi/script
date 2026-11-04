@@ -606,12 +606,10 @@ export const ConsumerDashboardPage: React.FC = () => {
                   <div className="consumer-home-product-grid">
                     {!suggestedProducts.length && <p className="consumer-home-no-products" role="status">هنوز کالای قابل نمایش در کاتالوگ منتشر نشده است.</p>}
                     {suggestedProducts.map((prod) => {
-                      const firstVar = (prod.variants || [])[0];
-                      const unitPrice =
-                        (firstVar &&
-                          (firstVar.price || firstVar.prices?.retail)) ||
-                        prod.prices?.retail ||
-                        0;
+                      // A family with many SKUs must not advertise the first SKU's price
+                      // as though it were the customer's chosen technical variant.
+                      const needsSkuSelection = Boolean(prod.variants?.length);
+                      const unitPrice = prod.prices?.retail || 0;
                       return (
                         <div
                           key={prod.code}
@@ -631,7 +629,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 dir="ltr"
                               >
                                 {portalLabel("کد:")}
-                                {firstVar ? firstVar.code : prod.code}
+                                {prod.code}
                               </span>
                               <Link
                                 to={`/product/${encodeURIComponent(prod.code)}`}
@@ -648,9 +646,9 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 {portalLabel("قیمت واحد:")}
                               </span>
                               <span className="font-mono font-black text-xs text-emerald-700">
-                                {unitPrice > 0
+                                {!needsSkuSelection && !prod.inquiryOnly && unitPrice > 0
                                   ? `${formatPrice(unitPrice)} تومان`
-                                  : portalLabel("استعلام قیمت")}
+                                  : portalLabel("انتخاب کد و استعلام قیمت")}
                               </span>
                             </div>
                             <button
