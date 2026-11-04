@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { RealCrmTickets } from './RealCrmTickets';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
@@ -50,6 +51,7 @@ function Metric({label,value,Icon}:{label:string;value:string;Icon:React.Element
 
 export const RealCustomersCrmModule: React.FC = () => {
   const [kind,setKind] = useState<'retail'|'high_volume'>('high_volume');
+  const [section,setSection] = useState<'customers'|'tickets'>('customers');
   const [q,setQ] = useState('');
   const [page,setPage] = useState(1);
   const [revision,setRevision] = useState(0);
@@ -139,6 +141,11 @@ export const RealCustomersCrmModule: React.FC = () => {
         <button type="button" onClick={()=>{setEditing(null);setForm(emptyForm(kind));setError('');}} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-3 text-sm font-bold text-white hover:bg-[#CC5812]"><UserPlus className="h-4 w-4"/>افزودن مشتری</button>
       </div>
     </div>
+    <nav className="flex flex-wrap gap-2" aria-label="بخش‌های مدیریت مشتریان">
+      <button type="button" onClick={()=>setSection('customers')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='customers'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>مشتریان خرید تکی و بالا</button>
+      <button type="button" onClick={()=>setSection('tickets')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='tickets'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>تیکت‌های پشتیبانی</button>
+    </nav>
+    {section === 'tickets' ? <RealCrmTickets/> : <>
     {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -282,5 +289,6 @@ export const RealCustomersCrmModule: React.FC = () => {
         <div className="border-t bg-white p-3"><button onClick={()=>setDetail(null)} className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs"><ArrowRight className="h-4 w-4"/>بازگشت به فهرست</button></div>
       </div>
     </div>}
+    </>}
   </div>;
 };
