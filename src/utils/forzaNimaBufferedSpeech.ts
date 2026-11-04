@@ -11,8 +11,10 @@
  * than buffered audio, no client can synthesize text that has not arrived.
  */
 
+import type {ForzaWavPlaybackProgress} from './forzaContinuousWav';
+
 export interface ForzaWavScheduler {
-  enqueueWav(wav: Uint8Array): Promise<void>;
+  enqueueWav(wav: Uint8Array,onProgress?: (info:ForzaWavPlaybackProgress)=>void): Promise<void>;
 }
 
 interface NimaPhraseTask {
@@ -32,6 +34,7 @@ export interface ForzaNimaBufferedOptions {
   onBuffered?: (info: { bufferedSeconds: number; queuedPhrases: number; started: boolean }) => void;
   /** Called only after an ordered WAV source has ended without cancellation. */
   onPhrasePlayed?: (phrase: string) => void;
+  onPhraseProgress?: (phrase:string,info:ForzaWavPlaybackProgress) => void;
 }
 
 export function forzaPcmWavDurationSeconds(wav: Uint8Array): number {
@@ -186,7 +189,8 @@ export class ForzaNimaBufferedSpeech {
       this.synthesized.delete(this.nextToQueue++);
       this.phraseTexts.delete(index);
       try {
-        const played = this.options.player.enqueueWav(audio);
+        const played = this.options.player.enqueueWav(audio,
+          progress => this.options.onPhraseProgress?.(phrase,progress));
         this.scheduledPromises.push(played);
         void played.then(()=>{
           if(!this.cancelled && !this.options.signal?.aborted && phrase)
