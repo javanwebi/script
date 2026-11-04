@@ -186,6 +186,7 @@ export function registerAdminCustomersApi(app: Express) {
       const identity = await guard(req, res, 'edit');
       const key = customerKey(req.params.key);
       const fields = input(req.body);
+      let createdCrmId: string | null = null;
       await transaction(async client => {
         if (key.source === 'crm') {
           const row = await client.query("select id,auth_user_id from public.crm_customers where id=$1 for update",[key.id]);
@@ -208,14 +209,15 @@ export function registerAdminCustomersApi(app: Express) {
             "update public.user_profiles set full_name=$2,company_name=$3,city=$4,province=$5,updated_at=now() where id=$1",
             [key.id,fields.name,fields.company || null,fields.city || null,fields.province || null]);
           if (fields.notes) {
+            createdCrmId = 'crm-'+uuid();
             await client.query(
               "insert into public.crm_customers (id,auth_user_id,name,company,phone,email,city,province,approved_b2b,approval_status,notes) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-              ['crm-'+uuid(),key.id,fields.name,fields.company || null,p.phone,p.email,fields.city || null,fields.province || null,p.approved_b2b,p.approved_b2b?'approved':'pending',fields.notes]);
+              [createdCrmId,key.id,fields.name,fields.company || null,p.phone,p.email,fields.city || null,fields.province || null,p.approved_b2b,p.approved_b2b?'approved':'pending',fields.notes]);
           }
         }
         await audit(client,identity,'ویرایش مشتری',key.id,'اطلاعات تماس سازمانی و یادداشت CRM تغییر کرد؛ سوابق سفارش و مالی دست‌نخورده است.');
       });
-      res.json({success:true});
+      res.json({success:true,id:createdCrmId ? 'crm:'+createdCrmId : key.source+':'+key.id});
     } catch (e) { respond(res, e); }
   });
 
