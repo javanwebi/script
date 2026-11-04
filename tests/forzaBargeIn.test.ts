@@ -33,8 +33,14 @@ test('only recent actually played multi-word phrases can suppress loudspeaker ec
   const speaking='برای انتخاب تسمه باید توان موتور و اندازه پولی را بدانم';
   assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,true),true);
   assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب تسمه باید توان موتور',speaking,false),false);
-  assert.equal(shouldIgnoreForzaSpeakerEcho('توان موتور',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('توان موتور',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('برای انتخاب',speaking,true),true);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('دستگاه',speaking,true),false);
   assert.equal(shouldIgnoreForzaSpeakerEcho('صبر کن',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('بس کن',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('نه',speaking,true),false);
+  assert.equal(shouldIgnoreForzaSpeakerEcho('ادامه بده',speaking,true),false);
   assert.equal(shouldIgnoreForzaSpeakerEcho('نه، برای دستگاه بسته بندی میخوام',speaking,true),false);
   assert.equal(shouldIgnoreForzaSpeakerEcho('6203ZZ C3 SPA',speaking,true),false);
 });
