@@ -48,13 +48,13 @@ export async function supabaseIdentity(req:IncomingMessage,db?:{users:any[]}){
   staff=record?.active===true;
   if(staff)permissions=sanitizeStaffPermissions(record.permissions);
  }
- return {admin,staff,permissions,user:user?.active===false?undefined:user};
+ return {admin,staff,permissions,user:user?.active===false||!user?undefined:{...user,mustChangePassword:result.data.user.app_metadata?.crm_password_change_required===true}};
 
 }
 export async function refreshAuth(req:IncomingMessage,res:ServerResponse){const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!refresh)return;const auth=client();if(token){const result=await auth.auth.getUser(token);if(!result.error)return;}const result=await auth.auth.refreshSession({refresh_token:refresh});if(!result.error && result.data.session)cookies(req,res,result.data.session);}
 export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,body:any,safe:(value:any)=>any):Promise<boolean>{
  if(handleDevelopmentOtp(req,res,body))return true;
- if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','logout'].includes(body.action))return false;
+ if(!['register','login','admin_login','otp_request','otp_verify','registration_credentials','initial_password_change','logout'].includes(body.action))return false;
  const send=(status:number,data:any)=>{res.statusCode=status;res.end(JSON.stringify(data));};
  try{
  const auth=client();
@@ -72,6 +72,41 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   const result=await auth.auth.signInWithOtp({phone:number.e164,options:{shouldCreateUser:true}});
   if(result.error)throw error(503,'ارسال کد تأیید انجام نشد؛ تنظیمات پیامک Supabase Auth را بررسی کنید.');
   send(201,{success:true,requiresPhoneVerification:true,isNewUser:true,message:'کد تأیید شماره را وارد کنید.'});return true;
+ }
+ if(body.action==='initial_password_change'){
+  const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');
+  if(!token||!refresh)throw error(401,'ابتدا با رمز اولیه وارد حساب شوید.');
+  const who=await auth.auth.getUser(token);
+  const verified=who.data.user;
+  if(who.error||!verified)throw error(401,'نشست ورود معتبر نیست.');
+  const account=(await database().query(
+   "select id,username,phone,role::text as role,status::text as status,preferences from public.user_profiles where id=$1",
+   [verified.id])).rows[0];
+  if(!account||account.status!=='active'||!['client','club'].includes(account.role))
+   throw error(403,'مجوز تغییر رمز اولیه برای این حساب وجود ندارد.');
+  if(verified.app_metadata?.crm_password_change_required!==true)
+   throw error(409,'این حساب رمز اولیه فعال ندارد.');
+  const password=body.password;
+  if(typeof password!=='string'||password.length<12||password.length>128||
+     password===account.username||password===account.phone||password===String(account.phone||'').replace(/^\+98/,'0'))
+   throw error(400,'رمز جدید باید حداقل ۱۲ نویسه و متفاوت از شماره و نام کاربری باشد.');
+  const restore=await auth.auth.setSession({access_token:token,refresh_token:refresh});
+  if(restore.error)throw error(401,'نشست ورود منقضی شده است.');
+  const changed=await auth.auth.updateUser({password});
+  if(changed.error)throw error(400,'تغییر رمز در سرویس احراز هویت انجام نشد.');
+  // This flag is owned by Auth app_metadata, not user-editable profile preferences.
+  const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY,url=process.env.SUPABASE_URL;
+  if(!serviceKey||!url)throw error(503,'سرویس تأیید نهایی تغییر رمز پیکربندی نشده است.');
+  const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const cleared=await admin.auth.admin.updateUserById(verified.id,{
+   app_metadata:{...verified.app_metadata,crm_password_change_required:false}
+  });
+  if(cleared.error)throw error(503,'رمز تغییر کرد اما تأیید نهایی انجام نشد؛ با پشتیبانی تماس بگیرید.');
+  await database().query(
+   "update public.user_profiles set preferences=jsonb_set(preferences,'{mustChangePassword}','false'::jsonb,true),updated_at=now() where id=$1 and (preferences->>'mustChangePassword')='true'",
+   [verified.id]);
+  const current=await identityProfile(verified.id);
+  send(200,{success:true,user:safe({...current,mustChangePassword:false}),requiresPasswordChange:false,message:'رمز دائمی جدید ذخیره شد.'});return true;
  }
  if(body.action==='registration_credentials'){
   const token=cookie(req,'sp_access'),refresh=cookie(req,'sp_refresh');if(!token || !refresh)throw error(401,'ابتدا شماره موبایل را تأیید کنید.');
@@ -138,7 +173,7 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
   }
  }
  const p=(await database().query('select id,username,email,phone,full_name,company_name,role,status,preferences,approved_b2b,can_view_prices from public.user_profiles where id=$1',[session.user.id])).rows[0];
- const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {})}:null;
+ const profile=p?{id:p.id,authUserId:p.id,username:p.username,email:p.email,phone:p.phone,fullName:p.full_name,companyName:p.company_name,role:p.role==='super_admin'?'admin':p.role==='club'?'wholesale':p.role==='client'?'retail':p.role==='agency'?'dealer':'guest',active:p.status==='active',approvedB2B:p.approved_b2b,canViewPrices:p.can_view_prices,...(p.preferences || {}),mustChangePassword:session.user.app_metadata?.crm_password_change_required===true}:null;
  let staff=false,permissions={};
  if(body.action==='admin_login' && p?.role==='warehouse_operator'){
   const access=(await database().query('select active,permissions from app_private.admin_staff_accounts where user_id=$1',[p.id])).rows[0];
@@ -155,6 +190,6 @@ export async function supabaseAuthAction(req:IncomingMessage,res:ServerResponse,
  }
  send(200,{success:true,user:safe(profile),admin:profile.role==='admin',staff,permissions,
   staffUser:staff?{id:p.id,username:p.username,name:p.full_name,email:p.email,role:'staff',permissions}:undefined,
-  requiresCredentials:profile.registrationCredentialsPending===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
+  requiresCredentials:profile.registrationCredentialsPending===true,requiresPasswordChange:profile.mustChangePassword===true,onboardingStep:profile.onboardingCompleted?'completed':1});return true;
  }catch(e:any){send(e.status || 503,{success:false,message:e.status?e.message:'ارتباط با Supabase Auth برقرار نشد.'});return true;}
 }

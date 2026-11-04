@@ -46,7 +46,7 @@ const base = [
   "coalesce(u.assigned_price_list_id,c.assigned_price_list_id) as assigned_price_list_id,",
   "case when u.id is null then c.credit_limit else u.credit_limit end as credit_limit,",
   "case when u.id is null then c.used_credit else u.credit_used end as credit_used,",
-  "u.current_debt, c.notes, c.approval_status, u.last_login_at,",
+  "u.current_debt, c.notes, c.approval_status, u.username, u.last_login_at,",
   "coalesce(u.created_at,c.created_at) as created_at,",
   "case when u.id is null then false else true end as has_login",
   "from public.crm_customers c left join public.user_profiles u on u.id=c.auth_user_id",
@@ -57,7 +57,7 @@ const base = [
   "u.approved_b2b, u.grade_code, u.assigned_price_list_id, u.credit_limit,",
   "u.credit_used, u.current_debt, null::text as notes,",
   "case when u.approved_b2b then 'approved' else 'pending' end as approval_status,",
-  "u.last_login_at,u.created_at,true as has_login",
+  "u.username,u.last_login_at,u.created_at,true as has_login",
   "from public.user_profiles u",
   "where u.role::text not in ('super_admin','warehouse_operator','sales_manager')",
   "and not exists (select 1 from public.crm_customers c where c.auth_user_id=u.id)"

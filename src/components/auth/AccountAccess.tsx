@@ -36,8 +36,11 @@ export function AccountAccess({
   const [requiresVerification,setRequiresVerification]=useState(false);
   const [registrationDemoOnly,setRegistrationDemoOnly]=useState(false);
   const [details, setDetails] = useState<Partial<RegisterPayload>>({});
+  const [mustChange,setMustChange] = useState(false);
   useEffect(()=>{
-    if((auth.currentUser as {registrationCredentialsPending?:boolean}|null)?.registrationCredentialsPending){setMode('register');setStep(2);setRequiresVerification(false);}
+    const user=auth.currentUser as ({registrationCredentialsPending?:boolean;mustChangePassword?:boolean}) | null;
+    if(user?.mustChangePassword===true){setMustChange(true);setMode('login');setMethod('password');}
+    else if(user?.registrationCredentialsPending){setMode('register');setStep(2);setRequiresVerification(false);}
   },[auth.currentUser]);
   const go = (user = auth.currentUser) => {
     onDone?.();
@@ -121,6 +124,7 @@ export function AccountAccess({
         return;
       }
       if(r.requiresPhoneVerification){setRequiresVerification(true);setMode("login");setMethod("sms");return;}
+      if((r as typeof r & {requiresPasswordChange?:boolean}).requiresPasswordChange){setMustChange(true);setMode('login');setMethod('password');return;}
       auth.setLatestCredentials(null);
       go(r.user || null);
     } catch (e:any) {
@@ -128,6 +132,22 @@ export function AccountAccess({
     } finally {
       setBusy(false);
     }
+  };
+  const savePermanentPassword = async (event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();setError('');
+    const data=new FormData(event.currentTarget);
+    const next=String(data.get('newPassword')||''),confirm=String(data.get('confirmPassword')||'');
+    if(next.length<12){setError('رمز جدید باید حداقل ۱۲ نویسه باشد.');return;}
+    if(next!==confirm){setError('تکرار رمز جدید یکسان نیست.');return;}
+    setBusy(true);
+    try{
+      const response=await portalRequest({action:'initial_password_change',password:next});
+      if(!response.success){setError(response.message||'تغییر رمز انجام نشد.');return;}
+      await hydratePortal();
+      setMustChange(false);auth.setLatestCredentials(null);
+      go(response.user||{...auth.currentUser,mustChangePassword:false});
+    }catch(e:any){setError(e?.message||'تغییر رمز انجام نشد.');}
+    finally{setBusy(false);}
   };
   const password = (name: string, label: string, confirm = false) => (
     <label>
@@ -155,6 +175,32 @@ export function AccountAccess({
         )}
       </div>
     </label>
+  );
+  if(mustChange) return (
+    <div dir="rtl" className="flex min-h-[72vh] items-center justify-center bg-[#F7F8FA] px-3 py-8">
+      <form onSubmit={savePermanentPassword} className="w-full max-w-lg space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-9">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-orange-100 p-3 text-[#E56B1E]"><ShieldCheck size={26}/></div>
+          <div><h1 className="text-xl font-black text-slate-800">تنظیم رمز دائمی حساب صنعت پیش</h1>
+            <p className="mt-1 text-xs leading-6 text-slate-500">برای امنیت حساب، رمز اولیه‌ای که مدیریت تعیین کرده باید در اولین ورود تغییر کند.</p>
+          </div>
+        </div>
+        <label className="block space-y-2 text-sm font-bold text-slate-700">رمز عبور جدید
+          <input name="newPassword" type="password" required minLength={12} maxLength={128} autoComplete="new-password" dir="ltr"
+            className="h-12 w-full rounded-xl border border-slate-200 px-3 outline-none focus:border-[#E56B1E]"/>
+        </label>
+        <label className="block space-y-2 text-sm font-bold text-slate-700">تکرار رمز جدید
+          <input name="confirmPassword" type="password" required minLength={12} maxLength={128} autoComplete="new-password" dir="ltr"
+            className="h-12 w-full rounded-xl border border-slate-200 px-3 outline-none focus:border-[#E56B1E]"/>
+        </label>
+        {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-xs leading-6 text-red-700">{error}</p>}
+        <button type="submit" disabled={busy} className="w-full rounded-xl bg-[#E56B1E] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">
+          {busy?'در حال ذخیره...':'تغییر رمز و ورود به پنل'}
+        </button>
+        <button type="button" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600"
+          onClick={()=>{auth.logout();setMustChange(false);setMode('login');}}>خروج از حساب</button>
+      </form>
+    </div>
   );
   return (
     <div className="account-access">
@@ -245,7 +291,7 @@ export function AccountAccess({
           </div>
         )}
         {mode === "login" && method === "sms" ? (
-          <PhoneLogin initialPhone={requiresVerification?details.mobile:undefined} initialSent={requiresVerification&&!registrationDemoOnly} demoOnly={registrationDemoOnly} onSuccess={(user,pending)=>{if(pending){setRequiresVerification(false);setMode('register');setStep(2);}else go(user);}} />
+          <PhoneLogin initialPhone={requiresVerification?details.mobile:undefined} initialSent={requiresVerification&&!registrationDemoOnly} demoOnly={registrationDemoOnly} onSuccess={(user,pending)=>{if(pending){setRequiresVerification(false);setMode('register');setStep(2);}else if((user as typeof user & {mustChangePassword?:boolean}).mustChangePassword===true){setMustChange(true);setMode('login');setMethod('password');}else go(user);}} />
         ) : (
           <form onSubmit={submit} className="account-fields">
             {mode === "login" ? (
