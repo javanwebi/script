@@ -54,6 +54,7 @@ import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroC
 import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
+import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5569,26 +5570,28 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
-const pocketTtsBudget=new Map<string,{count:number;until:number}>();
-function consumePocketVoiceBudget(req:any):boolean{
+const pocketVoiceBudget=new ForzaTtsBudget();
+function consumePocketVoiceBudget(req:any,res:any):boolean{
+  // Keep req.ip from Express's effective trust-proxy configuration.
+  // Never accept a client-supplied X-Forwarded-For or turn ID as proof of
+  // identity; a separate hard cap is enforced on the network address.
   const key=String(req.ip||req.socket.remoteAddress||'unknown');
-  const now=Date.now();
-  let budget=pocketTtsBudget.get(key);
-  if(!budget || now>=budget.until){
-    budget={count:0,until:now+60_000};pocketTtsBudget.set(key,budget);
-  }
-  if(budget.count>=24)return false;
-  budget.count++;
-  if(pocketTtsBudget.size>500)for(const [ip,item] of pocketTtsBudget){
-    if(item.until<now)pocketTtsBudget.delete(ip);
-  }
-  return true;
+  const turnId=String(req.body?.turnId||'legacy');
+  const decision=pocketVoiceBudget.consume(key,turnId);
+  if(decision.ok)return true;
+  res.setHeader('Retry-After',String(decision.retryAfterSeconds));
+  res.setHeader('Cache-Control','no-store');
+  res.status(429).json({error:'forza_tts_rate_limited',
+    errorCode:decision.reason==='turn'?'forza_turn_limit':'forza_network_limit'});
+  console.warn('[FORZA_TTS_BUDGET] phase=rejected reason='+decision.reason+
+    ' retryAfterSeconds='+decision.retryAfterSeconds);
+  return false;
 }
 
 app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
-  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  if(!consumePocketVoiceBudget(req,res))return;
   const started=Date.now();
   const cancel=new AbortController();
   const onDisconnect=()=>cancel.abort(new Error('forza_tts_client_disconnected'));
@@ -5628,7 +5631,7 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
   if(!internalForzaVoiceUrl || !process.env.FORZA_VOICE_TOKEN)
     return res.status(503).json({error:'private_voice_not_configured'});
-  if(!consumePocketVoiceBudget(req))return res.status(429).json({error:'pocket_rate_limited'});
+  if(!consumePocketVoiceBudget(req,res))return;
 
   const controller=new AbortController();
   const onDisconnect=()=>controller.abort();
