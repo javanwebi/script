@@ -120,7 +120,7 @@ function forbidden():Error & {status:number}{
 /** Prevent a catalogue editor from smuggling stock/price changes through whole-family JSON. */
 export function assertStaffCommercialFields(identity:StaffIdentity,existing:unknown,incoming:unknown){
  if(identity.admin || canStaff(identity,'products','prices'))return;
- const sensitive=/^(prices?|base_price|retail_price|wholesale_price|dealer_price|unit_price|stock|stock_known|stock_reserved|inquiry_only|currency|cost|discount|credit|commercial)/i;
+ const sensitive=/^(prices?|(?:base|retail|wholesale|dealer|unit)_?price|stock|inquiry_?only|currency|cost|discount|credit|commercial)/i;
  const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
  const walk=(from:unknown,to:unknown):void=>{
   if(!to || typeof to!=='object')return;
@@ -138,7 +138,9 @@ export function assertStaffCommercialFields(identity:StaffIdentity,existing:unkn
   for(const [key,value] of Object.entries(to)){
    const old=previous[key];
    if(sensitive.test(key)){
-    const absent=old===undefined && (value===undefined || value===null || value===false || value===0 || value==='');
+    const blank=(v:unknown):boolean=>v==null || v==='' || v===false || v===0 ||
+       (Array.isArray(v) && v.every(blank)) || (typeof v==='object' && Object.values(v as Record<string,unknown>).every(blank));
+    const absent=old===undefined && (blank(value) || (key.toLowerCase().replace('_','')==='inquiryonly' && value===true));
     if(!same(old,value) && !absent)throw forbidden();
    }else walk(old,value);
   }
