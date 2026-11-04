@@ -413,7 +413,7 @@ app.use('/api/catalog', (req, res, next) => {
   void (async()=>{
     const identity=await getPortalIdentity(req);
     let [section,action]=catalogMutationPermission(req.path);
-    if(identity.staff && req.path==='/overrides/family'){
+    if(identity.staff && req.path.endsWith('/overrides/family')){
       const candidate=req.body?.family;
       const code=String(candidate?.code||'').trim();
       if(!code)return res.status(400).json({success:false,message:'کد خانواده نامعتبر است.'});
@@ -421,7 +421,7 @@ app.use('/api/catalog', (req, res, next) => {
       action=current?'edit':'create';
       assertStaffCommercialFields(identity,current,candidate);
     }
-    if(identity.staff && req.path==='/overrides/bulk'){
+    if(identity.staff && req.path.endsWith('/overrides/bulk')){
       if(Array.isArray(req.body?.data?.deletedCodes) && req.body.data.deletedCodes.length &&
          !canStaff(identity,'products','delete'))return res.status(403).json({success:false,message:'مجوز حذف کالا لازم است.'});
       const families=req.body?.data?.families;
