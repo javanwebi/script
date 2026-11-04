@@ -112,3 +112,31 @@ test('trims isolated WAV leading/trailing silence but keeps breath margins',()=>
   const silent={...decoded,getChannelData:()=>new Float32Array(24000)};
   assert.deepEqual(pocketWavWindow(silent as unknown as AudioBuffer),{offset:0,duration:1});
 });
+
+
+test('interrupting mid-WAV records only audio actually scheduled as played',async()=>{
+  const stages:Array<{phase:string;playedMs:number;durationMs:number}>=[];
+  let startAt=0;
+  const ctx={
+    state:'running',currentTime:7,destination:{},
+    createBufferSource(){
+      return {buffer:null,onended:null as null|(()=>void),connect(){},disconnect(){},
+        start(when:number){startAt=when;},stop(){this.onended?.()}};
+    },
+    createGain(){return {gain:{value:1},connect(){},disconnect(){}};},
+    async decodeAudioData(){return {duration:1.5};},
+    async resume(){},
+  };
+  const player=new ForzaContinuousWav(()=>ctx as unknown as AudioContext,()=>{});
+  const played=player.enqueueWav(new Uint8Array([1,2,3]),event=>stages.push(event));
+  await new Promise(resolve=>setTimeout(resolve,65));
+  assert.ok(startAt>0);
+  ctx.currentTime=startAt+0.65;
+  player.cancel();
+  await played;
+  assert.equal(stages.filter(x=>x.phase==='finished').length,0);
+  const interrupted=stages.find(x=>x.phase==='interrupted');
+  assert.ok(interrupted,'partial playback must have an interruption record');
+  assert.ok(interrupted.playedMs>=640&&interrupted.playedMs<=660);
+  assert.equal(interrupted.durationMs,1500);
+});
