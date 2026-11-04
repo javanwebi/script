@@ -141,9 +141,38 @@ export function assertStaffCommercialFields(identity:StaffIdentity,existing:unkn
     const blank=(v:unknown):boolean=>v==null || v==='' || v===false || v===0 ||
        (Array.isArray(v) && v.every(blank)) || (typeof v==='object' && Object.values(v as Record<string,unknown>).every(blank));
     const absent=old===undefined && (blank(value) || (key.toLowerCase().replace('_','')==='inquiryonly' && value===true));
-    if(!same(old,value) && !absent)throw forbidden();
+    if(!same(old,value) && !absent && !(old!==undefined && blank(value)))throw forbidden();
    }else walk(old,value);
   }
  };
  walk(existing,incoming);
+}
+
+/** Merge confidential commercial fields on the server so a price-blind editor
+ * cannot accidentally zero prices or stock when saving metadata from a redacted catalogue. */
+export function preserveStaffCommercialFields(identity:StaffIdentity,existing:unknown,incoming:unknown):unknown{
+ if(identity.admin || canStaff(identity,'products','prices'))return incoming;
+ const sensitive=/^(prices?|(?:base|retail|wholesale|dealer|unit)_?price|stock|inquiry_?only|currency|cost|discount|credit|commercial)/i;
+ const merge=(before:unknown,after:unknown):unknown=>{
+  if(Array.isArray(after)){
+   const old=Array.isArray(before)?before:[];
+   return after.map((entry,index)=>{
+    const code=entry && typeof entry==='object' && !Array.isArray(entry) ? (entry as any).code:undefined;
+    const previous=code ? old.find(item=>item && typeof item==='object' && (item as any).code===code):old[index];
+    return merge(previous,entry);
+   });
+  }
+  if(!after || typeof after!=='object')return after;
+  const source=before && typeof before==='object' && !Array.isArray(before) ? before as Record<string,unknown>:{};
+  const result:Record<string,unknown>={};
+  for(const [key,value] of Object.entries(after)){
+   if(sensitive.test(key)){
+    result[key]=source[key]!==undefined ? structuredClone(source[key]):value;
+   }else result[key]=merge(source[key],value);
+  }
+  for(const [key,value] of Object.entries(source))if(sensitive.test(key) && !(key in result))
+    result[key]=structuredClone(value);
+  return result;
+ };
+ return merge(existing,incoming);
 }
