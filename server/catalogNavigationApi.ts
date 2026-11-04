@@ -226,7 +226,9 @@ export function registerCatalogNavigationApi(app:Express){
       if(!databaseEnabled())return res.status(503).json({success:false,items:[]});
       const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
       const rows=await database().query('select sku_code as "skuCode",name,category_slug as "categorySlug",category_name as "categoryName",submenu,subcategory,brand,image_url as "imageUrl",technical_specs as "technicalSpecs",price_snapshot as "priceSnapshot",source_family_code as "sourceFamilyCode",is_active as active from public.catalog_direct_skus '+(withInactive?'':'where is_active=true ')+'order by updated_at desc,sku_code limit 5000');
-      return res.json({success:true,items:rows.rows});
+      const identity=await getPortalIdentity(req);
+      const canReadPrices=identity.canReadCommerce || canStaff(identity,'products','prices');
+      return res.json({success:true,items:canReadPrices?rows.rows:rows.rows.map(row=>({...row,priceSnapshot:{}}))});
     }catch(error){return fail(res,error);}
   });
 
