@@ -5,7 +5,7 @@ import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
   FileText, Wallet, MessageCircle, Package, ChevronLeft, ChevronRight,
-  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2
+  ClipboardList, CalendarClock, BadgeCheck, Info, Loader2, Download
 } from 'lucide-react';
 
 type Customer = {
@@ -68,6 +68,7 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [detailTab,setDetailTab] = useState<'profile'|'orders'|'finance'|'tickets'>('profile');
   const [detailsLoading,setDetailsLoading] = useState(false);
   const [busy,setBusy] = useState(false);
+  const [exporting,setExporting] = useState(false);
   const [commercial,setCommercial] = useState<Customer|null>(null);
 
   useEffect(()=>{
@@ -132,6 +133,22 @@ export const RealCustomersCrmModule: React.FC = () => {
     } catch(e) {setError(e instanceof Error?e.message:'تغییر دسترسی ممکن نشد.');}
     finally {setBusy(false);}
   };
+  const exportData=async()=>{
+    try{
+      setExporting(true);setError('');
+      const response=await fetch('/api/admin/crm/export?kind='+kind,{credentials:'same-origin',cache:'no-store'});
+      if(!response.ok){
+        const data=await response.json().catch(()=>({message:'دریافت خروجی با خطا مواجه شد.'}));
+        throw new Error(data.message||'دریافت فایل ممکن نشد.');
+      }
+      const blob=await response.blob();
+      const url=window.URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='sanatpish-crm-'+kind+'.csv';
+      document.body.appendChild(a);a.click();a.remove();
+      window.URL.revokeObjectURL(url);
+    }catch(e){setError(e instanceof Error?e.message:'دریافت اطلاعات ناموفق بود.');}
+    finally{setExporting(false);}
+  };
   const fieldSet = (key:keyof FormValues,value:string) => setForm(f=>f?{...f,[key]:value}:f);
   return <div dir="rtl" className="space-y-5 pb-10 text-right">
     <div className={card+' flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between'}>
@@ -141,6 +158,7 @@ export const RealCustomersCrmModule: React.FC = () => {
       </div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={refresh} aria-label="بارگذاری مجدد" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><RefreshCw className="h-5 w-5"/></button>
+        <button type="button" disabled={exporting} onClick={()=>void exportData()} className="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-3 text-xs font-bold text-orange-700 disabled:opacity-50"><Download className="h-4 w-4"/>{exporting?'دریافت...':'خروجی CSV واقعی'}</button>
         <button type="button" onClick={()=>{setEditing(null);setForm(emptyForm(kind));setError('');}} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-3 text-sm font-bold text-white hover:bg-[#CC5812]"><UserPlus className="h-4 w-4"/>افزودن مشتری</button>
       </div>
     </div>
