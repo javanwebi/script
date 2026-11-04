@@ -1,5 +1,6 @@
 import type {Express,Request,Response} from 'express';
 import {createClient} from '@supabase/supabase-js';
+import crypto from 'node:crypto';
 import {database,transaction,databaseEnabled,adoptedSchema} from './connection';
 import {getPortalIdentity} from '../../api/portal';
 import {sanitizeStaffPermissions} from './staffPermissions';
@@ -48,11 +49,12 @@ export function registerAdminStaffApi(app:Express){
    const creator=await owner(req);
    const username=String(req.body?.username||'').trim().toLowerCase();
    const name=String(req.body?.name||'').trim();
-   const email=String(req.body?.email||'').trim().toLowerCase();
+   const suppliedEmail=String(req.body?.email||'').trim().toLowerCase();
+   const email=suppliedEmail || (username+'.'+crypto.randomUUID().slice(0,8)+'@staff.sanatpish.com');
    const password=req.body?.password;
    if(!usernamePattern.test(username))throw fail(400,'نام کاربری باید ۴ تا ۳۲ حرف انگلیسی، عدد یا زیرخط باشد و با حرف شروع شود.');
    if(name.length<2 || name.length>160)throw fail(400,'نام کارمند باید بین ۲ تا ۱۶۰ نویسه باشد.');
-   if(email.length>320 || !emailPattern.test(email))throw fail(400,'ایمیل معتبر کارمند را وارد کنید.');
+   if(email.length>320 || !emailPattern.test(email))throw fail(400,'ایمیل کارمند معتبر نیست.');
    if(typeof password!=='string' || password.length<12 || password.length>128)throw fail(400,'رمز عبور باید حداقل ۱۲ و حداکثر ۱۲۸ نویسه باشد.');
    const permissions=sanitizeStaffPermissions(req.body?.permissions);
    const existing=await database().query('select id from public.user_profiles where lower(username)=$1 or lower(email)=$2 limit 1',[username,email]);
