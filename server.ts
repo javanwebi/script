@@ -5756,9 +5756,12 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const startedAt=Date.now();
   const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
   const lowLatencyVoice=mode==='forza';
-  const catalogContext=consultantCatalogContext(String(query||''));
-  const responseId = clientResponseId || `resp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const userTurnId = clientTurnId || `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  // Ids are for timing correlation only; user-controlled content must never
+  // enter console output, error text or HTTP response headers.
+  const id = (value:unknown,fallback:string)=>String(value||fallback)
+    .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)||fallback;
+  const responseId=id(clientResponseId,'resp-'+startedAt);
+  const userTurnId=id(clientTurnId,'turn-'+startedAt);
 
   console.log(`[AI_GENERATION_START] userTurnId=${userTurnId} responseId=${responseId} mode=${mode || 'desk'} endpoint=/api/ai/consult-stream timestamp=${new Date().toISOString()}`);
 
@@ -5769,14 +5772,28 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   res.setHeader('Content-Encoding', 'none');
   res.flushHeaders?.();
 
+  let firstServerDelta=false;
   const sendEvent = (data: any) => {
+    if(data?.type==='text_chunk' && !firstServerDelta){
+      firstServerDelta=true;
+      console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+        ' phase=node_first_delta ms='+(Date.now()-startedAt)+
+        ' chars='+String(data.chunk||'').length);
+    }
     try {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
       (res as any).flush?.();
     } catch {}
   };
 
-  sendEvent({ type: 'start', responseId, timestamp: Date.now() });
+  sendEvent({ type: 'start', responseId, userTurnId, timestamp: startedAt });
+  // Crucial: the initial SSE event is sent before any synchronous catalog
+  // preprocessing or outbound model discovery, exposing their real latency.
+  const catalogStartedAt=Date.now();
+  const catalogContext=consultantCatalogContext(String(query||''));
+  if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+    ' phase=catalog_ready ms='+(Date.now()-startedAt)+
+    ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
@@ -5785,6 +5802,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
   const textProvider = xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
   const textModel = xkiroModel || baiModel;
+  if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
+    ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
+    ' elapsedMs='+(Date.now()-startedAt));
   const textApiKey = textProvider === 'xkiro'
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
