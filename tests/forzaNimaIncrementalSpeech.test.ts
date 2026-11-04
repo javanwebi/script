@@ -10,17 +10,15 @@ function speakInDeltas(text:string):string[] {
   return phrases;
 }
 
-test('period, comma and question mark never independently trigger a new Piper WAV',()=>{
+test('short complete first sentence is dispatched immediately, without duplicate WAV',()=>{
   const planner=new ForzaIncrementalSpeechText();
   const short='سلام، فورزا آماده است. ';
-  assert.deepEqual(planner.push(short),[]);
-  const first=planner.push(short+'آیا مدل دستگاه را ');
-  assert.equal(first.length,1,'first word group crosses punctuation only after word limit');
+  const first=planner.push(short);
+  assert.deepEqual(first,['سلام، فورزا آماده است.']);
   const full=short+'آیا مدل دستگاه را بفرمایید؟ سپس موجودی را بررسی می‌کنم.';
   const phrases=[...first,...planner.push(full),...planner.complete(full)];
-  assert.ok(phrases[0].includes('است.'),'period stays inside the first continuous chunk');
-  assert.ok(phrases[0].includes('آیا'),'the first phrase crosses the period');
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),full.trim());
+  assert.equal(planner.complete(full).length,0);
 });
 
 test('one-character-at-a-time SSE never duplicates or loses words',()=>{
