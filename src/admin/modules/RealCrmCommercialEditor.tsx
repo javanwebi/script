@@ -71,7 +71,7 @@ export const RealCrmCommercialEditor:React.FC<Props> = ({customer,onClose,onSave
       {error&&<div role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</div>}
       <div className="mt-5 flex justify-end gap-2">
         <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm">انصراف</button>
-        <button disabled={busy||loading||!!error||!customer.approved_b2b} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Save className="h-4 w-4"/>{busy?'در حال ذخیره...':'ذخیره شرایط تجاری'}</button>
+        <button disabled={busy||loading||!customer.approved_b2b} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Save className="h-4 w-4"/>{busy?'در حال ذخیره...':'ذخیره شرایط تجاری'}</button>
       </div>
     </form>
   </div>;
