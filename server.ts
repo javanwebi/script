@@ -528,7 +528,15 @@ app.get('/api/health', async (req, res) => {
   try{
   if(process.env.NODE_ENV==='production' && !databaseEnabled())return res.status(503).json({status:'unavailable',database:'not-configured'});
   if(databaseEnabled())await database().query('select 1');
-  res.json({ status: 'ok', database:databaseEnabled()?'ok':'development-only', time: new Date().toISOString() });
+  res.json({
+    status:'ok',
+    database:databaseEnabled()?'ok':'development-only',
+    time:new Date().toISOString(),
+    // Exact pinned canary/live SHA from the safe deploy script, never guessed
+    // from host git HEAD (which may differ from the running container).
+    revision:/^[a-f0-9]{40}$/.test(process.env.SANATPISH_RELEASE_SHA||'')
+      ?process.env.SANATPISH_RELEASE_SHA:'unknown',
+  });
   }catch{return res.status(503).json({status:'unavailable',database:'unavailable'});}
 });
 
