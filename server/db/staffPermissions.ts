@@ -55,10 +55,14 @@ export function namespacePermission(identity:StaffIdentity,domain:string,write=f
   if(!domain || domain==='customer_state' || domain==='customer_overrides' || domain==='reference')return false;
   const section=namespaceSections[domain];
   if(!section)return false;
+  // Full override documents can contain prices, stock and other confidential commercial data.
+  // Staff without commercial permission must use dedicated, scoped catalog API operations.
+  if(domain==='catalog_overrides' && !canStaff(identity,'products','prices'))return false;
   if(key==='atlas_admin_products_v1')return canStaff(identity,'products',write?'edit':'view');
-  if(key==='atlas_admin_price_logs_v1')return canStaff(identity,'products',write?'prices':'view');
-  if(section==='settings' && key==='hyper_sanat_stock_v2')return canStaff(identity,'products',write?'prices':'view');
-  if(section==='settings' && !canStaff(identity,'settings','view'))return false;
+  if(key==='atlas_admin_price_logs_v1')return canStaff(identity,'products','prices');
+  if(section==='settings' && key==='hyper_sanat_stock_v2')return canStaff(identity,'products','prices');
+  // Credentials, payment gateways and system backups are super-admin-only.
+  if(section==='settings')return false;
   return canStaff(identity,section,write?'edit':'view');
 }
 export function catalogMutationPermission(path:string):[string,string]{
