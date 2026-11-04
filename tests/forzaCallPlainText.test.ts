@@ -56,3 +56,18 @@ test('multiword link title is retained if the link ends midstream',()=>{
   const p=new ForzaCallPlainText();
   assert.equal(p.complete('برای [مشخصات کامل دستگاه'),'برای مشخصات کامل دستگاه');
 });
+
+
+test('headings and numbered bullets split across SSE chunks never leak markers',()=>{
+  const raw='### مشخصات\n1. تسمه SPA 1250\n- بلبرینگ 6202ZZ';
+  const frames=chunks(raw);
+  assert.ok(frames.every(v=>!v.includes('#')&&!v.includes('1.')&&!v.includes('\n-')));
+  assert.equal(frames.at(-1),'مشخصات تسمه SPA 1250 بلبرینگ 6202ZZ');
+});
+
+test('decimal dimensions and negative technical values survive plain-text display',()=>{
+  const project=new ForzaCallPlainText();
+  assert.equal(project.complete('3.25×20 و -5'),'3.25×20 و -5');
+  assert.equal(forzaSpokenPlainText('ابعاد 100×200 و 3.25×20'),
+    'ابعاد 100 در 200 و 3.25 در بیست');
+});
