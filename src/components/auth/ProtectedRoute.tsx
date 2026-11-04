@@ -22,6 +22,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       </div>
     );
   if (!currentUser) return <Navigate to="/login" replace />;
+  // CRM-provisioned credentials are single-use. Enforce renewal before either portal.
+  if ((currentUser as typeof currentUser & {mustChangePassword?:boolean}).mustChangePassword === true)
+    return <Navigate to="/login" replace />;
 
   // The two-question setup is required once for ordinary retail customers.
   // Factory/dealer/admin accounts keep their own portal flows.
