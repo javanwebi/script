@@ -5,6 +5,14 @@ import {database,transaction,databaseEnabled,adoptedSchema} from './connection';
 import {getPortalIdentity} from '../../api/portal';
 import {sanitizeStaffPermissions} from './staffPermissions';
 
+// Owner-only event channel: a change notification without account details.
+const staffListeners = new Set<Response>();
+function notifyStaffChanged() {
+ for (const listener of staffListeners) {
+  try { listener.write('event: staff-updated\\ndata: {}\\n\\n'.replaceAll('\\n','\n')); }
+  catch { staffListeners.delete(listener); }
+ }
+}
 const fail=(status:number,message:string)=>Object.assign(new Error(message),{status});
 const usernamePattern=/^[a-z][a-z0-9_]{3,31}$/;
 const emailPattern=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,6 +38,22 @@ function respond(res:Response,error:unknown){
  return res.status(status).json({success:false,message:e?.code==='23505'?'نام کاربری یا ایمیل قبلاً ثبت شده است.':(status<500?e.message:'اتصال به سرویس مدیریت کاربران ممکن نشد.')});
 }
 export function registerAdminStaffApi(app:Express){
+ app.get('/api/admin/staff/events',async(req,res)=>{
+  try{
+   await owner(req);
+   res.setHeader('Content-Type','text/event-stream; charset=utf-8');
+   res.setHeader('Cache-Control','private, no-cache, no-transform');
+   res.setHeader('Connection','keep-alive');
+   res.setHeader('X-Accel-Buffering','no');
+   res.flushHeaders();
+   res.write('retry: 5000\n\n');
+   staffListeners.add(res);
+   const heartbeat=setInterval(()=>{
+    try{res.write(': keep-alive\n\n');}catch{clearInterval(heartbeat);staffListeners.delete(res);}
+   },25000);
+   req.on('close',()=>{clearInterval(heartbeat);staffListeners.delete(res);});
+  }catch(e){return respond(res,e);}
+ });
  app.get('/api/admin/staff',async(req,res)=>{
   try{
    await owner(req);res.setHeader('Cache-Control','private, no-store');
@@ -73,6 +97,7 @@ export function registerAdminStaffApi(app:Express){
       insert into app_private.admin_staff_accounts(user_id,permissions,created_by)
       values($1,$2::jsonb,$3)`,[createdId,JSON.stringify(permissions),creator]);
    });
+   notifyStaffChanged();
    return res.status(201).json({success:true,id:createdId});
   }catch(e){
    // Compensate only for the Auth identity created by this failed request.
@@ -103,6 +128,7 @@ export function registerAdminStaffApi(app:Express){
     return result.rowCount;
    });
    if(!count)throw fail(404,'حساب کارمند یافت نشد.');
+   notifyStaffChanged();
    return res.json({success:true});
   }catch(e){return respond(res,e);}
  });
@@ -117,6 +143,7 @@ export function registerAdminStaffApi(app:Express){
      throw fail(404,'کارمند یافت نشد.');
    const result=await adminAuth().auth.admin.updateUserById(id,{password});
    if(result.error)throw fail(503,'بازنشانی رمز کارمند انجام نشد.');
+   notifyStaffChanged();
    return res.json({success:true});
   }catch(e){return respond(res,e);}
  });
