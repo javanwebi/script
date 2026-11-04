@@ -243,7 +243,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+ -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -270,7 +270,7 @@ docker stop -t 12 "$OLD" >/dev/null
 CID="$(docker run -d --name "$NAME" --restart unless-stopped \
  --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+ -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 60); do
