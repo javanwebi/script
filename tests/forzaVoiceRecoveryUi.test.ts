@@ -53,3 +53,13 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/if\(isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current\)/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
+
+test('mic VAD is independent of WebGL animation frame rate',()=>{
+  const beginning=ui.indexOf('// Low-latency VAD uses actual mic PCM RMS');
+  const end=ui.indexOf('// Compute reactive mode for Three.js ParticleAvatar',beginning);
+  assert.ok(beginning>0&&end>beginning);
+  const vad=ui.slice(beginning,end);
+  assert.match(vad,/window\.setInterval\(check,55\)/);
+  assert.match(vad,/window\.clearInterval\(micPoll\)/);
+  assert.doesNotMatch(vad,/requestAnimationFrame|cancelAnimationFrame/);
+});
