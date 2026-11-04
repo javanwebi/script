@@ -42,7 +42,7 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts
+        run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts
       - name: Validate Persian smart end-of-turn recognition
         run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition
