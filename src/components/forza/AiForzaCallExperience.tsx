@@ -22,7 +22,8 @@ import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
-import { isForzaProbableEcho, forzaTurnIntent } from '../../utils/forzaBargeIn';
+import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
+import { forzaTurnIntent } from '../../utils/forzaBargeIn';
 import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
 
 interface AiForzaCallExperienceProps {
@@ -234,7 +235,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
         if(isProcessingTurnRef.current){
-          if(!vadRef.current.heardSpeech || isForzaProbableEcho(transcript,latestAiTextRef.current))return;
+          if(!vadRef.current.heardSpeech)return;
           interruptRequestRef.current();
         }
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
@@ -405,7 +406,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               return;
             }
             setIsUserSpeaking(false);
-            detectedSpeechEndAtRef.current=performance.now();
+            detectedSpeechEndAtRef.current=performance.now()-acousticSilence;
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
@@ -1015,7 +1016,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setStatus('thinking');
           },
           (stage,ms)=>console.info('[FORZA_AUDIO_STAGE] turn='+generation+
-            ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)),
+            ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
+            ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current
+              ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1)),
         );
         playerForTurn=continuousPlayer;
         continuousPlayer.setMuted(isSpeakerMuted);
@@ -1025,12 +1028,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // to subtitles immediately and keep the Pocket fallback unchanged.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
         const phrasePlanner=new ForzaIncrementalSpeechText();
+        const callPlainText=new ForzaCallPlainText();
         // Text updates are displayed immediately. Piper gets its first small,
         // completed word group while SSE continues, then synthesizes further
         // phrases in bounded lookahead on the same AudioContext clock.
         // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
-          synthesize:(phrase,signal)=>requestPocketAudio(phrase,signal,String(generation)),
+          synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,String(generation)),
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
@@ -1058,15 +1062,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         };
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
-          reply=fullText;
-          latestAiTextRef.current=fullText;
-          if(!firstTextDelivered&&fullText.trim()){
+          reply=callPlainText.push(fullText);
+          latestAiTextRef.current=reply;
+          if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
             console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
               ' clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
           }
-          setAiText(fullText);
+          setAiText(reply);
           if(useNima){
             // Enforce monotonic SSE text; never speak a revised/duplicate
             // segment after the consumer has already heard its predecessor.
@@ -1074,8 +1078,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               window.clearTimeout(terminalIdleTimer);
               terminalIdleTimer=null;
             }
-            for(const phrase of phrasePlanner.push(fullText))queueSpeech(phrase);
-            if(/[.!؟؛]\s*$/.test(fullText)){
+            for(const phrase of phrasePlanner.push(reply))queueSpeech(phrase);
+            if(/[.!؟؛]\s*$/.test(reply)){
               terminalIdleTimer=window.setTimeout(()=>{
                 terminalIdleTimer=null;
                 if(pocketAbort.signal.aborted||callClosedRef.current||activeTurnRef.current?.generation!==generation)return;
@@ -1110,11 +1114,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=sse_headers turn='+generation+
               ' clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' http='+streamRes.status);
-            reply=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
+            const rawFinal=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
               onTextChunk(chunk,fullText);
             });
+            reply=callPlainText.complete(rawFinal);
             if(!reply)throw new Error('forza_empty_stream');
           }finally{
             window.clearTimeout(streamTimer);
@@ -1149,6 +1154,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply = String(data.text||'').trim();
           if (!reply) throw new Error('forza_empty_response');
           onTextChunk(reply,reply);
+          reply=callPlainText.complete(reply);
           }
         }
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
@@ -1172,7 +1178,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' audio_s='+activeNimaBuffer.statistics.totalBufferedSeconds.toFixed(2)+
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
-              await playPocketFullAnswer(reply,continuousPlayer,pocketAbort.signal);
+              await playPocketFullAnswer(forzaSpokenPlainText(reply),continuousPlayer,pocketAbort.signal);
               recordHeard(reply);
             }
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
@@ -1302,8 +1308,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isProcessingTurnRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
-          if(!vadRef.current.heardSpeech ||
-             isForzaProbableEcho(currentSpeech,latestAiTextRef.current))return;
+          if(!vadRef.current.heardSpeech)return;
           interruptRequestRef.current();
         }
         if (currentSpeech) {
@@ -1335,7 +1340,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
               return;
             }
-            detectedSpeechEndAtRef.current=performance.now();
+            detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
+              ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length);
             activeTranscriptRef.current='';
             lastTranscriptChangedAtRef.current=0;
