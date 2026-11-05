@@ -178,6 +178,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
+  const sttFinalAtRef=useRef<number>(0); // browser monotonic clock
   const webSpeechFailedRef = useRef<boolean>(false);
   const recognitionResultCountRef=useRef(0);
   const recognitionConsumedCountRef=useRef(0);
@@ -187,7 +188,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const lastForzaPlaybackAtRef=useRef(0);
   const likelySpeakerEcho=(words:string)=>{
     const recentPlayback=isAiSpeakingRef.current ||
-      (lastForzaPlaybackAtRef.current>0 && Date.now()-lastForzaPlaybackAtRef.current<1500);
+      (lastForzaPlaybackAtRef.current>0 && performance.now()-lastForzaPlaybackAtRef.current<1500);
     return shouldIgnoreForzaSpeakerEcho(
       words,heardSpeechEchoRef.current,recentPlayback);
   };
@@ -272,7 +273,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           interruptRequestRef.current();
         }
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
-          lastTranscriptChangedAtRef.current=Date.now();
+          lastTranscriptChangedAtRef.current=performance.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
         hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
@@ -396,7 +397,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(samples);
         const rms=rootMeanSquareFromTimeDomain(samples);
-        const current=vadRef.current.sample(rms,Date.now());
+        const current=vadRef.current.sample(rms,performance.now());
         setAudioLevel(current.level);
         if(current.speechStarted){
           hasSpeechSoundRef.current=true;
@@ -427,11 +428,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(isProcessingTurnRef.current||isAiSpeakingRef.current||
                statusRef.current!=='listening'||micMutedRef.current)return;
             const candidate=activeTranscriptRef.current.trim();
-            const acousticSilence=vadRef.current.silenceDuration(Date.now());
+            const acousticSilence=vadRef.current.silenceDuration(performance.now());
             const wait=candidate
               ? forzaTurnRemainingWaitMs(
                   candidate,speechInterimRef.current,
-                  Date.now()-lastTranscriptChangedAtRef.current,
+                  performance.now()-lastTranscriptChangedAtRef.current,
                   vadRef.current.heardSpeech?acousticSilence:null)
               : Math.max(0,1000-acousticSilence);
             if(wait>0){
@@ -988,6 +989,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setAiText('');
       setDisplayedAi('');
       activeTranscriptRef.current = '';
+      const finalSttAt=sttFinalAtRef.current;
+      sttFinalAtRef.current=0;
+      if(finalSttAt>0&&detectedSpeechEndAtRef.current>0){
+        const sttLatency=finalSttAt-detectedSpeechEndAtRef.current;
+        if(Number.isFinite(sttLatency)&&sttLatency>=0&&sttLatency<120000)
+          console.info('[FORZA_STT_STAGE] phase=final_from_estimated_speech_end ms='+Math.round(sttLatency));
+        else console.info('[FORZA_STT_STAGE] phase=latency_missing reason=invalid_browser_monotonic_interval');
+      }else console.info('[FORZA_STT_STAGE] phase=latency_missing reason='+
+        (finalSttAt>0?'no_acoustic_end_estimate':'no_final_stt_event'));
 
       if (q) {
         setUserText(q);
@@ -1100,10 +1110,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           activeTurnRef.current.markInterrupted=()=>{
             if(!reply)return;
             const partial=interruptedPhrase;
+            // There is no word-aligned transcript/audio mapping. Never put
+            // the *unplayed* phrase text in history or guess heard syllables.
             const note=partial
-              ? 'عبارت «'+partial.text+'» فقط '+Math.round(partial.playedMs)+
-                ' از '+Math.round(partial.durationMs)+' میلی‌ثانیه پخش شد و کامل شنیده‌شده نیست.'
-              : 'عبارت جدیدِ در حال ساخت یا صف، پخش کامل نداشته است.';
+              ? 'یک عبارت تنها '+Math.round(partial.playedMs)+
+                ' از '+Math.round(partial.durationMs)+
+                ' میلی‌ثانیه روی AudioContext زمان‌بندی شد؛ واژه‌های شنیده‌شده نامعلوم‌اند.'
+              : 'عبارت‌های در حال ساخت یا صف، پخش کامل نداشته‌اند.';
             historyRef.current.push({role:'model',
               text:'[پاسخ قطع شد. فقط عبارت‌های کاملِ قبلی شنیده‌شده محسوب شوند. '+
                 note+' اگر کاربر گفت ادامه بده از آخرین عبارت کامل شروع کن؛ متن ساخته‌شده بعدی را شنیده‌شده فرض نکن.]'});
@@ -1115,7 +1128,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ()=>{
             if(activeTurnRef.current?.generation!==generation)return;
             isAiSpeakingRef.current=true;
-            lastForzaPlaybackAtRef.current=Date.now();
+            lastForzaPlaybackAtRef.current=performance.now();
             setVoicePending(false);
             setVoiceStage('playing');
             setStatus('speaking');
@@ -1136,6 +1149,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               if(detectedSpeechEndAtRef.current>0){
                 const latency=Math.round(performance.now()-detectedSpeechEndAtRef.current);
                 const samples=endToPlaybackSamplesRef.current;
+                if(!Number.isFinite(latency)||latency<0||latency>120000){
+                  console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                    ' missing=1 reason=invalid_browser_monotonic_interval');
+                }else{
                 samples.push(latency);
                 if(samples.length>200)samples.shift();
                 const ordered=[...samples].sort((a,b)=>a-b);
@@ -1144,13 +1161,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 const mean=Math.round(ordered.reduce((sum,ms)=>sum+ms,0)/ordered.length);
                 console.info('[FORZA_END_TO_AUDIO] turn='+generation+' ms='+latency+
                   ' n='+ordered.length+' meanMs='+mean+' medianMs='+median+' p95Ms='+p95+
-                  ' estimatedAudioEnd=1 noPrivateContent=1');
+                  ' estimatedAudioEnd=1 audioClockOnly=1 noPrivateContent=1');
+                }
+              }else{
+                console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                  ' missing=1 reason=no_acoustic_end_estimate');
               }
             }
             console.info('[FORZA_AUDIO_STAGE] turn='+generation+
               ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
-              ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current
-                ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+              ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current>0
+                ? Math.round(performance.now()-detectedSpeechEndAtRef.current):'NA')+
+              ' audioClockOnly=1 audibleOutputUnverified=1');
           },
         );
         playerForTurn=continuousPlayer;
@@ -1182,9 +1204,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           onPhraseProgress:(phrase,progress)=>{
             if(progress.phase==='started'){
               heardSpeechEchoRef.current=phrase;
-              lastForzaPlaybackAtRef.current=Date.now();
+              lastForzaPlaybackAtRef.current=performance.now();
             }else if(progress.phase==='finished'){
-              lastForzaPlaybackAtRef.current=Date.now();
+              lastForzaPlaybackAtRef.current=performance.now();
             }
             if(progress.phase==='interrupted' && progress.playedMs>0 &&
                progress.playedMs<progress.durationMs && !speakerMutedRef.current){
@@ -1519,9 +1541,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (currentSpeech) {
           if(currentSpeech!==activeTranscriptRef.current ||
              speechInterimRef.current!==recognized.hasInterim){
-            lastTranscriptChangedAtRef.current=Date.now();
+            lastTranscriptChangedAtRef.current=performance.now();
           }
           speechInterimRef.current = recognized.hasInterim;
+          if(!recognized.hasInterim){
+            sttFinalAtRef.current=performance.now();
+            console.info('[FORZA_STT_STAGE] phase=webspeech_final chars='+
+              recognized.finalText.length+' elapsedMonotonic=1');
+          }
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
           setUserText(currentSpeech);
@@ -1539,14 +1566,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(!candidate)return;
             const wait=forzaTurnRemainingWaitMs(
               candidate,speechInterimRef.current,
-              Date.now()-lastTranscriptChangedAtRef.current,
-              vadRef.current.heardSpeech?vadRef.current.silenceDuration(Date.now()):null);
+              performance.now()-lastTranscriptChangedAtRef.current,
+              vadRef.current.heardSpeech?vadRef.current.silenceDuration(performance.now()):null);
             if(wait>0){
               silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
               return;
             }
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
-              ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
+              ? performance.now()-vadRef.current.silenceDuration(performance.now()) : 0;
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
