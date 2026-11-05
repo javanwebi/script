@@ -39,6 +39,7 @@ upgrade, resource limit, database migration, transcript or audio persistence.
 | Phrase 1 reaches single CPU ahead of phrase 0 | `server/ai/forzaTtsTurnOrder.ts`, `server.ts`, `forzaNimaBufferedSpeech.ts`, `AiForzaCallExperience.tsx`: ordered indexed turn gate, bounded cancellation | `forzaTtsTurnOrder.test.ts`, `forzaNimaBufferedSpeech.test.ts` | Sequential per-turn synthesis may increase gaps; worker FIFO still arbitrates multiple turns |
 | Two slow model failures in one live turn | `xkiroFreeFailover.ts`: fail fast on long failed attempt, total free-only budget; `AiForzaCallExperience.tsx`: only 404/405 gets legacy non-streaming fallback | `xkiro-free-failover.test.ts`, `forzaVoiceRecoveryUi.test.ts` | Shorter timeout is not faster *successful* model TTFT |
 | Invalid negative/absent/stale or muted-audio timings and cross-clock assumptions | `server.ts`, `baiConsult.ts`, client VAD: monotonic clock per process, NA reason, code-only stage markers | `test_forza_latency_aggregate.py`, UI tests | Browser AudioContext start is not proof of acoustic audibility |
+| Timed-out final-audio Gemini STT kept running upstream | `forzaSttDeadline.ts`, `server.ts`: abort signal reaches Gemini request and is triggered by client close; Worker STT cancels on browser disconnect | `forzaSttDeadline.test.ts`, UI contract checks | Upstream cancellation depends on provider honoring abort; real STT response speed and accuracy still unmeasured |
 | Browser STT false-negative fallback status | `server.ts` exposes Worker candidate separately, client attempts it when configured | `forzaVoiceRecoveryUi.test.ts` | Worker candidate is not proof endpoint works, not independent streaming STT |
 | STT guesses unintelligible words | `server.ts /api/ai/stt` rejects blank/unknown transcription rather than guessing | Existing STT config tests, API/typecheck | Gemini recognition accuracy not measured on an actual Persian speaker |
 | Interrupted phrase stored as if heard | `AiForzaCallExperience.tsx` stores only full WAV completions and elapsed metadata, not partial phrase words | UI history checks | Exact word offset requires alignment not available |
@@ -94,6 +95,8 @@ Use low concurrency and no stress traffic against the public website.
 6. Reject any claim of sub-2s success / sub-300ms audible interruption
    until real measurements support it. No change of provider spend without
    approval. No merge to `main` or VPS deployment until accepted.
+
+The existing opt-in final-audio Gemini STT uses `FORZA_STT_PROVIDER=gemini`, `FORZA_STT_GEMINI_API_KEY` (preferred dedicated credential) and optionally `FORZA_STT_GEMINI_MODEL`. It is **not streaming STT**; API usage may be metered and requires explicit operator approval. This branch does not change these secrets or enable Gemini STT by default. The optional Worker provider also requires operator-provisioned credentials and a working `/v1/forza/transcribe` contract.
 
 No separate paid STT provider was activated. To obtain true streaming STT,
 choose a provider that exposes a verified Persian realtime API, verify its
