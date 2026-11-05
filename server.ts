@@ -5663,6 +5663,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   }catch(error:any){
     const code=cancel.signal.aborted?'cancelled':String(error?.message||'voice_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
     console.warn('[FORZA_TTS_STAGE] phase=failed code='+code+
+      ' turn='+(hasPhraseIndex?turnKey:'legacy')+
       ' index='+(hasPhraseIndex?phraseIndex:'legacy')+
       ' elapsedMs='+Math.round(performance.now()-started));
     if(!res.headersSent&&!res.destroyed)return res.status(503).json({error:'pocket_server_unavailable',errorCode:code});
