@@ -1408,6 +1408,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       } catch (err: any) {
         if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)return;
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
+        setVoiceStage('error');
         // A speech-recognition failure is not a TTS/playback failure.
         if (!q) setUserText(previous=>previous.trim());
         setErrorNotice(
@@ -1423,7 +1424,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         playerForTurn?.cancel();
         if(activeTurnRef.current?.generation!==generation)return;
         activeTurnRef.current=null;
-        setVoiceStage('idle');
+        // Preserve an actual failure for the compact status pill; the next
+        // customer turn will reset stage to 'text' without blocking the mic.
+        setVoiceStage(previous=>previous==='error'?'error':'idle');
         if(continuousVoiceRef.current===playerForTurn)continuousVoiceRef.current=null;
         isAiSpeakingRef.current=false;
         setVoicePending(false);
@@ -1974,7 +1977,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {/* Turn Status Pill & Mic / Speaker Controls */}
         <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
-            {turn === 'user'
+            {voiceStage === 'error'
+              ? 'خطا در پاسخ؛ می‌توانید دوباره صحبت کنید'
+              : turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
