@@ -32,6 +32,8 @@ on:
       - server/ai/forzaTtsBudget.ts
       - server/ai/forzaTtsTurnOrder.ts
       - tests/forzaTtsTurnOrder.test.ts
+      - ops/forza-voice-latency-aggregate.py
+      - tests/test_forza_latency_aggregate.py
       - src/utils/forzaStreamClient.ts
       - src/utils/forzaSpeechPipeline.ts
       - src/components/forza/ParticleAvatar.tsx
@@ -53,6 +55,8 @@ jobs:
           cache: npm
       - name: Nima isolated service source and safety
         run: python3 tests/test_forza_nima_private.py
+      - name: Private latency telemetry never leaks speech or invents percentiles
+        run: python3 tests/test_forza_latency_aggregate.py
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
