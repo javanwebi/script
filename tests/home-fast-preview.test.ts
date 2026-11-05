@@ -71,6 +71,17 @@ test('first paint prefetches SQL-light categories and small product previews',()
  assert.ok(quickRoute.length>0);
  assert.doesNotMatch(quickRoute,/count\s*\(|join\s+public\.catalog_variants/i);
  assert.match(main,/window\.location\.pathname === '\/'/);
- assert.match(featured,/utilityProducts\.length===0 && previews\.map/);
+ // First-paint cards must keep the same compact template after the full
+ // product runtime hydrates; no replacement by tall commercial cards.
+ assert.match(featured,/displayProducts\.map\(product/);
+ assert.match(featured,/previews\.length \? previews/);
+ assert.match(featured,/hydratedProductsByCode\.get/);
+ assert.doesNotMatch(featured,/utilityProducts\.map/);
+ const homePage=readFileSync('src/pages/HomePage.tsx','utf8');
+ const clientsIndex=homePage.indexOf('<OurClientsSection />');
+ const productsIndex=homePage.indexOf('<HighUtilityProductsSection />');
+ const categoriesIndex=homePage.indexOf('<HomeCategoryStrip />');
+ assert.ok(clientsIndex>=0 && clientsIndex<productsIndex && productsIndex<categoriesIndex,
+   'Client logos and compact product cards must precede the category strip');
  assert.match(server,/app\.get\('\x2fapi\x2fcatalog\x2fhome-preview',publicHomePreviewApi\)/);
 });
