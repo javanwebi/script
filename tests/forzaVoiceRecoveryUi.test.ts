@@ -106,3 +106,11 @@ test('no unplayed phrase text appears in interrupted conversation memory',()=>{
   assert.match(ui,/missing=1 reason=no_acoustic_end_estimate/);
   assert.match(ui,/elapsedMonotonic=1/);
 });
+
+test('Worker fallback metadata is not falsely labelled working realtime STT',()=>{
+  const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+  assert.match(backend,/serverStreamingStt:false/);
+  assert.match(backend,/workerSttCandidate:Boolean\(configuredForzaWorkerUrl\(\)\)/);
+  assert.match(ui,/info\.workerSttCandidate===true/);
+  assert.match(ui,/serverSttConfiguredRef\.current=info\.serverSttConfigured\|\|/);
+});
