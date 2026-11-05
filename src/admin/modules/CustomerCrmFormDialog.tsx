@@ -52,12 +52,12 @@ export function CustomerCrmFormDialog({form,editing,access,canManageAccess,smsCo
     {label:'حساب و پیام',subtitle:editing?'تنظیمات ورود':'دسترسی و قالب‌ها',Icon:KeyRound},
     {label:'بازبینی',subtitle:'تأیید و ثبت',Icon:ClipboardCheck}
   ] as const;
-  const update=<K extends keyof CustomerCrmFormValues>(key:K,next:CustomerCrmFormValues[K])=>{
+  const update=<K extends keyof CustomerCrmFormValues,>(key:K,next:CustomerCrmFormValues[K])=>{
     onChange({...form,[key]:next});setStepError('');
   };
   const validIdentity=()=>{
     if(form.name.trim().length<2)return 'نام و نام خانوادگی مشتری باید حداقل دو نویسه باشد.';
-    if(!phoneRule(form.phone))return 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود.';
+    if(!editing&&!phoneRule(form.phone))return 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود.';
     if(!emailRule(form.email.trim()))return 'نشانی ایمیل معتبر نیست.';
     return '';
   };
