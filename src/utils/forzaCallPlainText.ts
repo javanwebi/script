@@ -13,6 +13,7 @@ export class ForzaCallPlainText {
   private urlDepth = 0;
   private lineStart = true;
   private pendingNumericStar = false;
+  private pendingImageBang = false;
   private linePrefix = '';
 
   private flushWord(): void {
@@ -31,6 +32,20 @@ export class ForzaCallPlainText {
     }
   }
   private accept(c: string, next: string): void {
+    // In a split SSE image marker, an isolated trailing '!' must not flash
+    // as subtitle content or enter a Nima utterance before '[' arrives.
+    if (this.pendingImageBang) {
+      this.pendingImageBang = false;
+      if (c === '[') {
+        this.state = 'label';
+        return;
+      }
+      this.append('!');
+    }
+    if (c === '!' && !next) {
+      this.pendingImageBang = true;
+      return;
+    }
     // An ASCII '*' between two digits is a dimension operator, not Markdown.
     // Hold it for one character so a split SSE chunk cannot erase 10*20.
     if (this.pendingNumericStar) {
@@ -110,6 +125,8 @@ export class ForzaCallPlainText {
     this.linePrefix='';
     this.state = 'text';
     this.label = '';
+    if (this.pendingImageBang) this.append('!');
+    this.pendingImageBang = false;
     this.flushWord();
     return this.output.replace(/\s+/gu, ' ').trim();
   }
