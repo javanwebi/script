@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
 import { CustomerAccountAccessModal } from './CustomerAccountAccessModal';
-import { CustomerNewAccessFields, emptyCustomerAccess, type NewCustomerAccessDraft } from './CustomerNewAccessFields';
+import { emptyCustomerAccess, type NewCustomerAccessDraft } from './CustomerNewAccessFields';
+import { CustomerCrmFormDialog, type CustomerCrmFormValues } from './CustomerCrmFormDialog';
 import {
   Users, Building2, ShoppingBag, UserPlus, Search, RefreshCw, Eye,
   ShieldCheck, ShieldAlert, X, Save, ArrowRight, Phone, MapPin,
@@ -25,7 +26,7 @@ type Order = { id: string; created_at: string; status: string; payment_status: s
 type Entry = { id: string; kind: string; debt_delta: string | number; wallet_delta: string | number; points_delta: string | number; description: string; reference: string; created_at: string };
 type Ticket = { id: string; subject: string; status: string; created_at: string };
 type Detail = { customer: Customer; orders: Order[]; finance: Entry[]; tickets: Ticket[] };
-type FormValues = { name: string; company: string; phone: string; email: string; province: string; city: string; notes: string; kind: 'retail' | 'high_volume' };
+type FormValues = CustomerCrmFormValues;
 const emptyForm = (kind: FormValues['kind']): FormValues => ({ name:'',company:'',phone:'',email:'',province:'',city:'',notes:'',kind });
 const nf = (value: number | string | null | undefined) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Number(value || 0));
 const money = (value: number | string | null | undefined) => nf(value) + ' تومان';
@@ -38,11 +39,6 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
   const json = await response.json().catch(() => ({ success:false, message:'پاسخ سرور معتبر نیست.' }));
   if (!response.ok || !json.success) throw new Error(json.message || 'درخواست به نتیجه نرسید.');
   return json as T;
-}
-function Input({ label, value, onChange, required=false, disabled=false, type='text' }:
- { label:string;value:string;onChange:(value:string)=>void;required?:boolean;disabled?:boolean;type?:string }) {
-  return <label className="block min-w-0 space-y-1.5"><span className="text-xs font-bold text-slate-600">{label}</span>
-    <input className={field} value={value} onChange={e=>onChange(e.target.value)} required={required} disabled={disabled} type={type}/></label>;
 }
 function Metric({label,value,Icon}:{label:string;value:string;Icon:React.ElementType}) {
   return <div className={card+' flex min-w-0 items-center gap-3 p-4'}>
@@ -194,7 +190,6 @@ export const RealCustomersCrmModule: React.FC = () => {
     }catch(e){setError(e instanceof Error?e.message:'دریافت اطلاعات ناموفق بود.');}
     finally{setExporting(false);}
   };
-  const fieldSet = (key:keyof FormValues,value:string) => setForm(f=>f?{...f,[key]:value}:f);
   return <div dir="rtl" className="space-y-5 pb-10 text-right">
     <div className={card+' flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between'}>
       <div><div className="flex items-center gap-2"><Users className="h-6 w-6 text-[#E56B1E]"/>
@@ -273,35 +268,13 @@ export const RealCustomersCrmModule: React.FC = () => {
       </div>
     </div>
 
-    {form && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1A2230]/60 p-3" role="dialog" aria-modal="true">
-      <form onSubmit={save} className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4"><div><h3 className="text-lg font-black text-slate-800">{editing?'ویرایش مشتری':'تعریف مشتری جدید'}</h3>
-          <p className="mt-1 text-xs text-slate-500">مشخصات در دیتابیس واقعی ثبت می‌شوند.</p></div>
-          <button type="button" onClick={()=>{setForm(null);setEditing(null);}} aria-label="بستن"><X className="h-5 w-5"/></button></div>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="نام و نام خانوادگی *" required value={form.name} onChange={v=>fieldSet('name',v)}/>
-          <Input label="شرکت یا فروشگاه" value={form.company} onChange={v=>fieldSet('company',v)}/>
-          <Input label="شماره موبایل *" required disabled={!!editing} value={form.phone} onChange={v=>fieldSet('phone',v)}/>
-          <Input label="ایمیل" type="email" disabled={!!editing?.has_login} value={form.email} onChange={v=>fieldSet('email',v)}/>
-          <Input label="استان" value={form.province} onChange={v=>fieldSet('province',v)}/>
-          <Input label="شهر" value={form.city} onChange={v=>fieldSet('city',v)}/>
-        </div>
-        {!editing && <div className="mt-4"><div className="mb-2 text-xs font-bold text-slate-600">نوع مشتری</div>
-          <div className="flex gap-3">
-            <button type="button" onClick={()=>fieldSet('kind','retail')} className={'rounded-xl px-4 py-3 text-xs '+(form.kind==='retail'?'bg-[#E56B1E] text-white':'border border-slate-200')}>خرید تکی</button>
-            <button type="button" onClick={()=>fieldSet('kind','high_volume')} className={'rounded-xl px-4 py-3 text-xs '+(form.kind==='high_volume'?'bg-[#E56B1E] text-white':'border border-slate-200')}>خرید بالا</button>
-          </div>
-          <p className="mt-2 text-xs leading-6 text-slate-600">ثبت‌نام‌کنندگان سایت به‌صورت پیش‌فرض خرید تکی هستند. در ادامه می‌توان حساب ورود آن‌ها را مدیریت یا نوع پنل را تغییر داد.</p>
-        </div>}
-        {!editing && <CustomerNewAccessFields value={newAccess} onChange={setNewAccess}
-           customerName={form.name} canManage={canManageAccess} smsConfigured={smsConfigured}/>}
-         {editing && canManageAccess && <button type="button" className="mt-4 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-xs font-bold text-orange-700" onClick={()=>{setAccessCustomer(editing);setForm(null);setEditing(null);}}><KeyRound className="h-4 w-4"/>مدیریت نام کاربری و بازنشانی رمز عبور</button>}
-         <label className="mt-4 block space-y-1.5"><span className="text-xs font-bold text-slate-600">یادداشت داخلی CRM</span>
-          <textarea className="min-h-24 w-full resize-y rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-[#E56B1E]" maxLength={4000} value={form.notes} onChange={e=>fieldSet('notes',e.target.value)}/></label>
-        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={()=>{setForm(null);setEditing(null);}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm">انصراف</button>
-          <button disabled={busy} className="flex items-center gap-2 rounded-xl bg-[#E56B1E] px-5 py-3 text-sm font-bold text-white disabled:opacity-60"><Save className="h-4 w-4"/>{busy?'در حال ثبت...':'ذخیره اطلاعات'}</button></div>
-      </form>
-    </div>}
+    {form && <CustomerCrmFormDialog
+      form={form} editing={editing} access={newAccess} canManageAccess={canManageAccess}
+      smsConfigured={smsConfigured} busy={busy} error={error}
+      onChange={setForm} onAccessChange={setNewAccess} onSubmit={save}
+      onClose={()=>{setForm(null);setEditing(null);setError('');}}
+      onManageAccess={()=>{if(editing){setAccessCustomer(editing);setForm(null);setEditing(null);}}}
+    />}
 
     {issued && <div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3" role="dialog" aria-modal="true" aria-label="اطلاعات حساب ایجادشده">
        <div className="max-h-[90dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
