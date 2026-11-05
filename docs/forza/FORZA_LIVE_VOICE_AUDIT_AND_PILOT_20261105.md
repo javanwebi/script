@@ -83,6 +83,17 @@ phone speaker, noise, weak mobile network, SSE EOF without done, STT disabled,
 private voice slow/busy, multiple sequential turns and actual on-exit cleanup.
 Use low concurrency and no stress traffic against the public website.
 
+## Additional verified limits (2026-11-05)
+
+- The previous hard guard rejected Nima phrase index 12 even after a budget
+  window expired. The order gate now accepts index labels 0 through 255.
+  This does NOT raise the existing 12 requests per turn per 60 seconds or
+  60 requests per network address per 60 seconds. Longer replies can
+  still encounter 429 until a capacity-safe policy is established.
+- Google GenAI JS documents generateContent abortSignal as client-only.
+  It does not guarantee remote cancellation or non-billing of usage.
+  https://googleapis.github.io/js-genai/release_docs/interfaces/types.GenerateContentConfig.html
+
 ## Acceptance gates
 
 1. Verify current production SHA and actual providers from **VPS**.

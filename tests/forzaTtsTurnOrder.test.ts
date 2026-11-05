@@ -4,6 +4,17 @@ import {ForzaTtsTurnOrder} from '../server/ai/forzaTtsTurnOrder';
 
 function sleep(ms:number) {return new Promise<void>(resolve=>setTimeout(resolve,ms));}
 
+test('long-answer phrase indices progress past 11 without relaxing the per-minute budget',async()=>{
+  const order=new ForzaTtsTurnOrder(1000);
+  const signal=new AbortController().signal;
+  for(let index=0;index<=12;index++){
+    assert.equal(await order.execute('network:call-long',index,signal,async()=>index),index);
+  }
+  await assert.rejects(order.execute('network:call-long',256,signal,async()=>256),
+    /invalid_phrase_order/);
+  assert.equal(order.counters.pending,0);
+});
+
 test('phrase 1 arrives first but cannot enter private CPU before phrase 0',async()=>{
   const order=new ForzaTtsTurnOrder(1000);
   const controller=new AbortController();

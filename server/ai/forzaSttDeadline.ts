@@ -3,7 +3,9 @@
  * deadline is reached or the browser disconnects.
  *
  * Promise.race(timeout, provider) alone returns quickly but leaves the
- * expensive provider running, wasting quota and delaying other customers.
+ * upstream client connection open, consuming local resources. Google GenAI
+ * documents abortSignal as client-only: the service may keep processing and
+ * billable usage can still apply. Cancellation is NOT a quota guarantee.
  * This helper both signals cancellation to the provider and releases the
  * HTTP turn promptly. It never records audio or transcript contents.
  */

@@ -10,6 +10,10 @@
  * across customers. No audio, transcripts, API tokens, or customer identifiers
  * are written to disk or application logs.
  */
+// Phrase index is not a rate limit. Longer answers can have more than 12
+// phrases across rolling windows; ForzaTtsBudget separately enforces quotas.
+export const FORZA_TTS_MAX_PHRASE_INDEX_EXCLUSIVE = 256;
+
 type Pending = {
   index: number;
   run: () => Promise<unknown>;
@@ -74,7 +78,7 @@ export class ForzaTtsTurnOrder {
 
   execute<T>(key: string, index: number, signal: AbortSignal,
              run: () => Promise<T>): Promise<T> {
-    if (!key || key.length > 160 || !Number.isInteger(index) || index < 0 || index >= 12)
+    if (!key || key.length > 160 || !Number.isInteger(index) || index < 0 || index >= FORZA_TTS_MAX_PHRASE_INDEX_EXCLUSIVE)
       return Promise.reject(new Error('forza_tts_invalid_phrase_order'));
     if (signal.aborted) return Promise.reject(new Error('forza_tts_turn_aborted'));
     const now = performance.now();

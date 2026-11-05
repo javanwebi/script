@@ -58,7 +58,7 @@ import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
-import {ForzaTtsTurnOrder} from './server/ai/forzaTtsTurnOrder';
+import {ForzaTtsTurnOrder,FORZA_TTS_MAX_PHRASE_INDEX_EXCLUSIVE} from './server/ai/forzaTtsTurnOrder';
 import {withForzaSttDeadline} from './server/ai/forzaSttDeadline';
 
 dotenv.config();
@@ -5620,7 +5620,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
   const turnKey=String(req.body?.turnId||'');
   if(hasPhraseIndex && (
     forzaVoiceEngine!=='piper-nima-gyro-medium' ||
-    !Number.isInteger(phraseIndex) || phraseIndex<0 || phraseIndex>=12 ||
+    !Number.isInteger(phraseIndex) || phraseIndex<0 || phraseIndex>=FORZA_TTS_MAX_PHRASE_INDEX_EXCLUSIVE ||
     !/^[a-zA-Z0-9_-]{8,48}$/.test(turnKey)
   )) return res.status(400).json({error:'forza_tts_invalid_phrase_order'});
   if(!consumePocketVoiceBudget(req,res))return;
