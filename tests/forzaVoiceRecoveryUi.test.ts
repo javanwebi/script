@@ -84,3 +84,25 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
   assert.match(stop,/localSttFinalRef\.current=''/);
   assert.match(stop,/return;/);
 });
+
+test('SSE model/provider failure cannot trigger another long complete-text request',()=>{
+  assert.match(ui,/let allowLegacyFallback=false/);
+  assert.match(ui,/allowLegacyFallback=streamRes\.status===404\|\|streamRes\.status===405/);
+  assert.match(ui,/if\(!allowLegacyFallback\)\{/);
+  assert.match(ui,/phase=failed_no_chained_model_retry/);
+});
+
+test('new private Nima phrase metadata reaches Node and returns measurable ordering wait',()=>{
+  assert.match(ui,/phraseIndex\?:number/);
+  assert.match(ui,/body:JSON\.stringify\(\{text,turnId,\.\.\.\(phraseIndex!==undefined/);
+  assert.match(ui,/X-Forza-Order-Wait-Ms/);
+  assert.match(ui,/synthesize:\(phrase,signal,index\)=>requestPocketAudio/);
+});
+
+test('no unplayed phrase text appears in interrupted conversation memory',()=>{
+  assert.doesNotMatch(ui,/عبارت «'\+partial\.text/);
+  assert.match(ui,/واژه‌های شنیده‌شده نامعلوم‌اند/);
+  assert.match(ui,/phase=latency_missing reason=/);
+  assert.match(ui,/missing=1 reason=no_acoustic_end_estimate/);
+  assert.match(ui,/elapsedMonotonic=1/);
+});
