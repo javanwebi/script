@@ -58,6 +58,7 @@ import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
+import {ForzaTtsTurnOrder} from './server/ai/forzaTtsTurnOrder';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5590,6 +5591,7 @@ app.get('/api/ai/forza-voice-info',(_req,res)=>{
 });
 
 const pocketVoiceBudget=new ForzaTtsBudget();
+const nimaPhraseOrder=new ForzaTtsTurnOrder();
 function consumePocketVoiceBudget(req:any,res:any):boolean{
   // Keep req.ip from Express's effective trust-proxy configuration.
   // Never accept a client-supplied X-Forwarded-For or turn ID as proof of
@@ -5610,31 +5612,59 @@ function consumePocketVoiceBudget(req:any,res:any):boolean{
 app.post('/api/ai/forza-speech',async(req,res)=>{
   const phrase=typeof req.body?.text==='string'?req.body.text.trim():'';
   if(!phrase || phrase.length>1000)return res.status(400).json({error:'pocket_invalid_text'});
+  // Older Pocket/greeting clients send no phraseIndex and retain their
+  // existing request contract. Nima calls opt into strict per-turn ordering.
+  const hasPhraseIndex=req.body?.phraseIndex!==undefined;
+  const phraseIndex=req.body?.phraseIndex;
+  const turnKey=String(req.body?.turnId||'');
+  if(hasPhraseIndex && (
+    forzaVoiceEngine!=='piper-nima-gyro-medium' ||
+    !Number.isInteger(phraseIndex) || phraseIndex<0 || phraseIndex>=12 ||
+    !/^[a-zA-Z0-9_-]{8,48}$/.test(turnKey)
+  )) return res.status(400).json({error:'forza_tts_invalid_phrase_order'});
   if(!consumePocketVoiceBudget(req,res))return;
-  const started=Date.now();
+  const started=performance.now();
   const cancel=new AbortController();
   const onDisconnect=()=>cancel.abort(new Error('forza_tts_client_disconnected'));
   req.once('aborted',onDisconnect);
   res.once('close',onDisconnect);
   const timings:{queueMs?:number;inferenceMs?:number;upstreamMs?:number}={};
   try{
-    const wav=await renderPocketSpeech(phrase,cancel.signal,timings);
+    const cpuRequestStarted=performance.now();
+    let orderingWaitMs=0;
+    const render=()=>{
+      orderingWaitMs=Math.round(performance.now()-cpuRequestStarted);
+      return renderPocketSpeech(phrase,cancel.signal,timings);
+    };
+    // index 1 cannot reach Piper before index 0, even if HTTP request 1
+    // overtakes request 0 on a mobile connection. Other turns stay independent.
+    const wav=hasPhraseIndex
+      ? await nimaPhraseOrder.execute(
+          String(req.ip||req.socket.remoteAddress||'unknown')+':'+turnKey,
+          phraseIndex,cancel.signal,render)
+      : await render();
     if(cancel.signal.aborted||res.destroyed||res.headersSent)return;
     res.setHeader('Content-Type','audio/wav');
     if(timings.queueMs!==undefined)res.setHeader('X-Forza-Queue-Ms',String(timings.queueMs));
     if(timings.inferenceMs!==undefined)res.setHeader('X-Forza-Inference-Ms',String(timings.inferenceMs));
+    if(hasPhraseIndex)res.setHeader('X-Forza-Order-Wait-Ms',String(orderingWaitMs));
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Forza-Voice',forzaVoiceEngine);
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
     console.info('[FORZA_TTS_STAGE] phase=server_responded turn='+
       String(req.body?.turnId||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40)+
-      ' totalMs='+(Date.now()-started)+' upstreamMs='+(timings.upstreamMs??-1)+
+      ' totalMs='+Math.round(performance.now()-started)+
+      ' index='+(hasPhraseIndex?phraseIndex:'legacy')+
+      ' orderWaitMs='+orderingWaitMs+
+      ' upstreamMs='+(timings.upstreamMs??-1)+
       ' queueMs='+(timings.queueMs??-1)+' inferenceMs='+(timings.inferenceMs??-1)+
       ' wavBytes='+wav.length);
     return res.send(wav);
   }catch(error:any){
     const code=cancel.signal.aborted?'cancelled':String(error?.message||'voice_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
-    console.warn('[FORZA_TTS_STAGE] phase=failed code='+code+' elapsedMs='+(Date.now()-started));
+    console.warn('[FORZA_TTS_STAGE] phase=failed code='+code+
+      ' index='+(hasPhraseIndex?phraseIndex:'legacy')+
+      ' elapsedMs='+Math.round(performance.now()-started));
     if(!res.headersSent&&!res.destroyed)return res.status(503).json({error:'pocket_server_unavailable',errorCode:code});
   }finally{
     req.off('aborted',onDisconnect);
