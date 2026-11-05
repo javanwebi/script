@@ -1251,6 +1251,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             },380);
           }
         };
+        let allowLegacyFallback=false;
         try {
           const streamController=new AbortController();
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
@@ -1275,6 +1276,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=sse_headers turn='+generation+
               ' clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' http='+streamRes.status);
+            // Only a genuinely missing legacy SSE route may use complete-text
+            // compatibility. An upstream timeout/error must not trigger a
+            // second 15-32 second model request after the failed stream.
+            allowLegacyFallback=streamRes.status===404||streamRes.status===405;
             const rawFinal=await consumeForzaTextStream(streamRes,(chunk,fullText)=>{
               window.clearTimeout(streamTimer);
               streamTimer=window.setTimeout(()=>streamController.abort(new Error('ارتباط متن هوش مصنوعی بیش از ۴۵ ثانیه بدون داده ماند.')),45000);
@@ -1310,6 +1315,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             activeTurnRef.current?.markInterrupted?.();
             throw new Error('جریان پاسخ هوش مصنوعی ناقص ماند؛ متن دریافت‌شده حفظ شد. می‌توانید سؤال را دوباره بپرسید یا ادامه دهید.');
           } else {
+          if(!allowLegacyFallback){
+            console.warn('[FORZA_TEXT_STAGE] turn='+generation+
+              ' phase=failed_no_chained_model_retry');
+            throw streamError;
+          }
           const fallbackAbort=new AbortController();
           const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);
           let res:Response;
