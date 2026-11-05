@@ -14,6 +14,12 @@ upgrade, resource limit, database migration, transcript or audio persistence.
 - WebSpeech recognition via `SpeechRecognition` (fa-IR, interim/final) is the
   browser-first STT. The optional Gemini/Worker `/api/ai/forza-live` path
   transcribes a final recorder segment, not audio streamed to the server.
+- An unused Vosk/Diba local recognizer scaffold is present in `forzaLocalSpeech.ts`,
+  but `loadDibaSttModel()` is not called from the live page and the expected
+  `/forza-runtime/stt/vosk.js` source asset is missing from this branch.
+  The external ~53 MB browser model is **not** automatically downloaded or a
+  verified live fallback. Avoid introducing this dependency without device,
+  memory and network validation. Cloud STT also requires explicit opt-in.
   `/api/ai/forza-stt-info` separately reports configured Gemini and an
   unverified Worker STT candidate; it advertises `serverStreamingStt:false`.
 - Model in `/api/ai/consult-stream` selected from the actual VPS environment:
@@ -32,7 +38,7 @@ upgrade, resource limit, database migration, transcript or audio persistence.
 | --- | --- | --- | --- |
 | Phrase 1 reaches single CPU ahead of phrase 0 | `server/ai/forzaTtsTurnOrder.ts`, `server.ts`, `forzaNimaBufferedSpeech.ts`, `AiForzaCallExperience.tsx`: ordered indexed turn gate, bounded cancellation | `forzaTtsTurnOrder.test.ts`, `forzaNimaBufferedSpeech.test.ts` | Sequential per-turn synthesis may increase gaps; worker FIFO still arbitrates multiple turns |
 | Two slow model failures in one live turn | `xkiroFreeFailover.ts`: fail fast on long failed attempt, total free-only budget; `AiForzaCallExperience.tsx`: only 404/405 gets legacy non-streaming fallback | `xkiro-free-failover.test.ts`, `forzaVoiceRecoveryUi.test.ts` | Shorter timeout is not faster *successful* model TTFT |
-| Invalid negative/absent timings and cross-clock assumptions | `server.ts`, `baiConsult.ts`, client VAD: monotonic clock per process, NA reason, code-only stage markers | `test_forza_latency_aggregate.py`, UI tests | Browser AudioContext start is not proof of acoustic audibility |
+| Invalid negative/absent/stale or muted-audio timings and cross-clock assumptions | `server.ts`, `baiConsult.ts`, client VAD: monotonic clock per process, NA reason, code-only stage markers | `test_forza_latency_aggregate.py`, UI tests | Browser AudioContext start is not proof of acoustic audibility |
 | Browser STT false-negative fallback status | `server.ts` exposes Worker candidate separately, client attempts it when configured | `forzaVoiceRecoveryUi.test.ts` | Worker candidate is not proof endpoint works, not independent streaming STT |
 | STT guesses unintelligible words | `server.ts /api/ai/stt` rejects blank/unknown transcription rather than guessing | Existing STT config tests, API/typecheck | Gemini recognition accuracy not measured on an actual Persian speaker |
 | Interrupted phrase stored as if heard | `AiForzaCallExperience.tsx` stores only full WAV completions and elapsed metadata, not partial phrase words | UI history checks | Exact word offset requires alignment not available |
@@ -83,7 +89,7 @@ Use low concurrency and no stress traffic against the public website.
 3. Conduct real microphone/speaker tests on candidate deployment with
    cancellation and zero private-data persistence.
 4. Report `n`, p50, p95, failures and cancellations **per comparable stage**
-   with monotonic per-process timings; show missing-sample reasons.
+   with monotonic per-process timings, excluding muted/stale sample data; show missing-sample reasons.
 5. Compare before/after on equivalent device, network and provider.
 6. Reject any claim of sub-2s success / sub-300ms audible interruption
    until real measurements support it. No change of provider spend without
