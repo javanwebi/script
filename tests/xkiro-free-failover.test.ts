@@ -95,22 +95,6 @@ test('partial text from first free model is not duplicated in a retry',async()=>
   assert.deepEqual(chunks,['سلام'],'partial delta is visible but not authoritative');
 });
 
-test('Retry-After on 429 stops switching all models while the account is throttled',async()=>{
-  let generations=0;
-  const fetchImpl=(async(url:string | URL | Request)=>{
-    if(String(url).endsWith('/v1/models'))return catalog([free('vendor/retry-a'),free('vendor/retry-b')]);
-    if(String(url).endsWith('/v1/usage'))return new Response(JSON.stringify({free_tokens:{remaining:5000}}));
-    generations++;
-    return new Response('{"error":{"code":"rate_limit_exceeded"}}',{
-      status:429,headers:{'Retry-After':'1'},
-    });
-  }) as typeof fetch;
-  await assert.rejects(streamXkiroFreePool({
-    apiKey:'not-a-real-secret',model:'vendor/retry-a',query:'سلام',voice:true,fetchImpl,onDelta:()=>{},
-  }),(e:unknown)=>e instanceof BaiConsultError&&e.code==='xkiro_rate_limited_retry_later');
-  assert.equal(generations,1);
-});
- 
 test('a voice turn cannot start another slow free-model wait or rotate after cancellation',async()=>{
   assert.equal(shouldRetrySlowFreeVoiceAttempt(180),true);
   assert.equal(shouldRetrySlowFreeVoiceAttempt(1999),true);
@@ -134,3 +118,20 @@ test('a voice turn cannot start another slow free-model wait or rotate after can
     e instanceof BaiConsultError&&e.code==='client_aborted');
   assert.equal(calls.filter(u=>u.includes('/chat/completions')).length,0);
 });
+
+test('Retry-After on 429 stops switching all models while the account is throttled',async()=>{
+  let generations=0;
+  const fetchImpl=(async(url:string | URL | Request)=>{
+    if(String(url).endsWith('/v1/models'))return catalog([free('vendor/retry-a'),free('vendor/retry-b')]);
+    if(String(url).endsWith('/v1/usage'))return new Response(JSON.stringify({free_tokens:{remaining:5000}}));
+    generations++;
+    return new Response('{"error":{"code":"rate_limit_exceeded"}}',{
+      status:429,headers:{'Retry-After':'1'},
+    });
+  }) as typeof fetch;
+  await assert.rejects(streamXkiroFreePool({
+    apiKey:'not-a-real-secret',model:'vendor/retry-a',query:'سلام',voice:true,fetchImpl,onDelta:()=>{},
+  }),(e:unknown)=>e instanceof BaiConsultError&&e.code==='xkiro_rate_limited_retry_later');
+  assert.equal(generations,1);
+});
+
