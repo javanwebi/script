@@ -92,13 +92,35 @@ async function exhaustedFreeAllowance(apiKey: string, fetchImpl: typeof fetch): 
 
 export type FreeXkiroResult = {text: string; model: string; firstTokenMs: number};
 
+export function shouldRetrySlowFreeVoiceAttempt(elapsedMs:number):boolean {
+  return Number.isFinite(elapsedMs) && elapsedMs>=0 && elapsedMs<VOICE_SLOW_FAILURE_MS;
+}
+
+async function abortableFreeCatalog(fetchImpl:typeof fetch,signal?:AbortSignal):Promise<string[]>{
+  if(!signal)return listVerifiedXkiroFreeChatModels(fetchImpl);
+  if(signal.aborted)throw new BaiConsultError('client_aborted');
+  let onAbort!:()=>void;
+  const cancelled=new Promise<never>((_,reject)=>{
+    onAbort=()=>reject(new BaiConsultError('client_aborted'));
+    signal.addEventListener('abort',onAbort,{once:true});
+  });
+  try {
+    return await Promise.race([listVerifiedXkiroFreeChatModels(fetchImpl),cancelled]);
+  } finally {
+    signal.removeEventListener('abort',onAbort);
+  }
+}
+
 export async function streamXkiroFreePool(
   options: BaiConsultOptions,
 ): Promise<FreeXkiroResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const voiceDeadline = options.voice ? performance.now()+VOICE_TURN_BUDGET_MS : Infinity;
   if (accountRateLimitUntil > Date.now()) throw new BaiConsultError('xkiro_rate_limited_retry_later');
-  const verified = await listVerifiedXkiroFreeChatModels(fetchImpl);
+  const catalogStarted=performance.now();
+  const verified = await abortableFreeCatalog(fetchImpl,options.signal);
+  if(options.voice)console.info('[FORZA_TEXT_STAGE] phase=free_catalog_ready ms='+
+    Math.round(performance.now()-catalogStarted)+' models='+verified.length);
   const preferred = verified.includes(options.model) ? options.model : null;
   const rotated = verified.slice(roundRobin % verified.length).concat(verified.slice(0, roundRobin % verified.length));
   roundRobin += 1;
@@ -107,6 +129,7 @@ export async function streamXkiroFreePool(
   const cap = options.voice ? MAX_ATTEMPTS_VOICE : MAX_ATTEMPTS_DESK;
   let lastCode = 'xkiro_free_models_unavailable';
   for (const model of ranked) {
+    if(options.signal?.aborted)throw new BaiConsultError('client_aborted');
     if (attempted >= cap) break;
     if ((cooldowns.get(model) || 0) > Date.now()) continue;
     const remainingVoiceMs=Math.round(voiceDeadline-performance.now());
@@ -138,6 +161,7 @@ export async function streamXkiroFreePool(
       cooldowns.delete(model);
       return result;
     } catch (error: unknown) {
+      if(options.signal?.aborted)throw new BaiConsultError('client_aborted');
       if (delivered) throw error; // Never replay a partial response.
       const code = error instanceof BaiConsultError ? error.code : 'upstream_network_error';
       lastCode = code;
@@ -161,7 +185,7 @@ export async function streamXkiroFreePool(
         code + ' tried=' + attempted + ' elapsedMs=' + elapsedMs);
       // Immediate 429/503 can try another verified FREE model, but one slow
       // first-token timeout must never start another long invisible wait.
-      if(options.voice && elapsedMs>=VOICE_SLOW_FAILURE_MS)break;
+      if(options.voice && !shouldRetrySlowFreeVoiceAttempt(elapsedMs))break;
     }
   }
   throw new BaiConsultError(attempted === 0 ? 'xkiro_free_pool_cooldown' : 'xkiro_free_pool_exhausted_' + lastCode);
