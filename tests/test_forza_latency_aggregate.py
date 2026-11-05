@@ -15,10 +15,12 @@ class ForzaLatencyReportTests(unittest.TestCase):
             "[FORZA_NIMA_PRODUCTION] queue_ms=30 inference_ms=1800 wav_bytes=800 chars=30\n",
             "[FORZA_TTS_STAGE] phase=failed code=cancelled\n",
             "[FORZA_TEXT_STAGE] turn=1 phase=node_first_delta ms=670 chars=15\n",
+            "[FORZA_BARGE_IN] source=browser_stt phase=validated_text_to_cancel ms=45 audioClockOnly=1\n",
         ])
         self.assertIn("browser_end_to_audio_clock n=2 medianMs=1950 p95Ms=2400",report)
         self.assertIn("tts_order_wait n=1 medianMs=20",report)
         self.assertIn("llm_first_text_node n=1 medianMs=670",report)
+        self.assertIn("browser_barge_validated_to_software_cancel n=1 medianMs=45",report)
         self.assertIn("missing_reason=no_acoustic_end_estimate count=1",report)
         self.assertIn("failures_observed=1 cancellations_observed=1",report)
 
