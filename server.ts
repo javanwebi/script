@@ -7062,8 +7062,12 @@ app.post('/api/ai/transcribe', async (req, res) => {
 app.get('/api/ai/forza-stt-info',(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
-  res.json({serverSttConfigured:choice.provider==='gemini',serverSttProvider:choice.provider,
-    reason:choice.reason});
+  // A configured Worker is an unverified fallback *candidate*, not a known
+  // working streaming STT service. Publish it separately so the browser does
+  // not suppress the existing /forza-live transcription fallback.
+  res.json({serverSttConfigured:choice.provider==='gemini',
+    serverSttProvider:choice.provider,workerSttCandidate:Boolean(configuredForzaWorkerUrl()),
+    serverStreamingStt:false,reason:choice.reason});
 });
 
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
