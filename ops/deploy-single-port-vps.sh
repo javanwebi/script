@@ -118,19 +118,39 @@ trap cleanup EXIT
 trap 'echo "DEPLOY_FAILED_AT_LINE=$LINENO" >&2' ERR
 
 echo '===== BUILD CANDIDATE IN ISOLATION ====='
+# Persistent, isolated npm cache for disposable build containers; never auto-prune.
+CACHE_DIR="/var/cache/sanatpish/npm"
+LOG_DIR="/var/log/sanatpish-deploy"
+install -d -m 700 "$CACHE_DIR" "$LOG_DIR"
+BUILD_LOG="$LOG_DIR/build-$STAMP.log"
+printf 'BUILD_LOG=%s\n' "$BUILD_LOG"
+FREE_KB="$(df -Pk / | awk 'NR==2 {print $4}')"
+if test "$FREE_KB" -lt 2097152; then
+  echo "LOW_DISK_SPACE_BEFORE_NPM free_kb=$FREE_KB (need at least 2 GiB)" >&2
+  exit 1
+fi
+if test "$FREE_KB" -lt 4194304; then
+  echo "WARN_LOW_DISK_SPACE_BEFORE_NPM free_kb=$FREE_KB (4 GiB recommended)" >&2
+fi
 mkdir -m 700 "$STAGE"
 git -C "$APP" archive "$EXPECTED" | tar -xf - -C "$STAGE"
 test -s "$STAGE/package-lock.json"
-sed -i 's#https://registry.npmjs.org/#https://registry.npmmirror.com/#g' "$STAGE/package-lock.json"
+# Use official integrity-checked tarballs, not the previously failing mirror.
+sed -i 's#https://registry.npmmirror.com/#https://registry.npmjs.org/#g' "$STAGE/package-lock.json"
 NETWORK="$(docker inspect "$OLD" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' | head -1)"
 test -n "$NETWORK"
 docker image inspect node:22-bookworm >/dev/null
+echo "NPM_REGISTRY=https://registry.npmjs.org NPM_CACHE=$CACHE_DIR"
+# Keep full diagnostics after Docker --rm removes the temporary build container.
 docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memory-swap=3g \
- --mount "type=bind,source=$STAGE,target=/app" -w /app \
- -e npm_config_registry=https://registry.npmmirror.com \
- -e npm_config_maxsockets=2 \
- -e npm_config_fetch_retries=5 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build'
+ --mount "type=bind,source=$STAGE,target=/app" \
+ --mount "type=bind,source=$CACHE_DIR,target=/root/.npm" -w /app \
+ -e npm_config_cache=/root/.npm \
+ -e npm_config_registry=https://registry.npmjs.org \
+ -e npm_config_maxsockets=4 \
+ -e npm_config_fetch_retries=2 \
+ -e npm_config_fetch_retry_maxtimeout=60000 \
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
