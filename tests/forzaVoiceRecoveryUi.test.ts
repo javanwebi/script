@@ -136,3 +136,11 @@ test('raw LLM and private TTS exception bodies cannot reach diagnostic console o
   assert.doesNotMatch(ui,/stage=turn-failed code='\+\s+String\(error\?\.message/);
 });
 
+test('one opaque turn key joins browser SSE, speech synthesis and interruption traces',()=>{
+  assert.match(ui,/const turnKey='call-'\+callIdRef\.current\+'-turn-'\+generation/);
+  assert.match(ui,/userTurnId:turnKey/);
+  assert.match(ui,/turnKey,index\)/);
+  assert.match(ui,/phase=customer-interrupt turn='\+'call-'\+callIdRef\.current/);
+  assert.match(ui,/phase=phrase_wav_ready index=/);
+});
+
