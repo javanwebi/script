@@ -7171,7 +7171,10 @@ app.post('/api/ai/forza-live', async (req, res) => {
           ? process.env.PART_RECOGNITION_WORKER_TOKEN
           : process.env.FORZA_WORKER_TOKEN) || '').trim();
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 19000);
+        const onWorkerSttDisconnect=()=>controller.abort(new Error('FORZA_STT_DISCONNECTED'));
+        req.once('aborted',onWorkerSttDisconnect);
+        res.once('close',onWorkerSttDisconnect);
+        const timeout = setTimeout(() => controller.abort(new Error('FORZA_STT_TIMEOUT')), 19000);
         try {
           const result = await fetch(`${workerUrl}/v1/forza/transcribe`, {
             method: 'POST',
@@ -7184,17 +7187,23 @@ app.post('/api/ai/forza-live', async (req, res) => {
           });
           const response = await result.json().catch(() => null) as any;
           if (!result.ok) {
-            console.warn('[AI FORZA] Worker STT failure:', result.status, response?.error?.type || 'unknown');
+            const workerErrorType=String(response?.error?.type||'unknown');
+            console.warn('[AI FORZA] Worker STT failure status='+result.status+
+              ' type='+(/^[a-zA-Z0-9_-]{1,40}$/.test(workerErrorType)?workerErrorType:'unknown'));
           } else {
             userQuery = String(response?.text || '').trim().slice(0, 2500);
           }
         } finally {
           clearTimeout(timeout);
+          req.off('aborted',onWorkerSttDisconnect);
+          res.off('close',onWorkerSttDisconnect);
         }
       } catch (error: any) {
-        console.warn('[AI FORZA] Worker STT connection failed:', error?.name || 'network_error');
+        console.warn('[AI FORZA] Worker STT connection failed type='+
+          String(error?.name||'network_error').replace(/[^A-Za-z0-9_]/g,'').slice(0,40));
       }
     }
+    if(req.aborted||res.destroyed)return;
     if (!userQuery && audioBase64 && !image) {
       // Do not hallucinate an answer to words we could not transcribe.
       const missingProvider=!sttApiKey && !configuredForzaWorkerUrl();
