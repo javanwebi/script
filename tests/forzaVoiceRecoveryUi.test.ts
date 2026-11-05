@@ -114,3 +114,11 @@ test('Worker fallback metadata is not falsely labelled working realtime STT',()=
   assert.match(ui,/info\.workerSttCandidate===true/);
   assert.match(ui,/serverSttConfiguredRef\.current=info\.serverSttConfigured\|\|/);
 });
+
+test('real errors persist in compact status while the next customer turn can retry',()=>{
+  assert.match(ui,/setVoiceStage\('error'\)/);
+  assert.match(ui,/setVoiceStage\(previous=>previous==='error'\?'error':'idle'\)/);
+  assert.match(ui,/voiceStage === 'error'/);
+  assert.match(ui,/خطا در پاسخ؛ می‌توانید دوباره صحبت کنید/);
+  assert.match(ui,/setVoiceStage\('text'\)/);
+});
