@@ -93,7 +93,10 @@ export class ForzaTtsTurnOrder {
     }
     if (state.failed || index < state.next || state.pending.has(index) ||
         (state.busy && index === state.next) ||
-        state.pending.size >= this.maxQueuedPerTurn)
+        // Reserve the predecessor's entry even when later HTTP requests
+        // filled the lookahead. Otherwise index 1/2 can deadlock index 0.
+        (state.pending.size >= this.maxQueuedPerTurn &&
+         (state.busy || index !== state.next)))
       return Promise.reject(new Error('forza_tts_duplicate_or_full_phrase'));
     const pendingState = state;
     return new Promise<T>((resolve, reject) => {
