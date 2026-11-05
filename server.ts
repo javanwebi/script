@@ -5805,7 +5805,8 @@ app.post('/api/ai/forza-speech-stream',async(req,res)=>{
 // The cooldown is per Node process, does not cache user content, and expires.
 const forzaStreamModelCooldowns=new Map<string,number>();
 app.post('/api/ai/consult-stream', async (req, res) => {
-  const startedAt=Date.now();
+  const startedAt=Date.now(); // identity/UTC only
+  const monotonicStart=performance.now();
   const { query, history, responseId: clientResponseId, userTurnId: clientTurnId, includeAudio, mode } = req.body;
   const lowLatencyVoice=mode==='forza';
   // Ids are for timing correlation only; user-controlled content must never
@@ -5829,7 +5830,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     if(data?.type==='text_chunk' && !firstServerDelta){
       firstServerDelta=true;
       console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
-        ' phase=node_first_delta ms='+(Date.now()-startedAt)+
+        ' phase=node_first_delta ms='+Math.round(performance.now()-monotonicStart)+
         ' chars='+String(data.chunk||'').length);
     }
     try {
@@ -5841,11 +5842,11 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   sendEvent({ type: 'start', responseId, userTurnId, timestamp: startedAt });
   // Crucial: the initial SSE event is sent before any synchronous catalog
   // preprocessing or outbound model discovery, exposing their real latency.
-  const catalogStartedAt=Date.now();
+  const catalogStartedAt=performance.now();
   const catalogContext=consultantCatalogContext(String(query||''));
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
-    ' phase=catalog_ready ms='+(Date.now()-startedAt)+
-    ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
+    ' phase=catalog_ready ms='+Math.round(performance.now()-monotonicStart)+
+    ' catalogMs='+Math.round(performance.now()-catalogStartedAt)+' chars='+catalogContext.length);
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
@@ -5856,7 +5857,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const textModel = xkiroModel || baiModel;
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
-    ' elapsedMs='+(Date.now()-startedAt));
+    ' elapsedMs='+Math.round(performance.now()-monotonicStart));
   const textApiKey = textProvider === 'xkiro'
     ? process.env.XKIRO_API_KEY
     : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
@@ -6115,8 +6116,8 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       if (!chunkText) continue;
       geminiSentText=true;
       if(!firstTextAt){
-        firstTextAt=Date.now();
-        console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${firstTextAt-startedAt}`);
+        firstTextAt=performance.now();
+        console.info(`[FORZA_LATENCY] phase=first-text mode=${lowLatencyVoice?'voice':'desk'} model=${activeStreamModel} ttftMs=${Math.round(firstTextAt-monotonicStart)}`);
       }
       fullAccumulatedText += chunkText;
       speechBuffer += chunkText;
@@ -6227,7 +6228,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
 
     if(geminiAbort.signal.aborted)return;
     if(lowLatencyVoice){
-      console.info(`[FORZA_LATENCY] phase=done model=${activeStreamModel} ttftMs=${firstTextAt?firstTextAt-startedAt:-1} totalMs=${Date.now()-startedAt} chars=${fullAccumulatedText.length}`);
+      console.info(`[FORZA_LATENCY] phase=done model=${activeStreamModel} ttftMs=${firstTextAt?Math.round(firstTextAt-monotonicStart):-1} totalMs=${Date.now()-startedAt} chars=${fullAccumulatedText.length}`);
     }
     sendEvent({
       type: 'done',
