@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Heart,
   ShoppingCart,
   ArrowLeft,
@@ -12,7 +13,6 @@ import {
   Calculator,
   Wrench,
   Send,
-  Eye,
 } from 'lucide-react';
 import { USER_PRODUCTS } from '../../data/userProducts';
 import { useWishlist } from '../../context/WishlistContext';
@@ -30,6 +30,7 @@ export const HighUtilityProductsSection: React.FC = () => {
 
   const [catalogRevision,setCatalogRevision]=useState(0);
   const [previews,setPreviews]=useState<HomePreviewProduct[]>([]);
+  const [previewResolved,setPreviewResolved]=useState(false);
   useEffect(()=>{
     let alive=true;
     const onHydrated=()=>queueMicrotask(()=>{
@@ -39,27 +40,32 @@ export const HighUtilityProductsSection: React.FC = () => {
     // The request already started before the main App bundle loaded.
     // The preview is read-only; cart/prices still require /api/runtime.
     void homeProducts().then(products=>{
-      if(alive && products.length)setPreviews(products);
+      if(!alive)return;
+      // Keep the first public preview as the visual source of truth, even
+      // after the much larger private runtime catalogue finishes hydrating.
+      if(products.length)setPreviews(current=>current.length?current:products);
+      setPreviewResolved(true);
     });
     return()=>{alive=false;window.removeEventListener('sanat-durable-hydrated',onHydrated);};
   },[]);
 
-  // The full hydration uses the same verified family choice/order as the
-  // small public preview: cards do not jump when the 10k-SKU runtime arrives.
-  const utilityProducts = useMemo(() => {
-    const byCode=new Map(USER_PRODUCTS.map(p=>[p.code,p]));
-    return selectHomePreviewProducts(USER_PRODUCTS).flatMap(preview=>{
-      const full=byCode.get(preview.code);
-      if(!full)return [];
-      return [{...full,images:preview.images.length?preview.images:full.images}];
-    });
-  }, [catalogRevision]);
+  // A single compact card design is used before and after runtime hydration.
+  // The public preview fixes order, image and card dimensions; /api/runtime
+  // only supplies optional quote/cart/wishlist actions without swapping markup.
+  const displayProducts = useMemo(() =>
+    previews.length ? previews :
+      (previewResolved ? selectHomePreviewProducts(USER_PRODUCTS) : []),
+    [previews,previewResolved,catalogRevision]);
+  const hydratedProductsByCode = useMemo(() =>
+    new Map(USER_PRODUCTS.map(product=>[product.code.toLowerCase(),product])),
+    [catalogRevision]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [customerPhone, setCustomerPhone] = useState('');
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
   const [quickAddedCode, setQuickAddedCode] = useState<string | null>(null);
+  const [expandedActionsCode, setExpandedActionsCode] = useState<string | null>(null);
 
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -164,139 +170,73 @@ export const HighUtilityProductsSection: React.FC = () => {
           className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {utilityProducts.length===0 && previews.length===0 && Array.from({length:6},(_,i)=>(
+          {displayProducts.length===0 && Array.from({length:6},(_,i)=>(
             <div key={i} className="w-48 sm:w-60 shrink-0 rounded-2xl border border-slate-200 p-4 animate-pulse" aria-hidden="true">
               <div className="aspect-square rounded-xl bg-slate-100" />
               <div className="h-3 bg-slate-100 rounded mt-4" />
               <div className="h-3 bg-slate-100 rounded mt-2 w-2/3" />
             </div>
           ))}
-          {utilityProducts.length===0 && previews.map(product=>(
-            <Link key={product.code} to={`/product/${encodeURIComponent(product.code)}`}
-              className="w-48 sm:w-60 shrink-0 bg-white rounded-2xl border border-[#CBD2D8] p-3 sm:p-4 flex flex-col text-right gap-3 hover:border-[#E06518]">
-              <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-600">
-                <span>{product.brand}</span><span dir="ltr">{product.code}</span>
-              </div>
-              <div className="aspect-square rounded-xl bg-[#F8F9FA] border border-slate-100 p-2">
-                <ProductImage src={product.images[0]}
-                    thumbnail
-                    decoding="async" alt={product.name} loading="lazy" className="w-full h-full object-contain" />
-              </div>
-              <strong className="text-xs sm:text-sm line-clamp-2 text-[#55565A]">{product.name}</strong>
-              <span className="text-[10px] text-slate-500 line-clamp-1">{product.categoryName}</span>
-              <span className="text-xs text-[#E06518]">مشاهده مشخصات <ArrowLeft className="w-3 h-3 inline" /></span>
-            </Link>
-          ))}
-          {utilityProducts.map(product => {
-            const isFav = isInWishlist(product.code);
-            const isJustAdded = quickAddedCode === product.code;
-
+          {displayProducts.map(product=>{
+            const fullProduct=hydratedProductsByCode.get(product.code.toLowerCase());
+            const actionsOpen=expandedActionsCode===product.code;
+            const isFav=fullProduct ? isInWishlist(fullProduct.code) : false;
+            const isJustAdded=quickAddedCode===product.code;
+            const detailUrl=`/product/${encodeURIComponent(product.code)}`;
             return (
-              <div
-                key={product.code}
-                className="w-48 sm:w-60 shrink-0 bg-[#FFFFFF] rounded-2xl border border-[#CBD2D8] p-3 sm:p-4 shadow-xs hover:shadow-md hover:border-[#E06518]/60 transition-all duration-200 relative flex flex-col justify-between group snap-start text-right"
-              >
-                {/* Top Badge: Code & Brand */}
-                <div className="flex items-center justify-between w-full mb-1">
-                  <span className="px-2 py-0.5 bg-[#55565A] text-white text-[10px] font-bold rounded-md">
-                    {product.brand}
-                  </span>
-
-                  <span className="text-[10px] font-mono font-bold text-[#777A7D] bg-[#F8F9FA] px-1.5 py-0.5 rounded border border-slate-200">
-                    {product.code}
-                  </span>
+              <div key={product.code}
+                className="w-48 sm:w-60 shrink-0 bg-white rounded-2xl border border-[#CBD2D8] p-3 sm:p-4 flex flex-col text-right gap-3 hover:border-[#E06518] relative snap-start">
+                <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-600">
+                  <span className="truncate">{product.brand}</span>
+                  <span dir="ltr" className="shrink-0">{product.code}</span>
                 </div>
-
-                {/* Product Image on Clean Canvas matching category image background */}
-                <Link
-                  to={`/product/${encodeURIComponent(product.code)}`}
-                  className="w-full aspect-square rounded-xl overflow-hidden bg-[#F8F9FA] border border-slate-100 flex items-center justify-center p-2 mb-2 cursor-pointer group-hover:scale-105 group-hover:bg-orange-50/40 transition-all duration-200"
-                >
-                  <ProductImage
-                    src={product.images[0]}
-                    thumbnail
-                    decoding="async"
-                    alt={product.name}
-                    loading="lazy"
-                    className="w-full h-full object-contain"
-                  />
+                <Link to={detailUrl} aria-label={`مشاهده مشخصات ${product.name}`}
+                  className="aspect-square rounded-xl bg-[#F8F9FA] border border-slate-100 p-2 block">
+                  <ProductImage src={product.images[0]} thumbnail decoding="async"
+                    alt={product.name} loading="lazy" className="w-full h-full object-contain" />
                 </Link>
-
-                {/* Product Title */}
-                <div className="space-y-1 my-1">
-                  <Link
-                    to={`/product/${encodeURIComponent(product.code)}`}
-                    className="block font-bold text-xs sm:text-sm text-[#55565A] hover:text-[#E06518] transition-colors line-clamp-1"
-                    title={product.name}
-                  >
+                <div className="flex flex-col gap-1 min-h-[3.5rem]">
+                  <Link to={detailUrl} className="text-xs sm:text-sm font-bold line-clamp-2 text-[#55565A] hover:text-[#E06518]">
                     {product.name}
                   </Link>
-                  <Link
-                    to={`/category/${product.categorySlug}`}
-                    className="block text-[10px] text-[#777A7D] hover:text-[#E06518] line-clamp-1 font-medium transition-colors"
-                  >
-                    {product.categoryName}
+                  <span className="text-[10px] text-slate-500 line-clamp-1">{product.categoryName}</span>
+                </div>
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <Link to={detailUrl} className="text-xs text-[#E06518] hover:text-[#C95210]">
+                    مشاهده مشخصات <ArrowLeft className="w-3 h-3 inline" />
                   </Link>
-                </div>
-
-                {/* Inquiry Price Button */}
-                <div className="pt-2 pb-2 text-center border-t border-[#CBD2D8] mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedProduct(product)}
-                    className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-2 bg-[#F8F9FA] hover:bg-[#E06518] text-[#55565A] hover:text-white text-xs font-black rounded-lg border border-slate-200 hover:border-[#E06518] transition-all cursor-pointer shadow-2xs"
-                  >
-                    <span>استعلام قیمت رسمی</span>
-                    <Calculator className="w-3.5 h-3.5 text-[#E06518] group-hover:text-white" />
-                  </button>
-                </div>
-
-                {/* Bottom Action Icons */}
-                <div className="flex items-center justify-between pt-2 border-t border-[#CBD2D8] text-[#777A7D]">
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleWishlist(product.code);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-[#F8F9FA] text-[#777A7D] hover:text-[#E06518] transition-colors cursor-pointer"
-                    title="افزودن به علاقه‌مندی‌ها"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        isFav ? 'fill-[#E06518] text-[#E06518]' : ''
-                      }`}
-                    />
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    <Link
-                      to={`/product/${encodeURIComponent(product.code)}`}
-                      className="p-1.5 rounded-lg hover:bg-[#F8F9FA] text-[#55565A] hover:text-[#E06518] transition-colors"
-                      title="مشاهده جزئیات قطعه"
-                    >
-                      <Eye className="w-4 h-4 text-[#55565A]" />
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={e => handleQuickInquiry(product, e)}
-                      className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                        isJustAdded
-                          ? 'bg-[#55565A] text-white'
-                          : 'hover:bg-[#F8F9FA] hover:text-[#E06518] text-[#55565A]'
-                      }`}
-                      title="افزودن به لیست استعلام"
-                    >
-                      {isJustAdded ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <ShoppingCart className="w-4 h-4" />
-                      )}
+                  {fullProduct && (
+                    <button type="button" onClick={()=>setExpandedActionsCode(current=>current===product.code?null:product.code)}
+                      aria-expanded={actionsOpen} aria-label={`عملیات بیشتر برای ${product.name}`}
+                      className="p-1 rounded-md text-[#777A7D] hover:text-[#E06518] hover:bg-[#F8F9FA]">
+                      <ChevronDown className={`w-4 h-4 transition-transform ${actionsOpen?'rotate-180':''}`} />
                     </button>
-                  </div>
+                  )}
                 </div>
+                {fullProduct && actionsOpen && (
+                  <div className="absolute bottom-11 right-2 left-2 z-30 rounded-xl bg-white border border-[#CBD2D8] shadow-lg p-2 flex flex-col gap-2">
+                    <button type="button"
+                      onClick={()=>{setSelectedProduct(fullProduct);setExpandedActionsCode(null);}}
+                      className="flex items-center justify-center gap-2 rounded-lg p-2 bg-[#F8F9FA] text-[#55565A] text-xs font-bold hover:bg-orange-50">
+                      <Calculator className="w-4 h-4 text-[#E06518]" />
+                      استعلام قیمت رسمی
+                    </button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={()=>toggleWishlist(fullProduct.code)}
+                        aria-label={isFav?'حذف از علاقه‌مندی‌ها':'افزودن به علاقه‌مندی‌ها'}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 p-2 text-xs">
+                        <Heart className={`w-4 h-4 ${isFav?'text-[#E06518] fill-[#E06518]':''}`} />
+                        علاقه‌مندی
+                      </button>
+                      <button type="button" onClick={event=>handleQuickInquiry(fullProduct,event)}
+                        aria-label="افزودن به لیست استعلام"
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 p-2 text-xs">
+                        {isJustAdded?<Check className="w-4 h-4 text-[#E06518]"/>:<ShoppingCart className="w-4 h-4"/>}
+                        لیست استعلام
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
