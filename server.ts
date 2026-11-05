@@ -6378,7 +6378,7 @@ app.post('/api/ai/stt', async (req, res) => {
 Rules:
 1. Output ONLY the transcribed Persian text.
 2. Do NOT add any notes, headers, explanations or tags.
-3. If the audio is unclear, output the closest meaningful Persian phrase spoken.`,
+3. If uncertain, return an empty string; never invent a likely phrase, item code, size or number.`,
       },
     ];
 
@@ -6393,15 +6393,21 @@ Rules:
 
     const transcribed = (text || '').trim().replace(/^["']|["']$/g, '');
 
+    if(!transcribed)return res.status(422).json({
+      success:false,text:'',errorCode:'stt_no_confident_words',
+    });
     return res.json({
       success: true,
       text: transcribed,
     });
   } catch (err: any) {
-    console.warn('[AI STT] Voice transcription error:', err?.message || err);
-    return res.status(500).json({
+    // Provider errors can contain private recognition output; log type only.
+    console.warn('[AI STT] provider_failed type='+
+      String(err?.name||'unknown').replace(/[^A-Za-z0-9_]/g,'').slice(0,40));
+    return res.status(503).json({
       success: false,
-      error: err?.message || 'خطا در تبدیل صوت به متن',
+      errorCode:'stt_provider_unavailable',
+      error:'سرویس تبدیل گفتار به متن در دسترس نیست.',
     });
   }
 });
