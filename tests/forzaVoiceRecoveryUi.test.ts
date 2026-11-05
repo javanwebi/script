@@ -122,3 +122,17 @@ test('real errors persist in compact status while the next customer turn can ret
   assert.match(ui,/خطا در پاسخ؛ می‌توانید دوباره صحبت کنید/);
   assert.match(ui,/setVoiceStage\('text'\)/);
 });
+
+test('each listening period starts a fresh acoustic clock and muted audio is excluded from P95',()=>{
+  assert.match(ui,/detectedSpeechEndAtRef\.current=0;\s+sttFinalAtRef\.current=0/);
+  assert.match(ui,/missing=1 reason=speaker_muted/);
+  assert.match(ui,/stage==='playback_started'&&!speakerMutedRef\.current/);
+});
+
+test('raw LLM and private TTS exception bodies cannot reach diagnostic console output',()=>{
+  assert.match(ui,/turn_unexpected_error/);
+  assert.match(ui,/tts_unexpected_error/);
+  assert.doesNotMatch(ui,/Conversational turn failed:', err\?\.message/);
+  assert.doesNotMatch(ui,/stage=turn-failed code='\+\s+String\(error\?\.message/);
+});
+
