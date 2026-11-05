@@ -13,15 +13,15 @@ test('phrase 1 arrives first but cannot enter private CPU before phrase 0',async
   const second=order.execute('192.0.2.1:call-abc-turn-1',1,controller.signal,
     async()=>{started.push(1);return 'second'});
   await sleep(5);
-  assert.deepEqual(started,[]);
+  assert.equal(started.join(','),'');
   const first=order.execute('192.0.2.1:call-abc-turn-1',0,controller.signal,
     async()=>{started.push(0);await firstWork;return 'first'});
   await sleep(5);
-  assert.deepEqual(started,[0],'first phrase must hold the CPU while it synthesizes');
+  assert.equal(started.join(','),'0','first phrase must hold the CPU while it synthesizes');
   releaseFirst();
   assert.equal(await first,'first');
   assert.equal(await second,'second');
-  assert.deepEqual(started,[0,1]);
+  assert.equal(started.join(','),'0,1');
   assert.equal(order.counters.pending,0);
 });
 
