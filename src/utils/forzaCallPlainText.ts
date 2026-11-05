@@ -42,7 +42,7 @@ export class ForzaCallPlainText {
       }
       this.append('!');
     }
-    if (c === '!' && !next) {
+    if (c === '!' && !next && !this.word) {
       this.pendingImageBang = true;
       return;
     }
