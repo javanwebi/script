@@ -5509,10 +5509,10 @@ async function renderPocketSpeech(
   // supports /speak; no need to replace the original speaker or weights.
   const spoken=forzaUnbrokenSpokenText(phrase);
   if(!spoken)throw new Error('private_voice_empty_spoken_text');
-  const started=Date.now();
+  const started=performance.now();
   for(let attempt=0;attempt<3;attempt++){
     if(cancel?.aborted)throw new Error('forza_tts_cancelled');
-    const upstreamStarted=Date.now();
+    const upstreamStarted=performance.now();
     const response=await fetch(internalForzaVoiceUrl+'/speak',{
       method:'POST',
       headers:{
@@ -5530,11 +5530,11 @@ async function renderPocketSpeech(
     // audible speech. Never retry auth failures or arbitrary upstream errors.
     if(response.status===503){
       const reason=await response.json().catch(()=>null) as {error?:string}|null;
-      const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,Date.now()-started);
+      const retryDelay=forzaVoiceRetryDelayMs(reason?.error,attempt,performance.now()-started);
       if(retryDelay!==null){
         console.info('[FORZA_TTS_RETRY] reason='+reason?.error+
           ' attempt='+(attempt+1)+' waitMs='+retryDelay+
-          ' elapsedMs='+(Date.now()-started));
+          ' elapsedMs='+Math.round(performance.now()-started));
         await waitForForzaVoiceRetry(retryDelay,cancel);
         continue;
       }
@@ -5556,7 +5556,7 @@ async function renderPocketSpeech(
       const inference=response.headers.get('x-forza-inference-ms');
       if(queue && /^\d+$/.test(queue))timings.queueMs=Number(queue);
       if(inference && /^\d+$/.test(inference))timings.inferenceMs=Number(inference);
-      timings.upstreamMs=Date.now()-upstreamStarted;
+      timings.upstreamMs=Math.round(performance.now()-upstreamStarted);
     }
     return wav;
   }
