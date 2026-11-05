@@ -59,6 +59,7 @@ import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
 import {ForzaTtsTurnOrder} from './server/ai/forzaTtsTurnOrder';
+import {withForzaSttDeadline} from './server/ai/forzaSttDeadline';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -7121,19 +7122,26 @@ app.post('/api/ai/forza-live', async (req, res) => {
         });
         // One bounded STT attempt: 429/503 must not cascade across three
         // quota-limited models and freeze a live conversation for 30+ seconds.
-        let sttTimeout:NodeJS.Timeout|undefined;
-        const sttResult = await Promise.race([
-          aiForStt.models.generateContent({
-            model:process.env.FORZA_STT_GEMINI_MODEL||'gemini-3.1-flash-lite',
-            contents:[{role:'user',parts:[
-              {inlineData:{mimeType:cleanAudioMime,data:cleanAudioData}},
-              {text:'گفتار فارسی را دقیق به متن تبدیل کن. کدهای قطعات صنعتی را بدون حدس بنویس؛ فقط متن گفتار را برگردان.'},
-            ]}],
-          }),
-          new Promise<never>((_,reject)=>{
-            sttTimeout=setTimeout(()=>reject(new Error('FORZA_STT_TIMEOUT')),9000);
-          }),
-        ]).finally(()=>{if(sttTimeout)clearTimeout(sttTimeout);});
+        const sttDisconnected=new AbortController();
+        const onSttDisconnect=()=>sttDisconnected.abort();
+        req.once('aborted',onSttDisconnect);
+        res.once('close',onSttDisconnect);
+        let sttResult;
+        try {
+          sttResult=await withForzaSttDeadline(signal=>
+            aiForStt.models.generateContent({
+              model:process.env.FORZA_STT_GEMINI_MODEL||'gemini-3.1-flash-lite',
+              contents:[{role:'user',parts:[
+                {inlineData:{mimeType:cleanAudioMime,data:cleanAudioData}},
+                {text:'گفتار فارسی را دقیق به متن تبدیل کن. کدهای قطعات صنعتی را بدون حدس بنویس؛ فقط متن گفتار را برگردان.'},
+              ]}],
+              config:{abortSignal:signal},
+            }),sttDisconnected.signal,9000);
+        } finally {
+          req.off('aborted',onSttDisconnect);
+          res.off('close',onSttDisconnect);
+        }
+        if(req.aborted||res.destroyed)return;
 
         if (sttResult?.text) {
           userQuery = sttResult.text.trim().replace(/^["']|["']$/g, '');
