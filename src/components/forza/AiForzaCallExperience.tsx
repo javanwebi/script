@@ -270,7 +270,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
             return;
           }
+          const validAt=performance.now();
           interruptRequestRef.current();
+          console.info('[FORZA_BARGE_IN] source=local_stt phase=validated_text_to_cancel ms='+
+            Math.round(performance.now()-validAt)+' audioClockOnly=1');
         }
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=performance.now();
@@ -594,6 +597,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, []);
 
   const interruptCurrentTurn = useCallback(() => {
+    const cancelStartedAt=performance.now();
     const active=activeTurnRef.current;
     if(!active || active.abort.signal.aborted){
       // Manual replay has no LLM turn but must still be interruptible.
@@ -623,7 +627,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatus('listening');
     setTurn('user');
     setIsUserSpeaking(true);
-    console.info('[FORZA_TURN] phase=customer-interrupt turn='+active.generation);
+    console.info('[FORZA_TURN] phase=customer-interrupt turn='+active.generation+
+      ' softwareCancelMs='+Math.round(performance.now()-cancelStartedAt)+
+      ' audibleSpeakerStopUnverified=1');
   },[stopAudio,setStatus]);
   interruptRequestRef.current=interruptCurrentTurn;
 
@@ -1539,7 +1545,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_STT] source=browser echo_candidate_ignored=1');
             return;
           }
+          const validAt=performance.now();
           interruptRequestRef.current();
+          console.info('[FORZA_BARGE_IN] source=browser_stt phase=validated_text_to_cancel ms='+
+            Math.round(performance.now()-validAt)+' audioClockOnly=1');
         }
         if (currentSpeech) {
           if(currentSpeech!==activeTranscriptRef.current ||
