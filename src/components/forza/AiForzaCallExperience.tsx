@@ -301,6 +301,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setTurn('user');
       activeTranscriptRef.current = '';
       lastTranscriptChangedAtRef.current = 0;
+      // Each new listening period must acquire its OWN estimated acoustic
+      // ending; otherwise a typed turn reuses the previous spoken end time
+      // and contaminates P50/P95 with an arbitrarily large interval.
+      detectedSpeechEndAtRef.current=0;
+      sttFinalAtRef.current=0;
       hasSpeechSoundRef.current = false;
       audioChunksRef.current = [];
     }
@@ -1152,7 +1157,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           (stage,ms)=>{
             if(stage==='playback_started'&&!firstPlaybackLogged){
               firstPlaybackLogged=true;
-              if(detectedSpeechEndAtRef.current>0){
+              if(speakerMutedRef.current){
+                console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                  ' missing=1 reason=speaker_muted');
+              }else if(detectedSpeechEndAtRef.current>0){
                 const latency=Math.round(performance.now()-detectedSpeechEndAtRef.current);
                 const samples=endToPlaybackSamplesRef.current;
                 if(!Number.isFinite(latency)||latency<0||latency>120000){
@@ -1176,7 +1184,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             console.info('[FORZA_AUDIO_STAGE] turn='+generation+
               ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
-              ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current>0
+              ' endToPlaybackMs='+(stage==='playback_started'&&!speakerMutedRef.current&&detectedSpeechEndAtRef.current>0
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):'NA')+
               ' audioClockOnly=1 audibleOutputUnverified=1');
           },
@@ -1400,8 +1408,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }catch(error:any){
             if(activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted)
               setVoiceStage('error');
+            // Third-party errors may contain prompt snippets; never print
+            // arbitrary provider messages to a persistent diagnostics sink.
+            const ttsCode=String(error?.message||'unknown');
             console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
-              String(error?.message||'unknown').slice(0,100));
+              (/^[a-zA-Z0-9_-]{1,80}$/.test(ttsCode)?ttsCode:'tts_unexpected_error'));
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(
               error?.message==='autoplay_permission_required'
@@ -1413,7 +1424,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
       } catch (err: any) {
         if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)return;
-        console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
+        const turnErrorCode=String(err?.message||'unknown');
+        console.warn('[AI FORZA] Conversational turn failed code='+
+          (/^[a-zA-Z0-9_-]{1,80}$/.test(turnErrorCode)?turnErrorCode:'turn_unexpected_error'));
         setVoiceStage('error');
         // A speech-recognition failure is not a TTS/playback failure.
         if (!q) setUserText(previous=>previous.trim());
