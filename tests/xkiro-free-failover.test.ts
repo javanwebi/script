@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BaiConsultError} from '../server/ai/baiConsult';
-import {listVerifiedXkiroFreeChatModels, streamXkiroFreePool} from '../server/ai/xkiroFreeFailover';
+import {listVerifiedXkiroFreeChatModels, streamXkiroFreePool, shouldRetrySlowFreeVoiceAttempt} from '../server/ai/xkiroFreeFailover';
 
 function catalog(models: Array<Record<string,unknown>>) {
   return new Response(JSON.stringify({object:'list',data:models}),{
@@ -109,4 +109,28 @@ test('Retry-After on 429 stops switching all models while the account is throttl
     apiKey:'not-a-real-secret',model:'vendor/retry-a',query:'سلام',voice:true,fetchImpl,onDelta:()=>{},
   }),(e:unknown)=>e instanceof BaiConsultError&&e.code==='xkiro_rate_limited_retry_later');
   assert.equal(generations,1);
+});
+ 
+test('a voice turn cannot start another slow free-model wait or rotate after cancellation',async()=>{
+  assert.equal(shouldRetrySlowFreeVoiceAttempt(180),true);
+  assert.equal(shouldRetrySlowFreeVoiceAttempt(1999),true);
+  assert.equal(shouldRetrySlowFreeVoiceAttempt(2000),false);
+  assert.equal(shouldRetrySlowFreeVoiceAttempt(5000),false);
+  assert.equal(shouldRetrySlowFreeVoiceAttempt(-1),false);
+
+  const abort=new AbortController();
+  const calls:string[]=[];
+  const fetchImpl=(async(url:string | URL | Request)=>{
+    calls.push(String(url));
+    await new Promise(resolve=>setTimeout(resolve,30));
+    return catalog([free('vendor/a')]);
+  }) as typeof fetch;
+  const pending=streamXkiroFreePool({
+    apiKey:'not-a-real-secret',model:'vendor/a',query:'سلام',
+    voice:true,signal:abort.signal,fetchImpl,onDelta:()=>{},
+  });
+  abort.abort();
+  await assert.rejects(pending,(e:unknown)=>
+    e instanceof BaiConsultError&&e.code==='client_aborted');
+  assert.equal(calls.filter(u=>u.includes('/chat/completions')).length,0);
 });
