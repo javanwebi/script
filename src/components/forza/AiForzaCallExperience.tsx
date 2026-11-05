@@ -632,7 +632,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatus('listening');
     setTurn('user');
     setIsUserSpeaking(true);
-    console.info('[FORZA_TURN] phase=customer-interrupt turn='+active.generation+
+    console.info('[FORZA_TURN] phase=customer-interrupt turn='+'call-'+callIdRef.current+'-turn-'+active.generation+
       ' softwareCancelMs='+Math.round(performance.now()-cancelStartedAt)+
       ' audibleSpeakerStopUnverified=1');
   },[stopAudio,setStatus]);
@@ -1021,8 +1021,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       const pocketAbort=new AbortController();
       const generation=++generationRef.current;
+      const turnKey='call-'+callIdRef.current+'-turn-'+generation;
       activeTurnRef.current={generation,abort:pocketAbort};
-      console.info('[FORZA_TURN] turn='+generation+
+      console.info('[FORZA_TURN] turn='+turnKey+
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
       vadRef.current.reset();
@@ -1084,7 +1085,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' duration_ms='+Math.round(performance.now()-sttStartedAt));
             throw new Error(sttData?.error||'سرویس تشخیص گفتار پاسخ نداد؛ لطفاً سؤال را تایپ کنید.');
           }
-          console.info('[FORZA_STT] turn='+generation+' source=server duration_ms='+
+          console.info('[FORZA_STT] turn='+turnKey+' source=server duration_ms='+
             Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
             String(sttData.userTranscript).trim().length);
           payload.query = String(sttData.userTranscript).trim();
@@ -1145,7 +1146,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setStatus('speaking');
             setTurn('ai');
           },
-          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] turn='+generation+' wait_ms='+ms+
+          ms=>console.warn('[FORZA_AUDIO_UNDERRUN] turn='+turnKey+' wait_ms='+ms+
             ' cause=next_wav_arrived_after_previous_playback'),
           ()=>{
             if(activeTurnRef.current?.generation!==generation)return;
@@ -1158,13 +1159,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             if(stage==='playback_started'&&!firstPlaybackLogged){
               firstPlaybackLogged=true;
               if(speakerMutedRef.current){
-                console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                console.info('[FORZA_END_TO_AUDIO] turn='+turnKey+
                   ' missing=1 reason=speaker_muted');
               }else if(detectedSpeechEndAtRef.current>0){
                 const latency=Math.round(performance.now()-detectedSpeechEndAtRef.current);
                 const samples=endToPlaybackSamplesRef.current;
                 if(!Number.isFinite(latency)||latency<0||latency>120000){
-                  console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                  console.info('[FORZA_END_TO_AUDIO] turn='+turnKey+
                     ' missing=1 reason=invalid_browser_monotonic_interval');
                 }else{
                 samples.push(latency);
@@ -1173,16 +1174,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 const median=ordered[Math.floor((ordered.length-1)*0.5)];
                 const p95=ordered[Math.ceil(ordered.length*0.95)-1];
                 const mean=Math.round(ordered.reduce((sum,ms)=>sum+ms,0)/ordered.length);
-                console.info('[FORZA_END_TO_AUDIO] turn='+generation+' ms='+latency+
+                console.info('[FORZA_END_TO_AUDIO] turn='+turnKey+' ms='+latency+
                   ' n='+ordered.length+' meanMs='+mean+' medianMs='+median+' p95Ms='+p95+
                   ' estimatedAudioEnd=1 audioClockOnly=1 noPrivateContent=1');
                 }
               }else{
-                console.info('[FORZA_END_TO_AUDIO] turn='+generation+
+                console.info('[FORZA_END_TO_AUDIO] turn='+turnKey+
                   ' missing=1 reason=no_acoustic_end_estimate');
               }
             }
-            console.info('[FORZA_AUDIO_STAGE] turn='+generation+
+            console.info('[FORZA_AUDIO_STAGE] turn='+turnKey+
               ' phase='+stage+' ms='+ms+' clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' endToPlaybackMs='+(stage==='playback_started'&&!speakerMutedRef.current&&detectedSpeechEndAtRef.current>0
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):'NA')+
@@ -1204,13 +1205,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
           synthesize:(phrase,signal,index)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
-            'call-'+callIdRef.current+'-turn-'+generation,index),
+            turnKey,index),
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
           onPhraseReady:info=>{
             if(activeTurnRef.current?.generation!==generation)return;
-            console.info('[FORZA_TTS_STAGE] turn='+generation+
+            console.info('[FORZA_TTS_STAGE] turn='+turnKey+
               ' phase=phrase_wav_ready index='+info.index+
               ' queueClientMs='+info.waitMs+' requestClientMs='+info.fetchMs+
               ' wavBytes='+info.wavBytes+' wavDurationMs='+info.durationMs);
@@ -1247,7 +1248,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             firstPhraseQueued=true;
             setVoiceStage('synthesizing');
             console.info('[FORZA_NIMA_LATENCY] phase=first-tts-phrase-queued clientMs='+
-              Math.round(performance.now()-turnStartedAt)+' turn='+generation+' chars='+phrase.length);
+              Math.round(performance.now()-turnStartedAt)+' turn='+turnKey+' chars='+phrase.length);
           }
           activeNimaBuffer.add(phrase);
         };
@@ -1256,7 +1257,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply=callPlainText.push(fullText);
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
-            console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
+            console.info('[FORZA_LATENCY] phase=first-text turn='+turnKey+
               ' clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
           }
@@ -1293,7 +1294,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           let streamTimer=window.setTimeout(()=>streamController.abort(new Error('شروع دریافت پاسخ هوش مصنوعی بیش از حد طول کشید.')),30000);
           const totalTimer=window.setTimeout(()=>streamController.abort(new Error('دریافت متن پاسخ هوش مصنوعی بیش از دو دقیقه طول کشید.')),120000);
           try{
-            console.info('[FORZA_LATENCY] phase=llm_request_sent turn='+generation+
+            console.info('[FORZA_LATENCY] phase=llm_request_sent turn='+turnKey+
               ' endToRequestMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
             const streamRes=await fetch('/api/ai/consult-stream',{
@@ -1304,12 +1305,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 history:previousHistory,
                 includeAudio:false,
                 mode:'forza',
-                userTurnId:'call-'+callIdRef.current+'-turn-'+generation,
+                userTurnId:turnKey,
                 responseId:'call-'+callIdRef.current+'-response-'+generation,
               }),
               signal:AbortSignal.any([streamController.signal,pocketAbort.signal]),
             });
-            console.info('[FORZA_LATENCY] phase=sse_headers turn='+generation+
+            console.info('[FORZA_LATENCY] phase=sse_headers turn='+turnKey+
               ' clientMs='+Math.round(performance.now()-turnStartedAt)+
               ' http='+streamRes.status);
             // Only a genuinely missing legacy SSE route may use complete-text
@@ -1326,7 +1327,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               // Client and server clocks are NOT assumed synchronized. Match
               // the same turn id in Node logs to separate transport, model
               // TTFT, TTS queue, inference, WAV transfer and audio decode.
-              console.info('[FORZA_TEXT_STAGE] turn='+generation+' phase=browser_'+stage+
+              console.info('[FORZA_TEXT_STAGE] turn='+turnKey+' phase=browser_'+stage+
                 ' clientMs='+Math.round(performance.now()-turnStartedAt)+
                 (provider?' provider='+provider:'')+(code?' code='+code:''));
             });
@@ -1352,7 +1353,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             throw new Error('جریان پاسخ هوش مصنوعی ناقص ماند؛ متن دریافت‌شده حفظ شد. می‌توانید سؤال را دوباره بپرسید یا ادامه دهید.');
           } else {
           if(!allowLegacyFallback){
-            console.warn('[FORZA_TEXT_STAGE] turn='+generation+
+            console.warn('[FORZA_TEXT_STAGE] turn='+turnKey+
               ' phase=failed_no_chained_model_retry');
             throw streamError;
           }
