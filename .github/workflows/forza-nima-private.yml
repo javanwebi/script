@@ -31,6 +31,8 @@ on:
       - ops/deploy-single-port-vps.sh
       - server/ai/forzaTtsBudget.ts
       - server/ai/forzaTtsTurnOrder.ts
+      - server/ai/forzaSttDeadline.ts
+      - tests/forzaSttDeadline.test.ts
       - tests/forzaTtsTurnOrder.test.ts
       - ops/forza-voice-latency-aggregate.py
       - tests/test_forza_latency_aggregate.py
@@ -60,7 +62,7 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forzaTtsTurnOrder.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts
+        run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forzaTtsTurnOrder.test.ts tests/forzaSttDeadline.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts
       - name: Validate Persian smart end-of-turn recognition
         run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition
