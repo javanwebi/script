@@ -56,7 +56,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     apiKey, model, query, history = [], catalogContext = '',
     voice = false, signal, fetchImpl = fetch, onDelta, firstTokenTimeoutMs, totalTimeoutMs,
   } = options;
-  const started = Date.now();
+  const started = performance.now(); // monotonic provider interval
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
   const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
   const controller = new AbortController();
@@ -110,12 +110,12 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         : '';
     if (!str) return;
     if (firstTokenMs < 0) {
-      firstTokenMs = Date.now() - started;
+      firstTokenMs = performance.now() - started;
       if (firstTokenTimer) clearTimeout(firstTokenTimer);
       firstTokenTimer = undefined;
     }
     textSoFar += str;
-    lastTokenMs = Date.now() - started;
+    lastTokenMs = performance.now() - started;
     onDelta(str, textSoFar);
   };
 
