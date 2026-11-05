@@ -1680,9 +1680,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const controller=new AbortController();
     void fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'})
       .then(async response=>response.ok?await response.json():null)
-      .then((info:{serverSttConfigured?:boolean}|null)=>{
-        if(!controller.signal.aborted&&typeof info?.serverSttConfigured==='boolean')
-          serverSttConfiguredRef.current=info.serverSttConfigured;
+      .then((info:{serverSttConfigured?:boolean;workerSttCandidate?:boolean}|null)=>{
+        if(controller.signal.aborted||!info)return;
+        if(typeof info.serverSttConfigured==='boolean'){
+          // workerSttCandidate means "can attempt a bounded fallback", not
+          // that the Worker supports real-time streaming recognition.
+          serverSttConfiguredRef.current=info.serverSttConfigured||
+            info.workerSttCandidate===true;
+        }
       })
       .catch(()=>{});
     return ()=>controller.abort();
