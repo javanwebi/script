@@ -24,6 +24,7 @@ FIELDS = {
     "browser_end_to_audio_clock": (r"\[FORZA_END_TO_AUDIO\].*?\bms=(\d+)", 120_000),
     "browser_stt_final_from_estimated_end": (r"\[FORZA_STT_STAGE\].*phase=final_from_estimated_speech_end\b.*?\bms=(\d+)", 120_000),
     "browser_sse_first_token": (r"\[FORZA_TEXT_STAGE\].*phase=browser_first_delta\b.*?\bclientMs=(\d+)", 120_000),
+    "browser_barge_validated_to_software_cancel": (r"\[FORZA_BARGE_IN\].*phase=validated_text_to_cancel\b.*?\bms=(\d+)", 30_000),
 }
 PATTERNS = {key: (re.compile(regex), limit) for key, (regex, limit) in FIELDS.items()}
 REASONS = re.compile(r"(?:\[FORZA_END_TO_AUDIO\]|\[FORZA_STT_STAGE\]).*?missing=1.*?reason=([a-z0-9_]+)|\[FORZA_STT_STAGE\].*?phase=latency_missing\s+reason=([a-z0-9_]+)")
