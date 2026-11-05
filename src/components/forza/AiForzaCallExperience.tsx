@@ -754,6 +754,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     answer:string,
     signal?:AbortSignal,
     turnId?:string,
+    phraseIndex?:number,
   ):Promise<Uint8Array>=>{
     const text=answer.trim();
     if(!text)throw new Error('forza_empty_answer');
@@ -761,7 +762,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const response=await fetch('/api/ai/forza-speech',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text,turnId}),
+      body:JSON.stringify({text,turnId,...(phraseIndex!==undefined?{phraseIndex}:{})}),
       signal:signal
         ? AbortSignal.any([signal,AbortSignal.timeout(420000)])
         : AbortSignal.timeout(420000),
@@ -774,11 +775,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const wavHeadersAt=performance.now();
     const audio=new Uint8Array(await response.arrayBuffer());
     console.info('[FORZA_TTS_STAGE] turn='+String(turnId||'unknown')+
+      ' index='+(phraseIndex===undefined?'legacy':phraseIndex)+
       ' phase=wave_received clientMs='+Math.round(performance.now()-started)+
       ' headerWaitMs='+Math.round(wavHeadersAt-started)+
       ' transferMs='+Math.round(performance.now()-wavHeadersAt)+
       ' workerQueueMs='+String(response.headers.get('X-Forza-Queue-Ms')||'unknown')+
       ' workerInferenceMs='+String(response.headers.get('X-Forza-Inference-Ms')||'unknown')+
+      ' orderWaitMs='+String(response.headers.get('X-Forza-Order-Wait-Ms')||'unknown')+
       ' bytes='+audio.byteLength);
     if(audio.byteLength<44||audio.byteLength>8_000_000 ||
        String.fromCharCode(...audio.subarray(0,4))!=='RIFF' ||
@@ -1164,8 +1167,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // phrases in bounded lookahead on the same AudioContext clock.
         // Begin the first ready WAV with only a tiny optional buffer hold.
         bufferedNima=new ForzaNimaBufferedSpeech({
-          synthesize:(phrase,signal)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
-            'call-'+callIdRef.current+'-turn-'+generation),
+          synthesize:(phrase,signal,index)=>requestPocketAudio(forzaSpokenPlainText(phrase),signal,
+            'call-'+callIdRef.current+'-turn-'+generation,index),
           player:continuousPlayer,
           signal:pocketAbort.signal,
           onPhrasePlayed:recordHeard,
