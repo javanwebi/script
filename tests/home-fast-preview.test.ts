@@ -73,10 +73,10 @@ test('first paint prefetches SQL-light categories and small product previews',()
  assert.match(main,/window\.location\.pathname === '\/'/);
  // First-paint cards must keep the same compact template after the full
  // product runtime hydrates; no replacement by tall commercial cards.
- assert.match(featured,/displayProducts\\.map\\(product/);
- assert.match(featured,/previews\\.length \\? previews/);
- assert.match(featured,/hydratedProductsByCode\\.get/);
- assert.doesNotMatch(featured,/utilityProducts\\.map/);
+ assert.match(featured,/displayProducts\.map\(product/);
+ assert.match(featured,/previews\.length \? previews/);
+ assert.match(featured,/hydratedProductsByCode\.get/);
+ assert.doesNotMatch(featured,/utilityProducts\.map/);
  const homePage=readFileSync('src/pages/HomePage.tsx','utf8');
  const clientsIndex=homePage.indexOf('<OurClientsSection />');
  const productsIndex=homePage.indexOf('<HighUtilityProductsSection />');
