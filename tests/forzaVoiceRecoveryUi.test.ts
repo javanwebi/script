@@ -144,3 +144,13 @@ test('one opaque turn key joins browser SSE, speech synthesis and interruption t
   assert.match(ui,/phase=phrase_wav_ready index=/);
 });
 
+test('Gemini and Worker speech fallback cancel upstream work on browser close',()=>{
+  const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+  assert.match(backend,/sttResult=await withForzaSttDeadline\(signal=>/);
+  assert.match(backend,/config:\{abortSignal:signal\}/);
+  assert.match(backend,/req\.once\('aborted',onSttDisconnect\)/);
+  assert.match(backend,/req\.once\('aborted',onWorkerSttDisconnect\)/);
+  assert.match(backend,/res\.once\('close',onWorkerSttDisconnect\)/);
+  assert.match(backend,/if\(req\.aborted\|\|res\.destroyed\)return/);
+});
+
