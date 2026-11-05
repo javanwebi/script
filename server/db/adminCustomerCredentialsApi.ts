@@ -114,10 +114,62 @@ async function uniqueUsername(client:SqlClient,username:string,exceptId?:string)
  const old=await client.query('select id from public.user_profiles where lower(username)=$1 and ($2::uuid is null or id<>$2::uuid) limit 1',[username,exceptId||null]);
  if(old.rowCount)throw fail(409,'نام کاربری قبلاً استفاده شده است.');
 }
+const crmTemplateEvent='crm_credentials';
+function validateCrmTemplate(raw:any){
+ const title=clean(raw?.title,90);
+ const message=typeof raw?.text==='string'?raw.text.trim():'';
+ if(title.length<3||title.length>90)throw fail(400,'عنوان قالب باید بین ۳ تا ۹۰ نویسه باشد.');
+ if(message.length<15||message.length>800)throw fail(400,'متن قالب باید بین ۱۵ تا ۸۰۰ نویسه باشد.');
+ const tokens=[...message.matchAll(/\{([^{}]+)\}/g)].map(match=>match[1]);
+ if(tokens.some(token=>!['smsName','username','password','loginUrl'].includes(token)))
+  throw fail(400,'متغیرهای مجاز فقط نام مشتری، نام کاربری، رمز اولیه و نشانی ورود هستند.');
+ return {title,message,variables:[...new Set(tokens.map(token=>'{'+token+'}'))]};
+}
 export function registerAdminCustomerCredentialsApi(app:Express){
  app.get('/api/admin/crm/credentials/config',async(req,res)=>{
   try{await owner(req,res);res.json({success:true,smsConfigured:smsEnabled(),loginUrl,defaultTemplate:defaultCredentialSmsTemplate});}
   catch(e){errorResponse(res,e);}
+ });
+ // CRM reuses the existing system-wide SMS templates table, without changing legacy templates.
+ app.get('/api/admin/crm/credentials/templates',async(req,res)=>{
+  try{
+   await owner(req,res);
+   const rows=await database().query(
+    "select id,event_key,title,text,updated_at from public.sms_templates order by case when event_key=$1 then 0 else 1 end,updated_at desc limit 100",
+    [crmTemplateEvent]);
+   res.json({success:true,templates:rows.rows});
+  }catch(e){errorResponse(res,e);}
+ });
+ app.post('/api/admin/crm/credentials/templates',async(req,res)=>{
+  try{
+   const identity=await owner(req,res);
+   const {title,message,variables}=validateCrmTemplate(req.body);
+   const id='crm-credential-'+crypto.randomUUID();
+   await transaction(async tx=>{
+    await tx.query(
+     'insert into public.sms_templates(id,event_key,title,text,variables,updated_at) values($1,$2,$3,$4,$5::jsonb,now())',
+     [id,crmTemplateEvent,title,message,JSON.stringify(variables)]);
+    await audit(tx,identity,'افزودن قالب پیام حساب مشتری',id);
+   });
+   res.status(201).json({success:true,template:{id,event_key:crmTemplateEvent,title,text:message}});
+  }catch(e){errorResponse(res,e);}
+ });
+ app.put('/api/admin/crm/credentials/templates/:id',async(req,res)=>{
+  try{
+   const identity=await owner(req,res);
+   const id=clean(req.params.id,120);
+   if(!/^crm-credential-[0-9a-f-]{36}$/.test(id))
+    throw fail(403,'فقط قالب‌های اختصاصی CRM از این بخش قابل ویرایش هستند.');
+   const {title,message,variables}=validateCrmTemplate(req.body);
+   await transaction(async tx=>{
+    const updated=await tx.query(
+     'update public.sms_templates set title=$2,text=$3,variables=$4::jsonb,updated_at=now() where id=$1 and event_key=$5 returning id',
+     [id,title,message,JSON.stringify(variables),crmTemplateEvent]);
+    if(!updated.rowCount)throw fail(404,'قالب موردنظر پیدا نشد.');
+    await audit(tx,identity,'ویرایش قالب پیام حساب مشتری',id);
+   });
+   res.json({success:true,template:{id,event_key:crmTemplateEvent,title,text:message}});
+  }catch(e){errorResponse(res,e);}
  });
  app.post('/api/admin/crm/customers/:key/credentials',async(req,res)=>{
   try{
