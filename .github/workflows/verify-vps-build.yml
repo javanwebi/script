@@ -1,5 +1,17 @@
 name: Verify VPS frontend build before deployment
 on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "server.ts"
+      - "server/auth/**"
+      - "api/sms.ts"
+      - "tests/supabase-sms-hook.test.ts"
+      - "tests/mobile-scan-ui.test.ts"
+      - "vite.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main]
     paths:
