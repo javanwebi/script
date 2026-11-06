@@ -38,8 +38,23 @@ class ClientService {
       const data = durableStorage.getExistingItem(STORAGE_KEY);
       if (data === null) return DEFAULT_CLIENTS;
       const parsed: unknown = JSON.parse(data);
-      // Preserve an explicitly stored empty list; do not silently re-seed it.
-      return Array.isArray(parsed) ? parsed as ClientLogo[] : DEFAULT_CLIENTS;
+      // An empty database projection is not a configured customer list.
+      // Keep the bundled logos visible without silently writing them to PostgreSQL.
+      // To intentionally hide all logos, admins may disable every entry.
+      if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_CLIENTS;
+      return parsed
+        .filter((entry): entry is Record<string, unknown> =>
+          Boolean(entry && typeof entry === 'object' && !Array.isArray(entry) &&
+            typeof entry.id === 'string' && typeof entry.logo === 'string'))
+        .map((entry, index) => ({
+          ...entry,
+          // Adopted PostgreSQL rows expose active/sortOrder, while the admin
+          // interface uses isActive/order. Read both for older saved records.
+          isActive: typeof entry.isActive === 'boolean' ? entry.isActive :
+            (typeof entry.active === 'boolean' ? entry.active : true),
+          order: Number.isFinite(Number(entry.order ?? entry.sortOrder)) ?
+            Number(entry.order ?? entry.sortOrder) : index + 1,
+        })) as ClientLogo[];
     } catch {
       return DEFAULT_CLIENTS;
     }
@@ -149,7 +164,13 @@ class ClientService {
   public subscribe(callback: () => void): () => void {
     if (typeof window === 'undefined') return () => {};
     window.addEventListener(EVENT_NAME, callback);
-    return () => window.removeEventListener(EVENT_NAME, callback);
+    // /api/runtime can hydrate after the first render; refresh both the
+    // public strip and the admin list when authoritative data arrives.
+    window.addEventListener('sanat-durable-hydrated', callback);
+    return () => {
+      window.removeEventListener(EVENT_NAME, callback);
+      window.removeEventListener('sanat-durable-hydrated', callback);
+    };
   }
 }
 

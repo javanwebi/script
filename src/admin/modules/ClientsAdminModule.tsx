@@ -14,8 +14,6 @@ import {
   MoveDown,
   Sparkles,
   Eye,
-  Play,
-  Pause,
   Clock,
   ArrowLeft,
   AlertCircle,
@@ -159,7 +157,7 @@ export const ClientsAdminModule: React.FC = () => {
   const handleToggleActive = (id: string, current: boolean) => {
     clientService.updateClient(id, { isActive: !current });
     refreshList();
-    showToast(current ? 'مشتری غیرفعال شد' : 'مشتری در اسلایدر فعال شد');
+    showToast(current ? 'مشتری غیرفعال شد' : 'مشتری برای صفحه اصلی فعال شد');
   };
 
   // Delete client
@@ -215,7 +213,7 @@ export const ClientsAdminModule: React.FC = () => {
             <div>
               <h1 className="text-xl font-black text-[#55565A]">مدیریت لوگوی مشتریان ما</h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                تنظیم لوگوها و شرکت‌های صنعتی همکار در اسلایدر ۳ ثانیه‌ای صفحه اصلی
+                مدیریت لوگوهای ثابت مشتریان در صفحه اصلی؛ افزودن، ویرایش، ترتیب نمایش و فعال‌سازی
               </p>
             </div>
           </div>
@@ -247,11 +245,11 @@ export const ClientsAdminModule: React.FC = () => {
         <Clock className="w-5 h-5 text-[#E06518] shrink-0 mt-0.5" />
         <div className="space-y-1 text-xs text-slate-700 leading-relaxed">
           <p className="font-bold text-[#55565A]">
-            رفتار اسلایدر مشتریان در صفحه اصلی:
+            نمایش لوگوهای مشتریان در صفحه اصلی:
           </p>
           <p>
-            لوگوها به صورت خودکار <strong>هر ۳ ثانیه یک‌بار به سمت چپ</strong> حرکت می‌کنند. با قرار دادن اشاره‌گر ماوس روی لوگوها، اسلایدر موقتاً متوقف شده و به کاربر امکان بررسی دقیق‌تر داده می‌شود.
-            (تعداد کل مشتریان: {toPersianDigits(clients.length)} | فعال در اسلایدر: {toPersianDigits(activeCount)})
+            لوگوها به‌صورت <strong>ثابت و بدون حرکت خودکار</strong> نمایش داده می‌شوند. در موبایل و صفحه‌های کوچک می‌توان ردیف لوگوها را به‌صورت افقی پیمایش کرد.
+            (تعداد کل مشتریان: {toPersianDigits(clients.length)} | فعال در صفحه اصلی: {toPersianDigits(activeCount)})
           </p>
         </div>
       </div>
@@ -627,7 +625,7 @@ export const ClientsAdminModule: React.FC = () => {
                   className="w-4 h-4 rounded text-[#E06518] focus:ring-[#E06518]"
                 />
                 <label htmlFor="client-active-toggle" className="text-xs font-bold text-slate-700 cursor-pointer">
-                  نمایش در اسلایدر صفحه اصلی
+                  نمایش در صفحه اصلی
                 </label>
               </div>
 

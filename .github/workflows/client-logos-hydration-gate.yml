@@ -1,5 +1,11 @@
 name: Verify client logos hydration side effect fix
 on:
+  pull_request:
+    paths:
+      - 'src/services/clientService.ts'
+      - 'src/components/home/OurClientsSection.tsx'
+      - 'server/db/adopted.ts'
+      - 'tests/client-logos-hydration.test.ts'
   push:
     branches:
       - fix/client-logos-read-before-hydration-20261102

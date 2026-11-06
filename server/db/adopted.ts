@@ -54,7 +54,7 @@ const projections:Record<string,Projection>={
  atlas_portal_content_announcements_v1:{table:'portal_announcements'},atlas_portal_club_milestones_v1:{table:'club_milestones'},
  atlas_portal_layout_configs_v1:{table:'portal_layout_configs',pk:'portal_key',aliases:{portal_key:'portal'}},
  atlas_admin_categories_v1:{table:'catalog_categories',aliases:{image_url:'image',is_active:'active'}},atlas_admin_brands_v1:{table:'catalog_brands',aliases:{logo_url:'logo',is_featured:'featured'}},
- atlas_clients_logos_v3_moshtari:{table:'client_logos',aliases:{logo_url:'logo'}},
+ atlas_clients_logos_v3_moshtari:{table:'client_logos',aliases:{logo_url:'logo',active:'isActive',sort_order:'order'}},
  atlas_admin_blog_v1:{table:'blog_posts',aliases:{image_url:'image',published_at:'date'}},
  atlas_admin_pages_v1:{table:'static_pages',aliases:{last_updated:'lastUpdated'}},
  atlas_admin_sms_templates_v1:{table:'sms_templates',aliases:{event_key:'event'}},

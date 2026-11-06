@@ -815,10 +815,9 @@ export const HomePage: React.FC = () => {
           <ArrowLeft className="w-3 h-3 text-orange-400 mr-1" />
         </div>
       </section>
+      <HomeCategoryStrip />
       <OurClientsSection />
       <div id="home-utility-products" className="home-sequence-products"><HighUtilityProductsSection /></div>
-      {/* Preserve the category navigation, but do not insert it above the client/product strip. */}
-      <HomeCategoryStrip />
       <HomeIndustryShowcase />
       <section id="home-brands" className="home-brands-kept" aria-label="برندهای همکار صنعت پیش"><div className="editorial-wrap home-brands-heading"><div><span className="store-eyebrow">شناخت برند، انتخاب آگاهانه</span><h2>برندها در امتداد حرکت صنعت</h2></div><Link to="/brands" className="editorial-text-link">آشنایی با همه برندها <ArrowLeft size={17}/></Link></div><MainBrandsBanner /></section>
       <HomeForzaBanner />
