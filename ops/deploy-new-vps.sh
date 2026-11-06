@@ -123,7 +123,7 @@ echo '===== ISOLATED BUILD AND TEST ====='
 docker image inspect node:22-bookworm >/dev/null 2>&1 || docker pull node:22-bookworm
 docker run --rm --pull=never --network "$NETWORK" --cpus=4 --memory=6g \
  -v "$STAGE:/app:rw" -w /app node:22-bookworm sh -ec \
- 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/home-fast-preview.test.ts && npm run build'
+ 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/home-fast-preview.test.ts tests/client-logos-hydration.test.ts && npm run build'
 test -s "$STAGE/dist/index.html"
 
 echo "===== START CANDIDATE ON $NEXT ====="
