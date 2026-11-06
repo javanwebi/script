@@ -687,7 +687,7 @@ export const HomePage: React.FC = () => {
                 type="button"
                 onClick={handleMobilePrevSlide}
                 aria-label="بنر قبلی"
-                className="absolute left-2 top-1/2 z-20 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
+                className="absolute bottom-1.5 left-2 z-20 grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -695,7 +695,7 @@ export const HomePage: React.FC = () => {
                 type="button"
                 onClick={handleMobileNextSlide}
                 aria-label="بنر بعدی"
-                className="absolute right-2 top-1/2 z-20 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
+                className="absolute bottom-1.5 right-2 z-20 grid h-7 w-7 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
               >
                 <ChevronRight size={16} />
               </button>
