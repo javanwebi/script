@@ -45,10 +45,33 @@ test('customer logos survive empty database hydration without browser-side seedi
  assert.match(service,/parsed\.length === 0\) return DEFAULT_CLIENTS/);
  assert.match(service,/sanat-durable-hydrated/);
  const page=readFileSync('src/components/home/OurClientsSection.tsx','utf8');
- assert.doesNotMatch(page,/setInterval\(/);
+ assert.match(page,/setInterval\(/,'carousel rotates automatically');
+ assert.match(page,/3200/,'carousel uses a gentle 3.2-second interval');
+ assert.match(page,/clients\.slice\(0, itemsPerView\)/,'carousel wraps using only the first visible logos');
+ assert.match(page,/visibleClients\.map/,'all active client logos are included in order');
+ assert.match(page,/prefers-reduced-motion/);
+ assert.match(page,/max-h-\[70px\]/,'desktop logos stay compact');
  assert.doesNotMatch(page,/if \(clients\.length === 0\) return null/);
- assert.match(page,/overflow-x-auto/);
  const admin=readFileSync('src/admin/AdminLayout.tsx','utf8');
  assert.match(admin,/ClientsAdminModule/);
  assert.match(admin,/admin\/clients/);
+});
+
+test('client logo database projection does not truncate a large uploaded list',async()=>{
+ const rows=Array.from({length:45},(_,i)=>({
+   id:'customer-'+i,name:'Customer '+i,logo_url:'/logos/'+i+'.webp',
+   active:i!==8,sort_order:i+1,created_at:'2026-01-01T00:00:00Z',
+ }));
+ const db={
+  query:async(sql:string)=>{
+   if(sql.includes('select * from public.client_logos'))return {rows};
+   if(sql.includes('select value from public.portal_kv_store'))return {rows:[]};
+   throw Error('Unexpected query: '+sql);
+  },
+ } as unknown as Parameters<typeof readAdoptedDocument>[0];
+ const saved=await readAdoptedDocument(db,'atlas_clients_logos_v3_moshtari','global') as Array<Record<string,unknown>>;
+ assert.equal(saved.length,45);
+ assert.equal(saved[8].isActive,false);
+ assert.equal(saved[44].logo,'/logos/44.webp');
+ assert.equal(saved[44].order,45);
 });
