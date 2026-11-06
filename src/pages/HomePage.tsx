@@ -73,6 +73,7 @@ export const HomePage: React.FC = () => {
   // Hero Carousel Data & Automatic 5s Slide Switching
   // ---------------------------------------------------------------------------
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+  const [mobileHeroSlideIndex, setMobileHeroSlideIndex] = useState(0);
 
   interface HeroSlideItem {
     id: number;
@@ -211,6 +212,47 @@ export const HomePage: React.FC = () => {
     },
   ];
 
+  // Mobile carousel: keep the previous storefront structure and place all campaign copy inside each banner.
+  // These are existing optimized industrial WebP assets already used by the site.
+  const mobileHeroSlides = [
+    {
+      id: "delivery",
+      image: STORE_ASSETS.heroPulley,
+      badge: "بازار بزرگ قطعات صنعتی",
+      title: "توقف خط تولید، هرگز!",
+      highlight: "ارسال فوری در کمتر از ۲۴ ساعت",
+      description: "تأمین، سفارش و تحویل سریع قطعات صنعتی برای تداوم تولید شما",
+      alt: "چرخ‌دنده‌ها و قطعات صنعتی برای تأمین فوری صنعت پیش",
+    },
+    {
+      id: "supply",
+      image: STORE_ASSETS.heroSteelCoils,
+      badge: "تأمین تخصصی صنایع",
+      title: "تأمین مطمئن قطعات صنعتی",
+      highlight: "برای خطوط تولید",
+      description: "دسترسی به کاتالوگ قطعات، برندها و مشخصات فنی موردنیاز صنعت",
+      alt: "تصویر صنعتی از تجهیزات و قطعات فلزی",
+    },
+    {
+      id: "tracking",
+      image: STORE_ASSETS.whySanatExpressDelivery,
+      badge: "خدمات مشتریان صنعت پیش",
+      title: "پیگیری سفارش",
+      highlight: "از پنل مشتریان",
+      description: "وضعیت سفارش، مراحل ارسال و سوابق خرید را شفاف دنبال کنید",
+      alt: "ارسال و تحویل سفارش قطعات صنعتی",
+    },
+    {
+      id: "engineering",
+      image: STORE_ASSETS.whySanatCadEngineering,
+      badge: "تولید و مهندسی معکوس",
+      title: "ساخت قطعات کمیاب",
+      highlight: "و تحریمی خطوط تولید",
+      description: "بررسی فنی، مهندسی معکوس و ساخت قطعات سفارشی صنعتی",
+      alt: "مهندسی و طراحی قطعات صنعتی سفارشی",
+    },
+  ] as const;
+
   // 5-second automatic slide interval
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -221,6 +263,15 @@ export const HomePage: React.FC = () => {
     return () => clearInterval(timer);
   }, [heroSlides.length]);
 
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => {
+      setMobileHeroSlideIndex((prev) => (prev + 1) % mobileHeroSlides.length);
+    }, 7000);
+
+    return () => window.clearInterval(timer);
+  }, [mobileHeroSlides.length]);
+
   const handleNextSlide = () => {
     setHeroSlideIndex((prev) => (prev + 1) % heroSlides.length);
   };
@@ -229,6 +280,14 @@ export const HomePage: React.FC = () => {
     setHeroSlideIndex(
       (prev) => (prev - 1 + heroSlides.length) % heroSlides.length,
     );
+  };
+
+  const handleMobileNextSlide = () => {
+    setMobileHeroSlideIndex((prev) => (prev + 1) % mobileHeroSlides.length);
+  };
+
+  const handleMobilePrevSlide = () => {
+    setMobileHeroSlideIndex((prev) => (prev - 1 + mobileHeroSlides.length) % mobileHeroSlides.length);
   };
 
   // Mobile Touch Gestures for Hero Carousel
@@ -246,15 +305,17 @@ export const HomePage: React.FC = () => {
   const handleTouchEnd = () => {
     if (touchStartX.current === null || touchEndX.current === null) return;
     const diff = touchStartX.current - touchEndX.current;
-    // In RTL, swipe left (diff > 40) moves forward to next slide
+    // In RTL, swipe left (diff > 40) moves forward to the next mobile banner.
     if (diff > 40) {
-      handleNextSlide();
+      handleMobileNextSlide();
     } else if (diff < -40) {
-      handlePrevSlide();
+      handleMobilePrevSlide();
     }
     touchStartX.current = null;
     touchEndX.current = null;
   };
+
+  const activeMobileHeroSlide = mobileHeroSlides[mobileHeroSlideIndex];
 
   // Industries carousel scroll tracking
   const industriesScrollRef = useRef<HTMLDivElement>(null);
@@ -351,10 +412,7 @@ export const HomePage: React.FC = () => {
       {/* ========================================================================= */}
       <section
         id="home-hero"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="home-hero relative w-full overflow-hidden bg-white lg:bg-[#55565A] text-[#37383b] lg:text-white border-b border-slate-200 lg:border-slate-800/80 h-auto min-h-[460px] sm:min-h-[500px] lg:h-[530px] xl:h-[570px] flex flex-col justify-between select-none shrink-0"
+        className="home-hero relative w-full overflow-hidden bg-white lg:bg-[#55565A] text-[#37383b] lg:text-white border-b border-slate-200 lg:border-slate-800/80 h-auto min-h-0 lg:h-[530px] xl:h-[570px] flex flex-col justify-between select-none shrink-0"
       >
         {/* Only the active hero downloads; native image priority also works on desktop. */}
         {heroSlides.map((slide, idx) => {
@@ -563,43 +621,105 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Mobile: one purpose-built industrial banner, followed by direct page entry points. */}
-          <div className="lg:hidden space-y-3.5" dir="rtl">
-            <div className="relative w-full aspect-[2.74/1] min-h-[126px] max-h-[190px] rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-[#24282E]">
+          {/* Mobile: large image-backed carousel; all campaign copy is designed inside each banner. */}
+          <div className="lg:hidden w-full space-y-3.5" dir="rtl">
+            <div
+              className="mobile-home-hero relative isolate w-full aspect-[1.68/1] min-h-[198px] max-h-[248px] overflow-hidden rounded-[20px] border border-slate-200 bg-[#20262d] shadow-[0_8px_24px_rgba(24,32,42,.16)]"
+              role="region"
+              aria-label="بنرهای اسلایدی صفحه اصلی"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               <img
-                src="/images/sanatpish-mobile-hero.webp"
-                alt="توقف خط تولید هرگز؛ تأمین سریع قطعات صنعتی صنعت پیش"
+                key={activeMobileHeroSlide.id}
+                src={activeMobileHeroSlide.image}
+                alt={activeMobileHeroSlide.alt}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
-                width={560}
-                height={204}
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover object-center animate-in fade-in duration-500"
               />
+              <div className="absolute inset-0 bg-gradient-to-l from-[#151b22]/95 via-[#151b22]/68 to-[#151b22]/5" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+              <span className="absolute right-3 top-3 z-20 max-w-[72%] rounded-full border border-white/15 bg-[#E06518] px-3 py-1.5 text-[9px] font-extrabold text-white shadow-lg">
+                {activeMobileHeroSlide.badge}
+              </span>
+              <span className="absolute left-3 top-3 z-20 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-bold text-white/90 backdrop-blur-sm">
+                {toPersianDigits(mobileHeroSlideIndex + 1)} از {toPersianDigits(mobileHeroSlides.length)}
+              </span>
+
+              <div
+                key={activeMobileHeroSlide.id + "-copy"}
+                className="absolute inset-0 z-10 flex flex-col justify-center px-4 pb-5 pt-8 text-right animate-in fade-in slide-in-from-right-2 duration-500"
+              >
+                <div className="w-[84%] max-w-[310px]">
+                  <h2 className="text-[clamp(18px,5.2vw,25px)] font-black leading-[1.48] tracking-tight text-white drop-shadow-md">
+                    <span className="block">{activeMobileHeroSlide.title}</span>
+                    <span className="mt-0.5 block text-[#FF9B59]">{activeMobileHeroSlide.highlight}</span>
+                  </h2>
+                  <p className="mt-2 max-w-[290px] text-[10px] font-medium leading-[1.9] text-white/90 line-clamp-2">
+                    {activeMobileHeroSlide.description}
+                  </p>
+                  <span className="mt-2.5 block h-[3px] w-12 rounded-full bg-[#E06518] shadow-[0_0_12px_rgba(224,101,24,.55)]" />
+                </div>
+              </div>
+
+              <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-1.5" aria-label="انتخاب اسلاید">
+                {mobileHeroSlides.map((slide, idx) => (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    onClick={() => setMobileHeroSlideIndex(idx)}
+                    aria-label={`نمایش بنر ${idx + 1}`}
+                    aria-pressed={idx === mobileHeroSlideIndex}
+                    className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white ${
+                      idx === mobileHeroSlideIndex
+                        ? "w-6 bg-[#F47725] shadow-[0_0_8px_rgba(244,119,37,.6)]"
+                        : "w-1.5 bg-white/65 hover:bg-white"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleMobilePrevSlide}
+                aria-label="بنر قبلی"
+                className="absolute left-2 top-1/2 z-20 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleMobileNextSlide}
+                aria-label="بنر بعدی"
+                className="absolute right-2 top-1/2 z-20 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/35 text-white shadow-md backdrop-blur-sm active:scale-90"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
 
-            <nav className="grid grid-cols-2 gap-2" aria-label="ورود سریع به بخش‌های صنعت پیش">
-              <Link to="/products" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Package size={20} strokeWidth={1.8}/></span>
-                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">کاتالوگ محصولات</span>
-                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
+            <div className="mobile-hero-actions grid grid-cols-1 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsVisualSearchOpen(true)}
+                className="mobile-hero-action flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#D95F14] bg-gradient-to-l from-[#E96C1B] to-[#C9500E] px-4 py-3 text-[12px] font-extrabold text-white shadow-[0_5px_16px_rgba(213,91,20,.22)] transition active:scale-[.985]"
+              >
+                <Camera size={19} strokeWidth={2} />
+                <span>شناسایی قطعه با هوش مصنوعی</span>
+                <ArrowLeft size={16} />
+              </button>
+              <Link
+                to="/contact"
+                className="mobile-hero-action flex min-h-[50px] w-full items-center justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[12px] font-bold text-[#55565A] shadow-[0_3px_12px_rgba(28,35,45,.06)] transition hover:border-orange-200 hover:text-[#C95B17] active:scale-[.985]"
+              >
+                <PhoneCall size={18} strokeWidth={1.9} />
+                <span>تماس با واحد فروش فوری</span>
+                <ArrowLeft size={15} className="text-slate-400" />
               </Link>
-              <Link to="/categories" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Layers size={20} strokeWidth={1.8}/></span>
-                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">دسته‌بندی قطعات</span>
-                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
-              </Link>
-              <Link to="/ai-consult" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Headphones size={20} strokeWidth={1.8}/></span>
-                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">میزکار FORZA</span>
-                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
-              </Link>
-              <Link to="/consumer-dashboard" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><ShieldCheck size={20} strokeWidth={1.8}/></span>
-                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">پنل مشتریان</span>
-                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
-              </Link>
-            </nav>
+            </div>
           </div>
         </div>
 
