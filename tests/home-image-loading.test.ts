@@ -16,10 +16,12 @@ test('marketing photograph imports use generated WebP derivatives',()=>{
  assert.ok(optim.includes('only.includes(e.name)'));
 });
 
-test('hero requests visible slide only, with high priority on mobile',()=>{
+test('desktop hero requests only its visible slide and mobile uses the optimized dedicated banner',()=>{
  const hero=read('src/pages/HomePage.tsx');
  assert.ok(!hero.includes('backgroundImage: `url(${slide.image})`'));
- assert.equal(hero.split('src={isActive ? slide.image : undefined}').length-1,2);
+ assert.equal(hero.split('src={isActive ? slide.image : undefined}').length-1,1);
+ assert.ok(hero.includes('sanatpish-mobile-hero.webp'));
+ assert.ok(hero.includes('loading="eager"'));
  assert.ok(hero.includes('fetchPriority={isActive ? "high" : "low"}'));
 });
 

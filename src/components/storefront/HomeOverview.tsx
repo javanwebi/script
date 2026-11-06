@@ -372,8 +372,8 @@ export function WhySanatPish() {
                   </div>
 
                   {/* Left Soft-Orange Icon Box */}
-                  <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-[#FFF4EB] border border-[#FBD5B5] text-[#E06518] flex items-center justify-center shrink-0 group-hover:bg-[#E06518] group-hover:text-white transition-colors">
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-white to-[#FFF1E6] border border-orange-100 text-[#E06518] shadow-[0_3px_10px_rgba(224,101,24,.10)] flex items-center justify-center shrink-0 group-hover:bg-[#E06518] group-hover:text-white group-hover:border-[#E06518] transition-all">
+                    <Icon className="w-[19px] h-[19px] sm:w-[22px] sm:h-[22px]" strokeWidth={1.8} />
                   </div>
 
                   {/* Desktop Orange Circuit Node Connector Line */}
@@ -421,8 +421,8 @@ export function WhySanatPish() {
                   </div>
 
                   {/* Left Soft-Orange Icon Box */}
-                  <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-[#FFF4EB] border border-[#FBD5B5] text-[#E06518] flex items-center justify-center shrink-0 group-hover:bg-[#E06518] group-hover:text-white transition-colors">
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-white to-[#FFF1E6] border border-orange-100 text-[#E06518] shadow-[0_3px_10px_rgba(224,101,24,.10)] flex items-center justify-center shrink-0 group-hover:bg-[#E06518] group-hover:text-white group-hover:border-[#E06518] transition-all">
+                    <Icon className="w-[19px] h-[19px] sm:w-[22px] sm:h-[22px]" strokeWidth={1.8} />
                   </div>
                 </Link>
               ))}

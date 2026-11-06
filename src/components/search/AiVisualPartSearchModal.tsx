@@ -135,6 +135,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       cameraStreamRef.current = null;
     };
   }, [isOpen]);
+  React.useEffect(() => {
+    if (!isOpen) return;
+    document.body.classList.add("sanat-visual-search-open");
+    return () => document.body.classList.remove("sanat-visual-search-open");
+  }, [isOpen]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

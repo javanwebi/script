@@ -467,3 +467,12 @@
   .consumer-premium .portal-mobile-nav,.consumer-premium .consumer-reference-back,
   .consumer-premium .consumer-saved-forza-banner,.consumer-premium .consumer-address-delivery-note {display:none!important;}
 }
+
+
+/* Tablet keeps the sidebar collapsed, so retain the official brand in the top bar. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .customer-portal.consumer-premium .portal-top-brand {
+    display: flex !important;
+    align-items: center;
+  }
+}

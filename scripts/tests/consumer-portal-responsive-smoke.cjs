@@ -42,6 +42,7 @@ const customer = {
       await page.locator(".consumer-shortcuts").waitFor();
       // Real image must load in the account header: avoid a visually blank brand
       // even when the source tests and TypeScript both pass.
+      // Mobile and tablet use the top brand; desktop uses the sidebar brand.
       const brandSelector = width < 1024
         ? ".portal-top-brand .portal-official-logo"
         : ".portal-brand .portal-official-logo";

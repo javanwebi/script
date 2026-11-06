@@ -4126,3 +4126,94 @@ select {
     font-size: 11px;
   }
 }
+
+
+/* Focus mode for forms, image identification and product image/RFQ dialogs. */
+@media (max-width: 1023px) {
+  body.sanat-auth-dialog-open .store-header,
+  body.sanat-auth-dialog-open .store-bottom-nav,
+  body.sanat-auth-dialog-open .store-ai-quick-actions,
+  body.sanat-visual-search-open .store-header,
+  body.sanat-visual-search-open .store-bottom-nav,
+  body.sanat-visual-search-open .store-ai-quick-actions,
+  body.sanat-product-detail-open .store-ai-quick-actions {
+    inset-block-end: calc(164px + env(safe-area-inset-bottom));
+  }
+  body.sanat-product-inquiry-open .store-bottom-nav,
+  body.sanat-product-inquiry-open .store-ai-quick-actions,
+  body.sanat-product-image-preview-open .store-bottom-nav,
+  body.sanat-product-image-preview-open .store-ai-quick-actions {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .account-dialog {
+    position: fixed;
+    inset: auto 0 calc(10px + env(safe-area-inset-bottom));
+    width: calc(100vw - 14px);
+    max-width: 640px;
+    height: min(82dvh, 760px);
+    max-height: calc(100dvh - 20px - env(safe-area-inset-bottom));
+    margin: 0 auto;
+    border-radius: 29px 29px 18px 18px;
+    overflow: hidden;
+  }
+  .account-access {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .account-access-story {
+    order: 1;
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 11px 16px 9px;
+    border-radius: 29px 29px 0 0;
+  }
+  .account-access-story > div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .account-access-story h2,
+  .account-access-story ul,
+  .account-access-story a,
+  .account-access-story p {display: none;}
+  .account-access-story .account-symbol {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+  }
+  .account-access-story .inline-flex {
+    width: 118px;
+    height: 42px;
+    padding: 5px;
+  }
+  .account-access-form {
+    order: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 17px calc(18px + env(safe-area-inset-bottom));
+  }
+  .account-close {
+    top: 10px;
+    left: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+  .account-form-heading h1 {font-size: 20px;}
+  .account-form-heading p {font-size: 11px;line-height: 1.8;}
+  .account-fields {gap: 12px;}
+  .account-fields input,
+  .account-fields select {min-height: 48px;font-size: 16px;}
+}
+@media (max-width: 375px) {
+  .account-dialog {width: calc(100vw - 10px);height: min(84dvh, 740px);}
+  .account-access-form {padding-inline: 13px;}
+}

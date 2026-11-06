@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Bot, ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
+import { ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
 import forzaWorkspaceMark from "../../assets/forza-workspace-mark.svg";
 
@@ -162,20 +162,6 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
     {showAssistant && sheetOpen && createPortal(
       <div className="sp-forza-contact" dir="rtl">
         <div className="sp-forza-contact__backdrop" onClick={() => setSheetOpen(false)} aria-hidden="true" />
-        {/* A non-interactive preview of the chat destination, visible above the half-sheet. */}
-        <div className="sp-forza-contact__chat-preview" aria-hidden="true">
-          <header className="sp-forza-contact__preview-header">
-            <span className="sp-forza-contact__preview-title">مشاوره هوش مصنوعی فورزا</span>
-            <Bot size={23} />
-          </header>
-          <div className="sp-forza-contact__preview-bubble sp-forza-contact__preview-bubble--assistant">
-            <span className="sp-forza-contact__preview-robot"><Bot size={19}/></span>
-            سلام! من فورزا هستم، دستیار هوشمند صنعت پیش.
-          </div>
-          <div className="sp-forza-contact__preview-bubble sp-forza-contact__preview-bubble--user">
-            می‌توانم برای انتخاب و شناسایی قطعات صنعتی کمکتان کنم.
-          </div>
-        </div>
         <section
           className="sp-forza-contact__sheet sp-forza-contact__sheet--reference"
           role="dialog"

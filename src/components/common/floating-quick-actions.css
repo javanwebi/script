@@ -59,8 +59,8 @@
   .storefront .store-ai-quick-actions > .store-help-launcher { transition: none; }
 }
 
-/* FORZA mobile consultation is a real half-height bottom sheet, as in the reference.
-   The chat preview above it is decorative; the swipe opens the real /ai-consult page. */
+/* FORZA mobile consultation is a real half-height bottom sheet.
+   The separate decorative chat preview was removed; swipe opens the real /ai-consult page. */
 @media (max-width: 1023px) {
   body.sanat-forza-contact-open .storefront .store-bottom-nav,
   body.sanat-forza-contact-open .storefront .store-ai-quick-actions { visibility:hidden; }
@@ -68,35 +68,6 @@
     position:fixed; inset:0; z-index:130;
     background:rgba(32,39,49,.34);
     backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
-  }
-  .sp-forza-contact__chat-preview {
-    position:fixed; z-index:131;
-    top:env(safe-area-inset-top); inset-inline:0;
-    width:min(100%,520px); margin-inline:auto; overflow:hidden;
-    padding:22px 22px 0; color:#242c36;
-    pointer-events:none;
-  }
-  .sp-forza-contact__preview-header {
-    display:flex; align-items:center; justify-content:space-between;
-    min-height:44px; font-size:15px; font-weight:850;
-  }
-  .sp-forza-contact__preview-header svg { color:#e06518; }
-  .sp-forza-contact__preview-bubble {
-    display:flex; align-items:center; gap:9px; width:fit-content; max-width:87%;
-    padding:13px 14px; margin-top:12px;
-    background:#edf0f4e0; color:#404b58;
-    border:1px solid #ffffff91;
-    box-shadow:0 4px 15px #0d162110; border-radius:20px;
-    font-size:12px; line-height:1.9;
-  }
-  .sp-forza-contact__preview-bubble--user {
-    margin-inline-start:auto;
-    background:#f5f5f7dc; text-align:right;
-  }
-  .sp-forza-contact__preview-robot {
-    flex:0 0 30px; height:30px; border-radius:50%;
-    display:grid; place-items:center; color:#f68632;
-    background:#21384a;
   }
   .sp-forza-contact__sheet {
     position:fixed; z-index:132; inset-inline:0; bottom:0;
