@@ -184,7 +184,7 @@ export const ClientsAdminModule: React.FC = () => {
 
   // Reset to default Iranian industrial giants
   const handleResetDefaults = () => {
-    if (confirm('آیا مایلید لیست مشتریان را به نمونه‌های پیش‌فرض بازنشانی کنید؟')) {
+    if (confirm('هشدار: این کار لوگوهای سفارشی و ترتیب ذخیره‌شده مشتریان را با فهرست نمونه جایگزین می‌کند. آیا مطمئن هستید؟')) {
       clientService.resetToDefaults();
       refreshList();
       showToast('لیست مشتریان به حالت اولیه بازنشانی شد');
@@ -213,7 +213,7 @@ export const ClientsAdminModule: React.FC = () => {
             <div>
               <h1 className="text-xl font-black text-[#55565A]">مدیریت لوگوی مشتریان ما</h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                مدیریت لوگوهای ثابت مشتریان در صفحه اصلی؛ افزودن، ویرایش، ترتیب نمایش و فعال‌سازی
+                مدیریت تمام لوگوهای مشتریان در اسلایدر صفحه اصلی؛ افزودن، ویرایش، ترتیب نمایش و فعال‌سازی
               </p>
             </div>
           </div>
@@ -248,7 +248,7 @@ export const ClientsAdminModule: React.FC = () => {
             نمایش لوگوهای مشتریان در صفحه اصلی:
           </p>
           <p>
-            لوگوها به‌صورت <strong>ثابت و بدون حرکت خودکار</strong> نمایش داده می‌شوند. در موبایل و صفحه‌های کوچک می‌توان ردیف لوگوها را به‌صورت افقی پیمایش کرد.
+            لوگوهای فعال <strong>هر ۳٫۲ ثانیه یک‌بار ورق می‌خورند</strong> و با قرارگرفتن نشانگر ماوس روی بخش مشتریان، حرکت موقتاً متوقف می‌شود. تمام لوگوهای فعال به‌ترتیب ثبت‌شده نمایش داده می‌شوند.
             (تعداد کل مشتریان: {toPersianDigits(clients.length)} | فعال در صفحه اصلی: {toPersianDigits(activeCount)})
           </p>
         </div>
