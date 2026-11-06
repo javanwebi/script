@@ -7391,22 +7391,45 @@ function setupGeminiLiveWebSocket(server: http.Server) {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on('upgrade', (request, socket, head) => {
+    // Every upgrade socket must be accepted or explicitly closed. Leaving
+    // unrelated upgrade paths unhandled can accumulate CLOSE-WAIT sockets.
+    socket.on('error', () => socket.destroy());
+
+    const rejectUpgrade = (status: number, message: string) => {
+      if (socket.destroyed) return;
+      socket.end(
+        `HTTP/1.1 ${status} ${message}\r\n` +
+          'Connection: close\r\n' +
+          'Content-Length: 0\r\n\r\n'
+      );
+    };
+
+    let url: URL;
     try {
-      const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
-      if (url.pathname === '/api/live' || url.pathname === '/live') {
-        // Browser-origin check prevents cross-site WebSocket hijacking.
-        const origin = request.headers.origin;
-        if (origin && new URL(origin).host !== request.headers.host) {
-          socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
-          socket.destroy();
-          return;
-        }
-        wss.handleUpgrade(request, socket, head, (ws) => {
-          wss.emit('connection', ws, request);
-        });
-      }
+      url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
     } catch {
-      // Ignore non-matching upgrade requests (e.g. Vite HMR)
+      rejectUpgrade(400, 'Bad Request');
+      return;
+    }
+
+    if (url.pathname !== '/api/live' && url.pathname !== '/live') {
+      rejectUpgrade(404, 'Not Found');
+      return;
+    }
+
+    try {
+      // Browser-origin check prevents cross-site WebSocket hijacking.
+      const origin = request.headers.origin;
+      if (origin && new URL(origin).host !== request.headers.host) {
+        rejectUpgrade(403, 'Forbidden');
+        return;
+      }
+
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } catch {
+      socket.destroy();
     }
   });
 
