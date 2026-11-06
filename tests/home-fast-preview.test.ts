@@ -81,7 +81,7 @@ test('first paint prefetches SQL-light categories and small product previews',()
  const clientsIndex=homePage.indexOf('<OurClientsSection />');
  const productsIndex=homePage.indexOf('<HighUtilityProductsSection />');
  const categoriesIndex=homePage.indexOf('<HomeCategoryStrip />');
- assert.ok(clientsIndex>=0 && clientsIndex<productsIndex && productsIndex<categoriesIndex,
-   'Client logos and compact product cards must precede the category strip');
+ assert.ok(categoriesIndex>=0 && categoriesIndex<clientsIndex && clientsIndex<productsIndex,
+   'Home sequence must be categories, client logos, compact utility products');
  assert.match(server,/app\.get\('\x2fapi\x2fcatalog\x2fhome-preview',publicHomePreviewApi\)/);
 });
