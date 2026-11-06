@@ -254,6 +254,7 @@ export function IndustryPage() {
           ))}
         </div>
       </section>
+      <CompanyJourneyNav current="industry-detail" />
     </div>
   );
 }
@@ -284,6 +285,7 @@ export function IndustriesPage() {
           </Link>
         ))}
       </div>
+      <CompanyJourneyNav current="industries" />
     </div>
   );
 }
@@ -413,6 +415,7 @@ export function BrandsPage() {
           موجودی و شرایط تأمین هر کد را در پنل خود بررسی کنید.
         </div>
       </section>
+      <CompanyJourneyNav current="brands" />
     </div>
   );
 }
