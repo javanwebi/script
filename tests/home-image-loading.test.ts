@@ -16,11 +16,26 @@ test('marketing photograph imports use generated WebP derivatives',()=>{
  assert.ok(optim.includes('only.includes(e.name)'));
 });
 
-test('desktop hero requests only its visible slide and mobile uses the optimized dedicated banner',()=>{
+test('desktop hero remains image-prioritized and mobile hero is a large four-slide image carousel with embedded copy and two CTAs',()=>{
  const hero=read('src/pages/HomePage.tsx');
  assert.ok(!hero.includes('backgroundImage: `url(${slide.image})`'));
  assert.equal(hero.split('src={isActive ? slide.image : undefined}').length-1,1);
- assert.ok(hero.includes('sanatpish-mobile-hero.webp'));
+ assert.ok(hero.includes('const mobileHeroSlides = ['));
+ assert.ok(hero.includes('STORE_ASSETS.heroPulley'));
+ assert.ok(hero.includes('STORE_ASSETS.heroSteelCoils'));
+ assert.ok(hero.includes('STORE_ASSETS.whySanatExpressDelivery'));
+ assert.ok(hero.includes('STORE_ASSETS.whySanatCadEngineering'));
+ assert.ok(hero.includes('setMobileHeroSlideIndex'));
+ assert.ok(hero.includes('mobile-home-hero'));
+ assert.ok(hero.includes('aria-label="بنرهای اسلایدی صفحه اصلی"'));
+ assert.ok(hero.includes('توقف خط تولید، هرگز!'));
+ assert.ok(hero.includes('ارسال فوری در کمتر از ۲۴ ساعت'));
+ assert.ok(hero.includes('پیگیری سفارش'));
+ assert.ok(hero.includes('ساخت قطعات کمیاب'));
+ assert.ok(hero.includes('شناسایی قطعه با هوش مصنوعی'));
+ assert.ok(hero.includes('تماس با واحد فروش فوری'));
+ assert.equal((hero.match(/className="mobile-hero-action /g)||[]).length,2);
+ assert.ok(!hero.includes('sanatpish-mobile-hero.webp'));
  assert.ok(hero.includes('loading="eager"'));
  assert.ok(hero.includes('fetchPriority={isActive ? "high" : "low"}'));
 });
