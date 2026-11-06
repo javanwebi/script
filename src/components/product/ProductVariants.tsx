@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { ProductVariant, ProductGalleryImage } from "../../types";
 import { normalizeCatalogueText } from "../../data/userProducts";
 import { toPersianDigits } from "../../utils/formatters";
 import { ProductImage } from "./ProductImage";
+import { Modal } from "../ui/Modal";
 import { Check, Image as ImageIcon } from "lucide-react";
 
 export interface ProductVariantsProps {
@@ -22,6 +23,15 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
 }) => {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [imagePreview, setImagePreview] = useState<{
+    code: string; name: string; src: string | null; familyReference: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!imagePreview) return;
+    document.body.classList.add("sanat-product-image-preview-open");
+    return () => document.body.classList.remove("sanat-product-image-preview-open");
+  }, [imagePreview]);
 
   const results = useMemo(
     () =>
@@ -43,6 +53,18 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
       .map((img) => img.url);
     if (fromGallery.length > 0) return fromGallery;
     return variant.images || [];
+  };
+
+  const openVariantImagePreview = (variant: ProductVariant) => {
+    const exactImages = getVariantLinkedImages(variant);
+    const familyImage = galleryImages.find(img => img.scope === "family")?.url || null;
+    onSelect(variant.code);
+    setImagePreview({
+      code: variant.code,
+      name: variant.name,
+      src: exactImages[0] || familyImage,
+      familyReference: exactImages.length === 0 && Boolean(familyImage),
+    });
   };
 
   return (
@@ -115,7 +137,17 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
                     className="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap"
                     dir="ltr"
                   >
-                    {v.code}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openVariantImagePreview(v);
+                      }}
+                      className="rounded-md text-[#C65A16] underline decoration-dotted underline-offset-4 hover:text-[#9F4310] focus-visible:outline-2 focus-visible:outline-[#E06518] focus-visible:outline-offset-2"
+                      aria-label={`نمایش تصویر کد کالا ${v.code}`}
+                    >
+                      {v.code}
+                    </button>
                     {v.active === false && (
                       <span className="block text-[10px] font-sans text-rose-600">
                         غیرفعال موقت
@@ -240,6 +272,39 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
             بعدی
           </button>
         </div>
+      )}
+      {imagePreview && (
+        <Modal
+          isOpen={Boolean(imagePreview)}
+          onClose={() => setImagePreview(null)}
+          title={`تصویر کد کالا: ${imagePreview.code}`}
+          maxWidth="lg"
+        >
+          <div className="space-y-3">
+            <div className="grid min-h-[220px] max-h-[66dvh] place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              {imagePreview.src ? (
+                <ProductImage
+                  src={imagePreview.src}
+                  alt={`تصویر ${imagePreview.name} با کد ${imagePreview.code}`}
+                  className="max-h-[62dvh] w-full object-contain"
+                />
+              ) : (
+                <div className="px-5 py-12 text-center text-sm text-slate-500">
+                  برای این کد کالا هنوز تصویری در کاتالوگ ثبت نشده است.
+                </div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-black text-slate-800">{imagePreview.name}</p>
+              <p className="font-mono text-xs text-slate-500" dir="ltr">{imagePreview.code}</p>
+              {imagePreview.familyReference && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
+                  تصویر اختصاصی این کد ثبت نشده است؛ تصویر نمایش‌داده‌شده مرجع عمومی خانواده محصول است.
+                </p>
+              )}
+            </div>
+          </div>
+        </Modal>
       )}
     </section>
   );

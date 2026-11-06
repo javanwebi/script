@@ -10,7 +10,9 @@ export const AuthModal: React.FC = () => {
       ref.current?.showModal();
       const old = document.body.style.overflow;
       document.body.style.overflow = "hidden";
+      document.body.classList.add("sanat-auth-dialog-open");
       return () => {
+        document.body.classList.remove("sanat-auth-dialog-open");
         document.body.style.overflow = old;
         ref.current?.close();
       };

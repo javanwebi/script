@@ -562,221 +562,43 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* ================================================================= */}
-          {/* MOBILE VIEW (< lg): HIGH-CLARITY DEDICATED BANNER CARD & STACK    */}
-          {/* ================================================================= */}
-          <div className="lg:hidden space-y-4">
-            {/* 1. Dedicated High-Resolution Banner Container (100% VISIBLE & CLEAR) */}
-            <div className="relative aspect-[16/10] sm:aspect-[16/9] min-h-[200px] sm:min-h-[250px] max-h-[270px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-900 shrink-0">
-              {heroSlides.map((slide, idx) => {
-                const isActive = idx === heroSlideIndex;
-                return (
-                  <img
-                    key={slide.id}
-                    src={isActive ? slide.image : undefined}
-                    alt={slide.titlePart1}
-                    loading={isActive ? "eager" : "lazy"}
-                    fetchPriority={isActive ? "high" : "low"}
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 ${
-                      isActive
-                        ? "opacity-100 scale-100 z-10"
-                        : "opacity-0 scale-95 z-0 pointer-events-none"
-                    }`}
-                  />
-                );
-              })}
-
-              {/* Natural subtle gradient so HUD elements pop cleanly while image stays clear and vivid */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/15 pointer-events-none z-20" />
-
-              {/* Floating Top Category Pill */}
-              <div className="absolute top-3 right-3 z-30">
-                <span className="px-3 py-1 rounded-full bg-[#E06518] text-white text-[11px] font-bold shadow-md">
-                  {heroSlides[heroSlideIndex].tag}
-                </span>
-              </div>
-
-              {/* Floating Slide Counter Pill */}
-              <div className="absolute top-3 left-3 z-30">
-                <span className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white font-mono text-[10px] font-bold border border-white/15">
-                  0{heroSlideIndex + 1} / 0{heroSlides.length}
-                </span>
-              </div>
-
-              {/* Mobile Hero Side Arrow Buttons (Right & Left on edges of image) */}
-              <button
-                type="button"
-                onClick={handlePrevSlide}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/60 hover:bg-[#E06518] border border-white/25 text-white flex items-center justify-center backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-md"
-                aria-label="اسلاید قبلی"
-              >
-                <ChevronRight className="w-4 h-4 text-white" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNextSlide}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/60 hover:bg-[#E06518] border border-white/25 text-white flex items-center justify-center backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-md"
-                aria-label="اسلاید بعدی"
-              >
-                <ChevronLeft className="w-4 h-4 text-white" />
-              </button>
-
-              {/* Bottom Glass Overlay on Mobile Banner */}
-              <div className="absolute bottom-2.5 right-3 left-3 z-30 flex items-center justify-between bg-[#55565A]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15">
-                <span className="text-[11px] font-bold text-white truncate">
-                  {heroSlides[heroSlideIndex].badge.title}
-                </span>
-                <span className="text-[10px] font-mono text-orange-400 font-bold shrink-0">
-                  {heroSlides[heroSlideIndex].statsBadge.value}
-                </span>
-              </div>
+          {/* Mobile: one purpose-built industrial banner, followed by direct page entry points. */}
+          <div className="lg:hidden space-y-3.5" dir="rtl">
+            <div className="relative w-full aspect-[2.74/1] min-h-[126px] max-h-[190px] rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-[#24282E]">
+              <img
+                src="/images/sanatpish-mobile-hero.webp"
+                alt="توقف خط تولید هرگز؛ تأمین سریع قطعات صنعتی صنعت پیش"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                width={560}
+                height={204}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
             </div>
 
-            {/* 2. Mobile Text & Information Block (Clean Light UI for Mobile) */}
-            <div
-              key={`mobile-content-${heroSlideIndex}`}
-              className="space-y-2.5 text-right pt-1 animate-in fade-in duration-300"
-            >
-              {/* Eyebrow */}
-              <div className="flex items-center gap-1.5 justify-start text-[11px] font-bold text-[#E06518]">
-                <span className="w-2 h-2 rounded-full bg-[#E06518] animate-pulse" />
-                <span className="line-clamp-1">
-                  {heroSlides[heroSlideIndex].eyebrow}
-                </span>
-              </div>
-
-              {/* Main Headline */}
-              <h1 className="text-xl sm:text-2xl font-black text-[#55565A] leading-snug">
-                <span>{heroSlides[heroSlideIndex].titlePart1} </span>
-                <span className="text-[#E06518]">
-                  {heroSlides[heroSlideIndex].titlePart2}
-                </span>
-              </h1>
-
-              {/* Description */}
-              <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                {heroSlides[heroSlideIndex].description}
-              </p>
-
-              {/* Action Buttons Full Width on Mobile */}
-              <div className="pt-2 flex flex-col sm:flex-row items-stretch gap-2">
-                {/* Primary Button */}
-                {heroSlides[heroSlideIndex].primaryBtn.link ? (
-                  <Link
-                    to={heroSlides[heroSlideIndex].primaryBtn.link!}
-                    className="h-11 px-6 bg-gradient-to-r from-[#C95210] to-[#E06518] hover:from-[#C2410C] hover:to-[#C95210] text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                  >
-                    <span>{heroSlides[heroSlideIndex].primaryBtn.text}</span>
-                    <ArrowLeft className="w-4 h-4" />
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (
-                        heroSlides[heroSlideIndex].primaryBtn.action ===
-                        "visualSearch"
-                      ) {
-                        setIsVisualSearchOpen(true);
-                      } else if (
-                        heroSlides[heroSlideIndex].primaryBtn.action ===
-                        "consult"
-                      ) {
-                        navigate("/ai-consult");
-                      }
-                    }}
-                    className="h-11 px-6 bg-gradient-to-r from-[#C95210] to-[#E06518] hover:from-[#C2410C] hover:to-[#C95210] text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>{heroSlides[heroSlideIndex].primaryBtn.text}</span>
-                  </button>
-                )}
-
-                {/* Secondary Button */}
-                {heroSlides[heroSlideIndex].secondaryBtn.link ? (
-                  <Link
-                    to={heroSlides[heroSlideIndex].secondaryBtn.link!}
-                    className="h-11 px-5 bg-white border border-slate-200 text-[#55565A] hover:bg-slate-50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-2xs"
-                  >
-                    <span>{heroSlides[heroSlideIndex].secondaryBtn.text}</span>
-                    <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (
-                        heroSlides[heroSlideIndex].secondaryBtn.action ===
-                        "consult"
-                      ) {
-                        navigate("/ai-consult");
-                      } else if (
-                        heroSlides[heroSlideIndex].secondaryBtn.action ===
-                        "visualSearch"
-                      ) {
-                        setIsVisualSearchOpen(true);
-                      }
-                    }}
-                    className="h-11 px-5 bg-white border border-slate-200 text-[#55565A] hover:bg-slate-50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-2xs"
-                  >
-                    <span>{heroSlides[heroSlideIndex].secondaryBtn.text}</span>
-                    <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-                  </button>
-                )}
-              </div>
-
-              {/* Slide Progress Dots on Mobile */}
-              <div className="pt-2 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  {heroSlides.map((slide, idx) => {
-                    const isActive = idx === heroSlideIndex;
-                    return (
-                      <button
-                        key={slide.id}
-                        type="button"
-                        onClick={() => setHeroSlideIndex(idx)}
-                        className={`relative h-1.5 rounded-full transition-all overflow-hidden ${
-                          isActive ? "w-6 bg-orange-500/30" : "w-2 bg-slate-300"
-                        }`}
-                        aria-label={`اسلاید ${idx + 1}`}
-                      >
-                        {isActive && (
-                          <div
-                            key={`progress-mobile-${idx}-${heroSlideIndex}`}
-                            className="absolute inset-0 bg-[#E06518] rounded-full"
-                            style={{
-                              animation: "heroProgress 5s linear forwards",
-                            }}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={handlePrevSlide}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-[#E06518] hover:text-white border border-slate-200 text-slate-700 flex items-center justify-center transition-colors active:scale-90 cursor-pointer"
-                    aria-label="اسلاید قبلی"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNextSlide}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-[#E06518] hover:text-white border border-slate-200 text-slate-700 flex items-center justify-center transition-colors active:scale-90 cursor-pointer"
-                    aria-label="اسلاید بعدی"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <nav className="grid grid-cols-2 gap-2" aria-label="ورود سریع به بخش‌های صنعت پیش">
+              <Link to="/products" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Package size={20} strokeWidth={1.8}/></span>
+                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">کاتالوگ محصولات</span>
+                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
+              </Link>
+              <Link to="/categories" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Layers size={20} strokeWidth={1.8}/></span>
+                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">دسته‌بندی قطعات</span>
+                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
+              </Link>
+              <Link to="/ai-consult" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><Headphones size={20} strokeWidth={1.8}/></span>
+                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">میزکار FORZA</span>
+                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
+              </Link>
+              <Link to="/consumer-dashboard" className="min-h-[58px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(28,35,45,.05)] flex items-center gap-2.5 active:scale-[.98] transition">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#E06518]"><ShieldCheck size={20} strokeWidth={1.8}/></span>
+                <span className="min-w-0 flex-1 text-xs font-black text-[#343A42]">پنل مشتریان</span>
+                <ChevronLeft size={16} className="shrink-0 text-slate-400"/>
+              </Link>
+            </nav>
           </div>
         </div>
 

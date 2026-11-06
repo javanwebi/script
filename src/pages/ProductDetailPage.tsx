@@ -136,6 +136,12 @@ export const ProductDetailPage: React.FC = () => {
     "specs" | "catalogue" | "delivery"
   >("specs");
 
+  useEffect(() => {
+    if (!isInquiryModalOpen) return;
+    document.body.classList.add("sanat-product-inquiry-open");
+    return () => document.body.classList.remove("sanat-product-inquiry-open");
+  }, [isInquiryModalOpen]);
+
   // Fetch the full technical report only for the SKU shown in the specs tab.
   // Catalog listing/search never needs thousands of these large reports.
   const [lazyReviews, setLazyReviews] = useState<Record<string, TechnicalReview | null>>({});
