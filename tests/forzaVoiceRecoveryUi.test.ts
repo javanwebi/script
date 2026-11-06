@@ -84,3 +84,73 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
   assert.match(stop,/localSttFinalRef\.current=''/);
   assert.match(stop,/return;/);
 });
+
+test('SSE model/provider failure cannot trigger another long complete-text request',()=>{
+  assert.match(ui,/let allowLegacyFallback=false/);
+  assert.match(ui,/allowLegacyFallback=streamRes\.status===404\|\|streamRes\.status===405/);
+  assert.match(ui,/if\(!allowLegacyFallback\)\{/);
+  assert.match(ui,/phase=failed_no_chained_model_retry/);
+});
+
+test('new private Nima phrase metadata reaches Node and returns measurable ordering wait',()=>{
+  assert.match(ui,/phraseIndex\?:number/);
+  assert.match(ui,/body:JSON\.stringify\(\{text,turnId,\.\.\.\(phraseIndex!==undefined/);
+  assert.match(ui,/X-Forza-Order-Wait-Ms/);
+  assert.match(ui,/synthesize:\(phrase,signal,index\)=>requestPocketAudio/);
+});
+
+test('no unplayed phrase text appears in interrupted conversation memory',()=>{
+  assert.doesNotMatch(ui,/عبارت «'\+partial\.text/);
+  assert.match(ui,/واژه‌های شنیده‌شده نامعلوم‌اند/);
+  assert.match(ui,/phase=latency_missing reason=/);
+  assert.match(ui,/missing=1 reason=no_acoustic_end_estimate/);
+  assert.match(ui,/elapsedMonotonic=1/);
+});
+
+test('Worker fallback metadata is not falsely labelled working realtime STT',()=>{
+  const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+  assert.match(backend,/serverStreamingStt:false/);
+  assert.match(backend,/workerSttCandidate:Boolean\(configuredForzaWorkerUrl\(\)\)/);
+  assert.match(ui,/info\.workerSttCandidate===true/);
+  assert.match(ui,/serverSttConfiguredRef\.current=info\.serverSttConfigured\|\|/);
+});
+
+test('real errors persist in compact status while the next customer turn can retry',()=>{
+  assert.match(ui,/setVoiceStage\('error'\)/);
+  assert.match(ui,/setVoiceStage\(previous=>previous==='error'\?'error':'idle'\)/);
+  assert.match(ui,/voiceStage === 'error'/);
+  assert.match(ui,/خطا در پاسخ؛ می‌توانید دوباره صحبت کنید/);
+  assert.match(ui,/setVoiceStage\('text'\)/);
+});
+
+test('each listening period starts a fresh acoustic clock and muted audio is excluded from P95',()=>{
+  assert.match(ui,/detectedSpeechEndAtRef\.current=0;\s+sttFinalAtRef\.current=0/);
+  assert.match(ui,/missing=1 reason=speaker_muted/);
+  assert.match(ui,/stage==='playback_started'&&!speakerMutedRef\.current/);
+});
+
+test('raw LLM and private TTS exception bodies cannot reach diagnostic console output',()=>{
+  assert.match(ui,/turn_unexpected_error/);
+  assert.match(ui,/tts_unexpected_error/);
+  assert.doesNotMatch(ui,/Conversational turn failed:', err\?\.message/);
+  assert.doesNotMatch(ui,/stage=turn-failed code='\+\s+String\(error\?\.message/);
+});
+
+test('one opaque turn key joins browser SSE, speech synthesis and interruption traces',()=>{
+  assert.match(ui,/const turnKey='call-'\+callIdRef\.current\+'-turn-'\+generation/);
+  assert.match(ui,/userTurnId:turnKey/);
+  assert.match(ui,/turnKey,index\)/);
+  assert.match(ui,/phase=customer-interrupt turn='\+'call-'\+callIdRef\.current/);
+  assert.match(ui,/phase=phrase_wav_ready index=/);
+});
+
+test('Gemini and Worker speech fallback cancel upstream work on browser close',()=>{
+  const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+  assert.match(backend,/sttResult=await withForzaSttDeadline\(signal=>/);
+  assert.match(backend,/config:\{abortSignal:signal\}/);
+  assert.match(backend,/req\.once\('aborted',onSttDisconnect\)/);
+  assert.match(backend,/req\.once\('aborted',onWorkerSttDisconnect\)/);
+  assert.match(backend,/res\.once\('close',onWorkerSttDisconnect\)/);
+  assert.match(backend,/if\(req\.aborted\|\|res\.destroyed\)return/);
+});
+

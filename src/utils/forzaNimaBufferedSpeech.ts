@@ -26,7 +26,7 @@ interface NimaPhraseTask {
 }
 
 export interface ForzaNimaBufferedOptions {
-  synthesize: (text: string, signal?: AbortSignal) => Promise<Uint8Array>;
+  synthesize: (text: string, signal?: AbortSignal, phraseIndex?: number) => Promise<Uint8Array>;
   player: ForzaWavScheduler;
   signal?: AbortSignal;
   maxConcurrent?: number;
@@ -131,7 +131,7 @@ export class ForzaNimaBufferedSpeech {
         .then(() => {
           if (this.options.signal?.aborted || this.cancelled)
             throw new Error('forza_nima_aborted');
-          return this.options.synthesize(task.text, this.options.signal);
+          return this.options.synthesize(task.text, this.options.signal, task.index);
         })
         .then(wav => {
           if (this.cancelled || this.options.signal?.aborted) {

@@ -71,3 +71,18 @@ test('decimal dimensions and negative technical values survive plain-text displa
   assert.equal(forzaSpokenPlainText('ابعاد 100×200 و 3.25×20'),
     'ابعاد 100 در 200 و 3.25 در بیست');
 });
+
+test('split image marker never exposes stray Markdown exclamation or raw URL',()=>{
+  const raw='این تصویر ![بلبرینگ C3](https://example.com/6202ZZ) است.';
+  const views=chunks(raw);
+  assert.ok(views.every(s=>!s.includes('![')&&!s.includes('https://')));
+  assert.equal(views.at(-1),'این تصویر بلبرینگ C3 است.');
+  assert.equal(new ForzaCallPlainText().complete('سلام!'),'سلام!');
+});
+
+test('incomplete chunk markers and part numbers remain safe for Nima speech',()=>{
+  const raw='## مشخصات\n- ابعاد ۱۰*۲۰ و کد 6202ZZ و SPA 1250';
+  const frames=chunks(raw);
+  assert.ok(frames.every(s=>!/[#*`]/.test(s)));
+  assert.equal(frames.at(-1),'مشخصات ابعاد ۱۰×۲۰ و کد 6202ZZ و SPA 1250');
+});

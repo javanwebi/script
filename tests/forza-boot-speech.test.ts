@@ -19,7 +19,9 @@ test('FORZA renders live words but requests only one original Pocket WAV per com
   assert.match(frontend,/setAiText\(reply\)/);
   assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
+  // Legacy Pocket path remains one WAV; Nima adds phrase index without
+  // changing the original Pocket contract.
+  assert.match(frontend,/body:JSON\.stringify\(\{text,turnId,\.\.\.\(phraseIndex!==undefined/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
   assert.match(frontend,/phase=whole-pocket-wav-ready/);

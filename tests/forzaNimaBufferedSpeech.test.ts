@@ -141,3 +141,24 @@ test('interruption does not mark a cancelled queued WAV as heard',async()=>{
   await flush();
   assert.deepEqual(played,[]);
 });
+ 
+test('Nima propagates phrase indices through concurrent synth requests unchanged',async()=>{
+  const started:Array<{index:number|undefined;text:string}>=[];
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async(text,_signal,index)=>{
+      started.push({index,text});
+      return pcm(2);
+    },
+    player:{enqueueWav:async()=>{}},
+    maxConcurrent:2,
+  });
+  engine.add('سلام');
+  engine.add('بلبرینگ 6203ZZ');
+  engine.add('لقی C3');
+  await engine.finish();
+  assert.deepEqual(started,[
+    {index:0,text:'سلام'},
+    {index:1,text:'بلبرینگ 6203ZZ'},
+    {index:2,text:'لقی C3'},
+  ]);
+});
