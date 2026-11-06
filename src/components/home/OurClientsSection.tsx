@@ -40,7 +40,7 @@ export const OurClientsSection: React.FC = () => {
 
       {clients.length > 0 ? (
         <div
-          className="max-w-7xl mx-auto px-4 sm:px-8 overflow-x-auto overscroll-x-contain"
+          className="max-w-7xl mx-auto px-4 sm:px-8 overflow-x-auto overscroll-x-contain scrollbar-none"
           aria-label="لوگوهای مشتریان؛ برای دیدن بقیه به صورت افقی پیمایش کنید"
           tabIndex={0}
         >
@@ -48,7 +48,7 @@ export const OurClientsSection: React.FC = () => {
             {clients.map(client => (
               <div
                 key={client.id}
-                className="w-[138px] sm:w-[168px] lg:w-[185px] shrink-0 flex items-center justify-center p-3 h-24 sm:h-28 rounded-xl border border-slate-100 bg-white"
+                className="w-[138px] sm:w-[168px] lg:w-[185px] shrink-0 flex items-center justify-center px-3 sm:px-5 h-24 sm:h-28 bg-white"
                 title={client.name}
               >
                 <img
