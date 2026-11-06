@@ -13,6 +13,8 @@ export type BaiConsultOptions = {
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
   firstTokenTimeoutMs?: number;
+  /** Maximum time without upstream bytes after the response stream opens. */
+  streamIdleTimeoutMs?: number;
   onDelta: (delta: string, textSoFar: string) => void;
 };
 
@@ -54,10 +56,14 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   const {
     apiKey, model, query, history = [], catalogContext = '',
     voice = false, signal, fetchImpl = fetch, onDelta, firstTokenTimeoutMs,
+    streamIdleTimeoutMs,
   } = options;
   const started = Date.now();
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
   const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
+  // Free-gateway streams can emit a few chunks and then stall until the much
+  // longer overall deadline. Bound inter-read silence without changing B.AI.
+  const idleBudgetMs = streamIdleTimeoutMs ?? (isXkiro ? 15000 : budgets.totalMs);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), budgets.totalMs);
   let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
@@ -176,7 +182,22 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     reader = response.body.getReader();
     let buffer = '';
     while (!finished) {
-      const { value, done } = await reader.read();
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      let readResult: ReadableStreamReadResult<Uint8Array>;
+      try {
+        readResult = await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            idleTimer = setTimeout(
+              () => reject(new BaiConsultError('provider_stream_idle_timeout')),
+              idleBudgetMs,
+            );
+          }),
+        ]);
+      } finally {
+        if (idleTimer) clearTimeout(idleTimer);
+      }
+      const { value, done } = readResult;
       if (done) break;
       // Do not normalize CRLF separately in each network chunk: a provider
       // can split the \r and \n bytes across reads, leaving `\r\n\r\n`
@@ -205,10 +226,22 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   } catch (error) {
     // The consumer sees the already delivered delta(s); the SSE route must
     // finish with an error rather than claiming that partial text is final.
-    if (error instanceof BaiConsultError) throw error;
-    if (signal?.aborted) throw new BaiConsultError('client_aborted');
-    if (controller.signal.aborted) throw new BaiConsultError('upstream_timeout');
-    throw new BaiConsultError('upstream_network_error');
+    const normalized = error instanceof BaiConsultError
+      ? error
+      : signal?.aborted
+        ? new BaiConsultError('client_aborted')
+        : controller.signal.aborted
+          ? new BaiConsultError('upstream_timeout')
+          : new BaiConsultError('upstream_network_error');
+    if (normalized.code !== 'client_aborted') {
+      console.warn('[FORZA_TEXT_STREAM_FAILURE] model=' + model +
+        ' first_ms=' + firstTokenMs +
+        ' last_ms=' + lastTokenMs +
+        ' elapsed_ms=' + (Date.now() - started) +
+        ' partial=' + (textSoFar.length > 0 ? '1' : '0') +
+        ' code=' + normalized.code);
+    }
+    throw normalized;
   } finally {
     clearTimeout(timeout);
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
