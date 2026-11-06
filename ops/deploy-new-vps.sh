@@ -97,24 +97,25 @@ grep -Fq 'displayProducts.map(product' "$STAGE/src/components/home/HighUtilityPr
  || { echo HOME_LAYOUT_FIX_NOT_PRESENT;exit 1; }
 
 docker inspect "$OLD" > "$TMP/inspect.json"
-python3 - "$TMP/inspect.json" "$TMP/env" "$TMP/mounts" <<'PY'
+# Validate mount compatibility before building. Environment entries may
+# legitimately contain newlines (e.g. PEM/JSON) and cannot be written to
+# Docker's line-based --env-file format. Preserve them in inspect.json only.
+python3 - "$TMP/inspect.json" <<'PY'
 import json,os,sys
 data=json.load(open(sys.argv[1]))[0]
-envfile,mountfile=sys.argv[2:]
-with open(envfile,'w') as out:
- for item in data['Config']['Env']:
-  if '\n' in item or '\r' in item:raise SystemExit('UNSUPPORTED_MULTILINE_ENV')
-  out.write(item+'\n')
 mounts=data['Mounts']
-if not any(m['Destination']=='/app' for m in mounts):raise SystemExit('ORIGINAL_APP_MOUNT_MISSING')
-with open(mountfile,'wb') as out:
- for m in mounts:
-  if m['Destination']=='/app':continue
-  if m['Type']!='bind' or not os.path.exists(m['Source']):raise SystemExit('UNSUPPORTED_MOUNT '+m['Destination'])
-  for item in ['-v',m['Source']+':'+m['Destination']+(':rw' if m['RW'] else ':ro')]:
-   out.write(item.encode()+b'\0')
+if not any(m['Destination']=='/app' for m in mounts):
+ raise SystemExit('ORIGINAL_APP_MOUNT_MISSING')
+for m in mounts:
+ if m['Destination']=='/app':continue
+ if m['Type']!='bind' or not os.path.exists(m['Source']):
+  raise SystemExit('UNSUPPORTED_MOUNT '+m['Destination'])
+env=data['Config']['Env']
+if not all('=' in x for x in env):
+ raise SystemExit('INVALID_CONTAINER_ENV')
+print('CONTAINER_CONFIGURATION_VERIFIED mounts='+str(len(mounts))+
+      ' env_keys='+str(len(env)))
 PY
-mapfile -d '' -t MOUNTS < "$TMP/mounts"
 NETWORK=$(docker inspect "$OLD" --format '{{range $k,$v := .NetworkSettings.Networks}}{{println $k}}{{end}}' | head -1)
 test -n "$NETWORK"
 
@@ -126,12 +127,42 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=4 --memory=6g \
 test -s "$STAGE/dist/index.html"
 
 echo "===== START CANDIDATE ON $NEXT ====="
-docker run -d --name "$NAME" --restart unless-stopped \
- --network "$NETWORK" -w /app --cpus=3 --memory=5g \
- -p "127.0.0.1:$NEXT:3000" --env-file "$TMP/env" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 \
- -e "SANATPISH_RELEASE_SHA=$SHA" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
- -v "$STAGE:/app:rw" "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts >/dev/null
+# Pass environment variable NAMES as Docker -e KEY and provide their full
+# unmodified values through docker CLI's own environment. This supports
+# embedded newlines without putting secrets into argv or the console.
+python3 - "$TMP/inspect.json" "$NAME" "$NETWORK" "$NEXT" "$STAGE" "$SHA" <<'PY'
+import json,os,subprocess,sys,shutil
+inspect_path,name,network,port,stage,sha=sys.argv[1:]
+data=json.load(open(inspect_path))[0]
+docker_bin=shutil.which('docker')
+if not docker_bin:raise SystemExit('DOCKER_NOT_FOUND')
+env=dict(os.environ)
+keys=[]
+for entry in data['Config']['Env']:
+ key,sep,val=entry.partition('=')
+ if not sep or not key or '\0' in val:raise SystemExit('INVALID_ENV_ENTRY')
+ env[key]=val
+ keys.append(key)
+args=[docker_bin,'run','-d','--name',name,'--restart','unless-stopped',
+      '--network',network,'-w','/app','--cpus=3','--memory=5g',
+      '-p',f'127.0.0.1:{port}:3000']
+for key in keys:args.extend(['-e',key])
+args.extend(['-e','PORT=3000','-e','SANATPISH_SERVE_DIST=1',
+             '-e',f'SANATPISH_RELEASE_SHA={sha}',
+             '-e','CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false',
+             '-v',f'{stage}:/app:rw'])
+for mount in data['Mounts']:
+ if mount['Destination']=='/app':continue
+ args.extend(['-v',f"{mount['Source']}:{mount['Destination']}:{'rw' if mount['RW'] else 'ro'}"])
+args.extend(['node:22-bookworm','node','--import','tsx','server.ts'])
+result=subprocess.run(args,env=env,capture_output=True,text=True)
+if result.returncode:
+ # Do not print raw exception messages that might echo private values.
+ print('CANDIDATE_DOCKER_RUN_FAILED exit_code='+str(result.returncode),
+       file=sys.stderr)
+ raise SystemExit(result.returncode)
+print('CANDIDATE_CONTAINER_CREATED')
+PY
 STARTED=1
 READY=0
 for i in $(seq 1 60); do
