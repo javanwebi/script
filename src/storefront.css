@@ -4136,6 +4136,9 @@ select {
   body.sanat-visual-search-open .store-header,
   body.sanat-visual-search-open .store-bottom-nav,
   body.sanat-visual-search-open .store-ai-quick-actions,
+  body.sanat-product-detail-open .store-ai-quick-actions {
+    inset-block-end: calc(164px + env(safe-area-inset-bottom));
+  }
   body.sanat-product-inquiry-open .store-bottom-nav,
   body.sanat-product-inquiry-open .store-ai-quick-actions,
   body.sanat-product-image-preview-open .store-bottom-nav,

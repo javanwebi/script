@@ -137,6 +137,11 @@ export const ProductDetailPage: React.FC = () => {
   >("specs");
 
   useEffect(() => {
+    document.body.classList.add("sanat-product-detail-open");
+    return () => document.body.classList.remove("sanat-product-detail-open");
+  }, []);
+
+  useEffect(() => {
     if (!isInquiryModalOpen) return;
     document.body.classList.add("sanat-product-inquiry-open");
     return () => document.body.classList.remove("sanat-product-inquiry-open");

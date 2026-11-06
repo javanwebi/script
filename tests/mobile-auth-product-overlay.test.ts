@@ -14,6 +14,7 @@ test("mobile auth and visual search suppress floating navigation", () => {
   assert.match(visual, /sanat-visual-search-open/);
   assert.match(css, /body\.sanat-auth-dialog-open \.store-ai-quick-actions/);
   assert.match(css, /body\.sanat-visual-search-open \.store-bottom-nav/);
+  assert.match(css, /body\.sanat-product-detail-open \.store-ai-quick-actions/);
 });
 
 test("mobile hero removes the under-banner marketing copy and provides direct page links", () => {

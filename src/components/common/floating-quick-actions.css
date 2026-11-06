@@ -59,8 +59,8 @@
   .storefront .store-ai-quick-actions > .store-help-launcher { transition: none; }
 }
 
-/* FORZA mobile consultation is a real half-height bottom sheet, as in the reference.
-   The chat preview above it is decorative; the swipe opens the real /ai-consult page. */
+/* FORZA mobile consultation is a real half-height bottom sheet.
+   The separate decorative chat preview was removed; swipe opens the real /ai-consult page. */
 @media (max-width: 1023px) {
   body.sanat-forza-contact-open .storefront .store-bottom-nav,
   body.sanat-forza-contact-open .storefront .store-ai-quick-actions { visibility:hidden; }
