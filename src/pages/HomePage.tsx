@@ -36,6 +36,7 @@ import {
   Play,
   Mouse,
   Clock,
+  Layers,
   Package,
   Settings,
   Building2,
