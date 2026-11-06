@@ -786,100 +786,115 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
     </div>
   );
 }
+function CompanyJourneyNav({ current }: { current: string }) {
+  const items = [
+    { id: "about", label: "درباره صنعت پیش", to: "/about" },
+    { id: "industries", label: "صنایع تحت پوشش", to: "/industries" },
+    { id: "brands", label: "برندها", to: "/brands" },
+    { id: "products", label: "کاتالوگ محصولات", to: "/products" },
+    { id: "forza", label: "مشاوره FORZA", to: "/ai-consult" },
+    { id: "contact", label: "ارتباط با ما", to: "/contact" },
+  ];
+  return (
+    <nav className="company-journey-nav editorial-wrap" aria-label="مسیرهای مرتبط صنعت پیش">
+      <span>مسیرهای مرتبط</span>
+      <div>{items.filter((item) => item.id !== current).map((item) => (
+        <Link to={item.to} key={item.id}>{item.label}<ArrowUpLeft size={14} /></Link>
+      ))}</div>
+    </nav>
+  );
+}
+
 export function AboutPage() {
   useEffect(() => title("درباره صنعت پیش"), []);
   return (
-    <div className="editorial">
-      <section id="about-hero" className="about-hero editorial-wrap editorial-split">
-        <div>
-          <span className="store-eyebrow">صنعت پیش · بازرگانی تسمه اطلس</span>
-          <h1>
-            با صنعت پیش،
-            <br />
-            <em>هوشمندانه پیش بروید.</em>
-          </h1>
+    <div className="editorial company-profile-page">
+      <nav className="company-profile-breadcrumb editorial-wrap" aria-label="مسیر صفحه">
+        <Link to="/">صفحه اصلی</Link><span>/</span><span aria-current="page">درباره صنعت پیش</span>
+      </nav>
+
+      <section id="about-hero" className="company-profile-hero editorial-wrap">
+        <div className="company-profile-hero-copy">
+          <span className="store-eyebrow">صنعت پیش | پیش به صنعت</span>
+          <h1>از شناخت نیاز تا<br /><em>تأمین راهکار صنعتی</em></h1>
           <p>
-            همراه شما در انتخاب، تأمین و بررسی ساخت قطعات صنعتی؛ با ترکیب تجربه
-            فنی، کاتالوگ قابل جستجو و ابزارهای هوشمند.
+            صنعت پیش با پشتوانه تجربه بازرگانی تسمه اطلس از سال ۱۳۶۶، در مسیر
+            تأمین قطعات و تجهیزات صنعتی همراه فروشگاه‌ها، کارگاه‌ها و واحدهای
+            تولیدی است. تمرکز ما بر شناخت کاربرد، بررسی مشخصات فنی و فراهم‌کردن
+            مسیر روشن‌تری برای انتخاب، تهیه و پیگیری قطعه است.
           </p>
           <div className="editorial-actions">
-            <Link to="/products" className="store-btn-primary">
-              کاوش محصولات <ArrowLeft size={17} />
-            </Link>
-            <Link to="/contact" className="store-btn-secondary">
-              ارتباط با ما <Phone size={17} />
-            </Link>
+            <Link to="/products" className="store-btn-primary">مشاهده کاتالوگ محصولات <ArrowLeft size={17} /></Link>
+            <Link to="/contact" className="store-btn-secondary">ارتباط با کارشناسان <Phone size={17} /></Link>
           </div>
         </div>
-        <img src={A.whySanatDirectFactory} alt="تجهیزات و فضای صنعتی" />
+        <figure className="company-profile-photo">
+          <img src={A.whySanatDirectFactory} alt="فضای صنعتی و تجهیزات خطوط تولید" fetchPriority="high" />
+          <figcaption>تأمین و همراهی فنی در مسیر حرکت خطوط تولید</figcaption>
+        </figure>
       </section>
-      <section className="industry-check-band" id="capabilities">
+
+      <section id="company-story" className="company-profile-story editorial-wrap">
+        <div>
+          <span className="store-eyebrow">نگاهی به مسیر صنعت پیش</span>
+          <h2>تجربه صنعتی، در خدمت انتخاب و تأمین دقیق‌تر</h2>
+        </div>
+        <div className="company-profile-story-copy">
+          <p>
+            فعالیت این مجموعه با تجربه بازرگانی تسمه اطلس آغاز شد و در ادامه،
+            شناخت نیازهای متنوع صنایع و خطوط تولید، مسیر توسعه خدمات را شکل داد.
+            امروز صنعت پیش تلاش می‌کند محصولات و راهکارهای متناسب با کاربرد
+            مشتریان را با اطلاعات روشن‌تر و همراهی فنی در دسترس قرار دهد.
+          </p>
+          <p>
+            از بررسی کد و مشخصات قطعات انتقال قدرت تا پیگیری تأمین تجهیزات و
+            بررسی امکان ساخت قطعات خاص، هدف ایجاد ارتباطی پیوسته میان نیاز
+            مشتری و راه‌حل مناسب است. ابزارهای هوشمند FORZA نیز برای کمک به
+            جستجو، شناسایی اولیه و مشاوره فنی در همین مسیر قرار گرفته‌اند.
+          </p>
+        </div>
+      </section>
+
+      <section id="company-approach" className="company-profile-approach">
         <div className="editorial-wrap">
-          <SectionHeading
-            eyebrow="چه کاری برای شما انجام می‌دهیم؟"
-            title="یک مسیر پیوسته؛ از نیاز تا پیگیری"
-          />
-          <div className="about-capabilities">
-            {[
-              [
-                "تأمین قطعات",
-                "خانواده‌ها، سایزها و کدهای کالا را در کاتالوگ بررسی کنید.",
-                "/products",
-              ],
-              [
-                "بررسی ساخت",
-                "نمونه، نقشه و شرایط کار را برای بررسی امکان ساخت ارائه کنید.",
-                "/contact",
-              ],
-              [
-                "راهنمایی هوشمند",
-                "پرسش فنی و شناسایی اولیه با تصویر را در میزکار FORZA تجربه کنید.",
-                "/ai-consult",
-              ],
-              [
-                "خرید و پیگیری",
-                "قیمت، موجودی و استعلام را پس از ورود در پنل خود دنبال کنید.",
-                "/register",
-              ],
-            ].map(([h, p, to], i) => (
-              <Link to={to} key={h}>
-                <span>۰{i + 1}</span>
-                <h3>{h}</h3>
-                <p>{p}</p>
-                <ArrowUpLeft size={19} />
-              </Link>
-            ))}
+          <SectionHeading eyebrow="مسیر همکاری با صنعت پیش" title="یک مسیر روشن؛ از نیاز تا پیگیری"
+            text="برای هر نیاز، از مسیر متناسب شروع کنید و در ادامه به کاتالوگ، بررسی فنی یا ارتباط با کارشناسان برسید." />
+          <div className="company-approach-steps">
+            <Link to="/products"><span>۰۱</span><div><h3>جستجو و انتخاب قطعه</h3><p>کد، خانواده و مشخصات کالا را در کاتالوگ بررسی کنید.</p></div><ArrowUpLeft size={19} /></Link>
+            <Link to="/ai-consult"><span>۰۲</span><div><h3>بررسی و مشاوره فنی</h3><p>برای شناسایی اولیه یا بررسی کاربرد قطعه از FORZA کمک بگیرید.</p></div><ArrowUpLeft size={19} /></Link>
+            <Link to="/contact"><span>۰۳</span><div><h3>استعلام و پیگیری</h3><p>برای تأمین یا بررسی ساخت قطعات خاص با کارشناسان در ارتباط باشید.</p></div><ArrowUpLeft size={19} /></Link>
           </div>
         </div>
       </section>
-      <section id="about-principles" className="editorial-wrap editorial-split">
-        <SectionHeading
-          eyebrow="انتخاب بدون ابهام"
-          title="مشخصات روشن، تصمیم آگاهانه"
-          text="تصویر و کد هر قطعه را کنار هم بررسی کنید. مشخصات نامشخص، قیمت اعلام‌نشده یا موجودی تأییدنشده را با اطلاعات واقعی تکمیل می‌کنیم؛ تأیید نهایی با بررسی کد و شرایط کار انجام می‌شود."
-        />
-        <div className="about-principles">
-          <p>
-            <Check size={19} />
-            کد، تصویر و مشخصات هر کالا در کنار هم
-          </p>
-          <p>
-            <Check size={19} />
-            نمایش قیمت و موجودی در حساب کاربری
-          </p>
-          <p>
-            <Check size={19} />
-            استعلام برای اطلاعات نیازمند بررسی
-          </p>
-          <p>
-            <Check size={19} />
-            همراهی ابزار هوشمند و ارتباط مستقیم
-          </p>
+
+      <section id="company-industries" className="company-profile-industries editorial-wrap">
+        <SectionHeading eyebrow="حوزه‌های فعالیت" title="از کاربرد خط تولید شروع کنید"
+          text="صفحه هر صنعت را ببینید و از آنجا به گروه‌های قطعه و اطلاعات فنی مرتبط برسید." />
+        <div className="company-industry-grid">
+          {INDUSTRIES.map((industry) => (
+            <Link to={`/industries/${industry.slug}`} key={industry.slug}>
+              <img src={industry.image} alt={industry.title} loading="lazy" />
+              <span><small>{industry.eyebrow}</small><strong>{industry.title}</strong><ArrowUpLeft size={17} /></span>
+            </Link>
+          ))}
+        </div>
+        <Link to="/industries" className="company-profile-all-link">مشاهده همه صنایع تحت پوشش <ArrowLeft size={17} /></Link>
+      </section>
+
+      <section className="company-profile-next">
+        <div className="editorial-wrap">
+          <div><span>گام بعدی</span><h2>برای نیاز بعدی خط تولیدتان، از مسیر مناسب شروع کنید.</h2>
+            <p>کاتالوگ، برندها و ابزارهای مشاوره در صفحات مرتبط در دسترس‌اند و هر مسیر به بخش بعدی متصل است.</p>
+          </div>
+          <div className="company-profile-next-links">
+            <Link to="/brands">برندهای همکار <ArrowUpLeft size={16} /></Link>
+            <Link to="/products">کاتالوگ قطعات <ArrowUpLeft size={16} /></Link>
+            <Link to="/ai-consult">میزکار FORZA <ArrowUpLeft size={16} /></Link>
+            <Link to="/contact">تماس با صنعت پیش <ArrowUpLeft size={16} /></Link>
+          </div>
         </div>
       </section>
-      <section id="about-map" className="editorial-wrap">
-        <MapCard />
-      </section>
+      <CompanyJourneyNav current="about" />
     </div>
   );
 }
