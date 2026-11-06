@@ -27,9 +27,10 @@ from pathlib import Path
 import re,sys
 ports=[]
 for file in sys.argv[1:]:
- matches=re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(30\d{2});',Path(file).read_text())
- if len(matches)!=1:raise SystemExit('UNEXPECTED_UPSTREAM '+file+' '+str(matches))
- ports.append(matches[0])
+ matches=set(re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(30\d{2});',Path(file).read_text()))
+ if not matches:raise SystemExit('NO_APP_UPSTREAM '+file)
+ if len(matches)!=1:raise SystemExit('MIXED_UPSTREAMS '+file+' '+str(sorted(matches)))
+ ports.append(next(iter(matches)))
 if len(set(ports))!=1:raise SystemExit('UPSTREAMS_DIFFER '+str(ports))
 print(ports[0])
 PY
@@ -192,13 +193,22 @@ cp -p "$IP" "$BACKUP/ip"
 SWITCHED=1
 python3 - "$ACTIVE" "$NEXT" "$SSL" "$HTTP" "$IP" <<'PY'
 from pathlib import Path
-import sys
+import re,sys
 old,new,*files=sys.argv[1:]
 needle=f'proxy_pass http://127.0.0.1:{old};'
 replacement=f'proxy_pass http://127.0.0.1:{new};'
 texts={p:Path(p).read_text() for p in files}
-if any(text.count(needle)!=1 for text in texts.values()):raise SystemExit('NGINX_PRECONDITION_CHANGED')
-for p,text in texts.items():Path(p).write_text(text.replace(needle,replacement))
+# Each vhost may intentionally contain several locations (runtime, AI, WS,
+# storefront). They must all target the same active app before any write.
+for p,text in texts.items():
+ matches=set(re.findall(r'proxy_pass\s+http://127\.0\.0\.1:(30\d{2});',text))
+ if not matches or matches!={old} or text.count(needle)<1:
+  raise SystemExit('NGINX_PRECONDITION_CHANGED '+p+' '+str(sorted(matches)))
+# Preflight every file before changing any of them; replace every app route,
+# preserving location blocks, methods, WebSocket headers and security guards.
+for p,text in texts.items():
+ Path(p).write_text(text.replace(needle,replacement))
+ print('NGINX_UPSTREAMS_UPDATED',p,'count='+str(text.count(needle)))
 PY
 nginx -t
 systemctl reload nginx
