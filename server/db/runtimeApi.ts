@@ -26,7 +26,7 @@ export function invalidatePublicCatalogCache(){
 export function primePublicCatalogCache(products:unknown){
  publicCatalogGeneration++;
  publicCatalogInFlight=undefined;
- publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:publicCatalog(products)};
+ publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:compactCatalogReviews(publicCatalog(products))};
 }
 const PUBLIC_DOCUMENT_TTL_MS=60000;
 const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
@@ -48,8 +48,8 @@ async function publicProductsCached():Promise<unknown>{
  if(publicCatalogCache && Date.now()<publicCatalogCache.expires)return publicCatalogCache.value;
  if(!publicCatalogInFlight){
   const generation=publicCatalogGeneration;
-  const task=readProducts().then(products=>{
-    const value=publicCatalog(products);
+  const task=readProducts({includeTechnicalReviews:false}).then(products=>{
+    const value=compactCatalogReviews(publicCatalog(products));
     if(generation===publicCatalogGeneration)
       publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
     return value;
@@ -76,7 +76,21 @@ export async function publicVariantReviewApi(req:Request,res:Response){
  const code=String(req.params.code||'').trim();
  if(!code || code.length>180)return res.status(400).json({success:false});
  try{
-  const catalog=await publicProductsCached();
+  if(adoptedSchema()){
+   const result=await database().query(
+    `select v.code,v.technical_review
+       from public.catalog_variants v
+       join public.catalog_families f on f.code=v.family_code
+      where lower(v.code)=lower($1) and v.active=true
+        and f.is_active=true and not f.is_deleted
+      limit 1`,
+    [code]
+   );
+   const variant=result.rows[0];
+   if(!variant)return res.status(404).json({success:false});
+   return res.json({success:true,code:variant.code,technicalReview:variant.technical_review??null});
+  }
+  const catalog=await readProducts();
   if(!Array.isArray(catalog))return res.status(503).json({success:false});
   for(const family of catalog as Array<{active?:boolean;variants?:Array<{code?:string;active?:boolean;technicalReview?:unknown}>}>){
    if(family.active===false)continue;
@@ -130,14 +144,14 @@ export async function runtimeApi(req:Request,res:Response){
    let visibleProducts:unknown=[];
    if(includeProducts){
     const products=identity.staff
-     ? (canStaff(identity,'products')?await readProducts():[])
+     ? (canStaff(identity,'products')?await readProducts({includeTechnicalReviews:false}):[])
      : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
-     const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
+     const data=await readAdoptedProducts(client,{includeTechnicalReviews:false});await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
      const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
      const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
      for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
      return data;
-    }):await readProducts();
+    }):await readProducts({includeTechnicalReviews:false});
     visibleProducts=identity.staff && !canStaff(identity,'products','prices')
      ? publicCatalog(products)
      : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
