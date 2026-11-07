@@ -61,6 +61,7 @@ test('admin portal hydration overlaps portal and runtime requests and skips cata
   assert.match(source,/Promise\.all\(\[/);
   assert.match(source,/portalRequest\(\),\s*runtimeHydration/);
   assert.match(source,/isAdminRoute \|\| databaseStorageEnabled\(\)/);
+  assert.match(source,/runtimeState\?\.database!==true/);
   assert.ok(source.includes('const isAdminRoute=/^'));
   assert.ok(source.includes('const includeProducts=!isAdminRoute;'));
   assert.ok(source.includes('admin(?:'));
