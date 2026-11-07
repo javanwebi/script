@@ -78,7 +78,7 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   if(analysis.isComplete&&analysis.confidence>=0.9)
     return hasInterim?420:300;
   if(analysis.isComplete)return hasInterim?520:400;
-  return hasInterim?800:650;
+  return hasInterim?850:750;
 }
 
 /**
