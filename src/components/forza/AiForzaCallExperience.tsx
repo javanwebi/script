@@ -363,7 +363,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttModelRef.current=model;
       attachLocalStt();
       setLocalSttStatus('ready');
-      if((!recognitionRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
+      if((!recognitionRef.current||recognitionFailedRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
          greetingFinishedRef.current&&!micMutedRef.current){
         preferLocalSttRef.current=true;
         try{recognitionRef.current?.abort();}catch{}
