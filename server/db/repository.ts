@@ -58,8 +58,8 @@ export async function writePortal(db:PortalDatabase,expected:number,persistAccou
  if(!adoptedSchema())for(const [key,value] of Object.entries(db.otp || {}))await client.query('insert into app_private.legacy_otp(id,payload) values($1,$2) on conflict(id) do update set payload=excluded.payload',[key,JSON.stringify(value)]);
  db.revision=Number(row.revision);
  });}
-export async function readProducts(){
- if(adoptedSchema())return readAdoptedProducts(database());
+export async function readProducts(options:{includeTechnicalReviews?:boolean}={}){
+ if(adoptedSchema())return readAdoptedProducts(database(),options);
  const result=await database().query(`select f.payload,coalesce((select jsonb_agg(v.payload || jsonb_build_object('stock',s.quantity-s.reserved,'stockKnown',s.known,'prices',coalesce((select jsonb_object_agg(p.price_list_code,p.amount) from public.sku_prices p where p.variant_code=v.code),'{}'::jsonb)) order by v.code) from public.product_variants v join public.inventory_balances s on s.variant_code=v.code where v.family_code=f.code and v.active),'[]'::jsonb) as variants from public.product_families f where f.active order by f.code`);
  return result.rows.map(row=>({...row.payload,variants:row.variants}));
 }
