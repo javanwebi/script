@@ -177,7 +177,7 @@ test('xKiro completes immediately on finish_reason stop even when gateway withho
     start(controller) {
       controller.enqueue(new TextEncoder().encode(
         'data: {"choices":[{"delta":{"content":"تسمه برای انتقال نیرو استفاده می‌شود."}}]}\\n\\n'.replaceAll('\\n','\n')+
-        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n'.replaceAll('\\n','\n')
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
       ));
       // Intentional: gateway keeps its socket open indefinitely.
     },
