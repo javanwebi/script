@@ -1,6 +1,14 @@
 FROM python:3.11-slim-bookworm
 WORKDIR /service
-RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng && rm -rf /var/lib/apt/lists/*
+# Some VPS networks time out on Debian's HTTP CDN. Keep official repositories,
+# use verified HTTPS, and fail on incomplete package indexes with bounded retries.
+RUN set -eu; \
+    for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do \
+      if [ -f "$source" ]; then sed -i 's#http://deb.debian.org#https://deb.debian.org#g' "$source"; fi; \
+    done; \
+    apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 -o APT::Update::Error-Mode=any update; \
+    DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng; \
+    rm -rf /var/lib/apt/lists/*
 ENV OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false
 RUN pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 COPY requirements.txt .

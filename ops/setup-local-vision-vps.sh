@@ -11,7 +11,7 @@ if [[ $# -gt 0 ]]; then
  [[ $# == 2 && "$1" == '--app' && "$2" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$ ]] || { echo 'Usage: setup-local-vision-vps.sh [--app container-name]'; exit 1; }
  APP_CONTAINER="$2"
 fi
-docker build -t "$IMAGE" "$ROOT/services/local-vision"
+docker build --progress=plain -t "$IMAGE" "$ROOT/services/local-vision"
 # Generate a private service credential automatically; no external service/account is involved.
 if [[ ! -e "$CONFIG" ]]; then
  python3 - "$CONFIG" <<'PY'
