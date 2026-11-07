@@ -327,7 +327,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
-    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
+    if (callClosedRef.current || !isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
         (!monitorOnly && (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current))) {
       return;
     }
@@ -392,7 +392,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(localSttLoadRef.current)return localSttLoadRef.current;
     setLocalSttStatus('loading');
     const load=loadDibaSttModel().then(model=>{
-      if(callClosedRef.current)return false;
+      if(callClosedRef.current){disposeDibaSttModel(model);return false;}
       localSttModelRef.current=model;
       attachLocalStt();
       setLocalSttStatus('ready');
@@ -406,6 +406,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       return true;
     }).catch(error=>{
+      if(callClosedRef.current)return false;
       setLocalSttStatus('fallback');
       console.warn('[FORZA Diba] fallback_unavailable type='+
         String((error as any)?.name||'load_error').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40));
@@ -418,6 +419,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[attachLocalStt,startDibaTurn,startListening]);
 
   const startVoiceInput=useCallback(()=>{
+    if(callClosedRef.current)return;
     const browserUnavailable=!recognitionRef.current||recognitionFailedRef.current||
       webSpeechFailedRef.current||preferLocalSttRef.current;
     if(browserUnavailable&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
