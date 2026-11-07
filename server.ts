@@ -56,7 +56,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
+import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
