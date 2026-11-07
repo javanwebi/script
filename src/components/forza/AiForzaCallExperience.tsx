@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {
   PhoneOff,
   Volume2,
@@ -26,7 +26,7 @@ import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
 import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechText';
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
 import { forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
-import { AiVisualPartSearchModal } from '../search/AiVisualPartSearchModal';
+const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 
 interface AiForzaCallExperienceProps {
   onClose?: () => void;
@@ -211,6 +211,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const microphoneGenerationRef = useRef(0);
 
   const setStatus = useCallback((s: ForzaStatus) => {
     statusRef.current = s;
@@ -290,7 +291,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
-    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
+    if (callClosedRef.current || !isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
         (!monitorOnly && (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current))) {
       return;
     }
@@ -560,6 +561,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [isCallActive]);
 
   const ensureCtx = useCallback(() => {
+    if(callClosedRef.current)return null;
     if (!ctxRef.current) {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
       if (AC) {
@@ -637,6 +639,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Preserve the pre-recorded greeting and manual playback fallback.
   // Some browsers reject a valid Piper WAV in HTMLAudioElement but can decode it.
   const playDataUrl = useCallback((url: string): Promise<void> => new Promise((resolve,reject) => {
+    if(callClosedRef.current)return reject(new Error('forza_call_closed'));
     if (!url) return reject(new Error('audio_missing'));
     stopAudio();
     let audio = audioElRef.current;
@@ -1612,6 +1615,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
+    if(callClosedRef.current)return;
+    const microphoneGeneration=++microphoneGenerationRef.current;
     setMicrophoneError(null);
     try {
       if (!window.isSecureContext) throw new Error('insecure_origin');
@@ -1623,6 +1628,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
       }});
+      if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
+        stream.getTracks().forEach(track=>track.stop());
+        return;
+      }
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=stream;
       micContextWarningRef.current=false;
@@ -1653,6 +1662,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       recognitionRef.current=initSpeechRecognition();
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
+      if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current)return;
       setMicrophoneError(error?.message==='insecure_origin'
         ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
         : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
@@ -1740,27 +1750,61 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[particlesFormed]);
 
-  const endCall = useCallback(() => {
-    callClosedRef.current = true;
-    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
+  // One teardown for explicit hangup AND route changes, including exit before
+  // the particle formation/greeting effect has ever acquired its cleanup.
+  const releaseCallResources = useCallback(() => {
+    callClosedRef.current=true;
+    ++microphoneGenerationRef.current;
+    micAutoStartedRef.current=false;
     activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
     activeTurnRef.current=null;
+    if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current=null;
+    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
+    recognitionRetryTimerRef.current=null;
+    const recognition=recognitionRef.current;
+    recognitionRef.current=null;
+    if(recognition){
+      recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
+      try{recognition.abort();}catch{}
+    }
+    isRecognitionActiveRef.current=false;
+    const recorder=mediaRecorderRef.current;
+    mediaRecorderRef.current=null;
+    if(recorder){
+      recorder.ondataavailable=null;recorder.onstop=null;recorder.onerror=null;
+      try{if(recorder.state!=='inactive')recorder.stop();}catch{}
+    }
+    const stream=streamRef.current;
+    streamRef.current=null;
+    stream?.getTracks().forEach(track=>{track.onended=null;track.stop();});
+    localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
+    for(const node of [localSttNodeRef.current,localSttSinkRef.current,
+      micSourceNodeRef.current,micAnalyserRef.current,audioSourceNodeRef.current,
+      analyserRef.current,gainNodeRef.current]){
+      try{node?.disconnect();}catch{}
+    }
+    localSttNodeRef.current=null;localSttSinkRef.current=null;
+    micSourceNodeRef.current=null;micAnalyserRef.current=null;
+    audioSourceNodeRef.current=null;analyserRef.current=null;gainNodeRef.current=null;
+    if(animFrameAudioRef.current!==null)cancelAnimationFrame(animFrameAudioRef.current);
+    animFrameAudioRef.current=null;
+    stopAudio();
+    const context=ctxRef.current;
+    ctxRef.current=null;
+    if(context && context.state!=='closed')void context.close().catch(()=>{});
     historyRef.current=[];
     audioChunksRef.current=[];
-    stopAudio();
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* noop */
-      }
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-    }
+    isProcessingTurnRef.current=false;
+  },[stopAudio]);
+
+  useEffect(()=>()=>releaseCallResources(),[releaseCallResources]);
+
+  const endCall = useCallback(() => {
+    releaseCallResources();
     setIsCallActive(false);
-    if (onClose) onClose();
-  }, [onClose, stopAudio]);
+    onClose?.();
+  }, [onClose,releaseCallResources]);
 
   const submitUserText = (text: string) => {
     if (!greetingFinishedRef.current || !text.trim()) return false;
@@ -2191,7 +2235,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </button>
     </div>
       )}
-      {showImageSearch && <AiVisualPartSearchModal isOpen onClose={() => setShowImageSearch(false)} />}
+      {showImageSearch && <Suspense fallback={<div role="status" dir="rtl">در حال آماده‌سازی جستجوی تصویر…</div>}><AiVisualPartSearchModal isOpen onClose={() => setShowImageSearch(false)} /></Suspense>}
     </main>
   );
 };

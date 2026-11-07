@@ -564,6 +564,10 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       return () => {
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', resize);
+        glowPts.geometry.dispose();
+        sharpPts.geometry.dispose();
+        eg.dispose();
+        scene.clear();
         renderer.dispose();
         glowMat.dispose();
         sharpMat.dispose();
