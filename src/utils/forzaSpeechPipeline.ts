@@ -74,11 +74,11 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
     return hasInterim?1350:1100;
   // Keep incomplete thoughts safe without making customers wait 2.0–2.4s.
   // Barge-in remains enabled if a customer continues after dispatch.
-  if(analysis.isMidThought)return hasInterim?950:850;
+  if(analysis.isMidThought)return hasInterim?850:700;
   if(analysis.isComplete&&analysis.confidence>=0.9)
-    return hasInterim?520:360;
-  if(analysis.isComplete)return hasInterim?650:480;
-  return hasInterim?900:720;
+    return hasInterim?420:300;
+  if(analysis.isComplete)return hasInterim?520:400;
+  return hasInterim?800:650;
 }
 
 /**
