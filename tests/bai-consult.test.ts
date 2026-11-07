@@ -291,19 +291,20 @@ test('voice Qwen request trims history and catalog payload before first token',a
 
 
 test('catalog lookup preserves exact bearing suffixes and the latest corrected SKU',()=>{
- const products:any[]=[{
-  code:'6203',name:'بلبرینگ شیار عمیق',active:true,
-  variants:[
+ const products:any[]=[
+  {code:'6202',name:'بلبرینگ 6202',active:true,variants:[{code:'6202',name:'بلبرینگ 6202'}]},
+  {code:'6203',name:'بلبرینگ شیار عمیق',active:true,variants:[
    {code:'6203',name:'بلبرینگ 6203'},
    {code:'6203ZZ',name:'بلبرینگ 6203 ZZ'},
    {code:'6203RS',name:'بلبرینگ 6203 RS'},
-  ],
- }];
+  ]},
+ ];
  const suffix=findCatalogKnowledge(products,'بلبرینگ ۶۲۰۳ زد زد');
  assert.equal(suffix.length,1);
  assert.deepEqual(suffix[0].variants.map((v:any)=>v.code),['6203ZZ']);
  const corrected=findCatalogKnowledge(products,'بلبرینگ 6202 نه 6203 ZZ');
- assert.equal(corrected.length,1);
+ assert.equal(corrected.length,1,'the rejected 6202 family must not enter exact-code context');
+ assert.equal(corrected[0].code,'6203');
  assert.deepEqual(corrected[0].variants.map((v:any)=>v.code),['6203ZZ']);
  const plain=findCatalogKnowledge(products,'بلبرینگ 6203');
  assert.deepEqual(plain[0].variants.map((v:any)=>v.code),['6203']);
