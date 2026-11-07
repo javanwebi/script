@@ -71,7 +71,7 @@ wave.write('data',36);wave.writeUInt32LE(9600,40);
     await send.click();
     await page.waitForFunction(()=>document.body.innerText.includes('لطفاً کد فنی'),{},{timeout:20000});
     await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد'),{},{timeout:30000});
-    assert.ok(streamCalls>=1,'must use direct Gemini SSE endpoint');
+    assert.ok(streamCalls>=1,'must use the direct selected-provider SSE endpoint');
     const ttsTexts=await page.evaluate(()=>window.__forzaAmirSpoken);
     assert.equal(ttsTexts.length,0,'Nima must not invoke the retired local Amir TTS');
     assert.ok(privateNimaCalls>=1,'must request selected private Piper Nima speech');
