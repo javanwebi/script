@@ -56,3 +56,19 @@ export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction
     return 'correction';
   return 'question';
 }
+
+/** Recently audible phrases only. A delayed echo can belong to the preceding
+ * phrase, not the current one. This remains a text guard, not diarization. */
+export class ForzaPlaybackEchoHistory {
+  private phrases:Array<{text:string;at:number}>=[];
+  record(text:string,now=Date.now()){
+    this.phrases=this.phrases.filter(p=>now-p.at<=2500&&p.text!==text);
+    if(text.trim())this.phrases.push({text,at:now});
+    this.phrases=this.phrases.slice(-6);
+  }
+  matches(recognized:string,now=Date.now()):boolean{
+    this.phrases=this.phrases.filter(p=>now-p.at<=2500);
+    return this.phrases.some(p=>shouldIgnoreForzaSpeakerEcho(recognized,p.text,true));
+  }
+  clear(){this.phrases=[];}
+}

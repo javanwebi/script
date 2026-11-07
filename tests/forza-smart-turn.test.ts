@@ -58,10 +58,14 @@ test('provisional WebSpeech requires more time than a stable finalized hypothesi
   assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=1800);
 });
 
-test('STT transcript revision postpones submission even when acoustic silence is long', () => {
+test('late final STT revision has a short stability guard after acoustic silence, not a second full pause', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   const pause=forzaEndOfTurnPauseMs(phrase,false);
-  assert.ok(forzaTurnRemainingWaitMs(phrase,false,100,pause+300)>=pause-100);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,100,pause+300),150);
+  assert.equal(forzaTurnRemainingWaitMs(phrase,false,250,pause+300),0);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,false,250,null)>0);
+  assert.ok(forzaTurnRemainingWaitMs('بلبرینگ 6202 نه',false,250,3000)>0);
+  assert.ok(forzaTurnRemainingWaitMs(phrase,true,250,3000)>0);
   assert.equal(forzaTurnRemainingWaitMs(phrase,false,pause+50,pause+50),0);
 });
 
