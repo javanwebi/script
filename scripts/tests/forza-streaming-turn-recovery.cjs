@@ -101,7 +101,9 @@ function silentWav(){
   failNextStream=true;
   const failedPrompt='پاسخ رایگان را آزمایش کن';
   const synthCountBeforeFailure=synthRequests.length;
-  await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').fill(failedPrompt);
+  const failedInput=page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]');
+  if(!await failedInput.isVisible())await page.getByTitle('تایپ پیام متنی').click();
+  await failedInput.fill(failedPrompt);
   const failedRequest=page.waitForRequest(request=>{
     if(!request.url().includes('/api/ai/consult-stream'))return false;
     try{return request.postDataJSON().query===failedPrompt;}catch{return false;}
