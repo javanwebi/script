@@ -8,11 +8,11 @@ test('simple Persian greetings receive a local instant reply',()=>{
   assert.match(getForzaVoiceFastReply('سلام، بلبرینگ 6202')||'',/^$/);
 });
 
-test('thanks and short conversational acknowledgements do not wait for Qwen',()=>{
+test('standalone thanks and wellbeing greetings receive an instant reply',()=>{
   assert.equal(getForzaVoiceFastReply('ممنونم'),'خواهش می‌کنم. هر زمان آماده بودید، در خدمتم.');
   assert.match(getForzaVoiceFastReply('خوبی؟')||'',/آماده‌ام کمک کنم/);
-  assert.match(getForzaVoiceFastReply('بله')||'',/گوش می‌کنم/);
-  assert.match(getForzaVoiceFastReply('باشه')||'',/گوش می‌کنم/);
+  assert.equal(getForzaVoiceFastReply('بله'),null,'yes depends on conversation history');
+  assert.equal(getForzaVoiceFastReply('باشه'),null,'okay depends on conversation history');
 });
 
 test('industrial requests and corrections always go through the technical model',()=>{
