@@ -9,7 +9,7 @@ import {getPortalIdentity} from '../../api/portal';
 import {canStaff,namespacePermission,assertStaffDocumentChange} from './staffPermissions';
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
-import {getAdminCatalogProducts,invalidateAdminCatalogCache} from './adminCatalogCache';
+import {getAdminCatalogProducts,invalidateAdminCatalogCache,primeAdminCatalogCache} from './adminCatalogCache';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
@@ -28,6 +28,7 @@ export function invalidatePublicCatalogCache(){
 export function primePublicCatalogCache(products:unknown){
  publicCatalogGeneration++;
  publicCatalogInFlight=undefined;
+ primeAdminCatalogCache(products);
  publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:compactCatalogReviews(publicCatalog(products))};
 }
 const PUBLIC_DOCUMENT_TTL_MS=60000;
