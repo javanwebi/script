@@ -57,7 +57,7 @@ async function boot(){
   // an authorized administrator opens the catalogue/import workspace.
   void refreshDurableStorage({includeProducts:!isAdminRoute}).then(state=>{
     if(!state.database)showBackendUnavailable();
-  }).catch(error=>{
+  }).catch((error: unknown)=>{
     console.error('[SanatPish] Express API unavailable; PostgreSQL product data will not be replaced with stale JSON.',error);
     showBackendUnavailable();
   });
