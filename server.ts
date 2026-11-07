@@ -59,6 +59,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {getForzaVoiceFastReply} from './server/ai/forzaVoiceFastReplies';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 
@@ -5893,13 +5894,24 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   // preprocessing or outbound model discovery, exposing their real latency.
   const catalogStartedAt=Date.now();
   const voiceQuery=String(query||'').trim();
-  const voiceSmallTalk=lowLatencyVoice&&/^(?:سلام|درود)(?:[،, ]+(?:وقت بخیر|صبح بخیر|عصر بخیر))?[.!؟\s]*$|^(?:ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)[.!؟\s]*$/u.test(voiceQuery);
-  // A greeting does not need a full 10k-SKU catalog scan before Qwen can speak.
-  const catalogContext=voiceSmallTalk?'':consultantCatalogContext(voiceQuery);
+  const voiceFastReply=lowLatencyVoice?getForzaVoiceFastReply(voiceQuery):null;
+  // Small-talk turns need neither a 10k-SKU scan nor a remote model request.
+  const catalogContext=voiceFastReply?'':consultantCatalogContext(voiceQuery);
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=catalog_ready ms='+(Date.now()-startedAt)+
     ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length+
-    ' skipped='+Number(voiceSmallTalk));
+    ' fastReply='+Number(Boolean(voiceFastReply)));
+  if(voiceFastReply){
+    sendEvent({type:'provider',responseId,provider:'local_fastpath'});
+    sendEvent({type:'text_chunk',responseId,chunk:voiceFastReply,textSoFar:voiceFastReply});
+    sendEvent({type:'done',responseId,fullText:voiceFastReply,suggestedAction:{
+      label:'مشاهده محصولات و کاتالوگ',
+      link:'/category/تسمه-و-انتقال-نیرو',
+    }});
+    console.info('[FORZA_LATENCY] phase=local_fast_reply mode=voice ms='+
+      (Date.now()-startedAt)+' chars='+voiceFastReply.length);
+    return res.end();
+  }
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
