@@ -156,6 +156,9 @@ export class ForzaIncrementalSpeechText {
     const left=text.slice(0,cut).trimEnd().split(/\s+/).pop()||'';
     const right=text.slice(cut).trimStart().split(/\s+/)[0]||'';
     if(!left||!right)return false;
+    // Keep a product noun attached to the following numeric identifier.
+    if(/^(?:بلبرینگ|یاتاقان|قطعه|کد|شماره|سایز|مدل|bearing)$/i.test(left)&&
+       /^\d{2,6}(?:\.\d{1,3})?[A-Z]{0,4}$/i.test(right))return true;
     if(/^\d{1,4}(?:\.\d{1,3})?$/.test(left)&&
        /^(?:میلی|سانتی|mm|cm|inch|in)$/i.test(right))return true;
     if(/^(?:میلی|سانتی)$/.test(left)&&/^متر$/.test(right))return true;
