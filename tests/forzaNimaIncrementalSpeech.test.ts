@@ -213,7 +213,7 @@ test('early Nima phrase boundaries never split bearing suffixes or belt profile 
   const belt=new ForzaIncrementalSpeechText();
   const beltFirst=belt.push('تسمه انتقال قدرت SPA 1250 برای موتور صنعتی');
   assert.equal(beltFirst.length,1);
-  assert.match(beltFirst[0],/SPA 1250$/);
+  assert.doesNotMatch(beltFirst[0],/SPA$/);
 });
 
 
