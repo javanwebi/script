@@ -100,8 +100,13 @@ test('admin catalogue bootstrap keeps prices and stock but defers per-SKU techni
 
 test('admin runtime defers technical reports and product editor fetches selected SKU report on demand',()=>{
   const runtime=readFileSync('server/db/runtimeApi.ts','utf8');
+  const adopted=readFileSync('server/db/adopted.ts','utf8');
   const products=readFileSync('src/admin/modules/ProductsModule.tsx','utf8');
   assert.match(runtime,/products:includeProducts\?compactCatalogReviews\(visibleProducts\):\[\]/);
+  assert.match(runtime,/readProducts\(\{includeTechnicalReviews:false\}\)/);
+  assert.match(runtime,/select v\.code,v\.technical_review/);
+  assert.match(adopted,/options:\{includeTechnicalReviews\?\:boolean\}/);
+  assert.match(adopted,/coalesce\(v\.runtime_payload,'\{\}'::jsonb\)-'technicalReview'/);
   assert.match(products,/\/api\/catalog\/variant-review\//);
   assert.match(products,/currentEditingVariant\?\.technicalReview/);
 });
