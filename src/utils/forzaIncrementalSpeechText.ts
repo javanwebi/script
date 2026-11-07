@@ -121,7 +121,7 @@ export class ForzaIncrementalSpeechText {
       return text.length;
     // Start the first Nima phrase after a short, complete word group.
     // Later phrases stay larger to avoid excess CPU jobs and audio gaps.
-    const limit = first ? 24 : 66;
+    const limit = first ? 20 : 66;
     const minWordCut = first ? 16 : 42;
     if (text.length < limit) return 0;
     // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
@@ -142,13 +142,16 @@ export class ForzaIncrementalSpeechText {
   }
 
   private isUnsafeStableTail(text:string):boolean{
-    const token=text.trim().split(/\s+/).pop()||'';
+    const parts=text.trim().split(/\s+/);
+    const token=parts.at(-1)||'';
+    const previous=parts.at(-2)||'';
+    const metric=/^(?:میلی|سانتی|متر|میلی‌متر|سانتی‌متر|mm|cm|inch|in)$/i;
+    if(metric.test(token)&&/^\d{1,3}(?:\.\d{1,3})?$/.test(previous))return true;
     return /^\d{2,5}$/.test(token)||
       /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(token)||
       /^(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|HTD|STD|AT\d{1,2}|T\d{2})$/i.test(token)||
       /^\d{1,3}M$/i.test(token);
   }
-
   private isUnsafeTechnicalBoundary(text:string,cut:number):boolean{
     const left=text.slice(0,cut).trimEnd().split(/\s+/).pop()||'';
     const right=text.slice(cut).trimStart().split(/\s+/)[0]||'';
