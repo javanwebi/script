@@ -502,7 +502,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
             ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 1000;
+            : 700;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
           const tryFinalize=()=>{
             silenceTimerRef.current=null;
