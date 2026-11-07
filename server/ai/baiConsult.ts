@@ -1,7 +1,8 @@
 /**
  * B.AI's OpenAI-compatible Chat Completions SSE bridge for FORZA.
  * This module is server-only. Never expose the API key to the browser.
- * No silent retry (which could double-bill an API call).
+ * No cross-provider or paid retry. xKiro's free path may make one bounded,
+ * same-model non-stream verification after an incomplete SSE response.
  */
 export type BaiConsultOptions = {
   apiKey: string;
@@ -44,8 +45,8 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
 
 /**
  * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
- * Keep B.AI budgets unchanged and allow xKiro enough time to deliver the
- * first chunk before falling back to a different provider.
+ * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
+ * at most one same-model, free-tier completion verification.
  */
 export function providerStreamTimeouts(provider: 'xkiro' | 'bai', voice: boolean) {
   return {
