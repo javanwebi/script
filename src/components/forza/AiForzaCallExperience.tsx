@@ -660,7 +660,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [isCallActive]);
 
   const ensureCtx = useCallback(() => {
-    if (!ctxRef.current) {
+    if (!ctxRef.current || ctxRef.current.state==='closed') {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
       if (AC) {
         ctxRef.current = new AC();
@@ -1763,6 +1763,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
+    if(callClosedRef.current)return;
     setMicrophoneError(null);
     try {
       if (!window.isSecureContext) throw new Error('insecure_origin');
@@ -1774,12 +1775,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
       }});
+      if(callClosedRef.current){stream.getTracks().forEach(track=>track.stop());return;}
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=stream;
       micContextWarningRef.current=false;
       vadRef.current.reset();
       for (const track of stream.getAudioTracks()) {
-        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
+        track.onended=()=>{if(!callClosedRef.current)setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');};
       }
       if(ctx){
         micSourceNodeRef.current?.disconnect();
@@ -1808,6 +1810,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
       if(greetingFinishedRef.current && !micMutedRef.current) startVoiceInput();
     } catch(error:any) {
+      if(callClosedRef.current)return;
       setMicrophoneError(error?.message==='insecure_origin'
         ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
         : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
