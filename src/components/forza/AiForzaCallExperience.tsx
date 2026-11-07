@@ -70,6 +70,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  const nimaAckWavRef=useRef<Uint8Array|null>(null);
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
@@ -80,6 +81,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
+          // Prefetch the same-voice acknowledgement while particles form.
+          // The worker has already synthesized it once at startup; this is
+          // a small RAM-only WAV fetch, never a per-turn TTS inference.
+          void fetch('/api/ai/forza-ack',{cache:'force-cache'})
+            .then(response=>response.ok?response.arrayBuffer():null)
+            .then(value=>{
+              if(!mounted||!value)return;
+              const wav=new Uint8Array(value);
+              if(wav.byteLength>=44&&
+                 String.fromCharCode(...wav.subarray(0,4))==='RIFF'&&
+                 String.fromCharCode(...wav.subarray(8,12))==='WAVE'){
+                nimaAckWavRef.current=wav;
+                console.info('[FORZA_NIMA_ACK] prefetched=1 bytes='+wav.byteLength);
+              }
+            }).catch(()=>{});
         }else{
           voiceModeRef.current='pocket-farsi-v2';
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
@@ -1072,6 +1088,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let playerForTurn:ForzaContinuousWav|null=null;
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
+      let acknowledgementTimer:number|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-8),
@@ -1223,6 +1240,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // never forces its own neural WAV or an avoidable gap. Stream tokens
         // to subtitles immediately and keep the Pocket fallback unchanged.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
+        let firstNimaPhraseReady=false;
+        let acknowledgementQueued=false;
         const phrasePlanner=new ForzaIncrementalSpeechText();
         const callPlainText=new ForzaCallPlainText();
         // Text updates are displayed immediately. Piper gets its first small,
@@ -1237,6 +1256,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           onPhrasePlayed:recordHeard,
           onPhraseReady:info=>{
             if(activeTurnRef.current?.generation!==generation)return;
+            if(info.index===0){
+              firstNimaPhraseReady=true;
+              if(acknowledgementTimer!==null&&!acknowledgementQueued){
+                window.clearTimeout(acknowledgementTimer);
+                acknowledgementTimer=null;
+              }
+            }
             console.info('[FORZA_TTS_STAGE] turn='+generation+
               ' phase=phrase_wav_ready index='+info.index+
               ' queueClientMs='+info.waitMs+' requestClientMs='+info.fetchMs+
@@ -1278,6 +1304,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           activeNimaBuffer.add(phrase);
         };
+        const normalizedAckQuery=resolvedUserQuery
+          .replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[،,؛;:!?؟.!]+/g,' ').replace(/\\s+/g,' ').trim();
+        const shortAckOnly=/^(?:سلام|درود|ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)(?: وقت بخیر)?$/u.test(normalizedAckQuery);
+        if(useNima&&!isSpeakerMuted&&!shortAckOnly&&normalizedAckQuery.length>=12&&nimaAckWavRef.current){
+          acknowledgementTimer=window.setTimeout(()=>{
+            acknowledgementTimer=null;
+            const wav=nimaAckWavRef.current;
+            if(!wav||firstNimaPhraseReady||acknowledgementQueued||pocketAbort.signal.aborted||
+               activeTurnRef.current?.generation!==generation||speakerMutedRef.current)return;
+            acknowledgementQueued=true;
+            console.info('[FORZA_NIMA_ACK] phase=scheduled turn='+generation+
+              ' afterEndMs='+Math.round(performance.now()-turnStartedAt));
+            void continuousPlayer.enqueueWav(wav).catch(error=>{
+              if(!pocketAbort.signal.aborted)
+                console.warn('[FORZA_NIMA_ACK] playback_unavailable type='+
+                  String((error as any)?.name||'audio_error').slice(0,40));
+            });
+          },320);
+        }
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           reply=callPlainText.push(fullText);
@@ -1450,6 +1495,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
         if(terminalIdleTimer!==null)window.clearTimeout(terminalIdleTimer);
+        if(acknowledgementTimer!==null)window.clearTimeout(acknowledgementTimer);
         bufferedNima?.cancel();
         playerForTurn?.cancel();
         if(activeTurnRef.current?.generation!==generation)return;
