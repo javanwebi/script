@@ -1305,7 +1305,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           activeNimaBuffer.add(phrase);
         };
         const normalizedAckQuery=resolvedUserQuery
-          .replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[،,؛;:!?؟.!]+/g,' ').replace(/\\s+/g,' ').trim();
+          .replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[،,؛;:!?؟.!]+/g,' ').replace(/\s+/g,' ').trim();
         const shortAckOnly=/^(?:سلام|درود|ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)(?: وقت بخیر)?$/u.test(normalizedAckQuery);
         if(useNima&&!isSpeakerMuted&&!shortAckOnly&&normalizedAckQuery.length>=12&&nimaAckWavRef.current){
           acknowledgementTimer=window.setTimeout(()=>{
