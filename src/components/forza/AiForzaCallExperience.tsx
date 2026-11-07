@@ -1439,26 +1439,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             activeTurnRef.current?.markInterrupted?.();
             throw new Error('جریان پاسخ هوش مصنوعی ناقص ماند؛ متن دریافت‌شده حفظ شد. می‌توانید سؤال را دوباره بپرسید یا ادامه دهید.');
           } else {
-          const fallbackAbort=new AbortController();
-          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);
-          let res:Response;
-          let data:any;
-          try {
-            res=await fetch('/api/ai/forza-live',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify(payload),
-              signal:AbortSignal.any([fallbackAbort.signal,pocketAbort.signal]),
-            });
-            data=await res.json().catch(()=>null);
-          } finally {
-            window.clearTimeout(fallbackTimer);
-          }
-          if (!res.ok || !data?.success) throw new Error(data?.error||'server-error');
-          const rawFallback = String(data.text||'').trim();
-          if (!rawFallback) throw new Error('forza_empty_response');
-          onTextChunk(rawFallback,rawFallback);
-          reply=callPlainText.complete(rawFallback);
+            // Do not submit a second legacy request after the selected free
+            // xKiro stream fails. That route may use a separately configured
+            // Gemini/Worker provider and can add another 15 seconds of delay.
+            // Raw-audio STT still uses /api/ai/forza-live in its dedicated path.
+            console.warn('[FORZA] stream_failed_before_first_text; legacy_model_fallback=disabled');
+            throw streamError;
           }
         }
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
