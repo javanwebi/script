@@ -705,6 +705,29 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     );
   }, [draftFamily, editingVariantCode]);
 
+  // Technical reports are deliberately excluded from the 10k-SKU bootstrap.
+  // Fetch only the selected SKU's saved report when its editor is opened.
+  useEffect(() => {
+    const code=currentEditingVariant?.code;
+    if(!isEditorOpen || !code || currentEditingVariant?.technicalReview)return;
+    let mounted=true;
+    void fetch(`/api/catalog/variant-review/${encodeURIComponent(code)}`,{
+      credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)
+    }).then(async response=>{
+      if(!response.ok)return null;
+      return response.json();
+    }).then(result=>{
+      if(!mounted || !result?.success || !result.technicalReview)return;
+      setDraftFamily(previous=>previous?{
+        ...previous,
+        variants:(previous.variants||[]).map(variant=>variant.code===code
+          ? {...variant,technicalReview:result.technicalReview}
+          : variant)
+      }:previous);
+    }).catch(()=>{});
+    return ()=>{mounted=false;};
+  },[isEditorOpen,currentEditingVariant?.code,currentEditingVariant?.technicalReview]);
+
   const technicalReview = draftFamily && currentEditingVariant ? enrichTechnicalVariant(draftFamily, currentEditingVariant).technicalReview : undefined;
 
   const downloadTechnicalAudit = () => {
