@@ -13,8 +13,8 @@ function free(id:string,pricing:Record<string,number>={input:0,output:0}){
 }
 function sse(text:string){
   return new Response(
-    'data: '+JSON.stringify({choices:[{delta:{content:text}}]})+'\\n\\n'+
-    'data: [DONE]\\n\\n',
+    'data: '+JSON.stringify({choices:[{delta:{content:text}}]})+'\n\n'+
+    'data: [DONE]\n\n',
     {status:200,headers:{'Content-Type':'text/event-stream'}},
   );
 }
@@ -43,8 +43,8 @@ test('normal xKiro stream completes from finish_reason stop without waiting for 
   const stream=new ReadableStream<Uint8Array>({
     start(c){
       c.enqueue(new TextEncoder().encode(
-        'data: '+JSON.stringify({choices:[{delta:{content:'سلام فورزا'}}]})+'\\n\\n'+
-        'data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\\n\\n'
+        'data: '+JSON.stringify({choices:[{delta:{content:'سلام فورزا'}}]})+'\n\n'+
+        'data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\n'
       ));
     },
     cancel(){cancelled=true;},
@@ -69,8 +69,8 @@ test('normal xKiro stream completes from finish_reason stop without waiting for 
 test('xKiro idle stream is verified by one non-stream request and only the missing suffix is emitted',async()=>{
   const model='vendor/idle-verified';
   let streamCalls=0,nonstreamCalls=0,cancelled=false;
-  const partial='کد نهایی: 6203 ZZ\\n';
-  const final='کد نهایی: 6203 ZZ\\nتعداد: 10 عدد';
+  const partial='کد نهایی: 6203 ZZ\n';
+  const final='کد نهایی: 6203 ZZ\nتعداد: 10 عدد';
   const fetchImpl=(async(url:string|URL|Request,init?:RequestInit)=>{
     if(String(url).endsWith('/v1/models'))return catalog([free(model)]);
     const body=JSON.parse(String(init?.body));
@@ -79,7 +79,7 @@ test('xKiro idle stream is verified by one non-stream request and only the missi
       const stream=new ReadableStream<Uint8Array>({
         start(c){
           c.enqueue(new TextEncoder().encode(
-            'data: '+JSON.stringify({choices:[{delta:{content:partial}}]})+'\\n\\n'
+            'data: '+JSON.stringify({choices:[{delta:{content:partial}}]})+'\n\n'
           ));
           // Deliberately withhold finish_reason and [DONE], matching the VPS symptom.
         },
@@ -112,7 +112,7 @@ test('xKiro does not replace already delivered speech when verified completion c
     if(String(url).endsWith('/v1/models'))return catalog([free(model)]);
     const body=JSON.parse(String(init?.body));
     if(body.stream)return new Response(
-      'data: '+JSON.stringify({choices:[{delta:{content:partial}}]})+'\\n\\n',
+      'data: '+JSON.stringify({choices:[{delta:{content:partial}}]})+'\n\n',
       {headers:{'Content-Type':'text/event-stream'}},
     );
     return completion('کد نهایی: 6203 ZZ');
