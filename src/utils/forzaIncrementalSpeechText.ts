@@ -118,8 +118,10 @@ export class ForzaIncrementalSpeechText {
         /[.!؟؛]\s*$/u.test(text) &&
         !/[0-9۰-۹]\.\s*$/u.test(text))
       return text.length;
-    const limit = first ? 38 : 66;
-    const minWordCut = first ? 22 : 42;
+    // Start the first Nima phrase after a short, complete word group.
+    // Later phrases stay larger to avoid excess CPU jobs and audio gaps.
+    const limit = first ? 24 : 66;
+    const minWordCut = first ? 16 : 42;
     if (text.length < limit) return 0;
     // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
     // to pronounce; finish() flushes the final short text at authoritative done.
