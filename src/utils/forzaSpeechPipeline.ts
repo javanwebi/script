@@ -70,7 +70,7 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   // A correction ending in "نه" or "منظورم" deserves a little more room:
   // industrial codes often arrive as "6202 نه، 6203". New acoustic speech
   // resets the VAD timer, so this is a safety window, not a fixed turn delay.
-  if(/(?:^|\\s)(?:نه|منظورم|یعنی|اصلاحش|اشتباه)$/.test(clean))
+  if(/(?:^|\s)(?:نه|منظورم|یعنی|اصلاحش|اشتباه)$/.test(clean))
     return hasInterim?1350:1100;
   // Keep incomplete thoughts safe without making customers wait 2.0–2.4s.
   // Barge-in remains enabled if a customer continues after dispatch.
