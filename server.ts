@@ -5949,10 +5949,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   if(voiceFastReply){
     sendEvent({type:'provider',responseId,provider:'local_fastpath'});
     sendEvent({type:'text_chunk',responseId,chunk:voiceFastReply,textSoFar:voiceFastReply});
-    sendEvent({type:'done',responseId,fullText:voiceFastReply,suggestedAction:{
-      label:'مشاهده محصولات و کاتالوگ',
-      link:'/category/تسمه-و-انتقال-نیرو',
-    }});
+    sendEvent({type:'done',responseId,fullText:voiceFastReply});
     console.info('[FORZA_LATENCY] phase=local_fast_reply mode=voice ms='+
       (Date.now()-startedAt)+' chars='+voiceFastReply.length);
     return res.end();
