@@ -24,13 +24,14 @@ for (const width of ports) {
  for(const title of ['داشبورد و گزارش‌ها','سفارش‌ها و لجستیک','استعلام و پیش‌فاکتور','مشتریان و CRM','اعتبار و قیمت‌ها','نمایندگی‌ها','کاتالوگ و کالاها','ورود گروهی کالا','مدیریت محتوا','اطلاعیه‌ها','مشتریان ما','تنظیمات و امنیت']){
    try{
      if(width<768)await page.locator('header button').first().click();
+     const fullCatalogResponse=title==='کاتالوگ و کالاها'
+       ? page.waitForResponse(response=>{
+           const url=new URL(response.url());
+           return url.pathname==='/api/runtime' && url.searchParams.get('includeProducts')!=='0' && response.ok();
+         },{timeout:7000})
+       : null;
      await nav.getByRole('button',{name:new RegExp(title)}).click({timeout:7000});
-     if(title==='کاتالوگ و کالاها'){
-       await page.waitForResponse(response=>{
-         const url=new URL(response.url());
-         return url.pathname==='/api/runtime' && url.searchParams.get('includeProducts')!=='0' && response.ok();
-       },{timeout:7000});
-     }
+     if(fullCatalogResponse)await fullCatalogResponse;
      await page.waitForTimeout(120);
      if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+12))problems.push(width+': horizontal overflow in '+title);
    }catch(err){problems.push(width+': '+title+': '+err.message.slice(0,160))}
