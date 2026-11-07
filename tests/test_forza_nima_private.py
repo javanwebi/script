@@ -145,6 +145,30 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertLess(promotion.index('voice_info_route_missing_after_checked_rebuild'),
                         promotion.index('docker stop -t 15 "$LIVE"'))
 
+    def test_nima_acknowledgement_is_pre_warmed_and_ram_only(self):
+        worker=(ROOT/"scripts/forza_nima_voice_http.py").read_text(encoding="utf-8")
+        backend=(ROOT/"server.ts").read_text(encoding="utf-8")
+        frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text(encoding="utf-8")
+        self.assertIn('ACK_TEXT = "متوجه شدم، بررسی می‌کنم."',worker)
+        self.assertIn('if self.path == "/ack":',worker)
+        self.assertIn('ack_wav = synthesize_request(ACK_TEXT, lambda: False)',worker)
+        self.assertIn('app.get(\'/api/ai/forza-ack\'',backend)
+        self.assertIn("getForzaNimaAck()",backend)
+        self.assertIn("fetch('/api/ai/forza-ack'",frontend)
+        self.assertIn("},320);",frontend)
+        self.assertIn("continuousPlayer.enqueueWav(wav)",frontend)
+
+    def test_all_vps_build_paths_stage_the_diba_vosk_runtime(self):
+        names=("deploy-main-bluegreen-vps.sh","deploy-single-port-vps.sh","sanatpish-deploy.sh")
+        for name in names:
+            path=ROOT/"ops"/name
+            subprocess.run(["bash","-n",str(path)],check=True,capture_output=True)
+            source=path.read_text(encoding="utf-8")
+            self.assertIn("vosk-browser@0.0.8",source,name)
+            self.assertIn("forza-runtime/stt/vosk.js",source,name)
+        bluegreen=(ROOT/"ops/deploy-main-bluegreen-vps.sh").read_text(encoding="utf-8")
+        self.assertIn('FORZA_DIBA_STT_RUNTIME_OK',bluegreen)
+
     def test_client_uses_nima_only_when_server_advertises_it(self):
         frontend=(ROOT/"src/components/forza/AiForzaCallExperience.tsx").read_text()
         backend=(ROOT/"server.ts").read_text()
