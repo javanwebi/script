@@ -1,4 +1,4 @@
-// Regression: Gemini SSE must deliver text while selected private Nima synthesizes
+// Regression: the selected free xKiro SSE must deliver text while private Nima synthesizes
 // complete ordered phrases; two consecutive turns must always release the lock.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
