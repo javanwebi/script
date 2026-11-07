@@ -8,7 +8,7 @@ export function getForzaVoiceFastReply(value:unknown):string|null{
     .replace(/ي/g,'ی')
     .replace(/ك/g,'ک')
     .replace(/[،,؛;:!?؟.!]+/g,' ')
-    .replace(/\\s+/g,' ')
+    .replace(/\s+/g,' ')
     .trim();
   if(/^(?:سلام|درود)(?: (?:وقت بخیر|صبح بخیر|عصر بخیر))?$/.test(text))
     return 'سلام، خوش آمدید. بفرمایید چه قطعه‌ای نیاز دارید؟';
