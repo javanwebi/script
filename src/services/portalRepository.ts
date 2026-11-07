@@ -1,4 +1,4 @@
-import {durableStorage,refreshDurableStorage,hydrateMemory,flushDurableChanges} from "./durableStorage";
+import {durableStorage,databaseStorageEnabled,refreshDurableStorage,hydrateMemory,flushDurableChanges} from "./durableStorage";
 // Browser storage is a rendering cache. Authorization and durable data live in /api/portal.
 export const PORTAL_CACHE_KEYS = [
   "atlas_admin_inquiries_v1",
@@ -75,12 +75,17 @@ async function loadPortal() {
   if (saving) await saving;
   if (saveError) throw saveError;
   const pathname=typeof window!=="undefined" ? window.location?.pathname || "" : "";
-  const includeProducts=!/^\/admin(?:\/|$)/.test(pathname);
-  // Portal identity and runtime data are independent reads. Start both together;
-  // refreshDurableStorage shares the app-shell request when it is still in flight.
+  const isAdminRoute=/^\/admin(?:\/|$)/.test(pathname);
+  const includeProducts=!isAdminRoute;
+  // The admin shell must wait for runtime authorization/data before rendering.
+  // Public/customer routes retain their non-blocking bootstrap when the app-shell
+  // runtime request has not completed yet.
+  const runtimeHydration=isAdminRoute || databaseStorageEnabled()
+    ? refreshDurableStorage({includeProducts})
+    : Promise.resolve(null);
   const [data]=await Promise.all([
     portalRequest(),
-    refreshDurableStorage({includeProducts}),
+    runtimeHydration,
   ]);
   // Keep a recoverable copy of pre-migration browser data; never upload it automatically.
   if (!durableStorage.getItem("atlas_portal_cache_migrated_v1")) {
