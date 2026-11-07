@@ -156,6 +156,9 @@ export class ForzaIncrementalSpeechText {
     const left=text.slice(0,cut).trimEnd().split(/\s+/).pop()||'';
     const right=text.slice(cut).trimStart().split(/\s+/)[0]||'';
     if(!left||!right)return false;
+    if(/^\d{1,4}(?:\.\d{1,3})?$/.test(left)&&
+       /^(?:میلی|سانتی|mm|cm|inch|in)$/i.test(right))return true;
+    if(/^(?:میلی|سانتی)$/.test(left)&&/^متر$/.test(right))return true;
     if(/^\d{3,5}[A-Z]{0,4}$/i.test(left)&&
        /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(right))return true;
     if(/^(?:ZZ|2Z|RS|2RS|LLU|LLB)$/i.test(left)&&/^C[234]$/i.test(right))return true;
