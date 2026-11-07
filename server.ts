@@ -5577,12 +5577,13 @@ let cachedForzaNimaAck:Buffer|null=null;
 let loadingForzaNimaAck:Promise<Buffer>|null=null;
 async function getForzaNimaAck():Promise<Buffer>{
   if(cachedForzaNimaAck)return cachedForzaNimaAck;
-  if(!internalForzaVoiceUrl||!process.env.FORZA_VOICE_TOKEN)
+  const voiceToken=process.env.FORZA_VOICE_TOKEN;
+  if(!internalForzaVoiceUrl||!voiceToken)
     throw new Error('private_voice_not_configured');
   if(!loadingForzaNimaAck){
     loadingForzaNimaAck=(async()=>{
       const response=await fetch(internalForzaVoiceUrl+'/ack',{
-        headers:{'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN},
+        headers:{'X-Forza-Voice-Token':voiceToken},
         signal:AbortSignal.timeout(5000),
       });
       if(!response.ok)throw new Error('private_voice_ack_'+response.status);
