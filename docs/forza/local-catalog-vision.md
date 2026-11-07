@@ -209,3 +209,19 @@ unknown placement may block public image-upload/analyze POST endpoints. Do not
 remove guards globally or assume their scope from grep output. Source must first
 be merged into main and photo bindings/accuracy verified on staging. An unused
 encoder can be prepared independently while these checks are completed.
+
+## Restricted package CDN access during provisioning
+
+The owner's VPS can reach official PyTorch but times out on files.pythonhosted.org.
+Provisioning now installs `torch==2.8.0+cpu` from the official CPU index with
+`--no-deps`, then resolves the CPU wheel's dependencies and the pinned runtime
+requirements through one probed HTTPS PyPI mirror. The installed CPU version is
+explicitly requested in the second operation so it is not replaced by a CUDA
+wheel. `pip check` is required before model download. No extra index or TLS bypass
+is configured.
+
+Before building, setup probes the Tsinghua and Aliyun public mirrors in order. It
+fetches both the index and a real small filelock wheel, checking its advertised
+SHA256. If neither mirror can serve the wheel, setup stops before a long build.
+`VISION_PYPI_INDEX_URL` can select a specific HTTPS mirror and is probed in the
+same way. This download choice concerns provisioning only; runtime remains local.

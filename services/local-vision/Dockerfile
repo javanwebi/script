@@ -13,9 +13,15 @@ RUN set -eu; \
     DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng; \
     rm -rf /var/lib/apt/lists/*
 ENV OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false
-RUN pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+# Install only the CPU wheel from PyTorch. Its dependencies are resolved separately
+# through the probed mirror so PyTorch's index cannot send them to a blocked CDN.
+RUN python -m pip --isolated install --no-cache-dir --timeout 60 --retries 2 --no-deps \
+    'torch==2.8.0+cpu' --index-url https://download.pytorch.org/whl/cpu
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ARG VISION_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple/
+RUN python -m pip --isolated install --no-cache-dir --timeout 60 --retries 2 \
+    --index-url "$VISION_PYPI_INDEX_URL" 'torch==2.8.0+cpu' -r requirements.txt \
+    && python -m pip check
 # Download once during provisioning. Serving uses only these local files.
 RUN python -c "from transformers import AutoModel; from huggingface_hub import hf_hub_download; import shutil; m='facebook/dinov2-small'; AutoModel.from_pretrained(m,revision='ed25f3a31f01632728cabb09d1542f84ab7b0056',token=False).save_pretrained('/model'); shutil.copyfile(hf_hub_download(m,'preprocessor_config.json',revision='ed25f3a31f01632728cabb09d1542f84ab7b0056',token=False),'/model/preprocessor_config.json'); shutil.rmtree('/root/.cache/huggingface',ignore_errors=True)"
 COPY worker.py retrieval.py ./
