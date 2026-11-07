@@ -22,8 +22,8 @@ test('production blue-green build ships the Vosk script at the exact browser URL
  const {readFile}=await import('node:fs/promises');
  const deploy=await readFile(new URL('../ops/deploy-main-bluegreen-vps.sh',import.meta.url),'utf8');
  const local=await readFile(new URL('../src/utils/forzaLocalSpeech.ts',import.meta.url),'utf8');
- assert.match(deploy,/vosk-browser@0\\.0\\.8/);
- assert.match(deploy,/public\\/forza-runtime\\/stt\\/vosk\\.js/);
- assert.match(deploy,/dist\\/forza-runtime\\/stt\\/vosk\\.js/);
- assert.match(local,/VOSK_SCRIPT_URL='\\/forza-runtime\\/stt\\/vosk\\.js'/);
+ assert.ok(deploy.includes('vosk-browser@0.0.8'));
+ assert.ok(deploy.includes('public/forza-runtime/stt/vosk.js'));
+ assert.ok(deploy.includes('dist/forza-runtime/stt/vosk.js'));
+ assert.ok(local.includes("VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js'"));
 });
