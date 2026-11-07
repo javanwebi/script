@@ -219,9 +219,9 @@ test('early Nima phrase boundaries never split bearing suffixes or belt profile 
 
 test('stable idle flush holds a bearing number until its ZZ suffix arrives',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  assert.deepEqual(planner.push('کد نهایی بلبرینگ 6203 '),[]);
+  assert.deepEqual(planner.push('برای سفارش قطعه 6203 '),[]);
   assert.deepEqual(planner.flushStableIdle(),[]);
-  const first=planner.push('کد نهایی بلبرینگ 6203 ZZ موجود است');
+  const first=planner.push('برای سفارش قطعه 6203 ZZ موجود است');
   assert.equal(first.length,1);
   assert.match(first[0],/6203 ZZ$/);
 });
