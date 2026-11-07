@@ -200,3 +200,16 @@ test('first unpunctuated Nima group is released at a short complete-word boundar
   const remaining=[...planner.push(full),...planner.complete(full)];
   assert.equal([...first,...remaining].join(' ').replace(/\s+/g,' ').trim(),full.trim());
 });
+
+
+test('early Nima phrase boundaries never split bearing suffixes or belt profile sizes',()=>{
+  const bearing=new ForzaIncrementalSpeechText();
+  const bearingFirst=bearing.push('کد نهایی بلبرینگ 6203 ZZ C3 موجود است');
+  assert.equal(bearingFirst.length,1);
+  assert.match(bearingFirst[0],/6203 ZZ C3$/);
+
+  const belt=new ForzaIncrementalSpeechText();
+  const beltFirst=belt.push('تسمه انتقال قدرت SPA 1250 برای موتور صنعتی');
+  assert.equal(beltFirst.length,1);
+  assert.match(beltFirst[0],/SPA 1250$/);
+});
