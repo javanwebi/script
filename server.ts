@@ -5893,7 +5893,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   // preprocessing or outbound model discovery, exposing their real latency.
   const catalogStartedAt=Date.now();
   const voiceQuery=String(query||'').trim();
-  const voiceSmallTalk=lowLatencyVoice&&/^(?:سلام|درود)(?:[،, ]+(?:وقت بخیر|صبح بخیر|عصر بخیر))?[.!؟\\s]*$|^(?:ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)[.!؟\\s]*$/u.test(voiceQuery);
+  const voiceSmallTalk=lowLatencyVoice&&/^(?:سلام|درود)(?:[،, ]+(?:وقت بخیر|صبح بخیر|عصر بخیر))?[.!؟\s]*$|^(?:ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)[.!؟\s]*$/u.test(voiceQuery);
   // A greeting does not need a full 10k-SKU catalog scan before Qwen can speak.
   const catalogContext=voiceSmallTalk?'':consultantCatalogContext(voiceQuery);
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
