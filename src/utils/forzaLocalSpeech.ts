@@ -1,8 +1,7 @@
-/** Browser-based Persian STT fallback for FORZA.
- * Text-to-speech is exclusively Pocket Farsi v2 on /api/ai/forza-speech.
- * The former unused Piper/Amir browser TTS was removed because the VPS
- * build cannot resolve its optional, intentionally uninstalled dependency.
- * Keeping it here silently bundled a second, unwanted voice engine.
+/** Lazy browser-local Persian STT fallback for FORZA.
+ * Chrome SpeechRecognition remains primary. Diba/Vosk is downloaded only when
+ * the browser recognizer is unsupported or repeatedly loses its network link.
+ * TTS remains the selected private server voice (Piper Nima).
  */
 export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
