@@ -59,7 +59,8 @@ test('runtime bootstrap is single-flight and a lean request can be upgraded to f
 test('admin portal hydration overlaps portal and runtime requests and skips catalog on admin routes',()=>{
   const source=readFileSync('src/services/portalRepository.ts','utf8');
   assert.match(source,/Promise\.all\(\[/);
-  assert.match(source,/portalRequest\(\),\s*refreshDurableStorage\(\{includeProducts\}\)/);
+  assert.match(source,/portalRequest\(\),\s*runtimeHydration/);
+  assert.match(source,/isAdminRoute \|\| databaseStorageEnabled\(\)/);
   assert.ok(source.includes('includeProducts=!/^'));
   assert.ok(source.includes('admin(?:'));
 });
