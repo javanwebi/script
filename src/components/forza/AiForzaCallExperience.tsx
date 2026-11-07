@@ -385,7 +385,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   },[attachLocalStt,startDibaTurn,startListening]);
 
   const startVoiceInput=useCallback(()=>{
-    if(!recognitionRef.current&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
+    const browserUnavailable=!recognitionRef.current||recognitionFailedRef.current||
+      webSpeechFailedRef.current||preferLocalSttRef.current;
+    if(browserUnavailable&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
       setMicrophoneError('در حال آماده‌سازی تشخیص گفتار فارسی...');
       void ensureDibaStt().then(ready=>{
         if(!ready&&!callClosedRef.current)
@@ -1515,6 +1517,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (chunks.length > 0 && hadSpeech) {
             const finalMime = mr.mimeType || mimeType || 'audio/webm';
             const audioBlob = new Blob(chunks, { type: finalMime });
+            // Do not send a doomed 15s server-transcription request while the
+            // local Persian fallback is still downloading after WebSpeech failed.
+            if(localSttLoadRef.current&&!localSttRecognizerRef.current&&serverSttConfiguredRef.current!==true){
+              setMicrophoneError('تشخیص فارسی در حال آماده‌سازی است؛ لطفاً پس از آماده‌شدن دوباره صحبت کنید.');
+              return;
+            }
             if (audioBlob.size > 1200) {
               void handleUserFinishedSpeaking('', audioBlob, finalMime);
             } else {
