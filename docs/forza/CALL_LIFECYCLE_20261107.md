@@ -68,8 +68,9 @@ when browser STT fails.
 - Keep a bounded 2.5s/final-six-phrase echo history of actually audible phrases,
   not future queued text. This reduces delayed preceding-phrase text echo; it
   does NOT identify a nearby speaker or replace acoustic echo cancellation.
-- Cancel SSE bodies on error as well as completion. Bound client TTS fetches
-  at 35 seconds rather than seven minutes, retaining explicit cancellation.
+- Cancel SSE bodies on error as well as completion. Bound client Nima phrase fetches
+  at 35 seconds, retaining explicit cancellation and the legacy Pocket
+  full-answer timeout.
 
 Validation: 55 targeted tests plus 40 additional voice regression tests pass;
 25 database and 58 portal tests pass. TypeScript and production build pass.

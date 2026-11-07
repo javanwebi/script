@@ -768,13 +768,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const text=answer.trim();
     if(!text)throw new Error('forza_empty_answer');
     const started=performance.now();
+    // Bound live Nima phrases without changing the legacy full-answer Pocket
+    // contract, whose CPU synthesis can legitimately exceed a minute.
+    const timeoutSignal=voiceModeRef.current==='piper-nima-gyro-medium'
+      ? AbortSignal.timeout(35000) : AbortSignal.timeout(420000);
     const response=await fetch('/api/ai/forza-speech',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text,turnId}),
       signal:signal
-        ? AbortSignal.any([signal,AbortSignal.timeout(35000)])
-        : AbortSignal.timeout(35000),
+        ? AbortSignal.any([signal,timeoutSignal])
+        : timeoutSignal,
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
     if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
