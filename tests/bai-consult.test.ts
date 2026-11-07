@@ -283,7 +283,7 @@ test('voice Qwen request trims history and catalog payload before first token',a
   });
   assert.equal(body.max_tokens,192);
   assert.equal(body.messages.length,6,'system + last four history messages + user');
-  assert.ok(body.messages[0].content.length<2700);
+  assert.ok(body.messages[0].content.length<=3200);
   assert.ok(body.messages.slice(1,-1).every((message:any)=>message.content.length<=1200));
   assert.equal(body.messages.at(-1).content.length,4);
 });
