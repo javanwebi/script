@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BaiConsultError, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import { BaiConsultError, completeXkiroConsult, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -96,7 +96,7 @@ test('xKiro is opt-in, uses the exact free Qwen model ID, and requires its own k
   assert.equal(configuredXkiroModel({}, false), null);
   assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro' }, false), null);
   assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example' }, false), 'qwen/qwen3.5-flash:free');
-  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example', XKIRO_MODEL_DESK: 'qwen/qwen3.8-omni-flash:free' }, false), 'qwen/qwen3.8-omni-flash:free');
+  assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example', XKIRO_MODEL_DESK: 'qwen/qwen-plus-2025-07-28:free' }, false), 'qwen/qwen3.5-flash:free');
   assert.equal(configuredXkiroModel({ FORZA_VOICE_PROVIDER: 'xkiro', XKIRO_API_KEY: 'example' }, true), 'qwen/qwen3.5-flash:free');
   assert.equal(configuredXkiroModel({ FORZA_DESK_PROVIDER: 'bai', XKIRO_API_KEY: 'example' }, false), null);
 });
@@ -144,8 +144,8 @@ test('provider error code is preserved without logging provider response bodies'
 test('xKiro first-token budget accommodates observed live VPS latency without changing B.AI', () => {
   assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 10000, totalMs: 30000 });
   assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 15000, totalMs: 45000 });
-  assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 22000, totalMs: 38000 });
-  assert.deepEqual(providerStreamTimeouts('xkiro', false), { firstTokenMs: 24000, totalMs: 45000 });
+  assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 4500, totalMs: 9000 });
+  assert.deepEqual(providerStreamTimeouts('xkiro', false), { firstTokenMs: 4500, totalMs: 9000 });
 });
 
 test('provider-specific no-reasoning hint is not sent to B.AI or other xKiro models', async () => {
@@ -239,4 +239,24 @@ test('xKiro provider SSE streams CRLF delimiters when CR and LF arrive in separa
   });
   assert.deepEqual(chunks,['بلبرینگ ','6203ZZ C3']);
   assert.equal(result.text,'بلبرینگ 6203ZZ C3');
+});
+
+
+test('xKiro verified non-stream completion uses the same free model and requires finish_reason stop',async()=>{
+  let body:any;
+  const fetchImpl=(async(url:string|URL|Request,init?:RequestInit)=>{
+    assert.equal(String(url),'https://api.xkiro.com/v1/chat/completions');
+    body=JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({
+      choices:[{message:{content:'کد نهایی: 6203 ZZ\nتعداد: 10 عدد'},finish_reason:'stop'}],
+    }),{status:200,headers:{'Content-Type':'application/json'}});
+  }) as typeof fetch;
+  const result=await completeXkiroConsult({
+    apiKey:'secret-placeholder',model:'qwen/qwen3.5-flash:free',
+    query:'کد 6203 ZZ تعداد 10',voice:true,fetchImpl,onDelta:()=>{},
+  });
+  assert.equal(body.stream,false);
+  assert.equal(body.reasoning_effort,'none');
+  assert.equal(body.model,'qwen/qwen3.5-flash:free');
+  assert.equal(result.text,'کد نهایی: 6203 ZZ\nتعداد: 10 عدد');
 });

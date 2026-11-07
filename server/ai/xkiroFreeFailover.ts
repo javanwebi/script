@@ -1,16 +1,18 @@
 /**
- * Dynamic free-only model routing for FORZA's xKiro text responses.
- * The public catalog is the source of truth. Fail closed when it is unavailable:
- * no unverified or paid model is ever submitted.
+ * Bounded free-only routing for FORZA's xKiro text responses.
+ * The public catalog is the source of truth. One tested configured model is
+ * used per turn; an incomplete SSE may receive one same-model non-stream
+ * verification. No unverified or paid model is ever submitted.
  */
-import { BaiConsultError, streamXkiroConsult, type BaiConsultOptions } from './baiConsult';
+import { BaiConsultError, completeXkiroConsult, streamXkiroConsult, type BaiConsultOptions } from './baiConsult';
 
 const CATALOG_URL = 'https://api.xkiro.com/v1/models';
 const USAGE_URL = 'https://api.xkiro.com/v1/usage';
 const CACHE_MS = 5 * 60_000;
-const MODEL_COOLDOWN_MS = 2 * 60_000;
-const MAX_ATTEMPTS_VOICE = 2;
-const MAX_ATTEMPTS_DESK = 4;
+const VERIFIED_DEFAULT_MODEL='qwen/qwen3.5-flash:free';
+const STREAM_FIRST_TOKEN_MS=4500;
+const STREAM_IDLE_AFTER_DELTA_MS=1100;
+const NONSTREAM_VERIFY_MS=4500;
 
 type CatalogRecord = {
   id?: unknown;
@@ -22,11 +24,8 @@ type CatalogRecord = {
 type PoolCache = { models: string[]; expires: number };
 const catalogs = new WeakMap<typeof fetch, PoolCache>();
 const pending = new WeakMap<typeof fetch, Promise<string[]>>();
-// Timing metadata only. Keep successful fast fallbacks instead of rotating
-// every customer back through unknown/slow models. No speculative extra calls.
-const timings = new WeakMap<typeof fetch, Map<string,{firstTokenMs:number;until:number}>>();
+// Brief cooldown after both bounded transports fail; do not start a cascade.
 const cooldowns = new Map<string, number>();
-let roundRobin = 0;
 let accountRateLimitUntil = 0;
 
 function freeChatModel(entry: CatalogRecord): entry is CatalogRecord & { id: string } {
@@ -88,71 +87,132 @@ async function exhaustedFreeAllowance(apiKey: string, fetchImpl: typeof fetch): 
   } catch { return false; }
 }
 
-export type FreeXkiroResult = {text: string; model: string; firstTokenMs: number};
+export type FreeXkiroResult = {
+  text: string;
+  model: string;
+  firstTokenMs: number;
+  completionMode: 'stream'|'nonstream_verified';
+  fallbackMs?: number;
+};
 
+/**
+ * Use exactly one catalog-verified configured free model. The old rotating
+ * pool could spend 2-4 long timeouts per customer turn and switch to models
+ * that had never been tested for Persian industrial speech.
+ *
+ * If SSE stops after emitting text, one bounded non-stream request verifies
+ * the final answer. Only a suffix is emitted, and only if the verified answer
+ * begins with the exact text already delivered to the caller.
+ */
 export async function streamXkiroFreePool(
   options: BaiConsultOptions,
 ): Promise<FreeXkiroResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  if (accountRateLimitUntil > Date.now()) throw new BaiConsultError('xkiro_rate_limited_retry_later');
-  const verified = await listVerifiedXkiroFreeChatModels(fetchImpl);
-  const preferred = verified.includes(options.model) ? options.model : null;
-  const rotated = verified.slice(roundRobin % verified.length).concat(verified.slice(0, roundRobin % verified.length));
-  roundRobin += 1;
-  const known=timings.get(fetchImpl) || new Map<string,{firstTokenMs:number;until:number}>();
-  const fast=options.voice ? verified.filter(model=>{
-    const metric=known.get(model);return metric&&metric.until>Date.now()&&metric.firstTokenMs<=3000;
-  }).sort((a,b)=>known.get(a)!.firstTokenMs-known.get(b)!.firstTokenMs) : [];
-  const ranked = [...new Set([...fast,...(preferred ? [preferred] : []), ...rotated])];
-  let attempted = 0;
-  const cap = options.voice ? MAX_ATTEMPTS_VOICE : MAX_ATTEMPTS_DESK;
-  let lastCode = 'xkiro_free_models_unavailable';
-  for (const model of ranked) {
-    if (attempted >= cap) break;
-    if ((cooldowns.get(model) || 0) > Date.now()) continue;
-    attempted++;
-    let delivered = false;
-    try {
-      const result = await streamXkiroConsult({
+  const fetchImpl=options.fetchImpl??fetch;
+  if(accountRateLimitUntil>Date.now())
+    throw new BaiConsultError('xkiro_rate_limited_retry_later');
+
+  const verified=await listVerifiedXkiroFreeChatModels(fetchImpl);
+  const model=verified.includes(options.model)
+    ?options.model
+    :verified.includes(VERIFIED_DEFAULT_MODEL)?VERIFIED_DEFAULT_MODEL:null;
+  if(!model)throw new BaiConsultError('xkiro_configured_model_not_verified_free');
+
+  const cooldownUntil=cooldowns.get(model)||0;
+  if(cooldownUntil>Date.now())throw new BaiConsultError('xkiro_model_temporarily_unavailable');
+
+  let deliveredText='';
+  let firstTokenMs=-1;
+  const streamStarted=Date.now();
+  const onDelta=(delta:string,fullText:string)=>{
+    if(firstTokenMs<0)firstTokenMs=Date.now()-streamStarted;
+    deliveredText=fullText;
+    options.onDelta(delta,fullText);
+  };
+
+  try{
+    const result=await streamXkiroConsult({
+      ...options,
+      model,
+      fetchImpl,
+      firstTokenTimeoutMs:STREAM_FIRST_TOKEN_MS,
+      idleAfterDeltaTimeoutMs:STREAM_IDLE_AFTER_DELTA_MS,
+      onDelta,
+    });
+    cooldowns.delete(model);
+    return {...result,completionMode:'stream'};
+  }catch(error){
+    if(options.signal?.aborted)throw new BaiConsultError('client_aborted');
+    const code=error instanceof BaiConsultError?error.code:'upstream_network_error';
+
+    // A shared account 429 is not fixed by retrying or changing models.
+    if(/^http_429/.test(code)){
+      if(await exhaustedFreeAllowance(options.apiKey,fetchImpl))
+        throw new BaiConsultError('xkiro_account_free_quota_exhausted');
+      if(error instanceof BaiConsultError&&error.retryAfterMs&&error.retryAfterMs>0){
+        accountRateLimitUntil=Date.now()+Math.min(error.retryAfterMs,5*60_000);
+        throw new BaiConsultError('xkiro_rate_limited_retry_later');
+      }
+      throw error instanceof BaiConsultError?error:new BaiConsultError(code);
+    }
+
+    const recoverable=
+      code==='provider_stream_idle_after_delta'||
+      code==='provider_stream_incomplete'||
+      code==='empty_completion'||
+      code==='upstream_timeout'||
+      code==='upstream_network_error'||
+      /^http_50[023]($|_)/.test(code);
+
+    if(!recoverable){
+      if(/^http_503/.test(code))cooldowns.set(model,Date.now()+15_000);
+      throw error instanceof BaiConsultError?error:new BaiConsultError(code);
+    }
+
+    try{
+      const completed=await completeXkiroConsult({
         ...options,
         model,
         fetchImpl,
-        // Two reasonably fast attempts fit the current browser's 25s
-        // first-text timeout; don't silently wait 22s per failed model.
-        firstTokenTimeoutMs: options.voice ? 9500 : 11000,
-        onDelta: (delta, fullText) => {
-          delivered = true;
-          options.onDelta(delta, fullText);
-        },
-      });
+      },NONSTREAM_VERIFY_MS);
+
+      if(deliveredText&&!completed.text.startsWith(deliveredText)){
+        throw new BaiConsultError('xkiro_stream_verification_mismatch');
+      }
+
+      const suffix=completed.text.slice(deliveredText.length);
+      if(suffix)options.onDelta(suffix,completed.text);
       cooldowns.delete(model);
-      const previous=known.get(model);
-      const measured=Math.max(0,result.firstTokenMs);
-      known.set(model,{firstTokenMs:previous&&previous.until>Date.now()?Math.round(previous.firstTokenMs*0.6+measured*0.4):measured,until:Date.now()+10*60_000});
-      for(const [id,metric] of known)if(metric.until<=Date.now()||!verified.includes(id))known.delete(id);
-      timings.set(fetchImpl,known);
-      return result;
-    } catch (error: unknown) {
-      if (delivered) throw error; // Never replay a partial response.
-      const code = error instanceof BaiConsultError ? error.code : 'upstream_network_error';
-      lastCode = code;
-      // Invalid account credentials, depleted wallet, malformed inputs and
-      // general 400 errors are not fixed by moving to another model.
-      if (/^http_(400|401|402)(_|$)/.test(code)) throw error;
-      cooldowns.set(model, Date.now() + (/^http_403/.test(code) ? 15 * 60_000 : MODEL_COOLDOWN_MS));
-      if (/^http_429/.test(code)) {
-        if (await exhaustedFreeAllowance(options.apiKey, fetchImpl)) {
+
+      console.info('[FORZA XKIRO FREE] verified_nonstream model='+model+
+        ' stream_partial_chars='+deliveredText.length+
+        ' suffix_chars='+suffix.length+
+        ' verify_ms='+completed.elapsedMs);
+
+      return {
+        text:completed.text,
+        model,
+        firstTokenMs,
+        completionMode:'nonstream_verified',
+        fallbackMs:completed.elapsedMs,
+      };
+    }catch(verifyError){
+      if(options.signal?.aborted)throw new BaiConsultError('client_aborted');
+      const verifyCode=verifyError instanceof BaiConsultError
+        ?verifyError.code:'xkiro_nonstream_verification_failed';
+      if(/^http_429/.test(verifyCode)){
+        if(await exhaustedFreeAllowance(options.apiKey,fetchImpl))
           throw new BaiConsultError('xkiro_account_free_quota_exhausted');
-        }
-        // A Retry-After response may reflect an account-wide RPM restriction.
-        // Respect it instead of hammering the other 44 free models.
-        if (error instanceof BaiConsultError && error.retryAfterMs && error.retryAfterMs > 0) {
-          accountRateLimitUntil = Date.now() + Math.min(error.retryAfterMs, 5 * 60_000);
+        if(verifyError instanceof BaiConsultError&&verifyError.retryAfterMs&&verifyError.retryAfterMs>0){
+          accountRateLimitUntil=Date.now()+Math.min(verifyError.retryAfterMs,5*60_000);
           throw new BaiConsultError('xkiro_rate_limited_retry_later');
         }
       }
-      console.warn('[FORZA XKIRO FREE] model=' + model + ' unavailable code=' + code + ' tried=' + attempted);
+      cooldowns.set(model,Date.now()+5000);
+      console.warn('[FORZA XKIRO FREE] verified_completion_failed model='+model+
+        ' stream_code='+code+' verify_code='+verifyCode+
+        ' partial_chars='+deliveredText.length);
+      throw verifyError instanceof BaiConsultError
+        ?verifyError:new BaiConsultError(verifyCode);
     }
   }
-  throw new BaiConsultError(attempted === 0 ? 'xkiro_free_pool_cooldown' : 'xkiro_free_pool_exhausted_' + lastCode);
 }

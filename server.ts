@@ -56,7 +56,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
+import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
@@ -5935,7 +5935,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       });
       console.info('[FORZA_LATENCY] phase=' + textProvider + '-complete mode=' +
         (lowLatencyVoice ? 'voice' : 'desk') + ' model=' + result.model +
-        ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt));
+        ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt) +
+        ' completion=' + ('completionMode' in result ? result.completionMode : 'stream') +
+        ('fallbackMs' in result && result.fallbackMs ? ' verifyMs=' + result.fallbackMs : ''));
       sendEvent({
         type: 'done',
         responseId,

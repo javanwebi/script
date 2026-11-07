@@ -85,3 +85,24 @@ test('revised SSE done cannot override technical words that were already deliver
   assert.ok(stages.includes('error'));
   assert.equal(stages.includes('done'),false);
 });
+
+
+test('FORZA exposes the authoritative done event metadata to desk consumers',async()=>{
+  const action={label:'مشاهده بلبرینگ‌ها',link:'/category/bearings'};
+  const stream=new ReadableStream<Uint8Array>({
+    start(c){
+      c.enqueue(event({type:'text_chunk',chunk:'بلبرینگ 6203 ZZ',textSoFar:'بلبرینگ 6203 ZZ'}));
+      c.enqueue(event({type:'done',fullText:'بلبرینگ 6203 ZZ',suggestedAction:action}));
+      // Keep the transport open; done must still complete and cancel it.
+    },
+  });
+  let completed:unknown=null;
+  const text=await consumeForzaTextStream(
+    new Response(stream,{headers:{'Content-Type':'text/event-stream'}}),
+    ()=>{},
+    undefined,
+    message=>{completed=message.suggestedAction;},
+  );
+  assert.equal(text,'بلبرینگ 6203 ZZ');
+  assert.deepEqual(completed,action);
+});

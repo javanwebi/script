@@ -45,6 +45,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
+import { consumeForzaTextStream } from '../utils/forzaStreamClient';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
 import { renderEngineeringMarkdown } from '../utils/engineeringMarkdown';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
@@ -540,6 +541,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       sessionTitle = textToSend.slice(0, 32) + (textToSend.length > 32 ? '...' : '');
     }
 
+    let streamedText = '';
+    let streamedSuggestedAction: Message['suggestedAction'];
+
     try {
       const historyPayload = messages
         .filter(m => m.id !== aiMessageId)
@@ -561,99 +565,40 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         isDeeperResearchActive ? '[تحلیل عمیق و استاندارد فنی] ' : ''
       }${textToSend}`;
 
-      let streamSucceeded = false;
       let finalAiText = '';
+      const res = await fetch(apiUrl('/api/ai/consult-stream'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: abortCtrl.signal,
+        body: JSON.stringify({
+          query: queryWithContext,
+          history: historyPayload,
+          responseId: uniqueResponseId,
+          includeAudio: false,
+        }),
+      });
 
-      try {
-        const res = await fetch(apiUrl('/api/ai/consult-stream'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: abortCtrl.signal,
-          body: JSON.stringify({
-            query: queryWithContext,
-            history: historyPayload,
-            responseId: uniqueResponseId,
-            includeAudio: false,
-          }),
-        });
-
-        if (res.ok && res.body) {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let accumulatedText = '';
-          let buffer = '';
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith('data:')) continue;
-              try {
-                const data = JSON.parse(trimmed.slice(5).trim());
-                if (data.type === 'text_chunk') {
-                  streamSucceeded = true;
-                  accumulatedText = data.textSoFar || accumulatedText + (data.chunk || '');
-                  finalAiText = accumulatedText;
-                  setMessages(prev =>
-                    prev.map(m => (m.id === aiMessageId ? { ...m, text: accumulatedText } : m))
-                  );
-                } else if (data.type === 'done') {
-                  streamSucceeded = true;
-                  accumulatedText = data.fullText || accumulatedText;
-                  finalAiText = accumulatedText;
-                  setMessages(prev =>
-                    prev.map(m =>
-                      m.id === aiMessageId
-                        ? {
-                            ...m,
-                            text: accumulatedText,
-                            suggestedAction: data.suggestedAction,
-                          }
-                        : m
-                    )
-                  );
-                }
-              } catch {}
-            }
-          }
-        }
-      } catch {}
-
-      if (!streamSucceeded) {
-        const res = await fetch(apiUrl('/api/ai/consult'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: queryWithContext,
-            history: historyPayload,
-            includeSpeech: false,
-          }),
-        });
-
-        if (!res.ok) throw new Error('خطا در دریافت پاسخ');
-        const data = await res.json();
-        finalAiText =
-          data.reply ||
-          'توصیه مهندسی FORZA: با توجه به کاتالوگ صنعتی اطلس، استفاده از قطعات اورجینال دارای گواهینامه معتبر پیشنهاد می‌شود.';
-
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === aiMessageId
-              ? {
-                  ...m,
-                  text: finalAiText,
-                  suggestedAction: data.suggestedAction,
-                }
-              : m
-          )
-        );
-      }
+      finalAiText = await consumeForzaTextStream(
+        res,
+        (_chunk, accumulatedText) => {
+          streamedText = accumulatedText;
+          setMessages(prev =>
+            prev.map(m => (m.id === aiMessageId ? { ...m, text: accumulatedText } : m))
+          );
+        },
+        undefined,
+        completed => {
+          streamedSuggestedAction = completed.suggestedAction;
+        },
+      );
+      streamedText = finalAiText;
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === aiMessageId
+            ? { ...m, text: finalAiText, suggestedAction: streamedSuggestedAction }
+            : m
+        )
+      );
 
       const finalMessagesList = [
         ...messages,
@@ -663,6 +608,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           sender: 'ai' as const,
           text: finalAiText,
           time: timeNow,
+          suggestedAction: streamedSuggestedAction,
         },
       ];
       const updatedSessions = sessions.map(s =>
@@ -676,11 +622,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : s
       );
       saveSessionsToStorage(updatedSessions);
-    } catch {
-      const fallbackText = `### پاسخ مشاور مهندسی FORZA:
-در انتخاب قطعات انتقال قدرت، توان الکتروموتور، دور ورودی و خروجی، فاصله مراکز شفت‌ها و دمای محیطی کارکرد تعیین‌کننده است.
+    } catch (error) {
+      // A superseded or explicitly cancelled request must not overwrite the
+      // newer turn. In particular, never retry through /api/ai/consult here:
+      // that legacy route may select a different provider or paid Gemini.
+      if (abortCtrl.signal.aborted || streamAbortControllerRef.current !== abortCtrl) return;
 
-جهت استعلام موجودی انبار مرکزی و پیش‌فاکتور رسمی مودیان با کدهای استاندارد کالا، همکاران فنی ما در خدمت شما هستند.`;
+      const failureText = streamedText.trim()
+        ? `${streamedText}\n\nپاسخ کامل از سرویس دریافت نشد؛ متن بالا ممکن است ناقص باشد. لطفاً درخواست را دوباره ارسال کنید.`
+        : 'سرویس مشاوره فعلاً پاسخ کامل نداد. لطفاً کمی بعد دوباره تلاش کنید.';
 
       const finalMessagesList = [
         ...messages,
@@ -688,12 +638,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         {
           id: aiMessageId,
           sender: 'ai' as const,
-          text: fallbackText,
+          text: failureText,
           time: timeNow,
-          suggestedAction: {
-            label: 'مشاهده کاتالوگ قطعات صنعتی',
-            link: '/products',
-          },
         },
       ];
       setMessages(finalMessagesList);
@@ -710,8 +656,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       );
       saveSessionsToStorage(updatedSessions);
     } finally {
-      setLoading(false);
-      setTimeout(scrollToBottom, 100);
+      // Only the request that still owns the composer may clear its loading
+      // state; an older aborted request must not stop a newer request's spinner.
+      if (streamAbortControllerRef.current === abortCtrl) {
+        streamAbortControllerRef.current = null;
+        setLoading(false);
+        setTimeout(scrollToBottom, 100);
+      }
     }
   };
 

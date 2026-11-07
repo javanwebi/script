@@ -1,7 +1,8 @@
 /**
  * B.AI's OpenAI-compatible Chat Completions SSE bridge for FORZA.
  * This module is server-only. Never expose the API key to the browser.
- * No silent retry (which could double-bill an API call).
+ * No cross-provider or paid retry. xKiro's free path may make one bounded,
+ * same-model non-stream verification after an incomplete SSE response.
  */
 export type BaiConsultOptions = {
   apiKey: string;
@@ -13,6 +14,7 @@ export type BaiConsultOptions = {
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
   firstTokenTimeoutMs?: number;
+  idleAfterDeltaTimeoutMs?: number;
   onDelta: (delta: string, textSoFar: string) => void;
 };
 
@@ -34,19 +36,25 @@ export function configuredBaiModel(env: NodeJS.ProcessEnv, voice: boolean): stri
 export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
   const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
   if (provider !== 'xkiro' || !env.XKIRO_API_KEY?.trim()) return null;
-  // The free Qwen model ID is vendor-qualified and carries the :free access tier suffix.
-  return String((voice ? env.XKIRO_MODEL_VOICE : env.XKIRO_MODEL_DESK) || 'qwen/qwen3.5-flash:free').trim();
+  // VPS probes show qwen/qwen-plus-2025-07-28:free timing out while
+  // qwen/qwen3.5-flash:free completed successfully. Keep both FORZA surfaces
+  // on the tested Flash model; the public catalog still verifies its free tier
+  // before any generation request is sent.
+  return 'qwen/qwen3.5-flash:free';
 }
 
 /**
  * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
- * Keep B.AI budgets unchanged and allow xKiro enough time to deliver the
- * first chunk before falling back to a different provider.
+ * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
+ * at most one same-model, free-tier completion verification.
  */
 export function providerStreamTimeouts(provider: 'xkiro' | 'bai', voice: boolean) {
   return {
-    firstTokenMs: provider === 'xkiro' ? (voice ? 22000 : 24000) : (voice ? 10000 : 15000),
-    totalMs: provider === 'xkiro' && voice ? 38000 : (voice ? 30000 : 45000),
+    // xKiro's free Qwen gateway can leave the SSE socket open after its last
+    // content delta. Keep the stream attempt bounded; a verified non-stream
+    // completion is used once by the free-pool wrapper when this happens.
+    firstTokenMs: provider === 'xkiro' ? 4500 : (voice ? 10000 : 15000),
+    totalMs: provider === 'xkiro' ? 9000 : (voice ? 30000 : 45000),
   };
 }
 
@@ -54,22 +62,28 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   const {
     apiKey, model, query, history = [], catalogContext = '',
     voice = false, signal, fetchImpl = fetch, onDelta, firstTokenTimeoutMs,
+    idleAfterDeltaTimeoutMs,
   } = options;
   const started = Date.now();
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
   const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), budgets.totalMs);
-  let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
-    setTimeout(() => controller.abort(), firstTokenTimeoutMs ?? budgets.firstTokenMs);
-  const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  const cancelReader=()=>{void reader?.cancel().catch(()=>{});};
+  controller.signal.addEventListener('abort',cancelReader,{once:true});
+  signal?.addEventListener('abort',cancelReader,{once:true});
+  const timeout = setTimeout(() => controller.abort(new Error('upstream_total_timeout')), budgets.totalMs);
+  let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
+    setTimeout(() => controller.abort(new Error('upstream_first_token_timeout')), firstTokenTimeoutMs ?? budgets.firstTokenMs);
+  const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let textSoFar = '';
   let firstTokenMs = -1;
   let finished = false;
   let finishReason: string | null = null;
   let lastTokenMs = -1;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let idleAfterDelta = false;
   const historyMessages = history.slice(-6)
     .filter(item => typeof item?.text === 'string' && !!item.text.trim())
     .map(item => ({
@@ -116,6 +130,14 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     textSoFar += str;
     lastTokenMs = Date.now() - started;
     onDelta(str, textSoFar);
+    if (isXkiro) {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        idleAfterDelta = true;
+        void reader?.cancel().catch(() => {});
+        controller.abort(new Error('provider_stream_idle_after_delta'));
+      }, idleAfterDeltaTimeoutMs ?? 1100);
+    }
   };
 
   const consumeEvent = (event: string) => {
@@ -191,6 +213,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         if (finished) break;
       }
     }
+    if (idleAfterDelta) throw new BaiConsultError('provider_stream_idle_after_delta');
     if (!finished && buffer.trim()) consumeEvent(buffer);
     // A dropped connection or timeout after partial text must NOT send
     // a final "done" message to the UI or invoke speech with a fragment.
@@ -207,13 +230,109 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     // finish with an error rather than claiming that partial text is final.
     if (error instanceof BaiConsultError) throw error;
     if (signal?.aborted) throw new BaiConsultError('client_aborted');
-    if (controller.signal.aborted) throw new BaiConsultError('upstream_timeout');
+    if (controller.signal.aborted) {
+      throw new BaiConsultError(idleAfterDelta ? 'provider_stream_idle_after_delta' : 'upstream_timeout');
+    }
     throw new BaiConsultError('upstream_network_error');
   } finally {
     clearTimeout(timeout);
+    controller.signal.removeEventListener('abort',cancelReader);
+    signal?.removeEventListener('abort',cancelReader);
+    if (idleTimer) clearTimeout(idleTimer);
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
     await reader?.cancel().catch(() => {});
     reader?.releaseLock();
+  }
+}
+
+
+/**
+ * One bounded non-stream verification request for xKiro.
+ * Used only when its SSE transport times out or stops after emitting deltas.
+ * A caller must compare this complete answer with any already delivered prefix
+ * before exposing the suffix; never replay a different answer over spoken text.
+ */
+export async function completeXkiroConsult(
+  options: BaiConsultOptions,
+  timeoutMs = 4500,
+): Promise<{text:string;model:string;elapsedMs:number}> {
+  const {
+    apiKey,model,query,history=[],catalogContext='',voice=false,
+    signal,fetchImpl=fetch,
+  }=options;
+  const started=Date.now();
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(new Error('xkiro_nonstream_timeout')),timeoutMs);
+  const requestSignal=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
+  const historyMessages=history.slice(-6)
+    .filter(item=>typeof item?.text==='string'&&!!item.text.trim())
+    .map(item=>({
+      role:item.role==='user'||item.sender==='user'?'user':'assistant',
+      content:String(item.text).slice(0,3000),
+    }));
+  const systemMessage=voice
+    ? 'شما FORZA مشاور صوتی قطعات صنعتی صنعت پیش هستید. فارسی روان و کوتاه پاسخ دهید. فقط متن ساده فارسی؛ هیچ ستاره، Markdown، تیتر قالب‌بندی‌شده، بولت، جدول، backtick، URL خام یا نشانه تزئینی تولید نکنید. برای سلام کوتاه جواب سلام بدهید؛ برای «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. جمله اول کامل و کوتاه باشد. فقط اطلاعات تأییدشده کاتالوگ را بیان کنید. در متن کاربر اصلاح کد مثل «۶۲۰۲ نه ۶۲۰۳» مقدار اصلاح‌شده آخر را ملاک بگیر. متن پاسخ قبلی با علامت قطع‌شدن ممکن است فقط بخشی باشد که واقعاً شنیده شده: هنگام «ادامه بده» از همان‌جا ادامه بده و بخش قبلی را تکرار نکن. هنگام تغییر موضوع یا مشخصات، پاسخ را با درخواست جدید هماهنگ کن. اگر کد فنی مبهم بود کوتاه تأیید بگیر و هرگز مشخصات قطعی حدس نزن.'
+    : 'شما مشاور فنی صنعت پیش هستید. به فارسی دقیق و کاربردی پاسخ دهید. درباره مشخصات، موجودی و قیمت بدون مستندات قطعی ادعای ساختگی نکنید.';
+  try{
+    const response=await fetchImpl('https://api.xkiro.com/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        Authorization:'Bearer '+apiKey,
+        'Content-Type':'application/json',
+        Accept:'application/json',
+      },
+      body:JSON.stringify({
+        model,
+        stream:false,
+        ...(model==='qwen/qwen3.5-flash:free'?{reasoning_effort:'none'}:{}),
+        max_tokens:voice?256:768,
+        messages:[
+          {role:'system',content:systemMessage+String(catalogContext).slice(0,5000)},
+          ...historyMessages,
+          {role:'user',content:String(query||'').slice(0,6000)},
+        ],
+      }),
+      signal:requestSignal,
+    });
+    if(!response.ok){
+      let providerCode='';
+      try{
+        const payload=await response.clone().json();
+        providerCode=String(payload?.error?.code||payload?.error?.type||'')
+          .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
+      }catch{}
+      const retryAfter=response.headers.get('retry-after');
+      const retrySeconds=retryAfter&&/^\d+(?:\.\d+)?$/.test(retryAfter)
+        ?Number(retryAfter):null;
+      const retryDate=retryAfter&&retrySeconds===null?Date.parse(retryAfter):NaN;
+      const retryAfterMs=retrySeconds!==null
+        ?Math.max(0,retrySeconds*1000)
+        :Number.isFinite(retryDate)?Math.max(0,retryDate-Date.now()):undefined;
+      throw new BaiConsultError('http_'+response.status+(providerCode?'_'+providerCode:''),retryAfterMs);
+    }
+    const payload=await response.json() as any;
+    const choice=payload?.choices?.[0];
+    const finishReason=choice?.finish_reason;
+    if(finishReason!=='stop'){
+      throw new BaiConsultError(finishReason==='length'
+        ?'provider_output_truncated':'provider_nonstream_incomplete');
+    }
+    const content=choice?.message?.content;
+    const text=typeof content==='string'
+      ?content
+      :Array.isArray(content)
+        ?content.filter((part:any)=>part?.type==='text'||typeof part?.text==='string')
+          .map((part:any)=>String(part.text||'')).join('')
+        :'';
+    if(!text.trim())throw new BaiConsultError('empty_completion');
+    return {text:text.trim(),model,elapsedMs:Date.now()-started};
+  }catch(error){
+    if(error instanceof BaiConsultError)throw error;
+    if(signal?.aborted)throw new BaiConsultError('client_aborted');
+    if(controller.signal.aborted)throw new BaiConsultError('upstream_timeout');
+    throw new BaiConsultError('upstream_network_error');
+  }finally{
+    clearTimeout(timer);
   }
 }
 

@@ -2,7 +2,7 @@ export type ForzaStreamEvent =
   | {type:'start';responseId?:string;userTurnId?:string;timestamp?:number}
   | {type:'provider';provider?:string}
   | {type:'text_chunk';chunk:string;textSoFar?:string}
-  | {type:'done';fullText?:string}
+  | {type:'done';fullText?:string;suggestedAction?:{label:string;link?:string}}
   | {type:'error';message?:string;errorCode?:string};
 export type ForzaStreamStage = 'start'|'provider'|'first_delta'|'done'|'error'|'incomplete';
 
@@ -12,6 +12,7 @@ export async function consumeForzaTextStream(
   response: Response,
   onChunk: (chunk: string, textSoFar: string) => void,
   onStage?: (stage:ForzaStreamStage,info?:{code?:string;provider?:string})=>void,
+  onDone?: (message:Extract<ForzaStreamEvent,{type:'done'}>)=>void,
 ): Promise<string> {
   if (!response.ok || !response.body) throw new Error('forza_stream_unavailable');
   const reader = response.body.getReader();
@@ -57,6 +58,7 @@ export async function consumeForzaTextStream(
       }
       sawDone=true;
       onStage?.('done');
+      onDone?.(msg);
     }
   };
   try {
