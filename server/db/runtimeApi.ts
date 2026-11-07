@@ -142,7 +142,7 @@ export async function runtimeApi(req:Request,res:Response){
      ? publicCatalog(products)
      : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
    }
-   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,productsIncluded:includeProducts,products:visibleProducts});
+   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,productsIncluded:includeProducts,products:includeProducts?(identity.admin || identity.staff?visibleProducts:compactCatalogReviews(visibleProducts)):[]});
   }
   checkOrigin(req);
   const key=String(req.body?.key || '');const domain=domainFor(key);if(!domain)throw Object.assign(new Error('بخش داده معتبر نیست.'),{status:400});
