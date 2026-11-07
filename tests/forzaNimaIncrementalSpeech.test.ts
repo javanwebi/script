@@ -33,7 +33,7 @@ test('Nima retains industrial decimals and rejects a revised LLM transcript',()=
   const planner=new ForzaIncrementalSpeechText();
   const early=planner.push('قطر قطعه 3.25 میلی متر است. و ');
   assert.equal(early.length,1);
-  assert.match(early[0],/3\\.25 میلی متر$/);
+  assert.match(early[0],/3\.25 میلی متر$/);
   const next='قطر قطعه 3.25 میلی متر است. و کد فنی استاندارد را بررسی می‌کنیم. ';
   const phrases=[...planner.push(next),...planner.complete(next)];
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),next.trim());
