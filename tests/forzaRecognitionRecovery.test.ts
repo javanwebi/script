@@ -16,3 +16,14 @@ test('Diba is wired as a lazy Persian STT fallback, not an unused helper',async(
  assert.match(source,/const startVoiceInput/);
  assert.match(source,/source=diba fallback=activated/);
 });
+
+
+test('production blue-green build ships the Vosk script at the exact browser URL',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const deploy=await readFile(new URL('../ops/deploy-main-bluegreen-vps.sh',import.meta.url),'utf8');
+ const local=await readFile(new URL('../src/utils/forzaLocalSpeech.ts',import.meta.url),'utf8');
+ assert.match(deploy,/vosk-browser@0\\.0\\.8/);
+ assert.match(deploy,/public\\/forza-runtime\\/stt\\/vosk\\.js/);
+ assert.match(deploy,/dist\\/forza-runtime\\/stt\\/vosk\\.js/);
+ assert.match(local,/VOSK_SCRIPT_URL='\\/forza-runtime\\/stt\\/vosk\\.js'/);
+});
