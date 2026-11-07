@@ -84,25 +84,44 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Prefetch the same-voice acknowledgement while particles form.
           // The worker has already synthesized it once at startup; this is
           // a small RAM-only WAV fetch, never a per-turn TTS inference.
-          void fetch('/api/ai/forza-ack',{cache:'force-cache'})
-            .then(response=>response.ok?response.arrayBuffer():null)
-            .then(value=>{
-              if(!mounted||!value)return;
-              const wav=new Uint8Array(value);
-              if(wav.byteLength>=44&&
-                 String.fromCharCode(...wav.subarray(0,4))==='RIFF'&&
-                 String.fromCharCode(...wav.subarray(8,12))==='WAVE'){
-                nimaAckWavRef.current=wav;
-                console.info('[FORZA_NIMA_ACK] prefetched=1 bytes='+wav.byteLength);
-              }
-            }).catch(()=>{});
+          let ackRetryTimer:number|null=null;
+          const preloadNimaAck=(attempt=0)=>{
+            void fetch('/api/ai/forza-ack',{cache:'force-cache'})
+              .then(response=>response.ok?response.arrayBuffer():null)
+              .then(value=>{
+                if(!mounted)return;
+                if(!value){
+                  if(attempt<2)ackRetryTimer=window.setTimeout(()=>preloadNimaAck(attempt+1),700*(attempt+1));
+                  return;
+                }
+                const wav=new Uint8Array(value);
+                if(wav.byteLength>=44&&
+                   String.fromCharCode(...wav.subarray(0,4))==='RIFF'&&
+                   String.fromCharCode(...wav.subarray(8,12))==='WAVE'){
+                  nimaAckWavRef.current=wav;
+                  console.info('[FORZA_NIMA_ACK] prefetched=1 bytes='+wav.byteLength);
+                }
+              }).catch(()=>{
+                if(mounted&&attempt<2)
+                  ackRetryTimer=window.setTimeout(()=>preloadNimaAck(attempt+1),700*(attempt+1));
+              });
+          };
+          preloadNimaAck();
+          const cleanupAck=()=>{if(ackRetryTimer!==null)window.clearTimeout(ackRetryTimer);};
+          // The effect's cleanup below also stops any retry if the call closes.
+          (window as any).__forzaNimaAckCleanup=cleanupAck;
         }else{
           voiceModeRef.current='pocket-farsi-v2';
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
             ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
         }
       }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
-    return()=>{mounted=false};
+    return()=>{
+      mounted=false;
+      const cleanup=(window as any).__forzaNimaAckCleanup;
+      if(typeof cleanup==='function')cleanup();
+      (window as any).__forzaNimaAckCleanup=null;
+    };
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
@@ -487,8 +506,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
-        // 650-900ms after a clearly finished question, ~1.7s for an
-        // unfinished Persian thought. Worker audio STT is the safety net.
+        // 300-520ms after a complete question; incomplete thoughts and
+        // explicit code corrections retain a longer safety window.
         if(isProcessingTurnRef.current){
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
