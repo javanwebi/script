@@ -1,14 +1,14 @@
 /**
- * Dynamic free-only model routing for FORZA's xKiro text responses.
- * The public catalog is the source of truth. Fail closed when it is unavailable:
- * no unverified or paid model is ever submitted.
+ * Bounded free-only routing for FORZA's xKiro text responses.
+ * The public catalog is the source of truth. One tested configured model is
+ * used per turn; an incomplete SSE may receive one same-model non-stream
+ * verification. No unverified or paid model is ever submitted.
  */
 import { BaiConsultError, completeXkiroConsult, streamXkiroConsult, type BaiConsultOptions } from './baiConsult';
 
 const CATALOG_URL = 'https://api.xkiro.com/v1/models';
 const USAGE_URL = 'https://api.xkiro.com/v1/usage';
 const CACHE_MS = 5 * 60_000;
-const MODEL_COOLDOWN_MS = 2 * 60_000;
 const VERIFIED_DEFAULT_MODEL='qwen/qwen3.5-flash:free';
 const STREAM_FIRST_TOKEN_MS=4500;
 const STREAM_IDLE_AFTER_DELTA_MS=1100;
@@ -24,8 +24,7 @@ type CatalogRecord = {
 type PoolCache = { models: string[]; expires: number };
 const catalogs = new WeakMap<typeof fetch, PoolCache>();
 const pending = new WeakMap<typeof fetch, Promise<string[]>>();
-// Timing metadata only. Keep successful fast fallbacks instead of rotating
-// every customer back through unknown/slow models. No speculative extra calls.
+// Brief cooldown after both bounded transports fail; do not start a cascade.
 const cooldowns = new Map<string, number>();
 let accountRateLimitUntil = 0;
 
@@ -159,6 +158,7 @@ export async function streamXkiroFreePool(
     const recoverable=
       code==='provider_stream_idle_after_delta'||
       code==='provider_stream_incomplete'||
+      code==='empty_completion'||
       code==='upstream_timeout'||
       code==='upstream_network_error'||
       /^http_50[023]($|_)/.test(code);
