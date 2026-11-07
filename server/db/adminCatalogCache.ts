@@ -33,6 +33,7 @@ export function primeAdminCatalogCache(products:unknown){
 /** Keep the last usable snapshot while a background refresh obtains newer DB values. */
 export function invalidateAdminCatalogCache(){
  generation++;
+ inFlight=null;
  if(cache)cache={...cache,stale:true};
  if(cache && Date.now()-lastRefreshAttemptAt>=RETRY_GUARD_MS)
   void refreshAdminCatalog().catch(error=>console.warn('[Admin catalog] Background refresh failed; retaining last snapshot.',error));
