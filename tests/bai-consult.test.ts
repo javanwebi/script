@@ -362,3 +362,15 @@ test('Gemini and worker fallbacks require separate explicit authorization flags'
  assert.match(server,/if\(!workerFallbackAllowed\)/);
  assert.match(server,/fallback_not_authorized/);
 });
+
+
+test('model failure may return only a clearly labeled factual catalog fallback before any text was emitted',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ assert.match(server,/function consultantLocalCatalogReply/);
+ assert.match(server,/provider:'local_catalog_fallback'/);
+ assert.match(server,/قیمت یا موجودی را تأیید نمی‌کند/);
+ const partialGuard=server.indexOf('if(providerSentText)');
+ const fallback=server.indexOf('const catalogReply=consultantLocalCatalogReply',partialGuard);
+ assert.ok(partialGuard>=0&&fallback>partialGuard);
+});
