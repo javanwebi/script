@@ -6,6 +6,7 @@ Each *complete* response is synthesized once and sent as one gap-free PCM WAV
 frame. No customer WAV, transcript or PCM is written to disk or stored in a cache.
 """
 import concurrent.futures
+from concurrent.futures.process import BrokenProcessPool
 import multiprocessing
 import hmac
 from collections import deque
@@ -247,6 +248,7 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(404, {"error": "not_found"})
 
     def do_POST(self):
+        global pool_ready
         if self.path not in ("/speak", "/speak-stream"):
             self.respond(404, {"error": "not_found"})
             return
@@ -297,6 +299,14 @@ class Handler(BaseHTTPRequestHandler):
             print("[FORZA_NIMA_PRODUCTION] queue_ms=%d inference_ms=%d wav_bytes=%d chars=%d" % (
                 queue_ms, inference_ms, len(wav), len(phrase)
             ), flush=True)
+        except BrokenProcessPool:
+            # A native worker crash poisons the whole executor. Do not keep
+            # advertising healthy service forever: let Docker's restart policy
+            # recreate and warm the private pool. No partial WAV was sent.
+            pool_ready = False
+            print("[FORZA_NIMA_FATAL] pool_broken restart_required=1", file=sys.stderr, flush=True)
+            self.respond(503, {"error": "voice_unavailable"})
+            os.kill(os.getpid(), signal.SIGTERM)
         except (BrokenPipeError, ConnectionResetError, InterruptedError):
             self.close_connection = True
         except Exception as exc:

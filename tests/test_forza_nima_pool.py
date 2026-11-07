@@ -50,6 +50,29 @@ class PoolTests(unittest.TestCase):
             right.close();self.assertTrue(handler.client_disconnected())
         finally:left.close();right.close()
 
+    def test_broken_native_pool_becomes_unhealthy_and_requests_supervised_restart(self):
+        from concurrent.futures.process import BrokenProcessPool
+        from http.server import ThreadingHTTPServer
+        import urllib.error
+        fake=types.ModuleType('piper');fake.PiperVoice=object
+        scope={'__name__':'broken_pool_probe'}
+        with patch.dict(sys.modules,{'piper':fake}):
+            exec(compile((ROOT/'scripts/forza_nima_voice_http.py').read_text(),'pool.py','exec'),scope)
+        class Broken:
+            def submit(self,*args):
+                f=concurrent.futures.Future();f.set_exception(BrokenProcessPool('native failure'));return f
+        scope['inference_pool']=Broken();scope['pool_ready']=True
+        server=ThreadingHTTPServer(('127.0.0.1',0),scope['Handler'])
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            with patch.dict(os.environ,{'FORZA_VOICE_TOKEN':'isolated-test-token'}),patch.object(os,'kill') as restart:
+                req=urllib.request.Request(f'http://127.0.0.1:{server.server_port}/speak',data=json.dumps({'text':'سلام'}).encode(),headers={'Content-Type':'application/json','X-Forza-Voice-Token':'isolated-test-token'})
+                with self.assertRaises(urllib.error.HTTPError) as failed:urllib.request.urlopen(req,timeout=2)
+                self.assertEqual(failed.exception.code,503)
+                self.assertFalse(scope['pool_ready'])
+                restart.assert_called_once_with(os.getpid(),signal.SIGTERM)
+        finally:server.shutdown();server.server_close();thread.join()
+
     @unittest.skipUnless(os.environ.get('FORZA_NIMA_TEST_MODEL'),'requires local verified Piper model')
     def test_real_two_worker_inference_and_health(self):
         with socket.socket() as reservation:
