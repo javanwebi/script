@@ -62,14 +62,25 @@ class PoolTests(unittest.TestCase):
             def submit(self,*args):
                 f=concurrent.futures.Future();f.set_exception(BrokenProcessPool('native failure'));return f
         scope['inference_pool']=Broken();scope['pool_ready']=True
+        # The HTTP client can see 503 before the handler reaches os.kill.
+        # Never temporarily patch the process-global kill: restoring it on a
+        # failed assertion could let the server thread terminate the test runner.
+        from unittest.mock import Mock
+        restart_done=threading.Event()
+        isolated_os=types.ModuleType('isolated_os')
+        isolated_os.__dict__.update(vars(os))
+        restart=Mock(side_effect=lambda *_:restart_done.set())
+        isolated_os.kill=restart
+        scope['os']=isolated_os
         server=ThreadingHTTPServer(('127.0.0.1',0),scope['Handler'])
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         try:
-            with patch.dict(os.environ,{'FORZA_VOICE_TOKEN':'isolated-test-token'}),patch.object(os,'kill') as restart:
+            with patch.dict(os.environ,{'FORZA_VOICE_TOKEN':'isolated-test-token'}):
                 req=urllib.request.Request(f'http://127.0.0.1:{server.server_port}/speak',data=json.dumps({'text':'سلام'}).encode(),headers={'Content-Type':'application/json','X-Forza-Voice-Token':'isolated-test-token'})
                 with self.assertRaises(urllib.error.HTTPError) as failed:urllib.request.urlopen(req,timeout=2)
                 self.assertEqual(failed.exception.code,503)
                 self.assertFalse(scope['pool_ready'])
+                self.assertTrue(restart_done.wait(timeout=2),'supervised restart not requested')
                 restart.assert_called_once_with(os.getpid(),signal.SIGTERM)
         finally:server.shutdown();server.server_close();thread.join()
 
