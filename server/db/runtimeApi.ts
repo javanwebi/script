@@ -127,7 +127,7 @@ export async function runtimeApi(req:Request,res:Response){
      })
    ]);
    if(identity.user && !identity.staff)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
-   let visibleProducts:unknown[]=[];
+   let visibleProducts:unknown=[];
    if(includeProducts){
     const products=identity.staff
      ? (canStaff(identity,'products')?await readProducts():[])
