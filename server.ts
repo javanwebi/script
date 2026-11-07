@@ -5970,6 +5970,13 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
   const textProvider = xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
   const textModel = xkiroModel || baiModel;
+  const geminiFallbackAllowed=process.env.FORZA_ALLOW_GEMINI_FALLBACK==='true';
+  const workerFallbackAllowed=process.env.FORZA_ALLOW_WORKER_FALLBACK==='true';
+  if(!textProvider&&!geminiFallbackAllowed&&!workerFallbackAllowed){
+    sendEvent({type:'error',responseId,errorCode:'no_explicit_text_provider',
+      message:'ارائه‌دهنده مشاوره فعال نیست؛ هیچ سرویس پولی بدون اجازه فعال نمی‌شود.'});
+    return res.end();
+  }
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
     ' elapsedMs='+(Date.now()-startedAt));
@@ -6048,8 +6055,13 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     }
   }
 
-  const apiKey = getGeminiKey();
+  const apiKey = geminiFallbackAllowed ? getGeminiKey() : undefined;
   if (!apiKey) {
+    if(!workerFallbackAllowed){
+      sendEvent({type:'error',responseId,errorCode:'fallback_not_authorized',
+        message:'ارائه‌دهنده انتخاب‌شده در دسترس نیست و جایگزین پولی مجاز نشده است.'});
+      return res.end();
+    }
     if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:'worker_complete_text'});
     let workerText = '';
     try {
