@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BaiConsultError, completeXkiroConsult, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import {findCatalogKnowledge} from '../src/utils/catalogKnowledge';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -286,4 +287,38 @@ test('voice Qwen request trims history and catalog payload before first token',a
   assert.ok(body.messages[0].content.endsWith('ک'.repeat(2600)),'voice catalog context is capped at 2,600 characters');
   assert.ok(body.messages.slice(1,-1).every((message:any)=>message.content.length<=1200));
   assert.equal(body.messages.at(-1).content.length,4);
+});
+
+
+test('catalog lookup preserves exact bearing suffixes and the latest corrected SKU',()=>{
+ const products:any[]=[{
+  code:'6203',name:'بلبرینگ شیار عمیق',active:true,
+  variants:[
+   {code:'6203',name:'بلبرینگ 6203'},
+   {code:'6203ZZ',name:'بلبرینگ 6203 ZZ'},
+   {code:'6203RS',name:'بلبرینگ 6203 RS'},
+  ],
+ }];
+ const suffix=findCatalogKnowledge(products,'بلبرینگ ۶۲۰۳ زد زد');
+ assert.equal(suffix.length,1);
+ assert.deepEqual(suffix[0].variants.map((v:any)=>v.code),['6203ZZ']);
+ const corrected=findCatalogKnowledge(products,'بلبرینگ 6202 نه 6203 ZZ');
+ assert.equal(corrected.length,1);
+ assert.deepEqual(corrected[0].variants.map((v:any)=>v.code),['6203ZZ']);
+ const plain=findCatalogKnowledge(products,'بلبرینگ 6203');
+ assert.deepEqual(plain[0].variants.map((v:any)=>v.code),['6203']);
+});
+
+test('catalog lookup keeps belt profile and length together as one exact identifier',()=>{
+ const products:any[]=[{
+  code:'SPA',name:'تسمه انتقال قدرت',active:true,
+  variants:[
+   {code:'SPA1250',name:'تسمه SPA 1250'},
+   {code:'SPA1500',name:'تسمه SPA 1500'},
+   {code:'1250',name:'قطعه با طول 1250'},
+  ],
+ }];
+ const result=findCatalogKnowledge(products,'تسمه SPA 1250');
+ assert.equal(result.length,1);
+ assert.deepEqual(result[0].variants.map((v:any)=>v.code),['SPA1250']);
 });
