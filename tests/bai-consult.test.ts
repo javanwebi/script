@@ -322,3 +322,16 @@ test('catalog lookup keeps belt profile and length together as one exact identif
  assert.equal(result.length,1);
  assert.deepEqual(result[0].variants.map((v:any)=>v.code),['SPA1250']);
 });
+
+
+test('an explicitly selected B.AI provider does not silently fall through to Gemini billing',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ const start=server.indexOf("if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true)");
+ const end=server.indexOf("const apiKey = getGeminiKey();",start);
+ assert.ok(start>=0&&end>start);
+ const providerBranch=server.slice(start,end);
+ assert.match(providerBranch,/ارائه‌دهنده انتخاب‌شده پاسخ نداد/);
+ assert.match(providerBranch,/return res\.end\(\)/);
+ assert.doesNotMatch(providerBranch,/trying configured fallback/i);
+});
