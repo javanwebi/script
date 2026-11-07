@@ -206,14 +206,14 @@ test('first unpunctuated Nima group is released at a short complete-word boundar
 
 test('early Nima phrase boundaries never split bearing suffixes or belt profile sizes',()=>{
   const bearing=new ForzaIncrementalSpeechText();
-  const bearingFirst=bearing.push('کد نهایی بلبرینگ 6203 ZZ C3 موجود است');
+  const bearingFirst=bearing.push('برای سفارش قطعه 6203 ZZ C3 اطلاعات بده');
   assert.equal(bearingFirst.length,1);
   assert.match(bearingFirst[0],/6203 ZZ C3$/);
 
   const belt=new ForzaIncrementalSpeechText();
   const beltFirst=belt.push('تسمه انتقال قدرت SPA 1250 برای موتور صنعتی');
   assert.equal(beltFirst.length,1);
-  assert.doesNotMatch(beltFirst[0],/SPA$/);
+  assert.match(beltFirst[0],/SPA 1250$/);
 });
 
 
