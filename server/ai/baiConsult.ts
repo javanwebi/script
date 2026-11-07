@@ -301,7 +301,7 @@ export async function completeXkiroConsult(
           .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
       }catch{}
       const retryAfter=response.headers.get('retry-after');
-      const retrySeconds=retryAfter&&/^\\d+(?:\\.\\d+)?$/.test(retryAfter)
+      const retrySeconds=retryAfter&&/^\d+(?:\.\d+)?$/.test(retryAfter)
         ?Number(retryAfter):null;
       const retryDate=retryAfter&&retrySeconds===null?Date.parse(retryAfter):NaN;
       const retryAfterMs=retrySeconds!==null
