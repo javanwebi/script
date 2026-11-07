@@ -158,6 +158,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionFailedRef = useRef(false);
   const recognitionRetryRef=useRef(0);
   const recognitionRetryTimerRef=useRef<number|null>(null);
+  const recognitionRestartTimerRef=useRef<number|null>(null);
   const vadRef = useRef(new ForzaVoiceActivity());
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
@@ -243,6 +244,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
+  const micPollTimerRef=useRef<number|null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const setStatus = useCallback((s: ForzaStatus) => {
