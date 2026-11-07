@@ -5,6 +5,9 @@ import io
 import json
 import os
 import threading
+from retrieval import PIPELINE, decode, foreground, crop, jpeg, markings, geometric
+import cv2
+cv2.setNumThreads(1)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL_ID = 'dinov2-small-ed25f3a3-fp32-cls-224-v1'
@@ -59,10 +62,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path != '/health':
             return self.reply(404, {})
-        self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': 384})
+        self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': 384, 'pipeline': PIPELINE})
 
     def do_POST(self):
-        if self.path != '/embed':
+        if self.path not in ('/embed', '/query', '/rerank'):
             return self.reply(404, {})
         expected = 'Bearer ' + os.environ['LOCAL_VISION_TOKEN']
         if not hmac.compare_digest(self.headers.get('Authorization', ''), expected):
@@ -78,10 +81,26 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.connection.settimeout(5)
             data = json.loads(self.rfile.read(size))
-            images = data.get('images')
-            if not isinstance(images, list) or not 1 <= len(images) <= 2 or not all(isinstance(i, str) for i in images):
-                raise ValueError('invalid batch')
-            self.reply(200, {'model': MODEL_ID, 'vectors': encode(images)})
+            if self.path == '/query':
+                image = decode(data['image'])
+                box = foreground(image)
+                views = [data['image']]
+                if box:
+                    views.append(jpeg(crop(image, box)))
+                text, available = markings(crop(image, box) if box else image)
+                self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE, 'vectors': encode(views),
+                                 'region': box, 'markings': text, 'ocrAvailable': available})
+            elif self.path == '/rerank':
+                candidates = data.get('images')
+                if not isinstance(candidates, list) or not 1 <= len(candidates) <= 6:
+                    raise ValueError('invalid candidates')
+                self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE,
+                                 'evidence': [geometric(data['image'], value) for value in candidates]})
+            else:
+                images = data.get('images')
+                if not isinstance(images, list) or not 1 <= len(images) <= 2 or not all(isinstance(i, str) for i in images):
+                    raise ValueError('invalid batch')
+                self.reply(200, {'model': MODEL_ID, 'vectors': encode(images)})
         except Exception:
             self.reply(400, {'error': 'invalid_image'})
         finally:
@@ -108,4 +127,4 @@ if __name__ == '__main__':
     warmup = io.BytesIO()
     Image.new('RGB', (32, 32), 'white').save(warmup, format='JPEG')
     encode([base64.b64encode(warmup.getvalue()).decode()])
-    ThreadingHTTPServer(('0.0.0.0', 8091), Handler).serve_forever()
+    ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('LOCAL_VISION_PORT', '8091'))), Handler).serve_forever()

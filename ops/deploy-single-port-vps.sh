@@ -264,26 +264,26 @@ fi
 # The explicit marker is only created after photo binding reconciliation/benchmarks.
 if [[ -f "$APP/.local-vision-enabled" ]]; then
  test -s "$APP/.env.local-vision"
- docker image inspect sanatpish-local-vision:dinov2-small-v1 >/dev/null
- if ! docker container inspect sanatpish-local-vision >/dev/null 2>&1; then
-  docker run -d --name sanatpish-local-vision --restart unless-stopped \
+ docker image inspect sanatpish-local-vision:dinov2-small-lens-v2 >/dev/null
+ if ! docker container inspect sanatpish-local-vision-lens-v2 >/dev/null 2>&1; then
+  docker run -d --name sanatpish-local-vision-lens-v2 --restart unless-stopped \
    --network "$NETWORK" --cpus=1 --memory=1200m --memory-swap=1200m \
    --pids-limit=64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
    --cap-drop=ALL --security-opt=no-new-privileges \
-   --env-file "$APP/.env.local-vision" sanatpish-local-vision:dinov2-small-v1 >/dev/null
+   --env-file "$APP/.env.local-vision" sanatpish-local-vision:dinov2-small-lens-v2 >/dev/null
  else
-  docker network connect "$NETWORK" sanatpish-local-vision 2>/dev/null || \
-   docker inspect sanatpish-local-vision --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
-  docker start sanatpish-local-vision >/dev/null
+  docker network connect "$NETWORK" sanatpish-local-vision-lens-v2 2>/dev/null || \
+   docker inspect sanatpish-local-vision-lens-v2 --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
+  docker start sanatpish-local-vision-lens-v2 >/dev/null
  fi
  VISION_READY=0
  for _ in $(seq 1 30); do
-  if docker exec sanatpish-local-vision python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]=="dinov2-small-ed25f3a3-fp32-cls-224-v1"' 2>/dev/null; then VISION_READY=1; break; fi
+  if docker exec sanatpish-local-vision-lens-v2 python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]=="dinov2-small-ed25f3a3-fp32-cls-224-v1" and d.get("pipeline")=="local-lens-v2"' 2>/dev/null; then VISION_READY=1; break; fi
   sleep 1
  done
  test "$VISION_READY" = 1
  # Verify encoder authentication and dimensions before changing the serving site.
- docker exec sanatpish-local-vision python -c 'import base64,io,json,os,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==384'
+ docker exec sanatpish-local-vision-lens-v2 python -c 'import base64,io,json,os,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==384'
  # Docker uses the final definition; preserve all other existing live settings.
  cat "$APP/.env.local-vision" >> "$ENV_FILE"
 else

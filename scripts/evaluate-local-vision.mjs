@@ -23,7 +23,7 @@ for(const row of rows){
   const upload=await fetch(new URL('/api/ai/customer-images',base),{method:'POST',headers:{'Content-Type':mime},body:bytes});
   if(!upload.ok)throw new Error(`Upload HTTP ${upload.status}`);
   const {imageUrl}=await upload.json();
-  const response=await fetch(new URL('/api/ai/analyze-part',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imageUrl,stage:'quick'})});
+  const response=await fetch(new URL('/api/ai/analyze-part',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imageUrl,stage:'quick',region:row.region})});
   if(!response.ok)throw new Error(`Search HTTP ${response.status}`);
   const data=await response.json();
   if(data.retrieval?.mode!=='local-embedding')throw new Error('Unexpected non-local response');

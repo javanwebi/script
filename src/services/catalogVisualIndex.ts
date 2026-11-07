@@ -68,9 +68,20 @@ export class CatalogVisualIndex {
   await this.load();if(!this.coverage(images).ready)return null; // Never quietly exclude unindexed new products.
   const full=await sharp(query).rotate().resize(this.options.imageSize || 768,this.options.imageSize || 768,{fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();
   const vectors=await embed([full]);if(vectors.length!==1)throw new Error('Query embedding missing');
-  const vector=normalized(vectors[0],this.options.dimensions);
-  return images.map(row=>({row,score:this.entries.get(row.id)!.vector.reduce((sum,n,i)=>sum+n*vector[i],0)})).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id)).slice(0,limit);
+  return this.rankVectors(vectors,images,limit);
  }
+ async rankVectors(vectors:number[][],images:CatalogImageRecord[],limit=48){
+  await this.load();if(!this.coverage(images).ready)return null;
+  if(!vectors.length || vectors.length>2)throw new Error('Invalid query views');
+  const queries=vectors.map(v=>normalized(v,this.options.dimensions));
+  return images.map(row=>{
+   const vector=this.entries.get(row.id)!.vector;
+   const viewScores=queries.map(q=>vector.reduce((sum,n,i)=>sum+n*q[i],0));
+   const score=viewScores.length===1 ? viewScores[0] : Math.max(viewScores[0],0.25*viewScores[0]+0.75*viewScores[1]);
+   return {row,score,viewScores};
+  }).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id)).slice(0,limit);
+ }
+
  async retrieve(query:Buffer,images:CatalogImageRecord[],embed:EmbedImages,limit=48){
   return (await this.rank(query,images,embed,limit))?.map(hit=>hit.row) ?? null;
  }

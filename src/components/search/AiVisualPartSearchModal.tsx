@@ -1,3 +1,6 @@
+import {apiUrl} from '../../config/apiConfig';
+import {ImageRegionSelector} from './ImageRegionSelector';
+import type {ImageRegion} from '../../services/localQueryImage';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { useState, useRef } from "react";
@@ -96,6 +99,17 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
+  React.useEffect(()=>{
+    if(!isOpen)return;
+    const controller=new AbortController();
+    fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
+      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && data?.pipeline==='local-lens-v2');})
+      .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
+    return ()=>controller.abort();
+  },[isOpen]);
+  React.useEffect(()=>setQueryRegion(undefined),[selectedImage]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const imageUploadSequenceRef = useRef(0);
@@ -463,6 +477,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
+        region:localRegionEnabled?queryRegion:undefined,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         setScanCounts(progress);
@@ -1028,6 +1043,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </div>
                 </div>
               )}
+
+              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={setQueryRegion} />}
 
               {/* MAIN ACTION BUTTONS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

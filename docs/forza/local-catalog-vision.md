@@ -19,7 +19,7 @@ Other FORZA voice/chat providers are unaffected.
   Docker/runtime size. No GPU required. Do not promise 40 concurrent requests.
 - Serving is offline; only provisioning downloads dependencies/weights.
 
-## Data and ranking
+## Data and ranking — Lens-inspired local pipeline
 
 Existing authoritative `catalog_families`/`catalog_variants` adapters and the
 current gallery/image corpus are reused. No table, migration, stock record or
@@ -28,20 +28,48 @@ stored through the existing private `app_private.scoped_documents` cache under a
 model/revision/preprocessing-specific namespace. No pgvector extension is needed
 for this catalogue scale. Gemini's 768-dimensional vectors remain separate.
 
-Each image is EXIF-oriented and reduced by Sharp, square-padded without cropping,
-rescaled/antialiased to 224 pixels and ImageNet-normalized; normalized CLS vectors
-are compared by cosine similarity against the complete current image index.
-Only current image IDs/revisions are ranked. New/edited images invalidate coverage;
-background indexing resumes saved batches. An incomplete index returns an explicit
-503 and progress instead of silently searching a subset or invoking Gemini.
+Catalogue photographs are EXIF-oriented, square-padded, rescaled to 224 pixels
+and ImageNet-normalized. Normalized CLS vectors remain compatible with the
+previous public DINOv2 index. No catalogue-vector migration/rebuild is required
+solely for this pipeline change; changed photos/revisions still invalidate coverage.
 
-Top image matches retain current active family and SKU bindings. A family photo
-links to the family page and its sizes, never an arbitrarily chosen SKU. Only
-explicitly image-bound active SKUs produce product cards. Photo similarity alone
-never establishes an exact SKU, size, stock, material or technical substitute.
-Scores are ranking scores, not calibrated confidence percentages. There is no OCR
-or measurement-based refinement in this version. No-match requests ask for more
-information rather than asserting absence/custom manufacture feasibility.
+The query path now has these bounded stages:
+
+1. Optional customer-selected normalized rectangle, applied after EXIF orientation.
+   The inline region selector supports pointer/touch and keyboard editing. It is
+   only displayed when the local pipeline advertises support.
+2. Full-frame query plus one automatic foreground crop on consistent backgrounds.
+   The crop is a conservative border-colour/component heuristic, **not a general
+   object detector or segmentation model**. Cluttered borders yield no automatic
+   crop; the customer can select the part manually. Full-frame candidates remain.
+3. DINOv2 retrieval using full-frame and cropped-view scores. At most two neural
+   query encodes are performed; indexing remains asynchronous and incremental.
+4. Up to six best catalogue photos are compared with ORB keypoints and a bounded
+   RANSAC homography. Distributed inliers provide an additional ranking signal.
+   Textureless parts may have no evidence; missing evidence is not proof of a
+   mismatch. A shared logo/tiny patch is rejected by spatial coverage checks.
+   No geometric score proves physical compatibility or unique SKU identity.
+5. Local Tesseract English OCR reads sparse Latin industrial markings, with an
+   800 ms process timeout. Only code-like tokens with reported confidence >=85
+   are retained. OCR remains fallible; Persian descriptions and unreadable engraving
+   are not reliably handled by this engine. OCR failure/timeout is disclosed.
+6. Real active inventory codes are compared with the OCR text. Unique code
+   suggestions require a visually eligible family and remain unconfirmed product
+   candidates. Ambiguous normalized codes never select an arbitrary SKU. Code and
+   geometry bonuses cannot rescue a photo below the base visual threshold.
+7. Results are diversified to at most two photos per family grouping. Close top
+   family scores are disclosed as ambiguous, and more detail is requested.
+
+Current active image bindings determine the photo/family links. Family photos do
+not choose an arbitrary size. Similarity and OCR candidates never enter the exact
+match list. No stock, material, hidden dimension or engineering substitute is
+inferred from appearance alone. Scores are ranking values, not probabilities.
+No-match asks for more information rather than asserting absence or promising
+custom manufacture. Customer-selected regions do not replace stored source photos.
+
+Incomplete current image-index coverage still returns an explicit 503/progress
+instead of silently searching a subset. Geometric/OCR degradation is disclosed,
+and Gemini is never used as a hidden fallback.
 
 `LOCAL_VISION_MIN_SIMILARITY=0.65` is an **unvalidated initial threshold**. Tune it
 against owner-labelled customer photos, including out-of-catalogue objects and
@@ -89,7 +117,7 @@ every application release. Initial background catalogue indexing can take minute
 customer requests do not trigger a full synchronous rebuild.
 
 Check `GET /api/ai/local-vision-status` for enabled/model/total/indexed/ready and
-`docker stats --no-stream sanatpish-local-vision` for actual resource use. Status
+`docker stats --no-stream sanatpish-local-vision-lens-v2` for actual resource use. Status
 contains no credentials. Accuracy and p95 end-to-end latency must be recorded on
 real customer photos; passing unit/protocol tests alone is insufficient.
 
@@ -108,7 +136,7 @@ vectors. The idle sidecar can be stopped after the old local-mode app is retired
 Run `npm run lint`, `npm run test:database`, `npm run test:portal`, `npm run build`,
 and `node --import tsx --test tests/catalog-visual-index.test.ts tests/local-vision.test.ts`.
 Python: install the pinned CPU torch/requirements in a temporary venv and run
-`python services/local-vision/test_worker.py`. Python tests execute actual DINOv2 layers with random test weights by default.
+`python -m unittest discover -s services/local-vision -p 'test_*.py'`. Python tests execute actual DINOv2 layers with random test weights by default.
 Set `LOCAL_VISION_TEST_MODEL_DIR` to the locally downloaded model directory to run
 the same tests with the trained weights and `HF_HUB_OFFLINE=1`. These tests verify
 preprocessing, normalized embeddings, auth, request limits and protocol; they do
@@ -118,7 +146,8 @@ The owner's self-hosted database and labelled customer photographs are not avail
 in the development workspace. Public pinned weights were downloaded with
 `token=False` and real-weight inference was tested with offline flags. A warm
 224-pixel encode took 154 ms and process peak RSS was 455 MiB in this workspace;
-these are smoke measurements, not VPS results or a production latency guarantee.
+these are baseline single-encode smoke measurements, not the new whole-pipeline
+latency, VPS results or a production service guarantee.
 No production reconciliation, deployment or industrial recognition accuracy is claimed.
 
 For repeatable staging evaluation, prepare a private JSON manifest:
@@ -136,3 +165,26 @@ It uploads only to that staging application, checks the selected mode, and repor
 family/bound-code recall@5, negative rejection, errors, false exact claims and p95
 upload-plus-search time. Keep customer photos and manifests out of Git. No label
 in this example is a real product code or evidence of model quality.
+
+
+The `local-lens-v2` encoder has a separate container/image identity
+`sanatpish-local-vision-lens-v2` / `sanatpish-local-vision:dinov2-small-lens-v2`.
+Re-run one-time setup to build this version and update the private service URL;
+no external credentials are requested. The previous encoder can keep serving an
+old app until promotion completes. Stop an unused older encoder only after the
+old application is retired. Promotion verifies the pipeline version as well as the
+model revision. This search operates within this catalogue, not Google's web index,
+and is not a reproduction of Google's proprietary Lens implementation.
+
+## Trained pipeline integration test
+
+`tests/local-vision-trained.test.ts` launches the actual private Python worker
+with offline flags and public trained weights, builds an isolated two-photo index,
+executes the query and geometric comparison endpoints, ranks the results and
+checks that only real fixture-bound product codes are returned without exact SKU
+claims. Run it explicitly with `LOCAL_VISION_TEST_MODEL_DIR=/path/to/local/model`
+and `LOCAL_VISION_TEST_PYTHON=/path/to/venv/bin/python` using
+`node --import tsx --test tests/local-vision-trained.test.ts`. It skips when the
+local model directory is not supplied. Synthetic fixtures establish protocol and
+ranking mechanics, not industrial customer-photo accuracy. Browser pointer/touch
+interaction and production-photo accuracy still need staging validation.

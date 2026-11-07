@@ -51,3 +51,14 @@ test('database index loading fails closed and can retry after an outage',async()
  await assert.rejects(()=>index.load(),/database unavailable/);failed=false;await index.load();
  assert.equal(index.coverage([row('a')]).ready,false);
 });
+test('a foreground query can retrieve an object hidden by full-frame background without losing full-frame candidates',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'multi-query-'));
+ try{
+  const index=new CatalogVisualIndex(path.join(dir,'index.json'),undefined,{model:'local',dimensions:2,batchSize:1,concurrency:1});
+  const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
+  let i=0;await index.update([row('background'),row('object')],async()=>image,async()=>[i++===0?[1,0]:[0,1]]);
+  const hits=await index.rankVectors([[0.6,0.8],[0,1]],[row('background'),row('object')]);
+  assert.equal(hits![0].row.id,'object');assert.equal(hits![0].viewScores.length,2);
+  await assert.rejects(()=>index.rankVectors([[NaN,0]],[row('object')]));
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
