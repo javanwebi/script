@@ -125,3 +125,12 @@ test('moderate MobileCLIP evidence needs multiple distinct photos in one family;
  const strong=localVisionResult([{...bound,score:0.8}],products,coverage,'/customer',0.55,query);
  assert.equal(strong.catalogImageMatches!.length,1);
 });
+test('opt-in nearest catalogue suggestions are unconfirmed, bounded and separate from accepted matches',()=>{
+ const low=hit([{familyCode:'family',verified:false}],0.31);
+ const result=localVisionResult([low],products,coverage,'/customer',0.65,undefined,true);
+ assert.deepEqual(result.catalogImageMatches,[]);assert.deepEqual(result.matchedProducts,[]);assert.deepEqual(result.similarCandidates,[]);
+ assert.equal(result.nearestCatalogSuggestions!.length,2);
+ assert.ok(result.nearestCatalogSuggestions!.every(m=>m.matchBasis==='explore'&&m.visualScore===undefined&&m.code!=='inactive'));
+ const strong=localVisionResult([hit([{familyCode:'family',verified:false}],0.9)],products,coverage,'/customer',0.65,undefined,true);
+ assert.equal(strong.nearestCatalogSuggestions,undefined);
+});

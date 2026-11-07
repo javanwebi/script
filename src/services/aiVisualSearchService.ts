@@ -10,6 +10,7 @@ import { apiUrl, assertBackendConfigured } from '../config/apiConfig';
 export type AiAnalysisStage = 'quick' | 'refined';
 
 export interface AiPartAnalysisRequest {
+  includeNearest?:boolean;
   region?:{x:number;y:number;width:number;height:number};
   imageBase64?: string;
   imageUrl?: string;
@@ -77,12 +78,13 @@ export interface CatalogModelSuggestion {
   code:string;name:string;familyCode:string;familyName:string;
   model?:string;size?:string;brand?:string;image?:string;
   imageScope:'variant'|'family'|'none';
-  matchBasis:'visual'|'read_code'|'family';
+  matchBasis:'visual'|'read_code'|'family'|'explore';
   visualScore?:number;
   specs:{key:string;value:string}[];
   reason:string;
 }
 export interface AiPartAnalysisResult {
+  nearestCatalogSuggestions?:CatalogModelSuggestion[];
   modelSuggestions?:CatalogModelSuggestion[];
   queryRegion?:{x:number;y:number;width:number;height:number}|null;
   localVisionMetrics?:{pipeline:string;queryViews:number;geometryComplete:boolean;ocrAvailable:boolean;retrievalMs:number};

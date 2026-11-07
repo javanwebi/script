@@ -4698,7 +4698,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
       const query=await describeLocalQuery(queryImage);
-      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,32,localProfile.maxViews>2);
+      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.maxViews>2);
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=retrieved[0]?.viewScores || [];
@@ -4723,7 +4723,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       // Similarity thresholds require validation on owner-labelled industrial photos.
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
-      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query);
+      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
       return res.json(publicCatalog({...result,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
