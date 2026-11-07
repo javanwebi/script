@@ -22,8 +22,14 @@ function exactCodeCandidates(query:string):Set<string>{
     /(?<![a-z0-9])(?:spz|spa|spb|spc|xpz|xpa|xpb|xpc|htd|std|rpp\d*)\s+\d{2,5}m?(?![a-z0-9])/gi,
     /(?<![a-z0-9])[a-z]{2,5}\d{2,5}(?:zz|2z|rs|2rs|c[234])?(?![a-z0-9])/gi,
   ];
-  for(const pattern of patterns)for(const match of text.matchAll(pattern))
-    found.push(compactCode(match[0]));
+  const profileMatches=[...text.matchAll(patterns[1])];
+  const profileSizes=new Set(profileMatches.map(match=>
+    compactCode((match[0].match(/\d{2,5}m?$/i)||[''])[0])));
+  for(let i=0;i<patterns.length;i++)for(const match of text.matchAll(patterns[i])){
+    const code=compactCode(match[0]);
+    if(i===0&&/^\d{3,6}$/.test(code)&&profileSizes.has(code))continue;
+    found.push(code);
+  }
   // If the customer corrects an identifier in the same utterance, the final
   // code is authoritative; never retrieve the code they just rejected.
   if(found.length>1&&/(?:^|\s)(?:نه|منظورم|یعنی|اصلاحش|اشتباه)(?:\s|$)/.test(text))
