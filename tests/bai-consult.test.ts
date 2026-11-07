@@ -335,3 +335,18 @@ test('an explicitly selected B.AI provider does not silently fall through to Gem
  assert.match(providerBranch,/return res\.end\(\)/);
  assert.doesNotMatch(providerBranch,/trying configured fallback/i);
 });
+
+
+test('FORZA catalog snapshot is cached by authoritative override object and merged in linear time',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ const start=server.indexOf('let consultantProductsCache:');
+ const end=server.indexOf('function consultantCatalogContext',start);
+ assert.ok(start>=0&&end>start);
+ const catalog=server.slice(start,end);
+ assert.match(catalog,/consultantProductsCache\?\.source===db/);
+ assert.match(catalog,/new Map\(getManagedCatalogProducts\(\)\.map/);
+ assert.match(catalog,/new Set\(db\.deletedCodes/);
+ assert.doesNotMatch(catalog,/all\.some\(/);
+ assert.match(server,/consultantCatalogContext\(voiceQuery,lowLatencyVoice\?4:8\)/);
+});
