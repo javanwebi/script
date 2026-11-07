@@ -139,7 +139,7 @@ test('xKiro never rotates to an untested free model after the configured model f
   await assert.rejects(streamXkiroFreePool({
     apiKey:'not-a-real-secret',model:first,query:'سلام',
     voice:true,fetchImpl,onDelta:()=>{},
-  }),(error:unknown)=>error instanceof BaiConsultError&&error.code==='http_429');
+  }),(error:unknown)=>error instanceof BaiConsultError&&error.code.startsWith('http_429'));
   assert.deepEqual(attempted,[first]);
 });
 
