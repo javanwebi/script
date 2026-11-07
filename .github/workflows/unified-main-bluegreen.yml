@@ -29,6 +29,8 @@ jobs:
       - name: Verify blue-green script syntax and safe pointers
         run: |
           bash -n ops/deploy-main-bluegreen-vps.sh
+          bash -n ops/deploy-new-vps.sh
+          node --import tsx --test tests/new-vps-deploy-routing.test.ts
           bash -n ops/deploy-single-port-vps.sh
           node --import tsx --test tests/single-port-deploy.test.ts
           node --import tsx --test tests/production-catalog-recovery.test.ts
