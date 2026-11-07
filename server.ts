@@ -6038,7 +6038,11 @@ app.post('/api/ai/consult-stream', async (req, res) => {
         });
         return res.end();
       }
-      console.info('[AI Consult Stream] B.AI unavailable; trying configured fallback.');
+      // B.AI is an explicit provider choice. Do not silently fall through
+      // to a separately billable Gemini/Worker provider when it fails.
+      sendEvent({type:'error',responseId,errorCode:code,
+        message:'ارائه‌دهنده انتخاب‌شده پاسخ نداد؛ هیچ مدل پولی دیگری بدون اجازه جایگزین نمی‌شود.'});
+      return res.end();
     } finally {
       res.off('close', onDisconnect);
     }
