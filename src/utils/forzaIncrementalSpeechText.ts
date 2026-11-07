@@ -58,7 +58,8 @@ export class ForzaIncrementalSpeechText {
       const end=Math.max(tail.lastIndexOf(' '),tail.lastIndexOf('\n'));
       const stable=tail.slice(0,Math.max(0,end)).trim();
       // Only whitespace-terminated words are safe while SSE is unfinished.
-      if(stable.length>=12 && stable.split(/\s+/).length>=3){
+      if(stable.length>=12 && stable.split(/\s+/).length>=3 &&
+         !this.isUnsafeStableTail(stable)){
         this.emitted+=end+1;
         this.started=true;
         return [stable];
@@ -131,12 +132,21 @@ export class ForzaIncrementalSpeechText {
     // spoken phrases (e.g. "6203 | ZZ C3", "SPA | 1250", "HTD | 5M").
     for(;;){
       const cut=end+1;
-      if(!this.isUnsafeTechnicalBoundary(text,cut))return cut;
+      if(!this.isUnsafeTechnicalBoundary(text,cut)&&
+         !(!text.slice(cut).trim()&&this.isUnsafeStableTail(text.slice(0,cut))))return cut;
       const rest=text.slice(cut);
       const nextSpace=rest.search(/[ \n]/);
       if(nextSpace<0)return 0;
       end=cut+nextSpace;
     }
+  }
+
+  private isUnsafeStableTail(text:string):boolean{
+    const token=text.trim().split(/\s+/).pop()||'';
+    return /^\d{2,5}$/.test(token)||
+      /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(token)||
+      /^(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|HTD|STD|AT\d{1,2}|T\d{2})$/i.test(token)||
+      /^\d{1,3}M$/i.test(token);
   }
 
   private isUnsafeTechnicalBoundary(text:string,cut:number):boolean{
