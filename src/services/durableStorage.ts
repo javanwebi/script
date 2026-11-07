@@ -2,7 +2,17 @@
 let enabled=false,hydrating=false,userId:string|null=null;
 const memory=new Map<string,string>(),versions=new Map<string,number>(),queues=new Map<string,Promise<void>>();
 let failure:Error|null=null;
-let refreshInFlight:Promise<any>|null=null;
+export type DurableRuntimeState = {
+ success:boolean;
+ database:boolean;
+ userId?:string|null;
+ values?:Record<string,unknown>;
+ versions?:Record<string,number>;
+ products?:unknown[];
+ productsIncluded?:boolean;
+ [key:string]:unknown;
+};
+let refreshInFlight:Promise<DurableRuntimeState>|null=null;
 let refreshInFlightIncludesProducts=false;
 let catalogHydrated=false;
 const portalOwned=new Set(['atlas_admin_customers_v1','atlas_admin_inquiries_v1','atlas_legacy_customers_v1','atlas_customers_approval_v2','atlas_price_lists_v2','atlas_customer_grades_v2','atlas_club_rewards_v2','atlas_customer_reward_assignments_v1','atlas_price_list_history_v2','atlas_portal_content_banners_v1','atlas_portal_content_announcements_v1','atlas_portal_club_milestones_v1','atlas_portal_layout_configs_v1','atlas_portal_customer_overrides_v1']);
@@ -13,7 +23,7 @@ export function hydrateMemory(run:()=>void){hydrating=true;try{run();}finally{hy
 function emit(state:string,message=''){window.dispatchEvent(new CustomEvent('atlas-portal-save-status',{detail:{state,message}}));}
 export function isDatabaseCatalogHydrated(){return catalogHydrated;}
 
-export function refreshDurableStorage(options:{includeProducts?:boolean}={}){
+export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Promise<DurableRuntimeState>{
  const includeProducts=options.includeProducts!==false;
  if(refreshInFlight){
   if(!includeProducts || refreshInFlightIncludesProducts)return refreshInFlight;
@@ -25,12 +35,12 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}){
    ()=>refreshDurableStorage(options),
   );
  }
- const request=(async()=>{
+ const request:Promise<DurableRuntimeState>=(async()=>{
   if(enabled)await flushDurableChanges();
   const endpoint=includeProducts?'/api/runtime':'/api/runtime?includeProducts=0';
   const res=await fetch(endpoint,{credentials:'same-origin',cache:'no-store'});
   if(!res.ok)throw new Error('دریافت اطلاعات از پایگاه داده ممکن نشد.');
-  const data=await res.json();
+  const data=await res.json() as DurableRuntimeState;
   if(!data.success)throw new Error(data.message);
   enabled=data.database===true;
   if(enabled){
