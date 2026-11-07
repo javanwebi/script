@@ -151,5 +151,4 @@ export class ForzaIncrementalSpeechText {
     if(/^\d{2,5}$/.test(left)&&/^(?:mm|cm|m|inch|in|میلی‌متر|سانتی‌متر)$/i.test(right))return true;
     return false;
   }
-  }
 }
