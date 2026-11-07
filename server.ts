@@ -1,3 +1,4 @@
+import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
@@ -71,6 +72,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.forza-voice'), quiet: tr
 dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
 // Server-only staff administration key. Never include it in Vite assets or the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
+loadLocalVisionConfig(process.cwd());
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key

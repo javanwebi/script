@@ -188,3 +188,24 @@ and `LOCAL_VISION_TEST_PYTHON=/path/to/venv/bin/python` using
 local model directory is not supplied. Synthetic fixtures establish protocol and
 ranking mechanics, not industrial customer-photo accuracy. Browser pointer/touch
 interaction and production-photo accuracy still need staging validation.
+
+## Existing bind-mounted app on the new VPS (port 3013)
+
+For the owner-supplied deployment with `sanatpish-app`, `/opt/sanatpish:/app` and
+network `supabase_default`, run the setup script with `--app sanatpish-app`. It
+validates the existing app mount/network, starts the private encoder on that same
+network and checks readiness. It does not stop/recreate the app, alter Nginx,
+change port 3013, modify database connection settings, or enable the feature.
+
+The application can now read `.env.local-vision` on startup only when the explicit
+`.local-vision-enabled` marker is present. Loading is limited to local vision
+settings; the database, port, Auth and voice providers are preserved. This lets
+the existing owner-supplied `sanatpish-deploy-main` script remain the deployment
+entrypoint without requiring a replacement app container or secret remount.
+
+Before activation, inspect the full owner deployment script and relevant Nginx
+locations. The supplied script deliberately requires `limit_except GET` guards;
+unknown placement may block public image-upload/analyze POST endpoints. Do not
+remove guards globally or assume their scope from grep output. Source must first
+be merged into main and photo bindings/accuracy verified on staging. An unused
+encoder can be prepared independently while these checks are completed.
