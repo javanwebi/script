@@ -22,7 +22,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,LOCAL_VISION_MODEL,LOCAL_VISION_DIMENSIONS,describeLocalQuery,geometricEvidence,rankLocalEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence} from './src/services/localVision';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -864,7 +864,8 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
 const localVisionEnabled=process.env.PART_RECOGNITION_MODE==='local-embedding';
-const VISUAL_INDEX_NAMESPACE=localVisionEnabled ? 'catalog_visual_'+LOCAL_VISION_MODEL : 'catalog_visual_gemini_768';
+const localProfile=localVisionProfile();
+const VISUAL_INDEX_NAMESPACE=localVisionEnabled ? 'catalog_visual_'+localProfile.model : 'catalog_visual_gemini_768';
 const catalogVisualIndex=new CatalogVisualIndex(
  path.join(process.cwd(),'.cache',localVisionEnabled ? 'catalog-visual-local.json' : 'catalog-visual-index.json'),
  databaseEnabled()?{
@@ -882,7 +883,7 @@ const catalogVisualIndex=new CatalogVisualIndex(
    );
   }
  }:undefined,
- localVisionEnabled ? {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,batchSize:1,concurrency:1,imageSize:512} : undefined
+ localVisionEnabled ? {model:localProfile.model,dimensions:localProfile.dimensions,batchSize:1,concurrency:1,imageSize:512} : undefined
 );
 const localImagePublisher:ImagePublisher=async()=>{throw new Error('Local vision does not publish images');};
 let nextVisualIndexBuild=0;
@@ -4671,7 +4672,7 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
  try{
   await catalogVisualIndex.load();
   const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
-  return res.json({enabled:true,model:LOCAL_VISION_MODEL,pipeline:"local-lens-v2",...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
+  return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
  }catch{return res.status(503).json({enabled:true,ready:false});}
 });
 app.post('/api/ai/analyze-part', async (req, res) => {
@@ -4697,9 +4698,13 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
       const query=await describeLocalQuery(queryImage);
-      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,32);
+      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,32,localProfile.maxViews>2);
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
+      const viewScores=retrieved[0]?.viewScores || [];
+      const bestView=viewScores.indexOf(Math.max(...viewScores));
+      const selectedRegion=body.region || (query.viewRegions ? query.viewRegions[bestView] : query.region);
+      const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
         const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
@@ -4708,7 +4713,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         }));
         const loaded=candidates.filter((c):c is NonNullable<typeof c>=>c!==null);
         if(loaded.length){
-          const evidence=await geometricEvidence(queryImage,loaded.map(c=>c.bytes));
+          const evidence=await geometricEvidence(detailImage,loaded.map(c=>c.bytes));
           const byId=new Map(loaded.map((c,i)=>[c.hit.row.id,evidence[i]]));
           hits=hits.map(hit=>({...hit,geometry:byId.get(hit.row.id)}));
           geometryComplete=loaded.length===Math.min(6,hits.length);
@@ -4716,10 +4721,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       }catch{ /* Keep embedding candidates and disclose incomplete detail comparison. */ }
       hits=rankLocalEvidence(hits,products,query.markings);
       // Similarity thresholds require validation on owner-labelled industrial photos.
-      const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || '0.65');
-      const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : 0.65;
+      const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
+      const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query);
-      return res.json(publicCatalog({...result,queryRegion:body.region || query.region,localVisionMetrics:{pipeline:"local-lens-v2",queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      return res.json(publicCatalog({...result,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
       return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});

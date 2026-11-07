@@ -87,3 +87,41 @@ test('extended local query transport validates protocol, crop and bounded geomet
   broken=true;await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/Invalid local query/);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
+
+test('MobileCLIP uses an isolated 512-dimensional space and validates bounded crop metadata',async()=>{
+ const {localVisionProfile,describeLocalQuery}=await import('../src/services/localVision');
+ assert.notEqual(localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'}).model,LOCAL_VISION_MODEL);
+ assert.throws(()=>localVisionProfile({LOCAL_VISION_ENCODER:'unknown'}),/Unsupported/);
+ let broken=false;
+ const profile=localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'});
+ const server=http.createServer(async(req,res)=>{
+  for await(const _chunk of req){};
+  res.setHeader('Content-Type','application/json');
+  res.end(JSON.stringify({model:profile.model,pipeline:profile.pipeline,vectors:[Array(512).fill(0.1),Array(512).fill(0.1)],viewRegions:broken?[null]:[null,{x:0.4,y:0.3,width:0.2,height:0.3}],region:null,markings:[],ocrAvailable:false}));
+ });
+ await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
+ try{
+  const env={LOCAL_VISION_ENCODER:'mobileclip2-s0',LOCAL_VISION_URL:`http://127.0.0.1:${(server.address() as any).port}`,LOCAL_VISION_TOKEN:'private-local-token'};
+  assert.equal((await describeLocalQuery(Buffer.from('photo'),env)).vectors[0].length,512);
+  await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),{...env,LOCAL_VISION_ENCODER:'dinov2-small'}),/mismatch/);
+  broken=true;await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/regions/);
+ }finally{await new Promise<void>(r=>server.close(()=>r()));}
+});
+
+test('moderate MobileCLIP evidence needs multiple distinct photos in one family; a lone texture match stays empty',async()=>{
+ const {localVisionProfile}=await import('../src/services/localVision');
+ const query={model:localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'}).model,vectors:[],markings:[],ocrAvailable:false};
+ const bound=hit([{familyCode:'family',verified:false}],0.57);
+ const lone=localVisionResult([bound],products,coverage,'/customer',0.55,query);
+ assert.deepEqual(lone.catalogImageMatches,[]);assert.deepEqual(lone.modelSuggestions,[]);
+ const duplicate=localVisionResult([bound,bound],products,coverage,'/customer',0.55,query);
+ assert.deepEqual(duplicate.modelSuggestions,[]);
+ const second={...bound,score:0.56,row:{...bound.row,id:'second-photo',url:'/storage/second-photo.webp'}};
+ const supported=localVisionResult([bound,second],products,coverage,'/customer',0.55,query);
+ assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,2);
+ assert.equal(supported.catalogImageMatches![0].score,57);assert.deepEqual(supported.matchedProducts,[]);
+ const inactive=localVisionResult([bound,second],products.map(p=>({...p,active:false})),coverage,'/customer',0.55,query);
+ assert.deepEqual(inactive.modelSuggestions,[]);
+ const strong=localVisionResult([{...bound,score:0.8}],products,coverage,'/customer',0.55,query);
+ assert.equal(strong.catalogImageMatches!.length,1);
+});

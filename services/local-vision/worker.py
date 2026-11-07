@@ -5,12 +5,17 @@ import io
 import json
 import os
 import threading
-from retrieval import PIPELINE, decode, foreground, crop, jpeg, markings, geometric
+from retrieval import PIPELINE, decode, foreground, regions, crop, jpeg, markings, geometric
 import cv2
 cv2.setNumThreads(1)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL_ID = 'dinov2-small-ed25f3a3-fp32-cls-224-v1'
+MOBILE = os.environ.get('LOCAL_VISION_ENCODER') == 'mobileclip2-s0'
+if MOBILE:
+    MODEL_ID = 'mobileclip2-s0-095906d2-fp32-pad-256-v1'
+    PIPELINE = 'local-lens-v3'
+DIMENSIONS = 512 if MOBILE else 384
 MAX_BODY = 6 * 1024 * 1024
 Image = None
 image_mean = (0.485, 0.456, 0.406)
@@ -34,13 +39,14 @@ def encode(images):
         canvas = Image.new('RGB', (side, side), 'white')
         canvas.paste(image, ((side-image.width)//2, (side-image.height)//2))
         pixels = torch.from_numpy(np.array(canvas)).permute(2, 0, 1).float().div_(255).unsqueeze(0)
-        pixels = torch.nn.functional.interpolate(pixels, size=(224, 224), mode='bilinear', align_corners=False, antialias=True)[0]
+        pixels = torch.nn.functional.interpolate(pixels, size=(256, 256) if MOBILE else (224, 224), mode='bilinear', align_corners=False, antialias=True)[0]
         mean = torch.tensor(image_mean).view(3, 1, 1)
         std = torch.tensor(image_std).view(3, 1, 1)
         prepared.append((pixels-mean)/std)
     inputs = {'pixel_values': torch.stack(prepared)}
     with torch.inference_mode():
-        vectors = torch.nn.functional.normalize(model(**inputs).last_hidden_state[:, 0], dim=-1)
+        output = model(inputs['pixel_values']) if MOBILE else model(**inputs).last_hidden_state[:, 0]
+        vectors = torch.nn.functional.normalize(output, dim=-1)
     return vectors.tolist()
 
 
@@ -62,7 +68,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path != '/health':
             return self.reply(404, {})
-        self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': 384, 'pipeline': PIPELINE})
+        self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': DIMENSIONS, 'pipeline': PIPELINE})
 
     def do_POST(self):
         if self.path not in ('/embed', '/query', '/rerank'):
@@ -83,13 +89,13 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(size))
             if self.path == '/query':
                 image = decode(data['image'])
-                box = foreground(image)
+                boxes = regions(image) if MOBILE else [box for box in [foreground(image)] if box]
+                box = boxes[0] if boxes else None
                 views = [data['image']]
-                if box:
-                    views.append(jpeg(crop(image, box)))
+                views.extend(jpeg(crop(image, region)) for region in boxes)
                 text, available = markings(crop(image, box) if box else image)
                 self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE, 'vectors': encode(views),
-                                 'region': box, 'markings': text, 'ocrAvailable': available})
+                                 'region': box, 'viewRegions': [None]+boxes, 'markings': text, 'ocrAvailable': available})
             elif self.path == '/rerank':
                 candidates = data.get('images')
                 if not isinstance(candidates, list) or not 1 <= len(candidates) <= 6:
@@ -112,18 +118,23 @@ if __name__ == '__main__':
         raise SystemExit('LOCAL_VISION_TOKEN must contain at least 32 characters')
     import torch
     from PIL import Image
-    from transformers import AutoModel
     import numpy as np
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     directory = os.environ.get('LOCAL_VISION_MODEL_DIR', '/model')
-    with open(os.path.join(directory, 'preprocessor_config.json')) as f:
-        preprocessing = json.load(f)
-    image_mean = preprocessing.get('image_mean', image_mean)
-    image_std = preprocessing.get('image_std', image_std)
-    model = AutoModel.from_pretrained(directory, local_files_only=True).eval()
-    if model.config.model_type != 'dinov2' or model.config.hidden_size != 384:
-        raise SystemExit('Unexpected model architecture')
+    if MOBILE:
+        from mobile_encoder import load_mobile_encoder
+        model = load_mobile_encoder(directory)
+        image_mean, image_std = (0, 0, 0), (1, 1, 1)
+    else:
+        from transformers import AutoModel
+        with open(os.path.join(directory, 'preprocessor_config.json')) as f:
+            preprocessing = json.load(f)
+        image_mean = preprocessing.get('image_mean', image_mean)
+        image_std = preprocessing.get('image_std', image_std)
+        model = AutoModel.from_pretrained(directory, local_files_only=True).eval()
+        if model.config.model_type != 'dinov2' or model.config.hidden_size != 384:
+            raise SystemExit('Unexpected model architecture')
     warmup = io.BytesIO()
     Image.new('RGB', (32, 32), 'white').save(warmup, format='JPEG')
     encode([base64.b64encode(warmup.getvalue()).decode()])

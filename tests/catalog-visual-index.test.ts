@@ -62,3 +62,16 @@ test('a foreground query can retrieve an object hidden by full-frame background 
   await assert.rejects(()=>index.rankVectors([[NaN,0]],[row('object')]));
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+test('independent crop evidence is not diluted by workshop context and query views stay bounded',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'independent-query-'));
+ try{
+  const index=new CatalogVisualIndex(path.join(dir,'index.json'),undefined,{model:'mobileclip',dimensions:2,batchSize:1,concurrency:1});
+  const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
+  let i=0;const rows=[row('background'),row('object')];
+  await index.update(rows,async()=>image,async()=>[i++===0?[1,0]:[0,1]]);
+  const hits=(await index.rankVectors([[-1,0],[0,1],[0,-1]],rows,48,true))!;
+  assert.equal(hits[0].row.id,'object');assert.equal(hits[0].score,1);
+  await assert.rejects(()=>index.rankVectors(Array(5).fill([0,1]),rows,48,true),/views/);
+  await assert.rejects(()=>index.rankVectors(Array(3).fill([0,1]),rows),/views/);
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});

@@ -29,8 +29,14 @@ class WorkerTests(unittest.TestCase):
         worker.torch, worker.np, worker.Image = torch, np, Image
         # Random small model checks actual DINOv2 code/preprocessing/transport, not recognition quality.
         directory = os.environ.get('LOCAL_VISION_TEST_MODEL_DIR')
-        worker.model = (AutoModel.from_pretrained(directory, local_files_only=True) if directory else
-                        Dinov2Model(Dinov2Config(num_hidden_layers=1, hidden_size=384, num_attention_heads=6, image_size=224))).eval()
+        if worker.MOBILE:
+            from mobile_encoder import load_mobile_encoder
+            import timm
+            worker.model = load_mobile_encoder(directory) if directory else timm.create_model('fastvit_mci0', pretrained=False, num_classes=512).eval()
+            worker.image_mean, worker.image_std = (0, 0, 0), (1, 1, 1)
+        else:
+            worker.model = (AutoModel.from_pretrained(directory, local_files_only=True) if directory else
+                            Dinov2Model(Dinov2Config(num_hidden_layers=1, hidden_size=384, num_attention_heads=6, image_size=224))).eval()
         os.environ['LOCAL_VISION_TOKEN'] = 'x' * 32
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), worker.Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -53,7 +59,7 @@ class WorkerTests(unittest.TestCase):
         with self.request({'images': [image, image]}) as response:
             result = json.load(response)
         self.assertEqual(result['model'], worker.MODEL_ID)
-        self.assertEqual(len(result['vectors'][0]), 384)
+        self.assertEqual(len(result['vectors'][0]), worker.DIMENSIONS)
         self.assertAlmostEqual(sum(v*v for v in result['vectors'][0]), 1, places=5)
         self.assertEqual(result['vectors'][0], result['vectors'][1])
 
@@ -72,8 +78,9 @@ class WorkerTests(unittest.TestCase):
         raw = jpeg(image)
         with self.request({'image': raw}, path='/query') as response:
             result = json.load(response)
-        self.assertEqual(result['pipeline'], 'local-lens-v2')
+        self.assertEqual(result['pipeline'], worker.PIPELINE)
         self.assertEqual(len(result['vectors']), 2)
+        self.assertEqual(len(result['viewRegions']), len(result['vectors']))
         self.assertIsNotNone(result['region'])
         self.assertIsInstance(result['ocrAvailable'], bool)
         with self.request({'image': raw, 'images': [raw]}, path='/rerank') as response:

@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 import cv2
 import numpy as np
-from retrieval import foreground, crop, geometric, jpeg, markings
+from retrieval import foreground, regions, crop, geometric, jpeg, markings
 
 
 class RetrievalTests(unittest.TestCase):
@@ -21,6 +21,20 @@ class RetrievalTests(unittest.TestCase):
     def test_cluttered_border_does_not_claim_an_object_crop(self):
         noise = np.random.default_rng(12).integers(0, 256, (240, 320, 3), dtype=np.uint8)
         self.assertIsNone(foreground(noise))
+
+    def test_clutter_proposals_are_bounded_and_do_not_depend_on_red(self):
+        rng = np.random.default_rng(12)
+        for color in [(20, 20, 220), (20, 220, 20), (220, 20, 220)]:
+            # Busy neutral border rejects uniform-background foreground().
+            noise = rng.integers(60, 210, (280, 512), dtype=np.uint8)
+            image = cv2.cvtColor(noise, cv2.COLOR_GRAY2BGR)
+            cv2.rectangle(image, (224, 104), (292, 172), color, -1)
+            self.assertIsNone(foreground(image))
+            boxes = regions(image)
+            self.assertTrue(1 <= len(boxes) <= 3)
+            self.assertTrue(any(b['x'] <= 224/512 and b['x']+b['width'] >= 292/512 and b['y'] <= 104/280 and b['y']+b['height'] >= 172/280 for b in boxes))
+            self.assertEqual(boxes, regions(image))
+        self.assertEqual(regions(np.full((256, 256, 3), 255, np.uint8)), [])
 
     def test_geometry_supports_distributed_correspondence_but_not_unrelated_or_blank(self):
         image = np.random.default_rng(3).integers(0, 256, (320, 320, 3), dtype=np.uint8)
