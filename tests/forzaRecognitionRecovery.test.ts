@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {forzaRecognitionRetryDelay} from '../src/utils/forzaRecognitionRecovery';
+import {disposeDibaSttModel} from '../src/utils/forzaLocalSpeech';
 test('transient STT network failures have bounded backoff; permissions and permanent errors never loop',()=>{
  assert.deepEqual([0,1,2,3].map(n=>forzaRecognitionRetryDelay('network',n)),[400,1200,2800,null]);
  for(const e of ['not-allowed','service-not-allowed','language-not-supported','audio-capture','aborted'])assert.equal(forzaRecognitionRetryDelay(e,0),null);
@@ -26,4 +27,26 @@ test('production blue-green build ships the Vosk script at the exact browser URL
  assert.ok(deploy.includes('public/forza-runtime/stt/vosk.js'));
  assert.ok(deploy.includes('dist/forza-runtime/stt/vosk.js'));
  assert.ok(local.includes("VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js'"));
+});
+
+
+test('Diba teardown terminates the model and invalidates the cached loader',()=>{
+ let terminated=0;
+ disposeDibaSttModel({terminate:()=>{terminated++;}} as any);
+ assert.equal(terminated,1);
+});
+
+test('FORZA call teardown cancels session-owned media and audio resources',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+ assert.match(source,/const teardownCall=useCallback/);
+ assert.match(source,/activeTurnRef\.current=null;[\s\S]{0,100}active\?\.abort\.abort/);
+ assert.match(source,/recorder\.onstop=null/);
+ assert.match(source,/recognition\.abort\(\)/);
+ assert.match(source,/disposeDibaSttModel\(localModel\)/);
+ assert.match(source,/track\.stop\(\)/);
+ assert.match(source,/context\.close\(\)/);
+ assert.match(source,/micPollTimerRef\.current=null/);
+ assert.match(source,/recognitionRestartTimerRef\.current=null/);
+ assert.match(source,/if\(callClosedRef\.current\)\{stream\.getTracks\(\)/);
 });
