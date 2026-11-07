@@ -1,3 +1,9 @@
+export function forzaTtsLimits(env:Record<string,string|undefined>){
+  const bounded=(value:string|undefined,fallback:number,min:number,max:number)=>{
+    const n=Number(value);return value?.trim()&&Number.isFinite(n)?Math.max(min,Math.min(max,Math.floor(n))):fallback;
+  };
+  return {perNetwork:bounded(env.FORZA_TTS_REQUESTS_PER_NETWORK,120,30,600),perTurn:bounded(env.FORZA_TTS_PHRASES_PER_TURN,24,12,48)};
+}
 /** Private FORZA synthesis gate. Pure metadata: never stores speech or WAVs.
  * Two bounds are mandatory: a per-network safety ceiling and a smaller
  * per-call-turn ceiling. A client-provided turn ID never bypasses the IP cap.

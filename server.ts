@@ -57,10 +57,10 @@ import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredBaiModel, configuredXkiroModel, streamBaiConsult, streamXkiroConsult} from './server/ai/baiConsult';
-import {streamXkiroFreePool} from './server/ai/xkiroFreeFailover';
+import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
-import {ForzaTtsBudget} from './server/ai/forzaTtsBudget';
+import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 
 dotenv.config();
 // Optional VPS-only private FORZA voice configuration. This file is ignored by
@@ -5657,12 +5657,19 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 
 // Browser chooses the incremental speech path ONLY for verified Piper Nima.
 // Other existing voices retain their safe full-answer behavior.
+let nextVoiceCatalogWarmAt=0;
 app.get('/api/ai/forza-voice-info',(_req,res)=>{
+  // Discovery runs during particle/greeting setup, not on the first customer turn.
+  if(configuredXkiroModel(process.env,true) && Date.now()>=nextVoiceCatalogWarmAt){
+    nextVoiceCatalogWarmAt=Date.now()+60_000;
+    void listVerifiedXkiroFreeChatModels().catch(()=>console.warn('[FORZA] voice_model_catalog_warm_unavailable'));
+  }
   res.setHeader('Cache-Control','no-store');
   res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
 });
 
-const pocketVoiceBudget=new ForzaTtsBudget();
+const voiceTtsLimits=forzaTtsLimits(process.env);
+const pocketVoiceBudget=new ForzaTtsBudget(voiceTtsLimits.perNetwork,voiceTtsLimits.perTurn);
 function consumePocketVoiceBudget(req:any,res:any):boolean{
   // Keep req.ip from Express's effective trust-proxy configuration.
   // Never accept a client-supplied X-Forwarded-For or turn ID as proof of

@@ -27,3 +27,10 @@ test('rate key removes untrusted characters and avoids keeping plaintext',()=>{
  const rejection=limiter.consume('client','callturnunsafe',0);
  assert.equal(rejection.ok,false);
 });
+
+test('incremental speech limits are configurable and always bounded',async()=>{
+ const {forzaTtsLimits}=await import('../server/ai/forzaTtsBudget');
+ assert.deepEqual(forzaTtsLimits({}),{perNetwork:120,perTurn:24});
+ assert.deepEqual(forzaTtsLimits({FORZA_TTS_REQUESTS_PER_NETWORK:'100000',FORZA_TTS_PHRASES_PER_TURN:'-5'}),{perNetwork:600,perTurn:12});
+ assert.deepEqual(forzaTtsLimits({FORZA_TTS_REQUESTS_PER_NETWORK:'bad',FORZA_TTS_PHRASES_PER_TURN:'NaN'}),{perNetwork:120,perTurn:24});
+});

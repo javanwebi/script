@@ -56,10 +56,10 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertNotIn("https",spoken)
         self.assertNotIn("example.com",spoken)
 
-        # A busy inference slot + a waiting request fails fast, without
-        # unbounded threads or a second inference on the same model.
+        # Filling the bounded admission pool fails fast, without allowing
+        # an unbounded queue or simultaneous inference on the same model.
         scope["queue_busy"]=True
-        scope["queue_waiters"].append(object())
+        scope["queue_waiters"].extend(object() for _ in range(scope['MAX_WAITING_TOTAL']-1))
         wait,error=scope["acquire_inference"](lambda:False)
         self.assertIsNone(wait)
         self.assertEqual(error,"voice_busy")

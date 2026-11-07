@@ -141,3 +141,32 @@ test('interruption does not mark a cancelled queued WAV as heard',async()=>{
   await flush();
   assert.deepEqual(played,[]);
 });
+
+test('lookahead is bounded by unplayed phrases, so one fast LLM cannot monopolize voice workers',async()=>{
+ let calls=0;const ends:(()=>void)[]=[];
+ const engine=new ForzaNimaBufferedSpeech({synthesize:async()=>{calls++;return pcm(3)},player:{enqueueWav:()=>new Promise<void>(r=>ends.push(r))},maxAheadPhrases:4});
+ for(let i=0;i<12;i++)engine.add('phrase '+i);
+ for(let i=0;i<6;i++)await flush();
+ assert.equal(calls,4);assert.equal(ends.length,4);
+ ends[0]();for(let i=0;i<3;i++)await flush();assert.equal(calls,5);
+ engine.cancel();ends.forEach(end=>end());await flush();assert.equal(calls,5);
+});
+
+test('barge-in aborts in-flight synthesis and finish promptly even when a transport ignores cancellation',async()=>{
+ let signal:AbortSignal|undefined;
+ const engine=new ForzaNimaBufferedSpeech({synthesize:(_text,s)=>{signal=s;return new Promise(()=>{})},player:{enqueueWav:async()=>{}}});
+ engine.add('pending');await flush();const finished=engine.finish();void finished.catch(()=>{});
+ engine.cancel();assert.equal(signal?.aborted,true);
+ await assert.rejects(Promise.race([finished,new Promise((_,reject)=>setTimeout(()=>reject(new Error('hung')),100))]),/aborted/);
+});
+
+test('one failed synthesis cancels sibling requests and never starts further queued work',async()=>{
+ let fail!:(error:Error)=>void;let secondSignal:AbortSignal|undefined;let count=0;
+ const engine=new ForzaNimaBufferedSpeech({synthesize:(_text,signal)=>{
+  count++;if(count===1)return new Promise((_,reject)=>{fail=reject;});
+  secondSignal=signal;return new Promise((_,reject)=>signal!.addEventListener('abort',()=>reject(new Error('cancelled')),{once:true}));
+ },player:{enqueueWav:async()=>{}}});
+ for(let i=0;i<5;i++)engine.add('phrase '+i);
+ await flush();fail(new Error('failed-first'));await assert.rejects(engine.finish(),/failed-first/);
+ assert.equal(secondSignal?.aborted,true);assert.equal(count,2);
+});

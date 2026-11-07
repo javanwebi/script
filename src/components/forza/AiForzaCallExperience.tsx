@@ -16,6 +16,7 @@ import {
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
 import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
+import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
@@ -124,6 +125,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechInterimRef = useRef(false);
   const pendingAudioResolveRef = useRef<(() => void) | null>(null);
   const recognitionFailedRef = useRef(false);
+  const recognitionRetryRef=useRef(0);
+  const recognitionRetryTimerRef=useRef<number|null>(null);
   const vadRef = useRef(new ForzaVoiceActivity());
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
@@ -1493,6 +1496,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current);
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
+        recognitionRetryRef.current=0;
+        setMicrophoneError(null);
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
@@ -1550,6 +1555,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onerror = (e: any) => {
         const error = e?.error;
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
+        const retryDelay=forzaRecognitionRetryDelay(String(error),recognitionRetryRef.current);
+        if(retryDelay!==null && !callClosedRef.current && !micMutedRef.current){
+          recognitionFailedRef.current=true;
+          webSpeechFailedRef.current=true;
+          recognitionRetryRef.current++;
+          if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
+          try{rec.abort();}catch{}
+          setMicrophoneError('ارتباط تشخیص گفتار لحظه‌ای قطع شد؛ در حال اتصال دوباره هستیم.');
+          recognitionRetryTimerRef.current=window.setTimeout(()=>{
+            recognitionRetryTimerRef.current=null;
+            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current)return;
+            recognitionFailedRef.current=false;
+            webSpeechFailedRef.current=false;
+            try{rec.start();}catch{
+              recognitionFailedRef.current=true;
+              webSpeechFailedRef.current=true;
+              setMicrophoneError('اتصال تشخیص گفتار برقرار نشد؛ میکروفون را دوباره فعال کنید یا پیام را تایپ کنید.');
+            }
+          },retryDelay);
+          return;
+        }
         if (['network','not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(error)) {
           webSpeechFailedRef.current = true;
           recognitionFailedRef.current=true;
@@ -1618,6 +1644,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttNodeRef.current=null;localSttSinkRef.current=null;
       attachLocalStt();
       setupMediaRecorder(stream);
+      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
+      recognitionRetryTimerRef.current=null;
+      recognitionRetryRef.current=0;
+      const previousRecognizer=recognitionRef.current;
+      if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
       recognitionFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
@@ -1695,6 +1726,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       greetingStartedRef.current=false;
       greetingFinishedRef.current=false;
       if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
+      if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       stopListening();
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=null;
@@ -1710,6 +1742,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const endCall = useCallback(() => {
     callClosedRef.current = true;
+    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
     activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
     activeTurnRef.current=null;
     historyRef.current=[];

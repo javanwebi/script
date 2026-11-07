@@ -30,6 +30,7 @@ export interface ForzaNimaBufferedOptions {
   player: ForzaWavScheduler;
   signal?: AbortSignal;
   maxConcurrent?: number;
+  maxAheadPhrases?: number;
   initialBufferSeconds?: number;
   maximumInitialWaitMs?: number;
   onBuffered?: (info: { bufferedSeconds: number; queuedPhrases: number; started: boolean }) => void;
@@ -77,6 +78,11 @@ export function forzaPcmWavDurationSeconds(wav: Uint8Array): number {
 
 export class ForzaNimaBufferedSpeech {
   private readonly maxConcurrent: number;
+  private readonly maxAheadPhrases: number;
+  private outstanding = 0;
+  private readonly localAbort = new AbortController();
+  private readonly signal: AbortSignal;
+  private readonly onAbort = () => this.cancel();
   private readonly initialBufferSeconds: number;
   private readonly maximumInitialWaitMs: number;
   private readonly tasks: NimaPhraseTask[] = [];
@@ -97,8 +103,12 @@ export class ForzaNimaBufferedSpeech {
 
   constructor(private readonly options: ForzaNimaBufferedOptions) {
     this.maxConcurrent = Math.max(1, Math.min(2, options.maxConcurrent ?? 2));
+    this.maxAheadPhrases = Math.max(this.maxConcurrent, Math.min(8, options.maxAheadPhrases ?? 4));
+    this.signal = options.signal ? AbortSignal.any([options.signal,this.localAbort.signal]) : this.localAbort.signal;
     this.initialBufferSeconds = options.initialBufferSeconds ?? 2;
     this.maximumInitialWaitMs = options.maximumInitialWaitMs ?? 500;
+    options.signal?.addEventListener('abort',this.onAbort,{once:true});
+    if(options.signal?.aborted)this.cancel();
   }
 
   add(phrase: string): void {
@@ -106,6 +116,7 @@ export class ForzaNimaBufferedSpeech {
     if (this.completed) throw new Error('forza_nima_adding_after_finished');
     const text = phrase.trim();
     if (!text) return;
+    if(this.nextIndex>=128)throw new Error('forza_nima_phrase_limit');
     const index = this.nextIndex++;
     let resolve!: () => void;
     let reject!: (error: Error) => void;
@@ -123,18 +134,19 @@ export class ForzaNimaBufferedSpeech {
 
   private startReadyJobs(): void {
     while (!this.cancelled && !this.error &&
-           this.active < this.maxConcurrent && this.tasks.length) {
+           this.active < this.maxConcurrent && this.outstanding < this.maxAheadPhrases && this.tasks.length) {
       const task = this.tasks.shift()!;
       const fetchStartedAt=performance.now();
       this.active++;
+      this.outstanding++;
       void Promise.resolve()
         .then(() => {
-          if (this.options.signal?.aborted || this.cancelled)
+          if (this.signal.aborted || this.cancelled)
             throw new Error('forza_nima_aborted');
-          return this.options.synthesize(task.text, this.options.signal);
+          return this.options.synthesize(task.text, this.signal);
         })
         .then(wav => {
-          if (this.cancelled || this.options.signal?.aborted) {
+          if (this.cancelled || this.signal.aborted) {
             task.resolve();
             return;
           }
@@ -152,8 +164,9 @@ export class ForzaNimaBufferedSpeech {
           this.maybeSchedule();
         })
         .catch((cause: unknown) => {
+          if(this.cancelled || this.options.signal?.aborted){task.resolve();return;}
           const error = cause instanceof Error ? cause : new Error(String(cause));
-          this.error ??= error;
+          this.fail(error);
           task.reject(error);
         })
         .finally(() => {
@@ -161,6 +174,20 @@ export class ForzaNimaBufferedSpeech {
           this.startReadyJobs();
         });
     }
+  }
+
+  private fail(error:Error):void {
+    this.error ??= error;
+    this.localAbort.abort(this.error);
+    this.tasks.splice(0).forEach(task=>task.reject(this.error!));
+  }
+
+  private async untilAborted<T>(work:Promise<T>):Promise<T>{
+    if(this.signal.aborted)throw this.error || new Error('forza_nima_aborted');
+    let abort!:()=>void;
+    const stopped=new Promise<never>((_,reject)=>{abort=()=>reject(this.error || new Error('forza_nima_aborted'));this.signal.addEventListener('abort',abort,{once:true});});
+    try{return await Promise.race([work,stopped]);}
+    finally{this.signal.removeEventListener('abort',abort);}
   }
 
   private contiguousReady(): { count: number; seconds: number } {
@@ -174,7 +201,7 @@ export class ForzaNimaBufferedSpeech {
   }
 
   private maybeSchedule(force = false): void {
-    if (this.cancelled) return;
+    if (this.cancelled || this.error) return;
     if (!this.started) {
       const ready = this.contiguousReady();
       if (!ready.count) return;
@@ -208,10 +235,13 @@ export class ForzaNimaBufferedSpeech {
           if(!this.cancelled && !this.options.signal?.aborted && phrase)
             this.options.onPhrasePlayed?.(phrase);
         }).catch(error => {
-          this.error ??= error instanceof Error ? error : new Error(String(error));
+          if(!this.cancelled)this.fail(error instanceof Error ? error : new Error(String(error)));
+        }).finally(()=>{
+          this.outstanding=Math.max(0,this.outstanding-1);
+          this.startReadyJobs();
         });
       } catch (error) {
-        this.error ??= error instanceof Error ? error : new Error(String(error));
+        this.fail(error instanceof Error ? error : new Error(String(error)));
       }
     }
     this.options.onBuffered?.({bufferedSeconds:ready.seconds,queuedPhrases:ready.count,started:true});
@@ -224,21 +254,24 @@ export class ForzaNimaBufferedSpeech {
     this.completed = true;
     if (this.cancelled || this.options.signal?.aborted) throw new Error('forza_nima_aborted');
     try {
-      await Promise.all(this.synthesisPromises);
+      await this.untilAborted(Promise.all(this.synthesisPromises));
       this.maybeSchedule(true);
       if (this.error) throw this.error;
       if (this.nextToQueue !== this.nextIndex)
         throw new Error('forza_nima_audio_order_incomplete');
-      await Promise.all(this.scheduledPromises);
+      await this.untilAborted(Promise.all(this.scheduledPromises));
       if (this.error) throw this.error;
     } finally {
       if (this.initialWait) clearTimeout(this.initialWait);
       this.initialWait = null;
+      this.options.signal?.removeEventListener('abort',this.onAbort);
     }
   }
 
   cancel(): void {
     this.cancelled = true;
+    this.localAbort.abort();
+    this.options.signal?.removeEventListener('abort',this.onAbort);
     this.completed = true;
     if (this.initialWait) clearTimeout(this.initialWait);
     this.initialWait = null;

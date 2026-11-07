@@ -53,6 +53,17 @@ export class ForzaIncrementalSpeechText {
    * suffix: the next SSE chunk may still complete that last word or SKU.
    */
   flushStableIdle(): string[] {
+    if(!this.started){
+      const tail=this.seen.slice(this.emitted);
+      const end=Math.max(tail.lastIndexOf(' '),tail.lastIndexOf('\n'));
+      const stable=tail.slice(0,Math.max(0,end)).trim();
+      // Only whitespace-terminated words are safe while SSE is unfinished.
+      if(stable.length>=12 && stable.split(/\s+/).length>=3){
+        this.emitted+=end+1;
+        this.started=true;
+        return [stable];
+      }
+    }
     if(!this.heldPhrase)return [];
     const phrase=this.heldPhrase;
     this.heldPhrase='';
