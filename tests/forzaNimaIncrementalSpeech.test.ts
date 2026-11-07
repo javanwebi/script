@@ -194,7 +194,7 @@ test('first unpunctuated Nima group is released at a short complete-word boundar
   const prefix='کد نهایی 6203 ZZ تعداد ';
   const first=planner.push(prefix);
   assert.equal(first.length,1);
-  assert.ok(first[0].split(/\\s+/).length>=3);
+  assert.ok(first[0].split(/\s+/).length>=3);
   assert.ok(first[0].length>=16);
   const full=prefix+'10 عدد است. مشخصات را بررسی می‌کنم.';
   const remaining=[...planner.push(full),...planner.complete(full)];
