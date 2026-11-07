@@ -83,10 +83,12 @@ async function loadPortal() {
   const runtimeHydration=isAdminRoute || databaseStorageEnabled()
     ? refreshDurableStorage({includeProducts})
     : Promise.resolve(null);
-  const [data]=await Promise.all([
+  const [data,runtimeState]=await Promise.all([
     portalRequest(),
     runtimeHydration,
   ]);
+  if(isAdminRoute && runtimeState?.database!==true)
+    throw new Error('پایگاه داده برای بارگذاری پنل مدیریت آماده نیست. اتصال را بررسی کنید و دوباره تلاش کنید.');
   // Keep a recoverable copy of pre-migration browser data; never upload it automatically.
   if (!durableStorage.getItem("atlas_portal_cache_migrated_v1")) {
     const previous: Record<string, unknown> = {};
