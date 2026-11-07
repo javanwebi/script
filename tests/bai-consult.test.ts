@@ -240,3 +240,30 @@ test('xKiro provider SSE streams CRLF delimiters when CR and LF arrive in separa
   assert.deepEqual(chunks,['بلبرینگ ','6203ZZ C3']);
   assert.equal(result.text,'بلبرینگ 6203ZZ C3');
 });
+
+
+test('xKiro reports a bounded idle timeout when a partial SSE stream stalls',async()=>{
+  let cancelled=false;
+  const stream=new ReadableStream<Uint8Array>({
+    start(controller){
+      controller.enqueue(new TextEncoder().encode(
+        'data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n'.replaceAll('\\n','\n')
+      ));
+      // Keep the upstream connection open to simulate a gateway that stalls
+      // after sending partial output.
+    },
+    cancel(){cancelled=true;},
+  });
+  const chunks:string[]=[];
+  await assert.rejects(streamXkiroConsult({
+    apiKey:'secret-placeholder',
+    model:'qwen/qwen3.5-flash:free',
+    query:'سلام',
+    firstTokenTimeoutMs:1000,
+    streamIdleTimeoutMs:25,
+    fetchImpl:(async()=>new Response(stream,{headers:{'Content-Type':'text/event-stream'}})) as typeof fetch,
+    onDelta:chunk=>chunks.push(chunk),
+  }),(error:unknown)=>error instanceof BaiConsultError&&error.code==='provider_stream_idle_timeout');
+  assert.deepEqual(chunks,['سلام']);
+  assert.equal(cancelled,true,'stalled upstream socket must be cancelled');
+});

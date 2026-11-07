@@ -540,6 +540,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       sessionTitle = textToSend.slice(0, 32) + (textToSend.length > 32 ? '...' : '');
     }
 
+    let userFacingError: string | null = null;
+
     try {
       const historyPayload = messages
         .filter(m => m.id !== aiMessageId)
@@ -561,7 +563,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         isDeeperResearchActive ? '[تحلیل عمیق و استاندارد فنی] ' : ''
       }${textToSend}`;
 
-      let streamSucceeded = false;
+      let streamCompleted = false;
+      let streamReceivedText = false;
+      let streamFailureMessage: string | null = null;
       let finalAiText = '';
 
       try {
@@ -597,14 +601,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               try {
                 const data = JSON.parse(trimmed.slice(5).trim());
                 if (data.type === 'text_chunk') {
-                  streamSucceeded = true;
+                  streamReceivedText = true;
                   accumulatedText = data.textSoFar || accumulatedText + (data.chunk || '');
                   finalAiText = accumulatedText;
                   setMessages(prev =>
                     prev.map(m => (m.id === aiMessageId ? { ...m, text: accumulatedText } : m))
                   );
                 } else if (data.type === 'done') {
-                  streamSucceeded = true;
+                  streamCompleted = true;
                   accumulatedText = data.fullText || accumulatedText;
                   finalAiText = accumulatedText;
                   setMessages(prev =>
@@ -618,6 +622,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         : m
                     )
                   );
+                } else if (data.type === 'error') {
+                  streamFailureMessage = typeof data.message === 'string' && data.message.trim()
+                    ? data.message.trim()
+                    : 'پاسخ کامل از سرویس هوش مصنوعی دریافت نشد. لطفاً دوباره تلاش کنید.';
+                  break;
                 }
               } catch {}
             }
@@ -625,7 +634,16 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         }
       } catch {}
 
-      if (!streamSucceeded) {
+      if (streamFailureMessage) {
+        userFacingError = streamFailureMessage;
+        throw new Error(streamFailureMessage);
+      }
+      if (!streamCompleted && streamReceivedText) {
+        userFacingError = 'پاسخ ناقص دریافت شد و برای جلوگیری از نمایش اطلاعات ناتمام ذخیره نشد. لطفاً دوباره تلاش کنید.';
+        throw new Error(userFacingError);
+      }
+
+      if (!streamCompleted) {
         const res = await fetch(apiUrl('/api/ai/consult'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -677,10 +695,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       );
       saveSessionsToStorage(updatedSessions);
     } catch {
-      const fallbackText = `### پاسخ مشاور مهندسی FORZA:
-در انتخاب قطعات انتقال قدرت، توان الکتروموتور، دور ورودی و خروجی، فاصله مراکز شفت‌ها و دمای محیطی کارکرد تعیین‌کننده است.
-
-جهت استعلام موجودی انبار مرکزی و پیش‌فاکتور رسمی مودیان با کدهای استاندارد کالا، همکاران فنی ما در خدمت شما هستند.`;
+      const fallbackText = userFacingError || 'پاسخ کامل از سرویس هوش مصنوعی دریافت نشد. لطفاً دوباره تلاش کنید.';
 
       const finalMessagesList = [
         ...messages,
