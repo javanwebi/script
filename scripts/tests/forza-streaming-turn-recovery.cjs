@@ -21,6 +21,8 @@ function silentWav(){
  try{
   const page=await browser.newPage();
   const errors=[],synthRequests=[],sseRequests=[];
+  let failNextStream=false;
+  let legacyTextFallbackCalls=0;
   const fullAnswer='برای بررسی تسمه مورد نظر، ابتدا کد فنی آن را اعلام کنید. سپس می‌توانیم ابعاد، جنس و استاندارد تسمه را با اطلاعات کاتالوگ صنعت پیش مقایسه کنیم. در صورت نامشخص بودن کد، تصویر واضحی از قطعه بفرستید.';
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({status:200,contentType:'audio/wav',body:silentWav()}));
@@ -42,14 +44,29 @@ function silentWav(){
      headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:silentWav()});
   });
   await page.route('**/api/ai/consult-stream',async route=>{
-   sseRequests.push(route.request().postDataJSON().query);
-   const text=fullAnswer;
+   const query=route.request().postDataJSON().query;
+   sseRequests.push(query);
    const frame=msg=>'data: '+JSON.stringify(msg)+'\n\n';
+   if(failNextStream){
+    failNextStream=false;
+    await route.fulfill({status:200,contentType:'text/event-stream',
+      body:frame({type:'start',responseId:'test-failure'})+
+           frame({type:'provider',provider:'xkiro'})+
+           frame({type:'error',errorCode:'upstream_timeout',
+             message:'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند. لطفاً بعداً دوباره تلاش کنید.'})});
+    return;
+   }
+   const text=fullAnswer;
    await route.fulfill({status:200,contentType:'text/event-stream',
      headers:{'cache-control':'no-cache'},
      body:frame({type:'start',responseId:'test-forza'})+
           frame({type:'text_chunk',chunk:text,textSoFar:text})+
           frame({type:'done',fullText:text})});
+  });
+  await page.route('**/api/ai/forza-live',async route=>{
+   legacyTextFallbackCalls++;
+   await route.fulfill({status:200,contentType:'application/json',
+     body:JSON.stringify({success:true,text:fullAnswer})});
   });
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded'});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:23000});
@@ -78,7 +95,28 @@ function silentWav(){
   }
   assert.equal(sseRequests.length,2);
   assert.ok(totalNimaPhrases>=2,'both turns must synthesize audio');
+
+  // A failed free-Qwen stream must stop here. The legacy endpoint is not an
+  // allowed text fallback because it can select Gemini/Worker independently.
+  failNextStream=true;
+  const failedPrompt='پاسخ رایگان را آزمایش کن';
+  const synthCountBeforeFailure=synthRequests.length;
+  await page.locator('input[placeholder="سؤال فنی خود را تایپ کنید..."]').fill(failedPrompt);
+  const failedRequest=page.waitForRequest(request=>{
+    if(!request.url().includes('/api/ai/consult-stream'))return false;
+    try{return request.postDataJSON().query===failedPrompt;}catch{return false;}
+  },{timeout:12000});
+  await page.getByTitle('ارسال به هوش مصنوعی').click();
+  await failedRequest;
+  await page.waitForFunction(
+    message=>document.body.innerText.includes(message),
+    'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند',
+    {timeout:12000}
+  );
+  assert.equal(legacyTextFallbackCalls,0,'a failed xKiro turn must not call the legacy model route');
+  assert.equal(synthRequests.length,synthCountBeforeFailure,'a failed turn must not synthesize a hidden fallback answer');
+  assert.equal(sseRequests.length,3);
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('PASS: consecutive private Nima SSE turns recover and preserve complete ordered speech');
+  console.log('PASS: consecutive Nima SSE turns work; failed free-Qwen stream does not retry via legacy Gemini/Worker route');
  }finally{await browser.close();}
 })().catch(error=>{console.error('FORZA STREAMING TURN FAIL',error);process.exitCode=1});
