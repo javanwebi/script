@@ -127,6 +127,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         idleAfterDelta = true;
+        void reader?.cancel().catch(() => {});
         controller.abort(new Error('provider_stream_idle_after_delta'));
       }, idleAfterDeltaTimeoutMs ?? 1100);
     }
@@ -205,6 +206,7 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         if (finished) break;
       }
     }
+    if (idleAfterDelta) throw new BaiConsultError('provider_stream_idle_after_delta');
     if (!finished && buffer.trim()) consumeEvent(buffer);
     // A dropped connection or timeout after partial text must NOT send
     // a final "done" message to the UI or invoke speech with a fragment.
