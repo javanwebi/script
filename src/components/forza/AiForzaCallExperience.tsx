@@ -952,7 +952,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
     } finally {
       if(greetingFinishedRef.current && !isProcessingTurnRef.current &&
-         !activeTranscriptRef.current.trim())startListening();
+         !activeTranscriptRef.current.trim())startVoiceInput();
     }
   },[aiText,playDataUrl,speakText,startVoiceInput,stopListening]);
 
@@ -972,7 +972,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           setStatus('listening');
           setTurn('user');
-          startListening();
+          startVoiceInput();
         })
         .catch((error:any)=>{
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
@@ -987,7 +987,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setGreetingPhase('complete');
           setStatus('listening');
           setTurn('user');
-          startListening();
+          startVoiceInput();
         }).catch((error:any)=>{
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
           setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
