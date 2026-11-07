@@ -89,7 +89,13 @@ export function forzaTurnRemainingWaitMs(
 ): number {
   if (!text.trim()) return 0;
   const requiredMs = forzaEndOfTurnPauseMs(text, hasInterim);
-  const textRemaining = requiredMs - Math.max(0, transcriptStableMs);
+  // Late final ASR hypotheses must not restart the entire acoustic endpoint
+  // window. Preserve the full pause for unfinished thoughts and when no VAD
+  // is available; allow a short revision guard only for completed final text.
+  const analysis=analyzePersianSentenceCompletion(text);
+  const stableRequiredMs=vadSilenceMs!==null&&!hasInterim&&analysis.isComplete
+    ? Math.min(requiredMs,250) : requiredMs;
+  const textRemaining = stableRequiredMs - Math.max(0, transcriptStableMs);
   const vadRemaining = vadSilenceMs === null ? 0 : requiredMs - Math.max(0, vadSilenceMs);
   return Math.max(0, Math.ceil(textRemaining), Math.ceil(vadRemaining));
 }

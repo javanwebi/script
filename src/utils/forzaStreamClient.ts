@@ -94,7 +94,9 @@ export async function consumeForzaTextStream(
   } finally {
     // A server/proxy may keep an SSE connection open after its final 'done'
     // frame. Stop reading immediately instead of leaving FORZA in 'receiving'.
-    if (sawDone) await reader.cancel().catch(() => {});
+    // Also cancel on error/invalid EOF; releaseLock alone leaves the upstream
+    // response body running after the caller has abandoned this turn.
+    await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 }

@@ -93,6 +93,9 @@ export async function runtimeApi(req:Request,res:Response){
  try{
   const identity=await getPortalIdentity(req);const scope=identity.user ? 'user:'+identity.user.id : guestScope(req,res);
   if(req.method==='GET'){
+   // Admin overview needs portal documents and permissions, not the complete
+   // 10k-SKU catalogue. The catalogue is fetched on demand by its workspace.
+   const includeProducts=String(req.query.includeProducts ?? '1')!=='0';
    const metadata=(await database().query('select namespace,scope_id,version from app_private.document_versions where scope_id=$1 or scope_id=$2',[scope,'global'])).rows;
    const values:Record<string,unknown>={},versions:Record<string,number>={};
    const permitted=metadata.filter(row=>domainFor(row.namespace) && (identity.staff
@@ -105,7 +108,7 @@ export async function runtimeApi(req:Request,res:Response){
    let guestProducts:unknown;
    // Cold public catalogue reads can be expensive; overlap them with document reads.
    await Promise.all([
-     ...(!identity.user && !identity.admin ? [
+     ...(includeProducts && !identity.user && !identity.admin ? [
        publicProductsCached().then(value=>{guestProducts=value;})
      ] : []),
      ...permitted.map(async row=>{
@@ -124,19 +127,22 @@ export async function runtimeApi(req:Request,res:Response){
      })
    ]);
    if(identity.user && !identity.staff)values.hyper_sanat_orders_v2=adoptedSchema()?await adoptedOrders(database(),identity.user.authUserId):(await database().query('select payload from public.orders where active and (owner_id=$1 or legacy_customer_id=$1) order by updated_at desc',[identity.user.id])).rows.map(row=>row.payload);
-   const products=identity.staff
-    ? (canStaff(identity,'products')?await readProducts():[])
-    : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
-    const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
-    const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
-    const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
-    for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
-    return data;
-   }):await readProducts();
-   const visibleProducts=identity.staff && !canStaff(identity,'products','prices')
-    ? publicCatalog(products)
-    : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
-   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,products:identity.admin || identity.staff?visibleProducts:compactCatalogReviews(visibleProducts)});
+   let visibleProducts:unknown=[];
+   if(includeProducts){
+    const products=identity.staff
+     ? (canStaff(identity,'products')?await readProducts():[])
+     : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
+     const data=await readAdoptedProducts(client);await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
+     const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
+     const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
+     for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
+     return data;
+    }):await readProducts();
+    visibleProducts=identity.staff && !canStaff(identity,'products','prices')
+     ? publicCatalog(products)
+     : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
+   }
+   return res.json({success:true,database:true,admin:identity.admin,userId:identity.user?.id || null,values,versions,productsIncluded:includeProducts,products:includeProducts?compactCatalogReviews(visibleProducts):[]});
   }
   checkOrigin(req);
   const key=String(req.body?.key || '');const domain=domainFor(key);if(!domain)throw Object.assign(new Error('بخش داده معتبر نیست.'),{status:400});

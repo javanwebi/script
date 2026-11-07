@@ -106,3 +106,13 @@ test('FORZA exposes the authoritative done event metadata to desk consumers',asy
   assert.equal(text,'بلبرینگ 6203 ZZ');
   assert.deepEqual(completed,action);
 });
+
+test('provider error cancels the unfinished response body instead of leaving its producer running',async()=>{
+ let cancelled=false;
+ const response=new Response(new ReadableStream({
+  start(controller){controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'error',errorCode:'upstream_timeout',message:'مدل پاسخ نداد'})+'\n\n'));},
+  cancel(){cancelled=true;},
+ }));
+ await assert.rejects(()=>consumeForzaTextStream(response,()=>{throw Error('must not invent response');}),/مدل پاسخ نداد/);
+ assert.equal(cancelled,true);
+});

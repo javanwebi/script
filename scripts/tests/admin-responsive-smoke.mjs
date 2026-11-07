@@ -2,12 +2,18 @@ import { chromium } from 'playwright';
 const ports = [390,1440];
 let problems = [];
 for (const width of ports) {
+ let fullCatalogRequests=0;
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width,height:850},deviceScaleFactor:1});
  await page.route('**/api/**',async route=>{
-   const path=new URL(route.request().url()).pathname;
+   const url=new URL(route.request().url()),path=url.pathname;
    if(path==='/api/portal')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,revision:1,admin:true,user:null,values:{}})});
-   if(path==='/api/runtime')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,userId:null,values:{},versions:{},products:[]})});
+   if(path==='/api/runtime'){
+     if(route.request().method()!=='GET')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,version:1})});
+     const includeProducts=url.searchParams.get('includeProducts')!=='0';
+     if(includeProducts)fullCatalogRequests++;
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,userId:null,values:{},versions:{},productsIncluded:includeProducts,products:[]})});
+   }
    if(path==='/api/admin/reports')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,period:'30',currency:'IRT',overview:{order_count:0,revenue:'0',avg_order:'0'},topProducts:[],topCustomers:[],topAgencies:[],trend:[],categories:[]})});
    return route.fulfill({status:404,contentType:'application/json',body:'{"success":false}'});
  });
@@ -19,11 +25,19 @@ for (const width of ports) {
  for(const title of ['داشبورد و گزارش‌ها','سفارش‌ها و لجستیک','استعلام و پیش‌فاکتور','مشتریان و CRM','اعتبار و قیمت‌ها','نمایندگی‌ها','کاتالوگ و کالاها','ورود گروهی کالا','مدیریت محتوا','اطلاعیه‌ها','مشتریان ما','تنظیمات و امنیت']){
    try{
      if(width<768)await page.locator('header button').first().click();
+     const fullCatalogResponse=title==='کاتالوگ و کالاها'
+       ? page.waitForResponse(response=>{
+           const url=new URL(response.url());
+           return url.pathname==='/api/runtime' && response.request().method()==='GET' && url.searchParams.get('includeProducts')!=='0' && response.ok();
+         },{timeout:7000})
+       : null;
      await nav.getByRole('button',{name:new RegExp(title)}).click({timeout:7000});
+     if(fullCatalogResponse)await fullCatalogResponse;
      await page.waitForTimeout(120);
      if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+12))problems.push(width+': horizontal overflow in '+title);
    }catch(err){problems.push(width+': '+title+': '+err.message.slice(0,160))}
  }
+ if(fullCatalogRequests!==1)problems.push(width+': expected one on-demand full catalogue request, got '+fullCatalogRequests);
  await page.screenshot({path:'/tmp/admin-'+width+'.png',fullPage:true});
  await browser.close();
 }

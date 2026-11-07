@@ -1,4 +1,5 @@
 import { hydratePortal, flushPortalChanges } from '../services/portalRepository';
+import { isDatabaseCatalogHydrated, refreshDurableStorage } from '../services/durableStorage';
 import './adminUx.css';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -31,21 +32,22 @@ import { SanatPishLogo } from '../components/common/BrandIdentity';
 import { portalContentService } from '../services/portalContentService';
 import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
-import { AdminRankingPage } from './AdminReports';
-import { ProductsModule } from './modules/ProductsModule';
-import { BulkImportModule } from './modules/BulkImportModule';
-import { PricingInquiriesModule } from './modules/PricingInquiriesModule';
-import { OrdersModule } from './modules/OrdersModule';
-import { RealCustomersCrmModule } from './modules/RealCustomersCrmModule';
-import { AgenciesAdminModule } from './modules/AgenciesAdminModule';
-import { CustomerGradingModule } from './modules/CustomerGradingModule';
-import { ContentStudioModule } from './modules/ContentStudioModule';
-import { AnnouncementsAdminModule } from './modules/AnnouncementsAdminModule';
-import { SettingsSystemModule } from './modules/SettingsSystemModule';
-import { AdminStaffUsersModule } from './modules/AdminStaffUsersModule';
-import { ClientsAdminModule } from './modules/ClientsAdminModule';
-import { pricingCreditService } from '../services/pricingCreditService';
 import { toPersianDigits } from '../utils/formatters';
+
+// Keep the initial admin bundle small. Each workspace is loaded only when opened.
+const AdminRankingPage = React.lazy(() => import('./AdminReports').then(module => ({ default: module.AdminRankingPage })));
+const ProductsModule = React.lazy(() => import('./modules/ProductsModule').then(module => ({ default: module.ProductsModule })));
+const BulkImportModule = React.lazy(() => import('./modules/BulkImportModule').then(module => ({ default: module.BulkImportModule })));
+const PricingInquiriesModule = React.lazy(() => import('./modules/PricingInquiriesModule').then(module => ({ default: module.PricingInquiriesModule })));
+const OrdersModule = React.lazy(() => import('./modules/OrdersModule').then(module => ({ default: module.OrdersModule })));
+const RealCustomersCrmModule = React.lazy(() => import('./modules/RealCustomersCrmModule').then(module => ({ default: module.RealCustomersCrmModule })));
+const AgenciesAdminModule = React.lazy(() => import('./modules/AgenciesAdminModule').then(module => ({ default: module.AgenciesAdminModule })));
+const CustomerGradingModule = React.lazy(() => import('./modules/CustomerGradingModule').then(module => ({ default: module.CustomerGradingModule })));
+const ContentStudioModule = React.lazy(() => import('./modules/ContentStudioModule').then(module => ({ default: module.ContentStudioModule })));
+const AnnouncementsAdminModule = React.lazy(() => import('./modules/AnnouncementsAdminModule').then(module => ({ default: module.AnnouncementsAdminModule })));
+const SettingsSystemModule = React.lazy(() => import('./modules/SettingsSystemModule').then(module => ({ default: module.SettingsSystemModule })));
+const AdminStaffUsersModule = React.lazy(() => import('./modules/AdminStaffUsersModule').then(module => ({ default: module.AdminStaffUsersModule })));
+const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +56,11 @@ export const AdminLayout: React.FC = () => {
   // Current admin session
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState('');
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [catalogRetry, setCatalogRetry] = useState(0);
+  const [pendingGradingCount, setPendingGradingCount] = useState(0);
   const [saveStatus, setSaveStatus] = useState({ state: '', message: '' });
   useEffect(() => {
     let mounted = true;
@@ -72,9 +79,19 @@ export const AdminLayout: React.FC = () => {
     const status = (event: Event) => { if (mounted) setSaveStatus((event as CustomEvent).detail); };
     window.addEventListener('atlas-session-updated', sync);
     window.addEventListener('atlas-portal-save-status', status);
-    hydratePortal().catch(() => {}).finally(() => { if (mounted) setChecking(false); });
+    hydratePortal().catch(error => {
+      if (mounted) setBootstrapError(error instanceof Error ? error.message : 'دریافت اطلاعات پنل مدیریت ناموفق بود.');
+    }).finally(() => { if (mounted) setChecking(false); });
     return () => { mounted = false; window.removeEventListener('atlas-session-updated', sync); window.removeEventListener('atlas-portal-save-status', status); };
   }, []);
+
+  const retryBootstrap = () => {
+    setChecking(true);
+    setBootstrapError('');
+    void hydratePortal().catch(error => {
+      setBootstrapError(error instanceof Error ? error.message : 'دریافت اطلاعات پنل مدیریت ناموفق بود.');
+    }).finally(() => setChecking(false));
+  };
 
   // Active module tab
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -106,6 +123,49 @@ export const AdminLayout: React.FC = () => {
     }
   }, [location.pathname, location.state]);
 
+  // The dashboard only needs lightweight portal documents. Load the full
+  // catalogue on demand when an authorized user opens products or bulk import.
+  useEffect(() => {
+    if (!currentUser || (activeTab !== 'products' && activeTab !== 'bulk_import')) return;
+    if (currentUser.role === 'staff' && !(currentUser.permissions?.[activeTab] || []).includes('view')) return;
+    if (isDatabaseCatalogHydrated()) {
+      setCatalogLoading(false);
+      setCatalogError('');
+      return;
+    }
+    let mounted = true;
+    setCatalogLoading(true);
+    setCatalogError('');
+    void refreshDurableStorage({ includeProducts: true })
+      .then(data => {
+        if (data.database !== true || !isDatabaseCatalogHydrated()) {
+          throw new Error('دریافت فهرست کالاها از پایگاه داده کامل نشد.');
+        }
+      })
+      .catch((error: unknown) => {
+        if (mounted) setCatalogError(error instanceof Error ? error.message : 'دریافت فهرست کالاها ناموفق بود.');
+      })
+      .finally(() => {
+        if (mounted) setCatalogLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [activeTab, currentUser, catalogRetry]);
+
+  // The grading service also bundles spreadsheet tooling. Load its badge count
+  // asynchronously so XLSX is not part of the first admin paint.
+  useEffect(() => {
+    if (!currentUser) return;
+    let mounted = true;
+    void import('../services/pricingCreditService')
+      .then(({ pricingCreditService }) => {
+        if (mounted) setPendingGradingCount(
+          pricingCreditService.getCustomerApprovals().filter(item => item.status === 'pending').length
+        );
+      })
+      .catch(error => console.warn('[Admin] Could not load pending grading count.', error));
+    return () => { mounted = false; };
+  }, [currentUser]);
+
   // Scroll to top when active tab changes
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -118,6 +178,15 @@ export const AdminLayout: React.FC = () => {
   },[currentUser,activeTab]);
 
   if (checking) return <div role="status" className="p-16 text-center">در حال بررسی دسترسی مدیریت…</div>;
+  if (bootstrapError) return (
+    <div dir="rtl" className="min-h-[60vh] flex items-center justify-center p-5">
+      <section role="alert" className="w-full max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-right shadow-sm">
+        <h2 className="text-base font-black text-slate-800">بارگذاری پنل مدیریت کامل نشد</h2>
+        <p className="mt-2 text-sm leading-7 text-slate-600">{bootstrapError}</p>
+        <button type="button" onClick={retryBootstrap} className="mt-4 rounded-xl bg-[#E06518] px-5 py-2.5 text-sm font-bold text-white">تلاش مجدد</button>
+      </section>
+    </div>
+  );
   if (!currentUser) {
     return <AdminLogin onLoginSuccess={user => setCurrentUser(user)} />;
   }
@@ -129,13 +198,12 @@ export const AdminLayout: React.FC = () => {
   const pendingInquiries = adminService.getInquiries().filter(i => i.status === 'pending');
   const pendingOrders = adminService.getOrders().filter(o => o.status === 'pending');
   const pendingAgencies = adminService.getAgencyApplications().filter(a => a.status === 'pending');
-  const pendingGrading = pricingCreditService.getCustomerApprovals().filter(c => c.status === 'pending');
   const openTickets = adminService.getTickets().filter(t => t.status === 'open');
   const activeAnnouncementsCount = portalContentService
     .getAnnouncements()
     .filter(a => portalContentService.getAnnouncementLifecycleStatus(a) === 'active').length;
   const totalAlerts =
-    pendingInquiries.length + pendingOrders.length + pendingAgencies.length + pendingGrading.length + openTickets.length;
+    pendingInquiries.length + pendingOrders.length + pendingAgencies.length + pendingGradingCount + openTickets.length;
 
   const handleLogout = async () => {
     try { await flushPortalChanges(); } catch { return; }
@@ -175,7 +243,7 @@ export const AdminLayout: React.FC = () => {
       id: 'customer_grading',
       label: 'اعتبار و قیمت‌ها',
       icon: Award,
-      badge: pendingGrading.length > 0 ? toPersianDigits(pendingGrading.length) : null,
+      badge: pendingGradingCount > 0 ? toPersianDigits(pendingGradingCount) : null,
       badgeColor: 'bg-[#E06518] text-white',
     },
     {
@@ -263,6 +331,10 @@ export const AdminLayout: React.FC = () => {
   const toggleGroup=(name:string)=>setCollapsedGroups(groups=>groups.includes(name)?groups.filter(item=>item!==name):[...groups,name]);
   const renderModuleContent = () => {
     if(!canView(activeTab))return <section role="alert" className="rounded-2xl border border-orange-200 bg-white p-8 text-sm font-bold text-slate-600">مجوز مشاهده این بخش برای حساب شما فعال نیست.</section>;
+    if (activeTab === 'products' || activeTab === 'bulk_import') {
+      if (catalogLoading) return <section role="status" className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-600">در حال دریافت فهرست کامل کالاها از پایگاه داده…</section>;
+      if (catalogError) return <section role="alert" className="rounded-2xl border border-red-200 bg-white p-6 text-right text-sm text-red-700"><p>{catalogError}</p><button type="button" onClick={() => setCatalogRetry(value => value + 1)} className="mt-3 rounded-xl bg-[#E06518] px-4 py-2 font-bold text-white">تلاش مجدد</button></section>;
+    }
     switch (activeTab) {
       case 'reports': {
         const path=location.pathname;
@@ -551,7 +623,9 @@ export const AdminLayout: React.FC = () => {
           {showModuleGuide&&<section className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-label="راهنمای ماژول‌ها">
             {navItems.filter(item=>canView(item.id)).map(item=><button type="button" key={item.id} onClick={()=>{selectModule(item.id);setShowModuleGuide(false)}} className="bg-white border border-[#ECEDEF] hover:border-[#E06518] rounded-xl p-4 text-right"><span className="text-sm font-bold">{item.label}</span><p className="text-xs text-[#85868A] mt-1">{descriptions[item.id]}</p></button>)}
           </section>}
-          {renderModuleContent()}
+          <React.Suspense fallback={<section data-admin-module-loading="true" role="status" className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-600">در حال بارگذاری بخش مدیریت…</section>}>
+            {renderModuleContent()}
+          </React.Suspense>
           <div className="h-16 md:hidden" aria-hidden="true" />
           <nav aria-label="دسترسی سریع موبایل" className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-t border-[#E8EAEE] px-2 py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
             {([{id:'dashboard',label:'خانه',icon:LayoutDashboard},{id:'orders',label:'سفارش‌ها',icon:ShoppingBag},{id:'products',label:'کالاها',icon:Package}] as const).filter(item=>canView(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} type="button" onClick={()=>selectModule(item.id)} aria-current={activeTab===item.id?'page':undefined} className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] ${activeTab===item.id?'text-[#E06518] bg-[#FFF4ED]':'text-[#55565A]'}`}><Icon size={18}/>{item.label}</button>})}

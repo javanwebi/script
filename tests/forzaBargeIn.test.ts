@@ -64,3 +64,18 @@ test('repeated colloquial Persian stop words cancel locally without a new model 
     assert.notEqual(forzaTurnIntent(correction),'stop',correction);
   }
 });
+
+
+test('late echo of preceding audible phrase is rejected without suppressing correction or retaining stale phrases',async()=>{
+ const {ForzaPlaybackEchoHistory}=await import('../src/utils/forzaBargeIn');
+ const history=new ForzaPlaybackEchoHistory();
+ history.record('برای انتخاب تسمه توان موتور را بگویید',1000);
+ history.record('قطر پولی هم مهم است',1400);
+ assert.equal(history.matches('برای انتخاب تسمه توان موتور',1800),true);
+ assert.equal(history.matches('نه منظورم بلبرینگ است',1800),false);
+ assert.equal(history.matches('صبر کن',1800),false);
+ assert.equal(history.matches('بله بفرما',1800),false,'unplayed text is never echo reference');
+ assert.equal(history.matches('برای انتخاب تسمه توان موتور',4000),false);
+ history.record('قطر پولی هم مهم است',4100);history.clear();
+ assert.equal(history.matches('قطر پولی هم مهم است',4200),false);
+});

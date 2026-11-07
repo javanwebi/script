@@ -28,7 +28,7 @@ async function boot(){
     const data=(event as CustomEvent).detail;
     if(data?.database){
       installDatabaseReferences();
-      installDatabaseProducts(data.products);
+      if(Array.isArray(data.products))installDatabaseProducts(data.products);
       document.getElementById('sanat-backend-status')?.remove();
       // The initial shell rendered without legacy JSON; remount once after DB hydration
       // so category menus created on mount pick up real PostgreSQL values.
@@ -52,9 +52,12 @@ async function boot(){
   let mountRevision=0;
   rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
   rerenderOnFirstDatabaseHydration();
-  void refreshDurableStorage().then(state=>{
+  const isAdminRoute=/^\/admin(?:\/|$)/.test(window.location.pathname);
+  // Admin overview does not need the 10k-SKU catalogue. Load it only when
+  // an authorized administrator opens the catalogue/import workspace.
+  void refreshDurableStorage({includeProducts:!isAdminRoute}).then(state=>{
     if(!state.database)showBackendUnavailable();
-  }).catch(error=>{
+  }).catch((error: unknown)=>{
     console.error('[SanatPish] Express API unavailable; PostgreSQL product data will not be replaced with stale JSON.',error);
     showBackendUnavailable();
   });
