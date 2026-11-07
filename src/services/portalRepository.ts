@@ -75,7 +75,7 @@ async function loadPortal() {
   if (saving) await saving;
   if (saveError) throw saveError;
   const pathname=typeof window!=="undefined" ? window.location?.pathname || "" : "";
-  const includeProducts=!/^\\/admin(?:\\/|$)/.test(pathname);
+  const includeProducts=!/^\/admin(?:\/|$)/.test(pathname);
   // Portal identity and runtime data are independent reads. Start both together;
   // refreshDurableStorage shares the app-shell request when it is still in flight.
   const [data]=await Promise.all([
