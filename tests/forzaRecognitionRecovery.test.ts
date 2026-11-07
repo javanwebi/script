@@ -43,7 +43,7 @@ test('FORZA call teardown cancels session-owned media and audio resources',async
  assert.match(source,/activeTurnRef\.current=null;[\s\S]{0,100}active\?\.abort\.abort/);
  assert.match(source,/recorder\.onstop=null/);
  assert.match(source,/recognition\.abort\(\)/);
- assert.match(source,/disposeDibaSttModel\(localModel\)/);
+ assert.match(source,/disposeDibaSttModel\(localModel(?:\|\|undefined)?\)/);
  assert.match(source,/track\.stop\(\)/);
  assert.match(source,/context\.close\(\)/);
  assert.match(source,/micPollTimerRef\.current=null/);
