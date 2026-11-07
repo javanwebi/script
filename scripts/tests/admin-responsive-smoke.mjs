@@ -9,6 +9,7 @@ for (const width of ports) {
    const url=new URL(route.request().url()),path=url.pathname;
    if(path==='/api/portal')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,revision:1,admin:true,user:null,values:{}})});
    if(path==='/api/runtime'){
+     if(route.request().method()!=='GET')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,version:1})});
      const includeProducts=url.searchParams.get('includeProducts')!=='0';
      if(includeProducts)fullCatalogRequests++;
      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,userId:null,values:{},versions:{},productsIncluded:includeProducts,products:[]})});
@@ -27,7 +28,7 @@ for (const width of ports) {
      const fullCatalogResponse=title==='کاتالوگ و کالاها'
        ? page.waitForResponse(response=>{
            const url=new URL(response.url());
-           return url.pathname==='/api/runtime' && url.searchParams.get('includeProducts')!=='0' && response.ok();
+           return url.pathname==='/api/runtime' && response.request().method()==='GET' && url.searchParams.get('includeProducts')!=='0' && response.ok();
          },{timeout:7000})
        : null;
      await nav.getByRole('button',{name:new RegExp(title)}).click({timeout:7000});
