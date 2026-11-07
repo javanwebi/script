@@ -13,6 +13,55 @@ PIPELINE = 'local-lens-v2'
 _cache = OrderedDict()
 
 
+def regions(image, limit=3):
+    """Class-agnostic proposals, never product predictions. Bounded, deterministic CPU work.
+
+    Uniform backgrounds use the existing object box. In clutter, coarse Lab colour
+    components propose compact objects of any colour; the catalogue encoder decides
+    which, if any, is relevant. No colour or object name is a recognition rule.
+    """
+    box = foreground(image)
+    if box:
+        return [box]
+    h, w = image.shape[:2]
+    if min(h, w) < 24:
+        return []
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    scale = 128/max(h, w)
+    small = cv2.resize(lab, (max(16, round(w*scale)), max(16, round(h*scale))), interpolation=cv2.INTER_AREA)
+    cv2.setRNGSeed(11)
+    _, labels, centers = cv2.kmeans(small.reshape(-1, 3).astype(np.float32), 8, None,
+                                  (cv2.TERM_CRITERIA_EPS+cv2.TERM_CRITERIA_MAX_ITER, 15, 1), 1, cv2.KMEANS_PP_CENTERS)
+    labels = cv2.resize(labels.reshape(small.shape[:2]).astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
+    background = np.median(lab.reshape(-1, 3), axis=0)
+    proposals = []
+    for index, center in enumerate(centers):
+        contrast = float(np.linalg.norm(center[1:]-background[1:]))
+        if contrast < 12:
+            continue
+        count, _, stats, _ = cv2.connectedComponentsWithStats((labels == index).astype(np.uint8))
+        for x, y, bw, bh, area in stats[1:count]:
+            if not 0.003 < area/(h*w) < 0.20 or min(bw, bh) < 15 or not 0.35 < bw/bh < 2.8:
+                continue
+            if x < 3 or y < 3 or x+bw > w-3 or y+bh > h-3:
+                continue
+            centrality = 1-float(np.hypot((x+bw/2)/w-0.5, (y+bh/2)/h-0.5))
+            score = contrast*centrality*np.sqrt(area/(bw*bh))
+            margin = max(2, round(max(bw, bh)*0.06))
+            x0, y0, x1, y1 = max(0, x-margin), max(0, y-margin), min(w, x+bw+margin), min(h, y+bh+margin)
+            proposals.append((score, {'x': x0/w, 'y': y0/h, 'width': (x1-x0)/w, 'height': (y1-y0)/h}))
+    chosen = []
+    for _, candidate in sorted(proposals, key=lambda p: -p[0]):
+        def overlaps(other):
+            intersection = max(0, min(candidate['x']+candidate['width'], other['x']+other['width'])-max(candidate['x'], other['x']))*max(0, min(candidate['y']+candidate['height'], other['y']+other['height'])-max(candidate['y'], other['y']))
+            return intersection/(candidate['width']*candidate['height']+other['width']*other['height']-intersection) > 0.6
+        if not any(overlaps(other) for other in chosen):
+            chosen.append(candidate)
+        if len(chosen) == limit:
+            break
+    return chosen
+
+
 def decode(value):
     raw = base64.b64decode(value, validate=True)
     header = Image.open(io.BytesIO(raw))

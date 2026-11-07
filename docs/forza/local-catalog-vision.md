@@ -1,9 +1,95 @@
-# Local catalogue image retrieval (DINOv2 Small)
+# Local catalogue image retrieval
 
 This is an opt-in CPU retrieval path, not a generative vision agent. When
 `PART_RECOGNITION_MODE=local-embedding`, image requests to `/api/ai/analyze-part`
 return directly through the local encoder and never call Gemini or the Worker.
 Other FORZA voice/chat providers are unaffected.
+
+
+## MobileCLIP2-S0 upgrade (local-lens-v3)
+
+The original DINO profile remains the default for existing installations. Opt in
+with `LOCAL_VISION_ENCODER=mobileclip2-s0` in the private local-vision configuration.
+The new profile uses the **image tower only** from
+https://huggingface.co/timm/MobileCLIP2-S0-OpenCLIP, pinned to
+`095906d28bf54d7584dc411e8ffe448f34289e05`, adapted from Apple's official
+https://github.com/apple-aiml-research/ml-mobileclip. Consult the upstream Apple
+model terms for deployment. No account/API token is needed to download the public
+weights, and no external inference request is made. The internal private service
+credential is reused automatically.
+
+- 512-dimensional normalized image vectors; 256px bilinear square padding,
+  mean zero / standard deviation one; timm 1.0.22, strict safetensors loading.
+- The retained image checkpoint is about 45.9 MB. Provisioning downloads the
+  combined checkpoint (~300 MB) once, extracts the image tower and removes the
+  combined checkpoint from the final layer. Docker reuses the existing DINO base;
+  total Docker size is larger than the new weights alone.
+- A separately named sidecar keeps the old encoder available for rollback. Both
+  run with a 1 CPU / 1200 MiB limit, without a published port. No GPU required.
+- Full image plus at most three deterministic class-agnostic region proposals.
+  Uniform borders use the existing crop; clutter uses compact Lab components.
+  Proposals never assign a product category. The catalogue embeddings rank them.
+- Each crop is independent: a workshop background cannot dilute a good object
+  crop. The full image remains a candidate. Manual selection is applied before
+  proposals, so no part outside the owner's selected region is searched.
+- The proposed region with the highest top-candidate score drives the returned
+  region and geometric comparison. Similarity and ORB/OCR never certify a SKU,
+  physical size, compatibility or stock.
+- Moderate MobileCLIP candidates (0.55–0.65 by default) must be supported by
+  at least two distinct image URLs bound unambiguously to the same active family.
+  One isolated texture match cannot activate a family or its model cards. Scores
+  are not raised by this check. Single-photo evidence requires at least 0.65.
+- Initial MobileCLIP threshold: 0.55, independently configurable. This is a
+  retrieval threshold, **not** a calibrated probability. Do not reuse another
+  model's threshold or claim general accuracy from one photograph.
+- A new namespace `catalog_visual_mobileclip2-s0-095906d2-fp32-pad-256-v1`
+  rebuilds the derived index. Existing DINO vectors and business data are retained.
+  Search reports preparation until the new index is complete.
+
+For the owner's bind-mounted VPS, after this change is merged:
+
+```bash
+cd /opt/sanatpish
+sudo sanatpish-deploy-main
+sudo bash ops/upgrade-local-vision-mobileclip.sh --app sanatpish-app
+sudo sanatpish-deploy-main
+curl --noproxy '*' -fsS --max-time 15 http://127.0.0.1:3013/api/ai/local-vision-status
+```
+
+The first deployment installs compatible app code while keeping the existing
+encoder selected. The helper builds the new image using the reachable probed
+PyPI mirror, verifies health and real authenticated inference, backs up the private
+configuration, then atomically selects the new service for the next restart.
+Failure before that switch leaves the private configuration unchanged. It neither
+rewrites the owner's deploy command nor changes Nginx, database schemas, voice
+configuration or the app container. The second normal deployment activates it.
+Wait for `pipeline: local-lens-v3`, the new model ID and `ready: true` before testing.
+A successful container health check alone does not prove catalogue accuracy.
+
+Rollback: copy the exact `CONFIG_ROLLBACK` path printed by the helper back to
+`/opt/sanatpish/.env.local-vision`, preserving its 0600 permissions, then run the
+same `sudo sanatpish-deploy-main`. The old DINO sidecar and vector namespace remain.
+Do not remove either sidecar until live acceptance has passed.
+
+Real-photo regression is opt-in and keeps customer images/exports outside git:
+
+```bash
+LOCAL_VISION_ENCODER=mobileclip2-s0 \
+LOCAL_VISION_TEST_MODEL_DIR=/path/to/local/image-model \
+LOCAL_VISION_TEST_PYTHON=/path/to/venv/bin/python \
+LOCAL_VISION_OWNER_CASE=/path/to/owner-case.json \
+node --import tsx --test tests/local-vision-owner-photo.test.ts
+```
+
+The manifest names `corpusFile`, `productsFile`, `imagesDirectory` and `cases`.
+Each case has `name`, `image`, optional normalized `region`, and `expectedFamily`;
+negative cases omit `expectedFamily`, and a blank negative uses `blank: true`.
+Paths resolve relative to the manifest. Require at least 100 real catalogue images
+and both positive and negative cases. The test runs the actual offline Python
+worker, Node image preparation, full-index retrieval and multiple real product
+cards. It prints bounded diagnostic scores/timing; it does not contact production.
+
+The DINO documentation below describes the retained original profile.
 
 ## Model and resources
 
@@ -256,3 +342,27 @@ vector reindex. Existing derived DINOv2 vectors are reused. Tests cover five
 independently photographed models in one family, score order, best-photo dedup,
 shared-photo ambiguity, real-code/OCR handling, inactive/weak exclusions, bounded
 alternatives, and server-rendered product cards.
+
+## Owner-photo check — 2026-11-07
+
+An isolated offline run used the owner's red coupling-spider workshop photograph
+against 463 actual photos attached to public catalogue families (the public
+runtime export). Neither customer photo nor catalogue binaries are committed.
+With Node's real manual-region preparation and the trained Python worker:
+
+| Case | First attached family | Models returned | Query + rank time in this workspace |
+| --- | --- | ---: | ---: |
+| Full workshop photo | لاستیک کوپلینگ (`FAM-34435`) | 24 family alternatives | 367 ms |
+| Manually selected part | لاستیک کوپلینگ (`FAM-34435`) | 24 family alternatives | 404 ms |
+| Blank white photo | No accepted family | 0 | 168 ms |
+| Workshop background | No accepted family | 0 | 250 ms |
+| Glove without the part | No accepted family | 0 | 251 ms |
+
+The first two catalogue photos for the full frame scored 0.5527/0.5521; the
+selected-part run scored 0.6242/0.6227. These are cosine ranking signals, not
+probabilities. The glove's isolated textile resemblance was rejected by the
+multi-photo family check. This proves this regression and these negative controls,
+not general industrial recognition accuracy. Timings exclude uploading, remote
+catalogue-image reads, geometric reranking and production VPS/network overhead;
+they are not an end-to-end sub-five-second SLA. Browser interaction and the new
+Docker image still require on-VPS acceptance after provisioning and reindexing.

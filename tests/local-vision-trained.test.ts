@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import {CatalogVisualIndex} from '../src/services/catalogVisualIndex';
-import {describeLocalQuery,embedLocalImages,geometricEvidence,rankLocalEvidence,localVisionResult,LOCAL_VISION_MODEL} from '../src/services/localVision';
+import {describeLocalQuery,embedLocalImages,geometricEvidence,rankLocalEvidence,localVisionResult,localVisionProfile} from '../src/services/localVision';
 import {prepareLocalQuery} from '../src/services/localQueryImage';
 import type {Product} from '../src/types';
 
@@ -18,7 +18,8 @@ test('trained offline encoder → multi-view retrieval → geometric reranking �
  const worker=spawn(process.env.LOCAL_VISION_TEST_PYTHON || 'python3',['services/local-vision/worker.py'],{env,stdio:['ignore','ignore','pipe']});
  let errors='';worker.stderr.on('data',chunk=>{errors+=chunk;});
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'trained-local-'));
- const transport={LOCAL_VISION_URL:`http://127.0.0.1:${port}`,LOCAL_VISION_TOKEN:env.LOCAL_VISION_TOKEN};
+ const transport={LOCAL_VISION_URL:`http://127.0.0.1:${port}`,LOCAL_VISION_TOKEN:env.LOCAL_VISION_TOKEN,LOCAL_VISION_ENCODER:process.env.LOCAL_VISION_ENCODER};
+ const profile=localVisionProfile(transport);
  try{
   let ready=false;
   for(let i=0;i<100;i++){
@@ -34,10 +35,10 @@ test('trained offline encoder → multi-view retrieval → geometric reranking �
   };
   const image=await make(11),other=await make(91);
   const rows=['expected','other'].map(id=>({id,url:'/catalog/'+id+'.jpg',label:id,revision:'1',bindings:[{familyCode:id,code:id+'-sku',verified:false}]}));
-  const index=new CatalogVisualIndex(path.join(dir,'index.json'),undefined,{model:LOCAL_VISION_MODEL,dimensions:384,batchSize:1,concurrency:1,imageSize:512});
+  const index=new CatalogVisualIndex(path.join(dir,'index.json'),undefined,{model:profile.model,dimensions:profile.dimensions,batchSize:1,concurrency:1,imageSize:512});
   await index.update(rows,async row=>row.id==='expected'?image:other,images=>embedLocalImages(images,transport));
   const query=await describeLocalQuery(image,transport);
-  const hits=(await index.rankVectors(query.vectors,rows))!;assert.equal(hits[0].row.id,'expected');
+  const hits=(await index.rankVectors(query.vectors,rows,48,profile.maxViews>2))!;assert.equal(hits[0].row.id,'expected');
   const evidence=await geometricEvidence(image,hits.map(hit=>hit.row.id==='expected'?image:other),transport);
   const enriched=hits.map((hit,i)=>({...hit,geometry:evidence[i]}));
   assert.equal(enriched[0].geometry.supported,true);

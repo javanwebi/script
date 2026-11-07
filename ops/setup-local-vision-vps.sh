@@ -7,6 +7,10 @@ CONFIG=/opt/sanatpish/.env.local-vision
 IMAGE=sanatpish-local-vision:dinov2-small-lens-v2
 if [[ ${EUID} != 0 ]]; then echo 'Run with sudo'; exit 1; fi
 APP_CONTAINER=''
+if [[ -f "$CONFIG" ]] && grep -Eq '^LOCAL_VISION_ENCODER=mobileclip2-s0\r?$' "$CONFIG"; then
+ echo 'MobileCLIP is configured; use ops/upgrade-local-vision-mobileclip.sh --app sanatpish-app'
+ exit 1
+fi
 if [[ $# -gt 0 ]]; then
  [[ $# == 2 && "$1" == '--app' && "$2" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$ ]] || { echo 'Usage: setup-local-vision-vps.sh [--app container-name]'; exit 1; }
  APP_CONTAINER="$2"

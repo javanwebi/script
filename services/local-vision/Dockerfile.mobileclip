@@ -1,0 +1,15 @@
+# Reuse the already provisioned CPU runtime; no apt or DINO model redownload.
+FROM sanatpish-local-vision:dinov2-small-lens-v2
+USER root
+ARG VISION_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple/
+RUN python -m pip --isolated install --no-cache-dir --timeout 60 --retries 2 --no-deps \
+    'torchvision==0.23.0+cpu' --index-url https://download.pytorch.org/whl/cpu \
+    && python -m pip --isolated install --no-cache-dir --timeout 60 --retries 2 --no-deps \
+    'timm==1.0.22' --index-url "$VISION_PYPI_INDEX_URL" \
+    && python -m pip check
+COPY mobile_encoder.py ./
+# Only the 11.4M-parameter image tower is retained; no language model at runtime.
+RUN HF_HUB_OFFLINE=0 TRANSFORMERS_OFFLINE=0 LOCAL_VISION_MODEL_DIR=/mobile-model python mobile_encoder.py
+COPY worker.py retrieval.py ./
+ENV LOCAL_VISION_ENCODER=mobileclip2-s0 LOCAL_VISION_MODEL_DIR=/mobile-model
+USER 65534:65534

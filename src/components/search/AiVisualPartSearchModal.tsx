@@ -106,7 +106,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if(!isOpen)return;
     const controller=new AbortController();
     fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
-      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && data?.pipeline==='local-lens-v2');})
+      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && ['local-lens-v2','local-lens-v3'].includes(data?.pipeline));})
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);

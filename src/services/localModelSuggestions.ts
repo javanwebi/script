@@ -3,7 +3,7 @@ import type {CatalogImageRecord} from './catalogImageCorpus';
 import type {CatalogModelSuggestion} from './aiVisualSearchService';
 import {getProductImageUrl} from '../assets/imagesproducts';
 
-type Hit={row:CatalogImageRecord;score:number;visualScore?:number};
+type Hit={row:CatalogImageRecord;score:number;visualScore?:number;eligible?:boolean};
 type Ranked={item:CatalogModelSuggestion;score:number};
 const codeKey=(code:string)=>code.toUpperCase().replace(/[^A-Z0-9]/g,'');
 const usable=(value:string|undefined)=>value && !/^(blob:|data:)/i.test(value)?getProductImageUrl(value):'';
@@ -21,7 +21,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
  const variants=new Map<string,{family:Product;variant:ProductVariant}>();
  for(const family of families.values())for(const variant of family.variants || [])if(variant.active!==false && variant.code?.trim())variants.set(variant.code,{family,variant});
- const eligible=hits.filter(hit=>Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id));
+ const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id));
  // A lower-scoring photo may order a related model without promoting it to a
  // visual match. Unscored/shared-photo siblings remain explicitly unranked.
  const relatedPhotoScores=new Map<string,number>();
