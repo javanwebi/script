@@ -67,12 +67,15 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
   const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), budgets.totalMs);
-  let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
-    setTimeout(() => controller.abort(), firstTokenTimeoutMs ?? budgets.firstTokenMs);
-  const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  const cancelReader=()=>{void reader?.cancel().catch(()=>{});};
+  controller.signal.addEventListener('abort',cancelReader,{once:true});
+  signal?.addEventListener('abort',cancelReader,{once:true});
+  const timeout = setTimeout(() => controller.abort(new Error('upstream_total_timeout')), budgets.totalMs);
+  let firstTokenTimer: ReturnType<typeof setTimeout> | undefined =
+    setTimeout(() => controller.abort(new Error('upstream_first_token_timeout')), firstTokenTimeoutMs ?? budgets.firstTokenMs);
+  const upstreamSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let textSoFar = '';
   let firstTokenMs = -1;
   let finished = false;
@@ -232,6 +235,8 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
     throw new BaiConsultError('upstream_network_error');
   } finally {
     clearTimeout(timeout);
+    controller.signal.removeEventListener('abort',cancelReader);
+    signal?.removeEventListener('abort',cancelReader);
     if (idleTimer) clearTimeout(idleTimer);
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
     await reader?.cancel().catch(() => {});
