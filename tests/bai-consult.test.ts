@@ -267,7 +267,7 @@ test('voice Qwen request trims history and catalog payload before first token',a
   const fetchImpl=(async(_url:string|URL|Request,init?:RequestInit)=>{
     body=JSON.parse(String(init?.body));
     return fakeStream([
-      'data: {"choices":[{"delta":{"content":"بله، بررسی می‌کنم."}}]}\\n\\n',
+      'data: {"choices":[{"delta":{"content":"بله، بررسی می‌کنم."}}]}\n\n',
       'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n',
     ]);
   }) as typeof fetch;
