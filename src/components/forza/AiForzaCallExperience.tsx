@@ -19,7 +19,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
@@ -136,6 +136,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
+  const localSttLoadRef=useRef<Promise<boolean>|null>(null);
+  const preferLocalSttRef=useRef(false);
   const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
@@ -288,6 +290,48 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }catch(error){console.warn('[FORZA Diba] Recognizer failed',error);setLocalSttStatus('fallback');return false;}
   },[]);
 
+  // Diba is a real local fallback, loaded only when Web Speech is unavailable
+  // or has repeatedly lost its Persian network recognizer. It downloads in the
+  // background while Chrome retries; it never blocks an active browser turn.
+  const ensureDibaStt=useCallback(()=>{
+    if(localSttModelRef.current){
+      attachLocalStt();
+      if((!recognitionRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
+         greetingFinishedRef.current&&!micMutedRef.current){
+        preferLocalSttRef.current=true;
+        try{recognitionRef.current?.abort();}catch{}
+        isRecognitionActiveRef.current=false;
+        if(startDibaTurn())console.info('[FORZA_STT] source=diba fallback=ready');
+      }
+      return Promise.resolve(true);
+    }
+    if(localSttLoadRef.current)return localSttLoadRef.current;
+    setLocalSttStatus('loading');
+    const load=loadDibaSttModel().then(model=>{
+      if(callClosedRef.current)return false;
+      localSttModelRef.current=model;
+      attachLocalStt();
+      setLocalSttStatus('ready');
+      if((!recognitionRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
+         greetingFinishedRef.current&&!micMutedRef.current){
+        preferLocalSttRef.current=true;
+        try{recognitionRef.current?.abort();}catch{}
+        isRecognitionActiveRef.current=false;
+        if(startDibaTurn())console.info('[FORZA_STT] source=diba fallback=activated');
+      }
+      return true;
+    }).catch(error=>{
+      setLocalSttStatus('fallback');
+      console.warn('[FORZA Diba] fallback_unavailable type='+
+        String((error as any)?.name||'load_error').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40));
+      return false;
+    }).finally(()=>{
+      if(localSttLoadRef.current===load)localSttLoadRef.current=null;
+    });
+    localSttLoadRef.current=load;
+    return load;
+  },[attachLocalStt,startDibaTurn]);
+
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
     if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
@@ -305,7 +349,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
 
     // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
-    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
+    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current && !preferLocalSttRef.current);
     const localReady=browserAvailable ? false : startDibaTurn();
     if (!localReady && !micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
       try {
@@ -1193,8 +1237,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
           },
           maxConcurrent:2,
-          initialBufferSeconds:2,
-          maximumInitialWaitMs:120,
+          initialBufferSeconds:0.35,
+          maximumInitialWaitMs:40,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
@@ -1248,7 +1292,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   completed.reduce((sum,phrase)=>sum+phrase.length,0));
                 for(const phrase of completed)queueSpeech(phrase);
               }
-            },380);
+            },160);
           }
         };
         try {
@@ -1560,12 +1604,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           recognitionFailedRef.current=true;
           webSpeechFailedRef.current=true;
           recognitionRetryRef.current++;
+          // Warm the 53 MB local model off the critical path. Switch only after
+          // repeated network failures so one transient Chrome error does not
+          // interrupt a recognizer that has already recovered.
+          void ensureDibaStt();
           if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
           try{rec.abort();}catch{}
           setMicrophoneError('ارتباط تشخیص گفتار لحظه‌ای قطع شد؛ در حال اتصال دوباره هستیم.');
           recognitionRetryTimerRef.current=window.setTimeout(()=>{
             recognitionRetryTimerRef.current=null;
-            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current)return;
+            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current||preferLocalSttRef.current)return;
             recognitionFailedRef.current=false;
             webSpeechFailedRef.current=false;
             try{rec.start();}catch{
@@ -1582,7 +1630,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Preserve the existing provider behind /api/ai/forza-live.
           // The microphone recorder continues; only its finalized audio
           // will be sent if the browser recognizer is unavailable.
-          setMicrophoneError('تشخیص زنده گفتار مرورگر در دسترس نیست. اگر سرویس مستقل STT روی سرور تنظیم نشده باشد، سؤال را با دکمه «تایپ پیام متنی» وارد کنید.');
+          setMicrophoneError('تشخیص گفتار مرورگر در دسترس نیست؛ در حال آماده‌سازی تشخیص فارسی محلی هستیم.');
+          if(error==='language-not-supported'||error==='network')void ensureDibaStt();
         }
       };
 
@@ -1608,7 +1657,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch {
       return null;
     }
-  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn]);
+  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn,ensureDibaStt]);
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
@@ -1651,6 +1700,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
       recognitionFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
+      if(!recognitionRef.current){
+        preferLocalSttRef.current=true;
+        void ensureDibaStt();
+      }
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
       setMicrophoneError(error?.message==='insecure_origin'
@@ -1659,10 +1712,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? 'اجازه میکروفون رد شده است. Microphone را در تنظیمات سایت Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
+  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt,ensureDibaStt]);
 
-  // STT uses the existing browser recognizer with the current server-side
-  // fallback. No Diba model download or browser-side model startup occurs.
+  // Chrome Persian recognition is primary. Diba is a lazy browser-local
+  // fallback after unsupported recognition or repeated network failures;
+  // recognized text is still sent immediately to the xKiro server turn.
 
   // Discover the optional transcription fallback independently of the
   // text AI provider. Browser streaming STT still works when this is false.
