@@ -278,9 +278,14 @@ export async function persistAdoptedUsers(client:SqlClient,users:Row[]){
  }
 }
 export async function readAdoptedProducts(client:SqlClient){
- const families=(await client.query('select * from public.catalog_families where is_active and not is_deleted order by code')).rows;
- const variants=(await client.query('select v.*,c.price,c.base_price,c.retail_price,c.wholesale_price,c.dealer_price,c.stock,c.stock_reserved,c.stock_known,c.inquiry_only,c.currency from public.catalog_variants v left join public.variant_commercial_specs c on c.variant_code=v.code where v.active order by v.sort_order,v.code')).rows;
- const images=(await client.query('select * from public.catalog_gallery_images order by sort_order,id')).rows;
+ // These projections are independent. Run them together so the 10k-SKU catalogue
+ // does not pay three sequential database round trips before the UI can render.
+ const [familyResult,variantResult,imageResult]=await Promise.all([
+  client.query('select * from public.catalog_families where is_active and not is_deleted order by code'),
+  client.query('select v.*,c.price,c.base_price,c.retail_price,c.wholesale_price,c.dealer_price,c.stock,c.stock_reserved,c.stock_known,c.inquiry_only,c.currency from public.catalog_variants v left join public.variant_commercial_specs c on c.variant_code=v.code where v.active order by v.sort_order,v.code'),
+  client.query('select * from public.catalog_gallery_images order by sort_order,id')
+ ]);
+ const families=familyResult.rows,variants=variantResult.rows,images=imageResult.rows;
  const byFamily=new Map<string,Row[]>(),gallery=new Map<string,Row[]>();
  for(const v of variants){const prices={base:toman(v.base_price,v.currency),retail:toman(v.retail_price || v.price,v.currency),wholesale:toman(v.wholesale_price,v.currency),dealer:toman(v.dealer_price,v.currency)};const dto={...v.runtime_payload,code:v.code,name:v.name,size:v.size || '',model:v.model,brand:v.brand,unit:v.unit,active:v.active,images:v.images,technicalSpecs:v.technical_specs,technicalReview:v.technical_review,prices,price:prices.retail,stock:Math.max(0,Number(v.stock || 0)-Number(v.stock_reserved || 0)),stockKnown:v.stock_known===true,inquiryOnly:v.inquiry_only!==false};const list=byFamily.get(v.family_code) || [];list.push(dto);byFamily.set(v.family_code,list);}
  for(const i of images){const list=gallery.get(i.family_code) || [];list.push({id:i.id,url:i.url,fileName:i.file_name,scope:i.scope,variantCode:i.variant_code,identityVerified:i.identity_verified===true,title:i.title,order:i.sort_order});gallery.set(i.family_code,list);}
