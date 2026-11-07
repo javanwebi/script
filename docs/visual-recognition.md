@@ -50,3 +50,9 @@ Customer upload endpoints return a real `/imageai/vision-<random-id>.jpg` URL an
 The public backend must serve those URLs without a login. `VISION_IMAGE_PUBLIC_ORIGIN` can specify that HTTPS backend origin when the frontend and backend are hosted separately. Otherwise APP_URL/proxy request headers are used. Direct Gemini operation still uses its native image input format; merely placing an image URL in a text prompt does not perform image understanding.
 
 Owned temporary `vision-` files are eligible for cleanup after two hours; a request-local hash reuses links without publishing predictable content-hash URLs. The upload test checks that the link serves real JPEG bytes. The end-to-end HTTP fixture checks upload → readable link → queued scan → Worker requests containing links only → all 869 image comparisons. The Worker tests verify that both linked images are downloaded and included in the actual model request. These are protocol tests with controlled model responses, not an accuracy benchmark.
+
+## Optional local retrieval
+
+The CPU-only DINOv2 Small path, provisioning, activation and verification limits
+are documented in [local catalogue vision](forza/local-catalog-vision.md).
+It can operate without Gemini; it returns visual candidates, not identity proof.

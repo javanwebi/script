@@ -260,6 +260,36 @@ if [[ -f "$APP/.env.staff" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.staff'; then
   MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
 fi
+# Optional local vision sidecar: provisioned once, reused across application releases.
+# The explicit marker is only created after photo binding reconciliation/benchmarks.
+if [[ -f "$APP/.local-vision-enabled" ]]; then
+ test -s "$APP/.env.local-vision"
+ docker image inspect sanatpish-local-vision:dinov2-small-lens-v2 >/dev/null
+ if ! docker container inspect sanatpish-local-vision-lens-v2 >/dev/null 2>&1; then
+  docker run -d --name sanatpish-local-vision-lens-v2 --restart unless-stopped \
+   --network "$NETWORK" --cpus=1 --memory=1200m --memory-swap=1200m \
+   --pids-limit=64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+   --cap-drop=ALL --security-opt=no-new-privileges \
+   --env-file "$APP/.env.local-vision" sanatpish-local-vision:dinov2-small-lens-v2 >/dev/null
+ else
+  docker network connect "$NETWORK" sanatpish-local-vision-lens-v2 2>/dev/null || \
+   docker inspect sanatpish-local-vision-lens-v2 --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
+  docker start sanatpish-local-vision-lens-v2 >/dev/null
+ fi
+ VISION_READY=0
+ for _ in $(seq 1 30); do
+  if docker exec sanatpish-local-vision-lens-v2 python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]=="dinov2-small-ed25f3a3-fp32-cls-224-v1" and d.get("pipeline")=="local-lens-v2"' 2>/dev/null; then VISION_READY=1; break; fi
+  sleep 1
+ done
+ test "$VISION_READY" = 1
+ # Verify encoder authentication and dimensions before changing the serving site.
+ docker exec sanatpish-local-vision-lens-v2 python -c 'import base64,io,json,os,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==384'
+ # Docker uses the final definition; preserve all other existing live settings.
+ cat "$APP/.env.local-vision" >> "$ENV_FILE"
+else
+ # Removing the marker must also disable the local mode inherited from the old container.
+ sed -i '/^PART_RECOGNITION_MODE=local-embedding$/d' "$ENV_FILE"
+fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
@@ -281,6 +311,22 @@ done
 test "$READY" = 1
 test "$(docker inspect "$CANARY_NAME" --format '{{.State.OOMKilled}}')" = false
 docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
+
+if [[ -f "$APP/.local-vision-enabled" ]]; then
+ echo '===== WAIT FOR COMPLETE LOCAL IMAGE INDEX BEFORE PROMOTION ====='
+ VISION_INDEX_READY=0
+ for _ in $(seq 1 120); do
+  if docker exec "$CANARY_NAME" node -e '
+   fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(5000)})
+    .then(async r=>{const d=await r.json(); console.log("LOCAL_INDEX",d.indexed,"/",d.total); process.exit(r.ok&&d.enabled&&d.ready&&d.total>0?0:1)})
+    .catch(()=>process.exit(1))'; then
+   VISION_INDEX_READY=1
+   break
+  fi
+  sleep 5
+ done
+ test "$VISION_INDEX_READY" = 1
+fi
 
 echo '===== PROMOTE ON SAME FIXED PORT (BRIEF RESTART) ====='
 docker rm -f "$CANARY_NAME" >/dev/null

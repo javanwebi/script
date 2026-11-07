@@ -27,3 +27,9 @@ storage/
 /voice-data/
 /voice-training/
 *.ckpt
+
+# Private local vision provisioning
+.env.local-vision
+.local-vision-enabled
+__pycache__/
+*.pyc

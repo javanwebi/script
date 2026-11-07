@@ -10,6 +10,7 @@ import { apiUrl, assertBackendConfigured } from '../config/apiConfig';
 export type AiAnalysisStage = 'quick' | 'refined';
 
 export interface AiPartAnalysisRequest {
+  region?:{x:number;y:number;width:number;height:number};
   imageBase64?: string;
   imageUrl?: string;
   mimeType?: string;
@@ -73,6 +74,8 @@ export interface MatchedPartItem {
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
 export interface AiPartAnalysisResult {
+  queryRegion?:{x:number;y:number;width:number;height:number}|null;
+  localVisionMetrics?:{pipeline:string;queryViews:number;geometryComplete:boolean;ocrAvailable:boolean;retrievalMs:number};
   observationOnly?:boolean;
   requiredMeasurements?:PartMeasurement[];
   success: boolean;

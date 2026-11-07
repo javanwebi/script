@@ -1,3 +1,6 @@
+import {apiUrl} from '../../config/apiConfig';
+import {ImageRegionSelector} from './ImageRegionSelector';
+import type {ImageRegion} from '../../services/localQueryImage';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { useState, useRef } from "react";
@@ -96,6 +99,17 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
+  React.useEffect(()=>{
+    if(!isOpen)return;
+    const controller=new AbortController();
+    fetch(apiUrl('/api/ai/local-vision-status'),{signal:controller.signal,cache:'no-store'})
+      .then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setLocalRegionEnabled(data?.enabled===true && data?.pipeline==='local-lens-v2');})
+      .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
+    return ()=>controller.abort();
+  },[isOpen]);
+  React.useEffect(()=>setQueryRegion(undefined),[selectedImage]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const imageUploadSequenceRef = useRef(0);
@@ -463,6 +477,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
+        region:localRegionEnabled?queryRegion:undefined,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         setScanCounts(progress);
@@ -1028,6 +1043,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </div>
                 </div>
               )}
+
+              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={setQueryRegion} />}
 
               {/* MAIN ACTION BUTTONS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1657,8 +1674,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>
-                          اطمینان تحلیل تصویری:{" "}
-                          {toPersianDigits(analysisResult.summary.confidence)}٪
+                          {analysisResult.retrieval?.mode === "local-embedding"
+                            ? "جست‌وجوی محلی بر اساس شباهت تصویر"
+                            : <>اطمینان تحلیل تصویری: {toPersianDigits(analysisResult.summary.confidence)}٪</>}
                         </span>
                       </span>
 
@@ -1815,8 +1833,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 {!!analysisResult.summary.observedSpecifications?.length && <div className="grid grid-cols-2 gap-2">{analysisResult.summary.observedSpecifications.map((spec,i)=><div key={i} className="rounded-xl border border-slate-200 p-3 text-xs"><span className="text-slate-500">{spec.name}: </span><span dir="auto">{spec.value}</span><p className="text-slate-400 mt-1">خوانده‌شده از نوشتهٔ تصویر</p></div>)}</div>}
                 {analysisResult.scanCoverage && (
                   <p role="status" className="text-xs text-slate-600 leading-6 border border-slate-200 rounded-xl p-3">
-                    {toPersianDigits(analysisResult.scanCoverage.compared)} از {toPersianDigits(analysisResult.scanCoverage.total)} تصویر با هوش مصنوعی بررسی شد.
-                    {analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
+                    {toPersianDigits(analysisResult.scanCoverage.compared)} از {toPersianDigits(analysisResult.scanCoverage.total)} تصویر {analysisResult.retrieval?.mode === "local-embedding" ? "در نمایهٔ جست‌وجوی محلی مقایسه شد." : "با هوش مصنوعی بررسی شد."}
+                    {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
                 {!!analysisResult.catalogImageMatches?.length && (
@@ -1833,6 +1851,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                           {photo.bindings.some(binding=>binding.code) && !photo.bindings.some(binding=>binding.verified) && <p className="text-xs text-slate-500">کدهای متصل به عکس؛ تعلق دقیق تصویر به این کدها هنوز تأیید نشده است.</p>}
                           {[...new Set(photo.bindings.flatMap(binding=>binding.code ? [binding.code] : []))].map(code=>(
                             <Link key={code} to={`/product/${encodeURIComponent(code)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشخصات کد {code}</Link>
+                          ))}
+                          {[...new Set(photo.bindings.map(binding=>binding.familyCode))].map(familyCode=>(
+                            <Link key={familyCode} to={`/product/${encodeURIComponent(familyCode)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشاهده خانواده و سایزها</Link>
                           ))}
                           {!photo.bindings.some(binding=>binding.code) && <p className="text-xs text-slate-500">تصویر کاتالوگی مشابه؛ کد دقیق این عکس هنوز تأیید نشده است.</p>}
                         </article>
