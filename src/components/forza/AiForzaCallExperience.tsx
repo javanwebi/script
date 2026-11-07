@@ -467,7 +467,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // This timer is not a replacement for a future AudioWorklet VAD:
     // browsers may throttle background-tab timers.
     const check=()=>{
-      if(!active)return;
+      if(!active||callClosedRef.current)return;
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
           !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
@@ -563,9 +563,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     };
     const micPoll=window.setInterval(check,55);
+    micPollTimerRef.current=micPoll;
     return()=>{
       active=false;
       window.clearInterval(micPoll);
+      if(micPollTimerRef.current===micPoll)micPollTimerRef.current=null;
       if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
     };
   },[]);
