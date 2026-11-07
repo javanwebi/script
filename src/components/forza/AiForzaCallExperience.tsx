@@ -384,6 +384,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return load;
   },[attachLocalStt,startDibaTurn,startListening]);
 
+  const startVoiceInput=useCallback(()=>{
+    if(!recognitionRef.current&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
+      setMicrophoneError('در حال آماده‌سازی تشخیص گفتار فارسی...');
+      void ensureDibaStt().then(ready=>{
+        if(!ready&&!callClosedRef.current)
+          setMicrophoneError('مدل تشخیص گفتار فارسی بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.');
+        else if(ready)setMicrophoneError(null);
+      });
+      return;
+    }
+    startListening();
+  },[ensureDibaStt,startListening]);
+
   const stopListening = useCallback(() => {
     localSttRecognizerRef.current?.remove?.();
     localSttRecognizerRef.current=null;
@@ -941,7 +954,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(greetingFinishedRef.current && !isProcessingTurnRef.current &&
          !activeTranscriptRef.current.trim())startListening();
     }
-  },[aiText,playDataUrl,speakText,startListening,stopListening]);
+  },[aiText,playDataUrl,speakText,startVoiceInput,stopListening]);
 
   // A user gesture permits browser audio, but it never skips the greeting.
   const unlockAudio = useCallback(() => {
@@ -982,7 +995,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         });
       }
     }
-  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startListening,speakText]);
+  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startVoiceInput,speakText]);
 
   // Turn management: send speech/query to AI & worker
   const handleUserFinishedSpeaking = useCallback(
@@ -1635,7 +1648,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // The microphone recorder continues; only its finalized audio
           // will be sent if the browser recognizer is unavailable.
           setMicrophoneError('تشخیص گفتار مرورگر در دسترس نیست؛ در حال آماده‌سازی تشخیص فارسی محلی هستیم.');
-          if(error==='language-not-supported'||error==='network')void ensureDibaStt();
+          if(error==='not-allowed'||error==='service-not-allowed'||error==='language-not-supported'){
+            preferLocalSttRef.current=true;
+            void ensureDibaStt();
+          }else if(error==='network')void ensureDibaStt();
         }
       };
 
@@ -1708,7 +1724,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         preferLocalSttRef.current=true;
         void ensureDibaStt();
       }
-      if(greetingFinishedRef.current && !micMutedRef.current) startListening();
+      if(greetingFinishedRef.current && !micMutedRef.current) startVoiceInput();
     } catch(error:any) {
       setMicrophoneError(error?.message==='insecure_origin'
         ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
@@ -1716,7 +1732,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ? 'اجازه میکروفون رد شده است. Microphone را در تنظیمات سایت Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt,ensureDibaStt]);
+  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startVoiceInput,attachLocalStt,ensureDibaStt]);
 
   // Chrome Persian recognition is primary. Diba is a lazy browser-local
   // fallback after unsupported recognition or repeated network failures;
@@ -1762,14 +1778,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setStatus('listening');setTurn('user');
       // If Chrome has no Persian recognizer and server STT is not configured,
       // do not open a dead microphone path. Finish the local Diba load first.
-      if(!recognitionRef.current&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
-        setMicrophoneError('در حال آماده‌سازی تشخیص گفتار فارسی...');
-        void ensureDibaStt().then(ready=>{
-          if(active&&ready)setMicrophoneError(null);
-        });
-      }else{
-        startListening();
-      }
+      startVoiceInput();
     }).catch((e:any)=>{
       if(!active)return;
       const autoplayDenied = e?.message === 'autoplay_permission_required' ||
