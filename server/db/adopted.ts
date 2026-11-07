@@ -285,7 +285,7 @@ export async function readAdoptedProducts(client:SqlClient,options:{includeTechn
  // retrieves one selected SKU's saved report through /api/catalog/variant-review.
  const variantColumns=includeTechnicalReviews
   ? 'v.*'
-  : "v.code,v.family_code,v.name,v.size,v.model,v.brand,v.unit,v.active,v.images,v.technical_specs,v.sort_order,(coalesce(v.runtime_payload,'{}'::jsonb)-'technicalReview') as runtime_payload";
+  : "v.code,v.family_code,v.name,v.size,v.model,v.brand,v.unit,v.active,v.images,v.technical_specs,v.sort_order,coalesce((to_jsonb(v)->'runtime_payload')-'technicalReview','{}'::jsonb) as runtime_payload";
  const [familyResult,variantResult,imageResult]=await Promise.all([
   client.query('select * from public.catalog_families where is_active and not is_deleted order by code'),
   client.query(`select ${variantColumns},c.price,c.base_price,c.retail_price,c.wholesale_price,c.dealer_price,c.stock,c.stock_reserved,c.stock_known,c.inquiry_only,c.currency from public.catalog_variants v left join public.variant_commercial_specs c on c.variant_code=v.code where v.active order by v.sort_order,v.code`),
