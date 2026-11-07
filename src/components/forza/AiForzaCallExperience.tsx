@@ -1901,27 +1901,120 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[particlesFormed]);
 
-  const endCall = useCallback(() => {
-    callClosedRef.current = true;
-    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
-    activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
-    activeTurnRef.current=null;
-    historyRef.current=[];
+  // One idempotent teardown path for explicit hang-up and component unmount.
+  // Invalidate the session before aborting anything so late callbacks cannot
+  // restart recognition, submit a final recorder blob, or attach a late model.
+  const teardownCall=useCallback((updateUi:boolean)=>{
+    callClosedRef.current=true;
+    greetingFinishedRef.current=false;
+    greetingStartedRef.current=false;
+    micMutedRef.current=true;
+    recognitionFailedRef.current=true;
+    preferLocalSttRef.current=true;
+    isRecognitionActiveRef.current=false;
+    isProcessingTurnRef.current=false;
+    isAiSpeakingRef.current=false;
+    hasSpeechSoundRef.current=false;
+    speechSegmentStartedRef.current=false;
+    activeTranscriptRef.current='';
+    localSttFinalRef.current='';
     audioChunksRef.current=[];
-    stopAudio();
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* noop */
+    historyRef.current=[];
+    vadRef.current.reset();
+    detectedSpeechEndAtRef.current=0;
+
+    for(const timer of [silenceTimerRef.current,recognitionRetryTimerRef.current,
+      recognitionRestartTimerRef.current,micPollTimerRef.current]){
+      if(timer!==null)window.clearTimeout(timer);
+    }
+    if(micPollTimerRef.current!==null)window.clearInterval(micPollTimerRef.current);
+    silenceTimerRef.current=null;
+    recognitionRetryTimerRef.current=null;
+    recognitionRestartTimerRef.current=null;
+    micPollTimerRef.current=null;
+
+    const active=activeTurnRef.current;
+    activeTurnRef.current=null;
+    active?.abort.abort(new Error('forza_call_closed'));
+
+    const recorder=mediaRecorderRef.current;
+    mediaRecorderRef.current=null;
+    if(recorder){
+      recorder.ondataavailable=null;
+      recorder.onstop=null;
+      recorder.onerror=null;
+      recorder.onstart=null;
+      recorder.onpause=null;
+      recorder.onresume=null;
+      if(recorder.state!=='inactive'){
+        try{recorder.stop();}catch{}
       }
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+
+    const recognition=recognitionRef.current;
+    recognitionRef.current=null;
+    if(recognition){
+      recognition.onstart=null;
+      recognition.onresult=null;
+      recognition.onerror=null;
+      recognition.onend=null;
+      try{recognition.abort();}catch{try{recognition.stop();}catch{}}
     }
-    setIsCallActive(false);
-    if (onClose) onClose();
-  }, [onClose, stopAudio]);
+
+    try{localSttRecognizerRef.current?.remove?.();}catch{}
+    localSttRecognizerRef.current=null;
+    if(localSttNodeRef.current)localSttNodeRef.current.onaudioprocess=null;
+    try{localSttNodeRef.current?.disconnect();}catch{}
+    try{localSttSinkRef.current?.disconnect();}catch{}
+    localSttNodeRef.current=null;
+    localSttSinkRef.current=null;
+    const localModel=localSttModelRef.current;
+    localSttModelRef.current=null;
+    localSttLoadRef.current=null;
+    disposeDibaSttModel(localModel);
+
+    const stream=streamRef.current;
+    streamRef.current=null;
+    stream?.getTracks().forEach(track=>{
+      track.onended=null;
+      try{track.stop();}catch{}
+    });
+
+    stopAudio();
+    if(animFrameAudioRef.current!==null){
+      cancelAnimationFrame(animFrameAudioRef.current);
+      animFrameAudioRef.current=null;
+    }
+    for(const node of [micSourceNodeRef.current,micAnalyserRef.current,
+      audioSourceNodeRef.current,analyserRef.current,gainNodeRef.current]){
+      try{node?.disconnect();}catch{}
+    }
+    micSourceNodeRef.current=null;
+    micAnalyserRef.current=null;
+    audioSourceNodeRef.current=null;
+    analyserRef.current=null;
+    gainNodeRef.current=null;
+    const context=ctxRef.current;
+    ctxRef.current=null;
+    if(context&&context.state!=='closed')void context.close().catch(()=>{});
+
+    nimaAckWavRef.current=null;
+    if(updateUi){
+      setIsUserSpeaking(false);
+      setVoicePending(false);
+      setVoiceStage('idle');
+      setMicrophoneError(null);
+      setIsCallActive(false);
+      setStatus('idle');
+    }
+  },[stopAudio,setStatus]);
+
+  useEffect(()=>()=>teardownCall(false),[teardownCall]);
+
+  const endCall = useCallback(() => {
+    teardownCall(true);
+    if(onClose)onClose();
+  },[onClose,teardownCall]);
 
   const submitUserText = (text: string) => {
     if (!greetingFinishedRef.current || !text.trim()) return false;
