@@ -5,6 +5,7 @@ let failure:Error|null=null;
 export type DurableRuntimeState = {
  success:boolean;
  database:boolean;
+ message?:string;
  userId?:string|null;
  values?:Record<string,unknown>;
  versions?:Record<string,number>;
@@ -46,7 +47,7 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
   if(enabled){
    for(const key of memory.keys())if(!ephemeral(key))memory.delete(key);
    versions.clear();
-   userId=data.userId;
+   userId=data.userId ?? null;
    for(const [key,value] of Object.entries(data.values || {}))memory.set(key,JSON.stringify(value));
    for(const [key,value] of Object.entries(data.versions || {}))versions.set(key,Number(value));
    catalogHydrated=data.productsIncluded===false?false:Array.isArray(data.products);
