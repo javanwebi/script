@@ -125,7 +125,31 @@ export class ForzaIncrementalSpeechText {
     if (text.length < limit) return 0;
     // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
     // to pronounce; finish() flushes the final short text at authoritative done.
-    const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
-    return end >= minWordCut ? end + 1 : 0;
+    let end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
+    if(end<minWordCut)return 0;
+    // Never split industrial identifiers or profile/size pairs across two
+    // spoken phrases (e.g. "6203 | ZZ C3", "SPA | 1250", "HTD | 5M").
+    for(;;){
+      const cut=end+1;
+      if(!this.isUnsafeTechnicalBoundary(text,cut))return cut;
+      const rest=text.slice(cut);
+      const nextSpace=rest.search(/[ \n]/);
+      if(nextSpace<0)return 0;
+      end=cut+nextSpace;
+    }
+  }
+
+  private isUnsafeTechnicalBoundary(text:string,cut:number):boolean{
+    const left=text.slice(0,cut).trimEnd().split(/\s+/).pop()||'';
+    const right=text.slice(cut).trimStart().split(/\s+/)[0]||'';
+    if(!left||!right)return false;
+    if(/^\d{3,5}[A-Z]{0,4}$/i.test(left)&&
+       /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(right))return true;
+    if(/^(?:ZZ|2Z|RS|2RS|LLU|LLB)$/i.test(left)&&/^C[234]$/i.test(right))return true;
+    if(/^(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|HTD|STD|AT\d{1,2}|T\d{2}|RPP\d*)$/i.test(left)&&
+       /^(?:\d{2,5}|\d{1,3}M)$/i.test(right))return true;
+    if(/^\d{2,5}$/.test(left)&&/^(?:mm|cm|m|inch|in|میلی‌متر|سانتی‌متر)$/i.test(right))return true;
+    return false;
+  }
   }
 }
