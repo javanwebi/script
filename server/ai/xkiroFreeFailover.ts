@@ -199,6 +199,14 @@ export async function streamXkiroFreePool(
       if(options.signal?.aborted)throw new BaiConsultError('client_aborted');
       const verifyCode=verifyError instanceof BaiConsultError
         ?verifyError.code:'xkiro_nonstream_verification_failed';
+      if(/^http_429/.test(verifyCode)){
+        if(await exhaustedFreeAllowance(options.apiKey,fetchImpl))
+          throw new BaiConsultError('xkiro_account_free_quota_exhausted');
+        if(verifyError instanceof BaiConsultError&&verifyError.retryAfterMs&&verifyError.retryAfterMs>0){
+          accountRateLimitUntil=Date.now()+Math.min(verifyError.retryAfterMs,5*60_000);
+          throw new BaiConsultError('xkiro_rate_limited_retry_later');
+        }
+      }
       cooldowns.set(model,Date.now()+5000);
       console.warn('[FORZA XKIRO FREE] verified_completion_failed model='+model+
         ' stream_code='+code+' verify_code='+verifyCode+
