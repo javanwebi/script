@@ -74,6 +74,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
+    let ackRetryTimer:number|null=null;
     void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
       .then(r=>r.ok?r.json():null)
       .then(data=>{
@@ -84,7 +85,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Prefetch the same-voice acknowledgement while particles form.
           // The worker has already synthesized it once at startup; this is
           // a small RAM-only WAV fetch, never a per-turn TTS inference.
-          let ackRetryTimer:number|null=null;
           const preloadNimaAck=(attempt=0)=>{
             void fetch('/api/ai/forza-ack',{cache:'force-cache'})
               .then(response=>response.ok?response.arrayBuffer():null)
@@ -107,9 +107,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               });
           };
           preloadNimaAck();
-          const cleanupAck=()=>{if(ackRetryTimer!==null)window.clearTimeout(ackRetryTimer);};
-          // The effect's cleanup below also stops any retry if the call closes.
-          (window as any).__forzaNimaAckCleanup=cleanupAck;
+
         }else{
           voiceModeRef.current='pocket-farsi-v2';
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
@@ -118,9 +116,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
     return()=>{
       mounted=false;
-      const cleanup=(window as any).__forzaNimaAckCleanup;
-      if(typeof cleanup==='function')cleanup();
-      (window as any).__forzaNimaAckCleanup=null;
+      if(ackRetryTimer!==null)window.clearTimeout(ackRetryTimer);
     };
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
