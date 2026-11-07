@@ -106,7 +106,7 @@ test('admin runtime defers technical reports and product editor fetches selected
   assert.match(runtime,/readProducts\(\{includeTechnicalReviews:false\}\)/);
   assert.match(runtime,/select v\.code,v\.technical_review/);
   assert.match(adopted,/options:\{includeTechnicalReviews\?\:boolean\}/);
-  assert.match(adopted,/coalesce\(v\.runtime_payload,'\{\}'::jsonb\)-'technicalReview'/);
+  assert.match(adopted,/to_jsonb\(v\)->'runtime_payload'\)-'technicalReview'/);
   assert.match(products,/\/api\/catalog\/variant-review\//);
   assert.match(products,/currentEditingVariant\?\.technicalReview/);
 });
