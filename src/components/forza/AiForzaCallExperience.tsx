@@ -1459,10 +1459,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isProcessingTurnRef.current = false;
         setStatus('listening');
         setTurn('user');
-        startListening();
+        startVoiceInput();
       }
     },
-    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, startVoiceInput, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -2109,7 +2109,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               const next = !prev;
               micMutedRef.current = next;
               if (next) stopListening();
-              else if (greetingFinishedRef.current) startListening();
+              else if (greetingFinishedRef.current) startVoiceInput();
               return next;
             })}
             className={`p-1 rounded-md cursor-pointer ${isMicMuted ? 'text-red-400' : 'text-[#dee2e5]/70 hover:text-white'}`}
