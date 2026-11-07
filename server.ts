@@ -20,6 +20,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
+import {embedLocalImages,localVisionResult,LOCAL_VISION_MODEL,LOCAL_VISION_DIMENSIONS} from './src/services/localVision';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -859,9 +860,10 @@ if(!databaseEnabled())refreshRecognitionCatalog();
 
 
 const CATALOG_IMAGES_CACHE_DIR = process.env.CATALOG_IMAGES_CACHE_DIR || path.join(process.cwd(), '.cache', 'catalog_images');
-const VISUAL_INDEX_NAMESPACE='catalog_visual_gemini_768';
+const localVisionEnabled=process.env.PART_RECOGNITION_MODE==='local-embedding';
+const VISUAL_INDEX_NAMESPACE=localVisionEnabled ? 'catalog_visual_'+LOCAL_VISION_MODEL : 'catalog_visual_gemini_768';
 const catalogVisualIndex=new CatalogVisualIndex(
- path.join(process.cwd(),'.cache','catalog-visual-index.json'),
+ path.join(process.cwd(),'.cache',localVisionEnabled ? 'catalog-visual-local.json' : 'catalog-visual-index.json'),
  databaseEnabled()?{
   async loadEntries(){
    const records=(await database().query('select scope_id,value from app_private.scoped_documents where namespace=$1',[VISUAL_INDEX_NAMESPACE])).rows;
@@ -876,11 +878,14 @@ const catalogVisualIndex=new CatalogVisualIndex(
     [VISUAL_INDEX_NAMESPACE,JSON.stringify(entries)]
    );
   }
- }:undefined
+ }:undefined,
+ localVisionEnabled ? {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,batchSize:1,concurrency:1,imageSize:512} : undefined
 );
+const localImagePublisher:ImagePublisher=async()=>{throw new Error('Local vision does not publish images');};
 let nextVisualIndexBuild=0;
 let nextEmbeddingSlot=0;
 async function embedCatalogImages(buffers:Buffer[],publishImage:ImagePublisher):Promise<number[][]>{
+ if(localVisionEnabled)return embedLocalImages(buffers);
  // Batch items consume provider quota individually. Pace the aggregate across all builders.
  const rate=Number(process.env.VISUAL_EMBEDDING_IMAGES_PER_MINUTE || 90);
  const perMinute=Number.isFinite(rate) ? Math.max(6,Math.min(90,rate)) : 90;
@@ -4657,7 +4662,48 @@ app.get('/api/ai/recognition-jobs/:id',(req,res)=>{
 // POST: /api/ai/analyze-part
 // stage: 'quick'   = image-only instant identification (step 1)
 //        'refined' = image + dimensions + application (steps 2-3)
+let localVisionQueries=0;
+app.get('/api/ai/local-vision-status', async (_req,res)=>{
+ if(!localVisionEnabled)return res.json({enabled:false});
+ try{
+  await catalogVisualIndex.load();
+  const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
+  return res.json({enabled:true,model:LOCAL_VISION_MODEL,...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
+ }catch{return res.status(503).json({enabled:true,ready:false});}
+});
 app.post('/api/ai/analyze-part', async (req, res) => {
+  if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
+    if(localVisionQueries>=1)return res.status(429).json({error:{message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
+    localVisionQueries++;
+    try{
+      if(!databaseEnabled())return res.status(503).json({error:{message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+      const body={...req.body};
+      if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
+      const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
+      refreshRecognitionCatalog();
+      const products=recognitionProducts();
+      const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+      const publish=localImagePublisher;
+      await catalogVisualIndex.load();
+      const coverage=catalogVisualIndex.coverage(images);
+      if(!images.length || !coverage.ready){
+        warmCatalogVisualIndex(images,publish);
+        return res.status(503).json({error:{message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
+      }
+      const started=Date.now();
+      const hits=await catalogVisualIndex.rank(uploaded.buffer,images,embedLocalImages,24);
+      if(!hits)throw new Error('Index changed');
+      // Similarity thresholds require validation on owner-labelled industrial photos.
+      const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || '0.65');
+      const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : 0.65;
+      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold);
+      return res.json(publicCatalog({...result,localVisionMetrics:{retrievalMs:Date.now()-started}}));
+    }catch(error){
+      console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
+      return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
+    }finally{localVisionQueries--;}
+  }
+
   if(process.env.PART_RECOGNITION_MODE==='read-only-agent' && (req.body?.imageUrl || req.body?.imageBase64)){
     try{
       const body={...req.body};
@@ -7700,6 +7746,7 @@ async function start() {
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
+    if(localVisionEnabled)warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void (forzaVoiceEngine!=='pocket-farsi-v2'?privatePiperGreeting():getForzaGreeting()).catch(()=>{});
@@ -7773,6 +7820,6 @@ start().catch(error=>{
 
 setTimeout(()=>{
  const origin=String(process.env.VISION_IMAGE_PUBLIC_ORIGIN || process.env.APP_URL || '').replace(/\/$/,'');
- if(!origin.startsWith('https://'))return;
+ if(localVisionEnabled || !origin.startsWith('https://'))return;
  warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),createVisionImagePublisher(IMAGE_AI_DIR,origin));
 },10000).unref();

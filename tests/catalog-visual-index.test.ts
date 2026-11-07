@@ -30,3 +30,24 @@ test('a partial embedding batch cannot be reported as a complete catalogue index
  assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
  await fs.rm(dir,{recursive:true});
 });
+test('local 384-dimensional index isolates model versions, returns scores and invalidates edited photos',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'local-index-'));
+ try{
+  const file=path.join(dir,'index.json'),opts={model:'local-v1',dimensions:384,batchSize:1,concurrency:1};
+  const image=await sharp({create:{width:24,height:24,channels:3,background:'white'}}).jpeg().toBuffer();
+  const local=(i:number)=>Array.from({length:384},(_,j)=>i===j?1:0);
+  const index=new CatalogVisualIndex(file,undefined,opts);let n=0;
+  await index.update([row('a'),row('b')],async()=>image,async buffers=>{assert.equal(buffers.length,1);return [local(n++)];});
+  const ranked=await index.rank(image,[row('a'),row('b')],async()=>[local(1)]);
+  assert.equal(ranked![0].row.id,'b');assert.equal(ranked![0].score,1);
+  const changed=new CatalogVisualIndex(file,undefined,{...opts,model:'local-v2'});await changed.load();
+  assert.equal(changed.coverage([row('a'),row('b')]).indexed,0);
+  assert.equal(await index.rank(image,[row('a','edit'),row('b')],async()=>[local(1)]),null);
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
+test('database index loading fails closed and can retry after an outage',async()=>{
+ let failed=true;
+ const index=new CatalogVisualIndex('unused',{loadEntries:async()=>{if(failed)throw new Error('database unavailable');return {};},saveEntries:async()=>{}});
+ await assert.rejects(()=>index.load(),/database unavailable/);failed=false;await index.load();
+ assert.equal(index.coverage([row('a')]).ready,false);
+});

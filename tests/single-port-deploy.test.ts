@@ -45,3 +45,14 @@ test("old app containers stop after Nima validation and are not deleted", () => 
   assert.doesNotMatch(tail, /docker rm -f "\$stale"/);
   assert.match(tail, /RETAIN_REFERENCED_CONTAINER/);
 });
+
+test("local encoder is integrated in the executed fixed-port path and full indexing gates promotion", () => {
+  const prepare = one.indexOf('# Optional local vision sidecar:');
+  const privateCanary = one.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='");
+  const indexGate = one.indexOf('===== WAIT FOR COMPLETE LOCAL IMAGE INDEX BEFORE PROMOTION =====');
+  const promotion = one.indexOf("echo '===== PROMOTE ON SAME FIXED PORT");
+  assert.ok(prepare >= 0 && prepare < privateCanary);
+  assert.ok(indexGate > privateCanary && indexGate < promotion);
+  assert.match(one.slice(indexGate, promotion), /docker exec "\$CANARY_NAME"/);
+  assert.match(one.slice(indexGate, promotion), /test "\$VISION_INDEX_READY" = 1/);
+});
