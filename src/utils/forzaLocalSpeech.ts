@@ -3,7 +3,7 @@
  * the browser recognizer is unsupported or repeatedly loses its network link.
  * TTS remains the selected private server voice (Piper Nima).
  */
-export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
+export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
