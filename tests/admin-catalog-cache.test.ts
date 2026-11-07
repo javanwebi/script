@@ -13,8 +13,8 @@ test('admin runtime reuses the startup catalog snapshot without loading per-SKU 
     technicalReview:{references:[{title:'large report',url:'https://example.test'}]}
   }]}];
   primeAdminCatalogCache(input);
-  const first=await getAdminCatalogProducts();
-  const second=await getAdminCatalogProducts();
+  const first=await getAdminCatalogProducts() as any[];
+  const second=await getAdminCatalogProducts() as any[];
   assert.equal(first,second,'admin reads must reuse the same in-memory snapshot');
   assert.equal(first[0].variants[0].price,1200);
   assert.deepEqual(first[0].variants[0].prices,{retail:1200});
