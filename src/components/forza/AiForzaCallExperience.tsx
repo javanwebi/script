@@ -1730,12 +1730,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       rec.onend = () => {
         isRecognitionActiveRef.current = false;
-        if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
-        // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !localSttRecognizerRef.current && !preferLocalSttRef.current &&
+        if (callClosedRef.current||recognitionFailedRef.current ||
+            !greetingFinishedRef.current || micMutedRef.current) return;
+        // Keep the restart timer cancellable; a late onend after exit must
+        // never reopen the browser microphone.
+        if (isRecognitionActiveRef.current===false && isCallActive &&
+            !localSttRecognizerRef.current && !preferLocalSttRef.current &&
             (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
-          window.setTimeout(() => {
-            if (isCallActive && !localSttRecognizerRef.current && !preferLocalSttRef.current &&
+          if(recognitionRestartTimerRef.current!==null)
+            window.clearTimeout(recognitionRestartTimerRef.current);
+          recognitionRestartTimerRef.current=window.setTimeout(() => {
+            recognitionRestartTimerRef.current=null;
+            if (!callClosedRef.current && isCallActive &&
+                !localSttRecognizerRef.current && !preferLocalSttRef.current &&
                 (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
               try {
                 rec.start();
