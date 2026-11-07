@@ -5892,10 +5892,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   // Crucial: the initial SSE event is sent before any synchronous catalog
   // preprocessing or outbound model discovery, exposing their real latency.
   const catalogStartedAt=Date.now();
-  const catalogContext=consultantCatalogContext(String(query||''));
+  const voiceQuery=String(query||'').trim();
+  const voiceSmallTalk=lowLatencyVoice&&/^(?:سلام|درود)(?:[،, ]+(?:وقت بخیر|صبح بخیر|عصر بخیر))?[.!؟\\s]*$|^(?:ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)[.!؟\\s]*$/u.test(voiceQuery);
+  // A greeting does not need a full 10k-SKU catalog scan before Qwen can speak.
+  const catalogContext=voiceSmallTalk?'':consultantCatalogContext(voiceQuery);
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=catalog_ready ms='+(Date.now()-startedAt)+
-    ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
+    ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length+
+    ' skipped='+Number(voiceSmallTalk));
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
