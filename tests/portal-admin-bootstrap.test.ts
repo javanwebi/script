@@ -116,3 +116,21 @@ test('runtime hydration has a finite timeout for full and lean catalog requests'
   assert.match(source,/timeoutMs=includeProducts\?30000:12000/);
   assert.match(source,/AbortSignal\.timeout\(timeoutMs\)/);
 });
+
+
+test('admin catalogue endpoint reuses startup data and invalidates snapshots after writes',()=>{
+  const runtime=readFileSync('server/db/runtimeApi.ts','utf8');
+  const cache=readFileSync('server/db/adminCatalogCache.ts','utf8');
+  const server=readFileSync('server.ts','utf8');
+  const checkout=readFileSync('server/db/checkout.ts','utf8');
+  const images=readFileSync('server/productImageStorage.ts','utf8');
+  assert.match(runtime,/await getAdminCatalogProducts\(\)/);
+  assert.match(runtime,/primeAdminCatalogCache\(products\)/);
+  assert.match(runtime,/invalidateAdminCatalogCache\(\)/);
+  assert.match(cache,/REVALIDATE_AFTER_MS=30_000/);
+  assert.match(cache,/readProducts\(\{includeTechnicalReviews:false\}\)/);
+  assert.match(server,/invalidatePublicCatalogCache\(\)/);
+  assert.match(checkout,/invalidateAdminCatalogCache\(\)/);
+  assert.match(images,/invalidatePublicCatalogCache/);
+});
+

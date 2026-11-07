@@ -72,5 +72,5 @@ test('runtime catalog imports cannot bundle old JSON fixtures into production', 
   }
   const dockerIgnore = readFileSync('.dockerignore', 'utf8');
   assert.match(dockerIgnore, /^storage\/$/m, 'images may be tracked for archival, but must not be baked into Docker');
-  assert.match(readFileSync('server/db/repository.ts','utf8'), /readAdoptedProducts\(database\(\)\)/);
+  assert.match(readFileSync('server/db/repository.ts','utf8'), /readAdoptedProducts\(database\(\),options\)/);
 });

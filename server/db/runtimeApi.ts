@@ -9,6 +9,7 @@ import {getPortalIdentity} from '../../api/portal';
 import {canStaff,namespacePermission,assertStaffDocumentChange} from './staffPermissions';
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
+import {getAdminCatalogProducts,invalidateAdminCatalogCache,primeAdminCatalogCache} from './adminCatalogCache';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
@@ -21,11 +22,13 @@ export function invalidatePublicCatalogCache(){
  publicCatalogGeneration++;
  publicCatalogCache=undefined;
  publicCatalogInFlight=undefined;
+ invalidateAdminCatalogCache();
 }
 /** Seed the public response cache from the catalogue already loaded during startup. */
 export function primePublicCatalogCache(products:unknown){
  publicCatalogGeneration++;
  publicCatalogInFlight=undefined;
+ primeAdminCatalogCache(products);
  publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:compactCatalogReviews(publicCatalog(products))};
 }
 const PUBLIC_DOCUMENT_TTL_MS=60000;
@@ -144,14 +147,14 @@ export async function runtimeApi(req:Request,res:Response){
    let visibleProducts:unknown=[];
    if(includeProducts){
     const products=identity.staff
-     ? (canStaff(identity,'products')?await readProducts({includeTechnicalReviews:false}):[])
+     ? (canStaff(identity,'products')?await getAdminCatalogProducts():[])
      : !identity.user && !identity.admin ? guestProducts : adoptedSchema() && !identity.admin && identity.user?await transaction(async client=>{
      const data=await readAdoptedProducts(client,{includeTechnicalReviews:false});await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
      const rows=(await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows;
      const prices=new Map(rows.map(row=>[row.variant_code,toman(row.amount,row.currency)]));
      for(const family of data){for(const variant of family.variants){const amount=identity.user!.canViewPrices?prices.get(variant.code) || 0:0;variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};variant.price=amount;if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}}family.prices=family.variants[0]?.prices || {base:0,retail:0,wholesale:0,dealer:0};family.stock=family.variants.reduce((s:number,v:any)=>s+v.stock,0);family.stockKnown=family.variants.every((v:any)=>v.stockKnown);}
      return data;
-    }):await readProducts({includeTechnicalReviews:false});
+    }):identity.admin?await getAdminCatalogProducts():await readProducts({includeTechnicalReviews:false});
     visibleProducts=identity.staff && !canStaff(identity,'products','prices')
      ? publicCatalog(products)
      : identity.canReadCommerce?products:(!identity.user && !identity.admin ? products : publicCatalog(products));
