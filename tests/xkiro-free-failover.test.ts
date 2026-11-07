@@ -175,24 +175,6 @@ test('no verified free catalog is fail-closed; never sends a generation request'
   assert.equal(calls,1);
 });
 
-test('xKiro Retry-After prevents repeated calls during an account-wide rate limit',async()=>{
-  let generations=0;
-  const fetchImpl=(async(url:string|URL|Request)=>{
-    if(String(url).endsWith('/v1/models'))return catalog([free(first)]);
-    if(String(url).endsWith('/v1/usage'))
-      return new Response(JSON.stringify({free_tokens:{remaining:5000}}));
-    generations++;
-    return new Response('{"error":{"code":"rate_limit_exceeded"}}',{
-      status:429,headers:{'Retry-After':'1'},
-    });
-  }) as typeof fetch;
-  await assert.rejects(streamXkiroFreePool({
-    apiKey:'not-a-real-secret',model:first,query:'سلام',
-    voice:true,fetchImpl,onDelta:()=>{},
-  }),(error:unknown)=>error instanceof BaiConsultError&&
-    error.code==='xkiro_rate_limited_retry_later');
-  assert.equal(generations,1);
-});
 
 test('xKiro does not start a second full generation when SSE fails before the first token',async()=>{
   const model='vendor/no-first-token';
@@ -217,4 +199,23 @@ test('xKiro does not start a second full generation when SSE fails before the fi
     error.code==='provider_stream_incomplete');
   assert.equal(streamCalls,1);
   assert.equal(nonstreamCalls,0);
+});
+
+test('xKiro Retry-After prevents repeated calls during an account-wide rate limit',async()=>{
+  let generations=0;
+  const fetchImpl=(async(url:string|URL|Request)=>{
+    if(String(url).endsWith('/v1/models'))return catalog([free(first)]);
+    if(String(url).endsWith('/v1/usage'))
+      return new Response(JSON.stringify({free_tokens:{remaining:5000}}));
+    generations++;
+    return new Response('{"error":{"code":"rate_limit_exceeded"}}',{
+      status:429,headers:{'Retry-After':'1'},
+    });
+  }) as typeof fetch;
+  await assert.rejects(streamXkiroFreePool({
+    apiKey:'not-a-real-secret',model:first,query:'سلام',
+    voice:true,fetchImpl,onDelta:()=>{},
+  }),(error:unknown)=>error instanceof BaiConsultError&&
+    error.code==='xkiro_rate_limited_retry_later');
+  assert.equal(generations,1);
 });
