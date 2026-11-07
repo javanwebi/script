@@ -5563,6 +5563,35 @@ const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium','pip
 const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
   ? 'piper-nima-gyro-medium'
   : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
+
+// One prewarmed Nima acknowledgement is shared in process memory. It is
+// generated once by the private voice worker at startup, never per customer.
+let cachedForzaNimaAck:Buffer|null=null;
+let loadingForzaNimaAck:Promise<Buffer>|null=null;
+async function getForzaNimaAck():Promise<Buffer>{
+  if(cachedForzaNimaAck)return cachedForzaNimaAck;
+  if(!internalForzaVoiceUrl||!process.env.FORZA_VOICE_TOKEN)
+    throw new Error('private_voice_not_configured');
+  if(!loadingForzaNimaAck){
+    loadingForzaNimaAck=(async()=>{
+      const response=await fetch(internalForzaVoiceUrl+'/ack',{
+        headers:{'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN},
+        signal:AbortSignal.timeout(5000),
+      });
+      if(!response.ok)throw new Error('private_voice_ack_'+response.status);
+      if(response.headers.get('x-forza-voice')!=='piper-nima-gyro-medium' ||
+         !(response.headers.get('content-type')||'').includes('audio/wav'))
+        throw new Error('private_voice_ack_identity_mismatch');
+      const bytes=Buffer.from(await response.arrayBuffer());
+      if(bytes.length<44||bytes.length>1_000_000||
+         bytes.toString('ascii',0,4)!=='RIFF'||bytes.toString('ascii',8,12)!=='WAVE')
+        throw new Error('private_voice_ack_invalid_wav');
+      cachedForzaNimaAck=bytes;
+      return bytes;
+    })().finally(()=>{loadingForzaNimaAck=null;});
+  }
+  return loadingForzaNimaAck;
+}
 // During migration a Piper greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
 const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
@@ -5659,6 +5688,22 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 // Browser chooses the incremental speech path ONLY for verified Piper Nima.
 // Other existing voices retain their safe full-answer behavior.
 let nextVoiceCatalogWarmAt=0;
+app.get('/api/ai/forza-ack',async(_req,res)=>{
+  if(forzaVoiceEngine!=='piper-nima-gyro-medium')
+    return res.status(404).json({error:'nima_ack_not_selected'});
+  try{
+    const wav=await getForzaNimaAck();
+    res.setHeader('Content-Type','audio/wav');
+    res.setHeader('X-Forza-Voice','piper-nima-gyro-medium');
+    res.setHeader('Cache-Control','private, max-age=3600');
+    return res.send(wav);
+  }catch(error:any){
+    console.warn('[FORZA_NIMA_ACK] unavailable type='+
+      String(error?.message||'ack_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,60));
+    return res.status(503).json({error:'forza_nima_ack_unavailable'});
+  }
+});
+
 app.get('/api/ai/forza-voice-info',(_req,res)=>{
   // Discovery runs during particle/greeting setup, not on the first customer turn.
   if(configuredXkiroModel(process.env,true) && Date.now()>=nextVoiceCatalogWarmAt){
