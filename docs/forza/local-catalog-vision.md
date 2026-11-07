@@ -366,3 +366,39 @@ not general industrial recognition accuracy. Timings exclude uploading, remote
 catalogue-image reads, geometric reranking and production VPS/network overhead;
 they are not an end-to-end sub-five-second SLA. Browser interaction and the new
 Docker image still require on-VPS acceptance after provisioning and reindexing.
+
+## Tap-to-search and explicitly unconfirmed neighbours
+
+Local gallery uploads now start quick retrieval when upload completes. Camera
+capture still requires the existing confirmation. The source image remains
+interactive on the results screen: tap selects a bounded, pixel-square vicinity;
+drag draws a precise rectangle, keyboard controls remain available, and a zoomed
+crop preview shows what is selected. Selection changes debounce for 300 ms and
+reuse the uploaded photo. Older requests cannot replace results after a different
+photo is selected or the modal closes. This is region selection, not a claim of
+pixel-perfect object segmentation.
+
+Every indexed catalogue vector is scored for every query view. The local route
+now retains the full sorted list rather than truncating it before family lookup,
+so attached products remain discoverable even behind many unbound photos. An
+incomplete index still fails explicitly; missing/unindexed photos are never
+silently counted as compared. This uses precomputed image features rather than
+rerunning a generative model on all photos for each customer request.
+
+`includeNearest: true` opts into `nearestCatalogSuggestions` when there are no
+accepted photo matches. These are up to 24 real, active catalogue models from the
+nearest ranked families, tagged `matchBasis: explore`, with no similarity score
+or identity/compatibility assertion. They are outside `matchedProducts`,
+`similarCandidates`, `modelSuggestions` and `catalogImageMatches`; the accepted
+match thresholds and the negative-control tests remain intact. The UI labels
+these cards “نزدیک‌ترین گزینه‌ها؛ تطبیق تأیید نشده”. An absent or inactive catalogue
+product is never invented to fill the list. This cannot guarantee that the exact
+customer product exists in the catalogue.
+
+Browser pointer/touch/drag/keyboard smoke for the source selector:
+`node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).
+The browser smoke also mounts the actual search modal with isolated identity/cart
+hooks and mocked HTTP responses. It verifies upload-triggered automatic search,
+tap-triggered requery, whole-image reset and reuse of the same uploaded image.
+This proves client interaction and request wiring, not model accuracy or a live
+production deployment.

@@ -14,6 +14,9 @@ on:
       - "src/components/search/**"
       - "public/images/precision-scan-technical-overlay.svg"
       - "tests/mobile-scan-ui.test.ts"
+      - "tests/image-region-interaction.test.ts"
+      - "scripts/tests/image-region-interaction.cjs"
+      - "src/utils/imageRegionInteraction.ts"
       - ".github/workflows/mobile-scan-ui-check.yml"
   workflow_dispatch:
 permissions:
@@ -33,7 +36,7 @@ jobs:
       - name: TypeScript
         run: npm run lint
       - name: Mobile scan source regression tests
-        run: node --import tsx --test tests/mobile-scan-ui.test.ts
+        run: node --import tsx --test tests/mobile-scan-ui.test.ts tests/image-region-interaction.test.ts tests/local-model-results.test.tsx tests/local-vision.test.ts
       - name: Category drawer and approved taxonomy source tests
         run: node --import tsx --test tests/mobile-category-drawer.test.ts
       - name: Production bundle build
@@ -51,6 +54,8 @@ jobs:
           done
           cat /tmp/sanat-category-preview.log
           exit 1
+      - name: Image selection by pointer, touch, drag and keyboard
+        run: node scripts/tests/image-region-interaction.cjs
       - name: Screenshot and interaction tests at four mobile widths
         run: node scripts/tests/mobile-category-drawer-smoke.cjs
       - uses: actions/upload-artifact@v4

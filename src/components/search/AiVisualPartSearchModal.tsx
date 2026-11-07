@@ -101,6 +101,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const analysisSequenceRef=useRef(0);
+  const analysisBusyRef=useRef(false);
+  const autoAnalyzedImageRef=useRef<string|null>(null);
+  const regionTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
     if(!isOpen)return;
@@ -110,7 +114,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>setQueryRegion(undefined),[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const imageUploadSequenceRef = useRef(0);
@@ -443,7 +448,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined") => {
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null) => {
+    if(analysisBusyRef.current)return;
     if (!selectedImage && !length && !width) {
       setErrorMessage(
         "لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید.",
@@ -461,6 +467,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
 
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
+    analysisBusyRef.current=true;
+    const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
     setPendingStage(stage);
     setAnalysisProgress(0);
@@ -480,24 +488,42 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
-        region:localRegionEnabled?queryRegion:undefined,
+        region:localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined,
+        includeNearest:localRegionEnabled,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
+        if(sequence!==analysisSequenceRef.current)return;
         setScanCounts(progress);
         setAnalysisProgress(progress.total ? Math.floor(progress.compared*100/progress.total) : 0);
         setAnalysisPhaseIndex(progress.stage==='verifying' ? 3 : progress.stage==='scanning' ? 2 : 0);
       });
 
+      if(sequence!==analysisSequenceRef.current)return;
+      if(localRegionEnabled)setQueryRegion(result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion));
+      if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
       setCurrentStep(result.observationOnly ? 2 : "results");
     } catch (err: any) {
+      if(sequence!==analysisSequenceRef.current)return;
       console.error(err);
       setErrorMessage(
         err.message || "خطا در ارتباط با سامانه تحلیل هوش مصنوعی.",
       );
       setCurrentStep(stage === "quick" ? 1 : 3);
-    }
+    }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
+  };
+
+  // Auto-search only after gallery upload completes. Camera photos still require confirmation.
+  React.useEffect(()=>{
+    if(!isOpen||!localRegionEnabled||!uploadedImageUrl||isUploadingImage||!selectedImage||cameraFlowActive||cameraReview||currentStep!==1||autoAnalyzedImageRef.current===uploadedImageUrl)return;
+    autoAnalyzedImageRef.current=uploadedImageUrl;
+    void handleAnalyze("quick");
+  },[isOpen,localRegionEnabled,uploadedImageUrl,isUploadingImage,selectedImage,cameraFlowActive,cameraReview,currentStep]);
+  const searchRegion=(region:ImageRegion|undefined)=>{
+    setQueryRegion(region);
+    if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
+    regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
 
   const retakeCameraPhoto = () => {
@@ -1047,7 +1073,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={setQueryRegion} />}
+              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
 
               {/* MAIN ACTION BUTTONS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1606,6 +1632,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
+                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -1840,6 +1867,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
+                {!!analysisResult.nearestCatalogSuggestions?.length && <LocalModelResults items={analysisResult.nearestCatalogSuggestions} onClose={onClose} />}
                 {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
                 {!!visiblePhotoMatches.length && (
                   <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
