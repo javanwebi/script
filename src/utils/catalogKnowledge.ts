@@ -84,12 +84,12 @@ export function findCatalogKnowledge(
       const score =
         terms.reduce((sum, t) => sum + (hay.includes(t) ? 1 : 0), 0) +
         (exact ? 100 : 0);
-      return { p, variants, exact, score };
+      return { p, variants, exactVariants, exact, score };
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ p, variants }) =>
+    .map(({ p, variants, exactVariants }) =>
       publicCatalog({
         code: p.code,
         name: p.name,
