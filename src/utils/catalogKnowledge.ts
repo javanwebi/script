@@ -65,7 +65,7 @@ export function findCatalogKnowledge(
         ].includes(t),
     );
   if (!terms.length) return [];
-  return products
+  const scored=products
     .filter((p) => p.active !== false)
     .map((p) => {
       const variants = (p.variants || []).filter((v) => v.active !== false);
@@ -87,8 +87,12 @@ export function findCatalogKnowledge(
       return { p, variants, exactVariants, exact, score };
     })
     .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+    .sort((a, b) => b.score - a.score);
+  // Once an exact code is found, do not pollute the model context with a
+  // similar family/SKU that merely shares part of the identifier.
+  const exactMatches=scored.filter(item=>item.exact);
+  return (exactMatches.length?exactMatches:scored)
+    .slice(0,limit)
     .map(({ p, variants, exactVariants }) =>
       publicCatalog({
         code: p.code,
