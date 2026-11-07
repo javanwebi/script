@@ -260,3 +260,30 @@ test('xKiro verified non-stream completion uses the same free model and requires
   assert.equal(body.model,'qwen/qwen3.5-flash:free');
   assert.equal(result.text,'کد نهایی: 6203 ZZ\nتعداد: 10 عدد');
 });
+
+
+test('voice Qwen request trims history and catalog payload before first token',async()=>{
+  let body:any;
+  const fetchImpl=(async(_url:string|URL|Request,init?:RequestInit)=>{
+    body=JSON.parse(String(init?.body));
+    return fakeStream([
+      'data: {"choices":[{"delta":{"content":"بله، بررسی می‌کنم."}}]}\\n\\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n',
+    ]);
+  }) as typeof fetch;
+  await streamXkiroConsult({
+    apiKey:'secret-placeholder',
+    model:'qwen/qwen3.5-flash:free',
+    query:'سلام',
+    voice:true,
+    catalogContext:'ک'.repeat(6000),
+    history:Array.from({length:8},(_,i)=>({role:i%2?'assistant':'user',text:String(i).repeat(1800)})),
+    fetchImpl,
+    onDelta:()=>{},
+  });
+  assert.equal(body.max_tokens,192);
+  assert.equal(body.messages.length,6,'system + last four history messages + user');
+  assert.ok(body.messages[0].content.length<2700);
+  assert.ok(body.messages.slice(1,-1).every((message:any)=>message.content.length<=1200));
+  assert.equal(body.messages.at(-1).content.length,4);
+});
