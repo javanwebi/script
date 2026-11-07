@@ -231,6 +231,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
+  // Leaving the desk must cancel the upstream SSE/model request; otherwise
+  // an abandoned tab continues consuming the shared free-model pool.
+  useEffect(()=>()=> {
+    const active=streamAbortControllerRef.current;
+    streamAbortControllerRef.current=null;
+    active?.abort(new Error('desk_page_unmounted'));
+  },[]);
 
   // Belt Length Calculator State
   const [calcC, setCalcC] = useState<string>('500');
