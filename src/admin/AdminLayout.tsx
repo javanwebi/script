@@ -142,7 +142,7 @@ export const AdminLayout: React.FC = () => {
           throw new Error('دریافت فهرست کالاها از پایگاه داده کامل نشد.');
         }
       })
-      .catch(error => {
+      .catch((error: unknown) => {
         if (mounted) setCatalogError(error instanceof Error ? error.message : 'دریافت فهرست کالاها ناموفق بود.');
       })
       .finally(() => {
