@@ -300,7 +300,14 @@ export async function completeXkiroConsult(
         providerCode=String(payload?.error?.code||payload?.error?.type||'')
           .replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48);
       }catch{}
-      throw new BaiConsultError('http_'+response.status+(providerCode?'_'+providerCode:''));
+      const retryAfter=response.headers.get('retry-after');
+      const retrySeconds=retryAfter&&/^\\d+(?:\\.\\d+)?$/.test(retryAfter)
+        ?Number(retryAfter):null;
+      const retryDate=retryAfter&&retrySeconds===null?Date.parse(retryAfter):NaN;
+      const retryAfterMs=retrySeconds!==null
+        ?Math.max(0,retrySeconds*1000)
+        :Number.isFinite(retryDate)?Math.max(0,retryDate-Date.now()):undefined;
+      throw new BaiConsultError('http_'+response.status+(providerCode?'_'+providerCode:''),retryAfterMs);
     }
     const payload=await response.json() as any;
     const choice=payload?.choices?.[0];
