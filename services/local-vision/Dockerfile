@@ -1,10 +1,13 @@
 FROM python:3.11-slim-bookworm
 WORKDIR /service
-# Some VPS networks time out on Debian's HTTP CDN. Keep official repositories,
-# use verified HTTPS, and fail on incomplete package indexes with bounded retries.
+# This VPS can reach ftp.debian.org but times out on deb.debian.org.
+# Keep signed official main/update and security repositories on verified HTTPS.
 RUN set -eu; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do \
-      if [ -f "$source" ]; then sed -i 's#http://deb.debian.org#https://deb.debian.org#g' "$source"; fi; \
+      if [ -f "$source" ]; then sed -E -i \
+        -e 's#https?://deb.debian.org/debian-security#https://security.debian.org/debian-security#g' \
+        -e 's#https?://deb.debian.org/debian#https://ftp.debian.org/debian#g' \
+        -e 's#http://security.debian.org#https://security.debian.org#g' "$source"; fi; \
     done; \
     apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 -o APT::Update::Error-Mode=any update; \
     DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng; \
