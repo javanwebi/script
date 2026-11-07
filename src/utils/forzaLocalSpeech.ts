@@ -18,6 +18,17 @@ export interface LocalSttModel {
 type BrowserVosk={createModel(url:string):Promise<LocalSttModel>};
 let dibaPromise:Promise<LocalSttModel>|undefined;
 let voskPromise:Promise<void>|undefined;
+let dibaGeneration=0;
+
+/** Release the model at call exit and invalidate any still-loading model.
+ * Vosk's createModel has no AbortSignal; a late model is terminated as soon
+ * as it resolves instead of being attached to a later call session.
+ */
+export function disposeDibaSttModel(model?:LocalSttModel):void{
+  dibaGeneration++;
+  try{model?.terminate?.();}catch{}
+  dibaPromise=undefined;
+}
 
 function within<T>(promise:Promise<T>,ms:number,label:string):Promise<T>{
   return new Promise((resolve,reject)=>{
@@ -42,12 +53,30 @@ function loadVoskScript():Promise<void>{
 
 export async function loadDibaSttModel():Promise<LocalSttModel>{
   if(!dibaPromise){
-    dibaPromise=(async()=>{
+    const generation=dibaGeneration;
+    const task=(async()=>{
       await within(loadVoskScript(),15000,'vosk_runtime_timeout');
-      return await within(
-        ((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL),
-        90000,'diba_model_timeout');
-    })().catch(error=>{dibaPromise=undefined;throw error;});
+      const raw=((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL);
+      const guarded=raw.then(model=>{
+        if(generation!==dibaGeneration){
+          try{model.terminate?.();}catch{}
+          throw new Error('diba_model_cancelled');
+        }
+        return model;
+      });
+      try{
+        return await within(guarded,90000,'diba_model_timeout');
+      }catch(error){
+        if(error instanceof Error&&error.message==='diba_model_timeout'&&generation===dibaGeneration)
+          dibaGeneration++;
+        throw error;
+      }
+    })();
+    const wrapped=task.catch(error=>{
+      if(dibaPromise===wrapped)dibaPromise=undefined;
+      throw error;
+    });
+    dibaPromise=wrapped;
   }
   return dibaPromise;
 }
