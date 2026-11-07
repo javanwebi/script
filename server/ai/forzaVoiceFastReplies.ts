@@ -16,7 +16,5 @@ export function getForzaVoiceFastReply(value:unknown):string|null{
     return 'خواهش می‌کنم. هر زمان آماده بودید، در خدمتم.';
   if(/^(?:خوبی|حالت چطوره)$/.test(text))
     return 'ممنون، آماده‌ام کمک کنم. بفرمایید چه قطعه‌ای را بررسی کنیم؟';
-  if(/^(?:بله|باشه)$/.test(text))
-    return 'بسیار خوب، بفرمایید؛ گوش می‌کنم.';
   return null;
 }
