@@ -39,7 +39,17 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
  const request:Promise<DurableRuntimeState>=(async()=>{
   if(enabled)await flushDurableChanges();
   const endpoint=includeProducts?'/api/runtime':'/api/runtime?includeProducts=0';
-  const res=await fetch(endpoint,{credentials:'same-origin',cache:'no-store'});
+  const timeoutMs=includeProducts?30000:12000;
+  let res:Response;
+  try{
+   res=await fetch(endpoint,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
+  }catch(error){
+   if(error instanceof Error && (error.name==='TimeoutError' || error.name==='AbortError'))
+    throw new Error(includeProducts
+     ? 'دریافت فهرست کالاها بیش از ۳۰ ثانیه طول کشید؛ اتصال سرور یا پایگاه داده را بررسی کنید و دوباره تلاش کنید.'
+     : 'بارگذاری اولیه پنل بیش از حد طول کشید؛ دوباره تلاش کنید.');
+   throw error;
+  }
   if(!res.ok)throw new Error('دریافت اطلاعات از پایگاه داده ممکن نشد.');
   const data=await res.json() as DurableRuntimeState;
   if(!data.success)throw new Error(data.message);
