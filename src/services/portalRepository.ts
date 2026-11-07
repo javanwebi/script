@@ -1,4 +1,4 @@
-import {durableStorage,databaseStorageEnabled,refreshDurableStorage,hydrateMemory,flushDurableChanges} from "./durableStorage";
+import {durableStorage,refreshDurableStorage,hydrateMemory,flushDurableChanges} from "./durableStorage";
 // Browser storage is a rendering cache. Authorization and durable data live in /api/portal.
 export const PORTAL_CACHE_KEYS = [
   "atlas_admin_inquiries_v1",
@@ -74,7 +74,14 @@ export function hydratePortal() {
 async function loadPortal() {
   if (saving) await saving;
   if (saveError) throw saveError;
-  const data = await portalRequest();
+  const pathname=typeof window!=="undefined" ? window.location?.pathname || "" : "";
+  const includeProducts=!/^\\/admin(?:\\/|$)/.test(pathname);
+  // Portal identity and runtime data are independent reads. Start both together;
+  // refreshDurableStorage shares the app-shell request when it is still in flight.
+  const [data]=await Promise.all([
+    portalRequest(),
+    refreshDurableStorage({includeProducts}),
+  ]);
   // Keep a recoverable copy of pre-migration browser data; never upload it automatically.
   if (!durableStorage.getItem("atlas_portal_cache_migrated_v1")) {
     const previous: Record<string, unknown> = {};
@@ -95,7 +102,6 @@ async function loadPortal() {
       );
     durableStorage.setItem("atlas_portal_cache_migrated_v1", "true");
   }
-  if(databaseStorageEnabled())await refreshDurableStorage();
   hydrateMemory(()=>{
   revision = data.revision;
   isAdmin = data.admin === true || data.staff === true;
