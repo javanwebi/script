@@ -74,7 +74,21 @@ export function hydratePortal() {
 async function loadPortal() {
   if (saving) await saving;
   if (saveError) throw saveError;
-  const data = await portalRequest();
+  const pathname=typeof window!=="undefined" ? window.location?.pathname || "" : "";
+  const isAdminRoute=/^\/admin(?:\/|$)/.test(pathname);
+  const includeProducts=!isAdminRoute;
+  // The admin shell must wait for runtime authorization/data before rendering.
+  // Public/customer routes retain their non-blocking bootstrap when the app-shell
+  // runtime request has not completed yet.
+  const runtimeHydration=isAdminRoute || databaseStorageEnabled()
+    ? refreshDurableStorage({includeProducts})
+    : Promise.resolve(null);
+  const [data,runtimeState]=await Promise.all([
+    portalRequest(),
+    runtimeHydration,
+  ]);
+  if(isAdminRoute && runtimeState?.database!==true)
+    throw new Error('پایگاه داده برای بارگذاری پنل مدیریت آماده نیست. اتصال را بررسی کنید و دوباره تلاش کنید.');
   // Keep a recoverable copy of pre-migration browser data; never upload it automatically.
   if (!durableStorage.getItem("atlas_portal_cache_migrated_v1")) {
     const previous: Record<string, unknown> = {};
@@ -95,7 +109,6 @@ async function loadPortal() {
       );
     durableStorage.setItem("atlas_portal_cache_migrated_v1", "true");
   }
-  if(databaseStorageEnabled())await refreshDurableStorage();
   hydrateMemory(()=>{
   revision = data.revision;
   isAdmin = data.admin === true || data.staff === true;

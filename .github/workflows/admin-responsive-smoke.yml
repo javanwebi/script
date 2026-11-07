@@ -18,6 +18,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run test:portal
       - run: npm run build
       - run: npm install --no-save --ignore-scripts playwright@1.56.1
       - run: npx playwright install chromium

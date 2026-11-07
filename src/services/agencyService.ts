@@ -85,16 +85,16 @@ const DEALER_CATALOGS: DealerCatalogItem[] = [
 export const agencyService = {
   // --- Applications ---
   getApplications(): AgencyApplication[] {
+    // Reads must never seed a PostgreSQL document during React render.
+    // A missing row is an empty view until the authoritative data is hydrated.
+    const stored = durableStorage.getExistingItem(APPLICATIONS_KEY);
+    if (!stored) return [];
     try {
-      const stored = durableStorage.getItem(APPLICATIONS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      // ignore
+      return [];
     }
-    durableStorage.setItem(APPLICATIONS_KEY, JSON.stringify(INITIAL_APPLICATIONS));
-    return INITIAL_APPLICATIONS;
   },
 
   saveApplications(apps: AgencyApplication[]): void {
@@ -260,16 +260,15 @@ export const agencyService = {
 
   // --- SMS Logs ---
   getSmsLogs(): SmsLog[] {
+    // Same read-only rule as applications: never create a default row on read.
+    const stored = durableStorage.getExistingItem(SMS_LOGS_KEY);
+    if (!stored) return [];
     try {
-      const stored = durableStorage.getItem(SMS_LOGS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      // ignore
+      return [];
     }
-    durableStorage.setItem(SMS_LOGS_KEY, JSON.stringify(INITIAL_SMS_LOGS));
-    return INITIAL_SMS_LOGS;
   },
 
   addSmsLog(params: {
