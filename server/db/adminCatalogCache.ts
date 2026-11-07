@@ -14,7 +14,7 @@ function refreshAdminCatalog():Promise<unknown[]>{
  const startedGeneration=generation;
  lastRefreshAttemptAt=Date.now();
  const request=readProducts({includeTechnicalReviews:false}).then(products=>{
-  const value=compactCatalogReviews(products);
+  const value=compactCatalog(products);
   if(startedGeneration===generation)
    cache={value,refreshedAt:Date.now(),stale:false};
   return value;
@@ -24,9 +24,13 @@ function refreshAdminCatalog():Promise<unknown[]>{
 }
 
 /** Reuse the full catalogue already read by server startup; no second DB scan on first admin visit. */
+function compactCatalog(products:unknown):unknown[]{
+ return Array.isArray(products)?compactCatalogReviews(products) as unknown[]:[];
+}
+
 export function primeAdminCatalogCache(products:unknown){
  generation++;
- cache={value:compactCatalogReviews(products),refreshedAt:Date.now(),stale:false};
+ cache={value:compactCatalog(products),refreshedAt:Date.now(),stale:false};
  inFlight=null;
 }
 
