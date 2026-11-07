@@ -10,7 +10,7 @@ import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
 import {registerAdminCustomerCredentialsApi} from './server/db/adminCustomerCredentialsApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
-import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi} from './server/db/runtimeApi';
+import {runtimeApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -631,7 +631,9 @@ async function saveCatalogOverridesDb(db: CatalogOverridesDb, transferSku?: {sku
         await client.query('update public.catalog_families f set item_count=(select count(*)::integer from public.catalog_variants v where v.family_code=f.code and v.active) where f.code=any($1::text[])',[[transferSku.sourceFamilyCode,transferSku.targetFamilyCode]]);
       }
       if(db.deletedCodes.length)await client.query(adoptedSchema()?'update public.catalog_families set is_active=false where code=any($1::text[])':'update public.product_families set active=false where code=any($1::text[])',[db.deletedCodes]);});
-    CATALOG_OVERRIDES_CACHE=db;return;
+    CATALOG_OVERRIDES_CACHE=db;
+    invalidatePublicCatalogCache();
+    return;
   }
 
 }
