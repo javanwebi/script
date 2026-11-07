@@ -1971,7 +1971,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const localModel=localSttModelRef.current;
     localSttModelRef.current=null;
     localSttLoadRef.current=null;
-    disposeDibaSttModel(localModel??undefined);
+    disposeDibaSttModel(localModel);
 
     const stream=streamRef.current;
     streamRef.current=null;
