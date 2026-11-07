@@ -1,4 +1,4 @@
-"""Protocol test without gated weights; never an industrial accuracy benchmark."""
+"""Protocol test with random test weights; never an industrial accuracy benchmark."""
 import base64
 import importlib.util
 import io
@@ -22,11 +22,13 @@ class WorkerTests(unittest.TestCase):
         import torch
         import numpy as np
         from PIL import Image
-        from transformers import DINOv3ViTConfig, DINOv3ViTModel
+        from transformers import AutoModel, Dinov2Config, Dinov2Model
         torch.set_num_threads(1)
         worker.torch, worker.np, worker.Image = torch, np, Image
-        # Random small model checks actual DINOv3 code/preprocessing/transport, not recognition quality.
-        worker.model = DINOv3ViTModel(DINOv3ViTConfig(num_hidden_layers=1, hidden_size=384, num_register_tokens=4, use_gated_mlp=True)).eval()
+        # Random small model checks actual DINOv2 code/preprocessing/transport, not recognition quality.
+        directory = os.environ.get('LOCAL_VISION_TEST_MODEL_DIR')
+        worker.model = (AutoModel.from_pretrained(directory, local_files_only=True) if directory else
+                        Dinov2Model(Dinov2Config(num_hidden_layers=1, hidden_size=384, num_attention_heads=6, image_size=224))).eval()
         os.environ['LOCAL_VISION_TOKEN'] = 'x' * 32
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), worker.Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)

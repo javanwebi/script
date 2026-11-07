@@ -7,7 +7,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-MODEL_ID = 'dinov3-smallplus-c93d816f-fp32-cls-224-v1'
+MODEL_ID = 'dinov2-small-ed25f3a3-fp32-cls-224-v1'
 MAX_BODY = 6 * 1024 * 1024
 Image = None
 image_mean = (0.485, 0.456, 0.406)
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     image_mean = preprocessing.get('image_mean', image_mean)
     image_std = preprocessing.get('image_std', image_std)
     model = AutoModel.from_pretrained(directory, local_files_only=True).eval()
-    if model.config.model_type != 'dinov3_vit' or model.config.hidden_size != 384:
+    if model.config.model_type != 'dinov2' or model.config.hidden_size != 384:
         raise SystemExit('Unexpected model architecture')
     warmup = io.BytesIO()
     Image.new('RGB', (32, 32), 'white').save(warmup, format='JPEG')

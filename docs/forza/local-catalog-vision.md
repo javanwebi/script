@@ -1,4 +1,4 @@
-# Local catalogue image retrieval (DINOv3 Small+)
+# Local catalogue image retrieval (DINOv2 Small)
 
 This is an opt-in CPU retrieval path, not a generative vision agent. When
 `PART_RECOGNITION_MODE=local-embedding`, image requests to `/api/ai/analyze-part`
@@ -7,15 +7,15 @@ Other FORZA voice/chat providers are unaffected.
 
 ## Model and resources
 
-- Official model: https://huggingface.co/facebook/dinov3-vits16plus-pretrain-lvd1689m
-- Revision: `c93d816fc9e567563bc068f01475bec89cc634a6` (pinned).
-- Meta DINOv3 licence/access acceptance is required. Obtain a Hugging Face **read**
-  token on the approved account. This is download authentication, not a paid API.
+- Official model: https://huggingface.co/facebook/dinov2-small
+- Revision: `ed25f3a31f01632728cabb09d1542f84ab7b0056` (pinned).
+- Public downloadable weights; no account, access request, API key or download token
+  is required. The model is distributed under Apache 2.0.
 - CPU-only PyTorch, one inference thread, one request at a time, no public port.
 - Runtime is capped at 1 CPU and 1200 MiB RAM. This is a resource limit, not a
   measured guarantee. OOM/startup or latency failures require measurement/tuning.
 - Provisioning needs additional disk for the Python image, CPU dependencies,
-  model and build cache. Do not confuse the ~29M-parameter weights with total
+  model and build cache. Do not confuse the ~22M-parameter weights with total
   Docker/runtime size. No GPU required. Do not promise 40 concurrent requests.
 - Serving is offline; only provisioning downloads dependencies/weights.
 
@@ -65,12 +65,11 @@ sudo bash "$VISION_SETUP_DIR/ops/setup-local-vision-vps.sh"
 rm -rf -- "$VISION_SETUP_DIR"
 ```
 
-The setup script reads the HF token silently from the terminal, passes it as a
-BuildKit secret, and removes the temporary file. It does not write the download
-token into Git, Docker arguments, image environment or application configuration.
-It creates `/opt/sanatpish/.env.local-vision` (0600) with a separate private service
-token. Do not copy these credentials into chat. The setup script does **not**
-activate production; the existing pipeline remains selected.
+The setup script downloads public pinned weights without authentication. It creates
+`/opt/sanatpish/.env.local-vision` (0600). A private service credential is generated
+automatically for communication between the app and encoder on your own server;
+it is not a provider token and needs no purchase, registration or manual entry.
+The setup script does **not** activate production; the existing pipeline remains selected.
 
 First reconcile actual production family/SKU image bindings and verify local
 retrieval with owner-labelled photos on an isolated staging database/app. Then:
@@ -109,13 +108,18 @@ vectors. The idle sidecar can be stopped after the old local-mode app is retired
 Run `npm run lint`, `npm run test:database`, `npm run test:portal`, `npm run build`,
 and `node --import tsx --test tests/catalog-visual-index.test.ts tests/local-vision.test.ts`.
 Python: install the pinned CPU torch/requirements in a temporary venv and run
-`python services/local-vision/test_worker.py`. Python tests execute actual DINOv3
-layers with random test weights to verify preprocessing, normalized embeddings,
-auth, request limits and protocol. They do not test trained-model accuracy.
+`python services/local-vision/test_worker.py`. Python tests execute actual DINOv2 layers with random test weights by default.
+Set `LOCAL_VISION_TEST_MODEL_DIR` to the locally downloaded model directory to run
+the same tests with the trained weights and `HF_HUB_OFFLINE=1`. These tests verify
+preprocessing, normalized embeddings, auth, request limits and protocol; they do
+not establish catalogue recognition accuracy.
 
-Gated trained weights and the owner's self-hosted database are not available in
-the development workspace. No real-weight inference, production reconciliation,
-production deployment, measured RAM or industrial recognition accuracy is claimed.
+The owner's self-hosted database and labelled customer photographs are not available
+in the development workspace. Public pinned weights were downloaded with
+`token=False` and real-weight inference was tested with offline flags. A warm
+224-pixel encode took 154 ms and process peak RSS was 455 MiB in this workspace;
+these are smoke measurements, not VPS results or a production latency guarantee.
+No production reconciliation, deployment or industrial recognition accuracy is claimed.
 
 For repeatable staging evaluation, prepare a private JSON manifest:
 

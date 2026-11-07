@@ -3,7 +3,7 @@ import type {AiPartAnalysisResult} from './aiVisualSearchService';
 import type {Product} from '../types';
 
 // Versioned namespaces prevent mixing different embedding spaces or preprocessing.
-export const LOCAL_VISION_MODEL='dinov3-smallplus-c93d816f-fp32-cls-224-v1';
+export const LOCAL_VISION_MODEL='dinov2-small-ed25f3a3-fp32-cls-224-v1';
 export const LOCAL_VISION_DIMENSIONS=384;
 export async function embedLocalImages(buffers:Buffer[], env=process.env):Promise<number[][]>{
  const endpoint=new URL(env.LOCAL_VISION_URL || 'http://sanatpish-local-vision:8091');

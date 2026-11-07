@@ -53,6 +53,6 @@ Owned temporary `vision-` files are eligible for cleanup after two hours; a requ
 
 ## Optional local retrieval
 
-The CPU-only DINOv3 Small+ path, provisioning, activation and verification limits
+The CPU-only DINOv2 Small path, provisioning, activation and verification limits
 are documented in [local catalogue vision](forza/local-catalog-vision.md).
 It can operate without Gemini; it returns visual candidates, not identity proof.
