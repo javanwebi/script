@@ -31,7 +31,9 @@ test('one-character-at-a-time SSE never duplicates or loses words',()=>{
 
 test('Nima retains industrial decimals and rejects a revised LLM transcript',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  assert.deepEqual(planner.push('قطر قطعه 3.25 میلی متر است. و '),[]);
+  const early=planner.push('قطر قطعه 3.25 میلی متر است. و ');
+  assert.equal(early.length,1);
+  assert.match(early[0],/3\\.25 میلی متر$/);
   const next='قطر قطعه 3.25 میلی متر است. و کد فنی استاندارد را بررسی می‌کنیم. ';
   const phrases=[...planner.push(next),...planner.complete(next)];
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),next.trim());
