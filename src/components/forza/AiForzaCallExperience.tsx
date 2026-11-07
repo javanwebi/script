@@ -1426,8 +1426,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         } catch(streamError) {
           if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)throw streamError;
-          // Keep the existing complete-response route as a compatibility
-          // fallback when streaming has not begun at all.
+          // A failed SSE turn must not switch to a separately configured
+          // legacy model provider.
           if (reply) {
             // An interrupted or incomplete SSE is not a complete answer.
             // Never send the visible partial transcript to the TTS engine.
