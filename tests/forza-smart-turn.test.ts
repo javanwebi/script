@@ -18,7 +18,7 @@ test('unfinished Persian intent must not be submitted as a complete request', ()
   ]) {
     const result = analyzePersianSentenceCompletion(phrase);
     assert.equal(result.isComplete, false, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 1450, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) >= 700, phrase);
   }
 });
 
@@ -32,7 +32,7 @@ test('common short questions and completed industrial inquiries respond promptly
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 900, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 500, phrase);
   }
 });
 
@@ -47,7 +47,7 @@ test('standalone turn control words are recognized without a long timeout', () =
   for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده', 'سلام', 'ممنون']) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 500, phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });
@@ -55,7 +55,7 @@ test('standalone turn control words are recognized without a long timeout', () =
 test('provisional WebSpeech requires more time than a stable finalized hypothesis', () => {
   const phrase='تسمه SPA 1250 موجود دارید';
   assert.ok(forzaEndOfTurnPauseMs(phrase, true)>forzaEndOfTurnPauseMs(phrase, false));
-  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=1800);
+  assert.ok(forzaEndOfTurnPauseMs('مدل 6205', true)>=900);
 });
 
 test('STT transcript revision postpones submission even when acoustic silence is long', () => {
@@ -80,6 +80,7 @@ test('missing VAD analyser can use text stabilization, not block transcription f
 });
 
 test('code correction after a mid-turn pause extends the decision window', () => {
+  assert.ok(forzaEndOfTurnPauseMs('بلبرینگ 6202 نه',false)>=1000);
   assert.ok(forzaEndOfTurnPauseMs('بلبرینگ 6202 نه',false)>
     forzaEndOfTurnPauseMs('بلبرینگ 6203 موجوده',false));
   const incomplete='بلبرینگ 6202 نه';

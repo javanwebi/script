@@ -58,7 +58,8 @@ export class ForzaIncrementalSpeechText {
       const end=Math.max(tail.lastIndexOf(' '),tail.lastIndexOf('\n'));
       const stable=tail.slice(0,Math.max(0,end)).trim();
       // Only whitespace-terminated words are safe while SSE is unfinished.
-      if(stable.length>=12 && stable.split(/\s+/).length>=3){
+      if(stable.length>=12 && stable.split(/\s+/).length>=3 &&
+         !this.isUnsafeStableTail(stable)){
         this.emitted+=end+1;
         this.started=true;
         return [stable];
@@ -118,12 +119,55 @@ export class ForzaIncrementalSpeechText {
         /[.!؟؛]\s*$/u.test(text) &&
         !/[0-9۰-۹]\.\s*$/u.test(text))
       return text.length;
-    const limit = first ? 38 : 66;
-    const minWordCut = first ? 22 : 42;
+    // Start the first Nima phrase after a short, complete word group.
+    // Later phrases stay larger to avoid excess CPU jobs and audio gaps.
+    const limit = first ? 20 : 66;
+    const minWordCut = first ? 16 : 42;
     if (text.length < limit) return 0;
     // If the SSE ends mid-word, only the whitespace-delimited prefix is safe
     // to pronounce; finish() flushes the final short text at authoritative done.
-    const end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
-    return end >= minWordCut ? end + 1 : 0;
+    let end = Math.max(text.lastIndexOf(' ', limit), text.lastIndexOf('\n', limit));
+    if(end<minWordCut)return 0;
+    // Never split industrial identifiers or profile/size pairs across two
+    // spoken phrases (e.g. "6203 | ZZ C3", "SPA | 1250", "HTD | 5M").
+    for(;;){
+      const cut=end+1;
+      if(!this.isUnsafeTechnicalBoundary(text,cut)&&
+         !(!text.slice(cut).trim()&&this.isUnsafeStableTail(text.slice(0,cut))))return cut;
+      const rest=text.slice(cut);
+      const nextSpace=rest.search(/[ \n]/);
+      if(nextSpace<0)return 0;
+      end=cut+nextSpace;
+    }
+  }
+
+  private isUnsafeStableTail(text:string):boolean{
+    const parts=text.trim().split(/\s+/);
+    const token=parts.at(-1)||'';
+    const previous=parts.at(-2)||'';
+    const metric=/^(?:میلی|سانتی|متر|میلی‌متر|سانتی‌متر|mm|cm|inch|in)$/i;
+    if(metric.test(token)&&/^\d{1,3}(?:\.\d{1,3})?$/.test(previous))return true;
+    return /^\d{2,5}$/.test(token)||
+      /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(token)||
+      /^(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|HTD|STD|AT\d{1,2}|T\d{2})$/i.test(token)||
+      /^\d{1,3}M$/i.test(token);
+  }
+  private isUnsafeTechnicalBoundary(text:string,cut:number):boolean{
+    const left=text.slice(0,cut).trimEnd().split(/\s+/).pop()||'';
+    const right=text.slice(cut).trimStart().split(/\s+/)[0]||'';
+    if(!left||!right)return false;
+    // Keep a product noun attached to the following numeric identifier.
+    if(/^(?:بلبرینگ|یاتاقان|قطعه|کد|شماره|سایز|مدل|bearing)$/i.test(left)&&
+       /^\d{2,6}(?:\.\d{1,3})?[A-Z]{0,4}$/i.test(right))return true;
+    if(/^\d{1,4}(?:\.\d{1,3})?$/.test(left)&&
+       /^(?:میلی|سانتی|mm|cm|inch|in)$/i.test(right))return true;
+    if(/^(?:میلی|سانتی)$/.test(left)&&/^متر$/.test(right))return true;
+    if(/^\d{3,5}[A-Z]{0,4}$/i.test(left)&&
+       /^(?:ZZ|2Z|RS|2RS|C[234]|LLU|LLB|NR)$/i.test(right))return true;
+    if(/^(?:ZZ|2Z|RS|2RS|LLU|LLB)$/i.test(left)&&/^C[234]$/i.test(right))return true;
+    if(/^(?:SPZ|SPA|SPB|SPC|XPZ|XPA|XPB|XPC|HTD|STD|AT\d{1,2}|T\d{2}|RPP\d*)$/i.test(left)&&
+       /^(?:\d{2,5}|\d{1,3}M)$/i.test(right))return true;
+    if(/^\d{2,5}$/.test(left)&&/^(?:mm|cm|m|inch|in|میلی‌متر|سانتی‌متر)$/i.test(right))return true;
+    return false;
   }
 }

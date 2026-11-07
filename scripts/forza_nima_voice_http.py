@@ -29,6 +29,8 @@ from piper import PiperVoice
 
 MODEL = Path(os.environ.get("FORZA_NIMA_MODEL", "/app/voice/fa_IR-gyro-medium.onnx"))
 VOICE_ID = "piper-nima-gyro-medium"
+ACK_TEXT = "متوجه شدم، بررسی می‌کنم."
+ack_wav = None
 MAX_TEXT_CHARS = 1000
 MAX_REQUEST_BYTES = 8192
 MAX_WAV_BYTES = 8_000_000
@@ -237,11 +239,24 @@ class Handler(BaseHTTPRequestHandler):
             return True
 
     def do_GET(self):
-        if self.path == "/health":
+        if self.path == "/ack":
+            token = os.environ.get("FORZA_VOICE_TOKEN", "")
+            if not token or not hmac.compare_digest(self.headers.get("X-Forza-Voice-Token", ""), token):
+                self.respond(403, {"error": "forbidden"})
+                return
+            if ack_wav is None:
+                self.respond(503, {"error": "ack_not_ready"})
+                return
+            # A single pre-generated Nima acknowledgement covers model/STT
+            # latency while the real answer is being generated. It is held in
+            # RAM only and is never regenerated per customer turn.
+            self.respond(200, ack_wav, "audio/wav", (0, 0))
+        elif self.path == "/health":
             self.respond(200 if engine is not None or pool_ready else 503, {
                 "ok": engine is not None or pool_ready, "voice": VOICE_ID,
                 "workers": WORKER_COUNT, "active": queue_busy, "waiting": len(queue_waiters),
                 "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1,
+                "ack_ready": ack_wav is not None,
                 "generated_audio_persisted": False,
             })
         else:
@@ -333,7 +348,7 @@ class PrivateServer(ThreadingHTTPServer):
 
 
 def main():
-    global engine, inference_pool, pool_ready
+    global engine, inference_pool, pool_ready, ack_wav
     def stop_service(_signum, _frame):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop_service)
@@ -358,6 +373,25 @@ def main():
         except BaseException:
             inference_pool.shutdown(wait=False, cancel_futures=True)
             raise
+    # Pre-generate one short Nima acknowledgement during service warm-up.
+    # This removes the first-inference delay from the beginning of every
+    # customer turn without pretending it is the technical answer.
+    ack_started = time.monotonic()
+    try:
+        ack_wait, ack_error = acquire_inference(lambda: False)
+        if ack_error:
+            raise RuntimeError(ack_error)
+        try:
+            ack_wav = synthesize_request(ACK_TEXT, lambda: False)
+        finally:
+            release_inference()
+        print("[FORZA_NIMA_ACK] ready=1 warm_ms=%d bytes=%d" % (
+            round((time.monotonic()-ack_started)*1000), len(ack_wav)), flush=True)
+    except Exception as exc:
+        ack_wav = None
+        print("[FORZA_NIMA_ACK] ready=0 type=%s" % type(exc).__name__,
+              file=sys.stderr, flush=True)
+
     print("[FORZA Nima] ready voice=%s warmed=1 no_audio_files=1" % VOICE_ID,
           flush=True)
     port = int(os.environ.get("PORT", "8080"))

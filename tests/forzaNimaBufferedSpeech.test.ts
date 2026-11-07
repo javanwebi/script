@@ -170,3 +170,18 @@ test('one failed synthesis cancels sibling requests and never starts further que
  await flush();fail(new Error('failed-first'));await assert.rejects(engine.finish(),/failed-first/);
  assert.equal(secondSignal?.aborted,true);assert.equal(count,2);
 });
+
+
+test('short first Nima audio starts after a 40ms bounded warm window',async()=>{
+  let scheduled=0;
+  const engine=new ForzaNimaBufferedSpeech({
+    synthesize:async()=>pcm(0.5),
+    player:{enqueueWav(){scheduled++;return Promise.resolve()}},
+    initialBufferSeconds:0.35,
+    maximumInitialWaitMs:40,
+  });
+  engine.add('پاسخ کوتاه نیما');
+  await new Promise(resolve=>setTimeout(resolve,70));
+  assert.equal(scheduled,1);
+  await engine.finish();
+});

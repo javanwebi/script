@@ -133,8 +133,10 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_registry=https://registry.npmmirror.com \
  -e npm_config_maxsockets=2 \
  -e npm_config_fetch_retries=5 \
- node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build'
+ node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund && npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8 && mkdir -p public/forza-runtime/stt && cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build'
 test -s "$STAGE/dist/index.html"
+ test -s "$STAGE/dist/forza-runtime/stt/vosk.js" || { echo "FORZA_DIBA_VOSK_RUNTIME_MISSING"; exit 1; }
+ echo "FORZA_DIBA_STT_RUNTIME_OK"
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null

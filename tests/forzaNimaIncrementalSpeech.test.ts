@@ -31,9 +31,11 @@ test('one-character-at-a-time SSE never duplicates or loses words',()=>{
 
 test('Nima retains industrial decimals and rejects a revised LLM transcript',()=>{
   const planner=new ForzaIncrementalSpeechText();
-  assert.deepEqual(planner.push('قطر قطعه 3.25 میلی متر است. و '),[]);
+  const early=planner.push('قطر قطعه 3.25 میلی متر است. و ');
+  assert.equal(early.length,1);
+  assert.match(early[0],/3\.25 میلی متر$/);
   const next='قطر قطعه 3.25 میلی متر است. و کد فنی استاندارد را بررسی می‌کنیم. ';
-  const phrases=[...planner.push(next),...planner.complete(next)];
+  const phrases=[...early,...planner.push(next),...planner.complete(next)];
   assert.equal(phrases.join(' ').replace(/\s+/g,' ').trim(),next.trim());
   assert.throws(()=>planner.push('قطر قطعه 4.25 میلی متر است. و '),/stream_revised/);
 });
@@ -53,7 +55,7 @@ test('Nima begins at first complete word group without waiting for full response
   assert.ok(prefix.length<80);
   const first=planner.push(prefix);
   assert.equal(first.length,1);
-  assert.ok(first[0].length>=22);
+  assert.ok(first[0].length>=16);
   assert.equal(planner.push(prefix).length,0);
   const whole=prefix+'دستگاه را بفرمایید تا مشخصات مورد نیاز را بررسی کنیم.';
   assert.equal([...first,...planner.complete(whole)].join(' ').replace(/\s+/g,' ').trim(),whole.trim());
@@ -186,4 +188,40 @@ test('a short stable initial word group can start during provider idle without s
  assert.deepEqual(planner.flushStableIdle(),[]);
  const full='برای بررسی کد 6203ZZ نام سازنده را هم بفرمایید.';
  assert.equal([...early,...planner.complete(full)].join(' '),full);
+});
+
+
+test('first unpunctuated Nima group is released at a short complete-word boundary',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  const prefix='کد نهایی 6203 ZZ تعداد ';
+  const first=planner.push(prefix);
+  assert.equal(first.length,1);
+  assert.ok(first[0].split(/\s+/).length>=3);
+  assert.ok(first[0].length>=16);
+  const full=prefix+'10 عدد است. مشخصات را بررسی می‌کنم.';
+  const remaining=[...planner.push(full),...planner.complete(full)];
+  assert.equal([...first,...remaining].join(' ').replace(/\s+/g,' ').trim(),full.trim());
+});
+
+
+test('early Nima phrase boundaries never split bearing suffixes or belt profile sizes',()=>{
+  const bearing=new ForzaIncrementalSpeechText();
+  const bearingFirst=bearing.push('برای سفارش قطعه 6203 ZZ C3 اطلاعات بده');
+  assert.equal(bearingFirst.length,1);
+  assert.match(bearingFirst[0],/6203 ZZ C3$/);
+
+  const belt=new ForzaIncrementalSpeechText();
+  const beltFirst=belt.push('تسمه انتقال قدرت SPA 1250 برای موتور صنعتی');
+  assert.equal(beltFirst.length,1);
+  assert.match(beltFirst[0],/SPA 1250$/);
+});
+
+
+test('stable idle flush holds a bearing number until its ZZ suffix arrives',()=>{
+  const planner=new ForzaIncrementalSpeechText();
+  assert.deepEqual(planner.push('برای سفارش قطعه 6203 '),[]);
+  assert.deepEqual(planner.flushStableIdle(),[]);
+  const first=planner.push('برای سفارش قطعه 6203 ZZ موجود است');
+  assert.equal(first.length,1);
+  assert.match(first[0],/6203 ZZ$/);
 });

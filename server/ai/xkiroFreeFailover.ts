@@ -168,6 +168,18 @@ export async function streamXkiroFreePool(
       throw error instanceof BaiConsultError?error:new BaiConsultError(code);
     }
 
+    // A verification request is useful only when the customer has already
+    // received a prefix that must be completed without replaying it. If the
+    // first-token wait expires (or the stream fails before its first delta),
+    // do not launch a second full generation: return immediately to the
+    // caller's local catalog/error path and briefly cool down this model.
+    if(!deliveredText){
+      cooldowns.set(model,Date.now()+5000);
+      console.warn('[FORZA XKIRO FREE] stream_failed_before_first_token model='+model+
+        ' code='+code+' elapsed_ms='+(Date.now()-streamStarted));
+      throw error instanceof BaiConsultError?error:new BaiConsultError(code);
+    }
+
     try{
       const completed=await completeXkiroConsult({
         ...options,

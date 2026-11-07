@@ -66,13 +66,19 @@ export function normalizePersianTranscript(value: string): string {
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const analysis = analyzePersianSentenceCompletion(text);
-  // A provisional browser hypothesis can still gain another word or SKU.
-  if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
-  if (analysis.isComplete && analysis.confidence >= 0.9) {
-    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
-  }
-  if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
-  return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
+  const clean=normalizePersianTranscript(text);
+  // A correction ending in "نه" or "منظورم" deserves a little more room:
+  // industrial codes often arrive as "6202 نه، 6203". New acoustic speech
+  // resets the VAD timer, so this is a safety window, not a fixed turn delay.
+  if(/(?:^|\s)(?:نه|منظورم|یعنی|اصلاحش|اشتباه)$/.test(clean))
+    return hasInterim?1350:1100;
+  // Keep incomplete thoughts safe without making customers wait 2.0–2.4s.
+  // Barge-in remains enabled if a customer continues after dispatch.
+  if(analysis.isMidThought)return hasInterim?900:800;
+  if(analysis.isComplete&&analysis.confidence>=0.9)
+    return hasInterim?420:300;
+  if(analysis.isComplete)return hasInterim?520:400;
+  return hasInterim?850:750;
 }
 
 /**

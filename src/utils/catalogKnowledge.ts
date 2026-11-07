@@ -7,12 +7,43 @@ const normalize = (text: string) =>
     .replace(/ك/g, "ک")
     .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
     .replace(/[؟،,.!]/g, " ");
+
+const compactCode = (value:string) =>
+  normalize(value).replace(/[\s\-_.\/]/g,'');
+
+function exactCodeCandidates(query:string):Set<string>{
+  const text=normalize(query)
+    .replace(/زد\s+زد/g,' zz ')
+    .replace(/زدزد/g,' zz ')
+    .replace(/[-_./]/g,' ');
+  const found:string[]=[];
+  const patterns=[
+    /(?<![a-z0-9])\d{3,6}[a-z0-9]{0,4}(?:\s+(?:zz|2z|rs|2rs|c[234]|llu|llb|nr)){0,2}(?![a-z0-9])/gi,
+    /(?<![a-z0-9])(?:spz|spa|spb|spc|xpz|xpa|xpb|xpc|htd|std|rpp\d*)\s+\d{2,5}m?(?![a-z0-9])/gi,
+    /(?<![a-z0-9])[a-z]{2,5}\d{2,5}(?:zz|2z|rs|2rs|c[234])?(?![a-z0-9])/gi,
+  ];
+  const profileMatches=[...text.matchAll(patterns[1])];
+  const profileSizes=new Set(profileMatches.map(match=>
+    compactCode((match[0].match(/\d{2,5}m?$/i)||[''])[0])));
+  for(let i=0;i<patterns.length;i++)for(const match of text.matchAll(patterns[i])){
+    const code=compactCode(match[0]);
+    if(i===0&&/^\d{3,6}$/.test(code)&&profileSizes.has(code))continue;
+    found.push(code);
+  }
+  // If the customer corrects an identifier in the same utterance, the final
+  // code is authoritative; never retrieve the code they just rejected.
+  if(found.length>1&&/(?:^|\s)(?:نه|منظورم|یعنی|اصلاحش|اشتباه)(?:\s|$)/.test(text))
+    return new Set([found.at(-1)!]);
+  return new Set(found);
+}
 export function findCatalogKnowledge(
   products: Product[],
   query: string,
   limit = 8,
 ) {
+  const codeCandidates=exactCodeCandidates(query);
   const terms = normalize(query)
+    .replace(/زد\s+زد/g,"zz")
     .split(/\s+/)
     .filter(
       (t) =>
@@ -34,7 +65,7 @@ export function findCatalogKnowledge(
         ].includes(t),
     );
   if (!terms.length) return [];
-  return products
+  const scored=products
     .filter((p) => p.active !== false)
     .map((p) => {
       const variants = (p.variants || []).filter((v) => v.active !== false);
@@ -47,20 +78,22 @@ export function findCatalogKnowledge(
           ...variants.flatMap((v) => [v.code, v.size, v.name, v.model]),
         ].join(" "),
       );
-      const exact = terms.some(
-        (t) =>
-          normalize(p.code) === t ||
-          variants.some((v) => normalize(v.code) === t),
-      );
+      const exactVariants=variants.filter(v=>codeCandidates.has(compactCode(v.code)));
+      const exactFamily=codeCandidates.has(compactCode(p.code));
+      const exact = exactVariants.length>0 || exactFamily;
       const score =
         terms.reduce((sum, t) => sum + (hay.includes(t) ? 1 : 0), 0) +
         (exact ? 100 : 0);
-      return { p, variants, exact, score };
+      return { p, variants, exactVariants, exact, score };
     })
     .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ p, variants }) =>
+    .sort((a, b) => b.score - a.score);
+  // Once an exact code is found, do not pollute the model context with a
+  // similar family/SKU that merely shares part of the identifier.
+  const exactMatches=scored.filter(item=>item.exact);
+  return (exactMatches.length?exactMatches:scored)
+    .slice(0,limit)
+    .map(({ p, variants, exactVariants }) =>
       publicCatalog({
         code: p.code,
         name: p.name,
@@ -68,15 +101,11 @@ export function findCatalogKnowledge(
         technicalSpecs: p.technicalSpecs,
         description: p.description,
         images: p.images,
-        variants: variants
-          .filter((v) =>
-            terms.some((t) =>
-              normalize([v.code, v.size, v.name, v.model].join(" ")).includes(
-                t,
-              ),
-            ),
-          )
-          .slice(0, 20),
+        variants: (exactVariants.length?exactVariants:variants.filter((v) =>
+          terms.some((t) =>
+            normalize([v.code, v.size, v.name, v.model].join(" ")).includes(t),
+          ),
+        )).slice(0, 20),
         link: "/product/" + encodeURIComponent(p.code),
       }),
     );

@@ -84,15 +84,18 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   let lastTokenMs = -1;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let idleAfterDelta = false;
-  const historyMessages = history.slice(-6)
+  // Voice needs only the immediately preceding turn or two. Large history
+  // and catalog payloads increase Qwen's time-to-first-token without helping
+  // short spoken replies; the engineering desk keeps its broader context.
+  const historyMessages = history.slice(voice ? -4 : -6)
     .filter(item => typeof item?.text === 'string' && !!item.text.trim())
     .map(item => ({
       role: item.role === 'user' || item.sender === 'user' ? 'user' : 'assistant',
-      content: String(item.text).slice(0, 3000),
+      content: String(item.text).slice(0, voice ? 1200 : 3000),
     }));
   const systemMessage = voice
-    ? 'شما FORZA مشاور صوتی قطعات صنعتی صنعت پیش هستید. فارسی روان و کوتاه پاسخ دهید. فقط متن ساده فارسی؛ هیچ ستاره، Markdown، تیتر قالب‌بندی‌شده، بولت، جدول، backtick، URL خام یا نشانه تزئینی تولید نکنید. برای سلام کوتاه جواب سلام بدهید؛ برای «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. جمله اول کامل و کوتاه باشد. فقط اطلاعات تأییدشده کاتالوگ را بیان کنید. در متن کاربر اصلاح کد مثل «۶۲۰۲ نه ۶۲۰۳» مقدار اصلاح‌شده آخر را ملاک بگیر. متن پاسخ قبلی با علامت قطع‌شدن ممکن است فقط بخشی باشد که واقعاً شنیده شده: هنگام «ادامه بده» از همان‌جا ادامه بده و بخش قبلی را تکرار نکن. هنگام تغییر موضوع یا مشخصات، پاسخ را با درخواست جدید هماهنگ کن. اگر کد فنی مبهم بود کوتاه تأیید بگیر و هرگز مشخصات قطعی حدس نزن.'
-    : 'شما مشاور فنی صنعت پیش هستید. به فارسی دقیق و کاربردی پاسخ دهید. درباره مشخصات، موجودی و قیمت بدون مستندات قطعی ادعای ساختگی نکنید.';
+    ? 'شما FORZA مشاور صوتی قطعات صنعتی صنعت پیش هستید. فارسی روان و کوتاه پاسخ دهید. فقط متن ساده فارسی؛ هیچ ستاره، Markdown، تیتر قالب‌بندی‌شده، بولت، جدول، backtick، URL خام یا نشانه تزئینی تولید نکنید. سؤال مستقیم را مستقیم جواب بده و خودت را دوباره معرفی نکن. برای سلام کوتاه جواب سلام بده؛ برای «خیلی ضعیفه» کوتاه بپرس کدام قسمت مشکل دارد. جمله اول کامل و کوتاه باشد. فقط اطلاعات تأییدشده کاتالوگ را بیان کنید. کد کامل بلبرینگ و پسوندهایی مثل ZZ و 2RS و C3 را یک شناسه دقیق بدان؛ کدهای مشابه یا پسوندهای متفاوت را یکی نکن. برای تسمه و پولی، پروفیل و طول، تعداد شیار، قطر گام و قطر شفت را جدا نگه دار. در صورت نیاز فقط یک سؤال کوتاه درباره بار، دور، دما یا مدل دستگاه بپرس. در متن کاربر اصلاح کد مثل «۶۲۰۲ نه ۶۲۰۳» مقدار اصلاح‌شده آخر را ملاک بگیر. متن پاسخ قبلی با علامت قطع‌شدن ممکن است فقط بخشی باشد که واقعاً شنیده شده: هنگام «ادامه بده» از همان‌جا ادامه بده و بخش قبلی را تکرار نکن. هنگام تغییر موضوع یا مشخصات، پاسخ را با درخواست جدید هماهنگ کن. اگر کد فنی مبهم بود کوتاه تأیید بگیر و هرگز مشخصات قطعی حدس نزن.'
+    : 'شما مشاور مهندسی قطعات صنعتی صنعت پیش هستید. سؤال را مستقیم پاسخ دهید و از معرفی مجدد یا توضیح عمومی غیرمرتبط خودداری کنید. در بلبرینگ، کد کامل و پسوندهای ZZ و 2RS و C3 را دقیق و جدا نگه دارید؛ در صورت وجود، قطر داخلی، قطر خارجی، عرض، لقی و آب‌بندی را جداگانه بررسی کنید. در تسمه و پولی، پروفیل، طول، تعداد شیار، قطر گام، قطر شفت و شرایط انتقال قدرت را با هم اشتباه نگیرید. در یاتاقان، قطر شفت، نوع نصب و بار را بررسی کنید. گزینه‌های کاتالوگ را با دلیل فنی مقایسه کنید و گزینه دقیق را از مشابه جدا نشان دهید. اگر اطلاعات کافی نیست فقط یک سؤال کوتاه و مرتبط بپرسید. فقط از کاتالوگ و اطلاعات تأییدشده استفاده کنید؛ مشخصات، قیمت، موجودی و زمان تحویل را نسازید.';
 
   const parseData = (raw: string) => {
     if (raw === '[DONE]') { finished = true; return; }
@@ -161,11 +164,11 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
         // Confirmed effective for xKiro's Qwen 3.5 Flash: avoid long reasoning
         // before speaking. Do not send provider-specific options to B.AI.
         ...(isXkiro && model === 'qwen/qwen3.5-flash:free' ? { reasoning_effort: 'none' } : {}),
-        max_tokens: voice ? 256 : 768,
+        max_tokens: voice ? 192 : 768,
         messages: [
-          { role: 'system', content: systemMessage + String(catalogContext).slice(0, 5000) },
+          { role: 'system', content: systemMessage + String(catalogContext).slice(0, voice ? 2600 : 5000) },
           ...historyMessages,
-          { role: 'user', content: String(query || '').slice(0, 6000) },
+          { role: 'user', content: String(query || '').slice(0, voice ? 2000 : 6000) },
         ],
       }),
       signal: upstreamSignal,
@@ -264,11 +267,11 @@ export async function completeXkiroConsult(
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(new Error('xkiro_nonstream_timeout')),timeoutMs);
   const requestSignal=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
-  const historyMessages=history.slice(-6)
+  const historyMessages=history.slice(voice?-4:-6)
     .filter(item=>typeof item?.text==='string'&&!!item.text.trim())
     .map(item=>({
       role:item.role==='user'||item.sender==='user'?'user':'assistant',
-      content:String(item.text).slice(0,3000),
+      content:String(item.text).slice(0,voice?1200:3000),
     }));
   const systemMessage=voice
     ? 'شما FORZA مشاور صوتی قطعات صنعتی صنعت پیش هستید. فارسی روان و کوتاه پاسخ دهید. فقط متن ساده فارسی؛ هیچ ستاره، Markdown، تیتر قالب‌بندی‌شده، بولت، جدول، backtick، URL خام یا نشانه تزئینی تولید نکنید. برای سلام کوتاه جواب سلام بدهید؛ برای «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. جمله اول کامل و کوتاه باشد. فقط اطلاعات تأییدشده کاتالوگ را بیان کنید. در متن کاربر اصلاح کد مثل «۶۲۰۲ نه ۶۲۰۳» مقدار اصلاح‌شده آخر را ملاک بگیر. متن پاسخ قبلی با علامت قطع‌شدن ممکن است فقط بخشی باشد که واقعاً شنیده شده: هنگام «ادامه بده» از همان‌جا ادامه بده و بخش قبلی را تکرار نکن. هنگام تغییر موضوع یا مشخصات، پاسخ را با درخواست جدید هماهنگ کن. اگر کد فنی مبهم بود کوتاه تأیید بگیر و هرگز مشخصات قطعی حدس نزن.'
@@ -285,11 +288,11 @@ export async function completeXkiroConsult(
         model,
         stream:false,
         ...(model==='qwen/qwen3.5-flash:free'?{reasoning_effort:'none'}:{}),
-        max_tokens:voice?256:768,
+        max_tokens:voice?192:768,
         messages:[
-          {role:'system',content:systemMessage+String(catalogContext).slice(0,5000)},
+          {role:'system',content:systemMessage+String(catalogContext).slice(0,voice?2600:5000)},
           ...historyMessages,
-          {role:'user',content:String(query||'').slice(0,6000)},
+          {role:'user',content:String(query||'').slice(0,voice?2000:6000)},
         ],
       }),
       signal:requestSignal,

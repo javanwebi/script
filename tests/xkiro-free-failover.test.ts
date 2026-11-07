@@ -175,6 +175,32 @@ test('no verified free catalog is fail-closed; never sends a generation request'
   assert.equal(calls,1);
 });
 
+
+test('xKiro does not start a second full generation when SSE fails before the first token',async()=>{
+  const model='vendor/no-first-token';
+  let streamCalls=0,nonstreamCalls=0;
+  const fetchImpl=(async(url:string|URL|Request,init?:RequestInit)=>{
+    if(String(url).endsWith('/v1/models'))return catalog([free(model)]);
+    const body=JSON.parse(String(init?.body));
+    if(body.stream){
+      streamCalls++;
+      // An upstream stream that closes without a first delta is a failed
+      // attempt, not a reason to submit a second full completion request.
+      return new Response('',{status:200,headers:{'Content-Type':'text/event-stream'}});
+    }
+    nonstreamCalls++;
+    return completion('این درخواست نباید اجرا شود');
+  }) as typeof fetch;
+
+  await assert.rejects(streamXkiroFreePool({
+    apiKey:'not-a-real-secret',model,query:'بلبرینگ 6203 ZZ',
+    voice:true,fetchImpl,onDelta:()=>{},
+  }),(error:unknown)=>error instanceof BaiConsultError&&
+    error.code==='provider_stream_incomplete');
+  assert.equal(streamCalls,1);
+  assert.equal(nonstreamCalls,0);
+});
+
 test('xKiro Retry-After prevents repeated calls during an account-wide rate limit',async()=>{
   let generations=0;
   const fetchImpl=(async(url:string|URL|Request)=>{

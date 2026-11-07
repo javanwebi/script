@@ -109,6 +109,21 @@ fi
 [ -f "$stage/node_modules/tsx/dist/cli.mjs" ] || { echo 'Candidate tsx missing'; exit 1; }
 [ -f "$stage/node_modules/vite/package.json" ] || { echo 'Candidate vite missing'; exit 1; }
 
+# The VPS bind-mounted deploy does not use Dockerfile runtime installation.
+# Stage the pinned Vosk browser bundle required by FORZA's lazy Diba fallback.
+docker run --rm --pull=never --network "$DOCKER_NETWORK" \
+  --mount "type=bind,source=$stage,target=/app" -w /app \
+  -e "npm_config_registry=$MIRROR" \
+  -e npm_config_maxsockets=2 \
+  -e npm_config_fetch_retries=6 \
+  -e npm_config_fetch_retry_mintimeout=20000 \
+  -e npm_config_fetch_retry_maxtimeout=120000 \
+  -e npm_config_fetch_timeout=120000 \
+  "$NODE_IMAGE" npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8
+mkdir -p "$stage/public/forza-runtime/stt"
+cp "$stage/node_modules/vosk-browser/dist/vosk.js" "$stage/public/forza-runtime/stt/vosk.js"
+[ -s "$stage/public/forza-runtime/stt/vosk.js" ] || { echo 'Candidate Vosk browser runtime missing'; exit 1; }
+
 docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
   "$NODE_IMAGE" npm run lint
@@ -117,6 +132,7 @@ docker run --rm --pull=never --network "$DOCKER_NETWORK" \
   --mount "type=bind,source=$stage,target=/app" -w /app \
   "$NODE_IMAGE" npm run build
 [ -f "$stage/dist/index.html" ] || { echo 'Candidate build output missing'; exit 1; }
+[ -s "$stage/dist/forza-runtime/stt/vosk.js" ] || { echo 'Candidate Vosk runtime missing from build'; exit 1; }
 
 echo 'Candidate validated; switching live revision (brief restart).'
 promoting=1

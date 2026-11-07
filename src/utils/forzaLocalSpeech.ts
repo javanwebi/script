@@ -1,10 +1,9 @@
-/** Browser-based Persian STT fallback for FORZA.
- * Text-to-speech is exclusively Pocket Farsi v2 on /api/ai/forza-speech.
- * The former unused Piper/Amir browser TTS was removed because the VPS
- * build cannot resolve its optional, intentionally uninstalled dependency.
- * Keeping it here silently bundled a second, unwanted voice engine.
+/** Lazy browser-local Persian STT fallback for FORZA.
+ * Chrome SpeechRecognition remains primary. Diba/Vosk is downloaded only when
+ * the browser recognizer is unsupported or repeatedly loses its network link.
+ * TTS remains the selected private server voice (Piper Nima).
  */
-export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/main/browser/diba-stt-fa-small.tar.gz';
+export const FORZA_DIBA_MODEL_URL='https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz';
 const VOSK_SCRIPT_URL='/forza-runtime/stt/vosk.js';
 
 export interface LocalRecognizer {
@@ -19,6 +18,17 @@ export interface LocalSttModel {
 type BrowserVosk={createModel(url:string):Promise<LocalSttModel>};
 let dibaPromise:Promise<LocalSttModel>|undefined;
 let voskPromise:Promise<void>|undefined;
+let dibaGeneration=0;
+
+/** Release the model at call exit and invalidate any still-loading model.
+ * Vosk's createModel has no AbortSignal; a late model is terminated as soon
+ * as it resolves instead of being attached to a later call session.
+ */
+export function disposeDibaSttModel(model?:LocalSttModel):void{
+  dibaGeneration++;
+  try{model?.terminate?.();}catch{}
+  dibaPromise=undefined;
+}
 
 function within<T>(promise:Promise<T>,ms:number,label:string):Promise<T>{
   return new Promise((resolve,reject)=>{
@@ -43,12 +53,30 @@ function loadVoskScript():Promise<void>{
 
 export async function loadDibaSttModel():Promise<LocalSttModel>{
   if(!dibaPromise){
-    dibaPromise=(async()=>{
+    const generation=dibaGeneration;
+    const task=(async()=>{
       await within(loadVoskScript(),15000,'vosk_runtime_timeout');
-      return await within(
-        ((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL),
-        90000,'diba_model_timeout');
-    })().catch(error=>{dibaPromise=undefined;throw error;});
+      const raw=((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL);
+      const guarded=raw.then(model=>{
+        if(generation!==dibaGeneration){
+          try{model.terminate?.();}catch{}
+          throw new Error('diba_model_cancelled');
+        }
+        return model;
+      });
+      try{
+        return await within(guarded,90000,'diba_model_timeout');
+      }catch(error){
+        if(error instanceof Error&&error.message==='diba_model_timeout'&&generation===dibaGeneration)
+          dibaGeneration++;
+        throw error;
+      }
+    })();
+    const wrapped=task.catch(error=>{
+      if(dibaPromise===wrapped)dibaPromise=undefined;
+      throw error;
+    });
+    dibaPromise=wrapped;
   }
   return dibaPromise;
 }

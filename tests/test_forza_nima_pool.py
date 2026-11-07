@@ -70,6 +70,12 @@ class PoolTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as failed:urllib.request.urlopen(req,timeout=2)
                 self.assertEqual(failed.exception.code,503)
                 self.assertFalse(scope['pool_ready'])
+                # The handler writes the 503 before issuing its supervised
+                # SIGTERM. Wait for the mocked call before leaving the patch
+                # context, otherwise the handler can race and signal unittest.
+                deadline=time.monotonic()+1
+                while not restart.called and time.monotonic()<deadline:
+                    time.sleep(.001)
                 restart.assert_called_once_with(os.getpid(),signal.SIGTERM)
         finally:server.shutdown();server.server_close();thread.join()
 

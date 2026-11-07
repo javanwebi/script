@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BaiConsultError, completeXkiroConsult, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import {findCatalogKnowledge} from '../src/utils/catalogKnowledge';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -177,7 +178,7 @@ test('xKiro completes immediately on finish_reason stop even when gateway withho
     start(controller) {
       controller.enqueue(new TextEncoder().encode(
         'data: {"choices":[{"delta":{"content":"تسمه برای انتقال نیرو استفاده می‌شود."}}]}\\n\\n'.replaceAll('\\n','\n')+
-        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n'.replaceAll('\\n','\n')
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
       ));
       // Intentional: gateway keeps its socket open indefinitely.
     },
@@ -259,4 +260,117 @@ test('xKiro verified non-stream completion uses the same free model and requires
   assert.equal(body.reasoning_effort,'none');
   assert.equal(body.model,'qwen/qwen3.5-flash:free');
   assert.equal(result.text,'کد نهایی: 6203 ZZ\nتعداد: 10 عدد');
+});
+
+
+test('voice Qwen request trims history and catalog payload before first token',async()=>{
+  let body:any;
+  const fetchImpl=(async(_url:string|URL|Request,init?:RequestInit)=>{
+    body=JSON.parse(String(init?.body));
+    return fakeStream([
+      'data: {"choices":[{"delta":{"content":"بله، بررسی می‌کنم."}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+    ]);
+  }) as typeof fetch;
+  await streamXkiroConsult({
+    apiKey:'secret-placeholder',
+    model:'qwen/qwen3.5-flash:free',
+    query:'سلام',
+    voice:true,
+    catalogContext:'ک'.repeat(6000),
+    history:Array.from({length:8},(_,i)=>({role:i%2?'assistant':'user',text:String(i).repeat(1800)})),
+    fetchImpl,
+    onDelta:()=>{},
+  });
+  assert.equal(body.max_tokens,192);
+  assert.equal(body.messages.length,6,'system + last four history messages + user');
+  assert.ok(body.messages[0].content.endsWith('ک'.repeat(2600)),'voice catalog context is capped at 2,600 characters');
+  assert.ok(body.messages.slice(1,-1).every((message:any)=>message.content.length<=1200));
+  assert.equal(body.messages.at(-1).content.length,4);
+});
+
+
+test('catalog lookup preserves exact bearing suffixes and the latest corrected SKU',()=>{
+ const products:any[]=[
+  {code:'6202',name:'بلبرینگ 6202',active:true,variants:[{code:'6202',name:'بلبرینگ 6202'}]},
+  {code:'6203',name:'بلبرینگ شیار عمیق',active:true,variants:[
+   {code:'6203',name:'بلبرینگ 6203'},
+   {code:'6203ZZ',name:'بلبرینگ 6203 ZZ'},
+   {code:'6203RS',name:'بلبرینگ 6203 RS'},
+  ]},
+ ];
+ const suffix=findCatalogKnowledge(products,'بلبرینگ ۶۲۰۳ زد زد');
+ assert.equal(suffix.length,1);
+ assert.deepEqual(suffix[0].variants.map((v:any)=>v.code),['6203ZZ']);
+ const corrected=findCatalogKnowledge(products,'بلبرینگ 6202 نه 6203 ZZ');
+ assert.equal(corrected.length,1,'the rejected 6202 family must not enter exact-code context');
+ assert.equal(corrected[0].code,'6203');
+ assert.deepEqual(corrected[0].variants.map((v:any)=>v.code),['6203ZZ']);
+ const plain=findCatalogKnowledge(products,'بلبرینگ 6203');
+ assert.deepEqual(plain[0].variants.map((v:any)=>v.code),['6203']);
+});
+
+test('catalog lookup keeps belt profile and length together as one exact identifier',()=>{
+ const products:any[]=[{
+  code:'SPA',name:'تسمه انتقال قدرت',active:true,
+  variants:[
+   {code:'SPA1250',name:'تسمه SPA 1250'},
+   {code:'SPA1500',name:'تسمه SPA 1500'},
+   {code:'1250',name:'قطعه با طول 1250'},
+  ],
+ }];
+ const result=findCatalogKnowledge(products,'تسمه SPA 1250');
+ assert.equal(result.length,1);
+ assert.deepEqual(result[0].variants.map((v:any)=>v.code),['SPA1250']);
+});
+
+
+test('an explicitly selected B.AI provider does not silently fall through to Gemini billing',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ const start=server.indexOf("if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true)");
+ const end=server.indexOf("const apiKey = getGeminiKey();",start);
+ assert.ok(start>=0&&end>start);
+ const providerBranch=server.slice(start,end);
+ assert.match(providerBranch,/ارائه‌دهنده انتخاب‌شده پاسخ نداد/);
+ assert.match(providerBranch,/return res\.end\(\)/);
+ assert.doesNotMatch(providerBranch,/trying configured fallback/i);
+});
+
+
+test('FORZA catalog snapshot is cached by authoritative override object and merged in linear time',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ const start=server.indexOf('let consultantProductsCache:');
+ const end=server.indexOf('function consultantCatalogContext',start);
+ assert.ok(start>=0&&end>start);
+ const catalog=server.slice(start,end);
+ assert.match(catalog,/consultantProductsCache\?\.source===db/);
+ assert.match(catalog,/new Map\(getManagedCatalogProducts\(\)\.map/);
+ assert.match(catalog,/new Set\(db\.deletedCodes/);
+ assert.doesNotMatch(catalog,/all\.some\(/);
+ assert.match(server,/consultantCatalogContext\(voiceQuery,lowLatencyVoice\?4:8\)/);
+});
+
+
+test('Gemini and worker fallbacks require separate explicit authorization flags',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ assert.match(server,/FORZA_ALLOW_GEMINI_FALLBACK==='true'/);
+ assert.match(server,/FORZA_ALLOW_WORKER_FALLBACK==='true'/);
+ assert.match(server,/geminiFallbackAllowed \? getGeminiKey\(\) : undefined/);
+ assert.match(server,/if\(!workerFallbackAllowed\)/);
+ assert.match(server,/fallback_not_authorized/);
+});
+
+
+test('model failure may return only a clearly labeled factual catalog fallback before any text was emitted',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ assert.match(server,/function consultantLocalCatalogReply/);
+ assert.match(server,/provider:'local_catalog_fallback'/);
+ assert.match(server,/قیمت یا موجودی را تأیید نمی‌کند/);
+ const partialGuard=server.indexOf('if(providerSentText)');
+ const fallback=server.indexOf('const catalogReply=consultantLocalCatalogReply',partialGuard);
+ assert.ok(partialGuard>=0&&fallback>partialGuard);
 });

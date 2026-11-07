@@ -19,7 +19,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { disposeDibaSttModel, loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
@@ -70,9 +70,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  const nimaAckWavRef=useRef<Uint8Array|null>(null);
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
+    let ackRetryTimer:number|null=null;
     void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
       .then(r=>r.ok?r.json():null)
       .then(data=>{
@@ -80,13 +82,42 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
+          // Prefetch the same-voice acknowledgement while particles form.
+          // The worker has already synthesized it once at startup; this is
+          // a small RAM-only WAV fetch, never a per-turn TTS inference.
+          const preloadNimaAck=(attempt=0)=>{
+            void fetch('/api/ai/forza-ack',{cache:'force-cache'})
+              .then(response=>response.ok?response.arrayBuffer():null)
+              .then(value=>{
+                if(!mounted)return;
+                if(!value){
+                  if(attempt<2)ackRetryTimer=window.setTimeout(()=>preloadNimaAck(attempt+1),700*(attempt+1));
+                  return;
+                }
+                const wav=new Uint8Array(value);
+                if(wav.byteLength>=44&&
+                   String.fromCharCode(...wav.subarray(0,4))==='RIFF'&&
+                   String.fromCharCode(...wav.subarray(8,12))==='WAVE'){
+                  nimaAckWavRef.current=wav;
+                  console.info('[FORZA_NIMA_ACK] prefetched=1 bytes='+wav.byteLength);
+                }
+              }).catch(()=>{
+                if(mounted&&attempt<2)
+                  ackRetryTimer=window.setTimeout(()=>preloadNimaAck(attempt+1),700*(attempt+1));
+              });
+          };
+          preloadNimaAck();
+
         }else{
           voiceModeRef.current='pocket-farsi-v2';
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
             ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
         }
       }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
-    return()=>{mounted=false};
+    return()=>{
+      mounted=false;
+      if(ackRetryTimer!==null)window.clearTimeout(ackRetryTimer);
+    };
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
@@ -127,6 +158,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionFailedRef = useRef(false);
   const recognitionRetryRef=useRef(0);
   const recognitionRetryTimerRef=useRef<number|null>(null);
+  const recognitionRestartTimerRef=useRef<number|null>(null);
   const vadRef = useRef(new ForzaVoiceActivity());
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
@@ -136,6 +168,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
+  const localSttLoadRef=useRef<Promise<boolean>|null>(null);
+  const preferLocalSttRef=useRef(false);
   const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
@@ -210,6 +244,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const micAnalyserRef = useRef<AnalyserNode | null>(null);
   const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animFrameAudioRef = useRef<number | null>(null);
+  const micPollTimerRef=useRef<number|null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const setStatus = useCallback((s: ForzaStatus) => {
@@ -288,9 +323,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }catch(error){console.warn('[FORZA Diba] Recognizer failed',error);setLocalSttStatus('fallback');return false;}
   },[]);
 
+
+
   // Start/Stop voice listening helpers
   const startListening = useCallback((monitorOnly=false) => {
-    if (!isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
+    if (callClosedRef.current || !isCallActive || !greetingFinishedRef.current || micMutedRef.current ||
         (!monitorOnly && (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current))) {
       return;
     }
@@ -305,7 +342,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
 
     // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
-    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
+    const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current && !preferLocalSttRef.current);
     const localReady=browserAvailable ? false : startDibaTurn();
     if (!localReady && !micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
       try {
@@ -335,6 +372,67 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       silenceTimerRef.current = null;
     }
   }, [isCallActive, setStatus, startDibaTurn]);
+
+  // Diba is a real local fallback, loaded only when Web Speech is unavailable
+  // or has repeatedly lost its Persian network recognizer. It downloads in the
+  // background while Chrome retries; it never blocks an active browser turn.
+  const ensureDibaStt=useCallback(()=>{
+    if(localSttModelRef.current){
+      attachLocalStt();
+      if((!recognitionRef.current||recognitionFailedRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
+         greetingFinishedRef.current&&!micMutedRef.current){
+        preferLocalSttRef.current=true;
+        try{recognitionRef.current?.abort();}catch{}
+        isRecognitionActiveRef.current=false;
+        startListening(true);
+        console.info('[FORZA_STT] source=diba fallback=ready');
+      }
+      return Promise.resolve(true);
+    }
+    if(localSttLoadRef.current)return localSttLoadRef.current;
+    setLocalSttStatus('loading');
+    const load=loadDibaSttModel().then(model=>{
+      if(callClosedRef.current){disposeDibaSttModel(model);return false;}
+      localSttModelRef.current=model;
+      attachLocalStt();
+      setLocalSttStatus('ready');
+      if((!recognitionRef.current||recognitionFailedRef.current||recognitionRetryRef.current>=2||preferLocalSttRef.current)&&
+         greetingFinishedRef.current&&!micMutedRef.current){
+        preferLocalSttRef.current=true;
+        try{recognitionRef.current?.abort();}catch{}
+        isRecognitionActiveRef.current=false;
+        startListening(true);
+        console.info('[FORZA_STT] source=diba fallback=activated');
+      }
+      return true;
+    }).catch(error=>{
+      if(callClosedRef.current)return false;
+      setLocalSttStatus('fallback');
+      console.warn('[FORZA Diba] fallback_unavailable type='+
+        String((error as any)?.name||'load_error').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40));
+      return false;
+    }).finally(()=>{
+      if(localSttLoadRef.current===load)localSttLoadRef.current=null;
+    });
+    localSttLoadRef.current=load;
+    return load;
+  },[attachLocalStt,startDibaTurn,startListening]);
+
+  const startVoiceInput=useCallback(()=>{
+    if(callClosedRef.current)return;
+    const browserUnavailable=!recognitionRef.current||recognitionFailedRef.current||
+      webSpeechFailedRef.current||preferLocalSttRef.current;
+    if(browserUnavailable&&!localSttModelRef.current&&serverSttConfiguredRef.current!==true){
+      setMicrophoneError('در حال آماده‌سازی تشخیص گفتار فارسی...');
+      void ensureDibaStt().then(ready=>{
+        if(!ready&&!callClosedRef.current)
+          setMicrophoneError('مدل تشخیص گفتار فارسی بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.');
+        else if(ready)setMicrophoneError(null);
+      });
+      return;
+    }
+    startListening();
+  },[ensureDibaStt,startListening]);
 
   const stopListening = useCallback(() => {
     localSttRecognizerRef.current?.remove?.();
@@ -371,7 +469,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // This timer is not a replacement for a future AudioWorklet VAD:
     // browsers may throttle background-tab timers.
     const check=()=>{
-      if(!active)return;
+      if(!active||callClosedRef.current)return;
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
           !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
@@ -408,8 +506,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(!isProcessingTurnRef.current)setIsUserSpeaking(true);
           else console.info('[FORZA_TURN] phase=barge-in-vad-candidate');
         }
-        // 650-900ms after a clearly finished question, ~1.7s for an
-        // unfinished Persian thought. Worker audio STT is the safety net.
+        // 300-520ms after a complete question; incomplete thoughts and
+        // explicit code corrections retain a longer safety window.
         if(isProcessingTurnRef.current){
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
@@ -423,7 +521,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const transcript=activeTranscriptRef.current.trim();
           const pauseMs=transcript
             ? forzaEndOfTurnPauseMs(transcript,speechInterimRef.current)
-            : 1000;
+            : 700;
           const remaining=Math.max(80,pauseMs-current.silenceMs);
           const tryFinalize=()=>{
             silenceTimerRef.current=null;
@@ -467,9 +565,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     };
     const micPoll=window.setInterval(check,55);
+    micPollTimerRef.current=micPoll;
     return()=>{
       active=false;
       window.clearInterval(micPoll);
+      if(micPollTimerRef.current===micPoll)micPollTimerRef.current=null;
       if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
     };
   },[]);
@@ -560,7 +660,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   }, [isCallActive]);
 
   const ensureCtx = useCallback(() => {
-    if (!ctxRef.current) {
+    if (!ctxRef.current || ctxRef.current.state==='closed') {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
       if (AC) {
         ctxRef.current = new AC();
@@ -891,9 +991,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           : 'صدای فورزا از سرویس صوتی در دسترس نیست؛ اتصال Ubuntu را بررسی کنید.');
     } finally {
       if(greetingFinishedRef.current && !isProcessingTurnRef.current &&
-         !activeTranscriptRef.current.trim())startListening();
+         !activeTranscriptRef.current.trim())startVoiceInput();
     }
-  },[aiText,playDataUrl,speakText,startListening,stopListening]);
+  },[aiText,playDataUrl,speakText,startVoiceInput,stopListening]);
 
   // A user gesture permits browser audio, but it never skips the greeting.
   const unlockAudio = useCallback(() => {
@@ -911,7 +1011,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           setStatus('listening');
           setTurn('user');
-          startListening();
+          startVoiceInput();
         })
         .catch((error:any)=>{
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
@@ -926,7 +1026,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setGreetingPhase('complete');
           setStatus('listening');
           setTurn('user');
-          startListening();
+          startVoiceInput();
         }).catch((error:any)=>{
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
           setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
@@ -934,7 +1034,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         });
       }
     }
-  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startListening,speakText]);
+  },[ensureCtx,pendingAudioUrl,playDataUrl,setStatus,startVoiceInput,speakText]);
 
   // Turn management: send speech/query to AI & worker
   const handleUserFinishedSpeaking = useCallback(
@@ -1009,6 +1109,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let playerForTurn:ForzaContinuousWav|null=null;
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
+      let acknowledgementTimer:number|null=null;
       try {
         const payload: any = {
           history: historyRef.current.slice(-8),
@@ -1160,6 +1261,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // never forces its own neural WAV or an avoidable gap. Stream tokens
         // to subtitles immediately and keep the Pocket fallback unchanged.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
+        let firstNimaPhraseReady=false;
+        let acknowledgementQueued=false;
         const phrasePlanner=new ForzaIncrementalSpeechText();
         const callPlainText=new ForzaCallPlainText();
         // Text updates are displayed immediately. Piper gets its first small,
@@ -1174,6 +1277,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           onPhrasePlayed:recordHeard,
           onPhraseReady:info=>{
             if(activeTurnRef.current?.generation!==generation)return;
+            if(info.index===0){
+              firstNimaPhraseReady=true;
+              if(acknowledgementTimer!==null&&!acknowledgementQueued){
+                window.clearTimeout(acknowledgementTimer);
+                acknowledgementTimer=null;
+              }
+            }
             console.info('[FORZA_TTS_STAGE] turn='+generation+
               ' phase=phrase_wav_ready index='+info.index+
               ' queueClientMs='+info.waitMs+' requestClientMs='+info.fetchMs+
@@ -1193,8 +1303,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
           },
           maxConcurrent:2,
-          initialBufferSeconds:2,
-          maximumInitialWaitMs:120,
+          initialBufferSeconds:0.35,
+          maximumInitialWaitMs:40,
           onBuffered:info=>console.info('[FORZA_NIMA_BUFFER] audio_s='+
             info.bufferedSeconds.toFixed(2)+' phrases='+info.queuedPhrases+
             ' started='+Number(info.started)),
@@ -1215,6 +1325,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           activeNimaBuffer.add(phrase);
         };
+        const normalizedAckQuery=resolvedUserQuery
+          .replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[،,؛;:!?؟.!]+/g,' ').replace(/\s+/g,' ').trim();
+        const shortAckOnly=/^(?:سلام|درود|ممنون|ممنونم|متشکرم|سپاس|مرسی|خوبی|حالت چطوره|بله|باشه)(?: وقت بخیر)?$/u.test(normalizedAckQuery);
+        if(useNima&&!isSpeakerMuted&&!shortAckOnly&&normalizedAckQuery.length>=8&&nimaAckWavRef.current){
+          acknowledgementTimer=window.setTimeout(()=>{
+            acknowledgementTimer=null;
+            const wav=nimaAckWavRef.current;
+            if(!wav||firstNimaPhraseReady||acknowledgementQueued||pocketAbort.signal.aborted||
+               activeTurnRef.current?.generation!==generation||speakerMutedRef.current)return;
+            acknowledgementQueued=true;
+            console.info('[FORZA_NIMA_ACK] phase=scheduled turn='+generation+
+              ' afterEndMs='+Math.round(performance.now()-turnStartedAt));
+            void continuousPlayer.enqueueWav(wav).catch(error=>{
+              if(!pocketAbort.signal.aborted)
+                console.warn('[FORZA_NIMA_ACK] playback_unavailable type='+
+                  String((error as any)?.name||'audio_error').slice(0,40));
+            });
+          },320);
+        }
         const onTextChunk=(_chunk:string,fullText:string)=>{
           if(activeTurnRef.current?.generation!==generation || pocketAbort.signal.aborted)return;
           reply=callPlainText.push(fullText);
@@ -1248,7 +1377,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   completed.reduce((sum,phrase)=>sum+phrase.length,0));
                 for(const phrase of completed)queueSpeech(phrase);
               }
-            },380);
+            },160);
           }
         };
         try {
@@ -1297,8 +1426,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         } catch(streamError) {
           if(pocketAbort.signal.aborted||activeTurnRef.current?.generation!==generation)throw streamError;
-          // Keep the existing complete-response route as a compatibility
-          // fallback when streaming has not begun at all.
+          // A failed SSE turn must not switch to a separately configured
+          // legacy model provider.
           if (reply) {
             // An interrupted or incomplete SSE is not a complete answer.
             // Never send the visible partial transcript to the TTS engine.
@@ -1310,26 +1439,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             activeTurnRef.current?.markInterrupted?.();
             throw new Error('جریان پاسخ هوش مصنوعی ناقص ماند؛ متن دریافت‌شده حفظ شد. می‌توانید سؤال را دوباره بپرسید یا ادامه دهید.');
           } else {
-          const fallbackAbort=new AbortController();
-          const fallbackTimer=window.setTimeout(()=>fallbackAbort.abort(new Error('سرور هوش مصنوعی پاسخ نداد؛ دوباره تلاش کنید.')),15000);
-          let res:Response;
-          let data:any;
-          try {
-            res=await fetch('/api/ai/forza-live',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify(payload),
-              signal:AbortSignal.any([fallbackAbort.signal,pocketAbort.signal]),
-            });
-            data=await res.json().catch(()=>null);
-          } finally {
-            window.clearTimeout(fallbackTimer);
-          }
-          if (!res.ok || !data?.success) throw new Error(data?.error||'server-error');
-          const rawFallback = String(data.text||'').trim();
-          if (!rawFallback) throw new Error('forza_empty_response');
-          onTextChunk(rawFallback,rawFallback);
-          reply=callPlainText.complete(rawFallback);
+            // Do not submit a second legacy request after the selected free
+            // xKiro stream fails. That route may use a separately configured
+            // Gemini/Worker provider and can add another 15 seconds of delay.
+            // Raw-audio STT still uses /api/ai/forza-live in its dedicated path.
+            console.warn('[FORZA] stream_failed_before_first_text; legacy_model_fallback=disabled');
+            throw streamError;
           }
         }
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
@@ -1387,6 +1502,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
         if(terminalIdleTimer!==null)window.clearTimeout(terminalIdleTimer);
+        if(acknowledgementTimer!==null)window.clearTimeout(acknowledgementTimer);
         bufferedNima?.cancel();
         playerForTurn?.cancel();
         if(activeTurnRef.current?.generation!==generation)return;
@@ -1398,10 +1514,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isProcessingTurnRef.current = false;
         setStatus('listening');
         setTurn('user');
-        startListening();
+        startVoiceInput();
       }
     },
-    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, startVoiceInput, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
@@ -1454,6 +1570,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (chunks.length > 0 && hadSpeech) {
             const finalMime = mr.mimeType || mimeType || 'audio/webm';
             const audioBlob = new Blob(chunks, { type: finalMime });
+            // Do not send a doomed 15s server-transcription request while the
+            // local Persian fallback is still downloading after WebSpeech failed.
+            if(localSttLoadRef.current&&!localSttRecognizerRef.current&&serverSttConfiguredRef.current!==true){
+              setMicrophoneError('تشخیص فارسی در حال آماده‌سازی است؛ لطفاً پس از آماده‌شدن دوباره صحبت کنید.');
+              return;
+            }
             if (audioBlob.size > 1200) {
               void handleUserFinishedSpeaking('', audioBlob, finalMime);
             } else {
@@ -1560,12 +1682,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           recognitionFailedRef.current=true;
           webSpeechFailedRef.current=true;
           recognitionRetryRef.current++;
+          // Warm the 53 MB local model off the critical path. Switch only after
+          // repeated network failures so one transient Chrome error does not
+          // interrupt a recognizer that has already recovered.
+          void ensureDibaStt();
           if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
           try{rec.abort();}catch{}
           setMicrophoneError('ارتباط تشخیص گفتار لحظه‌ای قطع شد؛ در حال اتصال دوباره هستیم.');
           recognitionRetryTimerRef.current=window.setTimeout(()=>{
             recognitionRetryTimerRef.current=null;
-            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current)return;
+            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current||preferLocalSttRef.current)return;
             recognitionFailedRef.current=false;
             webSpeechFailedRef.current=false;
             try{rec.start();}catch{
@@ -1582,18 +1708,29 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Preserve the existing provider behind /api/ai/forza-live.
           // The microphone recorder continues; only its finalized audio
           // will be sent if the browser recognizer is unavailable.
-          setMicrophoneError('تشخیص زنده گفتار مرورگر در دسترس نیست. اگر سرویس مستقل STT روی سرور تنظیم نشده باشد، سؤال را با دکمه «تایپ پیام متنی» وارد کنید.');
+          setMicrophoneError('تشخیص گفتار مرورگر در دسترس نیست؛ در حال آماده‌سازی تشخیص فارسی محلی هستیم.');
+          if(error==='not-allowed'||error==='service-not-allowed'||error==='language-not-supported'){
+            preferLocalSttRef.current=true;
+            void ensureDibaStt();
+          }else if(error==='network')void ensureDibaStt();
         }
       };
 
       rec.onend = () => {
         isRecognitionActiveRef.current = false;
-        if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
-        // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !localSttRecognizerRef.current &&
+        if (callClosedRef.current||recognitionFailedRef.current ||
+            !greetingFinishedRef.current || micMutedRef.current) return;
+        // Keep the restart timer cancellable; a late onend after exit must
+        // never reopen the browser microphone.
+        if (isRecognitionActiveRef.current===false && isCallActive &&
+            !localSttRecognizerRef.current && !preferLocalSttRef.current &&
             (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
-          window.setTimeout(() => {
-            if (isCallActive && !localSttRecognizerRef.current &&
+          if(recognitionRestartTimerRef.current!==null)
+            window.clearTimeout(recognitionRestartTimerRef.current);
+          recognitionRestartTimerRef.current=window.setTimeout(() => {
+            recognitionRestartTimerRef.current=null;
+            if (!callClosedRef.current && isCallActive &&
+                !localSttRecognizerRef.current && !preferLocalSttRef.current &&
                 (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
               try {
                 rec.start();
@@ -1608,10 +1745,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     } catch {
       return null;
     }
-  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn]);
+  }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn,ensureDibaStt]);
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
+    if(callClosedRef.current)return;
     setMicrophoneError(null);
     try {
       if (!window.isSecureContext) throw new Error('insecure_origin');
@@ -1623,12 +1761,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
         echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
       }});
+      if(callClosedRef.current){stream.getTracks().forEach(track=>track.stop());return;}
       streamRef.current?.getTracks().forEach(track=>track.stop());
       streamRef.current=stream;
       micContextWarningRef.current=false;
       vadRef.current.reset();
       for (const track of stream.getAudioTracks()) {
-        track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
+        track.onended=()=>{if(!callClosedRef.current)setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');};
       }
       if(ctx){
         micSourceNodeRef.current?.disconnect();
@@ -1651,18 +1790,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
       recognitionFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
-      if(greetingFinishedRef.current && !micMutedRef.current) startListening();
+      if(!recognitionRef.current){
+        preferLocalSttRef.current=true;
+        void ensureDibaStt();
+      }
+      if(greetingFinishedRef.current && !micMutedRef.current) startVoiceInput();
     } catch(error:any) {
+      if(callClosedRef.current)return;
       setMicrophoneError(error?.message==='insecure_origin'
         ? 'برای استفاده از میکروفون، FORZA را با HTTPS معتبر باز کنید؛ آدرس HTTP روی IP عمومی امن نیست.'
         : error?.name==='NotAllowedError' || error?.name==='PermissionDeniedError'
         ? 'اجازه میکروفون رد شده است. Microphone را در تنظیمات سایت Allow کنید؛ سپس صفحه را بازخوانی کنید.'
         : 'میکروفون متصل نشد. میکروفون پیش‌فرض و مجوز مرورگر را بررسی کنید.');
     }
-  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
+  },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startVoiceInput,attachLocalStt,ensureDibaStt]);
 
-  // STT uses the existing browser recognizer with the current server-side
-  // fallback. No Diba model download or browser-side model startup occurs.
+  // Chrome Persian recognition is primary. Diba is a lazy browser-local
+  // fallback after unsupported recognition or repeated network failures;
+  // recognized text is still sent immediately to the xKiro server turn.
 
   // Discover the optional transcription fallback independently of the
   // text AI provider. Browser streaming STT still works when this is false.
@@ -1702,7 +1847,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       greetingFinishedRef.current=true;
       setGreetingPhase('complete');
       setStatus('listening');setTurn('user');
-      startListening();
+      // If Chrome has no Persian recognizer and server STT is not configured,
+      // do not open a dead microphone path. Finish the local Diba load first.
+      startVoiceInput();
     }).catch((e:any)=>{
       if(!active)return;
       const autoplayDenied = e?.message === 'autoplay_permission_required' ||
@@ -1740,27 +1887,120 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[particlesFormed]);
 
-  const endCall = useCallback(() => {
-    callClosedRef.current = true;
-    if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
-    activeTurnRef.current?.abort.abort(new Error('forza_call_closed'));
-    activeTurnRef.current=null;
-    historyRef.current=[];
+  // One idempotent teardown path for explicit hang-up and component unmount.
+  // Invalidate the session before aborting anything so late callbacks cannot
+  // restart recognition, submit a final recorder blob, or attach a late model.
+  const teardownCall=useCallback((updateUi:boolean)=>{
+    callClosedRef.current=true;
+    greetingFinishedRef.current=false;
+    greetingStartedRef.current=false;
+    micMutedRef.current=true;
+    recognitionFailedRef.current=true;
+    preferLocalSttRef.current=true;
+    isRecognitionActiveRef.current=false;
+    isProcessingTurnRef.current=false;
+    isAiSpeakingRef.current=false;
+    hasSpeechSoundRef.current=false;
+    speechSegmentStartedRef.current=false;
+    activeTranscriptRef.current='';
+    localSttFinalRef.current='';
     audioChunksRef.current=[];
-    stopAudio();
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* noop */
+    historyRef.current=[];
+    vadRef.current.reset();
+    detectedSpeechEndAtRef.current=0;
+
+    for(const timer of [silenceTimerRef.current,recognitionRetryTimerRef.current,
+      recognitionRestartTimerRef.current,micPollTimerRef.current]){
+      if(timer!==null)window.clearTimeout(timer);
+    }
+    if(micPollTimerRef.current!==null)window.clearInterval(micPollTimerRef.current);
+    silenceTimerRef.current=null;
+    recognitionRetryTimerRef.current=null;
+    recognitionRestartTimerRef.current=null;
+    micPollTimerRef.current=null;
+
+    const active=activeTurnRef.current;
+    activeTurnRef.current=null;
+    active?.abort.abort(new Error('forza_call_closed'));
+
+    const recorder=mediaRecorderRef.current;
+    mediaRecorderRef.current=null;
+    if(recorder){
+      recorder.ondataavailable=null;
+      recorder.onstop=null;
+      recorder.onerror=null;
+      recorder.onstart=null;
+      recorder.onpause=null;
+      recorder.onresume=null;
+      if(recorder.state!=='inactive'){
+        try{recorder.stop();}catch{}
       }
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+
+    const recognition=recognitionRef.current;
+    recognitionRef.current=null;
+    if(recognition){
+      recognition.onstart=null;
+      recognition.onresult=null;
+      recognition.onerror=null;
+      recognition.onend=null;
+      try{recognition.abort();}catch{try{recognition.stop();}catch{}}
     }
-    setIsCallActive(false);
-    if (onClose) onClose();
-  }, [onClose, stopAudio]);
+
+    try{localSttRecognizerRef.current?.remove?.();}catch{}
+    localSttRecognizerRef.current=null;
+    if(localSttNodeRef.current)localSttNodeRef.current.onaudioprocess=null;
+    try{localSttNodeRef.current?.disconnect();}catch{}
+    try{localSttSinkRef.current?.disconnect();}catch{}
+    localSttNodeRef.current=null;
+    localSttSinkRef.current=null;
+    const localModel=localSttModelRef.current;
+    localSttModelRef.current=null;
+    localSttLoadRef.current=null;
+    disposeDibaSttModel(localModel||undefined);
+
+    const stream=streamRef.current;
+    streamRef.current=null;
+    stream?.getTracks().forEach(track=>{
+      track.onended=null;
+      try{track.stop();}catch{}
+    });
+
+    stopAudio();
+    if(animFrameAudioRef.current!==null){
+      cancelAnimationFrame(animFrameAudioRef.current);
+      animFrameAudioRef.current=null;
+    }
+    for(const node of [micSourceNodeRef.current,micAnalyserRef.current,
+      audioSourceNodeRef.current,analyserRef.current,gainNodeRef.current]){
+      try{node?.disconnect();}catch{}
+    }
+    micSourceNodeRef.current=null;
+    micAnalyserRef.current=null;
+    audioSourceNodeRef.current=null;
+    analyserRef.current=null;
+    gainNodeRef.current=null;
+    const context=ctxRef.current;
+    ctxRef.current=null;
+    if(context&&context.state!=='closed')void context.close().catch(()=>{});
+
+    nimaAckWavRef.current=null;
+    if(updateUi){
+      setIsUserSpeaking(false);
+      setVoicePending(false);
+      setVoiceStage('idle');
+      setMicrophoneError(null);
+      setIsCallActive(false);
+      setStatus('idle');
+    }
+  },[stopAudio,setStatus]);
+
+  useEffect(()=>()=>teardownCall(false),[teardownCall]);
+
+  const endCall = useCallback(() => {
+    teardownCall(true);
+    if(onClose)onClose();
+  },[onClose,teardownCall]);
 
   const submitUserText = (text: string) => {
     if (!greetingFinishedRef.current || !text.trim()) return false;
@@ -2033,7 +2273,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               const next = !prev;
               micMutedRef.current = next;
               if (next) stopListening();
-              else if (greetingFinishedRef.current) startListening();
+              else if (greetingFinishedRef.current) startVoiceInput();
               return next;
             })}
             className={`p-1 rounded-md cursor-pointer ${isMicMuted ? 'text-red-400' : 'text-[#dee2e5]/70 hover:text-white'}`}
