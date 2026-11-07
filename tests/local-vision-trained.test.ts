@@ -45,6 +45,8 @@ test('trained offline encoder → multi-view retrieval → geometric reranking �
   const products=rows.map(row=>({code:row.id,name:row.id,active:true,variants:[{code:row.id+'-sku',name:row.id,active:true}]})) as Product[];
   const result=localVisionResult(rankLocalEvidence(enriched,products,query.markings),products,index.coverage(rows),'/customer',0.65,query);
   assert.equal(result.similarCandidates![0].code,'expected-sku');
+  assert.equal(result.modelSuggestions![0].code,'expected-sku');
+  assert.equal(result.modelSuggestions![0].matchBasis,'visual');
   assert.deepEqual(result.matchedProducts,[]);assert.equal(result.summary.exactVisualMatch,false);
  }finally{
   worker.kill('SIGTERM');if(worker.exitCode===null)await new Promise<void>(r=>worker.once('exit',()=>r()));

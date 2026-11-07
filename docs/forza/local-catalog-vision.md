@@ -57,8 +57,10 @@ The query path now has these bounded stages:
    suggestions require a visually eligible family and remain unconfirmed product
    candidates. Ambiguous normalized codes never select an arbitrary SKU. Code and
    geometry bonuses cannot rescue a photo below the base visual threshold.
-7. Results are diversified to at most two photos per family grouping. Close top
-   family scores are disclosed as ambiguous, and more detail is requested.
+7. The raw photo gallery is diversified to at most two photos per family grouping.
+   The product/model list is generated independently from all retrieved eligible
+   hits, so this photo-gallery limit cannot hide additional matching models in
+   the same family. Close top family scores remain explicitly ambiguous.
 
 Current active image bindings determine the photo/family links. Family photos do
 not choose an arbitrary size. Similarity and OCR candidates never enter the exact
@@ -225,3 +227,32 @@ fetches both the index and a real small filelock wheel, checking its advertised
 SHA256. If neither mirror can serve the wheel, setup stops before a long build.
 `VISION_PYPI_INDEX_URL` can select a specific HTTPS mirror and is probed in the
 same way. This download choice concerns provisioning only; runtime remains local.
+
+
+## Multiple model results
+
+The local API now includes `modelSuggestions`, a bounded list of up to 24 real
+active catalogue models. Independently image-bound models are deduplicated by SKU
+using their best matching photo, and sorted by the full-precision visual ranking
+score. This considers all retrieved eligible images, not just the eight displayed
+photo matches. More than two models from one family can appear. The frontend
+renders twelve model cards initially, with a button for the remaining returned
+models and links to the complete family catalogue.
+
+Each card carries its real code, model/size, available technical specifications,
+and registered image. Visual models show their individual ranking score. Unique
+OCR-only suggestions follow independently image-ranked results. Other existing
+models from the closest eligible families are displayed as family alternatives,
+round-robin across families. Their own registered photo is used when available;
+otherwise a family representative is clearly labelled. No independent visual
+score is assigned to shared-photo or family-only alternatives, and no photo is
+invented when none is registered. Unrelated/inactive families, inactive SKUs and
+unregistered codes are excluded. The exact-match list remains unchanged/empty
+without identity evidence.
+
+This is an application/UI update. It needs only `sudo sanatpish-deploy-main` after
+merge, no Python image rebuild, new model download, database migration, or full
+vector reindex. Existing derived DINOv2 vectors are reused. Tests cover five
+independently photographed models in one family, score order, best-photo dedup,
+shared-photo ambiguity, real-code/OCR handling, inactive/weak exclusions, bounded
+alternatives, and server-rendered product cards.

@@ -73,7 +73,17 @@ export interface MatchedPartItem {
 
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
+export interface CatalogModelSuggestion {
+  code:string;name:string;familyCode:string;familyName:string;
+  model?:string;size?:string;brand?:string;image?:string;
+  imageScope:'variant'|'family'|'none';
+  matchBasis:'visual'|'read_code'|'family';
+  visualScore?:number;
+  specs:{key:string;value:string}[];
+  reason:string;
+}
 export interface AiPartAnalysisResult {
+  modelSuggestions?:CatalogModelSuggestion[];
   queryRegion?:{x:number;y:number;width:number;height:number}|null;
   localVisionMetrics?:{pipeline:string;queryViews:number;geometryComplete:boolean;ocrAvailable:boolean;retrievalMs:number};
   observationOnly?:boolean;

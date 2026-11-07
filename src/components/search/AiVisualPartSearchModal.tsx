@@ -1,3 +1,4 @@
+import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import type {ImageRegion} from '../../services/localQueryImage';
@@ -165,6 +166,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
+  const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
+    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
 
   // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
   // Different per product type (wheel / belt / pulley / bush / ...).
@@ -1837,11 +1840,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
-                {!!analysisResult.catalogImageMatches?.length && (
+                {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
+                {!!visiblePhotoMatches.length && (
                   <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
-                    <h4 className="font-bold text-sm text-slate-800">تصاویر مشابه پیدا‌شده در کاتالوگ</h4>
+                    <h4 className="font-bold text-sm text-slate-800">{analysisResult.modelSuggestions?.length?"تصاویر مشابه بدون کد متصل":"تصاویر مشابه پیدا‌شده در کاتالوگ"}</h4>
                     <div className="grid grid-cols-2 gap-3">
-                      {analysisResult.catalogImageMatches.map(photo=>(
+                      {visiblePhotoMatches.map(photo=>(
                         <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
                           <img src={photo.image} alt={photo.label} className="w-full h-36 object-contain" loading="lazy" />
                           <p className="text-xs font-bold text-slate-700">{photo.label}</p>
@@ -1897,6 +1901,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
                 {/* All matched real catalog records returned by the server */}
                 {(() => {
+                  if(analysisResult.modelSuggestions?.length)return null;
                   const combinedList = [
                     ...(analysisResult.matchedProducts || []),
                     ...(analysisResult.similarCandidates || []),

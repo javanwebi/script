@@ -1,3 +1,4 @@
+import {localModelSuggestions} from './localModelSuggestions';
 import {validImageRegion} from './localQueryImage';
 import type {CatalogImageRecord} from './catalogImageCorpus';
 import type {AiPartAnalysisResult} from './aiVisualSearchService';
@@ -57,7 +58,7 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
   bindings:row.bindings.filter(b=>{const p=families.get(b.familyCode);return !!p && (!b.code || p.variants?.some(v=>v.code===b.code && v.active!==false));})
  }));
  const seen=new Set<string>();
- // Only explicitly image-bound SKUs become product cards. Never pick an arbitrary size from a family.
+ // The strongest candidate list keeps explicit bindings; broader, labelled models are returned separately in modelSuggestions.
  const similarCandidates:NonNullable<AiPartAnalysisResult['similarCandidates']>=photoMatches.flatMap(photo=>photo.bindings.flatMap(binding=>{
   const family=families.get(binding.familyCode),variant=family?.variants?.find(v=>v.code===binding.code && v.active!==false);
   if(!variant || seen.has(variant.code))return [];seen.add(variant.code);
@@ -88,6 +89,7 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
   summary:{whatYouSee:description,readableMarkings:query?.markings.map(m=>m.text),detectedPartType:ambiguous?'چند خانوادهٔ نزدیک؛ نیاز به تأیید':photoMatches[0]?.familyNames[0] || 'جست‌وجوی تصویری کاتالوگ',
    detectedProfile:'مدل و ابعاد از تصویر به‌تنهایی تأیید نشده است',visualAnalysis:description,confidence:0,exactVisualMatch:false,
    catalogAvailability:{status:photoMatches.length?'similar_in_catalog':'custom_order_available',statusFarsiTitle:photoMatches.length?'گزینه‌های مشابه تصویری':'نیاز به عکس یا اطلاعات بیشتر',statusFarsiMessage:description}},
+  modelSuggestions:localModelSuggestions(hits,products,query?.markings || [],minSimilarity),
   matchedProducts:[],similarCandidates:similarCandidates.slice(0,12),catalogImageMatches:photoMatches,
   retrieval:{mode:'local-embedding',...coverage,verifiedPool:0},
   scanCoverage:{total:coverage.total,compared:coverage.indexed,failed:coverage.total-coverage.indexed,complete:coverage.ready,providerAvailable:true,failedImageIds:[]},
