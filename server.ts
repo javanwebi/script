@@ -5935,7 +5935,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       });
       console.info('[FORZA_LATENCY] phase=' + textProvider + '-complete mode=' +
         (lowLatencyVoice ? 'voice' : 'desk') + ' model=' + result.model +
-        ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt));
+        ' ttftMs=' + result.firstTokenMs + ' totalMs=' + (Date.now() - startedAt) +
+        ' completion=' + ('completionMode' in result ? result.completionMode : 'stream') +
+        ('fallbackMs' in result && result.fallbackMs ? ' verifyMs=' + result.fallbackMs : ''));
       sendEvent({
         type: 'done',
         responseId,
