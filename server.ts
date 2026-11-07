@@ -5590,7 +5590,7 @@ async function getForzaNimaAck():Promise<Buffer>{
       return bytes;
     })().finally(()=>{loadingForzaNimaAck=null;});
   }
-  return loadingForzaNimaAck;
+  return loadingForzaNimaAck!;
 }
 // During migration a Piper greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
