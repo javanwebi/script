@@ -198,5 +198,5 @@ test('first unpunctuated Nima group is released at a short complete-word boundar
   assert.ok(first[0].length>=16);
   const full=prefix+'10 عدد است. مشخصات را بررسی می‌کنم.';
   const remaining=[...planner.push(full),...planner.complete(full)];
-  assert.equal([...first,...remaining].join(' ').replace(/\\s+/g,' ').trim(),full.trim());
+  assert.equal([...first,...remaining].join(' ').replace(/\s+/g,' ').trim(),full.trim());
 });
