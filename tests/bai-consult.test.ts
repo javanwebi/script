@@ -351,3 +351,14 @@ test('FORZA catalog snapshot is cached by authoritative override object and merg
  assert.doesNotMatch(catalog,/all\.some\(/);
  assert.match(server,/consultantCatalogContext\(voiceQuery,lowLatencyVoice\?4:8\)/);
 });
+
+
+test('Gemini and worker fallbacks require separate explicit authorization flags',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.ts',import.meta.url),'utf8');
+ assert.match(server,/FORZA_ALLOW_GEMINI_FALLBACK==='true'/);
+ assert.match(server,/FORZA_ALLOW_WORKER_FALLBACK==='true'/);
+ assert.match(server,/geminiFallbackAllowed \? getGeminiKey\(\) : undefined/);
+ assert.match(server,/if\(!workerFallbackAllowed\)/);
+ assert.match(server,/fallback_not_authorized/);
+});
