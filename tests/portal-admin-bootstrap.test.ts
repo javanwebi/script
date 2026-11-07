@@ -60,7 +60,8 @@ test('admin portal hydration overlaps portal and runtime requests and skips cata
   const source=readFileSync('src/services/portalRepository.ts','utf8');
   assert.match(source,/Promise\.all\(\[/);
   assert.match(source,/portalRequest\(\),\s*refreshDurableStorage\(\{includeProducts\}\)/);
-  assert.match(source,/!\/^\\\\\/admin/);
+  assert.ok(source.includes('includeProducts=!/^'));
+  assert.ok(source.includes('admin(?:'));
 });
 
 test('admin runtime endpoint does not read products when includeProducts=0',()=>{
