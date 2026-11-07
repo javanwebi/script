@@ -24,7 +24,7 @@ function wav(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
     class FakePersianRecognition{
-      start(){window.__forzaMockRecognition=this;this.onstart?.();}
+      start(){window.__forzaRecognitionStarts=(window.__forzaRecognitionStarts||0)+1;window.__forzaMockRecognition=this;this.onstart?.();}
       stop(){this.onend?.();}
       abort(){this.onend?.();}
     }
@@ -50,11 +50,20 @@ function wav(){
     ]});
   });
   await page.getByText('می خواهم مشخصات تسمه صنعتی را',{exact:false}).waitFor({timeout:950});
-  assert.ok(Date.now()-started<1000,'interim words must be visible immediately');
+  const partialMs=Date.now()-started;
+  assert.ok(partialMs<1000,'interim words must be visible immediately');
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
   assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
+  const starts=await page.evaluate(()=>window.__forzaRecognitionStarts);
+  await page.evaluate(()=>window.__forzaMockRecognition.onerror({error:'network'}));
+  await page.waitForFunction(n=>window.__forzaRecognitionStarts===n+1,starts,{timeout:2500});
+  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[Object.assign([{transcript:'برای بررسی کد قطعه اطلاعات می‌خواهم'}],{isFinal:false})]}));
+  await page.getByText('برای بررسی کد قطعه اطلاعات می‌خواهم',{exact:false}).waitFor({timeout:1000});
+  const recoveredStarts=await page.evaluate(()=>window.__forzaRecognitionStarts);
+  await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
+  await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');
   assert.deepEqual(errors,[]);
-  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+(Date.now()-started));
+  console.log('FORZA_LIVE_STT_BROWSER_PASS partial_appeared_ms='+partialMs+' transient_network_recovered=1 permissions_do_not_loop=1');
  }finally{await browser.close();}
 })().catch(e=>{console.error('FORZA_LIVE_STT_BROWSER_FAIL',e);process.exitCode=1;});

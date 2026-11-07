@@ -5,6 +5,8 @@ Wire-compatible with /speak and /speak-stream on the previous Pocket worker.
 Each *complete* response is synthesized once and sent as one gap-free PCM WAV
 frame. No customer WAV, transcript or PCM is written to disk or stored in a cache.
 """
+import concurrent.futures
+import multiprocessing
 import hmac
 from collections import deque
 import io
@@ -12,6 +14,8 @@ import json
 import os
 import re
 import socket
+import signal
+import select
 import struct
 import sys
 import threading
@@ -22,19 +26,29 @@ from pathlib import Path
 
 from piper import PiperVoice
 
-MODEL = Path("/app/voice/fa_IR-gyro-medium.onnx")
+MODEL = Path(os.environ.get("FORZA_NIMA_MODEL", "/app/voice/fa_IR-gyro-medium.onnx"))
 VOICE_ID = "piper-nima-gyro-medium"
 MAX_TEXT_CHARS = 1000
 MAX_REQUEST_BYTES = 8192
 MAX_WAV_BYTES = 8_000_000
-# One CPU inference at a time, one waiting turn. FIFO rather than waking
-# whichever HTTP thread the semaphore scheduler happens to choose.
+# Bounded FIFO admission across isolated CPU workers. Default stays one worker;
+# the upgraded VPS helper chooses a measured, resource-bounded larger pool.
 queue_condition = threading.Condition()
 queue_waiters = deque()
-queue_busy = False
-MAX_WAITING_TOTAL = 2
+def bounded_int(name, default, minimum, maximum):
+    try:
+        return max(minimum, min(maximum, int(os.environ.get(name, default))))
+    except (TypeError, ValueError):
+        return default
+
+
+WORKER_COUNT = bounded_int("FORZA_NIMA_WORKERS", 1, 1, 8)
+queue_busy = 0
+MAX_WAITING_TOTAL = bounded_int("FORZA_NIMA_MAX_PENDING", max(2, WORKER_COUNT*4), WORKER_COUNT, 64)
 MAX_QUEUE_WAIT_SEC = 2.5
 engine = None
+inference_pool = None
+pool_ready = False
 
 
 def acquire_inference(disconnected):
@@ -42,7 +56,7 @@ def acquire_inference(disconnected):
     ticket = object()
     begin = time.monotonic()
     with queue_condition:
-        if len(queue_waiters) + int(queue_busy) >= MAX_WAITING_TOTAL:
+        if len(queue_waiters) + queue_busy >= MAX_WAITING_TOTAL:
             return None, "voice_busy"
         queue_waiters.append(ticket)
         while True:
@@ -50,9 +64,9 @@ def acquire_inference(disconnected):
                 queue_waiters.remove(ticket)
                 queue_condition.notify_all()
                 return None, "client_gone"
-            if queue_waiters[0] is ticket and not queue_busy:
+            if queue_waiters[0] is ticket and queue_busy < WORKER_COUNT:
                 queue_waiters.popleft()
-                queue_busy = True
+                queue_busy += 1
                 return round((time.monotonic() - begin) * 1000), None
             remaining = MAX_QUEUE_WAIT_SEC - (time.monotonic() - begin)
             if remaining <= 0:
@@ -65,7 +79,7 @@ def acquire_inference(disconnected):
 def release_inference():
     global queue_busy
     with queue_condition:
-        queue_busy = False
+        queue_busy = max(0, queue_busy-1)
         queue_condition.notify_all()
 
 # Keep decimals and part numbers intact while suppressing punctuation-induced
@@ -130,8 +144,58 @@ def synthesize_complete(text, disconnected=lambda: False):
     return wav
 
 
+def initialize_engine(ready=None):
+    """One warmed, single-threaded ONNX session per isolated process.
+
+    OMP_NUM_THREADS alone does not bound ONNX Runtime's default thread pool.
+    Avoid multiplying every CPU core by every concurrent customer session.
+    """
+    global engine
+    import onnxruntime
+    from piper.config import PiperConfig
+    options = onnxruntime.SessionOptions()
+    options.intra_op_num_threads = 1
+    options.inter_op_num_threads = 1
+    options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+    with open(str(MODEL)+".json", encoding="utf-8") as config:
+        engine = PiperVoice(config=PiperConfig.from_dict(json.load(config)),
+                            session=onnxruntime.InferenceSession(str(MODEL), sess_options=options,
+                                                                 providers=["CPUExecutionProvider"]))
+    for _ in engine.synthesize("سلام، من فورزا هستم"):
+        pass
+    if ready is not None:
+        ready.put(os.getpid())
+
+
+def worker_identity():
+    return os.getpid()
+
+
+def synthesize_request(text, disconnected):
+    if inference_pool is None:
+        return synthesize_complete(text, disconnected)
+    future = inference_pool.submit(synthesize_complete, text)
+    gone = False
+    while True:
+        if disconnected():
+            gone = True
+            # A queued job can be removed; an already-running native ONNX call
+            # cannot be preempted safely. Keep its capacity lease until it ends.
+            future.cancel()
+        try:
+            wav = future.result(timeout=0.05)
+            if gone:
+                raise InterruptedError("voice_client_disconnected")
+            return wav
+        except concurrent.futures.TimeoutError:
+            continue
+        except concurrent.futures.CancelledError:
+            raise InterruptedError("voice_client_disconnected")
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = 10
     server_version = "ForzaNima/1.0"
 
     def log_message(self, format, *args):
@@ -159,6 +223,10 @@ class Handler(BaseHTTPRequestHandler):
     def client_disconnected(self):
         """Check at queue boundaries/chunk boundaries without reading payload."""
         try:
+            # Socket timeouts make Python wait before recv(), even with
+            # MSG_DONTWAIT. Poll readability first; an open idle peer is normal.
+            if not select.select([self.connection], [], [], 0)[0]:
+                return False
             return self.connection.recv(
                 1, socket.MSG_PEEK | socket.MSG_DONTWAIT
             ) == b""
@@ -169,8 +237,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            self.respond(200 if engine is not None else 503, {
-                "ok": engine is not None, "voice": VOICE_ID,
+            self.respond(200 if engine is not None or pool_ready else 503, {
+                "ok": engine is not None or pool_ready, "voice": VOICE_ID,
+                "workers": WORKER_COUNT, "active": queue_busy, "waiting": len(queue_waiters),
+                "max_pending": MAX_WAITING_TOTAL, "onnx_threads_per_worker": 1,
                 "generated_audio_persisted": False,
             })
         else:
@@ -214,7 +284,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         start = time.monotonic()
         try:
-            wav = synthesize_complete(phrase, self.client_disconnected)
+            wav = synthesize_request(phrase, self.client_disconnected)
             inference_ms = round((time.monotonic() - start) * 1000)
             timings = (queue_ms, inference_ms)
             if self.path == "/speak-stream":
@@ -253,17 +323,43 @@ class PrivateServer(ThreadingHTTPServer):
 
 
 def main():
-    global engine
+    global engine, inference_pool, pool_ready
+    def stop_service(_signum, _frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, stop_service)
     if not MODEL.is_file() or not (MODEL.parent / (MODEL.name + ".json")).is_file():
         raise RuntimeError("nima_model_missing")
-    engine = PiperVoice.load(str(MODEL), config_path=str(MODEL) + ".json")
-    # Warm ONNX before accepting first customer; do not retain waveform.
-    for _ in engine.synthesize("سلام، من فورزا هستم"):
-        pass
+    if WORKER_COUNT == 1:
+        initialize_engine()
+    else:
+        context = multiprocessing.get_context("spawn")
+        ready = context.Queue()
+        inference_pool = concurrent.futures.ProcessPoolExecutor(
+            max_workers=WORKER_COUNT, mp_context=context,
+            initializer=initialize_engine, initargs=(ready,))
+        probes = [inference_pool.submit(worker_identity) for _ in range(WORKER_COUNT)]
+        deadline = time.monotonic()+90
+        try:
+            for _ in range(WORKER_COUNT):
+                ready.get(timeout=max(0.1, deadline-time.monotonic()))
+            for probe in probes:
+                probe.result(timeout=max(0.1, deadline-time.monotonic()))
+            pool_ready = True
+        except BaseException:
+            inference_pool.shutdown(wait=False, cancel_futures=True)
+            raise
     print("[FORZA Nima] ready voice=%s warmed=1 no_audio_files=1" % VOICE_ID,
           flush=True)
     port = int(os.environ.get("PORT", "8080"))
-    PrivateServer(("::", port), Handler).serve_forever()
+    bind = os.environ.get("FORZA_NIMA_BIND", "::")
+    PrivateServer.address_family = socket.AF_INET6 if ":" in bind else socket.AF_INET
+    try:
+        PrivateServer((bind, port), Handler).serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if inference_pool is not None:
+            inference_pool.shutdown(wait=True, cancel_futures=True)
 
 
 if __name__ == "__main__":

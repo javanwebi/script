@@ -178,3 +178,12 @@ test('idle flush never invents or voices unfinished trailing SKU characters',()=
   const phrases=[...before,...idle,...planner.complete(whole)];
   assert.equal(phrases.join(' ').replace(/\\s+/g,' ').trim(),whole);
 });
+
+test('a short stable initial word group can start during provider idle without speaking a partial SKU',()=>{
+ const planner=new ForzaIncrementalSpeechText();
+ assert.deepEqual(planner.push('برای بررسی کد 620'),[]);
+ const early=planner.flushStableIdle();assert.deepEqual(early,['برای بررسی کد']);
+ assert.deepEqual(planner.flushStableIdle(),[]);
+ const full='برای بررسی کد 6203ZZ نام سازنده را هم بفرمایید.';
+ assert.equal([...early,...planner.complete(full)].join(' '),full);
+});

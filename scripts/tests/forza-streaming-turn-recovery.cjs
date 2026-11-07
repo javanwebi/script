@@ -23,6 +23,7 @@ function silentWav(){
   const errors=[],synthRequests=[],sseRequests=[];
   const fullAnswer='برای بررسی تسمه مورد نظر، ابتدا کد فنی آن را اعلام کنید. سپس می‌توانیم ابعاد، جنس و استاندارد تسمه را با اطلاعات کاتالوگ صنعت پیش مقایسه کنیم. در صورت نامشخص بودن کد، تصویر واضحی از قطعه بفرستید.';
   page.on('pageerror',error=>errors.push(error.message));
+  await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({status:200,contentType:'audio/wav',body:silentWav()}));
   await page.route('**/assets/piper-tts-web-*.js',route=>route.fulfill({
    status:200,contentType:'text/javascript',
    body:'export class TtsSession { constructor(){ this.waitReady=new Promise(()=>{}); } async predict(){ return new Promise(()=>{}); } }',

@@ -22,6 +22,9 @@ type CatalogRecord = {
 type PoolCache = { models: string[]; expires: number };
 const catalogs = new WeakMap<typeof fetch, PoolCache>();
 const pending = new WeakMap<typeof fetch, Promise<string[]>>();
+// Timing metadata only. Keep successful fast fallbacks instead of rotating
+// every customer back through unknown/slow models. No speculative extra calls.
+const timings = new WeakMap<typeof fetch, Map<string,{firstTokenMs:number;until:number}>>();
 const cooldowns = new Map<string, number>();
 let roundRobin = 0;
 let accountRateLimitUntil = 0;
@@ -96,7 +99,11 @@ export async function streamXkiroFreePool(
   const preferred = verified.includes(options.model) ? options.model : null;
   const rotated = verified.slice(roundRobin % verified.length).concat(verified.slice(0, roundRobin % verified.length));
   roundRobin += 1;
-  const ranked = [...new Set([...(preferred ? [preferred] : []), ...rotated])];
+  const known=timings.get(fetchImpl) || new Map<string,{firstTokenMs:number;until:number}>();
+  const fast=options.voice ? verified.filter(model=>{
+    const metric=known.get(model);return metric&&metric.until>Date.now()&&metric.firstTokenMs<=3000;
+  }).sort((a,b)=>known.get(a)!.firstTokenMs-known.get(b)!.firstTokenMs) : [];
+  const ranked = [...new Set([...fast,...(preferred ? [preferred] : []), ...rotated])];
   let attempted = 0;
   const cap = options.voice ? MAX_ATTEMPTS_VOICE : MAX_ATTEMPTS_DESK;
   let lastCode = 'xkiro_free_models_unavailable';
@@ -119,6 +126,11 @@ export async function streamXkiroFreePool(
         },
       });
       cooldowns.delete(model);
+      const previous=known.get(model);
+      const measured=Math.max(0,result.firstTokenMs);
+      known.set(model,{firstTokenMs:previous&&previous.until>Date.now()?Math.round(previous.firstTokenMs*0.6+measured*0.4):measured,until:Date.now()+10*60_000});
+      for(const [id,metric] of known)if(metric.until<=Date.now()||!verified.includes(id))known.delete(id);
+      timings.set(fetchImpl,known);
       return result;
     } catch (error: unknown) {
       if (delivered) throw error; // Never replay a partial response.

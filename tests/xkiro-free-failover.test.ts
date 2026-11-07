@@ -110,3 +110,21 @@ test('Retry-After on 429 stops switching all models while the account is throttl
   }),(e:unknown)=>e instanceof BaiConsultError&&e.code==='xkiro_rate_limited_retry_later');
   assert.equal(generations,1);
 });
+
+test('voice reuses a measured fast free fallback instead of rotating back to a slow preferred model',async()=>{
+ const preferred='vendor/realtime-slow',fallback='vendor/realtime-fast';const attempted:string[]=[];let failPreferred=true;
+ const fetchImpl=(async(url:string|URL|Request,init?:RequestInit)=>{
+  if(String(url).endsWith('/v1/models'))return catalog([free(preferred),free(fallback)]);
+  const model=JSON.parse(String(init?.body)).model;attempted.push(model);
+  if(model===preferred&&failPreferred)return new Response('{}',{status:503});
+  return sse('سلام، کد قطعه را بفرمایید.');
+ }) as typeof fetch;
+ // Earlier account-rate-limit tests deliberately leave a process-wide cooldown.
+ const originalNow=Date.now;let clock=originalNow()+6*60_000;Date.now=()=>clock;
+ try{
+  await streamXkiroFreePool({apiKey:'isolated',model:preferred,query:'سلام',voice:true,fetchImpl,onDelta:()=>{}});
+  failPreferred=false;clock+=130000;
+  await streamXkiroFreePool({apiKey:'isolated',model:preferred,query:'مدل قطعه',voice:true,fetchImpl,onDelta:()=>{}});
+ }finally{Date.now=originalNow;}
+ assert.deepEqual(attempted,[preferred,fallback,fallback]);
+});
