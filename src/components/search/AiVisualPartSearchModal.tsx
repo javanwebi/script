@@ -1455,11 +1455,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     className={`p-4 rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-all ${
                       analysisResult.summary.catalogAvailability.status ===
                       "confirmed_in_catalog"
-                        ? "bg-gradient-to-l from-emerald-950 via-[#55565A] to-[#55565A] border-emerald-500/50 text-white"
+                        ? "bg-emerald-50 border-emerald-200 text-slate-800"
                         : analysisResult.summary.catalogAvailability.status ===
                             "similar_in_catalog"
-                          ? "bg-gradient-to-l from-blue-950 via-[#55565A] to-[#55565A] border-blue-500/50 text-white"
-                          : "bg-gradient-to-l from-amber-950 via-slate-900 to-[#55565A] border-amber-500/50 text-white"
+                          ? "bg-blue-50 border-blue-200 text-slate-800"
+                          : "bg-amber-50 border-amber-200 text-slate-800"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -1496,10 +1496,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
                               analysisResult.summary.catalogAvailability
                                 .status === "confirmed_in_catalog"
-                                ? "bg-emerald-400/20 text-emerald-300 border border-emerald-400/40"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : analysisResult.summary.catalogAvailability
                                       .status === "similar_in_catalog"
-                                  ? "bg-blue-400/20 text-blue-300 border border-blue-400/40"
+                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
                                   : "bg-amber-400/20 text-amber-300 border border-amber-400/40"
                             }`}
                           >
