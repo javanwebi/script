@@ -66,7 +66,7 @@ export const AdminLayout: React.FC = () => {
     let mounted = true;
     const sync = (event: Event) => {
       const data = (event as CustomEvent).detail;
-      if (mounted) setCurrentUser(data.admin
+      const nextUser: AdminUser | null = data.admin
         ? {id:String(data.user?.authUserId||'admin'),username:String(data.user?.username||'admin'),
             name:String(data.user?.fullName||'مدیریت صنعت پیش'),role:'super_admin',
             email:String(data.user?.email||''),lastLogin:''}
@@ -74,7 +74,13 @@ export const AdminLayout: React.FC = () => {
         ? {id:String(data.staffUser.id),username:String(data.staffUser.username),
             name:String(data.staffUser.name),role:'staff',email:String(data.staffUser.email||''),
             permissions:data.permissions||{},lastLogin:''}
-        : null);
+        : null;
+      if (mounted) {
+        // ProductsModule and other role-aware modules read their actor from
+        // adminService; keep it synchronized with this verified server session.
+        adminService.setCurrentAdmin(nextUser);
+        setCurrentUser(nextUser);
+      }
     };
     const status = (event: Event) => { if (mounted) setSaveStatus((event as CustomEvent).detail); };
     window.addEventListener('atlas-session-updated', sync);
