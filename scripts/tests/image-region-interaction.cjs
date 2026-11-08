@@ -36,7 +36,7 @@ const {chromium}=require('playwright');
    if(mobile){await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);assert.deepEqual(await page.evaluate(()=>window.lastRegion),r);}
    if(!mobile){
     const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
-    r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01);assert.ok(Math.abs(r.height-0.5)<0.01);
+    r=await page.evaluate(()=>window.lastRegion);console.log('DRAG_REGION',JSON.stringify(r));assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
     await page.getByRole('group').press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
    }
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
