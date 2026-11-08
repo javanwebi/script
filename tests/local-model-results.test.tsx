@@ -28,7 +28,7 @@ test('exploratory neighbours cannot display an accepted-match label or a confide
 test('a code-less family result has no fabricated SKU link or code text',()=>{
  const uncoded={...item('unused'),code:undefined,name:'قطعه بدون کد',familyCode:'uncoded-family',familyName:'خانواده بدون کد',matchBasis:'visual' as const,visualScore:94,imageScope:'family' as const};
  const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[uncoded]} onClose={()=>{}} /></MemoryRouter>);
- assert.ok(html.includes('کد SKU ثبت نشده'));
+ assert.ok(html.includes('کد SKU مشخص نیست'));
  assert.ok(html.includes('/product/uncoded-family'));
  assert.ok(!html.includes('/product/undefined'));
  assert.ok(html.includes('شباهت تصویری'));
