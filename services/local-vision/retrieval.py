@@ -54,7 +54,7 @@ def regions(image, limit=3):
     base = foreground(image)
     if base:
         area = base['width'] * base['height']
-        if 0.02 < area < 0.72:
+        if 0.02 < area < 0.72 and base['width'] >= 0.03 and base['height'] >= 0.03:
             proposals.append((0.35 * np.sqrt(area), base))
 
     for index, center in enumerate(centers):
@@ -80,12 +80,14 @@ def regions(image, limit=3):
             margin = max(2, round(max(bw, bh) * 0.07))
             x0, y0 = max(0, x - margin), max(0, y - margin)
             x1, y1 = min(w, x + bw + margin), min(h, y + bh + margin)
-            proposals.append((score, {
+            candidate = {
                 'x': x0 / w,
                 'y': y0 / h,
                 'width': (x1 - x0) / w,
                 'height': (y1 - y0) / h,
-            }))
+            }
+            if candidate['width'] >= 0.03 and candidate['height'] >= 0.03:
+                proposals.append((score, candidate))
 
     chosen = []
     for _, candidate in sorted(proposals, key=lambda item: -item[0]):
