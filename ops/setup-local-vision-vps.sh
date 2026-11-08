@@ -32,8 +32,7 @@ with open(sys.argv[1], 'x') as f:
 PY
  chmod 600 "$CONFIG"
 fi
-# Upgrade only the local service address; preserve the automatically generated credential.
-sed -i 's#^LOCAL_VISION_URL=.*#LOCAL_VISION_URL=http://sanatpish-local-vision-lens-v2:8091#' "$CONFIG"
+# Keep the currently active private URL unchanged until the replacement sidecar is healthy.
 if [[ -n "$APP_CONTAINER" ]]; then
  # Discover the real app's network without printing its environment or database credentials.
  VISION_NETWORK="$(python3 - "$APP_CONTAINER" <<'PYNET'
