@@ -61,10 +61,15 @@ export async function geometricEvidence(image:Buffer,candidates:Buffer[],env=pro
  if(data.pipeline!==localVisionProfile(env).pipeline || !Array.isArray(data.evidence) || data.evidence.length!==candidates.length || data.evidence.some((e:any)=>typeof e.supported!=='boolean'||!Number.isInteger(e.inliers)||e.inliers<0||!Number.isFinite(e.coverage)||e.coverage<0||e.coverage>1))throw new Error('Invalid geometric evidence');
  return data.evidence as {supported:boolean;inliers:number;coverage:number}[];
 }
-export type LocalVisualHit={row:CatalogImageRecord;score:number;visualScore?:number;eligible?:boolean;geometry?:{supported:boolean;inliers:number;coverage:number};codeHint?:boolean;};
+export type LocalVisualHit={row:CatalogImageRecord;score:number;visualScore?:number;viewScores?:number[];eligible?:boolean;geometry?:{supported:boolean;inliers:number;coverage:number};codeHint?:boolean;};
 /** Moderate cross-domain resemblance needs distinct catalogue photographs agreeing
  * on one active family. A lone similar texture is insufficient. Never raise scores.
  */
+export function bestBoundQueryViewScores(hits:LocalVisualHit[],products:Product[]):number[]{
+ const families=new Set(products.filter(product=>product.active!==false).map(product=>product.code));
+ const best=hits.find(hit=>hit.row.bindings.some(binding=>families.has(binding.familyCode)));
+ return best?.viewScores || [];
+}
 export function corroborateLocalFamilies(hits:LocalVisualHit[],products:Product[],minimum:number){
  const active=new Set(products.filter(p=>p.active!==false).map(p=>p.code));
  const familyOf=(hit:LocalVisualHit)=>[...new Set(hit.row.bindings.map(b=>b.familyCode).filter(code=>active.has(code)))];
