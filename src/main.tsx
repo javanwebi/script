@@ -28,7 +28,9 @@ async function boot(){
     const data=(event as CustomEvent).detail;
     if(data?.database){
       installDatabaseReferences();
-      if(Array.isArray(data.products))installDatabaseProducts(data.products);
+      // Lean admin bootstraps intentionally return an empty products array.
+      // Only a full catalogue response may replace the browser's live product index.
+      if(data.productsIncluded===true && Array.isArray(data.products))installDatabaseProducts(data.products);
       document.getElementById('sanat-backend-status')?.remove();
       // The initial shell rendered without legacy JSON; remount once after DB hydration
       // so category menus created on mount pick up real PostgreSQL values.
