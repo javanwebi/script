@@ -36,7 +36,7 @@ PY
 )"
 test -n "$ACTIVE"
 echo "ACTIVE_PORT=$ACTIVE"
-FIXED_PORT=3008
+FIXED_PORT=3013
 if test "$ACTIVE" != "$FIXED_PORT"; then
   echo "UNEXPECTED_LIVE_PORT actual=$ACTIVE expected=$FIXED_PORT" >&2
   exit 1
