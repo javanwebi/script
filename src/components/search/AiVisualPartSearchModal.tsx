@@ -1500,7 +1500,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                 : analysisResult.summary.catalogAvailability
                                       .status === "similar_in_catalog"
                                   ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                  : "bg-amber-400/20 text-amber-300 border border-amber-400/40"
+                                  : "bg-amber-100 text-amber-800 border border-amber-200"
                             }`}
                           >
                             {analysisResult.summary.catalogAvailability
