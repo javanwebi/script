@@ -916,7 +916,13 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
  if(Date.now()<nextVisualIndexBuild)return;
  nextVisualIndexBuild=Date.now()+60000;
  void catalogVisualIndex.update(corpus,row=>getCatalogImageBuffer(row.url,row.revision),buffers=>embedCatalogImages(buffers,publishImage))
- .then(()=>console.log('[Visual index]',JSON.stringify(catalogVisualIndex.coverage(corpus))))
+ .then(()=>{
+  const coverage=catalogVisualIndex.coverage(corpus);
+  console.log('[Visual index]',JSON.stringify(coverage));
+  // A missing/unreadable photo must not block later rows. Retry only the
+  // still-missing entries after a cooldown; ready remains false until all match.
+  if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
+ })
  .catch((error)=>{
    const reason=error instanceof RecognitionServiceError ? error.code : String(error?.message || 'index_unavailable').slice(0,120);
    console.warn('[Visual index] Incomplete:',reason);
