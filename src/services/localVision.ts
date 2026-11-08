@@ -1,5 +1,5 @@
 import {localModelSuggestions} from './localModelSuggestions';
-import {validImageRegion} from './localQueryImage';
+import {validImageRegion} from '../utils/imageRegion';
 import type {CatalogImageRecord} from './catalogImageCorpus';
 import type {AiPartAnalysisResult} from './aiVisualSearchService';
 import type {Product} from '../types';
