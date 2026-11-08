@@ -11,7 +11,7 @@ test('model result cards retain server ordering and distinguish shared photos wi
  assert.ok(html.indexOf('مدل closest')<html.indexOf('مدل second'));
  assert.ok(html.includes('عکس نمونهٔ خانواده'));
  assert.ok(html.includes('مدل هم‌خانواده'));
- assert.equal((html.match(/شباهت تصویری:/g)||[]).length,2);
+ assert.equal((html.match(/شباهت تصویر/g)||[]).length,2);
  assert.ok(html.includes('/product/closest'));
 });
 test('long result lists start with twelve cards and offer more real models',()=>{
@@ -21,8 +21,8 @@ test('long result lists start with twelve cards and offer more real models',()=>
 });
 test('exploratory neighbours cannot display an accepted-match label or a confidence score',()=>{
  const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[{...item('nearest'),matchBasis:'explore',visualScore:undefined}]} onClose={()=>{}} /></MemoryRouter>);
- assert.ok(html.includes('تطبیق تأیید نشده'));assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
- assert.ok(!html.includes('شباهت تصویری:'));assert.ok(!html.includes('مدل هم‌خانواده'));
+ assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
+ assert.ok(!html.includes('شباهت تصویر'));assert.ok(!html.includes('مدل هم‌خانواده'));
 });
 
 test('family-only visual results show no fake SKU and link to the real family page',()=>{
