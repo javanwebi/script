@@ -14,7 +14,7 @@ test('family images produce navigable family bindings, never an arbitrary SKU or
  assert.deepEqual(result.similarCandidates,[]);assert.deepEqual(result.matchedProducts,[]);
  assert.equal(result.summary.exactVisualMatch,false);assert.equal(result.summary.confidence,0);
 });
-test('a bound family image without any active SKU is returned as a scored family result without a fake code',()=>{
+test('a family-bound photo is scored at family level when no SKU-specific binding identifies its model',()=>{
  const uncoded=[{...products[0],code:'uncoded',name:'قطعه بدون کد',variants:[{code:'uncoded-0',name:'مدل دارای کد',active:true}]}] as Product[];
  const result=localVisionResult([hit([{familyCode:'uncoded',verified:false}],0.94)],uncoded,coverage,'/customer');
  assert.ok(result.modelSuggestions!.length>=1);
