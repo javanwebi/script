@@ -74,3 +74,12 @@ test('uncoded family-level products are included and ranked above lower-scoring 
  assert.equal(list[0].image,uncodedPhoto.row.url);
  assert.equal(list[1].code,'coded-0');
 });
+
+test('raw visual similarity remains the primary order when geometry or OCR bonuses differ',()=>{
+ const p=family('gear',2);
+ const highVisual={...hit('gear','gear-0',0.91),visualScore:0.91};
+ const lowerVisual={...hit('gear','gear-1',0.96),visualScore:0.86};
+ const list=localModelSuggestions([lowerVisual,highVisual],[p]);
+ assert.deepEqual(list.slice(0,2).map(item=>item.code),['gear-0','gear-1']);
+ assert.deepEqual(list.slice(0,2).map(item=>item.visualScore),[91,86]);
+});
