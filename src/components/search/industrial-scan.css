@@ -456,3 +456,484 @@
 @media (prefers-reduced-motion:reduce) {
   .sanat-camera-reference .sanat-camera-experience__scan-line { animation:none; top:50%; }
 }
+
+
+/* FORZA visual-recognition workspace — calm, responsive and touch-first. */
+.sanat-visual-search-shell {
+  --sp-scan-orange: #e56b1e;
+  --sp-scan-ink: #252d38;
+  --sp-scan-muted: #687382;
+  width: 100%;
+  min-width: 0;
+  color: var(--sp-scan-ink);
+  overflow-x: hidden;
+}
+.sanat-visual-search-shell .sanat-scan-intro {
+  min-height: 158px;
+  border-radius: 22px;
+  border: 1px solid rgba(229,107,30,.24);
+  box-shadow: 0 12px 30px rgba(28,39,53,.10);
+}
+.sanat-visual-search-shell .sanat-scan-intro::before {
+  background: linear-gradient(270deg,rgba(20,28,40,.96),rgba(20,28,40,.72) 62%,rgba(20,28,40,.12));
+}
+.sanat-visual-search-shell .sanat-scan-intro__copy {
+  max-width: 100%;
+  min-height: 158px;
+  padding: 22px 24px;
+  gap: 9px;
+}
+.sanat-visual-search-shell .sanat-scan-intro__copy strong {
+  font-size: clamp(17px,2.4vw,23px);
+  letter-spacing: -.02em;
+}
+.sanat-visual-search-shell .sanat-scan-intro__copy > span:last-child {
+  font-size: 12px;
+  max-width: 32rem;
+}
+.sanat-visual-search-shell .sanat-scan-viewfinder {
+  border-radius: 22px;
+}
+.sanat-visual-search-shell button {
+  -webkit-tap-highlight-color: transparent;
+}
+.sanat-visual-search-shell .sanat-camera-experience {
+  border-radius: 0;
+}
+.sanat-visual-search-shell .sp-vision-analysis-container {
+  min-height: 260px;
+}
+
+/* Automatic object proposals and the selected crop. */
+.sanat-region-picker {
+  margin: 14px 0;
+  padding: 15px;
+  border: 1px solid #e5e9ef;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(28,39,53,.055);
+  color: #252d38;
+}
+.sanat-region-picker__header,
+.sanat-region-picker__heading,
+.sanat-region-picker__layout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sanat-region-picker__header {
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+.sanat-region-picker__heading { min-width: 0; }
+.sanat-region-picker__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 14px;
+  background: #fff2e9;
+  color: #d85f16;
+  font-size: 25px;
+  font-weight: 800;
+}
+.sanat-region-picker__heading strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 850;
+}
+.sanat-region-picker__heading p {
+  margin: 4px 0 0;
+  color: #718092;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.sanat-region-picker__status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f4f6f8;
+  color: #596575;
+  font-size: 10px;
+  font-weight: 750;
+}
+.sanat-region-picker__layout {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 190px;
+  gap: 13px;
+}
+.sanat-region-picker__canvas {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e5e9ef;
+  border-radius: 17px;
+  background: #f4f6f8;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  outline-offset: 3px;
+}
+.sanat-region-picker__canvas > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 540px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.sanat-region-picker__candidate,
+.sanat-region-picker__draft {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px dashed rgba(255,255,255,.95);
+  border-radius: 10px;
+  background: rgba(255,255,255,.055);
+  box-shadow: 0 1px 8px rgba(16,24,40,.25);
+}
+.sanat-region-picker__candidate span {
+  position: absolute;
+  top: -11px;
+  inset-inline-start: -8px;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #596575;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 850;
+}
+.sanat-region-picker__candidate.is-selected {
+  z-index: 3;
+  border: 3px solid #e56b1e;
+  background: rgba(229,107,30,.12);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 0 5px rgba(229,107,30,.2);
+}
+.sanat-region-picker__candidate.is-selected span {
+  background: #e56b1e;
+}
+.sanat-region-picker__candidate.is-manual span { display: none; }
+.sanat-region-picker__draft {
+  z-index: 4;
+  border: 2px solid #e56b1e;
+  background: rgba(229,107,30,.18);
+}
+.sanat-region-picker__side {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #edf0f3;
+  border-radius: 16px;
+  background: #f9fafb;
+}
+.sanat-region-picker__side-title {
+  font-size: 11px;
+  font-weight: 850;
+  color: #394453;
+}
+.sanat-region-picker__crop,
+.sanat-region-picker__empty {
+  width: 100%;
+  max-height: 160px;
+  border: 1px solid #e2e7ed;
+  border-radius: 12px;
+  background-color: #fff;
+  background-repeat: no-repeat;
+}
+.sanat-region-picker__empty {
+  display: grid;
+  place-items: center;
+  min-height: 115px;
+  padding: 10px;
+  color: #8792a0;
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
+}
+.sanat-region-picker__side p,
+.sanat-region-picker__hint {
+  margin: 0;
+  color: #778393;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.sanat-region-picker__side button {
+  margin-top: auto;
+  min-height: 39px;
+  padding: 8px 10px;
+  border: 1px solid #f0c7aa;
+  border-radius: 11px;
+  background: #fff7f1;
+  color: #b95012;
+  font-size: 11px;
+  font-weight: 800;
+}
+.sanat-region-picker__side button:hover { background: #ffede0; }
+.sanat-region-picker__hint { padding-top: 10px; }
+
+/* Product cards are ranked by image evidence, not by SKU availability. */
+.sanat-visual-results { min-width: 0; }
+.sanat-visual-results__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 13px;
+  border-bottom: 1px solid #e9edf2;
+}
+.sanat-visual-results__eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #d9651b;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  direction: ltr;
+  text-align: right;
+}
+.sanat-visual-results__header h4 {
+  margin: 0;
+  color: #252d38;
+  font-size: 16px;
+  font-weight: 900;
+}
+.sanat-visual-results__header p {
+  margin: 5px 0 0;
+  color: #6c7887;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.sanat-visual-results__count {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: #fff3eb;
+  color: #bd5415;
+  font-size: 11px;
+  font-weight: 850;
+}
+.sanat-visual-results__grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sanat-visual-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  height: 100%;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #e5e9ef;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(24,36,52,.045);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.sanat-visual-result-card:hover {
+  border-color: #efbd9b;
+  box-shadow: 0 12px 26px rgba(24,36,52,.085);
+  transform: translateY(-2px);
+}
+.sanat-visual-result-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 10px;
+}
+.sanat-visual-result-card__rank {
+  color: #475363;
+  font-weight: 850;
+}
+.sanat-visual-result-card__score {
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #fff2e9;
+  color: #bd5415;
+  font-weight: 850;
+}
+.sanat-visual-result-card__kind {
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #f2f4f6;
+  color: #637082;
+  font-weight: 750;
+}
+.sanat-visual-result-card__image {
+  display: grid;
+  place-items: center;
+  height: 176px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f7f8fa;
+}
+.sanat-visual-result-card__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+.sanat-visual-result-card__image span {
+  color: #8a94a1;
+  font-size: 11px;
+}
+.sanat-visual-result-card__body h5 {
+  margin: 0;
+  color: #26313e;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.7;
+}
+.sanat-visual-result-card__family {
+  margin: 4px 0 0;
+  color: #758192;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.sanat-visual-result-card__code {
+  margin: 6px 0 0;
+  color: #bd5415;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+.sanat-visual-result-card__no-code {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #f2f4f6;
+  color: #5c6878;
+  font-size: 10px;
+  font-weight: 800;
+}
+.sanat-visual-result-card__image-note {
+  margin: 5px 0 0;
+  color: #84909e;
+  font-size: 9px;
+  line-height: 1.8;
+}
+.sanat-visual-result-card__specs {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 6px;
+  margin: 0;
+}
+.sanat-visual-result-card__specs div {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f7f8fa;
+}
+.sanat-visual-result-card__specs dt {
+  color: #8a94a1;
+  font-size: 9px;
+}
+.sanat-visual-result-card__specs dd {
+  margin: 3px 0 0;
+  color: #394555;
+  font-size: 10px;
+  font-weight: 800;
+}
+.sanat-visual-result-card__reason {
+  margin: 0;
+  color: #6c7887;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.sanat-visual-result-card__actions {
+  display: flex;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #edf0f3;
+}
+.sanat-visual-result-card__actions a {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px;
+  border: 1px solid #e5e9ef;
+  border-radius: 11px;
+  color: #485565;
+  font-size: 10px;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+}
+.sanat-visual-result-card__actions a:first-child {
+  border-color: #e56b1e;
+  background: #e56b1e;
+  color: #fff;
+}
+.sanat-visual-result-card__actions a:hover { filter: brightness(.97); }
+.sanat-visual-results__more {
+  width: 100%;
+  min-height: 43px;
+  border: 1px solid #f0c7aa;
+  border-radius: 12px;
+  background: #fff7f1;
+  color: #b95012;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+@media (max-width: 680px) {
+  .sanat-visual-search-shell .sanat-scan-intro,
+  .sanat-visual-search-shell .sanat-scan-intro__copy { min-height: 125px; }
+  .sanat-visual-search-shell .sanat-scan-intro__copy { padding: 15px 17px; }
+  .sanat-region-picker { padding: 11px; border-radius: 18px; }
+  .sanat-region-picker__header { align-items: flex-start; }
+  .sanat-region-picker__layout { grid-template-columns: minmax(0,1fr); }
+  .sanat-region-picker__canvas { border-radius: 14px; }
+  .sanat-region-picker__canvas > img { max-height: 54dvh; }
+  .sanat-region-picker__side {
+    display: grid;
+    grid-template-columns: 104px minmax(0,1fr);
+    align-items: center;
+    gap: 8px 10px;
+    padding: 9px;
+  }
+  .sanat-region-picker__side-title { grid-column: 1 / -1; }
+  .sanat-region-picker__crop,
+  .sanat-region-picker__empty { grid-row: span 2; max-height: 112px; }
+  .sanat-region-picker__side p { align-self: end; }
+  .sanat-region-picker__side button { align-self: start; min-height: 35px; }
+  .sanat-visual-results__grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .sanat-visual-result-card {
+    display: grid;
+    grid-template-columns: 112px minmax(0,1fr);
+    gap: 9px 11px;
+    padding: 11px;
+    border-radius: 16px;
+  }
+  .sanat-visual-result-card__meta { grid-column: 1 / -1; }
+  .sanat-visual-result-card__image {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    height: 112px;
+    border-radius: 12px;
+  }
+  .sanat-visual-result-card__body { grid-column: 2; grid-row: 2; align-self: center; }
+  .sanat-visual-result-card__specs,
+  .sanat-visual-result-card__reason,
+  .sanat-visual-result-card__actions { grid-column: 1 / -1; }
+  .sanat-visual-result-card__image-note { display: none; }
+  .sanat-visual-result-card__actions a { min-height: 40px; }
+}
