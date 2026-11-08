@@ -64,9 +64,15 @@ PYNET
   echo 'NEW_LOCAL_VISION_ENCODER_NOT_READY — existing encoder/configuration preserved'
   exit 1
  fi
+ # Preserve the exact previous private configuration before changing the endpoint.
+ CONFIG_BACKUP="$CONFIG.before-$VISION_BUILD_ID"
+ cp -a "$CONFIG" "$CONFIG_BACKUP"
  # Switch the on-disk app configuration only after the new sidecar is healthy.
  sed -i "s#^LOCAL_VISION_URL=.*#LOCAL_VISION_URL=http://$VISION_CONTAINER:8091#" "$CONFIG"
+ chmod 600 "$CONFIG"
  echo "LOCAL_VISION_PRIVATE_ENCODER_READY container=$VISION_CONTAINER network=$VISION_NETWORK"
+ echo "CONFIG_BACKUP=$CONFIG_BACKUP"
+ echo "ROLLBACK_CONFIG_COMMAND=sudo cp -a '$CONFIG_BACKUP' '$CONFIG' && sudo sanatpish-deploy-main"
  echo 'The previous encoder is retained for rollback until the app passes acceptance.'
 fi
 echo 'LOCAL_VISION_INSTALLED — enable after catalogue reconciliation and accuracy/latency validation:'
