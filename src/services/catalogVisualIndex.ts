@@ -55,17 +55,20 @@ export class CatalogVisualIndex {
     if(!usable.length)continue;
     const vectors=await embed(usable.map(item=>item.buffer));if(vectors.length!==usable.length)throw new Error('Embedding count mismatch');
     const entries=vectors.map((v,i)=>({id:usable[i].row.id,signature:signature(usable[i].row),vector:normalized(v,this.options.dimensions)}));
-    for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
-    // Persist completed batches so a provider interruption does not restart the entire index.
+    // Persist each batch before publishing it in memory. A failed database/file
+    // write must never make coverage look complete for vectors that cannot survive restart.
     const write=this.writes.catch(()=>{}).then(async()=>{
      if(this.persistence) await this.persistence.saveEntries(entries);
      else {
+      const merged=new Map(this.entries);
+      for(const entry of entries)merged.set(entry.id,{signature:entry.signature,vector:entry.vector});
       await fs.mkdir(path.dirname(this.file),{recursive:true});
       const temp=this.file+'.'+randomUUID()+'.tmp';
-      await fs.writeFile(temp,JSON.stringify({model:this.options.model,entries:Object.fromEntries(this.entries)}),{mode:0o600});
+      await fs.writeFile(temp,JSON.stringify({model:this.options.model,entries:Object.fromEntries(merged)}),{mode:0o600});
       await fs.rename(temp,this.file);
      }
     });this.writes=write;await write;
+    for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
     if(this.options.concurrency===1)await new Promise(resolve=>setTimeout(resolve,50));
    }}catch(error){stopped=true;throw error;}
    }));
