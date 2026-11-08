@@ -36,7 +36,7 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
        <p className="sanat-visual-result-card__family">{item.familyName}{item.model?' · مدل '+item.model:''}{item.size?' · سایز '+item.size:''}</p>
        {item.code?
         <p className="sanat-visual-result-card__code" dir="ltr">{item.code}</p>:
-        <span className="sanat-visual-result-card__no-code">کد کالا در کاتالوگ ثبت نشده</span>}
+        <span className="sanat-visual-result-card__no-code">کد SKU ثبت نشده</span>}
        {item.imageScope==='family'&&item.image&&<p className="sanat-visual-result-card__image-note">{item.code?'تصویر نمونهٔ خانواده؛ شباهت مستقل این مدل تأیید نشده است.':'تصویر ثبت‌شده برای همین خانوادهٔ محصول'}</p>}
       </div>
       {!!item.specs.length&&<dl className="sanat-visual-result-card__specs">{item.specs.slice(0,4).map((spec,i)=><div key={i}><dt>{spec.key}</dt><dd dir="auto">{spec.value}</dd></div>)}</dl>}
