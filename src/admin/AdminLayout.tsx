@@ -1,5 +1,5 @@
 import { hydratePortal, flushPortalChanges } from '../services/portalRepository';
-import { isDatabaseCatalogHydrated, refreshDurableStorage } from '../services/durableStorage';
+import { isDatabaseCatalogHydrated, refreshAdminCatalog } from '../services/durableStorage';
 import './adminUx.css';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -142,7 +142,7 @@ export const AdminLayout: React.FC = () => {
     let mounted = true;
     setCatalogLoading(true);
     setCatalogError('');
-    void refreshDurableStorage({ includeProducts: true })
+    void refreshAdminCatalog()
       .then(data => {
         if (data.database !== true || !isDatabaseCatalogHydrated()) {
           throw new Error('دریافت فهرست کالاها از پایگاه داده کامل نشد.');
