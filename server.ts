@@ -22,7 +22,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion} from './src/services/localVision';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -4706,7 +4706,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=retrieved[0]?.viewScores || [];
       const bestView=viewScores.indexOf(Math.max(...viewScores));
-      const selectedRegion=body.region || (query.viewRegions ? query.viewRegions[bestView] : query.region);
+      const selectedRegion=body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
       const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
