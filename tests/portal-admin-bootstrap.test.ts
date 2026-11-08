@@ -167,6 +167,8 @@ test('runtime hydration has a finite timeout for full and lean catalog requests'
   assert.match(source,/AbortSignal\.timeout\(15000\)/);
   assert.match(source,/previous\.catch\(\(\)=>undefined\)/);
   assert.match(source,/dirtyWrites/);
+  const refresh=source.split('export function refreshDurableStorage')[1]?.split('export const durableStorage')[0] || '';
+  assert.doesNotMatch(refresh,/await flushDurableChanges/,'catalog reads must not wait for write queues');
 });
 
 test('admin catalogue endpoint reuses startup data and invalidates snapshots after writes',()=>{
