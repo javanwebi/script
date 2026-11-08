@@ -24,3 +24,13 @@ test('exploratory neighbours cannot display an accepted-match label or a confide
  assert.ok(html.includes('تطبیق تأیید نشده'));assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
  assert.ok(!html.includes('شباهت تصویری:'));assert.ok(!html.includes('مدل هم‌خانواده'));
 });
+
+test('family-only visual results show no fake SKU and link to the real family page',()=>{
+ const familyOnly:CatalogModelSuggestion={recordType:'family',name:'خانواده بدون کد',familyCode:'uncoded-family',familyName:'خانواده بدون کد',image:'/storage/products/catalog/family.webp',imageScope:'family',matchBasis:'visual',visualScore:88,specs:[],reason:'تصویر خانواده با عکس مشتری شباهت دارد.'};
+ const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[familyOnly]} onClose={()=>{}} /></MemoryRouter>);
+ assert.ok(html.includes('خانواده بدون کد'));
+ assert.ok(html.includes('کد کالا برای این خانواده ثبت نشده'));
+ assert.ok(html.includes('مشاهده خانواده'));
+ assert.ok(html.includes('/product/uncoded-family'));
+ assert.ok(!html.includes('مشاهده این مدل'));
+});
