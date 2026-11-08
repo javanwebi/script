@@ -11,7 +11,7 @@ export const LOCAL_VISION_DIMENSIONS=384;
 export function localVisionProfile(env:Record<string,string|undefined>=process.env){
  if(env.LOCAL_VISION_ENCODER==='mobileclip2-s0')return {model:'mobileclip2-s0-095906d2-fp32-pad-256-v1',dimensions:512,pipeline:'local-lens-v3',minSimilarity:0.55,maxViews:4};
  if(env.LOCAL_VISION_ENCODER && env.LOCAL_VISION_ENCODER!=='dinov2-small')throw new Error('Unsupported local vision encoder');
- return {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,pipeline:'local-lens-v2',minSimilarity:0.65,maxViews:2};
+ return {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,pipeline:'local-lens-v2',minSimilarity:0.65,maxViews:4};
 }
 async function localRequest(route:string,body:unknown,env=process.env,timeout=4500):Promise<any>{
  const endpoint=new URL(env.LOCAL_VISION_URL || 'http://sanatpish-local-vision-lens-v2:8091');
