@@ -1,5 +1,6 @@
 import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
+import {shouldRetryAutomaticRegion} from './src/utils/imageRegionFallback';
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
@@ -4734,7 +4735,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       let outcome=await runLocalRegion(body.region || null);
       let regionFallbackUsed=false;
       const sameFallback=body.region && body.fallbackRegion && JSON.stringify(body.region)===JSON.stringify(body.fallbackRegion);
-      if(body.region && body.fallbackRegion!==undefined && !hasAcceptedProduct(outcome.result) && !sameFallback){
+      if(shouldRetryAutomaticRegion(body.region,body.fallbackRegion,hasAcceptedProduct(outcome.result)) && !sameFallback){
         // Once the manually tapped crop has no real catalogue match, return to the
         // automatic/full-frame crop even when that retry also finds no product.
         outcome=await runLocalRegion(body.fallbackRegion);
