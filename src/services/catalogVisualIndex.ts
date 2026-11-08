@@ -72,12 +72,13 @@ export class CatalogVisualIndex {
  }
  async rankVectors(vectors:number[][],images:CatalogImageRecord[],limit=48,independentViews=false){
   await this.load();if(!this.coverage(images).ready)return null;
-  if(!vectors.length || vectors.length>(independentViews?4:2))throw new Error('Invalid query views');
+  if(!vectors.length || vectors.length>4)throw new Error('Invalid query views');
   const queries=vectors.map(v=>normalized(v,this.options.dimensions));
   return images.map(row=>{
    const vector=this.entries.get(row.id)!.vector;
    const viewScores=queries.map(q=>vector.reduce((sum,n,i)=>sum+n*q[i],0));
-   const score=independentViews ? Math.max(...viewScores) : viewScores.length===1 ? viewScores[0] : Math.max(viewScores[0],0.25*viewScores[0]+0.75*viewScores[1]);
+   const bestCrop=viewScores.length>1?Math.max(...viewScores.slice(1)):viewScores[0];
+   const score=independentViews ? Math.max(...viewScores) : viewScores.length===1 ? viewScores[0] : Math.max(viewScores[0],0.25*viewScores[0]+0.75*bestCrop);
    return {row,score,viewScores};
   }).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id)).slice(0,limit);
  }
