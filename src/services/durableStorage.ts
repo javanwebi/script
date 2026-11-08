@@ -1,7 +1,7 @@
 /** In PostgreSQL mode this is an in-memory view of server data, never a durable browser database. */
 let enabled=false,hydrating=false,userId:string|null=null;
 const memory=new Map<string,string>(),versions=new Map<string,number>(),queues=new Map<string,Promise<void>>();
-let failure:Error|null=null;
+const dirtyWrites=new Map<string,string>();
 export type DurableRuntimeState = {
  success:boolean;
  database:boolean;
@@ -55,11 +55,19 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
   if(!data.success)throw new Error(data.message);
   enabled=data.database===true;
   if(enabled){
-   for(const key of memory.keys())if(!ephemeral(key))memory.delete(key);
-   versions.clear();
+   // Never replace optimistic values or versions while their write is pending
+   // or after a failed write. The server snapshot may have been read before
+   // that write committed; dropping these values would lose the user's edit.
+   const protectedKeys=new Set([...queues.keys(),...dirtyWrites.keys()]);
+   for(const key of memory.keys())
+    if(!ephemeral(key) && !protectedKeys.has(key))memory.delete(key);
+   for(const key of versions.keys())
+    if(!protectedKeys.has(key))versions.delete(key);
    userId=data.userId ?? null;
-   for(const [key,value] of Object.entries(data.values || {}))memory.set(key,JSON.stringify(value));
-   for(const [key,value] of Object.entries(data.versions || {}))versions.set(key,Number(value));
+   for(const [key,value] of Object.entries(data.values || {}))
+    if(!protectedKeys.has(key))memory.set(key,JSON.stringify(value));
+   for(const [key,value] of Object.entries(data.versions || {}))
+    if(!protectedKeys.has(key))versions.set(key,Number(value));
    catalogHydrated=data.productsIncluded===false?false:Array.isArray(data.products);
    window.dispatchEvent(new CustomEvent('sanat-durable-hydrated',{detail:data}));
   }else{
@@ -94,10 +102,48 @@ export const durableStorage={
   memory.set(key,value);
   if(portalOwned.has(key) || readOnly.has(key))return;
   const actor=userId;
+  dirtyWrites.set(key,value);
   const previous=queues.get(key) || Promise.resolve();
-  const pending=previous.then(async()=>{emit('saving');const res=await fetch('/api/runtime',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,value:JSON.parse(value),version:versions.get(key) || 0,userId:actor})});const data=await res.json();if(!res.ok || !data.success)throw new Error(data.message || 'ذخیره در دیتابیس انجام نشد.');versions.set(key,data.version);emit('saved');}).catch(error=>{failure=error;emit('error',error.message);throw error;});
-  queues.set(key,pending);void pending.catch(()=>{});
+  // A failed write must not permanently poison this key's queue. A later edit
+  // gets a fresh attempt while the failed optimistic value remains protected.
+  const pending=previous.catch(()=>undefined).then(async()=>{
+   emit('saving');
+   let res:Response;
+   try{
+    res=await fetch('/api/runtime',{
+     method:'POST',
+     credentials:'same-origin',
+     headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({key,value:JSON.parse(value),version:versions.get(key) || 0,userId:actor}),
+     signal:AbortSignal.timeout(15000),
+    });
+   }catch(error){
+    if(error instanceof Error && (error.name==='TimeoutError' || error.name==='AbortError'))
+     throw new Error('ذخیره تغییرات بیش از ۱۵ ثانیه طول کشید؛ اتصال سرور را بررسی و دوباره تلاش کنید.');
+    throw error;
+   }
+   const data=await res.json().catch(()=>null);
+   if(!res.ok || !data?.success)
+    throw new Error(data?.message || 'ذخیره در دیتابیس انجام نشد.');
+   versions.set(key,Number(data.version));
+   if(queues.get(key)===pending)dirtyWrites.delete(key);
+   emit('saved');
+  }).catch(error=>{
+   dirtyWrites.set(key,value);
+   emit('error',error instanceof Error?error.message:'ذخیره در دیتابیس انجام نشد.');
+   throw error;
+  });
+  queues.set(key,pending);
+  // Remove settled entries so an old rejection cannot block all future reads
+  // or writes. The dirty value above remains in memory until a successful retry.
+  void pending.finally(()=>{
+   if(queues.get(key)===pending)queues.delete(key);
+  }).catch(()=>{});
+  void pending.catch(()=>{});
  },
  removeItem(key:string){if(ephemeral(key)){memory.delete(key);return;}if(!enabled)return;this.setItem(key,'null');},
 };
-export async function flushDurableChanges(){await Promise.all([...queues.values()]);if(failure)throw failure;}
+export async function flushDurableChanges(){
+ const pending=[...queues.values()];
+ await Promise.all(pending);
+}
