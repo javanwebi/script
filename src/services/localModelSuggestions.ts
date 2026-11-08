@@ -50,6 +50,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
+   const activeVariants=(family.variants || []).filter(variant=>variant.active!==false && Boolean(variant.code?.trim()));
    if(!binding.code){
     const hasSpecificSkuOwner=[...owners].some(code=>variants.get(code)?.family.code===family.code);
     if(!hasSpecificSkuOwner){
