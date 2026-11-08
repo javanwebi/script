@@ -43,7 +43,7 @@ const {chromium}=require('playwright');
   const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
-   if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v3',ready:true,total:869,indexed:869};
+   if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
    if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
@@ -57,7 +57,7 @@ const {chromium}=require('playwright');
   const modalImage=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await modalImage.scrollIntoViewIfNeeded();const bounds=await modalImage.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.72,bounds.y+bounds.height*0.4);
   await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,2);assert.ok(queries[1].region);assert.ok(Math.abs(queries[1].region.x-0.65)<0.01);assert.equal(uploads,1);
-  await page.getByRole('button',{name:'جست‌وجوی کل عکس',exact:true}).click();await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(uploads,1);assert.deepEqual(errors,[]);
+  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(uploads,1);assert.deepEqual(errors,[]);
   await page.close();console.log('AUTOMATIC_UPLOAD_TAP_REQUERY_AND_IMAGE_REUSE_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
