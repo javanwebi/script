@@ -565,21 +565,33 @@
   gap: 13px;
 }
 .sanat-region-picker__canvas {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
+  min-height: 120px;
   overflow: hidden;
   border: 1px solid #e5e9ef;
   border-radius: 17px;
   background: #f4f6f8;
+}
+.sanat-region-picker__frame {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  max-height: 540px;
+  overflow: hidden;
+  border-radius: 14px;
   cursor: crosshair;
   touch-action: none;
   user-select: none;
   outline-offset: 3px;
 }
-.sanat-region-picker__canvas > img {
+.sanat-region-picker__frame > img {
   display: block;
-  width: 100%;
+  width: auto;
   height: auto;
+  max-width: 100%;
   max-height: 540px;
   object-fit: contain;
   pointer-events: none;
@@ -902,7 +914,8 @@
   .sanat-region-picker__header { align-items: flex-start; }
   .sanat-region-picker__layout { grid-template-columns: minmax(0,1fr); }
   .sanat-region-picker__canvas { border-radius: 14px; }
-  .sanat-region-picker__canvas > img { max-height: 54dvh; }
+  .sanat-region-picker__frame,
+  .sanat-region-picker__frame > img { max-height: 54dvh; }
   .sanat-region-picker__side {
     display: grid;
     grid-template-columns: 104px minmax(0,1fr);
