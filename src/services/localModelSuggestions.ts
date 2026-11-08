@@ -39,14 +39,23 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
  });
  const priority=(item:CatalogModelSuggestion)=>item.matchBasis==='visual'?0:item.matchBasis==='read_code'?1:2;
  const put=(item:CatalogModelSuggestion,score:number)=>{
-  const previous=cards.get(item.code);
-  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(item.code,{item,score});
+  const key=item.code || 'family:'+item.familyCode;
+  const previous=cards.get(key);
+  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(key,{item,score});
  };
  for(const hit of eligible){
   const bindings=hit.row.bindings.filter(b=>families.has(b.familyCode));
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
+   const activeVariants=(family.variants || []).filter(v=>v.active!==false && !!v.code?.trim());
+   if(!binding.code && activeVariants.length===0){
+    put({name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,image:hit.row.url,
+     imageScope:'family',matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,hit.visualScore ?? hit.score))*100),specs:[],
+     reason:'این تصویر به خانوادهٔ واقعی محصول در کاتالوگ متصل است؛ برای این محصول کد SKU ثبت نشده است. شباهت تصویری به خانواده مربوط است، نه تأیید مدل یا سایز.'},hit.score);
+    if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:hit.score,image:hit.row.url});
+    continue;
+   }
    if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:hit.score,image:!binding.code?hit.row.url:familyImage(family)});
    else if(!bestFamily.get(family.code)!.image && !binding.code)bestFamily.get(family.code)!.image=hit.row.url;
    const owner=binding.code?variants.get(binding.code):undefined;
@@ -84,7 +93,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
     'مدل ثبت‌شده در خانوادهٔ نزدیک؛ عکس نمونهٔ خانواده است و شباهت مستقل این مدل بررسی نشده است.'),relatedPhotoScores.get(variant.code) ?? evidence.score-2);
   }
  }
- const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || a.item.code.localeCompare(b.item.code));
+ const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || (a.item.code || a.item.familyCode).localeCompare(b.item.code || b.item.familyCode));
  const confirmed=ranked.filter(row=>row.item.matchBasis!=='family').slice(0,limit);
  const queues=new Map<string,Ranked[]>();
  for(const row of ranked.filter(row=>row.item.matchBasis==='family')){const queue=queues.get(row.item.familyCode)||[];queue.push(row);queues.set(row.item.familyCode,queue);}
