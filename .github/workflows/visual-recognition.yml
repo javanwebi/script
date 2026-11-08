@@ -11,17 +11,18 @@ on:
       - 'src/services/aiVisualSearchService.ts'
       - 'src/services/localModelSuggestions.ts'
       - 'src/services/localVision.ts'
+      - 'src/services/catalogVisualIndex.ts'
       - 'src/services/localQueryImage.ts'
       - 'src/utils/imageRegionInteraction.ts'
       - 'tests/local-model-suggestions.test.ts'
       - 'tests/local-model-results.test.tsx'
       - 'tests/local-vision.test.ts'
+      - 'tests/catalog-visual-index.test.ts'
       - 'tests/image-region-interaction.test.ts'
       - 'scripts/tests/image-region-interaction.cjs'
       - 'services/local-vision/**'
       - 'ops/setup-local-vision-vps.sh'
       - 'ops/deploy-single-port-vps.sh'
-      - 'ops/setup-local-vision-vps.sh'
       - '.github/workflows/visual-recognition.yml'
 permissions:
   contents: read
@@ -45,6 +46,7 @@ jobs:
           tests/local-model-suggestions.test.ts
           tests/local-model-results.test.tsx
           tests/local-vision.test.ts
+          tests/catalog-visual-index.test.ts
           tests/image-region-interaction.test.ts
       - name: Install pinned Playwright browser runner
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
