@@ -158,3 +158,12 @@ test('high-scoring unbound photos are not exposed as catalogue products',()=>{
  assert.deepEqual(result.similarCandidates,[]);
  assert.deepEqual(result.modelSuggestions,[]);
 });
+
+test('automatic crop defaults to the highest-scoring detected object, not the uncropped full frame',async()=>{
+ const {selectBestQueryRegion}=await import('../src/services/localVision');
+ const first={x:0.1,y:0.2,width:0.2,height:0.3};
+ const second={x:0.62,y:0.3,width:0.25,height:0.35};
+ assert.deepEqual(selectBestQueryRegion([null,first,second],[0.99,0.72,0.91],first),second);
+ assert.deepEqual(selectBestQueryRegion([null,first,second],[0.99,Number.NaN,Number.NaN],first),first);
+ assert.equal(selectBestQueryRegion([null],[0.99]),undefined);
+});
