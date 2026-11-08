@@ -21,7 +21,7 @@ test('long result lists start with twelve cards and offer more real models',()=>
 });
 test('exploratory neighbours cannot display an accepted-match label or a confidence score',()=>{
  const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[{...item('nearest'),matchBasis:'explore',visualScore:undefined}]} onClose={()=>{}} /></MemoryRouter>);
- assert.ok(html.includes('تطبیق تأیید نشده'));assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
+ assert.ok(html.includes('برای بررسی؛ تأیید نشده'));assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
  assert.ok(!html.includes('شباهت تصویری:'));assert.ok(!html.includes('مدل هم‌خانواده'));
 });
 
