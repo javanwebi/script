@@ -1,7 +1,7 @@
 import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
-import type {ImageRegion} from '../../services/localQueryImage';
+import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { useState, useRef } from "react";
