@@ -23,9 +23,6 @@ import {
   Sliders,
   Layers,
   ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
   X,
   ShoppingCart,
   Zap,
@@ -40,9 +37,6 @@ import {
   Scan,
   Target,
   Cpu,
-  Activity,
-  ExternalLink,
-  Search,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import {
@@ -57,7 +51,6 @@ import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { pricingCreditService } from "../../services/pricingCreditService";
-import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 
@@ -821,7 +814,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 <li><span>۲</span><div><strong>انتخاب با لمس</strong><small>اگر قطعه دیگری مدنظر است، روی آن بزن</small></div></li>
                 <li><span>۳</span><div><strong>مقایسه با کاتالوگ</strong><small>نمایش مدل‌های مشابه، حتی خانواده بدون کد</small></div></li>
               </ol>
-              <div className="sp-vision-workspace__aside-note"><Crosshair size={16}/> اگر انتخاب دستی نتیجه‌ای نداشته باشد، سیستم دوباره ناحیه پیشنهادی خودش را امتحان می‌کند.</div>
+              <div className="sp-vision-workspace__aside-note"><Target size={16}/> اگر انتخاب دستی نتیجه‌ای نداشته باشد، سیستم دوباره ناحیه پیشنهادی خودش را امتحان می‌کند.</div>
             </div>
             <div className="sp-vision-workspace__samples">
               <div><strong>برای آشنایی، یک نمونه را امتحان کن</strong><span>نمونه‌های واقعی آموزشی</span></div>
