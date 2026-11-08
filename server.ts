@@ -4727,7 +4727,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
-      return res.json(publicCatalog({...result,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      const queryRegions=body.region ? [body.region] : (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+       return res.json(publicCatalog({...result,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
       return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
