@@ -1,7 +1,6 @@
 import {useRef,useState} from 'react';
 import type {PointerEvent} from 'react';
-import type {ImageRegion} from '../../services/localQueryImage';
-import {validImageRegion} from '../../services/localQueryImage';
+import {validImageRegion,type ImageRegion} from '../../utils/imageRegion';
 import {findImageRegionAtPoint} from '../../utils/imageRegionInteraction';
 
 function sameRegion(a?:ImageRegion,b?:ImageRegion){
