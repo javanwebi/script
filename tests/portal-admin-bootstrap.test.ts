@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 import {agencyService} from '../src/services/agencyService';
 import {
   databaseStorageEnabled,
+  durableStorage,
+  flushDurableChanges,
   isDatabaseCatalogHydrated,
   refreshDurableStorage,
 } from '../src/services/durableStorage';
@@ -51,6 +53,53 @@ test('runtime bootstrap is single-flight and a lean request can be upgraded to f
       '/api/runtime?includeProducts=0',
       '/api/runtime',
     ]);
+    assert.equal(isDatabaseCatalogHydrated(),true);
+  } finally {
+    globalThis.fetch=originalFetch;
+  }
+});
+
+test('failed durable writes do not poison later writes or overwrite dirty values during catalog hydration',async()=>{
+  const originalFetch=globalThis.fetch;
+  const key='catalog_queue_regression_v1';
+  let writes=0;
+  let savedValue:unknown={source:'database'};
+  globalThis.fetch=async(_input:RequestInfo|URL,init?:RequestInit)=>{
+    if(init?.method==='POST'){
+      writes++;
+      assert.ok(init.signal instanceof AbortSignal,'durable writes must have an abort timeout');
+      const body=JSON.parse(String(init.body));
+      if(writes===1)
+        return new Response(JSON.stringify({success:false,message:'temporary failure'}),{status:503});
+      savedValue=body.value;
+      return new Response(JSON.stringify({success:true,version:writes}),{status:200});
+    }
+    return new Response(JSON.stringify({
+      success:true,database:true,userId:null,
+      values:{[key]:savedValue},
+      versions:{[key]:writes},
+      productsIncluded:true,products:[{code:'F-1',variants:[]}],
+    }),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  try {
+    durableStorage.setItem(key,JSON.stringify({source:'local-first'}));
+    await assert.rejects(flushDurableChanges(),/temporary failure/);
+
+    // A server read after a failed write must not erase the optimistic value.
+    await refreshDurableStorage({includeProducts:true});
+    assert.equal(durableStorage.getItem(key),JSON.stringify({source:'local-first'}));
+
+    // Retrying the unchanged value must recover the queue rather than no-op.
+    durableStorage.setItem(key,JSON.stringify({source:'local-first'}));
+    await flushDurableChanges();
+    assert.equal(writes,2);
+
+    durableStorage.setItem(key,JSON.stringify({source:'local-second'}));
+    await flushDurableChanges();
+    assert.equal(writes,3);
+
+    await refreshDurableStorage({includeProducts:true});
+    assert.equal(durableStorage.getItem(key),JSON.stringify({source:'local-second'}));
     assert.equal(isDatabaseCatalogHydrated(),true);
   } finally {
     globalThis.fetch=originalFetch;
@@ -115,8 +164,12 @@ test('runtime hydration has a finite timeout for full and lean catalog requests'
   const source=readFileSync('src/services/durableStorage.ts','utf8');
   assert.match(source,/timeoutMs=includeProducts\?30000:12000/);
   assert.match(source,/AbortSignal\.timeout\(timeoutMs\)/);
+  assert.match(source,/AbortSignal\.timeout\(15000\)/);
+  assert.match(source,/previous\.catch\(\(\)=>undefined\)/);
+  assert.match(source,/dirtyWrites/);
+  const refresh=source.split('export function refreshDurableStorage')[1]?.split('export const durableStorage')[0] || '';
+  assert.doesNotMatch(refresh,/await flushDurableChanges/,'catalog reads must not wait for write queues');
 });
-
 
 test('admin catalogue endpoint reuses startup data and invalidates snapshots after writes',()=>{
   const runtime=readFileSync('server/db/runtimeApi.ts','utf8');
@@ -133,4 +186,3 @@ test('admin catalogue endpoint reuses startup data and invalidates snapshots aft
   assert.match(checkout,/invalidateAdminCatalogCache\(\)/);
   assert.match(images,/invalidatePublicCatalogCache/);
 });
-
