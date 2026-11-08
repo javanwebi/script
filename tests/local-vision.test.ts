@@ -139,7 +139,7 @@ test('unlinked catalogue photographs are not shown as products even with a high 
  assert.equal(result.summary.catalogAvailability!.status,'custom_order_available');
 });
 test('a bound family without any SKU appears as a visual family result without an invented code',()=>{
- const noSku=[{code:'no-sku-family',name:'خانواده بدون کد',active:true,images:['family.webp'],variants:[]}] as Product[];
+ const noSku=[{code:'no-sku-family',name:'خانواده بدون کد',active:true,images:['family.webp'],variants:[]}] as unknown as Product[];
  const result=localVisionResult([hit([{familyCode:'no-sku-family',verified:false}],0.91)],noSku,coverage,'/customer');
  assert.equal(result.modelSuggestions!.length,1);
  assert.equal(result.modelSuggestions![0].recordType,'family');
