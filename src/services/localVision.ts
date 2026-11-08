@@ -38,6 +38,14 @@ export async function embedLocalImages(buffers:Buffer[],env=process.env):Promise
 }
 export const LOCAL_VISION_PIPELINE='local-lens-v2';
 type Region={x:number;y:number;width:number;height:number};
+export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,viewScores:number[],fallback?:Region|null):Region|undefined{
+ let best:Region|undefined,bestScore=-Infinity;
+ for(let i=0;i<(viewRegions?.length || 0);i++){
+  const region=viewRegions![i],score=viewScores[i];
+  if(region && Number.isFinite(score) && score>bestScore){best=region;bestScore=score;}
+ }
+ return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
+}
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  const data=await localRequest('/query',{image:image.toString('base64')},env);
