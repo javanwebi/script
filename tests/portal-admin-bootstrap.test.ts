@@ -6,8 +6,6 @@ import {
   databaseStorageEnabled,
   durableStorage,
   flushDurableChanges,
-  durableStorage,
-  flushDurableChanges,
   isDatabaseCatalogHydrated,
   refreshDurableStorage,
 } from '../src/services/durableStorage';
@@ -66,52 +64,7 @@ test('failed durable writes do not poison later writes or overwrite dirty values
   const key='catalog_queue_regression_v1';
   let writes=0;
   let savedValue:unknown={source:'database'};
-  globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
-    const url=String(input);
-    if(init?.method==='POST'){
-      writes++;
-      assert.ok(init.signal instanceof AbortSignal,'durable writes must have an abort timeout');
-      const body=JSON.parse(String(init.body));
-      if(writes===1)
-        return new Response(JSON.stringify({success:false,message:'temporary failure'}),{status:503});
-      savedValue=body.value;
-      return new Response(JSON.stringify({success:true,version:2}),{status:200});
-    }
-    return new Response(JSON.stringify({
-      success:true,database:true,userId:null,
-      values:{[key]:savedValue},
-      versions:{[key]:writes},
-      productsIncluded:true,products:[{code:'F-1',variants:[]}],
-    }),{status:200,headers:{'Content-Type':'application/json'}});
-  };
-  try {
-    durableStorage.setItem(key,JSON.stringify({source:'local-first'}));
-    await assert.rejects(flushDurableChanges(),/temporary failure/);
-
-    // A server read after a failed write must not erase the optimistic value.
-    await refreshDurableStorage({includeProducts:true});
-    assert.equal(durableStorage.getItem(key),JSON.stringify({source:'local-first'}));
-
-    // A later edit must recover the queue instead of inheriting its rejection.
-    durableStorage.setItem(key,JSON.stringify({source:'local-second'}));
-    await flushDurableChanges();
-    assert.equal(writes,2);
-
-    await refreshDurableStorage({includeProducts:true});
-    assert.equal(durableStorage.getItem(key),JSON.stringify({source:'local-second'}));
-    assert.equal(isDatabaseCatalogHydrated(),true);
-  } finally {
-    globalThis.fetch=originalFetch;
-  }
-});
-
-test('failed durable writes do not poison later writes or overwrite dirty values during catalog hydration',async()=>{
-  const originalFetch=globalThis.fetch;
-  const key='catalog_queue_regression_v1';
-  let writes=0;
-  let savedValue:unknown={source:'database'};
-  globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
-    const url=String(input);
+  globalThis.fetch=async(_input:RequestInfo|URL,init?:RequestInit)=>{
     if(init?.method==='POST'){
       writes++;
       assert.ok(init.signal instanceof AbortSignal,'durable writes must have an abort timeout');
@@ -213,6 +166,7 @@ test('runtime hydration has a finite timeout for full and lean catalog requests'
   assert.match(source,/AbortSignal\.timeout\(timeoutMs\)/);
   assert.match(source,/AbortSignal\.timeout\(15000\)/);
   assert.match(source,/previous\.catch\(\(\)=>undefined\)/);
+  assert.match(source,/dirtyWrites/);
 });
 
 test('admin catalogue endpoint reuses startup data and invalidates snapshots after writes',()=>{
