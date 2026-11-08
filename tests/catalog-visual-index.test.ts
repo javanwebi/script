@@ -80,3 +80,17 @@ test('DINOv2 blends full-frame context with the strongest crop while MobileCLIP 
   await assert.rejects(()=>index.rankVectors(Array(5).fill([0,1]),rows),/views/);
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('an unreadable catalogue image does not block later rows and is resumed on the next pass',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'index-resume-'));
+ try{
+  const index=new CatalogVisualIndex(path.join(dir,'index.json'),undefined,{model:'local',dimensions:2,batchSize:1,concurrency:1});
+  const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
+  const rows=[row('unavailable-first'),row('available-second')];
+  await index.update(rows,async item=>item.id==='unavailable-first'?null:image,async buffers=>buffers.map(()=>[1,0]));
+  assert.deepEqual(index.coverage(rows),{total:2,indexed:1,ready:false});
+  assert.equal(await index.rankVectors([[1,0]],rows),null);
+  await index.update(rows,async()=>image,async buffers=>buffers.map(()=>[0,1]));
+  assert.deepEqual(index.coverage(rows),{total:2,indexed:2,ready:true});
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
