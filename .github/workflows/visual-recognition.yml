@@ -20,6 +20,7 @@ on:
       - 'scripts/tests/image-region-interaction.cjs'
       - 'services/local-vision/**'
       - 'ops/setup-local-vision-vps.sh'
+      - 'ops/deploy-single-port-vps.sh'
       - 'ops/setup-local-vision-vps.sh'
       - '.github/workflows/visual-recognition.yml'
 permissions:
@@ -53,6 +54,8 @@ jobs:
         run: node scripts/tests/image-region-interaction.cjs
       - name: Validate private sidecar setup script syntax
         run: bash -n ops/setup-local-vision-vps.sh
+      - name: Validate production deploy script syntax
+        run: bash -n ops/deploy-single-port-vps.sh
       - name: Production frontend build
         run: npm run build
 
