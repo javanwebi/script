@@ -37,7 +37,8 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
   );
  }
  const request:Promise<DurableRuntimeState>=(async()=>{
-  if(enabled)await flushDurableChanges();
+  // Runtime reads must never wait behind unrelated writes. Pending and failed keys
+  // are protected from snapshot replacement below, so catalogue hydration can proceed.
   const endpoint=includeProducts?'/api/runtime':'/api/runtime?includeProducts=0';
   const timeoutMs=includeProducts?30000:12000;
   let res:Response;
