@@ -10,3 +10,15 @@ test('tap selects the clicked part in portrait/landscape images and stays inside
   assert.ok(Math.abs(r.width*aspect-r.height)<1e-8);
  }
 });
+
+import {shouldRetryAutomaticRegion} from '../src/utils/imageRegionFallback';
+test('manual crop retries the automatic/full-frame region only when the manual crop has no accepted product',()=>{
+ const manual={x:0.1,y:0.1,width:0.3,height:0.3};
+ const automatic={x:0.55,y:0.25,width:0.25,height:0.35};
+ assert.equal(shouldRetryAutomaticRegion(manual,automatic,false),true);
+ assert.equal(shouldRetryAutomaticRegion(manual,null,false),true);
+ assert.equal(shouldRetryAutomaticRegion(manual,automatic,true),false);
+ assert.equal(shouldRetryAutomaticRegion(manual,manual,false),false);
+ assert.equal(shouldRetryAutomaticRegion(undefined,automatic,false),false);
+ assert.equal(shouldRetryAutomaticRegion(manual,undefined,false),false);
+});
