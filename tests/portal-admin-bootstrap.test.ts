@@ -54,9 +54,25 @@ test('runtime bootstrap is single-flight and a lean request can be upgraded to f
       '/api/runtime',
     ]);
     assert.equal(isDatabaseCatalogHydrated(),true);
+
+    // A later lean admin refresh contains products:[] by design. It must not
+    // discard the full catalogue that was already installed in this session.
+    await refreshDurableStorage({includeProducts:false});
+    assert.deepEqual(requests,[
+      '/api/runtime?includeProducts=0',
+      '/api/runtime',
+      '/api/runtime?includeProducts=0',
+    ]);
+    assert.equal(isDatabaseCatalogHydrated(),true);
   } finally {
     globalThis.fetch=originalFetch;
   }
+});
+
+test('lean runtime hydration never installs an empty catalogue into the browser index',()=>{
+  const source=readFileSync('src/main.tsx','utf8');
+  assert.match(source,/data\.productsIncluded===true && Array\.isArray\(data\.products\)/);
+  assert.doesNotMatch(source,/if\(Array\.isArray\(data\.products\)\)installDatabaseProducts/);
 });
 
 test('failed durable writes do not poison later writes or overwrite dirty values during catalog hydration',async()=>{

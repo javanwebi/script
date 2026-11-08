@@ -69,7 +69,10 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
     if(!protectedKeys.has(key))memory.set(key,JSON.stringify(value));
    for(const [key,value] of Object.entries(data.versions || {}))
     if(!protectedKeys.has(key))versions.set(key,Number(value));
-   catalogHydrated=data.productsIncluded===false?false:Array.isArray(data.products);
+   // A lean runtime response deliberately omits the catalogue. It must not
+   // invalidate a catalogue already hydrated in this browser session.
+   // Only a full request can change the hydration flag.
+   if(includeProducts)catalogHydrated=data.productsIncluded===true && Array.isArray(data.products);
    window.dispatchEvent(new CustomEvent('sanat-durable-hydrated',{detail:data}));
   }else{
    catalogHydrated=false;
