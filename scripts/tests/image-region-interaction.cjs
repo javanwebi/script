@@ -47,13 +47,13 @@ const {chromium}=require('playwright');
    if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
+    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(uploads,1);assert.equal(queries.length,1);assert.equal(queries[0].includeNearest,false);
+  await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,1);assert.equal(queries.length,1);assert.equal(queries[0].includeNearest,false);
   const modalImage=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await modalImage.scrollIntoViewIfNeeded();const bounds=await modalImage.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.72,bounds.y+bounds.height*0.4);
   await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,2);assert.ok(queries[1].region);assert.ok(Math.abs(queries[1].region.x-0.65)<0.01);assert.equal(uploads,1);
