@@ -28,7 +28,7 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
        <span className="font-extrabold text-slate-700">گزینه {toPersianDigits(index+1)}</span>
        {item.matchBasis==='visual'&&item.visualScore!==undefined
         ?<span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-extrabold text-[#B95312]">شباهت تصویر {toPersianDigits(item.visualScore)} از ۱۰۰</span>
-        :<span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{item.matchBasis==='explore'?'تطبیق تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد از روی کد':'هم‌خانواده'}</span>}
+        :<span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد از روی کد':item.matchBasis==='family'?'مدل هم‌خانواده':'گزینه مرتبط'}</span>}
       </div>
       <div className="relative mx-3 mt-3 grid h-44 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-slate-100">
        {item.image?<img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-contain p-3"/>:
