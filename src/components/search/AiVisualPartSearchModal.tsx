@@ -101,6 +101,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [candidateRegions,setCandidateRegions]=useState<ImageRegion[]>([]);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
   const autoAnalyzedImageRef=useRef<string|null>(null);
@@ -114,7 +115,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -467,6 +468,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
 
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
+    const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
     analysisBusyRef.current=true;
     const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
@@ -488,8 +490,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
-        region:localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined,
-        includeNearest:localRegionEnabled,
+        region:requestRegion,
+        includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
@@ -499,7 +501,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled)setQueryRegion(result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion));
+      if(localRegionEnabled){
+        setQueryRegion(result.queryRegion || requestRegion);
+        if(!requestRegion)setCandidateRegions(result.queryRegions || []);
+      }
       if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
@@ -588,6 +593,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
+      <div className="sanat-visual-search-shell" dir="rtl">
       {cameraFlowActive ? (
         <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
           data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
@@ -1073,7 +1079,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
+              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
 
               {/* MAIN ACTION BUTTONS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1632,7 +1638,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
+                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -1867,7 +1873,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
-                {!!analysisResult.nearestCatalogSuggestions?.length && <LocalModelResults items={analysisResult.nearestCatalogSuggestions} onClose={onClose} />}
                 {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
                 {!!visiblePhotoMatches.length && (
                   <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
@@ -2287,6 +2292,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </AnimatePresence>
         </div>
       )}
+      </div>
     </Modal>
   );
 };
