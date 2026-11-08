@@ -185,3 +185,34 @@ export async function runtimeApi(req:Request,res:Response){
   });if(target==='global'){sharedDocumentCache.delete(key);publicCatalogCache=undefined;}return res.json({success:true,version});
  }catch(error:any){return res.status(error.status || 503).json({success:false,message:error.status?error.message:'ارتباط با دیتابیس برقرار نشد؛ هیچ ذخیره‌سازی محلی جایگزین نشد.'});}
 }
+
+/**
+ * Dedicated administrator catalogue bootstrap.
+ * Keep the 10k-SKU read separate from the broad portal-document snapshot:
+ * the admin workspace needs products, not every CRM/order/settings document.
+ */
+export async function adminCatalogApi(req:Request,res:Response){
+ res.setHeader('Cache-Control','private, no-store');
+ res.setHeader('Vary','Cookie');
+ if(!databaseEnabled())return res.status(503).json({success:false,database:false,message:'پایگاه داده در دسترس نیست.'});
+ try{
+  const identity=await getPortalIdentity(req);
+  const allowed=identity.admin===true || (identity.staff===true && (canStaff(identity,'products') || canStaff(identity,'bulk_import')));
+  if(!allowed)return res.status(403).json({success:false,message:'دسترسی مشاهده فهرست کالاها مجاز نیست.'});
+  const products=identity.staff
+   ? (canStaff(identity,'products')?await getAdminCatalogProducts():[])
+   : identity.admin?await getAdminCatalogProducts():[];
+  const visibleProducts=identity.staff && !canStaff(identity,'products','prices')
+   ? publicCatalog(products)
+   : identity.canReadCommerce?products:(!identity.user && !identity.admin?products:publicCatalog(products));
+  return res.json({
+   success:true,database:true,admin:identity.admin===true,
+   productsIncluded:true,products:compactCatalogReviews(visibleProducts)
+  });
+ }catch(error:any){
+  return res.status(error.status || 503).json({
+   success:false,database:false,
+   message:error.status?error.message:'دریافت فهرست کالاها از پایگاه داده ممکن نشد.'
+  });
+ }
+}
