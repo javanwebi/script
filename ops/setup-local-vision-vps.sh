@@ -4,7 +4,8 @@ set -Eeuo pipefail
 umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG=/opt/sanatpish/.env.local-vision
-IMAGE=sanatpish-local-vision:dinov2-small-lens-v2
+VISION_BUILD_ID="$(date -u +%Y%m%d%H%M%S)"
+IMAGE="sanatpish-local-vision:dinov2-small-lens-v2-regions-${VISION_BUILD_ID}"
 if [[ ${EUID} != 0 ]]; then echo 'Run with sudo'; exit 1; fi
 APP_CONTAINER=''
 if [[ -f "$CONFIG" ]] && grep -Eq '^LOCAL_VISION_ENCODER=mobileclip2-s0\r?$' "$CONFIG"; then
@@ -45,23 +46,29 @@ assert network in app['NetworkSettings']['Networks'] and network not in ('host',
 print(network)
 PYNET
 )"
- if ! docker container inspect sanatpish-local-vision-lens-v2 >/dev/null 2>&1; then
-  docker run -d --name sanatpish-local-vision-lens-v2 --restart unless-stopped \
-   --network "$VISION_NETWORK" --cpus=1 --memory=1200m --memory-swap=1200m \
-   --pids-limit=64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-   --cap-drop=ALL --security-opt=no-new-privileges \
-   --env-file "$CONFIG" "$IMAGE" >/dev/null
- else
-  test "$(docker inspect sanatpish-local-vision-lens-v2 --format '{{.Image}}')" = "$(docker image inspect "$IMAGE" --format '{{.Id}}')" || { echo 'EXISTING_ENCODER_VERSION_DIFFERS'; exit 1; }
-  docker start sanatpish-local-vision-lens-v2 >/dev/null
- fi
+ VISION_CONTAINER="sanatpish-local-vision-lens-v2-regions-${VISION_BUILD_ID}"
+ # Start a versioned sidecar beside the currently serving encoder. Never remove
+ # or recreate the old container before the new worker passes its private health check.
+ docker run -d --name "$VISION_CONTAINER" --restart unless-stopped \
+  --label com.sanatpish.role=local-vision --label com.sanatpish.pipeline=local-lens-v2 \
+  --network "$VISION_NETWORK" --cpus=1 --memory=1200m --memory-swap=1200m \
+  --pids-limit=64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --cap-drop=ALL --security-opt=no-new-privileges \
+  --env-file "$CONFIG" "$IMAGE" >/dev/null
  READY=0
  for _ in $(seq 1 30); do
-  if docker exec sanatpish-local-vision-lens-v2 python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d.get("pipeline")=="local-lens-v2"' 2>/dev/null; then READY=1; break; fi
+  if docker exec "$VISION_CONTAINER" python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d.get("pipeline")=="local-lens-v2"' 2>/dev/null; then READY=1; break; fi
   sleep 1
  done
- test "$READY" = 1
- echo "LOCAL_VISION_PRIVATE_ENCODER_READY network=$VISION_NETWORK"
+ if [[ "$READY" != 1 ]]; then
+  docker rm -f "$VISION_CONTAINER" >/dev/null 2>&1 || true
+  echo 'NEW_LOCAL_VISION_ENCODER_NOT_READY — existing encoder/configuration preserved'
+  exit 1
+ fi
+ # Switch the on-disk app configuration only after the new sidecar is healthy.
+ sed -i "s#^LOCAL_VISION_URL=.*#LOCAL_VISION_URL=http://$VISION_CONTAINER:8091#" "$CONFIG"
+ echo "LOCAL_VISION_PRIVATE_ENCODER_READY container=$VISION_CONTAINER network=$VISION_NETWORK"
+ echo 'The previous encoder is retained for rollback until the app passes acceptance.'
 fi
 echo 'LOCAL_VISION_INSTALLED — enable after catalogue reconciliation and accuracy/latency validation:'
 echo 'sudo touch /opt/sanatpish/.local-vision-enabled'
