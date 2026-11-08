@@ -937,3 +937,99 @@
   .sanat-visual-result-card__image-note { display: none; }
   .sanat-visual-result-card__actions a { min-height: 40px; }
 }
+
+
+/* Upload/camera stage: less visual noise, more room for the submitted part. */
+.sanat-visual-search-wizard {
+  background: #fff;
+  border: 1px solid #e9edf2;
+  box-shadow: 0 18px 52px rgba(20,31,46,.09);
+}
+.sanat-visual-search-hero {
+  min-width: 0;
+  background: #111a27;
+}
+.sanat-visual-search-hero__content { min-width: 0; }
+.sanat-visual-search-hero__copy h3 { letter-spacing: -.025em; }
+.sanat-visual-search-form {
+  min-width: 0;
+  background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+}
+.sanat-visual-stepper {
+  margin-bottom: 4px;
+  border-color: #e8edf2;
+}
+.sanat-visual-stepper > div { max-width: 440px; }
+.sanat-visual-search-heading h3 { letter-spacing: -.025em; }
+.sanat-visual-search-heading p { max-width: 42rem; }
+.sanat-visual-upload-dropzone {
+  min-height: 190px;
+  border-color: #efc6aa;
+  background: linear-gradient(135deg,#fff 0%,#fff7f1 100%);
+  box-shadow: inset 0 0 0 1px rgba(229,107,30,.035);
+}
+.sanat-visual-upload-dropzone:hover {
+  border-color: #e56b1e;
+  background: linear-gradient(135deg,#fff 0%,#fff1e6 100%);
+  box-shadow: 0 12px 30px rgba(229,107,30,.09);
+}
+.sanat-visual-image-preview {
+  background: #fff;
+  border-color: #e5e9ef;
+  box-shadow: 0 8px 22px rgba(28,39,53,.055);
+}
+.sanat-visual-image-preview > div:first-child {
+  border-radius: 14px;
+  background: #f7f8fa;
+}
+.sanat-visual-search-form input,
+.sanat-visual-search-form textarea,
+.sanat-visual-search-form select {
+  border-radius: 12px;
+}
+@media (max-width: 1023px) {
+  .sanat-visual-search-hero {
+    min-height: 146px;
+    padding-bottom: 14px;
+  }
+  .sanat-visual-search-hero__content {
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 0;
+  }
+  .sanat-visual-search-hero__copy {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .sanat-visual-search-hero__image { display: none !important; }
+  .sanat-visual-search-hero__copy h3 { font-size: 19px; }
+  .sanat-visual-search-hero__copy p { max-width: 34rem; }
+}
+@media (max-width: 640px) {
+  .sanat-visual-search-wizard {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .sanat-visual-search-hero {
+    min-height: 128px;
+    padding: 48px 16px 12px;
+  }
+  .sanat-visual-search-hero__copy h3 { font-size: 17px; }
+  .sanat-visual-search-hero__copy p { font-size: 11px; line-height: 1.8; }
+  .sanat-visual-search-form { padding: 13px !important; }
+  .sanat-visual-stepper { padding-bottom: 12px; }
+  .sanat-visual-stepper > div { max-width: 100%; }
+  .sanat-visual-stepper > div > div { gap: 5px; }
+  .sanat-visual-stepper > div > div > div:first-child { width: 32px; height: 32px; }
+  .sanat-visual-stepper span { font-size: 10px; }
+  .sanat-visual-search-heading h3 { font-size: 17px; }
+  .sanat-visual-upload-dropzone {
+    min-height: 156px;
+    padding: 18px 14px;
+    border-radius: 17px;
+  }
+  .sanat-visual-image-preview { padding: 10px; gap: 10px; }
+}
