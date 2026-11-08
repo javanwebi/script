@@ -32,6 +32,7 @@ class RetrievalTests(unittest.TestCase):
             self.assertIsNone(foreground(image))
             boxes = regions(image)
             self.assertTrue(1 <= len(boxes) <= 3)
+            self.assertTrue(all(b['width'] >= 0.03 and b['height'] >= 0.03 and b['x'] + b['width'] <= 1.000001 and b['y'] + b['height'] <= 1.000001 for b in boxes))
             self.assertTrue(any(b['x'] <= 224/512 and b['x']+b['width'] >= 292/512 and b['y'] <= 104/280 and b['y']+b['height'] >= 172/280 for b in boxes))
             self.assertEqual(boxes, regions(image))
         self.assertEqual(regions(np.full((256, 256, 3), 255, np.uint8)), [])
