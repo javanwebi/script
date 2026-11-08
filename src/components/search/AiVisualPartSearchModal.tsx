@@ -101,6 +101,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [autoQueryRegion,setAutoQueryRegion]=useState<ImageRegion|null>(null);
+  const [queryRegionSource,setQueryRegionSource]=useState<'automatic'|'manual'|'full'>('full');
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
   const autoAnalyzedImageRef=useRef<string|null>(null);
@@ -114,7 +116,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setAutoQueryRegion(null);setQueryRegionSource('full');analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -421,6 +423,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setApplication("");
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
+    setQueryRegion(undefined);setAutoQueryRegion(null);setQueryRegionSource('full');
     setErrorMessage("");
     setPendingStage("refined");
     setLastStage("refined");
@@ -477,6 +480,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setCurrentStep("analyzing");
 
     try {
+      const effectiveRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
+      const manualRegionRequest=Boolean(localRegionEnabled && effectiveRegion && (regionOverride!==undefined ? regionOverride!==null : queryRegionSource==='manual'));
       const result = await aiVisualSearchService.analyzePartWithAi({
         imageUrl: uploadedImageUrl || undefined,
         imageBase64: uploadedImageUrl ? undefined : selectedImage || undefined,
@@ -488,8 +493,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
-        region:localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined,
-        includeNearest:localRegionEnabled,
+        region:effectiveRegion,
+        fallbackRegion:manualRegionRequest ? autoQueryRegion : undefined,
+        includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
@@ -499,7 +505,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled)setQueryRegion(result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion));
+      if(localRegionEnabled){
+        const selectedRegion=result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion);
+        setQueryRegion(selectedRegion);
+        if(result.regionFallbackUsed){
+          setQueryRegionSource(selectedRegion?'automatic':'full');
+        }else if(manualRegionRequest){
+          setQueryRegionSource('manual');
+        }else{
+          setAutoQueryRegion(selectedRegion || null);
+          setQueryRegionSource(selectedRegion?'automatic':'full');
+        }
+      }
       if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
@@ -522,6 +539,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen,localRegionEnabled,uploadedImageUrl,isUploadingImage,selectedImage,cameraFlowActive,cameraReview,currentStep]);
   const searchRegion=(region:ImageRegion|undefined)=>{
     setQueryRegion(region);
+    setQueryRegionSource(region?'manual':'full');
     if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
     regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
