@@ -15,8 +15,8 @@ const familyImage=(family:Product)=>
  (family.images || []).map(usable).find(Boolean) || '';
 
 /** Strongest independent image evidence first. SKU siblings with shared family photos
- * remain unscored; a family record without any active SKU can carry the score of its
- * own bound family photo, without inventing a product code.
+ * remain unscored; a family-bound photo without a SKU binding can carry a family-level
+ * visual score even when that family also contains coded SKUs. No SKU is fabricated.
  */
 export function localModelSuggestions(hits:Hit[],products:Product[],markings:{text:string;confidence:number}[]=[],minSimilarity=0.65,limit=24):CatalogModelSuggestion[]{
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
@@ -50,8 +50,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
-   const activeVariants=(family.variants || []).filter(v=>v.active!==false && !!v.code?.trim());
-   if(!binding.code && activeVariants.length===0){
+   if(!binding.code){
     put({name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,image:hit.row.url,
      imageScope:'family',matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,visualRank))*100),specs:[],
      reason:'این تصویر به خانوادهٔ واقعی محصول در کاتالوگ متصل است؛ برای این محصول کد SKU ثبت نشده است. شباهت تصویری به خانواده مربوط است، نه تأیید مدل یا سایز.'},visualRank,hit.score);
