@@ -965,6 +965,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const q = (textToSend || '').trim();
       if(callClosedRef.current)return;
       if (!q && !audioBlob) return;
+      // No recognized words does not establish a failed user turn. VAD can
+      // detect noise or residual speaker audio while WebSpeech is reconnecting.
+      // Never start an unavailable server fallback or clear the last valid text.
+      if(!q&&audioBlob&&serverSttConfiguredRef.current===false){
+        if(recognitionFailedRef.current||webSpeechFailedRef.current)
+          setMicrophoneError('ارتباط تشخیص گفتار مرورگر قطع است؛ روی «اتصال دوباره میکروفون» بزنید.');
+        startListening(true);
+        return;
+      }
       if (!greetingFinishedRef.current) return;
       if (isAiSpeakingRef.current || statusRef.current === 'thinking' || isProcessingTurnRef.current) {
         // A typed correction or stop command must not be locked out while
@@ -1485,6 +1494,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
 
+          // With no server ASR, empty VAD segments are not failed requests.
+          // Retain browser recognition and restart only the RAM recorder.
+          if(serverSttConfiguredRef.current===false){
+            vadRef.current.reset();
+            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
+            return;
+          }
           // 2. Otherwise convert recorded audio Blob and send to /api/ai/forza-live
           if (chunks.length > 0 && hadSpeech) {
             const finalMime = mr.mimeType || mimeType || 'audio/webm';
@@ -1516,6 +1534,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.lang = 'fa-IR';
 
       rec.onstart = () => {
+        if(callClosedRef.current||micMutedRef.current||recognitionRef.current!==rec){
+          try{rec.abort();}catch{}
+          return;
+        }
+        recognitionFailedRef.current=false;
+        webSpeechFailedRef.current=false;
+        setMicrophoneError(null);
         isRecognitionActiveRef.current = true;
         recognitionResultCountRef.current=0;
         recognitionConsumedCountRef.current=0;
@@ -1533,7 +1558,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
         recognitionRetryRef.current=0;
+        recognitionFailedRef.current=false;
+        webSpeechFailedRef.current=false;
         setMicrophoneError(null);
+        setErrorNotice(null);
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
@@ -1596,6 +1624,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onerror = (e: any) => {
+        if(callClosedRef.current||recognitionRef.current!==rec)return;
         const error = e?.error;
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
         const retryDelay=forzaRecognitionRetryDelay(String(error),recognitionRetryRef.current);
@@ -1608,10 +1637,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setMicrophoneError('ارتباط تشخیص گفتار لحظه‌ای قطع شد؛ در حال اتصال دوباره هستیم.');
           recognitionRetryTimerRef.current=window.setTimeout(()=>{
             recognitionRetryTimerRef.current=null;
-            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current)return;
+            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current||recognitionRef.current!==rec)return;
             recognitionFailedRef.current=false;
             webSpeechFailedRef.current=false;
-            try{rec.start();}catch{
+            try{rec.start();}catch(error:any){
+              if(error?.name==='InvalidStateError'){
+                // Chrome can already be starting when a scheduled retry fires.
+                // Do not poison a healthy/in-flight recognizer permanently.
+                isRecognitionActiveRef.current=true;
+                return;
+              }
               recognitionFailedRef.current=true;
               webSpeechFailedRef.current=true;
               setMicrophoneError('اتصال تشخیص گفتار برقرار نشد؛ میکروفون را دوباره فعال کنید یا پیام را تایپ کنید.');
@@ -1630,21 +1665,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onend = () => {
-        isRecognitionActiveRef.current = false;
-        if (recognitionFailedRef.current || !greetingFinishedRef.current || micMutedRef.current) return;
-        // Auto-restart recognition if call is still active and listening
-        if (isCallActive && !localSttRecognizerRef.current &&
-            (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
-          window.setTimeout(() => {
-            if (isCallActive && !localSttRecognizerRef.current &&
-                (isProcessingTurnRef.current||statusRef.current==='listening') && !isMicMuted) {
-              try {
-                rec.start();
-                isRecognitionActiveRef.current = true;
-              } catch {}
+        if(recognitionRef.current!==rec)return;
+        isRecognitionActiveRef.current=false;
+        // End is normal (including no-speech). Keep the recognizer alive during
+        // Nima/manual playback too, otherwise barge-in silently disappears.
+        const canRestart=()=>!callClosedRef.current&&!micMutedRef.current&&isCallActive&&
+          greetingFinishedRef.current&&!recognitionFailedRef.current&&
+          !localSttRecognizerRef.current&&recognitionRef.current===rec;
+        if(!canRestart()||recognitionRetryTimerRef.current!==null)return;
+        recognitionRetryTimerRef.current=window.setTimeout(()=>{
+          recognitionRetryTimerRef.current=null;
+          if(!canRestart())return;
+          try{rec.start();}catch(error:any){
+            if(error?.name!=='InvalidStateError'){
+              recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
+              setMicrophoneError('تشخیص گفتار دوباره متصل نشد؛ روی «اتصال دوباره میکروفون» بزنید.');
             }
-          }, 200);
-        }
+          }
+        },200);
       };
 
       return rec;
@@ -1672,7 +1710,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         stream.getTracks().forEach(track=>track.stop());
         return;
       }
-      streamRef.current?.getTracks().forEach(track=>track.stop());
+      streamRef.current?.getTracks().forEach(track=>{track.onended=null;track.stop();});
       streamRef.current=stream;
       micContextWarningRef.current=false;
       vadRef.current.reset();
@@ -1699,7 +1737,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const previousRecognizer=recognitionRef.current;
       if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
       recognitionFailedRef.current=false;
+      webSpeechFailedRef.current=false;
       recognitionRef.current=initSpeechRecognition();
+      if(!recognitionRef.current&&!localSttRecognizerRef.current){
+        recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
+        setMicrophoneError('تشخیص گفتار در این مرورگر راه‌اندازی نشد؛ با Chrome و مجوز میکروفون دوباره امتحان کنید.');
+      }
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current)return;
@@ -2144,7 +2187,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {microphoneError && (
           <div role="alert" className="pointer-events-auto self-end flex max-w-sm flex-col gap-2 rounded-xl border border-orange-400/40 bg-black/85 px-3 py-2 text-right text-xs text-amber-200">
             <span>{microphoneError}</span>
-
+            <button type="button" className="self-start rounded border border-orange-400/60 px-2 py-1 text-white"
+              onClick={()=>{setErrorNotice(null);void initializeMicrophone();}}>
+              اتصال دوباره میکروفون
+            </button>
           </div>
         )}
         {greetingPhase === 'forming' && (
