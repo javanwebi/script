@@ -20,6 +20,7 @@ on:
       - 'scripts/tests/image-region-interaction.cjs'
       - 'services/local-vision/**'
       - 'ops/setup-local-vision-vps.sh'
+      - 'ops/setup-local-vision-vps.sh'
       - '.github/workflows/visual-recognition.yml'
 permissions:
   contents: read
@@ -50,6 +51,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Real desktop/mobile pointer, crop and upload reuse smoke
         run: node scripts/tests/image-region-interaction.cjs
+      - name: Validate private sidecar setup script syntax
+        run: bash -n ops/setup-local-vision-vps.sh
       - name: Production frontend build
         run: npm run build
 
