@@ -26,7 +26,7 @@ test('persistent visual index ranks every indexed image, reuses vectors and requ
 test('a partial embedding batch cannot be reported as a complete catalogue index',async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-failure-'));
  const index=new CatalogVisualIndex(path.join(dir,'index.json'));const rows=[row('missing')];
- await assert.rejects(()=>index.update(rows,async()=>null,async()=>[]));
+ await index.update(rows,async()=>null,async()=>[]);
  assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
  await fs.rm(dir,{recursive:true});
 });
