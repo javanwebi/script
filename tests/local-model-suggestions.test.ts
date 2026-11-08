@@ -83,3 +83,15 @@ test('raw visual similarity remains the primary order when geometry or OCR bonus
  assert.deepEqual(list.slice(0,2).map(item=>item.code),['gear-0','gear-1']);
  assert.deepEqual(list.slice(0,2).map(item=>item.visualScore),[91,86]);
 });
+
+test('a family-only photo remains a scored result even when the family also has coded SKUs',()=>{
+ const coded=family('coded',1);
+ const familyWithSkus=family('uncoded',1);
+ const familyPhoto=hit('uncoded',undefined,0.96,'uncoded-family-photo');
+ const list=localModelSuggestions([hit('coded','coded-0',0.84),familyPhoto],[coded,familyWithSkus]);
+ assert.equal(list[0].familyCode,'uncoded');
+ assert.equal(list[0].code,undefined);
+ assert.equal(list[0].matchBasis,'visual');
+ assert.equal(list[0].visualScore,96);
+ assert.ok(list.some(item=>item.code==='uncoded-0'&&item.matchBasis==='family'));
+});
