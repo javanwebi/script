@@ -44,8 +44,9 @@ class RetrievalTests(unittest.TestCase):
         cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
         boxes = regions(image, limit=3)
         self.assertGreaterEqual(len(boxes), 2)
-        self.assertTrue(any(b['x'] < 0.25 and b['x'] + b['width'] > 0.25 for b in boxes))
-        self.assertTrue(any(b['x'] < 0.75 and b['x'] + b['width'] > 0.75 for b in boxes))
+        centers = [b['x'] + b['width'] / 2 for b in boxes]
+        self.assertTrue(any(0.15 < center < 0.32 for center in centers))
+        self.assertTrue(any(0.68 < center < 0.85 for center in centers))
         self.assertEqual(boxes, regions(image, limit=3))
 
     def test_geometry_supports_distributed_correspondence_but_not_unrelated_or_blank(self):
