@@ -27,15 +27,15 @@ const {chromium}=require('playwright');
    const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
    await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor({state:'visible'});
-   await page.waitForFunction(()=>document.querySelector('img')?.naturalWidth===1000);
-   const box=await image.boundingBox();const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
+   await page.waitForFunction(expected=>document.querySelector('img')?.naturalWidth===expected,mobile?500:1000);
+   const frame=page.locator('.sanat-region-picker__frame');const box=await frame.boundingBox();assert.ok(box,'region frame must be visible');const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
    if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
-   await page.getByText('پیش‌نمایش برش').waitFor();
+   await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش').waitFor();
    await page.screenshot({path:path.join(os.tmpdir(),`sanat-region-${mobile?'touch':'desktop'}.png`)});
    let r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.x+r.width/2-0.6)<0.01);assert.ok(Math.abs(r.y+r.height/2-0.5)<0.01);
-   if(mobile){await page.mouse.click(box.x+box.width*0.45,box.y+box.height*0.9);assert.deepEqual(await page.evaluate(()=>window.lastRegion),r);}
+   if(mobile){await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);assert.deepEqual(await page.evaluate(()=>window.lastRegion),r);}
    if(!mobile){
-    await page.mouse.move(box.x+box.width*0.12,box.y+box.height*0.2);await page.mouse.down();await page.mouse.move(box.x+box.width*0.32,box.y+box.height*0.7,{steps:8});await page.mouse.up();
+    const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
     r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01);assert.ok(Math.abs(r.height-0.5)<0.01);
     await page.getByRole('group').press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
    }
