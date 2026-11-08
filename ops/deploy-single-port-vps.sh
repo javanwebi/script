@@ -134,6 +134,14 @@ if test "$FREE_KB" -lt 4194304; then
 fi
 mkdir -m 700 "$STAGE"
 git -C "$APP" archive "$EXPECTED" | tar -xf - -C "$STAGE"
+# Preserve the owner-managed mobile image directory that is intentionally untracked.
+# Git archive omits it; copy it into the isolated release stage without touching APP.
+if [[ -d "$APP/src/assets/IMAGESITE/mobile" ]]; then
+  install -d -m 755 "$STAGE/src/assets/IMAGESITE/mobile"
+  cp -a "$APP/src/assets/IMAGESITE/mobile/." "$STAGE/src/assets/IMAGESITE/mobile/"
+  diff -qr "$APP/src/assets/IMAGESITE/mobile" "$STAGE/src/assets/IMAGESITE/mobile" >/dev/null
+  echo 'PRESERVED_OWNER_MANAGED_MOBILE_ASSETS=YES'
+fi
 test -s "$STAGE/package-lock.json"
 # Use official integrity-checked tarballs, not the previously failing mirror.
 sed -i 's#https://registry.npmmirror.com/#https://registry.npmjs.org/#g' "$STAGE/package-lock.json"
