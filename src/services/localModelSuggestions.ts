@@ -96,7 +96,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
     'مدل ثبت‌شده در خانوادهٔ نزدیک؛ عکس نمونهٔ خانواده است و شباهت مستقل این مدل بررسی نشده است.'),relatedPhotoScores.get(variant.code) ?? evidence.score-2);
   }
  }
- const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || a.item.code.localeCompare(b.item.code));
+ const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || (a.item.code || a.item.familyCode).localeCompare(b.item.code || b.item.familyCode));
  const confirmed=ranked.filter(row=>row.item.matchBasis!=='family').slice(0,limit);
  const queues=new Map<string,Ranked[]>();
  for(const row of ranked.filter(row=>row.item.matchBasis==='family')){const queue=queues.get(row.item.familyCode)||[];queue.push(row);queues.set(row.item.familyCode,queue);}
