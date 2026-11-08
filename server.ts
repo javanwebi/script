@@ -4734,8 +4734,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const hasAcceptedProduct=(result:any)=>Boolean(result.modelSuggestions?.length || result.similarCandidates?.length || result.matchedProducts?.length);
       let outcome=await runLocalRegion(body.region || null);
       let regionFallbackUsed=false;
-      const sameFallback=body.region && body.fallbackRegion && JSON.stringify(body.region)===JSON.stringify(body.fallbackRegion);
-      if(shouldRetryAutomaticRegion(body.region,body.fallbackRegion,hasAcceptedProduct(outcome.result)) && !sameFallback){
+      if(shouldRetryAutomaticRegion(body.region,body.fallbackRegion,hasAcceptedProduct(outcome.result))){
         // Once the manually tapped crop has no real catalogue match, return to the
         // automatic/full-frame crop even when that retry also finds no product.
         outcome=await runLocalRegion(body.fallbackRegion);
