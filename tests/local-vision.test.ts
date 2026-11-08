@@ -132,7 +132,7 @@ test('moderate MobileCLIP evidence needs multiple distinct photos in one family;
  const supported=localVisionResult([bound,second],products,coverage,'/customer',0.55,query);
  assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,3);
  assert.equal(supported.modelSuggestions![0].code,undefined);assert.equal(supported.modelSuggestions![0].matchBasis,'visual');
- assert.deepEqual(supported.modelSuggestions!.slice(1).map(item=>item.code),['sku','other-size']);
+ assert.deepEqual(supported.modelSuggestions!.slice(1).map(item=>item.code),['other-size','sku']);
  assert.equal(supported.catalogImageMatches![0].score,57);assert.deepEqual(supported.matchedProducts,[]);
  const inactive=localVisionResult([bound,second],products.map(p=>({...p,active:false})),coverage,'/customer',0.55,query);
  assert.deepEqual(inactive.modelSuggestions,[]);
