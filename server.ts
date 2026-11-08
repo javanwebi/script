@@ -4705,7 +4705,6 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=retrieved[0]?.viewScores || [];
-      const bestView=viewScores.indexOf(Math.max(...viewScores));
       const selectedRegion=body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
       const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
