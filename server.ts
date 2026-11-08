@@ -4735,8 +4735,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       let regionFallbackUsed=false;
       const sameFallback=body.region && body.fallbackRegion && JSON.stringify(body.region)===JSON.stringify(body.fallbackRegion);
       if(body.region && body.fallbackRegion!==undefined && !hasAcceptedProduct(outcome.result) && !sameFallback){
-        const fallback=await runLocalRegion(body.fallbackRegion);
-        if(hasAcceptedProduct(fallback.result)){outcome=fallback;regionFallbackUsed=true;}
+        // Once the manually tapped crop has no real catalogue match, return to the
+        // automatic/full-frame crop even when that retry also finds no product.
+        outcome=await runLocalRegion(body.fallbackRegion);
+        regionFallbackUsed=true;
       }
       return res.json(publicCatalog({...outcome.result,queryRegion:outcome.selectedRegion,regionFallbackUsed,
         localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:outcome.query.vectors.length,geometryComplete:outcome.geometryComplete,ocrAvailable:outcome.query.ocrAvailable,retrievalMs:outcome.retrievalMs},
