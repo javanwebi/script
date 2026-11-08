@@ -4,7 +4,7 @@ import http from 'node:http';
 import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL} from '../src/services/localVision';
 import type {Product} from '../src/types';
 
-const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as Product[];
+const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as unknown as Product[];
 const hit=(bindings:any[],score=0.9)=>({score,row:{id:'photo',url:'/storage/real.webp',revision:'1',label:'قطعه',bindings}});
 const coverage={total:1,indexed:1,ready:true};
 test('family images produce navigable family bindings, never an arbitrary SKU or an exact claim',()=>{
