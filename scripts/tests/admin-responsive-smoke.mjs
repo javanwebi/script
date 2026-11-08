@@ -11,8 +11,11 @@ for (const width of ports) {
    if(path==='/api/runtime'){
      if(route.request().method()!=='GET')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,version:1})});
      const includeProducts=url.searchParams.get('includeProducts')!=='0';
-     if(includeProducts)fullCatalogRequests++;
      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,userId:null,values:{},versions:{},productsIncluded:includeProducts,products:[]})});
+   }
+   if(path==='/api/admin/catalog'){
+     fullCatalogRequests++;
+     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,admin:true,productsIncluded:true,products:[]})});
    }
    if(path==='/api/admin/reports')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,period:'30',currency:'IRT',overview:{order_count:0,revenue:'0',avg_order:'0'},topProducts:[],topCustomers:[],topAgencies:[],trend:[],categories:[]})});
    return route.fulfill({status:404,contentType:'application/json',body:'{"success":false}'});
@@ -28,7 +31,7 @@ for (const width of ports) {
      const fullCatalogResponse=title==='کاتالوگ و کالاها'
        ? page.waitForResponse(response=>{
            const url=new URL(response.url());
-           return url.pathname==='/api/runtime' && response.request().method()==='GET' && url.searchParams.get('includeProducts')!=='0' && response.ok();
+           return url.pathname==='/api/admin/catalog' && response.request().method()==='GET' && response.ok();
          },{timeout:7000})
        : null;
      await nav.getByRole('button',{name:new RegExp(title)}).click({timeout:7000});

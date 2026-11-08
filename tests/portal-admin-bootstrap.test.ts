@@ -7,6 +7,7 @@ import {
   durableStorage,
   flushDurableChanges,
   isDatabaseCatalogHydrated,
+  refreshAdminCatalog,
   refreshDurableStorage,
 } from '../src/services/durableStorage';
 import {compactCatalogReviews} from '../src/utils/catalogPrivacy';
@@ -166,12 +167,49 @@ test('admin runtime endpoint does not read products when includeProducts=0',()=>
   assert.match(source,/productsIncluded:includeProducts/);
 });
 
+test('admin catalogue hydration uses a dedicated endpoint without re-reading the full runtime snapshot',async()=>{
+  const originalFetch=globalThis.fetch;
+  const hadWindow=Object.prototype.hasOwnProperty.call(globalThis,'window');
+  const originalWindow=(globalThis as any).window;
+  const requests:string[]=[];
+  Object.defineProperty(globalThis,'window',{value:new EventTarget(),configurable:true});
+  globalThis.fetch=async(input:RequestInfo|URL)=>{
+    const url=String(input);
+    requests.push(url);
+    if(url==='/api/runtime?includeProducts=0'){
+      return new Response(JSON.stringify({
+        success:true,database:true,userId:null,values:{},versions:{},
+        productsIncluded:false,products:[],
+      }),{status:200,headers:{'Content-Type':'application/json'}});
+    }
+    if(url==='/api/admin/catalog'){
+      return new Response(JSON.stringify({
+        success:true,database:true,admin:true,productsIncluded:true,
+        products:[{code:'F-1',variants:[{code:'6202ZZ'}]}],
+      }),{status:200,headers:{'Content-Type':'application/json'}});
+    }
+    throw new Error('Unexpected runtime request: '+url);
+  };
+  try{
+    const data=await refreshAdminCatalog();
+    assert.equal(data.products?.length,1);
+    assert.ok(requests.includes('/api/admin/catalog'));
+    assert.equal(requests.includes('/api/runtime'),false,'admin catalog must not request the broad full runtime payload');
+    assert.equal(isDatabaseCatalogHydrated(),true);
+  }finally{
+    globalThis.fetch=originalFetch;
+    if(hadWindow)Object.defineProperty(globalThis,'window',{value:originalWindow,configurable:true});
+    else Reflect.deleteProperty(globalThis,'window');
+  }
+});
+
 test('admin layout reports bootstrap failures and loads catalogue only on catalogue tabs',()=>{
   const source=readFileSync('src/admin/AdminLayout.tsx','utf8');
   assert.match(source,/bootstrapError/);
   assert.match(source,/تلاش مجدد/);
   assert.match(source,/activeTab !== 'products' && activeTab !== 'bulk_import'/);
-  assert.match(source,/refreshDurableStorage\(\{ includeProducts: true \}\)/);
+  assert.match(source,/refreshAdminCatalog\(\)/);
+  assert.doesNotMatch(source,/refreshDurableStorage\(\{ includeProducts: true \}\)/);
 });
 
 

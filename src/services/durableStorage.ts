@@ -15,6 +15,7 @@ export type DurableRuntimeState = {
 };
 let refreshInFlight:Promise<DurableRuntimeState>|null=null;
 let refreshInFlightIncludesProducts=false;
+let adminCatalogRefreshInFlight:Promise<DurableRuntimeState>|null=null;
 let catalogHydrated=false;
 const portalOwned=new Set(['atlas_admin_customers_v1','atlas_admin_inquiries_v1','atlas_legacy_customers_v1','atlas_customers_approval_v2','atlas_price_lists_v2','atlas_customer_grades_v2','atlas_club_rewards_v2','atlas_customer_reward_assignments_v1','atlas_price_list_history_v2','atlas_portal_content_banners_v1','atlas_portal_content_announcements_v1','atlas_portal_club_milestones_v1','atlas_portal_layout_configs_v1','atlas_portal_customer_overrides_v1']);
 const readOnly=new Set(['hyper_sanat_orders_v2','hyper_sanat_sms_v2','hyper_sanat_stock_v2','hyper_sanat_inquiries_v2']);
@@ -89,6 +90,44 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
  }).catch(()=>{});
  return request;
 }
+
+/**
+ * Hydrate the admin product index without repeating the full administrator
+ * portal snapshot (CRM, orders, settings and other unrelated documents).
+ */
+export function refreshAdminCatalog():Promise<DurableRuntimeState>{
+ if(adminCatalogRefreshInFlight)return adminCatalogRefreshInFlight;
+ const request:Promise<DurableRuntimeState>=(async()=>{
+  if(!enabled){
+   const state=await refreshDurableStorage({includeProducts:false});
+   if(state.database!==true)throw new Error('پایگاه داده هنوز برای دریافت کاتالوگ آماده نیست.');
+  }
+  let res:Response;
+  try{
+   res=await fetch('/api/admin/catalog',{
+    credentials:'same-origin',cache:'no-store',
+    signal:AbortSignal.timeout(45000)
+   });
+  }catch(error){
+   if(error instanceof Error && (error.name==='TimeoutError' || error.name==='AbortError' || /timed out/i.test(error.message)))
+    throw new Error('دریافت فهرست کالاها از مسیر اختصاصی بیش از ۴۵ ثانیه طول کشید؛ وضعیت سرور و کاتالوگ باید بررسی شود.');
+   throw error;
+  }
+  const data=await res.json() as DurableRuntimeState;
+  if(!res.ok || !data.success)throw new Error(data.message || 'دریافت فهرست کالاها ممکن نشد.');
+  if(data.database!==true || data.productsIncluded!==true || !Array.isArray(data.products))
+   throw new Error('پاسخ سرور کامل نیست؛ فهرست کالاها در حافظه بارگذاری نشد.');
+  catalogHydrated=true;
+  window.dispatchEvent(new CustomEvent('sanat-durable-hydrated',{detail:data}));
+  return data;
+ })();
+ adminCatalogRefreshInFlight=request;
+ void request.finally(()=>{
+  if(adminCatalogRefreshInFlight===request)adminCatalogRefreshInFlight=null;
+ }).catch(()=>{});
+ return request;
+}
+
 export const durableStorage={
  getItem(key:string):string|null{if(!enabled&&!ephemeral(key)&&!hydrating)return null;return memory.get(key) ?? (ephemeral(key) || /settings|club_config|stock_v2|layout_configs/.test(key)?null:'[]');},
  /** Unlike legacy getItem, distinguish a truly missing row from an explicit saved [].
