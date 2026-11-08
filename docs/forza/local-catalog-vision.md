@@ -367,7 +367,7 @@ catalogue-image reads, geometric reranking and production VPS/network overhead;
 they are not an end-to-end sub-five-second SLA. Browser interaction and the new
 Docker image still require on-VPS acceptance after provisioning and reindexing.
 
-## Tap-to-search and explicitly unconfirmed neighbours
+## Tap-to-search, automatic multi-object crops and strict product results
 
 Local gallery uploads now start quick retrieval when upload completes. Camera
 capture still requires the existing confirmation. The source image remains
@@ -385,15 +385,22 @@ incomplete index still fails explicitly; missing/unindexed photos are never
 silently counted as compared. This uses precomputed image features rather than
 rerunning a generative model on all photos for each customer request.
 
-`includeNearest: true` opts into `nearestCatalogSuggestions` when there are no
-accepted photo matches. These are up to 24 real, active catalogue models from the
-nearest ranked families, tagged `matchBasis: explore`, with no similarity score
-or identity/compatibility assertion. They are outside `matchedProducts`,
-`similarCandidates`, `modelSuggestions` and `catalogImageMatches`; the accepted
-match thresholds and the negative-control tests remain intact. The UI labels
-these cards “نزدیک‌ترین گزینه‌ها؛ تطبیق تأیید نشده”. An absent or inactive catalogue
-product is never invented to fill the list. This cannot guarantee that the exact
-customer product exists in the catalogue.
+The current customer-facing local vision endpoint does **not** return weak
+nearest-neighbour suggestions. The legacy `includeNearest` request flag is ignored
+by this result path. A photo can become a customer-facing product result only when
+it passes the active model's visual eligibility rules and is linked to an active
+catalogue family. Unlinked/orphan image-audit rows are not rendered as products.
+A visually eligible family record with no active SKU is returned as a family card
+with no fabricated code; its visual score is the score of the registered family
+photo. Shared family photos do not receive a per-SKU visual score.
+
+When a customer taps another region, that crop is searched first. If it has no
+accepted active-family product result, the server retries the previously proposed
+automatic region; if no automatic region existed, it retries the full image and
+runs automatic proposals again. The automatic/full-frame crop is returned even
+when that retry also finds no product, so the interface does not remain focused
+on a manually selected empty area. A valid match in the manually selected region
+takes precedence and is not replaced by the automatic result.
 
 Browser pointer/touch/drag/keyboard smoke for the source selector:
 `node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).
