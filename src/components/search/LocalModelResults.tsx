@@ -33,7 +33,7 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
       <div className="relative mx-3 mt-3 grid h-44 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-slate-100">
        {item.image?<img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-contain p-3"/>:
         <div className="flex flex-col items-center gap-2 text-slate-400"><ImageOff size={25}/><span className="text-[11px]">تصویر اختصاصی ثبت نشده</span></div>}
-       {familyOnly&&<span className="absolute bottom-2 right-2 rounded-full border border-white/80 bg-white/95 px-2.5 py-1 text-[10px] font-bold text-slate-700 shadow-sm">خانواده بدون کد کالا</span>}
+       {familyOnly&&<span className="absolute bottom-2 right-2 rounded-full border border-white/80 bg-white/95 px-2.5 py-1 text-[10px] font-bold text-slate-700 shadow-sm">رکورد خانواده بدون کد مستقل</span>}
        {item.imageScope==='family'&&item.image&&<span className="absolute bottom-2 left-2 rounded-full bg-slate-900/75 px-2 py-1 text-[9px] font-semibold text-white">عکس نمونهٔ خانواده</span>}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-3">
@@ -42,7 +42,7 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
         <p className="mt-0.5 text-xs text-slate-500">{item.familyName}{item.model?' · مدل '+item.model:''}{item.size?' · سایز '+item.size:''}</p>
         {item.code
          ?<p className="mt-2 inline-flex rounded-md bg-slate-50 px-2 py-1 font-mono text-xs font-bold text-[#B95312]" dir="ltr">{item.code}</p>
-         :<p className="mt-2 inline-flex rounded-md bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500">کد کالا برای این خانواده ثبت نشده</p>}
+         :<p className="mt-2 inline-flex rounded-md bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500">کد مستقلی برای این رکورد تصویری ثبت نشده</p>}
        </div>
        {!!item.specs.length&&<dl className="grid grid-cols-2 gap-2 text-[11px]">{item.specs.slice(0,4).map((spec,i)=><div key={i} className="rounded-lg bg-slate-50 p-2"><dt className="text-slate-500">{spec.key}</dt><dd className="m-0 mt-1 font-bold text-slate-800" dir="auto">{spec.value}</dd></div>)}</dl>}
        <p className="text-xs leading-6 text-slate-500">{item.reason}</p>
