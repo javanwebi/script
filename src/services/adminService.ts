@@ -395,6 +395,12 @@ export const adminService = {
     return null;
   },
 
+  /** Keep the UI actor cache aligned with the server-verified portal session. */
+  setCurrentAdmin(user: AdminUser | null): void {
+    if (user) durableStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, JSON.stringify(user));
+    else durableStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+  },
+
   getCurrentUser(): AdminUser | null {
     return this.getCurrentAdmin();
   },
@@ -411,7 +417,7 @@ export const adminService = {
       : { id: String(session.user?.authUserId || 'admin'), username,
           name: String(session.user?.fullName || 'مدیریت صنعت پیش'),
           role: 'super_admin', email: String(session.user?.email || ''), lastLogin: new Date().toISOString() };
-    durableStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, JSON.stringify(user));
+    this.setCurrentAdmin(user);
     return user;
   },
   logout(): void {

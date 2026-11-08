@@ -10,6 +10,32 @@ import {
   refreshDurableStorage,
 } from '../src/services/durableStorage';
 import {compactCatalogReviews} from '../src/utils/catalogPrivacy';
+import {adminService} from '../src/services/adminService';
+
+test('verified portal session keeps the role-aware admin actor cache synchronized',()=>{
+  const superAdmin={
+    id:'auth-user-1',username:'mahdi',name:'مدیر اصلی',role:'super_admin' as const,
+    email:'',lastLogin:'',
+  };
+  adminService.setCurrentAdmin(superAdmin);
+  assert.deepEqual(adminService.getCurrentAdmin(),superAdmin);
+
+  const staff={
+    id:'staff-1',username:'catalog_editor',name:'ویرایشگر کاتالوگ',
+    role:'staff' as const,email:'',lastLogin:'',
+    permissions:{products:['view','images']},
+  };
+  adminService.setCurrentAdmin(staff);
+  assert.deepEqual(adminService.getCurrentAdmin(),staff);
+  assert.equal(adminService.getCurrentAdmin()?.role,'staff');
+  assert.deepEqual(adminService.getCurrentAdmin()?.permissions?.products,['view','images']);
+
+  adminService.setCurrentAdmin(null);
+  assert.equal(adminService.getCurrentAdmin(),null);
+
+  const layout=readFileSync('src/admin/AdminLayout.tsx','utf8');
+  assert.match(layout,/adminService\.setCurrentAdmin\(nextUser\)/);
+});
 
 test('agency and SMS list reads are safe and read-only before runtime hydration',()=>{
   assert.equal(databaseStorageEnabled(),false);
