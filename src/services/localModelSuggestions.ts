@@ -14,8 +14,9 @@ const familyImage=(family:Product)=>
  (family.galleryImages || []).filter(image=>image.scope==='family').map(image=>usable(image.url)).find(Boolean) ||
  (family.images || []).map(usable).find(Boolean) || '';
 
-/** Multiple real models, strongest independent image evidence first.
- * Family-only alternatives deliberately have no per-SKU visual similarity score.
+/** Strongest independent image evidence first. SKU siblings with shared family photos
+ * remain unscored; a family record without any active SKU can carry the score of its
+ * own bound family photo, without inventing a product code.
  */
 export function localModelSuggestions(hits:Hit[],products:Product[],markings:{text:string;confidence:number}[]=[],minSimilarity=0.65,limit=24):CatalogModelSuggestion[]{
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
