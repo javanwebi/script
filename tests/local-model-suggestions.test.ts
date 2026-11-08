@@ -64,7 +64,7 @@ test('lower-confidence photographed siblings follow their relative image scores 
 
 test('uncoded family-level products are included and ranked above lower-scoring coded products',()=>{
  const coded=family('coded',1);
- const uncoded={code:'uncoded',name:'قطعه بدون کد',active:true,images:['e(30).png'],variants:[]} as Product;
+ const uncoded=family('uncoded',0);uncoded.images=['e(30).png'];
  const uncodedPhoto=hit('uncoded',undefined,0.96,'uncoded-photo');
  const list=localModelSuggestions([hit('coded','coded-0',0.84),uncodedPhoto],[coded,uncoded]);
  assert.equal(list[0].familyCode,'uncoded');
