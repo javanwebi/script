@@ -74,6 +74,7 @@ test('uncoded family-level products are included and ranked above lower-scoring 
  assert.equal(list[0].matchBasis,'visual');
  assert.equal(list[0].visualScore,96);
  assert.equal(list[0].image,uncodedPhoto.row.url);
+ assert.ok(list[0].reason?.includes('کد SKU فعال ثبت نشده است'));
  assert.equal(list[1].code,'coded-0');
 });
 
@@ -95,5 +96,6 @@ test('a family-only photo remains a scored result even when the family also has 
  assert.equal(list[0].code,undefined);
  assert.equal(list[0].matchBasis,'visual');
  assert.equal(list[0].visualScore,96);
+ assert.ok(list[0].reason?.includes('نه به یک کد SKU مشخص'));
  assert.ok(list.some(item=>item.code==='uncoded-0'&&item.matchBasis==='family'));
 });
