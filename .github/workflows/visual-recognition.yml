@@ -14,11 +14,13 @@ on:
       - 'src/services/catalogVisualIndex.ts'
       - 'src/services/localQueryImage.ts'
       - 'src/utils/imageRegionInteraction.ts'
+      - 'src/utils/imageRegion.ts'
       - 'tests/local-model-suggestions.test.ts'
       - 'tests/local-model-results.test.tsx'
       - 'tests/local-vision.test.ts'
       - 'tests/catalog-visual-index.test.ts'
       - 'tests/image-region-interaction.test.ts'
+      - 'tests/local-query-image.test.ts'
       - 'scripts/tests/image-region-interaction.cjs'
       - 'services/local-vision/**'
       - 'ops/setup-local-vision-vps.sh'
@@ -48,6 +50,7 @@ jobs:
           tests/local-vision.test.ts
           tests/catalog-visual-index.test.ts
           tests/image-region-interaction.test.ts
+          tests/local-query-image.test.ts
       - name: Install pinned Playwright browser runner
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
       - name: Install Chromium
