@@ -5,7 +5,7 @@ import io
 import json
 import os
 import threading
-from retrieval import PIPELINE, decode, foreground, regions, crop, jpeg, markings, geometric
+from retrieval import PIPELINE, decode, regions, crop, jpeg, markings, geometric
 import cv2
 cv2.setNumThreads(1)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -89,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(size))
             if self.path == '/query':
                 image = decode(data['image'])
-                boxes = regions(image) if MOBILE else [box for box in [foreground(image)] if box]
+                boxes = regions(image, limit=3)
                 box = boxes[0] if boxes else None
                 views = [data['image']]
                 views.extend(jpeg(crop(image, region)) for region in boxes)
