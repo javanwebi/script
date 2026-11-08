@@ -243,6 +243,10 @@ stage=sys.argv[1]
 assert any(m["Destination"]=="/app" for m in mounts)
 for m in mounts:
  dest=m["Destination"]
+ # The source release replaces /app; private local-vision files must be
+ # re-mounted from the canonical persistent project directory below.
+ if dest in ("/app/.local-vision-enabled","/app/.env.local-vision"):
+  continue
  source=stage if dest=="/app" else m["Source"]
  mode="rw" if m["RW"] else "ro"
  for arg in ("-v",f"{source}:{dest}:{mode}"):
@@ -259,6 +263,13 @@ fi
 if [[ -f "$APP/.env.staff" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.staff'; then
   MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
+fi
+# The release source is mounted at /app, so explicitly re-mount persistent
+# local-vision activation/configuration files from the canonical project folder.
+if [[ -f "$APP/.local-vision-enabled" ]]; then
+  test -s "$APP/.env.local-vision"
+  MOUNTS+=(-v "$APP/.local-vision-enabled:/app/.local-vision-enabled:ro")
+  MOUNTS+=(-v "$APP/.env.local-vision:/app/.env.local-vision:ro")
 fi
 # Optional local vision sidecar: provisioned once, reused across application releases.
 # The explicit marker is only created after photo binding reconciliation/benchmarks.
