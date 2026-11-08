@@ -28,13 +28,13 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
        <span className="font-extrabold text-slate-700">گزینه {toPersianDigits(index+1)}</span>
        {item.matchBasis==='visual'&&item.visualScore!==undefined
         ?<span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-extrabold text-[#B95312]">شباهت تصویر {toPersianDigits(item.visualScore)} از ۱۰۰</span>
-        :<span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد از روی کد':'هم‌خانواده'}</span>}
+        :<span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{item.matchBasis==='explore'?'تطبیق تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد از روی کد':'هم‌خانواده'}</span>}
       </div>
       <div className="relative mx-3 mt-3 grid h-44 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-slate-100">
        {item.image?<img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-contain p-3"/>:
         <div className="flex flex-col items-center gap-2 text-slate-400"><ImageOff size={25}/><span className="text-[11px]">تصویر اختصاصی ثبت نشده</span></div>}
        {familyOnly&&<span className="absolute bottom-2 right-2 rounded-full border border-white/80 bg-white/95 px-2.5 py-1 text-[10px] font-bold text-slate-700 shadow-sm">خانواده بدون کد کالا</span>}
-       {item.imageScope==='family'&&item.image&&<span className="absolute bottom-2 left-2 rounded-full bg-slate-900/75 px-2 py-1 text-[9px] font-semibold text-white">تصویر خانواده</span>}
+       {item.imageScope==='family'&&item.image&&<span className="absolute bottom-2 left-2 rounded-full bg-slate-900/75 px-2 py-1 text-[9px] font-semibold text-white">عکس نمونهٔ خانواده</span>}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-3">
        <div className="min-w-0">
@@ -57,6 +57,6 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
     </li>;
    })}
   </ol>
-  {!expanded&&items.length>shown.length&&<button type="button" onClick={()=>setExpanded(true)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 text-xs font-extrabold text-[#B95312] transition hover:bg-orange-100">نمایش {toPersianDigits(items.length-shown.length)} نتیجه دیگر <ChevronDown size={15}/></button>}
+  {!expanded&&items.length>shown.length&&<button type="button" onClick={()=>setExpanded(true)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 text-xs font-extrabold text-[#B95312] transition hover:bg-orange-100">نمایش مدل‌های بیشتر · {toPersianDigits(items.length-shown.length)} <ChevronDown size={15}/></button>}
  </section>;
 }
