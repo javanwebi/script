@@ -77,7 +77,7 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  if(query?.model===localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'}).model)hits=corroborateLocalFamilies(hits,products,minSimilarity);
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
  const familyCounts=new Map<string,number>();
- const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity);
+ const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity&&hit.row.bindings.some(binding=>families.has(binding.familyCode)));
  const diversified=eligible.filter(hit=>{const key=[...new Set(hit.row.bindings.map(b=>b.familyCode))].sort().join('|') || hit.row.id;const n=familyCounts.get(key)||0;if(n>=2)return false;familyCounts.set(key,n+1);return true;});
  const photoMatches=diversified.slice(0,8).map(({row,score})=>({
   imageId:row.id,image:row.url,label:row.label,score:Math.round(Math.max(0,Math.min(1,score))*100),
