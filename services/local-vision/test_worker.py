@@ -102,6 +102,7 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(result['vectors']), 4)
         self.assertEqual(len(result['viewRegions']), 4)
         self.assertGreaterEqual(len([box for box in result['viewRegions'] if box]), 2)
+        self.assertTrue(all(box['width'] >= 0.03 and box['height'] >= 0.03 for box in result['viewRegions'] if box))
 
     def test_busy_is_bounded(self):
         worker.slot.acquire()
