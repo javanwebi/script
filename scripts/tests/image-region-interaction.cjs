@@ -5,7 +5,7 @@ const os=require('node:os');
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 (async()=>{
- const root=process.cwd();const fixture=await fs.mkdtemp(path.join(root,'.region-smoke-'));
+ const root=process.cwd();const fixture=await fs.mkdtemp(path.join(root,'region-smoke-'));
  let server,browser;
  try{
   const {createServer}=await import('vite');
@@ -26,7 +26,7 @@ const {chromium}=require('playwright');
    const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1000,height:900},hasTouch:mobile,isMobile:mobile});
    const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
-   const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor();
+   await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor({state:'visible'});
    await page.waitForFunction(()=>document.querySelector('img')?.naturalWidth===1000);
    const box=await image.boundingBox();const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
    if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
