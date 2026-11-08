@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {tapImageRegion,findImageRegionAtPoint} from '../src/utils/imageRegionInteraction';
-import {validImageRegion} from '../src/services/localQueryImage';
+import {validImageRegion} from '../src/utils/imageRegion';
 test('tap selects the clicked part in portrait/landscape images and stays inside image edges',()=>{
  for(const aspect of [0.2,0.5,1,1408/768,5])for(const point of [{x:0,y:0},{x:1,y:1},{x:0.5,y:0.5},{x:0.51,y:0.49}]){
   const r=tapImageRegion(point,aspect);assert.ok(validImageRegion(r));
