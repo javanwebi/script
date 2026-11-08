@@ -15,7 +15,7 @@ test("the existing server entrypoint always uses the fixed-port release script",
 });
 
 test("one fixed website host port replaces rotating blue-green publication", () => {
-  assert.match(one, /FIXED_PORT=3008/);
+  assert.match(one, /FIXED_PORT=3013/);
   assert.match(one, /test "\$ACTIVE" != "\$FIXED_PORT"/);
   assert.doesNotMatch(one, /for p in 3006 3007 3008 3009/);
   const canary = one.split("===== PRIVATE CANARY WITHOUT A HOST PORT =====")[1].split("===== PROMOTE ON SAME FIXED PORT")[0];
