@@ -19,15 +19,16 @@ test('the best photograph wins when one real model has multiple candidate photos
  const list=localModelSuggestions([lower,best],[p]);
  assert.equal(list.length,1);assert.equal(list[0].image,best.row.url);assert.equal(list[0].visualScore,93);
 });
-test('family-only photos list existing models with honest representative/own photos and no invented per-model scores',()=>{
+test('family-only photos show one scored family result plus honest unscored SKU alternatives',()=>{
  const p=family('gear',3);p.variants![0].images=[];p.variants![2].active=false;
  const list=localModelSuggestions([hit('gear',undefined,0.9)],[p]);
- assert.deepEqual(list.map(i=>i.code),['gear-0','gear-1']);
+ assert.equal(list[0].code,undefined);assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].visualScore,90);
  assert.equal(list[0].image,'/storage/products/catalog/e(1).png'); // matched family photo
  assert.equal(list[0].imageScope,'family');
- assert.equal(list[1].image,'/storage/products/catalog/e(2).png');
- assert.equal(list[1].imageScope,'variant');
- assert.ok(list.every(i=>i.matchBasis==='family'&&i.visualScore===undefined));
+ assert.deepEqual(list.slice(1).map(i=>i.code),['gear-0','gear-1']);
+ assert.equal(list[1].image,'/storage/products/catalog/e(1).png');assert.equal(list[1].imageScope,'family');
+ assert.equal(list[2].image,'/storage/products/catalog/e(2).png');assert.equal(list[2].imageScope,'variant');
+ assert.ok(list.slice(1).every(i=>i.matchBasis==='family'&&i.visualScore===undefined));
 });
 test('a shared photo never becomes multiple independently ranked model scores',()=>{
  const p=family('gear',2);const shared=hit('gear','gear-0',0.97);
@@ -52,14 +53,15 @@ test('visual ranking precedes OCR-only and family alternatives; unique OCR codes
 });
 test('family alternatives are bounded and share slots across visually eligible families',()=>{
  const list=localModelSuggestions([hit('a',undefined,0.9),hit('b',undefined,0.87)],[family('a',100),family('b',100)]);
- assert.equal(list.length,24);assert.equal(new Set(list.map(i=>i.code)).size,24);
+ assert.equal(list.length,24);assert.equal(new Set(list.map(i=>i.code || i.familyCode)).size,24);
  assert.equal(list[0].familyCode,'a');assert.equal(list[1].familyCode,'b');
 });
 test('lower-confidence photographed siblings follow their relative image scores but remain family alternatives',()=>{
  const p=family('gear',3);
  const list=localModelSuggestions([hit('gear',undefined,0.9),hit('gear','gear-0',0.51),hit('gear','gear-1',0.62),hit('gear','gear-2',0.57)],[p]);
- assert.deepEqual(list.map(item=>item.code),['gear-1','gear-2','gear-0']);
- assert.ok(list.every(item=>item.matchBasis==='family'&&item.visualScore===undefined));
+ assert.equal(list[0].code,undefined);assert.equal(list[0].matchBasis,'visual');assert.equal(list[0].visualScore,90);
+ assert.deepEqual(list.slice(1).map(item=>item.code),['gear-1','gear-2','gear-0']);
+ assert.ok(list.slice(1).every(item=>item.matchBasis==='family'&&item.visualScore===undefined));
 });
 
 test('uncoded family-level products are included and ranked above lower-scoring coded products',()=>{
