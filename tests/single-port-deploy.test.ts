@@ -46,6 +46,17 @@ test("old app containers stop after Nima validation and are not deleted", () => 
   assert.match(tail, /RETAIN_REFERENCED_CONTAINER/);
 });
 
+test("owner-managed untracked mobile assets are copied into the isolated release stage", () => {
+  const archive = one.indexOf('git -C "$APP" archive "$EXPECTED"');
+  const build = one.indexOf('docker run --rm --pull=never');
+  assert.ok(archive >= 0 && build > archive);
+  const stage = one.slice(archive, build);
+  assert.match(stage, /if \\[\\[ -d "\\$APP\\/src\\/assets\\/IMAGESITE\\/mobile" \\]\\]/);
+  assert.match(stage, /cp -a "\\$APP\\/src\\/assets\\/IMAGESITE\\/mobile\\/\\." "\\$STAGE\\/src\\/assets\\/IMAGESITE\\/mobile\\/"/);
+  assert.match(stage, /diff -qr "\\$APP\\/src\\/assets\\/IMAGESITE\\/mobile" "\\$STAGE\\/src\\/assets\\/IMAGESITE\\/mobile"/);
+  assert.match(stage, /PRESERVED_OWNER_MANAGED_MOBILE_ASSETS=YES/);
+});
+
 test("local encoder is integrated in the executed fixed-port path and full indexing gates promotion", () => {
   const prepare = one.indexOf('# Optional local vision sidecar:');
   const privateCanary = one.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='");
