@@ -77,7 +77,7 @@ test('extended local query transport validates protocol, crop and bounded geomet
  const server=http.createServer(async(req,res)=>{
   for await(const _chunk of req){};
   res.setHeader('content-type','application/json');
-  res.end(JSON.stringify(req.url==='/query'?{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,vectors:[Array(384).fill(0.1)],region:broken?{x:-1,y:0,width:1,height:1}:null,markings:[{text:'6203ZZ',confidence:96}],ocrAvailable:true}:{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,evidence:[{supported:true,inliers:20,coverage:0.3}]}));
+  res.end(JSON.stringify(req.url==='/query'?{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,vectors:[Array(384).fill(0.1)],viewRegions:[null],region:broken?{x:-1,y:0,width:1,height:1}:null,markings:[{text:'6203ZZ',confidence:96}],ocrAvailable:true}:{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,evidence:[{supported:true,inliers:20,coverage:0.3}]}));
  });
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
  try{
@@ -133,4 +133,16 @@ test('opt-in nearest catalogue suggestions are unconfirmed, bounded and separate
  assert.ok(result.nearestCatalogSuggestions!.every(m=>m.matchBasis==='explore'&&m.visualScore===undefined&&m.code!=='inactive'));
  const strong=localVisionResult([hit([{familyCode:'family',verified:false}],0.9)],products,coverage,'/customer',0.65,undefined,true);
  assert.equal(strong.nearestCatalogSuggestions,undefined);
+});
+
+test('the retained DINOv2 profile supports a full frame plus three independent region proposals',async()=>{
+ const {localVisionProfile}=await import('../src/services/localVision');
+ assert.equal(localVisionProfile({}).maxViews,4);
+});
+
+test('high-scoring unbound photos are not exposed as catalogue products',()=>{
+ const result=localVisionResult([hit([],0.98)],products,coverage,'/customer');
+ assert.deepEqual(result.catalogImageMatches,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.deepEqual(result.modelSuggestions,[]);
 });
