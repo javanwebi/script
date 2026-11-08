@@ -385,6 +385,22 @@ catalogue-image reads, geometric reranking and production VPS/network overhead;
 they are not an end-to-end sub-five-second SLA. Browser interaction and the new
 Docker image still require on-VPS acceptance after provisioning and reindexing.
 
+## Production index readiness gate
+
+The DINOv2 image vectors are persisted per image in
+`app_private.scoped_documents` under the model-specific namespace. Each completed
+batch is saved, so a process restart does not discard completed image vectors.
+When local vision is enabled, server startup resumes any missing or signature-
+changed catalogue images through the existing background warmup.
+
+Do not declare the visual-search rollout ready until
+`GET /api/ai/local-vision-status` reports `enabled:true`, `ready:true`, and
+`indexed === total`. The last confirmed production observation on 2026-11-08
+was `412/869` with `ready:false`; that is a partial index, not an accepted
+production state. Recheck the live endpoint after deployment and wait for all
+869 images to be indexed. The feature returns HTTP 503 rather than silently
+searching a partial catalogue.
+
 ## Automatic object proposals and strict no-match behavior
 
 Gallery uploads start quick retrieval after upload completes; camera capture
