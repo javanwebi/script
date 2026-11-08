@@ -135,8 +135,12 @@ The query path now has these bounded stages:
    preserves the current automatic selection. Dragging creates an explicit manual
    rectangle. The crop is prepared server-side from the original uploaded image.
 4. DINOv2 retrieval compares the full frame and up to three crop views (at most
-   four query encodes). The model identity and catalogue-vector space are unchanged;
-   indexing remains asynchronous and incremental.
+   four query encodes). Its existing conservative score rule is retained: the
+   stronger of the full-frame score and a 25% full-frame / 75% best-crop blend.
+   It does not switch DINOv2 to an unweighted maximum across four views. The
+   independent-view maximum remains specific to the MobileCLIP pipeline. The
+   model identity and catalogue-vector space are unchanged; indexing remains
+   asynchronous and incremental.
 5. Up to six best catalogue photos are compared with ORB keypoints and a bounded
    RANSAC homography. Distributed inliers provide an additional ranking signal.
    Textureless parts may have no evidence; missing evidence is not proof of a
