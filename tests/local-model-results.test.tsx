@@ -11,7 +11,7 @@ test('model result cards retain server ordering and distinguish shared photos wi
  assert.ok(html.indexOf('مدل closest')<html.indexOf('مدل second'));
  assert.ok(html.includes('عکس نمونهٔ خانواده'));
  assert.ok(html.includes('مدل هم‌خانواده'));
- assert.equal((html.match(/شباهت تصویری:/g)||[]).length,2);
+ assert.equal((html.match(/شباهت تصویر ۹۱ از ۱۰۰/g)||[]).length,2);
  assert.ok(html.includes('/product/closest'));
 });
 test('long result lists start with twelve cards and offer more real models',()=>{
@@ -21,6 +21,16 @@ test('long result lists start with twelve cards and offer more real models',()=>
 });
 test('exploratory neighbours cannot display an accepted-match label or a confidence score',()=>{
  const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[{...item('nearest'),matchBasis:'explore',visualScore:undefined}]} onClose={()=>{}} /></MemoryRouter>);
- assert.ok(html.includes('تطبیق تأیید نشده'));assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
- assert.ok(!html.includes('شباهت تصویری:'));assert.ok(!html.includes('مدل هم‌خانواده'));
+ assert.ok(html.includes('برای بررسی؛ تأیید نشده'));
+ assert.ok(!html.includes('شباهت تصویر ۹۱ از ۱۰۰'));assert.ok(!html.includes('مدل هم‌خانواده'));
+});
+
+test('family-only visual results show no fake SKU and link to the real family page',()=>{
+ const familyOnly:CatalogModelSuggestion={recordType:'family',name:'خانواده بدون کد',familyCode:'uncoded-family',familyName:'خانواده بدون کد',image:'/storage/products/catalog/family.webp',imageScope:'family',matchBasis:'visual',visualScore:88,specs:[],reason:'تصویر خانواده با عکس مشتری شباهت دارد.'};
+ const html=renderToStaticMarkup(<MemoryRouter><LocalModelResults items={[familyOnly]} onClose={()=>{}} /></MemoryRouter>);
+ assert.ok(html.includes('خانواده بدون کد'));
+ assert.ok(html.includes('کد مستقلی برای این رکورد تصویری ثبت نشده'));
+ assert.ok(html.includes('مشاهده خانواده'));
+ assert.ok(html.includes('/product/uncoded-family'));
+ assert.ok(!html.includes('مشاهده این مدل'));
 });

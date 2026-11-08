@@ -12,6 +12,8 @@ export type AiAnalysisStage = 'quick' | 'refined';
 export interface AiPartAnalysisRequest {
   includeNearest?:boolean;
   region?:{x:number;y:number;width:number;height:number};
+  /** Retry the system-selected crop if the customer's manual region has no valid catalogue match. */
+  fallbackRegion?:{x:number;y:number;width:number;height:number}|null;
   imageBase64?: string;
   imageUrl?: string;
   mimeType?: string;
@@ -75,7 +77,7 @@ export interface MatchedPartItem {
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
 export interface CatalogModelSuggestion {
-  code:string;name:string;familyCode:string;familyName:string;
+  code?:string;recordType?:'variant'|'family';name:string;familyCode:string;familyName:string;
   model?:string;size?:string;brand?:string;image?:string;
   imageScope:'variant'|'family'|'none';
   matchBasis:'visual'|'read_code'|'family'|'explore';
@@ -87,6 +89,7 @@ export interface AiPartAnalysisResult {
   nearestCatalogSuggestions?:CatalogModelSuggestion[];
   modelSuggestions?:CatalogModelSuggestion[];
   queryRegion?:{x:number;y:number;width:number;height:number}|null;
+  regionFallbackUsed?:boolean;
   localVisionMetrics?:{pipeline:string;queryViews:number;geometryComplete:boolean;ocrAvailable:boolean;retrievalMs:number};
   observationOnly?:boolean;
   requiredMeasurements?:PartMeasurement[];

@@ -1,5 +1,6 @@
 import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
+import {shouldRetryAutomaticRegion} from './src/utils/imageRegionFallback';
 import {adminReportsApi} from './server/db/adminReports';
 import {registerProductImageStorage,prepareProductStorage,productStorageDirectory} from './server/productImageStorage';
 import {beginImageVolumeMigration} from './server/catalogImageVolumeMigration';
@@ -4686,6 +4687,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(!databaseEnabled())return res.status(503).json({error:{message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
       const body={...req.body};
       if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
+      if(body.fallbackRegion!==undefined && body.fallbackRegion!==null && !validImageRegion(body.fallbackRegion))return res.status(400).json({error:{message:'محدودهٔ جایگزین تصویر معتبر نیست.'}});
       if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
       const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
       refreshRecognitionCatalog();
@@ -4698,36 +4700,49 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         warmCatalogVisualIndex(images,publish);
         return res.status(503).json({error:{message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
       }
-      const started=Date.now();
-      const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
-      const query=await describeLocalQuery(queryImage);
-      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.maxViews>2);
-      if(!retrieved)throw new Error('Index changed');
-      let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
-      const viewScores=retrieved[0]?.viewScores || [];
-      const bestView=viewScores.indexOf(Math.max(...viewScores));
-      const selectedRegion=body.region || (query.viewRegions ? query.viewRegions[bestView] : query.region);
-      const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
-      let geometryComplete=false;
-      try{
-        const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
-          const bytes=await getCatalogImageBuffer(hit.row.url,hit.row.revision);
-          return bytes ? {hit,bytes:await prepareLocalQuery(bytes)} : null;
-        }));
-        const loaded=candidates.filter((c):c is NonNullable<typeof c>=>c!==null);
-        if(loaded.length){
-          const evidence=await geometricEvidence(detailImage,loaded.map(c=>c.bytes));
-          const byId=new Map(loaded.map((c,i)=>[c.hit.row.id,evidence[i]]));
-          hits=hits.map(hit=>({...hit,geometry:byId.get(hit.row.id)}));
-          geometryComplete=loaded.length===Math.min(6,hits.length);
-        }
-      }catch{ /* Keep embedding candidates and disclose incomplete detail comparison. */ }
-      hits=rankLocalEvidence(hits,products,query.markings);
-      // Similarity thresholds require validation on owner-labelled industrial photos.
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
-      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
-      return res.json(publicCatalog({...result,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      const runLocalRegion=async(region:import('./src/services/localQueryImage').ImageRegion|null)=>{
+        const started=Date.now();
+        const queryImage=await prepareLocalQuery(uploaded.buffer,region || undefined);
+        const query=await describeLocalQuery(queryImage);
+        const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.maxViews>2);
+        if(!retrieved)throw new Error('Index changed');
+        let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
+        const viewScores=retrieved[0]?.viewScores || [];
+        const bestView=viewScores.indexOf(Math.max(...viewScores));
+        const selectedRegion=region || (query.viewRegions ? query.viewRegions[bestView] : query.region);
+        const detailImage=region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
+        let geometryComplete=false;
+        try{
+          const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
+            const bytes=await getCatalogImageBuffer(hit.row.url,hit.row.revision);
+            return bytes ? {hit,bytes:await prepareLocalQuery(bytes)} : null;
+          }));
+          const loaded=candidates.filter((item):item is NonNullable<typeof item>=>item!==null);
+          if(loaded.length){
+            const evidence=await geometricEvidence(detailImage,loaded.map(item=>item.bytes));
+            const byId=new Map(loaded.map((item,index)=>[item.hit.row.id,evidence[index]]));
+            hits=hits.map(hit=>({...hit,geometry:byId.get(hit.row.id)}));
+            geometryComplete=loaded.length===Math.min(6,hits.length);
+          }
+        }catch{ /* Keep embedding candidates and disclose incomplete detail comparison. */ }
+        hits=rankLocalEvidence(hits,products,query.markings);
+        const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,false);
+        return {result,query,selectedRegion,geometryComplete,retrievalMs:Date.now()-started};
+      };
+      const hasAcceptedProduct=(result:any)=>Boolean(result.modelSuggestions?.length || result.similarCandidates?.length || result.matchedProducts?.length);
+      let outcome=await runLocalRegion(body.region || null);
+      let regionFallbackUsed=false;
+      if(shouldRetryAutomaticRegion(body.region,body.fallbackRegion,hasAcceptedProduct(outcome.result))){
+        // Once the manually tapped crop has no real catalogue match, return to the
+        // automatic/full-frame crop even when that retry also finds no product.
+        outcome=await runLocalRegion(body.fallbackRegion);
+        regionFallbackUsed=true;
+      }
+      return res.json(publicCatalog({...outcome.result,queryRegion:outcome.selectedRegion,regionFallbackUsed,
+        localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:outcome.query.vectors.length,geometryComplete:outcome.geometryComplete,ocrAvailable:outcome.query.ocrAvailable,retrievalMs:outcome.retrievalMs},
+        catalogSearchWarning:outcome.result.catalogSearchWarning+(outcome.geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
       return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});

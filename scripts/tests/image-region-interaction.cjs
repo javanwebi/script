@@ -46,17 +46,19 @@ const {chromium}=require('playwright');
    if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
+    const automatic={x:0.4,y:0.3,width:0.2,height:0.3};
+    const manualRetry=queries.length===2;
+    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:manualRetry?automatic:(request.region || automatic),regionFallbackUsed:manualRetry,scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(uploads,1);assert.equal(queries.length,1);assert.equal(queries[0].includeNearest,true);
+  await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(uploads,1);assert.equal(queries.length,1);assert.equal(queries[0].includeNearest,false);assert.equal(queries[0].region,undefined);
   const modalImage=page.getByAltText('عکس ارسالی؛ قطعه مورد نظر را لمس کنید');await modalImage.scrollIntoViewIfNeeded();const bounds=await modalImage.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.6,bounds.y+bounds.height*0.4);
-  await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,2);assert.ok(queries[1].region);assert.equal(uploads,1);
-  await page.getByRole('button',{name:'جست‌وجوی کل عکس',exact:true}).click();await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(uploads,1);assert.deepEqual(errors,[]);
+  await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,2);assert.ok(queries[1].region);assert.deepEqual(queries[1].fallbackRegion,{x:0.4,y:0.3,width:0.2,height:0.3});assert.equal(uploads,1);await page.getByText('پیشنهاد سیستم').waitFor();
+  await page.getByRole('button',{name:'جست‌وجوی کل عکس',exact:true}).click();await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fallbackRegion,undefined);assert.equal(uploads,1);assert.deepEqual(errors,[]);
   await page.close();console.log('AUTOMATIC_UPLOAD_TAP_REQUERY_AND_IMAGE_REUSE_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}

@@ -18,6 +18,26 @@ class RetrievalTests(unittest.TestCase):
         self.assertLess(crop(image, box).shape[0], 150)
         self.assertIsNone(foreground(np.full_like(image, 255)))
 
+    def test_clean_background_proposes_separate_products_instead_of_one_union_crop(self):
+        image = np.full((280, 520, 3), 255, np.uint8)
+        cv2.rectangle(image, (45, 82), (155, 198), (28, 32, 36), -1)
+        cv2.rectangle(image, (345, 92), (470, 188), (28, 32, 36), -1)
+        boxes = regions(image)
+        self.assertEqual(len(boxes), 2)
+        centers = sorted((box['x']+box['width']/2) for box in boxes)
+        self.assertLess(centers[0], 0.35)
+        self.assertGreater(centers[1], 0.65)
+        for box in boxes:
+            self.assertLess(box['width']*box['height'], 0.35)
+
+    def test_long_industrial_parts_are_not_rejected_by_aspect_ratio(self):
+        image = np.full((240, 420, 3), 255, np.uint8)
+        cv2.rectangle(image, (45, 104), (370, 132), (20, 25, 30), -1)
+        boxes = regions(image)
+        self.assertEqual(len(boxes), 1)
+        self.assertLess(boxes[0]['y'], 104/240)
+        self.assertGreater(boxes[0]['y']+boxes[0]['height'], 132/240)
+
     def test_cluttered_border_does_not_claim_an_object_crop(self):
         noise = np.random.default_rng(12).integers(0, 256, (240, 320, 3), dtype=np.uint8)
         self.assertIsNone(foreground(noise))

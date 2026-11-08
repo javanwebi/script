@@ -88,6 +88,31 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(reranked['evidence']), 1)
         self.assertIsInstance(reranked['evidence'][0]['supported'], bool)  # Corners can align; this is never SKU proof.
 
+    def test_query_returns_multiple_independent_crop_views_without_misattributed_ocr(self):
+        import cv2
+        import numpy as np
+        from retrieval import jpeg
+        image = np.full((280, 520, 3), 255, np.uint8)
+        cv2.rectangle(image, (45, 82), (155, 198), (28, 32, 36), -1)
+        cv2.rectangle(image, (345, 92), (470, 188), (28, 32, 36), -1)
+        original = (worker.MOBILE, worker.PIPELINE, worker.MODEL_ID, worker.encode)
+        try:
+            # Exercise the MobileCLIP multi-proposal branch without a heavyweight model in this protocol test.
+            worker.MOBILE = True
+            worker.PIPELINE = 'local-lens-v3'
+            worker.MODEL_ID = 'mobileclip2-s0-test'
+            worker.encode = lambda images: [[1.0]+[0.0]*511 for _ in images]
+            with self.request({'image': jpeg(image)}, path='/query') as response:
+                result = json.load(response)
+        finally:
+            worker.MOBILE, worker.PIPELINE, worker.MODEL_ID, worker.encode = original
+        self.assertEqual(result['pipeline'], 'local-lens-v3')
+        self.assertEqual(len(result['vectors']), 3)
+        self.assertEqual(len(result['viewRegions']), 3)
+        self.assertEqual(sum(region is not None for region in result['viewRegions']), 2)
+        self.assertEqual(result['markings'], [])
+        self.assertFalse(result['ocrAvailable'])
+
     def test_busy_is_bounded(self):
         worker.slot.acquire()
         try:

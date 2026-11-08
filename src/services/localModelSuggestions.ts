@@ -37,13 +37,25 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   model:variant.model,size:variant.size,brand:variant.brand || family.brand,image:image || undefined,imageScope,matchBasis,reason,
   specs:(variant.technicalSpecs || []).slice(0,6)
  });
+ const makeFamily=(family:Product,image:string,score:number):CatalogModelSuggestion=>({
+  recordType:'family',name:family.name,familyCode:family.code,familyName:family.name,
+  brand:family.brand,image:image || familyImage(family) || undefined,imageScope:'family',
+  matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,score))*100),specs:[],
+  reason:'این تصویر به خانواده متصل است اما به یک SKU مشخص نسبت داده نشده؛ کد مستقلی برای این رکورد تصویری ثبت نشده است.'
+ });
  const priority=(item:CatalogModelSuggestion)=>item.matchBasis==='visual'?0:item.matchBasis==='read_code'?1:2;
  const put=(item:CatalogModelSuggestion,score:number)=>{
-  const previous=cards.get(item.code);
-  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(item.code,{item,score});
+  const key=item.code || `family:${item.familyCode}`;
+  const previous=cards.get(key);
+  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(key,{item,score});
  };
  for(const hit of eligible){
   const bindings=hit.row.bindings.filter(b=>families.has(b.familyCode));
+  for(const binding of bindings.filter(b=>!b.code)){
+   const family=families.get(binding.familyCode)!;
+   // A family-level photo is a real catalogue record even when coded sibling SKUs exist.
+   put(makeFamily(family,hit.row.url,hit.score),hit.score);
+  }
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
@@ -84,7 +96,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
     'مدل ثبت‌شده در خانوادهٔ نزدیک؛ عکس نمونهٔ خانواده است و شباهت مستقل این مدل بررسی نشده است.'),relatedPhotoScores.get(variant.code) ?? evidence.score-2);
   }
  }
- const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || a.item.code.localeCompare(b.item.code));
+ const ranked=[...cards.values()].sort((a,b)=>priority(a.item)-priority(b.item) || b.score-a.score || (a.item.code || a.item.familyCode).localeCompare(b.item.code || b.item.familyCode));
  const confirmed=ranked.filter(row=>row.item.matchBasis!=='family').slice(0,limit);
  const queues=new Map<string,Ranked[]>();
  for(const row of ranked.filter(row=>row.item.matchBasis==='family')){const queue=queues.get(row.item.familyCode)||[];queue.push(row);queues.set(row.item.familyCode,queue);}

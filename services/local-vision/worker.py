@@ -93,7 +93,11 @@ class Handler(BaseHTTPRequestHandler):
                 box = boxes[0] if boxes else None
                 views = [data['image']]
                 views.extend(jpeg(crop(image, region)) for region in boxes)
-                text, available = markings(crop(image, box) if box else image)
+                # Never attach text from one proposed object to a different crop selected by catalogue retrieval.
+                if len(boxes) > 1:
+                    text, available = [], False
+                else:
+                    text, available = markings(crop(image, box) if box else image)
                 self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE, 'vectors': encode(views),
                                  'region': box, 'viewRegions': [None]+boxes, 'markings': text, 'ocrAvailable': available})
             elif self.path == '/rerank':

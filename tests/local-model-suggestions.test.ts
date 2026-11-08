@@ -61,3 +61,14 @@ test('lower-confidence photographed siblings follow their relative image scores 
  assert.deepEqual(list.map(item=>item.code),['gear-1','gear-2','gear-0']);
  assert.ok(list.every(item=>item.matchBasis==='family'&&item.visualScore===undefined));
 });
+
+test('a visually matched catalogue family with no SKU is returned as a family result, never a fabricated code',()=>{
+ const noSku={...family('uncoded',0),variants:[]} as Product;
+ const list=localModelSuggestions([hit('uncoded',undefined,0.93)],[noSku]);
+ assert.equal(list.length,1);
+ assert.equal(list[0].code,undefined);
+ assert.equal(list[0].recordType,'family');
+ assert.equal(list[0].familyCode,'uncoded');
+ assert.equal(list[0].matchBasis,'visual');
+ assert.equal(list[0].visualScore,93);
+});

@@ -23,9 +23,6 @@ import {
   Sliders,
   Layers,
   ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
   X,
   ShoppingCart,
   Zap,
@@ -40,9 +37,6 @@ import {
   Scan,
   Target,
   Cpu,
-  Activity,
-  ExternalLink,
-  Search,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import {
@@ -57,7 +51,6 @@ import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { pricingCreditService } from "../../services/pricingCreditService";
-import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 
@@ -101,6 +94,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [autoQueryRegion,setAutoQueryRegion]=useState<ImageRegion|null>(null);
+  const [queryRegionSource,setQueryRegionSource]=useState<'automatic'|'manual'|'full'>('full');
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
   const autoAnalyzedImageRef=useRef<string|null>(null);
@@ -114,7 +109,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setAutoQueryRegion(null);setQueryRegionSource('full');analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -171,8 +166,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
-  const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
-    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
 
   // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
   // Different per product type (wheel / belt / pulley / bush / ...).
@@ -421,6 +414,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setApplication("");
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
+    setQueryRegion(undefined);setAutoQueryRegion(null);setQueryRegionSource('full');
     setErrorMessage("");
     setPendingStage("refined");
     setLastStage("refined");
@@ -477,6 +471,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setCurrentStep("analyzing");
 
     try {
+      const effectiveRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
+      const manualRegionRequest=Boolean(localRegionEnabled && effectiveRegion && (regionOverride!==undefined ? regionOverride!==null : queryRegionSource==='manual'));
       const result = await aiVisualSearchService.analyzePartWithAi({
         imageUrl: uploadedImageUrl || undefined,
         imageBase64: uploadedImageUrl ? undefined : selectedImage || undefined,
@@ -488,8 +484,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
-        region:localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined,
-        includeNearest:localRegionEnabled,
+        region:effectiveRegion,
+        fallbackRegion:manualRegionRequest ? autoQueryRegion : undefined,
+        includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
@@ -499,7 +496,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled)setQueryRegion(result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion));
+      if(localRegionEnabled){
+        const selectedRegion=result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion);
+        setQueryRegion(selectedRegion);
+        if(result.regionFallbackUsed){
+          setQueryRegionSource(selectedRegion?'automatic':'full');
+        }else if(manualRegionRequest){
+          setQueryRegionSource('manual');
+        }else{
+          setAutoQueryRegion(selectedRegion || null);
+          setQueryRegionSource(selectedRegion?'automatic':'full');
+        }
+      }
       if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
@@ -522,6 +530,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen,localRegionEnabled,uploadedImageUrl,isUploadingImage,selectedImage,cameraFlowActive,cameraReview,currentStep]);
   const searchRegion=(region:ImageRegion|undefined)=>{
     setQueryRegion(region);
+    setQueryRegionSource(region?'manual':'full');
     if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
     regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
@@ -718,447 +727,102 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </footer>
         </section>
       ) : currentStep === 1 ? (
-        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
-          {/* Absolute Close Button for Step 1 */}
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className={`absolute top-4 left-4 z-30 ${fullScreen ? "px-3 h-9 gap-2 rounded-xl" : "w-8 h-8 rounded-full"} bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer shadow-xs`}
-            aria-label={fullScreen ? "بازگشت به میزکار" : "بستن"}
-          >
-            {fullScreen ? <><ArrowRight className="w-4 h-4" /><span className="text-xs font-bold">بازگشت به میزکار</span></> : <X className="w-5 h-5" />}
+        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-workspace relative">
+          <button type="button" onClick={() => { stopCamera(); onClose(); }}
+            className="absolute left-3 top-3 z-30 inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-[#C95210] sm:left-5 sm:top-5"
+            aria-label={fullScreen ? "بازگشت به میزکار" : "بستن"}>
+            {fullScreen ? <><ArrowRight className="h-4 w-4"/><span className="text-xs font-bold">بازگشت</span></> : <X className="h-4 w-4"/>}
           </button>
 
-          {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
-          <div data-testid="identification-image-panel" className="lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
-            {/* Industrial Background Texture */}
-            <div
-              className="absolute inset-0 z-0 opacity-25 bg-cover bg-center pointer-events-none filter contrast-125"
-              style={{
-                backgroundImage: `url(${IMAGES.authIndustrialHero || IMAGES.refineryDuskWide})`,
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F19]/85 via-[#0B0F19]/90 to-[#0B0F19] z-0" />
+          <main className="sp-vision-workspace__main">
+            <header className="sp-vision-workspace__heading">
+              <span className="sp-vision-workspace__eyebrow"><Sparkles size={14}/> FORZA VISION / جست‌وجوی تصویری</span>
+              <h1>قطعه را از روی تصویر پیدا کن</h1>
+              <p>عکس قطعه را بفرست؛ سیستم خودش ناحیه آن را پیدا می‌کند و با تصاویر واقعی کاتالوگ مقایسه می‌کند.</p>
+            </header>
 
-            {/* Content Container */}
-            <div className="relative z-10 grid grid-cols-3 items-center gap-3 lg:flex lg:flex-col lg:items-stretch lg:justify-between h-full lg:space-y-4">
-              <div className="col-span-2 col-start-2 row-start-1">
-                {/* Header Tag */}
-                <div className="flex items-center gap-2 text-[#E06518] text-[11px] lg:text-xs font-mono font-extrabold tracking-widest uppercase">
-                  <Sparkles className="w-3.5 h-3.5 text-[#E06518]" />
-                  <span>AI PART SEARCH</span>
+            {errorMessage && <div className="sp-vision-workspace__error" role="alert"><AlertCircle size={17}/><span>{errorMessage}</span></div>}
+
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-label="انتخاب تصویر قطعه"
+              onChange={event=>{const image=event.currentTarget.files?.[0];if(image)handleFile(image);event.currentTarget.value="";}}/>
+
+            {!selectedImage && !isUsingCamera ? (
+              <div className={"sp-vision-workspace__dropzone "+(isDragOver?"is-dragging":"")}
+                onDragOver={event=>{event.preventDefault();setIsDragOver(true);}}
+                onDragLeave={()=>setIsDragOver(false)} onDrop={handleDrop}
+                onClick={()=>fileInputRef.current?.click()} role="button" tabIndex={0}
+                onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();fileInputRef.current?.click();}}}>
+                <span className="sp-vision-workspace__upload-icon"><UploadCloud size={28}/></span>
+                <strong>تصویر قطعه را انتخاب یا اینجا رها کن</strong>
+                <span>عکس واضح از خود قطعه؛ پس‌زمینه ساده به تشخیص بهتر کمک می‌کند.</span>
+                <span className="sp-vision-workspace__format">JPG · PNG · WEBP <i/> حداکثر ۱۲ مگابایت</span>
+                <button type="button" onClick={event=>{event.stopPropagation();fileInputRef.current?.click();}}>انتخاب تصویر از دستگاه</button>
+              </div>
+            ) : isUsingCamera ? (
+              <div className="sp-vision-workspace__camera">
+                <div className="sp-vision-workspace__camera-view">
+                  <video ref={node=>{videoRef.current=node;if(node&&cameraStreamRef.current&&node.srcObject!==cameraStreamRef.current){node.srcObject=cameraStreamRef.current;void node.play().catch(()=>undefined);}}}
+                    onLoadedMetadata={()=>setIsCameraReady(true)} aria-label="پیش‌نمایش زنده دوربین برای عکاسی از قطعه"
+                    className="h-full w-full object-contain" autoPlay playsInline/>
+                  <canvas ref={canvasRef} className="hidden"/>
+                  <span className="sp-vision-workspace__camera-status" role="status" aria-live="polite">{isCameraReady?"دوربین آماده است؛ قطعه را داخل کادر قرار بده":"در حال آماده‌سازی دوربین…"}</span>
                 </div>
-
-                {/* Main Title & Subtitle */}
-                <div className="mt-3 space-y-2">
-                  <h3 className="text-base lg:text-2xl font-black text-white leading-tight">
-                    با <span className="text-[#E06518]">هوش مصنوعی</span> قطعه
-                    را پیدا کنید
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                    با یک عکس، مشخصات قطعه را شناسایی کرده و سریع‌تر به محصول
-                    مورد نظر خود دسترسی پیدا کنید.
-                  </p>
+                <div className="flex flex-wrap justify-center gap-2 p-3">
+                  <button type="button" onClick={capturePhoto} disabled={!isCameraReady} className="sp-vision-workspace__primary"><Camera size={17}/> ثبت عکس قطعه</button>
+                  <button type="button" onClick={stopCamera} className="sp-vision-workspace__secondary">انصراف</button>
                 </div>
               </div>
-
-              {/* Central Targeted Bearing / Industrial Part Image */}
-              <div className="col-start-1 row-start-1 lg:my-5 relative flex items-center justify-center">
-                <div className="relative p-2 lg:p-4 rounded-2xl bg-gradient-to-b from-slate-800/70 to-slate-900/90 border border-slate-700/80 shadow-2xl group max-w-[220px]">
-                  {/* Futuristic Glowing Orange Framing Brackets */}
-                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-[#E06518] rounded-tr-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-[#E06518] rounded-tl-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-[#E06518] rounded-br-lg shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-[#E06518] rounded-bl-lg shadow-[0_0_8px_#E06518]" />
-
-                  <img
-                    src={IMAGES.products.bearingNsk || IMAGES.products.bearing}
-                    alt="AI Part Search"
-                    className="w-16 h-20 sm:w-24 sm:h-24 lg:w-44 lg:h-44 object-contain filter drop-shadow-[0_12px_24px_rgba(224,101,24,0.4)] transform group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              </div>
-
-              {/* Feature Badges - Desktop (Vertical) vs Mobile (3 Horizontal) */}
-              <div className="hidden lg:flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      شناسایی دقیق قطعه
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      با هوش مصنوعی پیشرفته
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      جستجوی سریع
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      در میان هزاران محصول
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Cpu className="w-4 h-4 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">
-                      نتایج معتبر
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      بر اساس کاتالوگ واقعی و قیمت‌گذاری
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile Horizontal Feature Row */}
-              <div className="hidden grid-cols-3 gap-2 py-2 border-t border-b border-slate-800 text-center">
-                <div className="flex flex-col items-center">
-                  <Zap className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    شناسایی دقیق
-                  </span>
-                  <span className="text-[9px] text-slate-400">
-                    با هوش مصنوعی
-                  </span>
-                </div>
-                <div className="flex flex-col items-center border-r border-l border-slate-800 px-1">
-                  <ShieldCheck className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    جستجوی سریع
-                  </span>
-                  <span className="text-[9px] text-slate-400">در کاتالوگ</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[11px] font-bold text-white">
-                    نتایج معتبر
-                  </span>
-                  <span className="text-[9px] text-slate-400">
-                    قیمت‌گذاری دقیق
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom Branding Tag */}
-              <div className="hidden lg:flex items-center gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 font-mono">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#E06518] animate-pulse shadow-[0_0_8px_#E06518]" />
-                <span>
-                  Powered by{" "}
-                  <strong className="text-white font-bold">FORZA AI</strong>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* FORM / UPLOAD PANEL (Desktop = Right in RTL, Mobile = Bottom) */}
-          <div className="lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
-            {/* STEPPER HEADER */}
-            <div className="pt-2 pb-4 border-b border-slate-200/80">
-              <div className="flex items-center justify-between max-w-sm mx-auto relative">
-                {/* Step 1 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10">
-                  <div className="w-9 h-9 rounded-full bg-[#E06518] text-white font-black text-sm flex items-center justify-center shadow-md shadow-orange-500/20 ring-4 ring-orange-100">
-                    ۱
-                  </div>
-                  <span className="text-xs font-bold text-[#E06518]">
-                    تصویر قطعه
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 2 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۲
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    پردازش تصویر
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 3 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۳
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    کاتالوگ و جزئیات
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* STEP CONTENT BODY */}
-            <div className="my-4 space-y-4">
-              <div className="text-right space-y-1">
-                <h3 className="text-xl lg:text-2xl font-black text-[#2B313A]">
-                  {isUsingCamera ? "قطعه را در کادر دوربین قرار دهید" : "قطعه صنعتی خود را شناسایی کنید"}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  عکس واضح بگیرید یا تصویر انتخاب کنید؛ کدها و شکل ظاهری قطعه در کادر مشخص باشند.
-                </p>
-              </div>
-
-              {!selectedImage && !isUsingCamera && (
-                <div className="sanat-scan-intro" role="note">
-                  <div className="sanat-scan-intro__copy">
-                    <span className="sanat-scan-intro__eyebrow">FORZA VISION / صنعت پیش</span>
-                    <strong>از روی ظاهر قطعه جستجو کنید</strong>
-                    <span>عکس واقعی · مشخصات واقعی · نتیجه از کاتالوگ</span>
-                  </div>
-                </div>
-              )}
-              {/* Error notification banner */}
-              {errorMessage && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                  <span className="font-medium">{errorMessage}</span>
-                </div>
-              )}
-
-              <input
-                ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-                className="sr-only" tabIndex={-1} aria-label="انتخاب تصویر قطعه"
-                onChange={(event) => {
-                  const image = event.currentTarget.files?.[0];
-                  if (image) handleFile(image);
-                  event.currentTarget.value = "";
-                }}
-              />
-              {/* Upload Dropzone OR Camera OR Selected Image */}
-              {!selectedImage && !isUsingCamera ? (
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragOver(true);
-                  }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 lg:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    isDragOver
-                      ? "border-[#E06518] bg-orange-50/70 scale-[1.01]"
-                      : "border-[#CBD8E6] bg-[#F4F7FC] hover:bg-slate-100/80 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-slate-200/80 flex items-center justify-center text-[#E06518] mb-3 group-hover:scale-105 transition-transform">
-                    <UploadCloud className="w-7 h-7 text-[#E06518]" />
-                  </div>
-                  <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
-                    عکس قطعه را اینجا رها کنید یا برای انتخاب کلیک کنید
-                  </span>
-                  <span className="text-[11px] text-slate-400 mt-1 font-mono">
-                    حداکثر حجم ۱۲ مگابایت | JPG • PNG • WEBP
-                  </span>
-                </div>
-              ) : isUsingCamera ? (
-                <div className="sanat-scan-viewfinder relative rounded-2xl overflow-hidden bg-[#12203C] border border-slate-800 shadow-md my-2">
-                  <div className="sanat-scan-viewfinder__video relative aspect-video w-full flex items-center justify-center bg-[#12203C]">
-                    <video
-                      ref={(node) => {
-                        videoRef.current = node;
-                        if (node && cameraStreamRef.current && node.srcObject !== cameraStreamRef.current) {
-                          node.srcObject = cameraStreamRef.current;
-                          void node.play().catch(() => undefined);
-                        }
-                      }}
-                      onLoadedMetadata={() => setIsCameraReady(true)}
-                      aria-label="پیش‌نمایش زنده دوربین برای عکاسی از قطعه"
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      playsInline
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
-                    <span className="sanat-scan-viewfinder__corners" aria-hidden="true" />
-                    <span className="sanat-scan-viewfinder__hint" role="status" aria-live="polite">{isCameraReady ? "دوربین فعال · قطعه را در کادر قرار دهید" : "در حال آماده‌سازی تصویر دوربین…"}</span>
-                  </div>
-                  <div className="sanat-scan-viewfinder__actions absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 px-4">
-                    <button
-                      type="button"
-                      onClick={capturePhoto}
-                      disabled={!isCameraReady}
-                      className="min-h-12 px-5 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 cursor-pointer transition-all"
-                    >
-                      <Camera className="w-4 h-4" />
-                      <span>ثبت عکس قطعه</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={stopCamera}
-                      className="min-h-12 px-4 bg-white/90 hover:bg-white text-slate-800 rounded-xl text-xs font-bold cursor-pointer transition-all"
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Selected Image Preview Box */
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 my-2">
-                  <div className="w-full sm:w-36 h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative shrink-0">
-                    <img
-                      src={selectedImage || undefined}
-                      alt="قطعه انتخابی"
-                      className="w-full h-full object-contain"
-                    />
-                    <div
-                      className={`absolute top-2 right-2 ${isUploadingImage ? "bg-amber-500" : uploadedImageUrl ? "bg-emerald-600" : "bg-slate-600"} text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs`}
-                    >
-                      {isUploadingImage ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3 h-3" />
-                      )}
-                      <span>
-                        {isUploadingImage
-                          ? "ذخیره در سرور..."
-                          : uploadedImageUrl
-                            ? "ذخیره شد"
-                            : "انتخاب شد"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 space-y-2 text-right">
-                    <span className="text-xs font-bold text-[#2B313A] block">
-                      تصویر آماده پردازش هوش مصنوعی است
+            ) : (
+              <div className="sp-vision-workspace__selected">
+                <div className="sp-vision-workspace__selected-image"><img src={selectedImage||undefined} alt="قطعه انتخابی"/></div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong>تصویر دریافت شد</strong>
+                    <span className={"sp-vision-workspace__upload-state "+(isUploadingImage?"is-uploading":uploadedImageUrl?"is-ready":"")}>
+                      {isUploadingImage?<RefreshCw size={12} className="animate-spin"/>:<CheckCircle2 size={12}/>}
+                      {isUploadingImage?"در حال ذخیره تصویر":uploadedImageUrl?"آماده تحلیل":"تصویر انتخاب شد"}
                     </span>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      هوش مصنوعی ظاهر فیزیکی قطعه را بررسی می‌کند.
-                    </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-xs font-bold text-slate-700 hover:text-[#E06518] bg-white border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        تغییر تصویر
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          imageUploadSequenceRef.current += 1;
-                          setIsUploadingImage(false);
-                          if (selectedImage?.startsWith("blob:"))
-                            URL.revokeObjectURL(selectedImage);
-                          setSelectedImage(null);
-                          setUploadedImageUrl(null);
-                          stopCamera();
-                        }}
-                        className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        حذف
-                      </button>
-                    </div>
+                  </div>
+                  <p>سیستم ابتدا قطعه را در تصویر پیدا می‌کند. می‌توانی ناحیه پیشنهادی را تغییر بدهی.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={()=>fileInputRef.current?.click()} className="sp-vision-workspace__small-action">تغییر تصویر</button>
+                    <button type="button" onClick={()=>{imageUploadSequenceRef.current++;setIsUploadingImage(false);if(selectedImage?.startsWith("blob:"))URL.revokeObjectURL(selectedImage);setSelectedImage(null);setUploadedImageUrl(null);setQueryRegion(undefined);setAutoQueryRegion(null);setQueryRegionSource('full');setAnalysisResult(null);stopCamera();}} className="sp-vision-workspace__small-action is-danger">حذف تصویر</button>
                   </div>
                 </div>
-              )}
-
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
-
-              {/* MAIN ACTION BUTTONS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedImage) {
-                      handleAnalyze("quick");
-                    } else {
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  disabled={isUploadingImage}
-                  className="h-12 bg-[#E06518] hover:bg-[#C95210] active:scale-[0.99] text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>
-                    {selectedImage ? "شروع شناسایی هوشمند" : "انتخاب تصویر"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void startCamera()}
-                  className="h-12 bg-white hover:bg-slate-50 active:scale-[0.98] text-[#2B313A] border border-slate-200 hover:border-slate-300 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Camera className="w-4 h-4 text-slate-600" />
-                  <span>استفاده از دوربین</span>
-                </button>
               </div>
+            )}
 
-              {/* 3 FEATURE HIGHLIGHT BADGES */}
-              <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    تشخیص خودکار با AI
-                  </span>
-                </div>
-                <div className="flex flex-col items-center justify-center border-r border-l border-slate-200/80 px-1">
-                  <Search className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    جستجو در کاتالوگ
-                  </span>
-                </div>
-                <div className="flex flex-col items-center justify-center">
-                  <Target className="w-4 h-4 text-[#E06518] mb-1" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
-                    نمایش نتایج دقیق
-                  </span>
-                </div>
+            {localRegionEnabled && selectedImage && !isUsingCamera &&
+              <ImageRegionSelector src={selectedImage} value={queryRegion} mode={queryRegionSource} onChange={searchRegion}/>}
+
+            <div className="sp-vision-workspace__actions">
+              <button type="button" onClick={()=>selectedImage?handleAnalyze("quick"):fileInputRef.current?.click()} disabled={isUploadingImage} className="sp-vision-workspace__primary">
+                <Scan size={17}/>{selectedImage?"شروع شناسایی قطعه":"انتخاب تصویر"}
+              </button>
+              <button type="button" onClick={()=>void startCamera()} className="sp-vision-workspace__secondary"><Camera size={17}/> استفاده از دوربین</button>
+            </div>
+            <p className="sp-vision-workspace__privacy"><ShieldCheck size={15}/> فقط گزینه‌های واقعی و مرتبط با کاتالوگ نمایش داده می‌شوند؛ نتیجه ضعیف به‌زور به‌عنوان محصول پیشنهاد نمی‌شود.</p>
+          </main>
+
+          <aside className="sp-vision-workspace__aside">
+            <div className="sp-vision-workspace__aside-card">
+              <span className="sp-vision-workspace__aside-kicker">SMART PART LOCALIZATION</span>
+              <h2>از عکس تا نزدیک‌ترین قطعه</h2>
+              <p>نیازی نیست خودت از ابتدا دور قطعه را برش بدهی. سیستم چند ناحیه محتمل را بررسی می‌کند و بهترین ناحیه را برای جست‌وجو انتخاب می‌کند.</p>
+              <ol>
+                <li><span>۱</span><div><strong>پیدا کردن قطعه</strong><small>پیشنهاد خودکار محدوده در عکس</small></div></li>
+                <li><span>۲</span><div><strong>انتخاب با لمس</strong><small>اگر قطعه دیگری مدنظر است، روی آن بزن</small></div></li>
+                <li><span>۳</span><div><strong>مقایسه با کاتالوگ</strong><small>نمایش مدل‌های مشابه، حتی خانواده بدون کد</small></div></li>
+              </ol>
+              <div className="sp-vision-workspace__aside-note"><Target size={16}/> اگر انتخاب دستی نتیجه‌ای نداشته باشد، سیستم دوباره ناحیه پیشنهادی خودش را امتحان می‌کند.</div>
+            </div>
+            <div className="sp-vision-workspace__samples">
+              <div><strong>برای آشنایی، یک نمونه را امتحان کن</strong><span>نمونه‌های واقعی آموزشی</span></div>
+              <div className="sp-vision-workspace__sample-list">
+                {INDUSTRIAL_PRESET_SAMPLES.slice(0,5).map(sample=><button key={sample.id} type="button" onClick={()=>loadPreset(sample)} title={sample.title} aria-label={"نمونه "+sample.title}><img src={sample.imageUrl} alt={sample.title}/></button>)}
               </div>
             </div>
-
-            {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
-            <div className="pt-3 border-t border-slate-200/80 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>نمونه تصاویر قابل قبول</span>
-              </div>
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-                {INDUSTRIAL_PRESET_SAMPLES.map((sample) => (
-                  <button
-                    key={sample.id}
-                    type="button"
-                    onClick={() => loadPreset(sample)}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-[#E06518] p-1.5 flex items-center justify-center transition-all cursor-pointer shrink-0 group shadow-2xs"
-                    title={sample.title}
-                  >
-                    <img
-                      src={sample.imageUrl}
-                      alt={sample.title}
-                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
-                    />
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => loadPreset(INDUSTRIAL_PRESET_SAMPLES[0])}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+          </aside>
         </div>
       ) : (
         <div className={currentStep === "analyzing" ? "sp-vision-analysis-container" : "p-5 sm:p-6 text-right space-y-5"}>
@@ -1490,7 +1154,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <span>
                       برای چه کاری می‌خواهید؟ (دستگاه یا صنعت مورد نظر)
                     </span>
-                    <span className="text-[11px] text-slate-400 font-normal">
+                    <span className="text-[11px] text-slate-500 font-normal">
                       توصیه شده
                     </span>
                   </label>
@@ -1632,7 +1296,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
+                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} mode={queryRegionSource} onChange={searchRegion} />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -1667,14 +1331,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 )}
 
                 {/* Summary Bar */}
-                <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
+                <div className="bg-white text-slate-800 border border-slate-200 shadow-sm p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-[#E06518] text-white flex items-center justify-center font-bold text-xs">
                         <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2 flex-wrap">
+                        <div className="font-bold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
                           <span>
                             {analysisResult.isAiGenerated
                               ? "نتیجه تطبیق قطعه توسط هوش مصنوعی"
@@ -1713,7 +1377,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => setCurrentStep(1)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>جستجوی جدید</span>
@@ -1725,7 +1389,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   <div className="flex flex-col sm:flex-row gap-3">
                     {selectedImage && (
                       <div
-                        className="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden bg-[#12203C] border border-slate-700 shrink-0"
+                        className="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 shrink-0"
                         dir="ltr"
                       >
                         <img
@@ -1751,7 +1415,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       </div>
                     )}
                     <div className="flex-1 space-y-2 min-w-0">
-                      <p className="text-sm text-slate-100 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
+                      <p className="text-sm text-slate-700 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
                     </div>
                   </div>
                 </div>
@@ -1788,14 +1452,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 {/* Visual Verification & Catalog Availability Banner */}
                 {analysisResult.summary.catalogAvailability && (
                   <div
-                    className={`p-4 rounded-2xl border shadow-xs transition-all ${
+                    className={`p-4 rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-all ${
                       analysisResult.summary.catalogAvailability.status ===
                       "confirmed_in_catalog"
-                        ? "bg-gradient-to-l from-emerald-950 via-[#55565A] to-[#55565A] border-emerald-500/50 text-white"
+                        ? "bg-emerald-50 border-emerald-200 text-slate-800"
                         : analysisResult.summary.catalogAvailability.status ===
                             "similar_in_catalog"
-                          ? "bg-gradient-to-l from-blue-950 via-[#55565A] to-[#55565A] border-blue-500/50 text-white"
-                          : "bg-gradient-to-l from-amber-950 via-slate-900 to-[#55565A] border-amber-500/50 text-white"
+                          ? "bg-blue-50 border-blue-200 text-slate-800"
+                          : "bg-amber-50 border-amber-200 text-slate-800"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -1822,7 +1486,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-sm text-white">
+                          <span className="font-black text-sm text-slate-900">
                             {
                               analysisResult.summary.catalogAvailability
                                 .statusFarsiTitle
@@ -1832,11 +1496,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
                               analysisResult.summary.catalogAvailability
                                 .status === "confirmed_in_catalog"
-                                ? "bg-emerald-400/20 text-emerald-300 border border-emerald-400/40"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : analysisResult.summary.catalogAvailability
                                       .status === "similar_in_catalog"
-                                  ? "bg-blue-400/20 text-blue-300 border border-blue-400/40"
-                                  : "bg-amber-400/20 text-amber-300 border border-amber-400/40"
+                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                  : "bg-amber-100 text-amber-800 border border-amber-200"
                             }`}
                           >
                             {analysisResult.summary.catalogAvailability
@@ -1848,7 +1512,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                 : "نیاز به بررسی یا استعلام سفارشی"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-200 leading-relaxed">
+                        <p className="text-xs text-slate-600 leading-relaxed">
                           {
                             analysisResult.summary.catalogAvailability
                               .statusFarsiMessage
@@ -1867,32 +1531,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
-                {!!analysisResult.nearestCatalogSuggestions?.length && <LocalModelResults items={analysisResult.nearestCatalogSuggestions} onClose={onClose} />}
                 {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
-                {!!visiblePhotoMatches.length && (
-                  <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
-                    <h4 className="font-bold text-sm text-slate-800">{analysisResult.modelSuggestions?.length?"تصاویر مشابه بدون کد متصل":"تصاویر مشابه پیدا‌شده در کاتالوگ"}</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {visiblePhotoMatches.map(photo=>(
-                        <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                          <img src={photo.image} alt={photo.label} className="w-full h-36 object-contain" loading="lazy" />
-                          <p className="text-xs font-bold text-slate-700">{photo.label}</p>
-                          <p className="text-xs text-orange-700">{photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
-                          {!!photo.familyNames?.length && <p className="text-xs text-slate-600">خانواده: {photo.familyNames.join("، ")}</p>}
-                          <p className="text-xs leading-6 text-slate-500">{photo.reason}</p>
-                          {photo.bindings.some(binding=>binding.code) && !photo.bindings.some(binding=>binding.verified) && <p className="text-xs text-slate-500">کدهای متصل به عکس؛ تعلق دقیق تصویر به این کدها هنوز تأیید نشده است.</p>}
-                          {[...new Set(photo.bindings.flatMap(binding=>binding.code ? [binding.code] : []))].map(code=>(
-                            <Link key={code} to={`/product/${encodeURIComponent(code)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشخصات کد {code}</Link>
-                          ))}
-                          {[...new Set(photo.bindings.map(binding=>binding.familyCode))].map(familyCode=>(
-                            <Link key={familyCode} to={`/product/${encodeURIComponent(familyCode)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشاهده خانواده و سایزها</Link>
-                          ))}
-                          {!photo.bindings.some(binding=>binding.code) && <p className="text-xs text-slate-500">تصویر کاتالوگی مشابه؛ کد دقیق این عکس هنوز تأیید نشده است.</p>}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
                 {/* Strong visual evidence banner */}
                 {analysisResult.summary.exactVisualMatch &&
                   analysisResult.matchedProducts.some(

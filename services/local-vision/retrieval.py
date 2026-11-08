@@ -20,9 +20,9 @@ def regions(image, limit=3):
     components propose compact objects of any colour; the catalogue encoder decides
     which, if any, is relevant. No colour or object name is a recognition rule.
     """
-    box = foreground(image)
-    if box:
-        return [box]
+    boxes = foreground_regions(image, limit)
+    if boxes:
+        return boxes
     h, w = image.shape[:2]
     if min(h, w) < 24:
         return []
@@ -41,12 +41,12 @@ def regions(image, limit=3):
             continue
         count, _, stats, _ = cv2.connectedComponentsWithStats((labels == index).astype(np.uint8))
         for x, y, bw, bh, area in stats[1:count]:
-            if not 0.003 < area/(h*w) < 0.20 or min(bw, bh) < 15 or not 0.35 < bw/bh < 2.8:
+            if not 0.0015 < area/(h*w) < 0.88 or min(bw, bh) < 10 or not 0.035 < bw/bh < 28:
                 continue
             if x < 3 or y < 3 or x+bw > w-3 or y+bh > h-3:
                 continue
             centrality = 1-float(np.hypot((x+bw/2)/w-0.5, (y+bh/2)/h-0.5))
-            score = contrast*centrality*np.sqrt(area/(bw*bh))
+            score = contrast*centrality*np.sqrt(area/(bw*bh))*(0.65+0.35*np.sqrt(area/(h*w)))
             margin = max(2, round(max(bw, bh)*0.06))
             x0, y0, x1, y1 = max(0, x-margin), max(0, y-margin), min(w, x+bw+margin), min(h, y+bh+margin)
             proposals.append((score, {'x': x0/w, 'y': y0/h, 'width': (x1-x0)/w, 'height': (y1-y0)/h}))
@@ -73,27 +73,53 @@ def decode(value):
     return image
 
 
-def foreground(image):
-    """Propose one crop only on a consistent background; otherwise retain full frame."""
+def foreground_regions(image, limit=3):
+    """Return separate object-like foreground components on a consistent background."""
     h, w = image.shape[:2]
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
     edges = np.concatenate((lab[0], lab[-1], lab[:, 0], lab[:, -1]))
     background = np.median(edges, axis=0)
     if np.percentile(np.linalg.norm(edges-background, axis=1), 85) > 18:
-        return None
+        return []
     mask = (np.linalg.norm(lab-background, axis=2) > 28).astype(np.uint8)
     count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
-    valid = [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] > max(16, h*w*0.002)]
-    if not valid:
-        return None
-    ys, xs = np.where(np.isin(labels, valid))
-    x0, x1, y0, y1 = int(xs.min()), int(xs.max()+1), int(ys.min()), int(ys.max()+1)
-    margin = max(4, round(max(x1-x0, y1-y0)*0.08))
-    x0, y0, x1, y1 = max(0, x0-margin), max(0, y0-margin), min(w, x1+margin), min(h, y1+margin)
-    area = (x1-x0)*(y1-y0)/(h*w)
-    if not 0.02 < area < 0.85:
-        return None
-    return {'x': x0/w, 'y': y0/h, 'width': (x1-x0)/w, 'height': (y1-y0)/h}
+    proposals = []
+    minimum_area = max(16, h*w*0.001)
+    for index in range(1, count):
+        x, y, bw, bh, area = stats[index]
+        if area < minimum_area or min(bw, bh) < 7:
+            continue
+        ratio = bw/max(1, bh)
+        if not 0.035 < ratio < 28 or area/(h*w) > 0.88:
+            continue
+        component = lab[labels == index]
+        contrast = float(np.median(np.linalg.norm(component-background, axis=1)))
+        if contrast < 24:
+            continue
+        centrality = 1-float(np.hypot((x+bw/2)/w-0.5, (y+bh/2)/h-0.5))
+        fill = min(1.0, area/max(1, bw*bh))
+        size = min(1.0, (area/(h*w))**0.5*4)
+        score = contrast*centrality*(0.55+0.45*fill)*(0.65+0.35*size)
+        margin = max(3, round(max(bw, bh)*0.08))
+        x0, y0, x1, y1 = max(0, x-margin), max(0, y-margin), min(w, x+bw+margin), min(h, y+bh+margin)
+        proposals.append((score, {'x': x0/w, 'y': y0/h, 'width': (x1-x0)/w, 'height': (y1-y0)/h}))
+    chosen = []
+    for _, candidate in sorted(proposals, key=lambda item: -item[0]):
+        def overlaps(other):
+            intersection = max(0, min(candidate['x']+candidate['width'], other['x']+other['width'])-max(candidate['x'], other['x']))*max(0, min(candidate['y']+candidate['height'], other['y']+other['height'])-max(candidate['y'], other['y']))
+            union = candidate['width']*candidate['height']+other['width']*other['height']-intersection
+            return union>0 and intersection/union>0.45
+        if not any(overlaps(other) for other in chosen):
+            chosen.append(candidate)
+        if len(chosen)>=limit:
+            break
+    return chosen
+
+
+def foreground(image):
+    """Compatibility helper: return the strongest foreground component on clean backgrounds."""
+    boxes = foreground_regions(image, 1)
+    return boxes[0] if boxes else None
 
 
 def crop(image, box):
