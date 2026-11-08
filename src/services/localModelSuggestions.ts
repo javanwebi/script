@@ -29,7 +29,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
  for(const hit of hits){
   if(!Number.isFinite(hit.score))continue;
   const owners=[...new Set(hit.row.bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]))];
-  if(owners.length===1)relatedPhotoScores.set(owners[0],Math.max(relatedPhotoScores.get(owners[0]) ?? -Infinity,hit.score));
+  if(owners.length===1)relatedPhotoScores.set(owners[0],Math.max(relatedPhotoScores.get(owners[0]) ?? -Infinity,hit.visualScore ?? hit.score));
  }
  const bestFamily=new Map<string,{score:number;image:string}>();
  const cards=new Map<string,Ranked>();
