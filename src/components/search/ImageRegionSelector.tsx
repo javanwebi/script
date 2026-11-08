@@ -40,7 +40,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange}:{sr
     <span className="sanat-region-picker__icon" aria-hidden="true">⌖</span>
     <div><strong>انتخاب محدوده قطعه</strong><p>{candidates.length?'سیستم چند ناحیه را پیشنهاد داده؛ روی قطعه موردنظر بزنید.':'محدوده خودکار قابل‌اعتماد پیدا نشد؛ دور قطعه کادر بکشید.'}</p></div>
    </div>
-   <span className="sanat-region-picker__status">{value?'ناحیه منتخب':'انتخاب خودکار'}</span>
+   <span className="sanat-region-picker__status">{value?'ناحیه منتخب':candidates.length?'پیشنهادهای سیستم':'کل تصویر'}</span>
   </header>
   <div className="sanat-region-picker__layout">
    <div role="group" aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت" tabIndex={0}
@@ -85,7 +85,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange}:{sr
    <aside className="sanat-region-picker__side">
     <div className="sanat-region-picker__side-title">پیش‌نمایش برش</div>
     {value?<div className="sanat-region-picker__crop" style={{aspectRatio:aspect*value.width/value.height,backgroundImage:'url('+JSON.stringify(src)+')',backgroundSize:(100/value.width)+'% '+(100/value.height)+'%',backgroundPosition:(value.width<1?100*value.x/(1-value.width):0)+'% '+(value.height<1?100*value.y/(1-value.height):0)+'%'}}/>:
-     <div className="sanat-region-picker__empty">ناحیه منتخب پس از تحلیل نمایش داده می‌شود.</div>}
+     <div className="sanat-region-picker__empty">فعلاً برش جداگانه‌ای انتخاب نشده؛ جست‌وجو روی کل تصویر انجام شده است.</div>}
     <p>{value?'این محدوده برای جست‌وجوی مجدد استفاده می‌شود.':'اگر سیستم ناحیه‌ای پیدا نکند، می‌توانید با کشیدن کادر آن را مشخص کنید.'}</p>
     <button type="button" onClick={()=>onChange(undefined)}>جست‌وجوی کل تصویر</button>
    </aside>
