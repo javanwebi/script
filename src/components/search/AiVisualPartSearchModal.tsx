@@ -1154,7 +1154,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <span>
                       برای چه کاری می‌خواهید؟ (دستگاه یا صنعت مورد نظر)
                     </span>
-                    <span className="text-[11px] text-slate-400 font-normal">
+                    <span className="text-[11px] text-slate-500 font-normal">
                       توصیه شده
                     </span>
                   </label>
@@ -1331,14 +1331,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 )}
 
                 {/* Summary Bar */}
-                <div className="bg-[#55565A] text-white p-4 rounded-2xl space-y-3">
+                <div className="bg-white text-slate-800 border border-slate-200 shadow-sm p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-[#E06518] text-white flex items-center justify-center font-bold text-xs">
                         <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2 flex-wrap">
+                        <div className="font-bold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
                           <span>
                             {analysisResult.isAiGenerated
                               ? "نتیجه تطبیق قطعه توسط هوش مصنوعی"
@@ -1377,7 +1377,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => setCurrentStep(1)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>جستجوی جدید</span>
@@ -1389,7 +1389,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   <div className="flex flex-col sm:flex-row gap-3">
                     {selectedImage && (
                       <div
-                        className="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden bg-[#12203C] border border-slate-700 shrink-0"
+                        className="relative w-full sm:w-40 h-32 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 shrink-0"
                         dir="ltr"
                       >
                         <img
@@ -1415,7 +1415,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       </div>
                     )}
                     <div className="flex-1 space-y-2 min-w-0">
-                      <p className="text-sm text-slate-100 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
+                      <p className="text-sm text-slate-700 leading-7"><strong>تحلیل قطعه: </strong>{analysisResult.summary.visualAnalysis}</p>
                     </div>
                   </div>
                 </div>
@@ -1452,7 +1452,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 {/* Visual Verification & Catalog Availability Banner */}
                 {analysisResult.summary.catalogAvailability && (
                   <div
-                    className={`p-4 rounded-2xl border shadow-xs transition-all ${
+                    className={`p-4 rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition-all ${
                       analysisResult.summary.catalogAvailability.status ===
                       "confirmed_in_catalog"
                         ? "bg-gradient-to-l from-emerald-950 via-[#55565A] to-[#55565A] border-emerald-500/50 text-white"
@@ -1486,7 +1486,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-sm text-white">
+                          <span className="font-black text-sm text-slate-900">
                             {
                               analysisResult.summary.catalogAvailability
                                 .statusFarsiTitle
@@ -1512,7 +1512,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                 : "نیاز به بررسی یا استعلام سفارشی"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-200 leading-relaxed">
+                        <p className="text-xs text-slate-600 leading-relaxed">
                           {
                             analysisResult.summary.catalogAvailability
                               .statusFarsiMessage
