@@ -391,7 +391,10 @@ The DINOv2 image vectors are persisted per image in
 `app_private.scoped_documents` under the model-specific namespace. Each completed
 batch is saved, so a process restart does not discard completed image vectors.
 When local vision is enabled, server startup resumes any missing or signature-
-changed catalogue images through the existing background warmup.
+changed catalogue images through the existing background warmup. An unreadable
+photo no longer stops the batch queue: later images continue to index, the failed
+image remains pending, and the background worker retries the still-missing rows
+after a cooldown. Coverage stays incomplete until every catalogue image is indexed.
 
 Do not declare the visual-search rollout ready until
 `GET /api/ai/local-vision-status` reports `enabled:true`, `ready:true`, and
