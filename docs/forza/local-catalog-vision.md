@@ -338,13 +338,14 @@ matching photograph and sorted by full-precision visual evidence. The list is
 built independently of the eight-photo gallery, so a family with many images
 cannot hide its other matching models.
 
-Family-level catalogue records with a real active family-image binding are also
-eligible when they have no active SKU. They appear as a family card with the
-registered image, the family-level visual ranking score, and the explicit label
-`کد کالا در کاتالوگ ثبت نشده`. No SKU is fabricated. These family-only visual
-results participate in the same score ordering as coded visual results, so a
-more similar uncoded family can rank above a less similar coded model. Shared
-family photos for existing SKUs remain unscored family alternatives. OCR-only
+A real active family-image binding without a SKU code remains eligible even
+when that family also contains coded SKUs. It appears as a family-level card with
+the registered image, the family-level visual ranking score, and the explicit
+label `کد کالا در کاتالوگ ثبت نشده`. No SKU is fabricated. These family-only
+visual results participate in the same score ordering as coded visual results,
+so a more similar uncoded family photo can rank above a less similar coded model.
+Coded SKU siblings remain clearly labelled, unscored family alternatives unless
+their own image is independently bound. OCR-only
 suggestions follow independently image-ranked results. Inactive families, inactive
 SKUs, unbound photos and unregistered codes are excluded from customer results.
 
