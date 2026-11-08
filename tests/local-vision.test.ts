@@ -167,3 +167,11 @@ test('automatic crop defaults to the highest-scoring detected object, not the un
  assert.deepEqual(selectBestQueryRegion([null,first,second],[0.99,Number.NaN,Number.NaN],first),first);
  assert.equal(selectBestQueryRegion([null],[0.99]),undefined);
 });
+
+test('automatic crop scores come from the best real catalogue-bound photo, never an unbound nearest image',async()=>{
+ const {bestBoundQueryViewScores}=await import('../src/services/localVision');
+ const unbound={...hit([],0.99),viewScores:[0.99,0.12]};
+ const bound={...hit([{familyCode:'family',verified:false}],0.91),viewScores:[0.72,0.88]};
+ assert.deepEqual(bestBoundQueryViewScores([unbound,bound],products),[0.72,0.88]);
+ assert.deepEqual(bestBoundQueryViewScores([unbound],products),[]);
+});
