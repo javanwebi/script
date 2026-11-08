@@ -421,8 +421,9 @@ a trained industrial object detector.
 Every indexed catalogue vector is scored for every query view. Only hits attached
 to a real active catalogue family and above the visual threshold can become
 customer-facing photo or model results. Unbound catalogue images are not exposed
-as products. Family-level images without a SKU remain eligible and are labelled
-without inventing a code. If no exact or meaningful similar family/model passes
+as products. Family-bound images without a SKU-specific binding remain eligible at family
+level, even when active coded variants exist; the family result carries the
+visual score while its individual SKU siblings remain unscored. If no exact or meaningful similar family/model passes
 the threshold, the customer sees no product cards and is offered expert review
 instead. The UI explicitly disables the nearest-neighbour exploration list; it
 does not fill an empty result page with unrelated products.
