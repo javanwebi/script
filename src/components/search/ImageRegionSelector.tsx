@@ -44,8 +44,9 @@ export function ImageRegionSelector({src,value,mode='automatic',onChange}:Props)
   <div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_190px]">
    <div className="min-w-0">
     <div role="group" aria-label="انتخاب محدوده قطعه با لمس، کشیدن یا کلیدهای جهت" tabIndex={0}
-     className="relative mx-auto max-h-[55vh] w-full touch-none select-none overflow-hidden rounded-xl bg-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-[#E56B1E] focus-visible:ring-offset-2"
+     className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-xl bg-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-[#E56B1E] focus-visible:ring-offset-2"
      dir="ltr"
+     style={{aspectRatio:aspect,maxWidth:(55*aspect)+"vh"}}
      onPointerDown={event=>{
       if(event.button!==0||!event.isPrimary)return;
       start.current={...point(event),clientX:event.clientX,clientY:event.clientY};
@@ -83,7 +84,7 @@ export function ImageRegionSelector({src,value,mode='automatic',onChange}:Props)
      }}>
      <img src={src} alt="عکس ارسالی؛ قطعه مورد نظر را لمس کنید" draggable={false}
       onLoad={event=>setAspect(event.currentTarget.naturalWidth/event.currentTarget.naturalHeight||1)}
-      className="pointer-events-none block h-auto max-h-[55vh] w-full object-contain"/>
+      className="pointer-events-none block h-full w-full object-contain"/>
      {region&&region.width>0&&region.height>0&&<div aria-hidden="true"
       className="pointer-events-none absolute rounded-lg border-[3px] border-[#FF9A4A] shadow-[0_0_0_9999px_rgba(8,15,24,.52),0_0_18px_rgba(229,107,30,.65)]"
       style={{left:`${region.x*100}%`,top:`${region.y*100}%`,width:`${region.width*100}%`,height:`${region.height*100}%`}}>
