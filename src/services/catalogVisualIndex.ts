@@ -41,9 +41,20 @@ export class CatalogVisualIndex {
    const outcomes=await Promise.allSettled(Array.from({length:Math.min(this.options.concurrency || 3,Math.ceil(missing.length/batchSize))},async()=>{
    try{while(next<missing.length && !stopped){
     const offset=next;next+=batchSize;const rows=missing.slice(offset,offset+batchSize);
-    const loaded=await Promise.all(rows.map(async row=>{const bytes=await read(row);if(!bytes)throw new Error('Catalogue image unavailable: '+row.id);return sharp(bytes).rotate().resize(this.options.imageSize || 768,this.options.imageSize || 768,{fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();}));
-    const vectors=await embed(loaded);if(vectors.length!==rows.length)throw new Error('Embedding count mismatch');
-    const entries=vectors.map((v,i)=>({id:rows[i].id,signature:signature(rows[i]),vector:normalized(v,this.options.dimensions)}));
+    const loaded=await Promise.all(rows.map(async row=>{
+     try{
+      const bytes=await read(row);if(!bytes)return null;
+      const buffer=await sharp(bytes).rotate().resize(this.options.imageSize || 768,this.options.imageSize || 768,{fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();
+      return {row,buffer};
+     }catch(error:any){
+      console.warn('[Visual index] Image unavailable for this pass:',row.id,String(error?.message || 'read_failed').slice(0,120));
+      return null;
+     }
+    }));
+    const usable=loaded.filter((item):item is NonNullable<typeof item>=>item!==null);
+    if(!usable.length)continue;
+    const vectors=await embed(usable.map(item=>item.buffer));if(vectors.length!==usable.length)throw new Error('Embedding count mismatch');
+    const entries=vectors.map((v,i)=>({id:usable[i].row.id,signature:signature(usable[i].row),vector:normalized(v,this.options.dimensions)}));
     for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
     // Persist completed batches so a provider interruption does not restart the entire index.
     const write=this.writes.catch(()=>{}).then(async()=>{
