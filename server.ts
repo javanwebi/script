@@ -4701,7 +4701,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
       const query=await describeLocalQuery(queryImage);
-      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.maxViews>2);
+      const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=retrieved[0]?.viewScores || [];
