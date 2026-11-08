@@ -43,44 +43,46 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange}:{sr
    <span className="sanat-region-picker__status">{value?'ناحیه منتخب':candidates.length?'پیشنهادهای سیستم':'کل تصویر'}</span>
   </header>
   <div className="sanat-region-picker__layout">
-   <div role="group" aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت" tabIndex={0}
-    className="sanat-region-picker__canvas" dir="ltr"
-    onPointerDown={event=>{
-     if(event.button!==0||!event.isPrimary)return;
-     start.current={...point(event),clientX:event.clientX,clientY:event.clientY};
-     event.currentTarget.setPointerCapture(event.pointerId);
-     setDraft(undefined);
-    }}
-    onPointerMove={event=>{
-     if(!start.current)return;
-     const p=point(event),s=start.current;
-     setDraft({x:Math.min(s.x,p.x),y:Math.min(s.y,p.y),width:Math.abs(p.x-s.x),height:Math.abs(p.y-s.y)});
-    }}
-    onPointerUp={finish}
-    onPointerCancel={()=>{start.current=null;setDraft(undefined);}}
-    onLostPointerCapture={()=>{start.current=null;setDraft(undefined);}}
-    onKeyDown={event=>{
-     if(event.key==='Escape'){onChange(undefined);return;}
-     if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
-     event.preventDefault();
-     const r={...keyboardBase};
-     const dx=event.key==='ArrowLeft'?-0.02:event.key==='ArrowRight'?0.02:0;
-     const dy=event.key==='ArrowUp'?-0.02:event.key==='ArrowDown'?0.02:0;
-     if(event.shiftKey){r.width=Math.max(0.03,Math.min(1-r.x,r.width+dx));r.height=Math.max(0.03,Math.min(1-r.y,r.height+dy));}
-     else{r.x=Math.max(0,Math.min(1-r.width,r.x+dx));r.y=Math.max(0,Math.min(1-r.height,r.y+dy));}
-     onChange(r);
-    }}>
-    <img src={src} alt="عکس ارسالی؛ ناحیه قطعه را انتخاب کنید" draggable={false}
-     onLoad={event=>setAspect(event.currentTarget.naturalWidth/event.currentTarget.naturalHeight||1)}/>
-    {candidates.map((region,index)=><div key={index} aria-hidden="true"
-     className={"sanat-region-picker__candidate "+(sameRegion(value,region)?"is-selected":"")}
-     style={{left:(region.x*100)+"%",top:(region.y*100)+"%",width:(region.width*100)+"%",height:(region.height*100)+"%"}}>
-     <span>{toPersianNumber(index+1)}</span>
-    </div>)}
-    {selected&&!candidates.some(region=>sameRegion(selected,region))&&<div aria-hidden="true" className="sanat-region-picker__candidate is-selected is-manual"
-     style={{left:(selected.x*100)+"%",top:(selected.y*100)+"%",width:(selected.width*100)+"%",height:(selected.height*100)+"%"}}/>}
-    {draft&&draft.width>0&&draft.height>0&&<div aria-hidden="true" className="sanat-region-picker__draft"
-     style={{left:(draft.x*100)+"%",top:(draft.y*100)+"%",width:(draft.width*100)+"%",height:(draft.height*100)+"%"}}/>}
+   <div className="sanat-region-picker__canvas">
+    <div role="group" aria-label="انتخاب قطعه با لمس، کشیدن یا کلیدهای جهت" tabIndex={0}
+     className="sanat-region-picker__frame" dir="ltr"
+     onPointerDown={event=>{
+      if(event.button!==0||!event.isPrimary)return;
+      start.current={...point(event),clientX:event.clientX,clientY:event.clientY};
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setDraft(undefined);
+     }}
+     onPointerMove={event=>{
+      if(!start.current)return;
+      const p=point(event),s=start.current;
+      setDraft({x:Math.min(s.x,p.x),y:Math.min(s.y,p.y),width:Math.abs(p.x-s.x),height:Math.abs(p.y-s.y)});
+     }}
+     onPointerUp={finish}
+     onPointerCancel={()=>{start.current=null;setDraft(undefined);}}
+     onLostPointerCapture={()=>{start.current=null;setDraft(undefined);}}
+     onKeyDown={event=>{
+      if(event.key==='Escape'){onChange(undefined);return;}
+      if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+      event.preventDefault();
+      const r={...keyboardBase};
+      const dx=event.key==='ArrowLeft'?-0.02:event.key==='ArrowRight'?0.02:0;
+      const dy=event.key==='ArrowUp'?-0.02:event.key==='ArrowDown'?0.02:0;
+      if(event.shiftKey){r.width=Math.max(0.03,Math.min(1-r.x,r.width+dx));r.height=Math.max(0.03,Math.min(1-r.y,r.height+dy));}
+      else{r.x=Math.max(0,Math.min(1-r.width,r.x+dx));r.y=Math.max(0,Math.min(1-r.height,r.y+dy));}
+      onChange(r);
+     }}>
+     <img src={src} alt="عکس ارسالی؛ ناحیه قطعه را انتخاب کنید" draggable={false}
+      onLoad={event=>setAspect(event.currentTarget.naturalWidth/event.currentTarget.naturalHeight||1)}/>
+     {candidates.map((region,index)=><div key={index} aria-hidden="true"
+      className={"sanat-region-picker__candidate "+(sameRegion(value,region)?"is-selected":"")}
+      style={{left:(region.x*100)+"%",top:(region.y*100)+"%",width:(region.width*100)+"%",height:(region.height*100)+"%"}}>
+      <span>{toPersianNumber(index+1)}</span>
+     </div>)}
+     {selected&&!candidates.some(region=>sameRegion(selected,region))&&<div aria-hidden="true" className="sanat-region-picker__candidate is-selected is-manual"
+      style={{left:(selected.x*100)+"%",top:(selected.y*100)+"%",width:(selected.width*100)+"%",height:(selected.height*100)+"%"}}/>}
+     {draft&&draft.width>0&&draft.height>0&&<div aria-hidden="true" className="sanat-region-picker__draft"
+      style={{left:(draft.x*100)+"%",top:(draft.y*100)+"%",width:(draft.width*100)+"%",height:(draft.height*100)+"%"}}/>}
+    </div>
    </div>
    <aside className="sanat-region-picker__side">
     <div className="sanat-region-picker__side-title">پیش‌نمایش برش</div>
