@@ -37,13 +37,25 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   model:variant.model,size:variant.size,brand:variant.brand || family.brand,image:image || undefined,imageScope,matchBasis,reason,
   specs:(variant.technicalSpecs || []).slice(0,6)
  });
+ const makeFamily=(family:Product,image:string,score:number):CatalogModelSuggestion=>({
+  recordType:'family',name:family.name,familyCode:family.code,familyName:family.name,
+  brand:family.brand,image:image || familyImage(family) || undefined,imageScope:'family',
+  matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,score))*100),specs:[],
+  reason:'تصویر ثبت‌شده برای این خانواده با عکس شما شباهت دارد؛ برای این رکورد کد کالا یا سایز مستقلی ثبت نشده است.'
+ });
  const priority=(item:CatalogModelSuggestion)=>item.matchBasis==='visual'?0:item.matchBasis==='read_code'?1:2;
  const put=(item:CatalogModelSuggestion,score:number)=>{
-  const previous=cards.get(item.code);
-  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(item.code,{item,score});
+  const key=item.code || `family:${item.familyCode}`;
+  const previous=cards.get(key);
+  if(!previous || priority(item)<priority(previous.item) || (priority(item)===priority(previous.item)&&score>previous.score))cards.set(key,{item,score});
  };
  for(const hit of eligible){
   const bindings=hit.row.bindings.filter(b=>families.has(b.familyCode));
+  for(const binding of bindings.filter(b=>!b.code)){
+   const family=families.get(binding.familyCode)!;
+   const hasCodedActiveVariant=(family.variants || []).some(v=>v.active!==false&&Boolean(v.code?.trim()));
+   if(!hasCodedActiveVariant)put(makeFamily(family,hit.row.url,hit.score),hit.score);
+  }
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
