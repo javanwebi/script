@@ -51,9 +51,14 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   for(const binding of bindings){
    const family=families.get(binding.familyCode)!;
    if(!binding.code){
-    put({name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,image:hit.row.url,
-     imageScope:'family',matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,visualRank))*100),specs:[],
-     reason:'این تصویر به خانوادهٔ واقعی محصول در کاتالوگ متصل است؛ برای این محصول کد SKU ثبت نشده است. شباهت تصویری به خانواده مربوط است، نه تأیید مدل یا سایز.'},visualRank,hit.score);
+    const hasSpecificSkuOwner=[...owners].some(code=>variants.get(code)?.family.code===family.code);
+    if(!hasSpecificSkuOwner){
+     put({name:family.name,familyCode:family.code,familyName:family.name,brand:family.brand,image:hit.row.url,
+      imageScope:'family',matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,visualRank))*100),specs:[],
+      reason:activeVariants.length===0
+       ? 'تصویر به خانوادهٔ واقعی محصول متصل است و برای این خانواده کد SKU فعال ثبت نشده است؛ مدل یا سایز دقیق تأیید نشده است.'
+       : 'تصویر به خانواده متصل است، نه به یک کد SKU مشخص؛ این شباهت در سطح خانواده است و مدل یا سایز دقیق تأیید نشده است.'},visualRank,hit.score);
+    }
     if(!bestFamily.has(family.code))bestFamily.set(family.code,{score:visualRank,image:hit.row.url});
     continue;
    }
