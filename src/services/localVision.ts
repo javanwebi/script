@@ -114,9 +114,9 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  for(const hit of eligible)for(const binding of hit.row.bindings)familyBest.set(binding.familyCode,Math.max(familyBest.get(binding.familyCode) || -1,hit.score));
  const scores=[...familyBest.values()].sort((a,b)=>b-a);const ambiguous=scores.length>1 && scores[0]-scores[1]<0.025;
  const description=photoMatches.length?'تصاویر نزدیک به عکس شما در کاتالوگ پیدا شد. برای انتخاب دقیق، مشخصات و کد قطعه را بررسی کنید.':'شباهت کافی برای پیشنهاد محصول پیدا نشد؛ عکس واضح‌تر از قطعه و نوشتهٔ روی آن ارسال کنید.';
- const nearest=includeNearest&&!photoMatches.length ? nearestLocalSuggestions(hits,products) : undefined;
+ // Weak, unverified nearest neighbours are not product results and stay hidden.
+ void includeNearest;
  return {success:true,isAiGenerated:true,stage:'quick',model:query?.model || LOCAL_VISION_MODEL,observationOnly:false,
-  nearestCatalogSuggestions:nearest,
   summary:{whatYouSee:description,readableMarkings:query?.markings.map(m=>m.text),detectedPartType:ambiguous?'چند خانوادهٔ نزدیک؛ نیاز به تأیید':photoMatches[0]?.familyNames[0] || 'جست‌وجوی تصویری کاتالوگ',
    detectedProfile:'مدل و ابعاد از تصویر به‌تنهایی تأیید نشده است',visualAnalysis:description,confidence:0,exactVisualMatch:false,
    catalogAvailability:{status:photoMatches.length?'similar_in_catalog':'custom_order_available',statusFarsiTitle:photoMatches.length?'گزینه‌های مشابه تصویری':'نیاز به عکس یا اطلاعات بیشتر',statusFarsiMessage:description}},
