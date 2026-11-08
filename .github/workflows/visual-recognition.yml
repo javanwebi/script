@@ -1,0 +1,73 @@
+name: FORZA visual recognition and crop interaction
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server.ts'
+      - 'src/components/search/AiVisualPartSearchModal.tsx'
+      - 'src/components/search/ImageRegionSelector.tsx'
+      - 'src/components/search/LocalModelResults.tsx'
+      - 'src/components/search/industrial-scan.css'
+      - 'src/services/aiVisualSearchService.ts'
+      - 'src/services/localModelSuggestions.ts'
+      - 'src/services/localVision.ts'
+      - 'src/services/localQueryImage.ts'
+      - 'src/utils/imageRegionInteraction.ts'
+      - 'tests/local-model-suggestions.test.ts'
+      - 'tests/local-model-results.test.tsx'
+      - 'tests/local-vision.test.ts'
+      - 'tests/image-region-interaction.test.ts'
+      - 'scripts/tests/image-region-interaction.cjs'
+      - 'services/local-vision/**'
+      - '.github/workflows/visual-recognition.yml'
+permissions:
+  contents: read
+jobs:
+  frontend-and-interaction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run lint
+      - name: Visual recognition ranking, no-match and region tests
+        run: >-
+          node --import tsx --test
+          tests/local-model-suggestions.test.ts
+          tests/local-model-results.test.tsx
+          tests/local-vision.test.ts
+          tests/image-region-interaction.test.ts
+      - name: Install pinned Playwright browser runner
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Real desktop/mobile pointer, crop and upload reuse smoke
+        run: node scripts/tests/image-region-interaction.cjs
+      - name: Production frontend build
+        run: npm run build
+
+  local-vision-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/local-vision/requirements.txt
+      - name: Install the pinned CPU-only PyTorch runtime
+        run: >-
+          python -m pip install --no-cache-dir
+          'torch==2.8.0+cpu'
+          --index-url https://download.pytorch.org/whl/cpu
+      - name: Install pinned image worker dependencies
+        run: python -m pip install --no-cache-dir -r services/local-vision/requirements.txt
+      - name: Test deterministic crop proposals, image bounds and private worker protocol
+        run: python -m unittest discover -s services/local-vision -p 'test_*.py' -v
