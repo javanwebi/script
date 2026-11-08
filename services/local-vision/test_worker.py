@@ -88,6 +88,21 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(reranked['evidence']), 1)
         self.assertIsInstance(reranked['evidence'][0]['supported'], bool)  # Corners can align; this is never SKU proof.
 
+    def test_query_returns_multiple_independent_crop_views_without_misattributed_ocr(self):
+        import cv2
+        import numpy as np
+        from retrieval import jpeg
+        image = np.full((280, 520, 3), 255, np.uint8)
+        cv2.rectangle(image, (45, 82), (155, 198), (28, 32, 36), -1)
+        cv2.rectangle(image, (345, 92), (470, 188), (28, 32, 36), -1)
+        with self.request({'image': jpeg(image)}, path='/query') as response:
+            result = json.load(response)
+        self.assertEqual(len(result['vectors']), 3)
+        self.assertEqual(len(result['viewRegions']), 3)
+        self.assertEqual(sum(region is not None for region in result['viewRegions']), 2)
+        self.assertEqual(result['markings'], [])
+        self.assertFalse(result['ocrAvailable'])
+
     def test_busy_is_bounded(self):
         worker.slot.acquire()
         try:
