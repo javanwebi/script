@@ -41,7 +41,7 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   recordType:'family',name:family.name,familyCode:family.code,familyName:family.name,
   brand:family.brand,image:image || familyImage(family) || undefined,imageScope:'family',
   matchBasis:'visual',visualScore:Math.round(Math.max(0,Math.min(1,score))*100),specs:[],
-  reason:'تصویر ثبت‌شده برای این خانواده با عکس شما شباهت دارد؛ برای این رکورد کد کالا یا سایز مستقلی ثبت نشده است.'
+  reason:'این تصویر به خانواده متصل است اما به یک SKU مشخص نسبت داده نشده؛ کد مستقلی برای این رکورد تصویری ثبت نشده است.'
  });
  const priority=(item:CatalogModelSuggestion)=>item.matchBasis==='visual'?0:item.matchBasis==='read_code'?1:2;
  const put=(item:CatalogModelSuggestion,score:number)=>{
@@ -53,8 +53,8 @@ export function localModelSuggestions(hits:Hit[],products:Product[],markings:{te
   const bindings=hit.row.bindings.filter(b=>families.has(b.familyCode));
   for(const binding of bindings.filter(b=>!b.code)){
    const family=families.get(binding.familyCode)!;
-   const hasCodedActiveVariant=(family.variants || []).some(v=>v.active!==false&&Boolean(v.code?.trim()));
-   if(!hasCodedActiveVariant)put(makeFamily(family,hit.row.url,hit.score),hit.score);
+   // A family-level photo is a real catalogue record even when coded sibling SKUs exist.
+   put(makeFamily(family,hit.row.url,hit.score),hit.score);
   }
   const owners=new Set(bindings.flatMap(b=>b.code&&variants.get(b.code)?.family.code===b.familyCode?[b.code]:[]));
   for(const binding of bindings){
