@@ -587,6 +587,8 @@
   user-select: none;
   outline-offset: 3px;
 }
+.sanat-region-picker__frame:focus-visible { outline: 2px solid #e56b1e; }
+
 .sanat-region-picker__frame > img {
   display: block;
   width: auto;
