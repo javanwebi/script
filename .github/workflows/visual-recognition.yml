@@ -19,6 +19,7 @@ on:
       - 'tests/image-region-interaction.test.ts'
       - 'scripts/tests/image-region-interaction.cjs'
       - 'services/local-vision/**'
+      - 'ops/setup-local-vision-vps.sh'
       - '.github/workflows/visual-recognition.yml'
 permissions:
   contents: read
@@ -66,8 +67,10 @@ jobs:
         run: >-
           python -m pip install --no-cache-dir
           'torch==2.8.0+cpu'
-          --index-url https://download.pytorch.org/whl/cpu
+          --extra-index-url https://download.pytorch.org/whl/cpu
       - name: Install pinned image worker dependencies
         run: python -m pip install --no-cache-dir -r services/local-vision/requirements.txt
       - name: Test deterministic crop proposals, image bounds and private worker protocol
         run: python -m unittest discover -s services/local-vision -p 'test_*.py' -v
+      - name: Check private sidecar setup script syntax
+        run: bash -n ops/setup-local-vision-vps.sh
