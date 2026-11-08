@@ -19,7 +19,8 @@ const {chromium}=require('playwright');
   await fs.writeFile(entryPath,entry(source));
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
-  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')}]},server:{host:'127.0.0.1',port:0}});await server.listen();
+  await fs.writeFile(path.join(fixture,'images.ts'),"export const IMAGES={authIndustrialHero:'',refineryDuskWide:'',products:{bearingNsk:'',bearing:''}};");
+  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')},{find:/.*\/assets\/images$/,replacement:path.join(fixture,'images.ts')}]},server:{host:'127.0.0.1',port:0}});await server.listen();
   browser=await chromium.launch({headless:true});
   for(const mobile of [false,true]){
    if(mobile)await fs.writeFile(entryPath,entry(portraitSource));
