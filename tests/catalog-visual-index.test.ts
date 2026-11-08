@@ -94,3 +94,21 @@ test('an unreadable catalogue image does not block later rows and is resumed on 
   assert.deepEqual(index.coverage(rows),{total:2,indexed:2,ready:true});
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('a failed durable write never reports an in-memory-only index as ready',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'index-durable-'));
+ try{
+  let fail=true;
+  const persistence={
+   async loadEntries(){return {};},
+   async saveEntries(_entries:unknown[]){if(fail){fail=false;throw new Error('simulated persistence failure');}}
+  };
+  const index=new CatalogVisualIndex(path.join(dir,'unused.json'),persistence,{model:'local',dimensions:2,batchSize:1,concurrency:1});
+  const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
+  const rows=[row('persisted')];
+  await assert.rejects(index.update(rows,async()=>image,async()=>[[1,0]]),/simulated persistence failure/);
+  assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
+  await index.update(rows,async()=>image,async()=>[[1,0]]);
+  assert.deepEqual(index.coverage(rows),{total:1,indexed:1,ready:true});
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
