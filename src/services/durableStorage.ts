@@ -98,7 +98,7 @@ export const durableStorage={
   // Never block that copy on the separate /api/runtime bootstrap; no DB write occurs.
   if(hydrating || ephemeral(key)){memory.set(key,value);return;}
   if(!enabled)throw new Error('پایگاه داده هنوز آماده نیست؛ داده به صورت محلی ذخیره نشد.');
-  if(memory.get(key)===value)return;
+  if(memory.get(key)===value && (!dirtyWrites.has(key) || queues.has(key)))return;
   memory.set(key,value);
   if(portalOwned.has(key) || readOnly.has(key))return;
   const actor=userId;
