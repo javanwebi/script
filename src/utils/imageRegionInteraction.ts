@@ -1,5 +1,4 @@
-import type {ImageRegion} from '../services/localQueryImage';
-import {validImageRegion} from '../services/localQueryImage';
+import {validImageRegion,type ImageRegion} from './imageRegion';
 export type ImagePoint={x:number;y:number};
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 /** Legacy helper for an explicitly drawn fallback rectangle. */
