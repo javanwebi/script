@@ -26,11 +26,14 @@ test('server exposes Diba readiness and uses it for both standalone and live STT
   assert.match(server,/provider=diba transcript_chars=/);
 });
 
-test('recognized browser speech is finalized with its matching microphone audio',()=>{
+test('final browser speech avoids duplicate STT while provisional or missing speech uses server Diba',()=>{
   assert.match(client,/pendingTranscriptRef\.current=candidate/);
   assert.match(client,/recorder\.stop\(\)/);
   assert.match(client,/handleUserFinishedSpeaking\(currentTranscript,audioBlob,finalMime\)/);
   assert.match(client,/chooseForzaFinalTranscript\(q,serverTranscript\)/);
+  assert.match(client,/const needsServerFinal = !q \|\| speechInterimRef\.current/);
+  assert.match(client,/if \(audioBlob && needsServerFinal\)/);
+  assert.match(client,/source=browser-final server_verify=skipped/);
   assert.match(client,/browser_fallback=/);
 });
 
