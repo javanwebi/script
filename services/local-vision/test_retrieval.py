@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 import cv2
 import numpy as np
-from retrieval import foreground, regions, crop, geometric, jpeg, markings
+from retrieval import foreground, regions, crop, geometric, jpeg, markings, select_region
 
 
 class RetrievalTests(unittest.TestCase):
@@ -48,6 +48,30 @@ class RetrievalTests(unittest.TestCase):
         self.assertTrue(any(0.15 < center < 0.32 for center in centers))
         self.assertTrue(any(0.68 < center < 0.85 for center in centers))
         self.assertEqual(boxes, regions(image, limit=3))
+
+    def test_tap_selects_the_object_at_that_point_and_rejects_background(self):
+        image = np.full((280, 512, 3), 248, np.uint8)
+        cv2.rectangle(image, (64, 82), (164, 182), (28, 34, 38), -1)
+        cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
+
+        left = select_region(image, {'x': 0.22, 'y': 0.47})
+        right = select_region(image, {'x': 0.78, 'y': 0.47})
+        background = select_region(image, {'x': 0.50, 'y': 0.50})
+
+        self.assertIsNotNone(left)
+        self.assertIsNotNone(right)
+        self.assertIsNone(background)
+        self.assertLess(left['x'], 64/512)
+        self.assertGreater(left['x'] + left['width'], 164/512)
+        self.assertGreater(right['x'], 348/512 - 0.04)
+        self.assertGreater(right['x'] + right['width'], 448/512)
+        self.assertNotEqual(left, right)
+
+    def test_tap_region_rejects_invalid_points_and_uniform_background(self):
+        image = np.full((240, 320, 3), 255, np.uint8)
+        self.assertIsNone(select_region(image, {'x': 0.5, 'y': 0.5}))
+        self.assertIsNone(select_region(image, {'x': 2, 'y': 0.5}))
+        self.assertIsNone(select_region(image, {'x': float('nan'), 'y': 0.5}))
 
     def test_geometry_supports_distributed_correspondence_but_not_unrelated_or_blank(self):
         image = np.random.default_rng(3).integers(0, 256, (320, 320, 3), dtype=np.uint8)
