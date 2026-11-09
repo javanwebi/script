@@ -43,7 +43,8 @@ test('Customer 360 schema has RLS and no image blob or permanent storage path', 
     assert.match(migration, new RegExp('create table if not exists public\\.' + table));
     assert.match(migration, new RegExp('alter table public\\.' + table + ' enable row level security'));
   }
-  assert.doesNotMatch(migration, /\bbytea\b|\bstorage_path\b|\bimage_url\b/i);
+  const schema = migration.split('\n').filter(line => !line.trim().startsWith('--')).join('\n');
+  assert.doesNotMatch(schema, /\bbytea\b|\bstorage_path\b|\bimage_url\b/i);
   assert.match(migration, /unique\(user_id, device_image_id\)/);
 });
 
