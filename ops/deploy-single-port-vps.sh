@@ -114,6 +114,7 @@ NAME="sanatpish-unified-live-$STAMP"
 CANARY_NAME="sanatpish-unified-canary-$STAMP"
 BACKUP="/root/sanatpish-main-rollback-$STAMP"
 ENV_FILE="$(mktemp /tmp/sanatpish-camera-env.XXXXXXXX)"
+MULTILINE_ENV_FILE="$(mktemp /tmp/sanatpish-camera-env-args.XXXXXXXX)"
 CID=''
 CANARY_CID=''
 PROMOTING=0
@@ -152,7 +153,7 @@ cleanup(){
  if test -n "$CANARY_CID"; then
    docker rm -f "$CANARY_NAME" >/dev/null 2>&1 || true
  fi
- rm -f -- "$ENV_FILE"
+ rm -f -- "$ENV_FILE" "$MULTILINE_ENV_FILE"
  exit "$status"
 }
 trap cleanup EXIT
@@ -277,13 +278,32 @@ cp -p "$CONF1" "$BACKUP/default"
 cp -p "$CONF2" "$BACKUP/https"
 cp -p "$CONF_DOMAIN" "$BACKUP/domain"
 docker inspect "$OLD" | python3 -c '
-import json,sys
-env=json.load(sys.stdin)[0]["Config"]["Env"]
-with open(sys.argv[1],"w") as f:
+import json,os,sys
+env=json.load(sys.stdin)[0]["Config"].get("Env",[])
+env_path,args_path,vision_marker,vision_file=sys.argv[1:]
+# Local-vision env entries are appended later; do not preserve stale duplicates.
+override_keys=set()
+if os.path.isfile(vision_marker) and os.path.isfile(vision_file):
+ with open(vision_file,encoding="utf-8") as source:
+  for line in source:
+   if "=" in line and not line.lstrip().startswith("#"):
+    key=line.split("=",1)[0].strip()
+    if key:override_keys.add(key)
+multiline=0
+with open(env_path,"w",encoding="utf-8") as env_out, open(args_path,"wb") as args_out:
  for entry in env:
-  if "\n" in entry or "\r" in entry:raise SystemExit("MULTILINE_ENV_UNSUPPORTED")
-  f.write(entry+"\n")
-' "$ENV_FILE"
+  key,sep,_=entry.partition("=")
+  if not sep or key in override_keys:continue
+  if not os.path.isfile(vision_marker) and entry=="PART_RECOGNITION_MODE=local-embedding":continue
+  if "\n" in entry or "\r" in entry:
+   # Docker env files are line-oriented; pass multiline values as argv entries.
+   args_out.write(b"-e\0"+entry.encode("utf-8")+b"\0")
+   multiline+=1
+  else:
+   env_out.write(entry+"\n")
+print("LIVE_ENV_CAPTURE_OK multiline="+str(multiline))
+' "$ENV_FILE" "$MULTILINE_ENV_FILE" "$APP/.local-vision-enabled" "$APP/.env.local-vision"
+mapfile -d '' MULTILINE_ENV_ARGS < "$MULTILINE_ENV_FILE"
 mapfile -d '' MOUNTS < <(
  docker inspect "$OLD" | python3 -c '
 import json,os,sys
@@ -411,7 +431,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -478,7 +498,7 @@ docker stop -t 12 "$OLD" >/dev/null
 CID="$(docker run -d --name "$NAME" --restart unless-stopped \
  --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
- -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
  "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 60); do

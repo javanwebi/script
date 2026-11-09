@@ -24,6 +24,16 @@ test("one fixed website host port replaces rotating blue-green publication", () 
   assert.match(one, /verify-single-port-canary\.mjs/);
 });
 
+test("container environment capture preserves multiline values without leaking them into Docker env files", () => {
+  assert.match(one, /MULTILINE_ENV_FILE=/);
+  assert.match(one, /LIVE_ENV_CAPTURE_OK multiline=/);
+  assert.ok(one.includes('args_out.write(b"-e\\0"+entry.encode("utf-8")+b"\\0")'));
+  assert.match(one, /mapfile -d '' MULTILINE_ENV_ARGS/);
+  assert.equal((one.match(/MULTILINE_ENV_ARGS/g) ?? []).length, 3);
+  assert.match(one, /override_keys/);
+  assert.doesNotMatch(one, /MULTILINE_ENV_UNSUPPORTED/);
+});
+
 test("promotion retains same database and storage settings and reverses failures", () => {
   assert.match(one, /--env-file "\$ENV_FILE"/);
   assert.match(one, /"\$\{MOUNTS\[@\]\}"/);
