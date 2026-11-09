@@ -215,6 +215,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [selectedPartCategory, setSelectedPartCategory] = useState<string>('belts');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedImageId, setCapturedImageId] = useState<string | null>(null);
+  const [isSavingCapturedImage, setIsSavingCapturedImage] = useState(false);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   const [selectedConsultProducts, setSelectedConsultProducts] = useState<ConsultationProduct[]>([]);
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -398,6 +399,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   }, []);
 
   const persistCapturedImageOnDevice = async (blob: Blob, originalName: string) => {
+    setIsSavingCapturedImage(true);
     try {
       const saved = await saveCustomerDeviceImage(blob, currentUser?.id || 'guest', originalName);
       setCapturedImageId(saved.id);
@@ -406,6 +408,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     } catch (error: any) {
       setCapturedImageId(null);
       setAnalysisError(error?.message || 'ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.');
+    } finally {
+      setIsSavingCapturedImage(false);
     }
   };
 
@@ -461,7 +465,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       setCapturedImage(dataUrl);
       setCapturedImageId(null);
       setImageEventId(null);
-      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg'));
+      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg')).catch(error => setAnalysisError(error instanceof Error ? error.message : 'ذخیره تصویر دوربین ناموفق بود.'));
       stopCamera();
     }
   };
@@ -496,6 +500,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const runAiPartAnalysis = async () => {
     if (!capturedImage) return;
+    if (isSavingCapturedImage) {
+      setAnalysisError('لطفاً صبر کنید تا تصویر در حافظه داخلی دستگاه ذخیره شود.');
+      return;
+    }
     if (!currentUser) {
       setAnalysisError('برای ثبت سابقه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.');
       openAuthModal('/ai-consult', 'login');
@@ -1572,7 +1580,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       disabled={isAnalyzing}
                       className="w-full py-3 rounded-xl bg-[#E06518] hover:bg-[#C95210] active:scale-98 disabled:bg-[#CBD2D8] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
                     >
-                      {isAnalyzing ? (
+                      {isSavingCapturedImage ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> ذخیره روی دستگاه...</>
+                      ) : isAnalyzing ? (
                         <>
                           <Sparkles className="w-4 h-4 animate-spin" />
                           <span>سامانه در حال استخراج و تحلیل فنی قطعه...</span>
