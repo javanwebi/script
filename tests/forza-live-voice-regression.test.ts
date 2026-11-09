@@ -46,3 +46,12 @@ test('greeting prewarm shares one private voice and timeout never launches dupli
   assert.match(client,/finish\(new Error\('forza_audio_start_timeout'\)\)/);
   assert.doesNotMatch(client,/playback did not start before watchdog[\s\S]{0,180}failed\(\)/);
 });
+
+test('existing navigation gestures unlock the shared AudioContext before route transition',()=>{
+  const unlock=readFileSync(new URL('../src/utils/forzaAudioUnlock.ts',import.meta.url),'utf8');
+  const consult=readFileSync(new URL('../src/pages/AiConsultPage.tsx',import.meta.url),'utf8');
+  const consumer=readFileSync(new URL('../src/pages/ConsumerDashboardPage.tsx',import.meta.url),'utf8');
+  assert.match(unlock,/context\.resume\(\)/);
+  assert.match(consult,/unlockForzaAudioFromGesture\(\);\s*navigate\('\/ai-forza'\)/);
+  assert.match(consumer,/onClick=\{unlockForzaAudioFromGesture\}/);
+});
