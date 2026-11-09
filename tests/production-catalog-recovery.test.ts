@@ -60,3 +60,21 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
    'public HTTPS API must be JSON before successful publish');
  assert.match(script,/NGINX_ROLLBACK_OK/);
 });
+
+test('production deploy applies the 832 curated family assignments additively before canary promotion',()=>{
+ const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
+ const deploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
+ const rows=[...sql.matchAll(/\\n\\('FAM-[^']+','excel-v2-[0-9]+-[0-9]+'/g)];
+ const familyCodes=[...sql.matchAll(/\\n\\('(FAM-[^']+)','excel-v2-/g)].map(match=>match[1]);
+ assert.equal(rows.length,832);
+ assert.equal(new Set(familyCodes).size,832);
+ assert.match(sql,/BEGIN;/);
+ assert.match(sql,/ON CONFLICT\\(family_code\\) DO NOTHING/);
+ assert.match(sql,/COMMIT;/);
+ assert.doesNotMatch(sql,/^\\s*(DROP\\s+|TRUNCATE\\s+|DELETE\\s+FROM\\s+|UPDATE\\s+)/gim);
+ assert.match(deploy,/20261101_catalog_family_menu_assignments\\.sql/);
+ assert.match(deploy,/PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED/);
+ assert.match(deploy,/Expected at least 832 curated family assignments/);
+ assert.ok(deploy.indexOf('PRODUCTION_APPROVED_CATEGORIES_VERIFIED') < deploy.indexOf('20261101_catalog_family_menu_assignments.sql'));
+ assert.ok(deploy.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < deploy.indexOf("echo '===== START NEW CANARY ====='"));
+});
