@@ -1155,7 +1155,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        if (audioBlob) {
+        // Chrome's finalized Persian transcript is already available in the
+        // common path. Do not serialize every turn behind a second full-audio
+        // decode; Diba is the server fallback when browser text is absent or
+        // still provisional.
+        const needsServerFinal = !q || speechInterimRef.current;
+        if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
             if(!q)throw new Error('تشخیص گفتار سروری آماده نیست و مرورگر هم متنی تشخیص نداد. لطفاً سؤال را تایپ کنید.');
@@ -1207,6 +1212,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               window.clearTimeout(sttTimer);
             }
           }
+        } else if (audioBlob && q) {
+          console.info('[FORZA_STT] turn='+generation+
+            ' source=browser-final server_verify=skipped chars='+q.length);
         }
 
         // Render every incoming SSE delta immediately; the selected Nima
