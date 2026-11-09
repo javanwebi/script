@@ -126,18 +126,16 @@ export function registerCustomerIntelligenceApi(app: Express) {
       const status = ['completed','failed','unmatched'].includes(req.body?.status) ? req.body.status : 'failed';
       const detectedPartType = cleanText(req.body?.detectedPartType, 180);
       const summary = cleanText(req.body?.summary, 2500);
-      const selectedProductCode = cleanText(req.body?.selectedProductCode, 110);
       const matched = codeList(req.body?.matchedProductCodes);
       const similar = codeList(req.body?.similarProductCodes);
       const safe = jsonResult(req.body);
       const updated = await database().query(
         `update public.customer_image_identifications set
           recognition_status=$3,detected_part_type=$4,recognized_summary=$5,
-          selected_product_code=nullif($6,''),matched_product_codes=$7::jsonb,
-          similar_product_codes=$8::jsonb,recognition_result=$9::jsonb,
-          updated_at=now()
+          matched_product_codes=$6::jsonb,similar_product_codes=$7::jsonb,
+          recognition_result=$8::jsonb,updated_at=now()
          where id=$1 and user_id=$2 returning id`,
-        [id,userId,status,detectedPartType,summary,selectedProductCode,JSON.stringify(matched),JSON.stringify(similar),JSON.stringify(safe)]
+        [id,userId,status,detectedPartType,summary,JSON.stringify(matched),JSON.stringify(similar),JSON.stringify(safe)]
       );
       if (!updated.rowCount) throw fail(404, 'سابقه شناسایی متعلق به این حساب نیست یا پیدا نشد.');
       return res.json({ success: true });
@@ -152,6 +150,14 @@ export function registerCustomerIntelligenceApi(app: Express) {
       if (!/^[0-9a-f-]{36}$/i.test(id) || !productCode) throw fail(400, 'شناسه سابقه یا کد محصول معتبر نیست.');
       const product = await database().query('select code from public.catalog_variants where code=$1 limit 1', [productCode]);
       if (!product.rowCount) throw fail(404, 'کد انتخاب‌شده در کاتالوگ واقعی پیدا نشد.');
+      const event = (await database().query(
+        'select matched_product_codes,similar_product_codes from public.customer_image_identifications where id=$1 and user_id=$2',
+        [id,userId]
+      )).rows[0];
+      if (!event) throw fail(404, 'سابقه شناسایی متعلق به این حساب نیست یا پیدا نشد.');
+      const candidates = [...(Array.isArray(event.matched_product_codes) ? event.matched_product_codes : []),
+        ...(Array.isArray(event.similar_product_codes) ? event.similar_product_codes : [])].map(String);
+      if (!candidates.includes(productCode)) throw fail(400, 'این کد در نتایج همین شناسایی وجود ندارد.');
       const updated = await database().query(
         'update public.customer_image_identifications set selected_product_code=$3,updated_at=now() where id=$1 and user_id=$2 returning id',
         [id,userId,productCode]
