@@ -475,65 +475,6 @@ app.use('/api/ai', async (req,res,next)=>{
 });
 app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, message: 'از مسیر ورود جدید استفاده کنید.' }));
 
-interface CachedCustomerImage {
-  buffer: Buffer;
-  mimeType: string;
-  createdAt: number;
-}
-const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
-const CUSTOMER_IMAGE_MEMORY_TTL_MS = 30 * 60 * 1000;
-const CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES = 32;
-const CUSTOMER_IMAGE_MEMORY_MAX_BYTES = 96 * 1024 * 1024;
-
-function cleanCustomerImageMemoryCache(now = Date.now()) {
-  for (const [key, val] of customerImageMemoryCache.entries()) {
-    if (now - val.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) customerImageMemoryCache.delete(key);
-  }
-  let totalBytes = 0;
-  for (const value of customerImageMemoryCache.values()) totalBytes += value.buffer.length;
-  while (customerImageMemoryCache.size > CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES || totalBytes > CUSTOMER_IMAGE_MEMORY_MAX_BYTES) {
-    const oldest = customerImageMemoryCache.entries().next().value as [string, CachedCustomerImage] | undefined;
-    if (!oldest) break;
-    totalBytes -= oldest[1].buffer.length;
-    customerImageMemoryCache.delete(oldest[0]);
-  }
-}
-
-function cacheCustomerImageBuffer(fileName: string, buffer: Buffer, mimeType = 'image/jpeg') {
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0 || buffer.length > CUSTOMER_IMAGE_MAX_BYTES) {
-    throw new Error('حجم تصویر بیش از ۱۰ مگابایت است یا دادهٔ تصویر نامعتبر است.');
-  }
-  customerImageMemoryCache.delete(fileName);
-  customerImageMemoryCache.set(fileName, { buffer, mimeType, createdAt: Date.now() });
-  cleanCustomerImageMemoryCache();
-}
-
-const customerImageCacheCleanupTimer = setInterval(cleanCustomerImageMemoryCache, 60_000);
-customerImageCacheCleanupTimer.unref?.();
-
-// New customer uploads are served only from this bounded, short-lived memory cache.
-// The disk-backed static fallback below exists solely for legacy files created by older releases.
-app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
-  const fileName = path.basename(req.params.fileName || '');
-  const cached = customerImageMemoryCache.get(fileName);
-  if (cached) {
-    if (Date.now() - cached.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) {
-      customerImageMemoryCache.delete(fileName);
-      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-      return res.status(404).end();
-    }
-    res.setHeader('Content-Type', cached.mimeType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    return res.end(cached.buffer);
-  }
-  next();
-});
-
 // Fallback to disk folder if image existed prior
 app.use(
   ['/imageai', '/imagemoshtari'],
@@ -2789,7 +2730,7 @@ async function readResponseBufferLimited(response: Response, maxBytes: number): 
 async function prepareCustomerImageInMemory(
   input: Buffer,
   declaredMime: string | undefined
-): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number }> {
+): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number; dataUrl: string }> {
   if (!Buffer.isBuffer(input) || input.length === 0) {
     throw new Error('فایل تصویر خالی یا نامعتبر است.');
   }
@@ -2826,8 +2767,9 @@ async function prepareCustomerImageInMemory(
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
   // Customer image bytes remain in process memory only: never write them to disk,
   // persistent object storage, the database, logs, or GitHub backups.
-  cacheCustomerImageBuffer(fileName, optimized, 'image/jpeg');
-  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length };
+
+  const dataUrl = `data:image/jpeg;base64,${optimized.toString('base64')}`;
+  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl };
 }
 
 function validatePresetImageImportUrl(input: string): string | null {
@@ -2939,7 +2881,7 @@ async function resolveCustomerImageBufferAndInfo(
       if (rawBase64.length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
       const buffer = Buffer.from(rawBase64, 'base64');
       const fileName = `${crypto.randomUUID()}.jpg`;
-      cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
+
       return {
         imageUrl: trimmed,
         fileName,
@@ -2954,7 +2896,7 @@ async function resolveCustomerImageBufferAndInfo(
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
     const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
+
     return {
       imageUrl: dataUrl,
       fileName,
@@ -2966,7 +2908,7 @@ async function resolveCustomerImageBufferAndInfo(
   try {
     const url = new URL(trimmed);
     const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
+
     if (cached && cached.buffer && cached.buffer.length > 0) {
       return {
         imageUrl: url.toString(),
@@ -2988,7 +2930,7 @@ async function resolveCustomerImageBufferAndInfo(
       if (fetchResp.ok) {
         const rawBuffer = await readResponseBufferLimited(fetchResp, CUSTOMER_IMAGE_MAX_BYTES);
         if (rawBuffer.length > 0) {
-          cacheCustomerImageBuffer(fileName, rawBuffer, fetchResp.headers.get('content-type') || 'image/jpeg');
+
           return {
             imageUrl: url.toString(),
             fileName,
@@ -3024,11 +2966,11 @@ const getUploadedCustomerImageFromUrl = (input: string, req: express.Request) =>
   try {
     const url = new URL(trimmed);
     const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
+
     return {
       imageUrl: url.toString(),
       fileName,
-      buffer: cached ? cached.buffer : Buffer.alloc(0),
+      buffer: Buffer.alloc(0),
     };
   } catch {
     return { imageUrl: trimmed, fileName: `${crypto.randomUUID()}.jpg`, buffer: Buffer.alloc(0) };
@@ -4660,7 +4602,7 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const imageBase64=typeof req.body?.imageBase64==='string'?req.body.imageBase64.trim():'';
     const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
     const imageInput=imageBase64 || imageUrl;
-    const dataUrlInput=/^data:image\\//i.test(imageInput);
+    const dataUrlInput = /^data:image\//i.test(imageInput);
     if(!imageInput || imageInput.length>15*1024*1024 || (!imageBase64 && !dataUrlInput && imageUrl.length>2048))
       return res.status(400).json({error:{code:'INVALID_IMAGE',message:'تصویر بارگذاری‌شده معتبر نیست.'}});
     const normalizedInput=(imageBase64 || dataUrlInput)
@@ -4775,7 +4717,6 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       // Similarity thresholds require validation on owner-labelled industrial photos.
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
-      const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
       const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
