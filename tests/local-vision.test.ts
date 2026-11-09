@@ -178,3 +178,25 @@ test('automatic crop scores come from the best real catalogue-bound photo, never
  assert.deepEqual(bestBoundQueryViewScores([unbound,bound],products),[0.72,0.88]);
  assert.deepEqual(bestBoundQueryViewScores([unbound],products),[]);
 });
+
+test('legacy DINO worker supports a full frame and one crop without inventing multi-region coordinates',async()=>{
+ const {describeLocalQuery,LOCAL_VISION_PIPELINE}=await import('../src/services/localVision');
+ const region={x:0.2,y:0.1,width:0.4,height:0.5};
+ let count=2,box:typeof region|null=region;
+ const server=http.createServer(async(req,res)=>{
+  for await(const _chunk of req){}
+  res.setHeader('content-type','application/json');
+  res.end(JSON.stringify({model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,vectors:Array.from({length:count},()=>Array(384).fill(0.1)),region:box,markings:[],ocrAvailable:false}));
+ });
+ await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const env={LOCAL_VISION_URL:`http://127.0.0.1:${(server.address() as any).port}`,LOCAL_VISION_TOKEN:'test-token'};
+  assert.deepEqual((await describeLocalQuery(Buffer.from('photo'),env)).viewRegions,[null,region]);
+  count=1;box=null;
+  assert.deepEqual((await describeLocalQuery(Buffer.from('photo'),env)).viewRegions,[null]);
+  count=2;
+  await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/Missing query regions/);
+  count=3;box=region;
+  await assert.rejects(()=>describeLocalQuery(Buffer.from('photo'),env),/Missing query regions/);
+ }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});

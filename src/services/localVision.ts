@@ -54,7 +54,13 @@ export async function describeLocalQuery(image:Buffer,env=process.env):Promise<Q
  const profile=localVisionProfile(env),vectors=validVectors(data,undefined,env);
  if((data.region!==null && data.region!==undefined && !validImageRegion(data.region)) || data.pipeline!==profile.pipeline || vectors.length<1 || vectors.length>profile.maxViews || !Array.isArray(data.markings))throw new Error('Invalid local query');
  if(data.viewRegions!==undefined && (!Array.isArray(data.viewRegions)||data.viewRegions.length!==vectors.length||data.viewRegions[0]!==null||data.viewRegions.some((box:any)=>box!==null&&!validImageRegion(box))))throw new Error('Invalid query regions');
- if(profile.maxViews>2&&!data.viewRegions)throw new Error('Missing query regions');
+ // The original DINO worker returned full-frame + optional region vectors,
+ // before per-view metadata was introduced. Accept only that bounded contract;
+ // never guess coordinates for newer multi-region workers or another encoder.
+ if(data.viewRegions===undefined){
+  if(profile.model!==LOCAL_VISION_MODEL || vectors.length>2 || (vectors.length===2&&!data.region))throw new Error('Missing query regions');
+  data.viewRegions=vectors.length===1?[null]:[null,data.region];
+ }
  const markings=data.markings.filter((m:any)=>typeof m.text==='string'&&m.text.length<=32&&Number.isFinite(m.confidence)&&m.confidence>=85&&m.confidence<=100).slice(0,12);
  return {model:data.model,vectors,region:data.region,viewRegions:data.viewRegions,markings,ocrAvailable:data.ocrAvailable===true};
 }
