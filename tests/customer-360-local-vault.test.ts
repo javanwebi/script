@@ -9,7 +9,7 @@ test('customer image originals are saved automatically in device-local IndexedDB
   assert.ok(vault.includes('indexedDB.open'));
   assert.ok(vault.includes('new Blob([blob], { type: mimeType })'));
   assert.ok(vault.includes('createObjectStore(STORE_NAME'));
-  assert.ok(vault.includes('blob,'));
+  assert.ok(vault.includes('blob: storedBlob'));
   assert.ok(!vault.includes('navigator.storage.persist('));
   assert.ok(!vault.includes('export async function delete'));
   assert.ok(!vault.includes('localStorage'));
@@ -112,7 +112,7 @@ test('customer image bytes are never published to a server image directory for w
   assert.ok(!worker.includes('createVisionImagePublisher'));
   assert.ok(!worker.includes('publishImage'));
   const verifyStart = server.indexOf('async function verifyCandidatesVisuallyWithGemini(');
-  const verifyEnd = server.indexOf('async function analyzePartWithWorker(', verifyStart);
+  const verifyEnd = server.indexOf('function workerCatalogAuthStatus', verifyStart);
   assert.ok(verifyStart >= 0 && verifyEnd > verifyStart);
   const verify = server.slice(verifyStart, verifyEnd);
   assert.ok(!verify.includes('createVisionImagePublisher'));

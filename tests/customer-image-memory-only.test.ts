@@ -31,7 +31,7 @@ test('customer image bytes are request-scoped and never written or cached on the
 test('customer images are never published to IMAGE_AI_DIR for worker or Gemini comparison', () => {
   const worker = sourceSection('async function callPartRecognitionWorker(', 'function buildWorkerAnalysisPrompt');
   assert.doesNotMatch(worker, /createVisionImagePublisher|publishImage/);
-  const verification = sourceSection('async function verifyCandidatesVisuallyWithGemini(', 'async function analyzePartWithWorker(');
+  const verification = sourceSection('async function verifyCandidatesVisuallyWithGemini(', 'function workerCatalogAuthStatus');
   assert.doesNotMatch(verification, /createVisionImagePublisher|publishImage/);
   const analysis = sourceSection('async function analyzePartWithWorker(', 'async function saveBase64CustomerImageForWorker');
   assert.match(analysis, /catalogImagePublisher/);
