@@ -62,13 +62,17 @@ import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/x
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
+import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
 
 dotenv.config();
-// Optional VPS-only private FORZA voice configuration. This file is ignored by
-// Git and mounted into the existing /app container on the self-hosted server.
-// Explicit environment variables continue to take precedence; Railway is
-// unaffected when the file is absent.
-dotenv.config({ path: path.resolve(process.cwd(), '.env.forza-voice'), quiet: true });
+// Optional VPS-only private FORZA configuration. The deployment preserves the
+// previous container's environment, so this private file is authoritative for
+// FORZA_ and AVALAI_ keys; unrelated process variables remain untouched.
+// Railway is unaffected when the file is absent.
+const privateForzaConfigPath = path.resolve(process.cwd(), '.env.forza-voice');
+if (fs.existsSync(privateForzaConfigPath)) {
+  applyPrivateForzaConfig(process.env, dotenv.parse(fs.readFileSync(privateForzaConfigPath)));
+}
 // Server-side SMS credentials; ignored by Git and never sent to the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
 // Server-only staff administration key. Never include it in Vite assets or the browser.
