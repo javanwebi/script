@@ -1,0 +1,127 @@
+.sp-region-review {
+  --sp-orange:#e56b1e;
+  min-width:0;
+  overflow:hidden;
+  border:1px solid #e6eaf0;
+  border-radius:24px;
+  background:#fff;
+  box-shadow:0 14px 38px rgba(25,37,52,.08);
+}
+.sp-region-review__header {
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:18px 20px;
+  color:#fff;
+  background:radial-gradient(circle at 8% 10%,rgba(229,107,30,.22),transparent 34%),linear-gradient(120deg,#172332,#253345);
+}
+.sp-region-review__brand {display:flex;align-items:center;gap:13px;min-width:0}
+.sp-region-review__brand-icon {
+  display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;
+  border:1px solid rgba(255,255,255,.18);border-radius:15px;
+  color:#ffb17a;background:rgba(255,255,255,.08);
+}
+.sp-region-review__eyebrow {display:block;color:#ffb17a;font-size:9px;font-weight:900;letter-spacing:.12em;direction:ltr;text-align:right}
+.sp-region-review__header h2 {margin:3px 0 2px;color:#fff;font-size:clamp(15px,2.5vw,19px);font-weight:900;line-height:1.5}
+.sp-region-review__header p {margin:0;color:#c5cfda;font-size:10px;line-height:1.8}
+.sp-region-review__status {
+  display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;
+  padding:8px 10px;border:1px solid rgba(255,255,255,.15);border-radius:999px;
+  color:#fff;background:rgba(255,255,255,.09);font-size:10px;font-weight:800;white-space:nowrap
+}
+.sp-region-review__status.is-ready {color:#baf3d1;background:rgba(30,155,91,.16);border-color:rgba(126,226,170,.2)}
+.sp-region-review__status.is-manual {color:#ffd5b6;background:rgba(229,107,30,.14);border-color:rgba(255,177,122,.24)}
+.sp-region-review__spin {animation:sp-region-spin 1s linear infinite}
+@keyframes sp-region-spin {to{transform:rotate(360deg)}}
+.sp-region-review__scanner {padding:16px;background:linear-gradient(180deg,#f8fafc,#fff)}
+.sp-region-review__scanner-stage {
+  position:relative;display:grid;place-items:center;min-height:210px;max-height:440px;aspect-ratio:16/9;
+  overflow:hidden;border:1px solid #dce3eb;border-radius:18px;background:#111b27
+}
+.sp-region-review__scanner-stage img {width:100%;height:100%;max-height:440px;object-fit:contain;padding:14px;filter:drop-shadow(0 12px 18px rgba(0,0,0,.22))}
+.sp-region-review__scanner-grid {position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:28px 28px}
+.sp-region-review__scanner-line {position:absolute;inset-inline:5%;top:10%;height:2px;background:linear-gradient(90deg,transparent,#ffb17a,#e56b1e,transparent);box-shadow:0 0 18px 5px rgba(229,107,30,.28);animation:sp-region-sweep 2.7s ease-in-out infinite alternate}
+@keyframes sp-region-sweep {from{top:12%}to{top:86%}}
+.sp-region-review__scanner-corner {position:absolute;width:28px;height:28px;border-color:#ffad72;border-style:solid}
+.sp-region-review__scanner-corner.corner-tr {top:12px;right:12px;border-width:3px 3px 0 0;border-radius:0 8px 0 0}
+.sp-region-review__scanner-corner.corner-tl {top:12px;left:12px;border-width:3px 0 0 3px;border-radius:8px 0 0 0}
+.sp-region-review__scanner-corner.corner-br {bottom:12px;right:12px;border-width:0 3px 3px 0;border-radius:0 0 8px 0}
+.sp-region-review__scanner-corner.corner-bl {bottom:12px;left:12px;border-width:0 0 3px 3px;border-radius:0 0 0 8px}
+.sp-region-review__scanner-caption {position:absolute;bottom:12px;inset-inline-start:12px;display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(255,255,255,.16);border-radius:999px;color:#fff;background:rgba(12,20,29,.8);font-size:10px;font-weight:800}
+.sp-region-review__scanner-caption svg {color:#ffad72}
+.sp-region-review__scanner-steps {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.sp-region-review__scanner-steps span {display:flex;align-items:center;justify-content:center;gap:6px;min-height:39px;padding:7px;border:1px solid #e8edf2;border-radius:12px;color:#8792a0;background:#fff;font-size:10px;font-weight:750}
+.sp-region-review__scanner-steps span.is-active {color:#b95213;border-color:#f2c7a8;background:#fff5ed}
+.sp-region-review__scanner-steps span.is-done {color:#258455;border-color:#cce8d7;background:#f2fbf6}
+.sp-region-review__instruction {display:flex;align-items:center;gap:10px;margin:15px 16px 0;padding:12px 14px;border:1px solid #f3dfcf;border-radius:15px;background:linear-gradient(110deg,#fff7f0,#fffdfb)}
+.sp-region-review__instruction-icon {display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:12px;color:#d76319;background:#ffeadb}
+.sp-region-review__instruction strong,.sp-region-review__instruction span {display:block}
+.sp-region-review__instruction strong {color:#303b49;font-size:11px;font-weight:900}
+.sp-region-review__instruction span {margin-top:3px;color:#778393;font-size:10px;line-height:1.8}
+.sp-region-review > .sanat-region-picker {margin:14px 16px 0;padding:14px;border-color:#e8edf2;border-radius:18px;background:#fbfcfd}
+.sp-region-review .sanat-region-picker__layout {grid-template-columns:minmax(0,1fr) minmax(150px,190px)}
+.sp-region-review .sanat-region-picker__canvas {background:#172231;border-color:#26374b}
+.sp-region-review .sanat-region-picker__frame {max-height:460px}
+.sp-region-review .sanat-region-picker__frame > img {max-height:460px}
+.sp-region-review .sanat-region-picker__candidate {border:2px dashed rgba(255,255,255,.9);background:rgba(255,255,255,.045)}
+.sp-region-review .sanat-region-picker__candidate.is-selected {border:3px solid #ff8a3d;background:rgba(229,107,30,.16);box-shadow:0 0 0 2px #fff,0 0 0 6px rgba(229,107,30,.24)}
+.sp-region-review .sanat-region-picker__candidate span {background:#29394b}
+.sp-region-review .sanat-region-picker__candidate.is-selected span {background:#e56b1e}
+.sp-region-review .sanat-region-picker__side {border-color:#e7ebf0;background:#fff}
+.sp-region-review .sanat-region-picker__crop {min-height:120px;max-height:180px;background-color:#f3f5f7}
+.sp-region-review .sanat-region-picker__side-title {font-size:12px;color:#2c3745}
+.sp-region-review .sanat-region-picker__side p,.sp-region-review .sanat-region-picker__hint {font-size:10px}
+.sp-region-review__notice,.sp-region-review__error {
+  display:flex;align-items:center;gap:10px;margin:13px 16px 0;padding:12px 13px;border-radius:14px;
+  border:1px solid #f0d7c3;background:#fff8f2;color:#a95117
+}
+.sp-region-review__notice > svg,.sp-region-review__error > svg {flex:0 0 18px}
+.sp-region-review__notice div,.sp-region-review__error div {display:grid;gap:3px;min-width:0;flex:1}
+.sp-region-review__notice strong,.sp-region-review__error strong {font-size:10px;font-weight:900}
+.sp-region-review__notice span,.sp-region-review__error span {font-size:10px;line-height:1.8;color:#7d6b5d}
+.sp-region-review__notice button,.sp-region-review__error button {display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:6px 10px;border:1px solid #edc4a4;border-radius:10px;background:#fff;color:#a95117;font-size:10px;font-weight:850;white-space:nowrap}
+.sp-region-review__notice.is-neutral {border-color:#e4e9ef;background:#f8fafc;color:#586779}
+.sp-region-review__notice.is-neutral span {color:#758294}
+.sp-region-review__error {border-color:#f0c6c3;background:#fff7f6;color:#b63831}
+.sp-region-review__error span {color:#875e5a}
+.sp-region-review__error button {border-color:#efc3bf;color:#a3312a}
+.sp-region-review__actions {display:flex;align-items:center;gap:10px;padding:15px 16px calc(15px + env(safe-area-inset-bottom));margin-top:14px;border-top:1px solid #edf0f3;background:#fff}
+.sp-region-review__actions button {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:14px;font-size:11px;font-weight:900;transition:transform .15s ease,background .15s ease}
+.sp-region-review__actions button:focus-visible {outline:3px solid rgba(229,107,30,.35);outline-offset:3px}
+.sp-region-review__change {flex:0 0 auto;padding:0 15px;border:1px solid #e1e6ec;background:#fff;color:#566273}
+.sp-region-review__confirm {flex:1;padding:0 18px;border:1px solid #d95f17;background:linear-gradient(115deg,#ef812f,#d95f17);color:#fff;box-shadow:0 7px 17px rgba(217,95,23,.2)}
+.sp-region-review__confirm:hover:not(:disabled) {background:linear-gradient(115deg,#f18d43,#c95110);transform:translateY(-1px)}
+.sp-region-review__confirm:disabled,.sp-region-review__change:disabled {opacity:.55;cursor:not-allowed}
+@media (max-width:680px) {
+  .sp-region-review {border-radius:19px}
+  .sp-region-review__header {align-items:flex-start;padding:14px 13px;gap:8px}
+  .sp-region-review__brand {gap:9px}
+  .sp-region-review__brand-icon {flex-basis:38px;width:38px;height:38px;border-radius:12px}
+  .sp-region-review__eyebrow {font-size:8px}
+  .sp-region-review__header h2 {font-size:14px}
+  .sp-region-review__header p {font-size:9px}
+  .sp-region-review__status {padding:6px 8px;font-size:9px}
+  .sp-region-review__scanner {padding:10px}
+  .sp-region-review__scanner-stage {min-height:190px;aspect-ratio:4/3;border-radius:15px}
+  .sp-region-review__scanner-stage img {padding:9px}
+  .sp-region-review__scanner-steps {gap:5px}
+  .sp-region-review__scanner-steps span {gap:4px;min-height:36px;padding:5px 3px;font-size:9px}
+  .sp-region-review__instruction {margin:10px 10px 0;padding:10px}
+  .sp-region-review > .sanat-region-picker {margin:10px 10px 0;padding:10px}
+  .sp-region-review .sanat-region-picker__layout {grid-template-columns:minmax(0,1fr)}
+  .sp-region-review .sanat-region-picker__frame,.sp-region-review .sanat-region-picker__frame > img {max-height:48dvh}
+  .sp-region-review .sanat-region-picker__side {grid-template-columns:100px minmax(0,1fr)}
+  .sp-region-review__notice,.sp-region-review__error {align-items:flex-start;margin:10px 10px 0;padding:10px}
+  .sp-region-review__notice button,.sp-region-review__error button {font-size:9px;padding:5px 7px}
+  .sp-region-review__actions {padding:11px 10px calc(11px + env(safe-area-inset-bottom));gap:8px}
+  .sp-region-review__actions button {min-height:47px;font-size:10px}
+  .sp-region-review__change {padding:0 10px}
+}
+@media (max-width:360px) {
+  .sp-region-review__header {flex-wrap:wrap}
+  .sp-region-review__status {margin-inline-start:47px}
+  .sp-region-review__actions {flex-direction:column-reverse}
+  .sp-region-review__actions button {width:100%}
+}
+@media (prefers-reduced-motion:reduce) {
+  .sp-region-review__spin,.sp-region-review__scanner-line {animation:none}
+  .sp-region-review__actions button {transition:none}
+}
