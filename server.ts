@@ -316,9 +316,6 @@ function getPublicAppBaseUrl(req: express.Request): string {
 function visionImagePublicOrigin(req:express.Request):string {
   return (process.env.VISION_IMAGE_PUBLIC_ORIGIN || getPublicAppBaseUrl(req)).trim().replace(/\/+$/,'');
 }
-function customerImagePublicUrl(req: express.Request, fileName: string): string {
-  return `${visionImagePublicOrigin(req)}/imageai/${encodeURIComponent(fileName)}`;
-}
 
 function normalizeBrowserOrigin(value: string): string | null {
   try {
