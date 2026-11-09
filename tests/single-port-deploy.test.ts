@@ -37,8 +37,8 @@ test("promotion retains same database and storage settings and reverses failures
 });
 
 test("private FORZA provider credentials are mounted read-only into each release", () => {
-  assert.match(one, /if \\[\\[ -f "\$APP\\/\\.env\\.forza-voice" \\]\\]/);
-  assert.match(one, /-v "\$APP\\/\\.env\\.forza-voice:\/app\\/\\.env\\.forza-voice:ro"/);
+  assert.ok(one.includes('if [[ -f "$APP/.env.forza-voice" ]]'));
+  assert.ok(one.includes('-v "$APP/.env.forza-voice:/app/.env.forza-voice:ro"'));
   assert.match(one, /FORZA provider configuration across releases/);
 });
 
