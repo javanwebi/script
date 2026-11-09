@@ -85,7 +85,7 @@ export async function saveCustomerDeviceImage(
 ): Promise<CustomerImageVaultMetadata> {
   const mimeType = (blob.type || '').split(';')[0].toLowerCase();
   if (!ALLOWED_MIME.has(mimeType)) throw new Error('فقط تصاویر JPEG، PNG و WebP قابل ذخیره هستند.');
-  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر باید کمتر از ۱۰ مگابایت باشد.');
+  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.');
 
   await requestCustomerVaultPersistence();
   const record: CustomerImageVaultRecord = {
@@ -127,8 +127,15 @@ export async function getCustomerDeviceImage(id: string): Promise<CustomerImageV
 export async function getCustomerDeviceImageMetadata(id: string): Promise<CustomerImageVaultMetadata | null> {
   const record = await getCustomerDeviceImage(id);
   if (!record) return null;
-  const { blob: _blob, ...metadata } = record;
-  return metadata;
+  return {
+    id: record.id,
+    ownerId: record.ownerId,
+    originalName: record.originalName,
+    mimeType: record.mimeType,
+    sizeBytes: record.sizeBytes,
+    sha256: record.sha256,
+    createdAt: record.createdAt,
+  };
 }
 
 export async function listCustomerDeviceImages(ownerId: string, limit = 100): Promise<CustomerImageVaultMetadata[]> {
@@ -138,7 +145,15 @@ export async function listCustomerDeviceImages(ownerId: string, limit = 100): Pr
   return (rows as CustomerImageVaultRecord[])
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, Math.max(1, Math.min(500, limit)))
-    .map(({ blob: _blob, ...metadata }) => metadata);
+    .map(record => ({
+      id: record.id,
+      ownerId: record.ownerId,
+      originalName: record.originalName,
+      mimeType: record.mimeType,
+      sizeBytes: record.sizeBytes,
+      sha256: record.sha256,
+      createdAt: record.createdAt,
+    }));
 }
 
 export async function adoptCustomerDeviceImage(id: string, ownerId: string): Promise<void> {
