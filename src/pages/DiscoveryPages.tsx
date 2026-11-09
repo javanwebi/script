@@ -110,9 +110,6 @@ export function MapCard({ compact = false }: { compact?: boolean }) {
 }
 export function IndustryPage() {
   const { slug = "ceramic" } = useParams();
-  if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
-    return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
-  }
   const industry = INDUSTRIES.find((i) => i.slug === slug) || INDUSTRIES[0];
   const [tick, setTick] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => setTick((t) => t + 1)), []);
@@ -124,6 +121,9 @@ export function IndustryPage() {
         .slice(0, 4),
     [industry, tick],
   );
+  if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
+    return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
+  }
   return (
     <div className={`editorial industry-page industry-${industry.slug}`}>
       <section className="industry-hero">
