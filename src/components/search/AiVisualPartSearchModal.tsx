@@ -479,12 +479,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود.");
       return;
     }
-    if (!currentUser) {
-      setErrorMessage("برای ثبت تاریخچه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.");
-      openAuthModal(window.location.pathname + window.location.search, "login");
-      return;
-    }
-
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
     const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
     analysisBusyRef.current=true;
@@ -506,9 +500,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (!localImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
         const localRecord = await getCustomerDeviceImage(localImageId);
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        await adoptCustomerDeviceImage(localImageId, currentUser.id);
+        if (currentUser) await adoptCustomerDeviceImage(localImageId, currentUser.id);
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
-        if (!activeImageEventId) {
+        if (currentUser && !activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(localImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
           try {
