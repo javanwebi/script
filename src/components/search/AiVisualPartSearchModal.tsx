@@ -211,9 +211,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     "بدون لغزش دندانه و انعطاف بالا",
   ];
 
-  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image") => {
+  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image"): Promise<string | null> => {
     const sequence = ++imageUploadSequenceRef.current;
-    if (typeof source === "string" && /^https?:\/\//i.test(source.trim())) return;
+    if (typeof source === "string" && /^https?:\/\//i.test(source.trim())) return null;
     setIsUploadingImage(true);
     try {
       const blob = typeof source === "string"
@@ -226,12 +226,15 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence === imageUploadSequenceRef.current) {
         setLocalImageId(saved.id);
         setMimeType(saved.mimeType);
+        return saved.id;
       }
+      return null;
     } catch (error: any) {
       if (sequence === imageUploadSequenceRef.current) {
         setLocalImageId(null);
         setErrorMessage(error?.message || "ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.");
       }
+      return null;
     } finally {
       if (sequence === imageUploadSequenceRef.current) setIsUploadingImage(false);
     }
@@ -399,13 +402,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         setImageEventId(null);
         setMimeType("image/jpeg");
         setErrorMessage("");
-        void uploadSelectedImage(dataUrl, "camera-capture.jpg");
         if (cameraFlowActive) {
-          // Keep the captured frame local until the customer confirms it.
+          // Keep the captured frame in memory only until the customer confirms it.
           setCameraReview(true);
           stopCamera();
           return;
         }
+        void uploadSelectedImage(dataUrl, "camera-capture.jpg");
         stopCamera();
       }
     }
@@ -462,7 +465,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null) => {
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null, localImageIdOverride?:string) => {
     if(analysisBusyRef.current)return;
     if (!selectedImage && !length && !width) {
       setErrorMessage(
@@ -475,10 +478,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       return;
     }
 
-    if (isUploadingImage) {
+    if (isUploadingImage && !localImageIdOverride) {
       setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود.");
       return;
     }
+    const effectiveLocalImageId = localImageIdOverride || localImageId;
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
     const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
     analysisBusyRef.current=true;
@@ -497,13 +501,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (selectedImage && /^https?:\/\//i.test(selectedImage)) {
         imageUrl = selectedImage;
       } else if (selectedImage) {
-        if (!localImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        const localRecord = await getCustomerDeviceImage(localImageId);
+        if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        if (currentUser) await adoptCustomerDeviceImage(localImageId, currentUser.id);
+        if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
         if (currentUser && !activeImageEventId) {
-          const metadata = await getCustomerDeviceImageMetadata(localImageId);
+          const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
           try {
             const event = await createCustomerImageIdentification({
@@ -599,15 +603,18 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void startCamera();
   };
 
-  const confirmCameraPhoto = () => {
+  const confirmCameraPhoto = async () => {
     if (!selectedImage) {
       setErrorMessage("ابتدا عکس قطعه را ثبت کنید.");
       return;
     }
-    // The original image remains in the device vault; only a request-scoped copy is sent for AI processing.
+    setErrorMessage("");
+    const imageId = localImageId || await uploadSelectedImage(selectedImage, "camera-capture.jpg");
+    if (!imageId) return;
+    // Only after explicit confirmation is the original persisted locally and a request-scoped copy sent for recognition.
     setCameraReview(false);
     setCameraFlowActive(false);
-    void handleAnalyze("quick");
+    void handleAnalyze("quick", undefined, imageId);
   };
 
   // Resolve a match image that may be a bare catalog filename (e.g. "e(001).png")
