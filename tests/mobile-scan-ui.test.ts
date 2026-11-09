@@ -114,7 +114,7 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
   const reviewBranch = capture.indexOf("if (cameraFlowActive)");
   const stopAndReturn = capture.indexOf("return;", reviewBranch);
-  const upload = capture.indexOf("uploadSelectedImage(dataUrl)");
+  const upload = capture.indexOf("uploadSelectedImage(dataUrl,");
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
   assert.ok(upload > stopAndReturn, "local device-vault persistence must happen after the review-only return");
