@@ -1,8 +1,9 @@
 /**
  * Lightweight microphone voice activity detector.
  * Uses actual PCM RMS from the browser's analyser, not visual animation.
- * Its noise floor adapts ONLY during silence, so quiet microphones work
- * without mistaking steady fan noise for speech.
+ * Uses a near-field-biased threshold and a short persistence window to reject
+ * low-level distant voices and transient exhibition-floor noise. The browser's
+ * echo cancellation and noise suppression remain enabled; this is not speaker diarization.
  */
 export class ForzaVoiceActivity {
   private floor = 0.004;
@@ -17,7 +18,7 @@ export class ForzaVoiceActivity {
     level: number;
   } {
     const energy = Number.isFinite(rms) ? Math.max(0, Math.min(1, rms)) : 0;
-    const threshold = Math.max(0.008, this.floor * 2.8);
+    const threshold = Math.max(0.012, this.floor * 3.5);
     const audible = energy > threshold;
     if (!audible && !this.detected) {
       this.floor = this.floor * 0.97 + energy * 0.03;
@@ -27,7 +28,7 @@ export class ForzaVoiceActivity {
       // Once a turn has started, even a short resumed syllable postpones its end.
       if (this.detected) this.lastSpeechAt = timestampMs;
       this.voicedFrames = Math.min(this.voicedFrames + 1, 12);
-      if (this.voicedFrames >= 5) {
+      if (this.voicedFrames >= 6) {
         speechStarted = !this.detected;
         this.detected = true;
         this.lastSpeechAt = timestampMs;
