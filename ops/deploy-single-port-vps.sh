@@ -87,8 +87,11 @@ wait_for_live_health() {
     sleep 2
   done
   echo "${label}=FAILED url=${url}" >&2
-  curl --noproxy '*' -skv --connect-timeout 3 --max-time 8 \
-    ${resolve_domain:+--resolve "$resolve_domain:443:127.0.0.1"} "$url" 2>&1 | tail -25 >&2 || true
+  local -a debug_args=(--noproxy '*' -skv --connect-timeout 3 --max-time 8)
+  if [[ -n "$resolve_domain" ]]; then
+    debug_args+=(--resolve "$resolve_domain:443:127.0.0.1")
+  fi
+  curl "${debug_args[@]}" "$url" 2>&1 | tail -25 >&2 || true
   return 1
 }
 wait_for_live_health "http://127.0.0.1:$ACTIVE/api/health" ACTIVE_HTTP_HEALTH
