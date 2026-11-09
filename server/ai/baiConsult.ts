@@ -89,7 +89,7 @@ export function buildForzaConsultSystemMessage(voice: boolean): string {
   return common + (voice
     ? 'پاسخ برای مکالمه صوتی است: جمله اول کوتاه، کامل و مستقیم باشد؛ در هر نوبت پاسخ مختصر و طبیعی بدهید. فقط متن ساده فارسی؛ بدون ستاره، Markdown، جدول، backtick، URL خام یا علامت تزئینی. کدهای فنی را واضح و بدون تغییر تلفظ‌پذیر نگه دارید. '
     : 'پاسخ برای میزکار متنی است: نتیجه را ابتدا بگویید، سپس فقط تحلیل لازم را با ساختار روشن ارائه کنید. از جدول فقط وقتی واقعاً به مقایسه کمک می‌کند استفاده کنید؛ از توضیح عمومی و تکراری پرهیز کنید. ')
-    + '\\nداده مرجع کاتالوگ (ممکن است خالی باشد):\\n';
+    + '\nداده مرجع کاتالوگ (ممکن است خالی باشد):\n';
 }
 
 async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: string): Promise<{ text: string; model: string; firstTokenMs: number }> {
