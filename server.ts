@@ -7952,7 +7952,7 @@ async function start() {
     if(localVisionEnabled)warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void (forzaVoiceEngine!=='pocket-farsi-v2'?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
+    void (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
     // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
