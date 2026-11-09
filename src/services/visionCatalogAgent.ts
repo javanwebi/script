@@ -33,7 +33,9 @@ const declarations=[
  {name:'get_catalog_product',description:'Read-only details of real catalog SKU and image associations. No arbitrary SQL.',parameters:{type:'OBJECT',properties:{code:{type:'STRING'}},required:['code']}}
 ];
 export async function runReadOnlyVisionCatalogAgent(input:VisionAgentInput):Promise<VisionAgentResult>{
- if(!isValidPublicHttps(input.customerImageUrl)||!isValidPublicHttps(input.catalogImageOrigin))throw new Error('Vision images require public HTTPS URLs');
+ if(!isValidPublicHttps(input.catalogImageOrigin))throw new Error('Catalog image origin requires public HTTPS');
+ // Customer pixels are supplied as request-scoped bytes; they are never published as a public URL.
+ if(input.customerImageUrl && input.customerImageUrl!=='device-local://temporary-processing' && !isValidPublicHttps(input.customerImageUrl))throw new Error('Invalid customer image source');
  const images=input.images.filter(v=>v.id && v.url);const imageById=new Map(images.map(x=>[x.id,x]));
  const productByCode=new Map(input.products.map(x=>[x.code,x]));
  const seen=new Set<string>();const matched=new Set<string>();
