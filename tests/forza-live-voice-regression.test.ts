@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const server=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
+const client=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
+const worker=readFileSync(new URL('../scripts/forza_diba_stt_worker.py',import.meta.url),'utf8');
+const docker=readFileSync(new URL('../Dockerfile',import.meta.url),'utf8');
+
+test('production image bundles the offline Persian Diba recognizer and RAM-only decoder',()=>{
+  assert.match(docker,/ffmpeg/);
+  assert.match(docker,/vosk==0\.3\.45/);
+  assert.match(docker,/Dibachain\/Diba-STT/);
+  assert.match(docker,/FORZA_STT_PROVIDER=diba/);
+  assert.match(worker,/subprocess\.run\(/);
+  assert.match(worker,/input=raw/);
+  assert.match(worker,/stdout=subprocess\.PIPE/);
+  assert.doesNotMatch(worker,/write_bytes|writeFile|open\([^)]*audio/i);
+});
+
+test('server exposes Diba readiness and uses it for both standalone and live STT',()=>{
+  assert.match(server,/serverSttProvider:choice\.provider/);
+  assert.match(server,/serverSttReady:choice\.provider==='diba'\?isForzaDibaSttReady\(\)/);
+  assert.match(server,/transcribeForzaDibaAudio\(cleanAudioData/);
+  assert.match(server,/transcribeForzaDibaAudio\(audioBase64/);
+  assert.match(server,/provider=diba transcript_chars=/);
+});
+
+test('recognized browser speech is finalized with its matching microphone audio',()=>{
+  assert.match(client,/pendingTranscriptRef\.current=candidate/);
+  assert.match(client,/recorder\.stop\(\)/);
+  assert.match(client,/handleUserFinishedSpeaking\(currentTranscript,audioBlob,finalMime\)/);
+  assert.match(client,/chooseForzaFinalTranscript\(q,serverTranscript\)/);
+  assert.match(client,/browser_fallback=/);
+});
+
+test('first TTS turn waits for voice identity and carries a unique rate-limit turn id',()=>{
+  assert.match(client,/await ensureVoiceMode\(\)/);
+  assert.match(client,/call-'\+callIdRef\.current\+'-turn-'\+generation/);
+  assert.match(client,/returnedVoice=response\.headers\.get\('X-Forza-Voice'\)/);
+});
+
+test('greeting prewarm shares one private voice and timeout never launches duplicate synthesis',()=>{
+  assert.match(server,/const privateServiceGreeting=createForzaGreeting\(renderPocketSpeech,\[\]\)/);
+  assert.match(server,/internalForzaVoiceUrl\?privateServiceGreeting\(\):getForzaGreeting\(\)/);
+  assert.match(client,/finish\(new Error\('forza_audio_start_timeout'\)\)/);
+  assert.doesNotMatch(client,/playback did not start before watchdog[\s\S]{0,180}failed\(\)/);
+});
