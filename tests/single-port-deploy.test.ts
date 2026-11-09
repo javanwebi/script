@@ -36,6 +36,12 @@ test("promotion retains same database and storage settings and reverses failures
   assert.match(one, /SANATPISH_SINGLE_PORT_RELEASE_OK/);
 });
 
+test("private FORZA provider credentials are mounted read-only into each release", () => {
+  assert.match(one, /if \\[\\[ -f "\$APP\\/\\.env\\.forza-voice" \\]\\]/);
+  assert.match(one, /-v "\$APP\\/\\.env\\.forza-voice:\/app\\/\\.env\\.forza-voice:ro"/);
+  assert.match(one, /FORZA provider configuration across releases/);
+});
+
 test("old app containers stop after Nima validation and are not deleted", () => {
   const voice = one.indexOf('echo \'===== PINNED PRIVATE NIMA CANARY AND SAFE VOICE PROMOTION =====\'');
   const cleanup = one.indexOf('===== STOP OLD WEBSITE CONTAINERS WITHOUT DELETING DATA =====');
