@@ -40,6 +40,8 @@ test('customer intelligence API stores only device metadata and verifies selecte
     'این کد در نتایج همین شناسایی وجود ندارد',
   ]) assert.ok(api.includes(required), 'API should include ' + required);
   assert.ok(api.includes('resolveCustomerTarget'));
+  const resultRoute = api.slice(api.indexOf("app.post('/api/customer-intelligence/image-identifications/:id/result'"), api.indexOf("app.post('/api/customer-intelligence/image-identifications/:id/select'"));
+  assert.ok(!resultRoute.includes('selected_product_code='));
 });
 
 test('Customer 360 schema has RLS, no image blob columns, and supports CRM-only follow-ups', () => {
@@ -72,6 +74,8 @@ test('FORZA consultation supports exact catalogue SKU selection and product-page
   for (const required of ['selectedConsultProducts', 'productCodes: selectedConsultProducts.map', 'saveCustomerConsultation']) {
     assert.ok(page.includes(required));
   }
+  assert.ok(page.includes('sessionMessages.slice(-32)'));
+  assert.ok(page.includes('text: message.text.slice(0, 1800)'));
   assert.ok(detail.includes('ai-consult?productCode='));
 });
 
