@@ -22,7 +22,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,selectLocalRegion,cachedQueryForRequest,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
 import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
@@ -4739,6 +4739,66 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
   }
 });
 
+
+app.post('/api/ai/select-region', async (req,res)=>{
+  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص انتخابی قطعه روی این سرور فعال نیست.'}});
+  if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی در حال پردازش تصویر دیگری است.'}});
+  localVisionQueries++;
+  const started=Date.now();
+  try{
+    const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
+    const point=req.body?.point;
+    if(!imageUrl || imageUrl.length>2048)return res.status(400).json({error:{code:'INVALID_IMAGE',message:'تصویر بارگذاری‌شده معتبر نیست.'}});
+    if(!point || !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x<0 || point.x>1 || point.y<0 || point.y>1){
+      return res.status(400).json({error:{code:'INVALID_POINT',message:'نقطه انتخاب‌شده معتبر نیست.'}});
+    }
+    const uploaded=await resolveCustomerImageBufferAndInfo(imageUrl,req);
+    const previousId=typeof req.body?.detectionId==='string'?req.body.detectionId:'';
+    const previous=previousId
+      ? localVisionDetectionCache.get(previousId,uploaded.imageUrl,localProfile.model)
+      : undefined;
+    const region=await selectLocalRegion(uploaded.buffer,{x:point.x,y:point.y});
+    // Keep the original full-frame query separately. The selected crop gets its
+    // own embedding so confirming the crop searches exactly what the UI previews,
+    // while the full-image fallback still searches the complete original photo.
+    const queryImage=await prepareLocalQuery(uploaded.buffer,region);
+    const selectedRegionQuery=await describeLocalQuery(queryImage);
+    const fullImageQuery=previous?.query || await describeLocalQuery(await prepareLocalQuery(uploaded.buffer));
+    const detectionId=previous ? previousId : crypto.randomUUID();
+    const queryRegions=[region,...(previous?.queryRegions || []).filter(candidate=>
+      Math.abs(candidate.x-region.x)>=0.002 || Math.abs(candidate.y-region.y)>=0.002 ||
+      Math.abs(candidate.width-region.width)>=0.002 || Math.abs(candidate.height-region.height)>=0.002
+    )].slice(0,4);
+    localVisionDetectionCache.set(detectionId,{
+      imageUrl:uploaded.imageUrl,
+      model:localProfile.model,
+      query:fullImageQuery as QueryEvidence,
+      queryRegions,
+      selectedRegion:region,
+      selectedRegionQuery:selectedRegionQuery as QueryEvidence,
+    });
+    return res.json({
+      success:true,
+      detectionId,
+      region,
+      queryRegions,
+      model:localProfile.model,
+      pipeline:localProfile.pipeline,
+      elapsedMs:Date.now()-started,
+    });
+  }catch(error){
+    const detail=error instanceof Error?error.message:String(error);
+    const code=(error as {code?:string})?.code;
+    if(code==='REGION_NOT_FOUND')return res.status(422).json({error:{code:'REGION_NOT_FOUND',message:'در نقطه انتخاب‌شده مرز قابل‌اعتماد قطعه پیدا نشد. روی بخش داخلی خود قطعه ضربه بزنید.'}});
+    if(code==='VISION_BUSY')return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی مشغول است؛ کمی بعد دوباره تلاش کنید.'}});
+    const errorId=crypto.randomUUID();
+    console.warn('[Local vision tap selection]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
+    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'استخراج ناحیه قطعه موقتاً انجام نشد؛ انتخاب قبلی حفظ شده است.'},errorId});
+  }finally{
+    localVisionQueries--;
+  }
+});
+
 app.post('/api/ai/analyze-part', async (req, res) => {
   if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
     if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
@@ -4764,13 +4824,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const cachedDetection=typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,uploaded.imageUrl,localProfile.model)
         : undefined;
-      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
-        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
-        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
-      ));
-      const query=cachedDetection && cachedRegionMatches
-        ? cachedDetection.query
-        : await describeLocalQuery(queryImage);
+      const query=cachedQueryForRequest(cachedDetection,body.region,body.fullImage===true)
+        || await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
@@ -4801,8 +4856,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
       return res.json(responsePayload);
     }catch(error){
-      const errorId=crypto.randomUUID();
       const detail=error instanceof Error?error.message:String(error);
+      const code=(error as {code?:string})?.code;
+      if(code==='VISION_BUSY')return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور تحلیل در حال پردازش تصویر دیگری است؛ چند لحظه بعد دوباره تلاش کنید.'}});
+      const errorId=crypto.randomUUID();
       console.warn('[Local vision request]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
       return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تحلیل تصویر موقتاً کامل نشد. تصویر شما محفوظ است؛ دوباره تلاش کنید.'},errorId});
     }finally{localVisionQueries--;}

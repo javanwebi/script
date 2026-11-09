@@ -337,6 +337,8 @@ PYTOKEN
  test "$VISION_READY" = 1
  # Verify encoder authentication and dimensions before changing the serving site.
  docker exec "$VISION_NAME" python -c 'import base64,io,json,os,sys,urllib.request; from PIL import Image; b=io.BytesIO(); Image.new("RGB",(24,24),"white").save(b,"JPEG"); r=urllib.request.Request("http://127.0.0.1:8091/embed",data=json.dumps({"images":[base64.b64encode(b.getvalue()).decode()]}).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=10)); assert len(d["vectors"][0])==int(sys.argv[1]) and d["model"]==sys.argv[2]' "$VISION_DIMENSIONS" "$VISION_MODEL"
+ # The private canary must prove tap-to-object segmentation, not just encoder health.
+ docker exec "$VISION_NAME" python -c 'import base64,io,json,os,sys,urllib.request; from PIL import Image,ImageDraw; image=Image.new("RGB",(256,160),"white"); ImageDraw.Draw(image).rectangle((72,35,184,125),fill=(28,34,38)); b=io.BytesIO(); image.save(b,"JPEG"); payload={"image":base64.b64encode(b.getvalue()).decode(),"point":{"x":0.5,"y":0.5}}; r=urllib.request.Request("http://127.0.0.1:8091/select-region",data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"}); d=json.load(urllib.request.urlopen(r,timeout=8)); box=d["region"]; assert d["pipeline"]==sys.argv[1] and box["x"]<72/256 and box["x"]+box["width"]>184/256 and box["y"]<35/160 and box["y"]+box["height"]>125/160' "$VISION_PIPELINE"
  # Docker uses the final definition; preserve all other existing live settings.
  cat "$APP/.env.local-vision" >> "$ENV_FILE"
 else

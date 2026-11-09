@@ -5,7 +5,7 @@ import io
 import json
 import os
 import threading
-from retrieval import PIPELINE, decode, regions, crop, jpeg, markings, geometric
+from retrieval import PIPELINE, decode, regions, crop, jpeg, markings, geometric, select_region, refine_regions
 import cv2
 cv2.setNumThreads(1)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -71,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {'status': 'ok', 'model': MODEL_ID, 'dimensions': DIMENSIONS, 'pipeline': PIPELINE})
 
     def do_POST(self):
-        if self.path not in ('/embed', '/query', '/rerank'):
+        if self.path not in ('/embed', '/query', '/rerank', '/select-region'):
             return self.reply(404, {})
         expected = 'Bearer ' + os.environ['LOCAL_VISION_TOKEN']
         if not hmac.compare_digest(self.headers.get('Authorization', ''), expected):
@@ -87,9 +87,15 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.connection.settimeout(5)
             data = json.loads(self.rfile.read(size))
-            if self.path == '/query':
+            if self.path == '/select-region':
                 image = decode(data['image'])
-                boxes = regions(image, limit=3)
+                region = select_region(image, data.get('point'))
+                if region is None:
+                    return self.reply(422, {'model': MODEL_ID, 'pipeline': PIPELINE, 'error': 'region_not_found'})
+                self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE, 'region': region})
+            elif self.path == '/query':
+                image = decode(data['image'])
+                boxes = refine_regions(image, regions(image, limit=3))
                 box = boxes[0] if boxes else None
                 views = [data['image']]
                 views.extend(jpeg(crop(image, region)) for region in boxes)

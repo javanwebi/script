@@ -22,7 +22,13 @@ async function localRequest(route:string,body:unknown,env=process.env,timeout=45
   method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
   body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)
  });
- if(!response.ok)throw new Error(response.status===429 ? 'Local vision busy' : 'Local vision unavailable');
+ if(!response.ok){
+  const failure=await response.json().catch(()=>null);
+  const error= new Error(response.status===429 ? 'Local vision busy' : failure?.error==='region_not_found' ? 'No object was found at the selected point' : 'Local vision unavailable') as Error & {status?:number;code?:string};
+  error.status=response.status;
+  error.code=failure?.error==='region_not_found' ? 'REGION_NOT_FOUND' : response.status===429 ? 'VISION_BUSY' : undefined;
+  throw error;
+ }
  const data=await response.json();
  if(data.model!==localVisionProfile(env).model)throw new Error('Local vision model/vector mismatch');
  return data;
@@ -36,6 +42,13 @@ function validVectors(data:any,count?:number,env=process.env){
 export async function embedLocalImages(buffers:Buffer[],env=process.env):Promise<number[][]>{
  return validVectors(await localRequest('/embed',{images:buffers.map(b=>b.toString('base64'))},env),buffers.length,env);
 }
+export async function selectLocalRegion(image:Buffer,point:{x:number;y:number},env=process.env):Promise<{x:number;y:number;width:number;height:number}>{
+ if(!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1)throw new Error('Invalid tap point');
+ const profile=localVisionProfile(env);
+ const data=await localRequest('/select-region',{image:image.toString('base64'),point},env,7000);
+ if(data.pipeline!==profile.pipeline || !validImageRegion(data.region))throw new Error('Invalid local selected region');
+ return data.region;
+}
 export const LOCAL_VISION_PIPELINE='local-lens-v2';
 type Region={x:number;y:number;width:number;height:number};
 export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,viewScores:number[],fallback?:Region|null):Region|undefined{
@@ -47,6 +60,20 @@ export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,view
  return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
 }
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
+export function cachedQueryForRequest(
+ entry:{query:QueryEvidence;queryRegions:Region[];selectedRegion?:Region;selectedRegionQuery?:QueryEvidence}|undefined,
+ region?:Region,
+ fullImage=false,
+):QueryEvidence|undefined{
+ if(!entry)return undefined;
+ if(fullImage || !region)return entry.query;
+ const same=(a?:Region,b?:Region)=>!!a&&!!b&&
+  Math.abs(a.x-b.x)<0.002&&Math.abs(a.y-b.y)<0.002&&
+  Math.abs(a.width-b.width)<0.002&&Math.abs(a.height-b.height)<0.002;
+ if(entry.selectedRegionQuery&&same(entry.selectedRegion,region))return entry.selectedRegionQuery;
+ return entry.queryRegions.some(candidate=>same(candidate,region))?entry.query:undefined;
+}
+
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
  // Keep the browser responsive with a bounded 12s request and a manual-crop fallback.

@@ -64,6 +64,26 @@ PYNET
   echo 'NEW_LOCAL_VISION_ENCODER_NOT_READY — existing encoder/configuration preserved'
   exit 1
  fi
+ # Verify the new click-segmentation endpoint with a synthetic image before
+ # switching the private URL. This never uploads or persists a customer photo.
+ if ! docker exec "$VISION_CONTAINER" python -c '
+import base64,io,json,os,urllib.request
+from PIL import Image,ImageDraw
+image=Image.new("RGB",(256,160),"white")
+ImageDraw.Draw(image).rectangle((72,35,184,125),fill=(28,34,38))
+buffer=io.BytesIO();image.save(buffer,"JPEG")
+payload={"image":base64.b64encode(buffer.getvalue()).decode(),"point":{"x":0.5,"y":0.5}}
+request=urllib.request.Request("http://127.0.0.1:8091/select-region",data=json.dumps(payload).encode(),headers={"Authorization":"Bearer "+os.environ["LOCAL_VISION_TOKEN"],"Content-Type":"application/json"})
+result=json.load(urllib.request.urlopen(request,timeout=8))
+region=result["region"]
+assert result["pipeline"]=="local-lens-v2"
+assert region["x"] < 72/256 and region["x"]+region["width"] > 184/256
+assert region["y"] < 35/160 and region["y"]+region["height"] > 125/160
+' 2>/dev/null; then
+  docker rm -f "$VISION_CONTAINER" >/dev/null 2>&1 || true
+  echo 'NEW_LOCAL_VISION_TAP_SEGMENTATION_FAILED — existing encoder/configuration preserved'
+  exit 1
+ fi
  # Preserve the exact previous private configuration before changing the endpoint.
  CONFIG_BACKUP="$CONFIG.before-$VISION_BUILD_ID"
  cp -a "$CONFIG" "$CONFIG_BACKUP"

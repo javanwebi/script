@@ -85,6 +85,15 @@ export interface ImageRegionDetectionResult {
   model: string;
   elapsedMs: number;
 }
+export interface ImagePointSelectionResult {
+  success:boolean;
+  detectionId:string;
+  region:{x:number;y:number;width:number;height:number};
+  queryRegions:{x:number;y:number;width:number;height:number}[];
+  pipeline:string;
+  model:string;
+  elapsedMs:number;
+}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
 export interface CatalogModelSuggestion {
   code?:string;name:string;familyCode:string;familyName:string;
@@ -256,6 +265,46 @@ export const aiVisualSearchService = {
       pipeline: String(data.pipeline || ''),
       model: String(data.model || ''),
       elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0,
+    };
+  },
+
+  async selectImageRegion(imageUrl:string,point:{x:number;y:number},detectionId?:string):Promise<ImagePointSelectionResult>{
+    assertBackendConfigured();
+    if(!imageUrl || imageUrl.length>2048 || ![point?.x,point?.y].every(value=>Number.isFinite(value)&&value>=0&&value<=1)){
+      throw new Error('نقطه انتخاب قطعه معتبر نیست.');
+    }
+    let response:Response|undefined,data:any=null;
+    for(let attempt=0;attempt<2;attempt++){
+      response=await fetch(apiUrl('/api/ai/select-region'),{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        cache:'no-store',
+        signal:AbortSignal.timeout(20000),
+        body:JSON.stringify({imageUrl,point,detectionId}),
+      });
+      data=await response.json().catch(()=>null);
+      if(response.ok || (response.status!==429 && response.status!==503) || attempt===1)break;
+      await new Promise(resolve=>setTimeout(resolve,450));
+    }
+    if(!response?.ok || !data?.success || typeof data.detectionId!=='string'){
+      const error=new Error(data?.error?.message || 'استخراج قطعه از نقطه انتخاب‌شده انجام نشد.') as Error & {status?:number;code?:string};
+      error.status=response?.status;
+      error.code=data?.error?.code;
+      throw error;
+    }
+    const region=data.region;
+    const valid=region && [region.x,region.y,region.width,region.height].every((n:unknown)=>typeof n==='number'&&Number.isFinite(n)) &&
+      region.x>=0 && region.y>=0 && region.width>=0.03 && region.height>=0.03 &&
+      region.x+region.width<=1.000001 && region.y+region.height<=1.000001;
+    if(!valid)throw new Error('ناحیه استخراج‌شده از تصویر معتبر نیست.');
+    return {
+      success:true,
+      detectionId:data.detectionId,
+      region,
+      queryRegions:Array.isArray(data.queryRegions)?data.queryRegions.filter((item:any)=>item && [item.x,item.y,item.width,item.height].every((n:unknown)=>typeof n==='number'&&Number.isFinite(n))).slice(0,4):[region],
+      pipeline:String(data.pipeline||''),
+      model:String(data.model||''),
+      elapsedMs:Number.isFinite(data.elapsedMs)?data.elapsedMs:0,
     };
   },
 

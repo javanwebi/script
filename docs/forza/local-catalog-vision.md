@@ -121,19 +121,24 @@ solely for this pipeline change; changed photos/revisions still invalidate cover
 
 The query path now has these bounded stages:
 
-1. Optional customer-selected normalized rectangle, applied after EXIF orientation.
-   The inline region selector supports pointer/touch and keyboard editing. It is
-   only displayed when the local pipeline advertises support.
+1. A customer can tap a point on the original, EXIF-oriented image. The private
+   sidecar uses click-seeded GrabCut to extract the connected object around that
+   point and returns a normalized crop rectangle. The inline selector supports
+   pointer/touch and keyboard activation; it never asks the customer to draw a box.
 2. Full-frame query plus up to three bounded object-region proposals. The proposal
-   stage combines border-foreground and Lab connected-component candidates, so
-   separated objects in one frame can be offered independently. These are
-   class-agnostic crop proposals, **not a trained industrial detector or pixel
-   segmentation model**. The catalogue similarity scores choose which crop best
-   matches; the system does not assume the largest or central object is correct.
-3. The interface draws every proposed region. Tapping a proposal switches the
-   crop and re-runs retrieval; a tap outside all valid proposals is a no-op and
-   preserves the current automatic selection. Dragging creates an explicit manual
-   rectangle. The crop is prepared server-side from the original uploaded image.
+   stage combines border-foreground and Lab connected-component candidates, then
+   refines each candidate around its center with click-seeded GrabCut when overlap
+   and area checks pass. Segmentation is bounded to a 384px working image to limit
+   CPU cost. These remain class-agnostic proposals, **not a trained industrial
+   detector or semantic segmentation model**. Catalogue similarity chooses the
+   best crop; the system does not assume the largest or central object is correct.
+3. The interface shows automatic proposals and the currently selected crop. A tap
+   anywhere on the photo sends its normalized point to the private sidecar. GrabCut
+   segments the connected object under that point; a valid result replaces the crop
+   and its embedding is recomputed from that exact crop before search. If the tap
+   lands on background or segmentation is uncertain, the API rejects it and keeps
+   the previous selection. There is no drag-to-draw path. Crop bytes remain
+   server-side and are prepared from the same temporary in-memory image.
 4. DINOv2 retrieval compares the full frame and up to three crop views (at most
    four query encodes). Its existing conservative score rule is retained: the
    stronger of the full-frame score and a 25% full-frame / 75% best-crop blend.
@@ -407,16 +412,18 @@ searching a partial catalogue.
 ## Automatic object proposals and strict no-match behavior
 
 Gallery uploads start quick retrieval after upload completes; camera capture
-keeps its explicit confirmation. The query worker now returns the full-frame view
-plus up to three independent crop proposals. The interface overlays those
-proposals on the original photo and shows the currently selected crop. A tap
-inside a proposal selects that object and re-runs the same uploaded image. A tap
-outside every proposal preserves the current system selection; it never creates
-an arbitrary square around empty background. Dragging remains available as an
-explicit manual rectangle. Selection changes debounce for 300 ms, and stale
-requests cannot replace results after another photo is selected or the modal
-closes. These proposals are heuristic crop candidates, not pixel-perfect masks or
-a trained industrial object detector.
+keeps its explicit confirmation. The query worker returns the full-frame view plus
+up to three independent crop proposals. The interface overlays those proposals
+and the current crop on the original photo. A tap anywhere on the photo sends the
+normalized point to click-seeded GrabCut; a valid connected object crop replaces
+the current selection and its embedding is recomputed before retrieval. A
+background/uncertain tap is rejected and preserves the previous selection.
+Customers cannot draw or resize rectangles. Selection changes debounce for 300 ms
+in the results view, and stale requests cannot replace results after another
+photo is selected or the modal closes. Automatic proposals remain heuristic crop candidates. Tap selection uses
+click-seeded GrabCut, not a semantic industrial detector or a pixel-perfect
+segmentation model; low contrast, occlusion, and similarly colored backgrounds
+can still cause a rejection or an imperfect crop.
 
 Every indexed catalogue vector is scored for every query view. Only hits attached
 to a real active catalogue family and above the visual threshold can become
@@ -433,7 +440,7 @@ silently counted as compared. The query uses precomputed catalogue features
 rather than rerunning a generative model over every catalogue image for each
 customer request.
 
-Browser pointer/touch/drag/keyboard smoke for the source selector:
+Browser pointer/touch/keyboard tap smoke for the source selector:
 `node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).
 The browser smoke also mounts the actual search modal with isolated identity/cart
 hooks and mocked HTTP responses. It verifies upload-triggered automatic search,

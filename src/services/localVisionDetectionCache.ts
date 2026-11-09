@@ -7,6 +7,8 @@ export interface LocalVisionDetectionEntry {
   query: QueryEvidence;
   queryRegions: ImageRegion[];
   selectedRegion?: ImageRegion;
+  /** Embedding of the exact click-segmented crop, separate from the full-frame query. */
+  selectedRegionQuery?: QueryEvidence;
   createdAt: number;
 }
 
