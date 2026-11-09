@@ -1110,6 +1110,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <p className="text-[11px] text-slate-500 leading-relaxed">
                       هوش مصنوعی ظاهر فیزیکی قطعه را بررسی می‌کند.
                     </p>
+                    {localImageId && (
+                      <p className="text-[10px] leading-5 text-emerald-700">
+                        تصویر در حافظه خصوصی مرورگر همین دستگاه ذخیره شده است. پاک‌سازی داده‌های سایت یا تعویض مرورگر می‌تواند آن را حذف کند.
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         type="button"
