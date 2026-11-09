@@ -44,12 +44,36 @@ export function extractPersianSpeechRecognition(
 export function extractPersianSpeechSince(
   results:ArrayLike<BrowserSpeechResult>,
   consumedResultCount:number,
+  interimCheckpoint:Readonly<Record<number,string>> = {},
 ):ReturnType<typeof extractPersianSpeechRecognition>{
   const start=Number.isFinite(consumedResultCount)
     ?Math.max(0,Math.min(results.length,Math.floor(consumedResultCount))):0;
   const remaining:BrowserSpeechResult[]=[];
-  for(let i=start;i<results.length;i++)remaining.push(results[i]);
+  for(let i=start;i<results.length;i++){
+    const result=results[i];
+    const previous=interimCheckpoint[i];
+    const raw=result?.[0];
+    if(previous && raw && typeof raw!=='boolean'){
+      const current=normalizePersianTranscript(raw.transcript||'');
+      // An interim slot is mutable. Consume its dispatched prefix, not the
+      // entire slot: Chrome can append the next sentence at the same index.
+      const text=current===previous ? '' : current.startsWith(previous+' ')
+        ? current.slice(previous.length).trim() : current;
+      remaining.push({0:{transcript:text},isFinal:result.isFinal});
+    }else remaining.push(result);
+  }
   return extractPersianSpeechRecognition(remaining);
+}
+
+export function checkpointForzaRecognition(results:ArrayLike<BrowserSpeechResult>){
+  let count=0;
+  while(count<results.length && results[count]?.isFinal)count++;
+  const interim:Record<number,string>={};
+  for(let i=count;i<results.length;i++){
+    const raw=results[i]?.[0];
+    if(raw && typeof raw!=='boolean')interim[i]=normalizePersianTranscript(raw.transcript||'');
+  }
+  return {count,interim};
 }
 
 export function normalizePersianTranscript(value: string): string {
