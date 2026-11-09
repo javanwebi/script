@@ -57,7 +57,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
+import {buildForzaConsultSystemMessage, configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
@@ -5316,9 +5316,7 @@ app.post('/api/ai/consult', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    const systemPrompt = `شما مشاور فنی و مهندسی تخصصی صنعت پیش (اطلس صنعت) هستید.
-حیطه تخصص شما: تسمه‌های انتقال قدرت و نوار نقاله، پولی‌ها، بلبرینگ‌ها و یاتاقان‌های صنعتی.
-پاسخ‌های شما فنی، دقیق، مستند به استانداردهای صنعتی DIN و ISO و به زبان فارسی سلیس و محترمانه است.`;
+    const systemPrompt = buildForzaConsultSystemMessage(false);
 
     let replyText = '';
 
@@ -5954,9 +5952,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       const workerMessages: Array<{ role: string; content: any }> = [
         {
           role: 'system',
-          content: (lowLatencyVoice
-            ? 'شما FORZA، مشاور صوتی فارسی صنعت پیش هستید. فقط متن ساده فارسی، بدون ستاره، بولت، Markdown، جدول، backtick و URL خام بدهید. کوتاه و مستقیم پاسخ دهید؛ جواب سلام طبیعی و کوتاه است. به «خیلی ضعیفه» با پرسش کوتاه درباره قسمت مشکل‌دار پاسخ دهید. در اصلاح «۶۲۰۲ نه ۶۲۰۳» فقط مقدار آخر معتبر است. بخش قطع‌شده را شنیده‌شده فرض نکنید. کد نامطمئن را تأیید بگیرید.'
-            : 'شما مشاور فنی صنعت پیش هستید. پاسخ کوتاه و تخصصی فارسی باشد. اصلاح کاربر مثل «۶۲۰۲ نه ۶۲۰۳» یعنی کد آخر معتبر است. اگر پاسخ قبلی قطع شده، «ادامه بده» باید فقط بخش شنیده‌نشده را از زمینه موجود ادامه دهد؛ کد نامطمئن را تأیید بگیرد.')+catalogContext,
+          content: buildForzaConsultSystemMessage(lowLatencyVoice)+catalogContext,
         },
       ];
       if (Array.isArray(history)) {
@@ -6024,14 +6020,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. هنگام اصلاح «۶۲۰۲، نه ۶۲۰۳» فقط مقدار جدید را ملاک بگیرید. اگر پاسخ قبلی قطع شد، فقط متن واقعاً پخش‌شده را شنیده‌شده فرض کنید. برای «ادامه بده» از همان نقطه ادامه دهید، و برای سؤال یا مشخصات جدید مسیر پاسخ را اصلاح کنید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر کد مهم مبهم بود کوتاه تأیید بگیرید و حدس نزنید. فقط متن ساده فارسی بدهید: بدون ستاره، Markdown، بولت، جدول، backtick، URL خام یا علامت تزئینی. برای سلام پاسخ سلام طبیعی بدهید. اگر مشتری گفت «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. «دارم بررسی می‌کنم» را فقط هنگام عملیات واقعی و زمان‌بر و یک بار بگویید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
-
-دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
-۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
-۲. بلافاصله مشخصات فنی و استانداردهای صنعتی مرتبط را بیان کنید (مانند استانداردهای DIN 2215 برای وی‌بلت ساده، DIN 7753 برای وی‌بلت باریک SPZ/SPA/SPB/SPC، ISO 4184، DIN 7721 و ISO 5296 برای تسمه‌های تایمینگ HTD، و DIN 7867 برای تسمه‌های شیاردار PK/PJ).
-۳. یک جدول مقایسه‌ای استاندارد در قالب Markdown با ستون‌های مشخصات فنی، ابعاد (عرض، ضخامت، گام)، کد فنی معادل در کاتالوگ اطلس، متریال (EPDM / PU / کلروپرن با کورد استیل یا کولار) و برندهای انحصاری SWR آلمان و FORZA ایتالیا درج نمایید.
-۴. در صورت نیاز به فرمول یا محاسبه (طول گام، نسبت تبدیل دور یا گشتاور)، رابطه ریاضی را شفاف بنویسید.
-۵. در پایان نحوه استعلام فوری قیمت یا صدور پیش‌فاکتور رسمی را اعلام فرمایید.`;
+    const systemPrompt = buildForzaConsultSystemMessage(lowLatencyVoice);
 
     const contents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
