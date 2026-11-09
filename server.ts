@@ -502,6 +502,9 @@ function cleanCustomerImageMemoryCache(now = Date.now()) {
 }
 
 function cacheCustomerImageBuffer(fileName: string, buffer: Buffer, mimeType = 'image/jpeg') {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0 || buffer.length > CUSTOMER_IMAGE_MAX_BYTES) {
+    throw new Error('حجم تصویر بیش از ۱۰ مگابایت است یا دادهٔ تصویر نامعتبر است.');
+  }
   customerImageMemoryCache.delete(fileName);
   customerImageMemoryCache.set(fileName, { buffer, mimeType, createdAt: Date.now() });
   cleanCustomerImageMemoryCache();
@@ -2960,6 +2963,7 @@ async function resolveCustomerImageBufferAndInfo(
     const base64Index = trimmed.indexOf(';base64,');
     if (base64Index !== -1) {
       const rawBase64 = trimmed.slice(base64Index + 8);
+      if (rawBase64.length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
       const buffer = Buffer.from(rawBase64, 'base64');
       const fileName = `${crypto.randomUUID()}.jpg`;
       cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
@@ -2973,8 +2977,10 @@ async function resolveCustomerImageBufferAndInfo(
 
   // 2. Direct Base64 string without data prefix
   if (/^[A-Za-z0-9+/=]{100,}$/.test(trimmed)) {
+    if (trimmed.length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
+    const dataUrl = `data:image/jpeg;base64,${trimmed}`;
     cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
     return {
       imageUrl: dataUrl,
@@ -3007,8 +3013,7 @@ async function resolveCustomerImageBufferAndInfo(
       }).finally(() => clearTimeout(timer));
 
       if (fetchResp.ok) {
-        const arrayBuf = await fetchResp.arrayBuffer();
-        const rawBuffer = Buffer.from(arrayBuf);
+        const rawBuffer = await readResponseBufferLimited(fetchResp, CUSTOMER_IMAGE_MAX_BYTES);
         if (rawBuffer.length > 0) {
           cacheCustomerImageBuffer(fileName, rawBuffer, fetchResp.headers.get('content-type') || 'image/jpeg');
           return {
