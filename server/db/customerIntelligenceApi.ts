@@ -101,7 +101,7 @@ export function registerCustomerIntelligenceApi(app: Express) {
       if (!deviceImageId || !/^[a-z0-9-]{8,120}$/i.test(deviceImageId)) throw fail(400, 'شناسه محلی تصویر معتبر نیست.');
       if (!/^[a-f0-9]{64}$/.test(sha256)) throw fail(400, 'اثر انگشت تصویر معتبر نیست.');
       if (!['image/jpeg','image/png','image/webp'].includes(mimeType)) throw fail(400, 'نوع تصویر پشتیبانی نمی‌شود.');
-      if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 12 * 1024 * 1024) throw fail(413, 'حجم تصویر مجاز نیست.');
+      if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 10 * 1024 * 1024) throw fail(413, 'حجم تصویر مجاز نیست.');
       if (req.body?.image || req.body?.imageBase64 || req.body?.dataUrl || req.body?.imageUrl || req.body?.storagePath) {
         throw fail(400, 'فایل تصویر فقط روی دستگاه مشتری نگهداری می‌شود و نباید به سرور ارسال شود.');
       }
@@ -193,16 +193,35 @@ export function registerCustomerIntelligenceApi(app: Express) {
       );
       for (const code of productCodes) {
         const selectedProduct = products.find((item: any) => item.code === code);
-        await database().query(
-          `insert into public.customer_product_interests
-            (user_id,product_code,product_name,interaction_count,last_seen_at,last_consultation_id)
-           values($1,$2,$3,1,now(),$4)
-           on conflict(user_id,product_code) do update set
-            product_name=case when excluded.product_name='' then public.customer_product_interests.product_name else excluded.product_name end,
-            interaction_count=public.customer_product_interests.interaction_count+1,
-            last_seen_at=now(),last_consultation_id=excluded.last_consultation_id`,
-          [userId,code,selectedProduct?.name || code,sessionId]
+        const productName = selectedProduct?.name || code;
+        const linked = await database().query(
+          `insert into public.customer_product_consultation_items
+            (user_id,consultation_id,product_code,product_name)
+           values($1,$2,$3,$4)
+           on conflict(user_id,consultation_id,product_code) do nothing
+           returning id`,
+          [userId,sessionId,code,productName]
         );
+        if (linked.rowCount) {
+          await database().query(
+            `insert into public.customer_product_interests
+              (user_id,product_code,product_name,interaction_count,last_seen_at,last_consultation_id)
+             values($1,$2,$3,1,now(),$4)
+             on conflict(user_id,product_code) do update set
+              product_name=case when excluded.product_name='' then public.customer_product_interests.product_name else excluded.product_name end,
+              interaction_count=public.customer_product_interests.interaction_count+1,
+              last_seen_at=now(),last_consultation_id=excluded.last_consultation_id`,
+            [userId,code,productName,sessionId]
+          );
+        } else {
+          await database().query(
+            `update public.customer_product_interests set
+              product_name=case when $3='' then product_name else $3 end,
+              last_seen_at=now(),last_consultation_id=$4
+             where user_id=$1 and product_code=$2`,
+            [userId,code,productName,sessionId]
+          );
+        }
       }
       return res.json({ success: true, messageCount: count, productCount: productCodes.length });
     } catch (error) { return respond(res, error); }
