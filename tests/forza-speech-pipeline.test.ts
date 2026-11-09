@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs,
-  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
+  normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64, chooseForzaFinalTranscript,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
 function result(value:string, isFinal:boolean) {
@@ -21,6 +21,17 @@ test('Chrome cumulative WebSpeech results preserve earlier finalized words',()=>
 test('Persian normalization preserves real product codes and numbers',()=>{
   assert.equal(normalizePersianTranscript('بلبرينگ 6205-2RS و كد SPB  '),'بلبرینگ 6205-2RS و کد SPB');
   assert.equal(normalizePersianTranscript('   '),'');
+});
+
+test('server Diba transcript is preferred unless browser captured a missing industrial code',()=>{
+  assert.equal(chooseForzaFinalTranscript('بلبرینگ 6205ZZ با لقی C3','بلبرینگ 6205'),
+    'بلبرینگ 6205ZZ با لقی C3');
+  assert.equal(chooseForzaFinalTranscript('بلبرینگ 6205','بلبرینگ 6205 با لقی C3'),
+    'بلبرینگ 6205 با لقی C3');
+  assert.equal(chooseForzaFinalTranscript('متن کامل مشتری که طولانی است','متن کوتاه'),
+    'متن کامل مشتری که طولانی است');
+  assert.equal(chooseForzaFinalTranscript('','پرسش نهایی سرور'),
+    'پرسش نهایی سرور');
 });
 
 test('Do not cut a half-finished sentence after a short hesitation',()=>{
