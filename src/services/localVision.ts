@@ -60,6 +60,20 @@ export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,view
  return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
 }
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
+export function cachedQueryForRequest(
+ entry:{query:QueryEvidence;queryRegions:Region[];selectedRegion?:Region;selectedRegionQuery?:QueryEvidence}|undefined,
+ region?:Region,
+ fullImage=false,
+):QueryEvidence|undefined{
+ if(!entry)return undefined;
+ if(fullImage || !region)return entry.query;
+ const same=(a?:Region,b?:Region)=>!!a&&!!b&&
+  Math.abs(a.x-b.x)<0.002&&Math.abs(a.y-b.y)<0.002&&
+  Math.abs(a.width-b.width)<0.002&&Math.abs(a.height-b.height)<0.002;
+ if(entry.selectedRegionQuery&&same(entry.selectedRegion,region))return entry.selectedRegionQuery;
+ return entry.queryRegions.some(candidate=>same(candidate,region))?entry.query:undefined;
+}
+
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
  // Keep the browser responsive with a bounded 12s request and a manual-crop fallback.
