@@ -206,8 +206,8 @@ export function registerAdminCustomersApi(app: Express) {
         database().query(
           "select oi.product_code, max(oi.product_name) as product_name, sum(oi.quantity)::numeric as quantity, coalesce(sum(oi.total_price / case when o.currency='IRR' then 10 else 1 end),0)::numeric as revenue, count(distinct o.id)::int as order_count from public.order_items oi join public.orders o on o.id=oi.order_id where (" + completed + ") and " + purchaseOwner + " group by oi.product_code order by quantity desc,revenue desc limit 15",
           [userId,crmId]),
-        userId && intelligenceEnabled
-          ? database().query("select f.id,f.title,f.notes,f.status,f.due_at,f.completed_at,f.created_at,f.assigned_staff_id,coalesce(u.full_name,u.username,'') as assigned_staff_name from public.customer_followups f left join public.user_profiles u on u.id=f.assigned_staff_id where f.user_id=$1 order by f.due_at asc nulls last,f.created_at desc limit 100",[userId])
+        intelligenceEnabled && (userId || crmId)
+          ? database().query("select f.id,f.title,f.notes,f.status,f.due_at,f.completed_at,f.created_at,f.assigned_staff_id,coalesce(u.full_name,u.username,'') as assigned_staff_name from public.customer_followups f left join public.user_profiles u on u.id=f.assigned_staff_id where ($1::uuid is not null and f.user_id=$1::uuid) or ($2::text is not null and f.crm_customer_id=$2::text) order by f.due_at asc nulls last,f.created_at desc limit 100",[userId,crmId])
           : Promise.resolve({rows:[]})
       ]);
       res.json({
