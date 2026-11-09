@@ -24,7 +24,8 @@ test("camera flow captures only a real frame and releases media tracks", () => {
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
-  assert.match(modal, /uploadSelectedImage\(dataUrl\)/);
+  assert.match(modal, /uploadAndPrepareImage\(dataUrl\)/);
+  assert.doesNotMatch(modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera")), /handleAnalyze/);
 });
 
 test("mobile/tablet dock and branded scanner preserve RTL and desktop header", () => {
@@ -104,7 +105,8 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /تأیید و جستجوی قطعه/);
   assert.match(modal, /عکس‌برداری مجدد/);
   assert.match(modal, /setCameraReview\(true\)/);
-  assert.match(modal, /handleAnalyze\("quick"\)/);
+  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
+  assert.match(modal, /void uploadAndPrepareImage\(selectedImage\)/);
   assert.match(styles, /height: 100dvh/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
 });
@@ -112,12 +114,15 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
 test("captured camera image is not uploaded until the customer confirms it", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
+  const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Resolve a match image"));
   const reviewBranch = capture.indexOf("if (cameraFlowActive)");
   const stopAndReturn = capture.indexOf("return;", reviewBranch);
-  const upload = capture.indexOf("uploadSelectedImage(dataUrl)");
+  const upload = capture.indexOf("uploadAndPrepareImage(dataUrl)");
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
-  assert.ok(upload > stopAndReturn, "legacy inline camera upload must remain after the review-only return");
+  assert.ok(upload > stopAndReturn, "non-review camera capture must enter the shared crop preparation flow");
+  assert.match(confirm, /uploadAndPrepareImage\(selectedImage\)/, "camera confirmation must prepare the image and wait for crop approval");
+  assert.doesNotMatch(confirm, /handleAnalyze/, "camera confirmation must not bypass crop approval");
 });
 
 test("full-screen identification hides storefront dock and floating actions across capture, review and results", () => {

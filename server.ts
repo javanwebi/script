@@ -22,7 +22,8 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -4684,14 +4685,75 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
   return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
  }catch{return res.status(503).json({enabled:true,ready:false});}
 });
+
+const localVisionDetectionCache = new LocalVisionDetectionCache();
+app.post('/api/ai/detect-regions', async (req,res)=>{
+  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ ناحیه را دستی انتخاب کنید.'}});
+  if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی در حال پردازش تصویر دیگری است.'}});
+  localVisionQueries++;
+  const started=Date.now();
+  try{
+    if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+    const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
+    if(!imageUrl || imageUrl.length>2048)return res.status(400).json({error:{code:'INVALID_IMAGE',message:'تصویر بارگذاری‌شده معتبر نیست.'}});
+    const uploaded=await resolveCustomerImageBufferAndInfo(imageUrl,req);
+    refreshRecognitionCatalog();
+    const products=recognitionProducts();
+    const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+    await catalogVisualIndex.load();
+    const coverage=catalogVisualIndex.coverage(images);
+    if(!images.length || !coverage.ready){
+      warmCatalogVisualIndex(images,localImagePublisher);
+      return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}).`},retrieval:coverage});
+    }
+    const queryImage=await prepareLocalQuery(uploaded.buffer);
+    const query=await describeLocalQuery(queryImage);
+    const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
+    if(!retrieved)throw new Error('Index changed during region detection');
+    const viewScores=bestBoundQueryViewScores(retrieved,products);
+    const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+    const queryRegions=(query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+    if(selectedRegion && !queryRegions.some(region=>
+      Math.abs(region.x-selectedRegion.x)<0.002 && Math.abs(region.y-selectedRegion.y)<0.002 &&
+      Math.abs(region.width-selectedRegion.width)<0.002 && Math.abs(region.height-selectedRegion.height)<0.002
+    ))queryRegions.unshift(selectedRegion);
+    queryRegions.splice(4);
+    const detectionId=crypto.randomUUID();
+    localVisionDetectionCache.set(detectionId,{
+      imageUrl:uploaded.imageUrl,
+      model:localProfile.model,
+      query:query as QueryEvidence,
+      queryRegions,
+      selectedRegion,
+    });
+    return res.json({
+      success:true,
+      detectionId,
+      queryRegion:selectedRegion || null,
+      queryRegions,
+      autoDetected:Boolean(selectedRegion),
+      model:localProfile.model,
+      pipeline:localProfile.pipeline,
+      elapsedMs:Date.now()-started,
+    });
+  }catch(error){
+    const errorId=crypto.randomUUID();
+    const detail=error instanceof Error?error.message:String(error);
+    console.warn('[Local vision region detection]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
+    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ می‌توانید ناحیه قطعه را دستی انتخاب کنید.'},errorId});
+  }finally{
+    localVisionQueries--;
+  }
+});
+
 app.post('/api/ai/analyze-part', async (req, res) => {
   if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
-    if(localVisionQueries>=1)return res.status(429).json({error:{message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
+    if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
     localVisionQueries++;
     try{
-      if(!databaseEnabled())return res.status(503).json({error:{message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+      if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
       const body={...req.body};
-      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
+      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{code:'INVALID_REGION',message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
       if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
       const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
       refreshRecognitionCatalog();
@@ -4702,17 +4764,26 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const coverage=catalogVisualIndex.coverage(images);
       if(!images.length || !coverage.ready){
         warmCatalogVisualIndex(images,publish);
-        return res.status(503).json({error:{message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
+        return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
       }
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
-      const query=await describeLocalQuery(queryImage);
+      const cachedDetection=typeof body.detectionId==='string'
+        ? localVisionDetectionCache.get(body.detectionId,uploaded.imageUrl,localProfile.model)
+        : undefined;
+      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
+        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
+        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
+      ));
+      const query=cachedDetection && cachedRegionMatches
+        ? cachedDetection.query
+        : await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
-      const selectedRegion=body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
-      const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
+      const selectedRegion=body.fullImage===true ? undefined : body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+      const detailImage=body.fullImage===true || body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
         const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
@@ -4732,11 +4803,15 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
-      const queryRegions=body.region ? [body.region] : (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
-       return res.json(publicCatalog({...result,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+      const responsePayload=publicCatalog({...result,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
+      if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
+      return res.json(responsePayload);
     }catch(error){
-      console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
-      return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
+      const errorId=crypto.randomUUID();
+      const detail=error instanceof Error?error.message:String(error);
+      console.warn('[Local vision request]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
+      return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تحلیل تصویر موقتاً کامل نشد. تصویر شما محفوظ است؛ دوباره تلاش کنید.'},errorId});
     }finally{localVisionQueries--;}
   }
 

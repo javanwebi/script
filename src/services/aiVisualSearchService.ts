@@ -12,6 +12,8 @@ export type AiAnalysisStage = 'quick' | 'refined';
 export interface AiPartAnalysisRequest {
   includeNearest?:boolean;
   region?:{x:number;y:number;width:number;height:number};
+  detectionId?:string;
+  fullImage?:boolean;
   imageBase64?: string;
   imageUrl?: string;
   mimeType?: string;
@@ -73,6 +75,16 @@ export interface MatchedPartItem {
 }
 
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
+export interface ImageRegionDetectionResult {
+  success: boolean;
+  detectionId: string;
+  queryRegion?: {x:number;y:number;width:number;height:number};
+  queryRegions: {x:number;y:number;width:number;height:number}[];
+  autoDetected: boolean;
+  pipeline: string;
+  model: string;
+  elapsedMs: number;
+}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
 export interface CatalogModelSuggestion {
   code?:string;name:string;familyCode:string;familyName:string;
@@ -161,6 +173,14 @@ export const aiVisualSearchService = {
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
     assertBackendConfigured();
 
+    // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
+    // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
+    if (typeof source === 'string' && source.startsWith('/storage/products/')) {
+      const imageResponse = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
+      if (!imageResponse.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
+      source = await imageResponse.blob();
+    }
+
     if (typeof source === 'string' && /^https?:\/\//i.test(source.trim())) {
       const response = await fetch(apiUrl('/api/ai/customer-images/import'), {
         method: 'POST',
@@ -192,6 +212,53 @@ export const aiVisualSearchService = {
     return uploadResponseData(response);
   },
 
+  async detectImageRegions(imageUrl: string): Promise<ImageRegionDetectionResult> {
+    assertBackendConfigured();
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.length > 2048) {
+      throw new Error('نشانی تصویر برای تشخیص ناحیه معتبر نیست.');
+    }
+
+    let response: Response | undefined;
+    let data: any = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await fetch(apiUrl('/api/ai/detect-regions'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ imageUrl }),
+        });
+        data = await response.json().catch(() => null);
+        if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
+      } catch (error) {
+        if (attempt === 1) throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 650));
+    }
+
+    if (!response?.ok || !data?.success || typeof data.detectionId !== 'string') {
+      const error = new Error(data?.error?.message || 'تشخیص خودکار ناحیه کامل نشد.') as Error & { status?: number; code?: string };
+      error.status = response?.status;
+      error.code = data?.error?.code;
+      throw error;
+    }
+    const validRegion = (region: any) => region && [region.x, region.y, region.width, region.height].every((n: unknown) => typeof n === 'number' && Number.isFinite(n)) &&
+      region.x >= 0 && region.y >= 0 && region.width >= 0.03 && region.height >= 0.03 &&
+      region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001;
+    const queryRegions = Array.isArray(data.queryRegions) ? data.queryRegions.filter(validRegion).slice(0, 4) : [];
+    const queryRegion = validRegion(data.queryRegion) ? data.queryRegion : undefined;
+    return {
+      success: true,
+      detectionId: data.detectionId,
+      queryRegion,
+      queryRegions,
+      autoDetected: Boolean(queryRegion),
+      pipeline: String(data.pipeline || ''),
+      model: String(data.model || ''),
+      elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0,
+    };
+  },
+
   async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress:ImageScanProgress)=>void): Promise<AiPartAnalysisResult> {
     assertBackendConfigured();
 
@@ -205,17 +272,27 @@ export const aiVisualSearchService = {
       ? { ...analysisFields, imageUrl }
       : analysisFields;
 
-    const response = await fetch(apiUrl('/api/ai/analyze-part'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    let response: Response | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      response = await fetch(apiUrl('/api/ai/analyze-part'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify(payload),
+      });
+      if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
+      await new Promise(resolve => setTimeout(resolve, 650));
+    }
 
-    if (!response.ok) {
-      const failure = await response.json().catch(() => null);
-      throw new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${response.status}`);
+    if (!response || !response.ok) {
+      const failure = response ? await response.json().catch(() => null) : null;
+      const status = response?.status ?? 503;
+      const error = new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${status}`) as Error & { status?: number; code?: string };
+      error.status = status;
+      error.code = failure?.error?.code;
+      throw error;
     }
 
     let data: AiPartAnalysisResult = await response.json();
