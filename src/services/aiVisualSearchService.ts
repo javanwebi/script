@@ -148,13 +148,6 @@ function dataUrlToBlob(value: string, fallbackMime = 'image/jpeg'): Blob {
   return new Blob([decodeURIComponent(payload)], { type: mimeType });
 }
 
-async function uploadResponseData(response: Response): Promise<{ imageUrl: string; fileName: string }> {
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.imageUrl) {
-    throw new Error(data?.error?.message || `بارگذاری تصویر ناموفق بود (کد ${response.status}).`);
-  }
-  return { imageUrl: String(data.imageUrl), fileName: String(data.fileName || '') };
-}
 
 export const aiVisualSearchService = {
   // Compatibility helper: convert to an in-memory data URL only.
