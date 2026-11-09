@@ -5,7 +5,7 @@ import io
 import json
 import os
 import threading
-from retrieval import PIPELINE, decode, regions, crop, jpeg, markings, geometric, select_region
+from retrieval import PIPELINE, decode, regions, crop, jpeg, markings, geometric, select_region, refine_regions
 import cv2
 cv2.setNumThreads(1)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -95,7 +95,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {'model': MODEL_ID, 'pipeline': PIPELINE, 'region': region})
             elif self.path == '/query':
                 image = decode(data['image'])
-                boxes = regions(image, limit=3)
+                boxes = refine_regions(image, regions(image, limit=3))
                 box = boxes[0] if boxes else None
                 views = [data['image']]
                 views.extend(jpeg(crop(image, region)) for region in boxes)
