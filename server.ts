@@ -61,6 +61,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
@@ -79,6 +80,12 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
 // Server-only staff administration key. Never include it in Vite assets or the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
 loadLocalVisionConfig(process.cwd());
+// Warm the offline Persian STT model before the first customer call. The worker
+// keeps model state in RAM and accepts audio only through stdin pipes.
+if(selectForzaSttProvider(process.env).provider==='diba'){
+  void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
+    .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
+}
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key
@@ -5644,9 +5651,35 @@ const FORZA_PRIVATE_VOICES = new Set(['pocket-farsi-v2','piper-amir-medium','pip
 const forzaVoiceEngine = process.env.FORZA_VOICE_ENGINE === 'nima'
   ? 'piper-nima-gyro-medium'
   : process.env.FORZA_VOICE_ENGINE === 'amir' ? 'piper-amir-medium' : 'pocket-farsi-v2';
+let verifiedPrivateVoice:string|null=null;
+let privateVoiceHealthAt=0;
+let privateVoiceHealthPromise:Promise<string>|null=null;
+
+/** Resolve the real private worker identity instead of trusting a stale env
+ * copied from an older app container during a single-port deployment. */
+async function resolveForzaVoiceEngine():Promise<string>{
+  if(!internalForzaVoiceUrl||!process.env.FORZA_VOICE_TOKEN)
+    return verifiedPrivateVoice||forzaVoiceEngine;
+  if(verifiedPrivateVoice&&Date.now()-privateVoiceHealthAt<30_000)return verifiedPrivateVoice;
+  if(privateVoiceHealthPromise)return privateVoiceHealthPromise;
+  privateVoiceHealthPromise=(async()=>{
+    try{
+      const response=await fetch(internalForzaVoiceUrl+'/health',{
+        signal:AbortSignal.timeout(1800),
+        headers:{'X-Forza-Voice-Token':process.env.FORZA_VOICE_TOKEN!},
+      });
+      const info=await response.json().catch(()=>null) as {voice?:string;ok?:boolean}|null;
+      if(response.ok&&info?.ok!==false&&info?.voice&&FORZA_PRIVATE_VOICES.has(info.voice))
+        verifiedPrivateVoice=info.voice;
+    }catch{}
+    privateVoiceHealthAt=Date.now();
+    return verifiedPrivateVoice||forzaVoiceEngine;
+  })().finally(()=>{privateVoiceHealthPromise=null;});
+  return privateVoiceHealthPromise;
+}
 // During migration a Piper greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
-const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
+const privateServiceGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
 async function renderPocketSpeech(
   phrase:string,
@@ -5705,6 +5738,11 @@ async function renderPocketSpeech(
     const wav=Buffer.from(payload);
     if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')
       throw new Error('private_voice_invalid_wav');
+    const upstreamVoice=response.headers.get('x-forza-voice');
+    if(upstreamVoice&&FORZA_PRIVATE_VOICES.has(upstreamVoice)){
+      verifiedPrivateVoice=upstreamVoice;
+      privateVoiceHealthAt=Date.now();
+    }
     if(timings){
       const queue=response.headers.get('x-forza-queue-ms');
       const inference=response.headers.get('x-forza-inference-ms');
@@ -5722,13 +5760,13 @@ async function renderPocketSpeech(
 const getForzaGreeting=createForzaGreeting(renderPocketSpeech);
 app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
   try {
-    // Explicitly set FORZA_VOICE_ENGINE=nima on the Node container at cutover.
-    // Unlike Pocket, a Piper greeting is synthesized once in RAM, never loaded
-    // from the Pocket greeting asset baked into the previous image.
-    const isPiper=forzaVoiceEngine!=='pocket-farsi-v2';
-    const audio=await (isPiper?privatePiperGreeting():getForzaGreeting());
+    // The private worker's /health identity wins over inherited/stale app env.
+    // The selected voice is warmed and cached in RAM while particles form.
+    const activeVoice=await resolveForzaVoiceEngine();
+    const audio=await (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
-    res.setHeader('Cache-Control',isPiper?'no-store':'public, max-age=3600');
+    res.setHeader('X-Forza-Voice',activeVoice);
+    res.setHeader('Cache-Control',internalForzaVoiceUrl?'no-store':'public, max-age=3600');
     res.send(audio);
   } catch(error:any) {
     console.warn('[FORZA greeting] unavailable',String(error?.message||'voice_error').slice(0,120));
@@ -5740,14 +5778,23 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
 // Browser chooses the incremental speech path ONLY for verified Piper Nima.
 // Other existing voices retain their safe full-answer behavior.
 let nextVoiceCatalogWarmAt=0;
-app.get('/api/ai/forza-voice-info',(_req,res)=>{
+app.get('/api/ai/forza-voice-info',async(_req,res)=>{
   // Discovery runs during particle/greeting setup, not on the first customer turn.
   if(configuredXkiroModel(process.env,true) && Date.now()>=nextVoiceCatalogWarmAt){
     nextVoiceCatalogWarmAt=Date.now()+60_000;
     void listVerifiedXkiroFreeChatModels().catch(()=>console.warn('[FORZA] voice_model_catalog_warm_unavailable'));
   }
+  const voice=await resolveForzaVoiceEngine();
+  const ready=Boolean(internalForzaVoiceUrl&&process.env.FORZA_VOICE_TOKEN&&verifiedPrivateVoice);
+  if(internalForzaVoiceUrl){
+    // Warm the exact same private voice that serves replies, regardless of
+    // whether its engine is Pocket or Nima. The greeting route shares this
+    // single cached promise instead of generating duplicate first-call audio.
+    void privateServiceGreeting().then(()=>console.info('[FORZA greeting] warm=ready voice='+voice))
+      .catch(()=>console.warn('[FORZA greeting] warm=deferred voice='+voice));
+  }
   res.setHeader('Cache-Control','no-store');
-  res.json({voice:forzaVoiceEngine,incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'});
+  res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready});
 });
 
 const voiceTtsLimits=forzaTtsLimits(process.env);
@@ -5786,7 +5833,7 @@ app.post('/api/ai/forza-speech',async(req,res)=>{
     if(timings.queueMs!==undefined)res.setHeader('X-Forza-Queue-Ms',String(timings.queueMs));
     if(timings.inferenceMs!==undefined)res.setHeader('X-Forza-Inference-Ms',String(timings.inferenceMs));
     res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Forza-Voice',forzaVoiceEngine);
+    res.setHeader('X-Forza-Voice',await resolveForzaVoiceEngine());
     res.setHeader('X-Forza-Voice-Backend',internalForzaVoiceUrl?'private-service':'legacy-local');
     console.info('[FORZA_TTS_STAGE] phase=server_responded turn='+
       String(req.body?.turnId||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40)+
@@ -7152,15 +7199,19 @@ app.post('/api/ai/transcribe', async (req, res) => {
     }
 
     const sttSelection=selectForzaSttProvider(process.env);
+    const cleanAudioData = extractForzaAudioBase64(audioBase64);
+    if(sttSelection.provider==='diba'){
+      const text=await transcribeForzaDibaAudio(cleanAudioData,{timeoutMs:10_000});
+      return res.json({success:true,text,provider:'diba-vosk'});
+    }
     const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
     if (!apiKey) {
       return res.status(503).json({
         success:false,errorCode:'stt_not_configured',
-        error:'سرویس مجزای تبدیل گفتار به متن تنظیم نشده است. کلید xKiro فقط برای پاسخ متنی استفاده می‌شود.'
+        error:'سرویس تشخیص گفتار فارسی روی سرور آماده نیست. لطفاً دوباره تلاش کنید یا سؤال را تایپ کنید.'
       });
     }
 
-    const cleanAudioData = extractForzaAudioBase64(audioBase64);
     let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
     if (!cleanAudioMime || !cleanAudioMime.startsWith('audio/')) {
       cleanAudioMime = 'audio/webm';
@@ -7201,11 +7252,17 @@ app.post('/api/ai/transcribe', async (req, res) => {
 });
 
 // Public, credential-free diagnostics; never expose provider credentials.
-app.get('/api/ai/forza-stt-info',(_req,res)=>{
+app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
-  res.json({serverSttConfigured:choice.provider==='gemini',serverSttProvider:choice.provider,
-    reason:choice.reason});
+  const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
+  if(dibaConfigured&&!isForzaDibaSttReady())await warmForzaDibaStt();
+  res.json({
+    serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
+    serverSttProvider:choice.provider,
+    serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
+  });
 });
 
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
@@ -7242,6 +7299,20 @@ app.post('/api/ai/forza-live', async (req, res) => {
     let sttProviderError = false;
     let sttProviderStatus = 0;
 
+    // Local Diba/Vosk is the default server recognizer. It is independent from
+    // AvalAI/XKIRO and keeps the model warm in a bounded CPU worker pool.
+    if(!userQuery&&audioBase64&&sttSelection.provider==='diba'){
+      try{
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{timeoutMs:10_000});
+        userQuery=normalizePersianTranscript(transcript).slice(0,2500);
+        console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
+      }catch(sttErr:any){
+        sttProviderError=true;
+        sttProviderStatus=503;
+        console.warn('[AI FORZA STT] provider=diba failure code='+
+          String(sttErr?.message||'stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      }
+    }
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && sttApiKey) {
@@ -7326,7 +7397,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
     if (!userQuery && audioBase64 && !image) {
       // Do not hallucinate an answer to words we could not transcribe.
-      const missingProvider=!sttApiKey && !configuredForzaWorkerUrl();
+      const missingProvider=sttSelection.provider==='none' && !configuredForzaWorkerUrl();
       if(sttProviderError||missingProvider){
         return res.status(503).json({
           success:false,
@@ -7882,7 +7953,7 @@ async function start() {
     if(localVisionEnabled)warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void (forzaVoiceEngine!=='pocket-farsi-v2'?privatePiperGreeting():getForzaGreeting()).catch(()=>{});
+    void (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
     // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
