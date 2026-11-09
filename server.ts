@@ -26,7 +26,7 @@ import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
 import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
 import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
-import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
+import { createVisionImagePublisher, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
 import { buildCatalogImageCorpus, corpusFingerprint, officialImageFile, installCatalogImageMetadata } from './src/services/catalogImageCorpus';
 import { installOwnerPinRows } from './src/data/ownerCatalogue';
@@ -2879,8 +2879,7 @@ async function callPartRecognitionWorker(
   try {
     const buffer=imageBuffer?.length ? imageBuffer : (await resolveCustomerImageBufferAndInfo(imageUrl,req!)).buffer;
     const optimized=await sharp(buffer).resize(1600,1600,{fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:94}).toBuffer();
-    const publisher=publishImage || (req ? createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req)) : undefined);
-    const result=await workerVision([{role:'user',parts:[{text:prompt},{inlineData:{mimeType:'image/jpeg',data:optimized.toString('base64')}}]}],{publishImage:publisher,responseSchema:observationSchema});
+    const result=await workerVision([{role:'user',parts:[{text:prompt},{inlineData:{mimeType:'image/jpeg',data:optimized.toString('base64')}}]}],{publishImage,responseSchema:observationSchema});
     const recognition=normalizeRecognitionObservation(JSON.parse(stripJsonFences(result.text)));
     if (!recognition || Array.isArray(recognition) || ![recognition.whatYouSee, recognition.detected_part_type, recognition.visual_shape].some(value=>typeof value==='string' && value.trim())) throw new Error('Invalid visual observation');
     return {success:true, recognition,model:result.model};
@@ -4109,7 +4108,6 @@ async function analyzePartWithWorker(
 ): Promise<any> {
   refreshRecognitionCatalog();
   const publishImage=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
-  void cleanVisionImageLinks(IMAGE_AI_DIR);
   const uploaded = await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(), req);
   let prompt = buildWorkerAnalysisPrompt(body, stage);
   const catalogSourceUrl = `${getPublicAppBaseUrl(req)}/api/ai/catalog-source`;
@@ -4130,7 +4128,7 @@ async function analyzePartWithWorker(
         catalogSourceUrl,
         uploaded.buffer,
         req,
-        publishImage
+        undefined
       );
       if (workerData && workerData.success === true && workerData.recognition && typeof workerData.recognition === 'object') {
         raw = workerData.recognition;
