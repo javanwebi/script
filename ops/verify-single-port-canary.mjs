@@ -19,9 +19,10 @@ assert.equal(health.database, "ok");
 const sttResponse = await get(candidate, "/api/ai/forza-stt-info");
 assert.ok(sttResponse.headers.get("content-type")?.includes("application/json"));
 const stt = await sttResponse.json();
-assert.equal(typeof stt.serverSttConfigured, "boolean");
-assert.ok(["none", "gemini"].includes(stt.serverSttProvider));
-console.log("FORZA_STT_CANARY_API_JSON_OK provider=" + stt.serverSttProvider);
+assert.equal(stt.serverSttConfigured, true);
+assert.equal(stt.serverSttProvider, "diba");
+assert.equal(stt.serverSttReady, true);
+console.log("FORZA_STT_CANARY_DIBA_READY_OK provider=" + stt.serverSttProvider);
 
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
