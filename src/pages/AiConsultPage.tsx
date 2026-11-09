@@ -524,6 +524,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     const fullFeatures = `${categoryPromptHint}${markingHint}`;
 
     let activeImageEventId: string | null = imageEventId;
+    let requestMimeType = 'image/jpeg';
     try {
       let imageBase64: string | undefined;
       let imageUrl: string | undefined;
@@ -534,6 +535,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         const localRecord = await getCustomerDeviceImage(capturedImageId);
         if (!localRecord) throw new Error('تصویر محلی پیدا نشد؛ دوباره انتخاب کنید.');
         await adoptCustomerDeviceImage(capturedImageId, currentUser.id);
+        requestMimeType = localRecord.mimeType;
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
         if (!activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(capturedImageId);
@@ -557,7 +559,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       const result = await aiVisualSearchService.analyzePartWithAi({
         imageUrl,
         imageBase64,
-        mimeType: 'image/jpeg',
+        mimeType: requestMimeType,
         length: dimensionLength ? parseFloat(dimensionLength) : undefined,
         width: dimensionWidth ? parseFloat(dimensionWidth) : undefined,
         pitch: dimensionPitch ? parseFloat(dimensionPitch) : undefined,
