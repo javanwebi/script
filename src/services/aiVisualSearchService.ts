@@ -286,10 +286,11 @@ export const aiVisualSearchService = {
       await new Promise(resolve => setTimeout(resolve, 650));
     }
 
-    if (!response?.ok) {
-      const failure = await response.json().catch(() => null);
-      const error = new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${response.status}`) as Error & { status?: number; code?: string };
-      error.status = response.status;
+    if (!response || !response.ok) {
+      const failure = response ? await response.json().catch(() => null) : null;
+      const status = response?.status ?? 503;
+      const error = new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${status}`) as Error & { status?: number; code?: string };
+      error.status = status;
       error.code = failure?.error?.code;
       throw error;
     }
