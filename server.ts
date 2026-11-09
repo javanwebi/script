@@ -4107,7 +4107,9 @@ async function analyzePartWithWorker(
 ): Promise<any> {
   refreshRecognitionCatalog();
   const publishImage=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
-  const uploaded = await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(), req);
+  const uploaded = body?.imageBase64
+    ? await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType)
+    : await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(), req);
   let prompt = buildWorkerAnalysisPrompt(body, stage);
   const catalogSourceUrl = `${getPublicAppBaseUrl(req)}/api/ai/catalog-source`;
 
@@ -4411,7 +4413,7 @@ async function saveBase64CustomerImageForWorker(
   req: express.Request,
   imageInput: unknown,
   mimeTypeInput: unknown
-): Promise<{ imageUrl: string; fileName: string }> {
+): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
   const raw = typeof imageInput === 'string' ? imageInput.trim() : '';
   const maxEncodedBytes = Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048;
   if (!raw || raw.length > maxEncodedBytes) {
@@ -4443,6 +4445,7 @@ async function saveBase64CustomerImageForWorker(
   return {
     imageUrl: saved.dataUrl,
     fileName: saved.fileName,
+    buffer: saved.buffer,
   };
 }
 
@@ -4492,8 +4495,9 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const imageBase64=typeof req.body?.imageBase64==='string'?req.body.imageBase64.trim():'';
     const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
     if(!imageBase64 && (!imageUrl || imageUrl.length>2048))return res.status(400).json({error:{code:'INVALID_IMAGE',message:'تصویر بارگذاری‌شده معتبر نیست.'}});
-    const source=imageBase64 ? (await saveBase64CustomerImageForWorker(req,imageBase64,req.body?.mimeType)).imageUrl : imageUrl;
-    const uploaded=await resolveCustomerImageBufferAndInfo(source,req);
+    const uploaded=imageBase64
+      ? await saveBase64CustomerImageForWorker(req,imageBase64,req.body?.mimeType)
+      : await resolveCustomerImageBufferAndInfo(imageUrl,req);
     refreshRecognitionCatalog();
     const products=recognitionProducts();
     const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
@@ -4552,8 +4556,9 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
       const body={...req.body};
       if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{code:'INVALID_REGION',message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
-      if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
-      const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
+      const uploaded=body.imageBase64
+        ? await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType)
+        : await resolveCustomerImageBufferAndInfo(String(body.imageUrl || ''),req);
       refreshRecognitionCatalog();
       const products=recognitionProducts();
       const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
@@ -4618,8 +4623,9 @@ app.post('/api/ai/analyze-part', async (req, res) => {
     try{
       const body={...req.body};
       const jobId=recognitionJobs.start(async progress=>{
-        if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
-        const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
+        const uploaded=body.imageBase64
+          ? await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType)
+          : await resolveCustomerImageBufferAndInfo(String(body.imageUrl || ''),req);
         const customerUrl='device-local://temporary-processing';
         if(!databaseEnabled())throw new Error('Catalog database unavailable');
         refreshRecognitionCatalog();
