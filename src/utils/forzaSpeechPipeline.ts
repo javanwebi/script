@@ -71,10 +71,17 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
   if(!server)return browser;
   if(!browser)return server;
   const toAsciiDigits=(value:string)=>value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
-  const codePattern=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i;
-  const browserHasCode=codePattern.test(toAsciiDigits(browser));
-  const serverHasCode=codePattern.test(toAsciiDigits(server));
-  if(browserHasCode&&!serverHasCode)return browser;
+  const technicalTokens=(value:string)=>{
+    const normalized=toAsciiDigits(value).toUpperCase();
+    const codes=[...normalized.matchAll(/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/g)]
+      .map(match=>String(match[0]).replace(/\s+/g,''));
+    const suffixes=[...normalized.matchAll(/\b(?:ZZ|2RS|RS|C3|C4|2Z|LLU|LLB|SKF|FAG)\b/g)]
+      .map(match=>String(match[0]));
+    return [...new Set([...codes,...suffixes])];
+  };
+  const browserTokens=technicalTokens(browser);
+  const serverTokens=new Set(technicalTokens(server));
+  if(browserTokens.some(token=>!serverTokens.has(token)))return browser;
   if(browser.length>=10&&server.length<browser.length*0.5)return browser;
   return server;
 }
