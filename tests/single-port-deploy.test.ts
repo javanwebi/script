@@ -54,7 +54,7 @@ test("AvalAI private config must be effective in canary before production promot
 test("private FORZA provider credentials are mounted read-only into each release", () => {
   assert.ok(one.includes('if [[ -f "$APP/.env.forza-voice" ]]'));
   assert.ok(one.includes('-v "$APP/.env.forza-voice:/app/.env.forza-voice:ro"'));
-  assert.match(one, /FORZA provider configuration across releases/);
+  assert.match(one, /Always bind the canonical host FORZA config/);
 });
 
 test("old app containers stop after Nima validation and are not deleted", () => {
