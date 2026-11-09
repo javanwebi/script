@@ -1178,6 +1178,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   selectionBusy={regionSelectionBusy}
                   selectionError={regionSelectionError}
                   onSelectPoint={selectRegionAtPoint}
+                  onChange={handleRegionSelection}
                   onConfirm={confirmRegionAndAnalyze}
                   onRetryPreparation={retryRegionPreparation}
                   onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
