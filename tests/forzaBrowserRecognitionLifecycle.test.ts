@@ -51,7 +51,7 @@ test('empty recording without server STT does not create an AI turn or erase val
 });
 
 test('recognized interruption works without analyser VAD and finalized echo is retired', async()=>{
- const {extractPersianSpeechSince}=await import('../src/utils/forzaSpeechPipeline');
+ const {extractPersianSpeechSince,checkpointForzaRecognition}=await import('../src/utils/forzaSpeechPipeline');
  const body=source.split('      rec.onresult = (event: any) => {')[1]
    .split("        if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){")[0];
  const ref=(current:any)=>({current});
@@ -60,7 +60,7 @@ test('recognized interruption works without analyser VAD and finalized echo is r
  const scope:Record<string,any>={
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
-  extractPersianSpeechSince,recognitionRetryRef:ref(0),
+  extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),

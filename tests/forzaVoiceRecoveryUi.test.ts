@@ -13,7 +13,7 @@ test('new FORZA turns retain the mic instead of stopping live WebSpeech before A
   const turn=ui.slice(from,to);
   assert.doesNotMatch(turn,/\bstopListening\(\)/,'no dropped microphone frames at each request');
   assert.match(turn,/startListening\(true\)/,'monitor STT while model/TTS runs');
-  assert.match(turn,/recognitionConsumedCountRef\.current=recognitionResultCountRef\.current/);
+  assert.match(turn,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
   assert.match(turn,/activeTurnRef\.current\?\.generation!==generation/);
   assert.match(turn,/activeNimaBuffer\.finish\(\)/);
   assert.match(turn,/bounded_idle_flush=1/);
@@ -80,7 +80,7 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
   const end=ui.indexOf('// Chrome keeps final results',start);
   assert.ok(start>=0 && end>start);
   const stop=ui.slice(start,end);
-  assert.match(stop,/recognitionConsumedCountRef\.current=recognitionResultCountRef\.current/);
+  assert.match(stop,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
   assert.match(stop,/localSttFinalRef\.current=''/);
   assert.match(stop,/return;/);
 });

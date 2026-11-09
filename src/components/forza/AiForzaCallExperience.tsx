@@ -14,7 +14,7 @@ import {
   Square,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
@@ -186,6 +186,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const webSpeechFailedRef = useRef<boolean>(false);
   const recognitionResultCountRef=useRef(0);
   const recognitionConsumedCountRef=useRef(0);
+  const recognitionCheckpointRef=useRef({count:0,interim:{} as Record<number,string>});
+  const recognitionConsumedInterimRef=useRef<Record<number,string>>({});
   // Compare only to speech entering the WebAudio player, not the LLM's
   // unspoken answer. Acoustic echo suppression is NOT diarization.
   const heardSpeechEchoRef=useRef('');
@@ -892,7 +894,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // No model download or inference is needed at the 100% particle event.
       const url = '/forza-greeting-bootstrap.wav';
       await playDataUrl(url);
-      console.info('[FORZA greeting] Pocket Farsi v2 prerecorded welcome finished');
+      console.info('[FORZA greeting] selected server voice welcome finished');
       return;
     }
 
@@ -992,7 +994,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         activeTranscriptRef.current='';
         // Keep Chrome's cumulative recognition from replaying the stop words
         // as the next customer turn when the recognizer remains active.
-        recognitionConsumedCountRef.current=recognitionResultCountRef.current;
+        recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
+        recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
         localSttFinalRef.current='';
         lastTranscriptChangedAtRef.current=0;
         vadRef.current.reset();
@@ -1029,7 +1032,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // Chrome keeps final results from older turns while recognition stays
       // open to hear interruptions. Mark them consumed instead of stopping
       // and restarting the mic (which drops first syllables).
-      recognitionConsumedCountRef.current=recognitionResultCountRef.current;
+      recognitionConsumedCountRef.current=recognitionCheckpointRef.current.count;
+        recognitionConsumedInterimRef.current={...recognitionCheckpointRef.current.interim};
       localSttFinalRef.current='';
       heardSpeechEchoRef.current='';
       lastForzaPlaybackAtRef.current=0;
@@ -1408,7 +1412,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }catch(error:any){
             if(activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted)
               setVoiceStage('error');
-            console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
+            if(pocketAbort.signal.aborted || activeTurnRef.current?.generation!==generation)
+              console.info('[FORZA_TTS_DIAG] stage=turn-cancelled');
+            else console.warn('[FORZA_TTS_DIAG] stage=turn-failed code='+
               String(error?.message||'unknown').slice(0,100));
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
               setVoiceOutputError(
@@ -1544,6 +1550,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         webSpeechFailedRef.current=false;
         setMicrophoneError(null);
         isRecognitionActiveRef.current = true;
+        console.info('[FORZA_STT_LIFECYCLE] event=start');
+        recognitionConsumedInterimRef.current={};
+        recognitionCheckpointRef.current={count:0,interim:{}};
         recognitionResultCountRef.current=0;
         recognitionConsumedCountRef.current=0;
       };
@@ -1553,10 +1562,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
         const total=Number(event.results?.length||0);
-        if(total<recognitionConsumedCountRef.current)
+        if(total<recognitionConsumedCountRef.current){
           recognitionConsumedCountRef.current=0;
+          recognitionConsumedInterimRef.current={};
+        }
         recognitionResultCountRef.current=total;
-        const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current);
+        recognitionCheckpointRef.current=checkpointForzaRecognition(event.results);
+        const recognized = extractPersianSpeechSince(event.results,recognitionConsumedCountRef.current,recognitionConsumedInterimRef.current);
+        console.info('[FORZA_STT_LIFECYCLE] event=result total='+total+
+          ' consumed='+recognitionConsumedCountRef.current+' chars='+recognized.text.length+
+          ' interim='+Number(recognized.hasInterim));
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
         recognitionRetryRef.current=0;
@@ -1675,6 +1690,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onend = () => {
         if(recognitionRef.current!==rec)return;
         isRecognitionActiveRef.current=false;
+        console.info('[FORZA_STT_LIFECYCLE] event=end failed='+Number(recognitionFailedRef.current));
         // End is normal (including no-speech). Keep the recognizer alive during
         // Nima/manual playback too, otherwise barge-in silently disappears.
         const canRestart=()=>!callClosedRef.current&&!micMutedRef.current&&isCallActive&&
@@ -1746,6 +1762,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
       recognitionFailedRef.current=false;
       webSpeechFailedRef.current=false;
+      isRecognitionActiveRef.current=false;
       recognitionRef.current=initSpeechRecognition();
       if(!recognitionRef.current&&!localSttRecognizerRef.current){
         recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
