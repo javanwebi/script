@@ -4713,6 +4713,11 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
     const viewScores=bestBoundQueryViewScores(retrieved,products);
     const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
     const queryRegions=(query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+    if(selectedRegion && !queryRegions.some(region=>
+      Math.abs(region.x-selectedRegion.x)<0.002 && Math.abs(region.y-selectedRegion.y)<0.002 &&
+      Math.abs(region.width-selectedRegion.width)<0.002 && Math.abs(region.height-selectedRegion.height)<0.002
+    ))queryRegions.unshift(selectedRegion);
+    queryRegions.splice(4);
     const detectionId=crypto.randomUUID();
     localVisionDetectionCache.set(detectionId,{
       imageUrl:uploaded.imageUrl,
