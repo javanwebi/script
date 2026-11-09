@@ -5341,7 +5341,7 @@ async function consultantCustomerPricingContext(req:express.Request,query:string
     .map((item:any)=>String(item?.text||'').slice(0,240)).join(' ')
   : '';
  const searchText=(String(query||'')+' '+historyText).trim();
- if(!/(قیمت|نرخ|هزینه|مبلغ|تخفیف|قیمت‌نامه|چنده|چقدر|چند\\s*(تومان|ریال|دلار|یورو))/.test(searchText))return '';
+ if(!/(قیمت|نرخ|هزینه|مبلغ|تخفیف|قیمت‌نامه|چنده|چقدر|چند\s*(تومان|ریال|دلار|یورو))/.test(searchText))return '';
  if(!databaseEnabled()||!adoptedSchema())return '\\nقیمت اختصاصی از پایگاه داده در دسترس نیست؛ قیمت یا تخفیف را حدس نزن و برای استعلام راهنمایی کن.\\n';
  try{
   const identity=await getPortalIdentity(req);

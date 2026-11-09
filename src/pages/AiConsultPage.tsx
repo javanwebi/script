@@ -58,6 +58,18 @@ import {
   IndustrialPresetSample,
 } from '../services/aiVisualSearchService';
 import { useCart } from '../context/CartContext';
+import {
+  saveCustomerDeviceImage,
+  getCustomerDeviceImage,
+  adoptCustomerDeviceImage,
+  customerImageBlobToDataUrl,
+  getCustomerDeviceImageMetadata,
+} from '../services/customerImageVault';
+import {
+  createCustomerImageIdentification,
+  completeCustomerImageIdentification,
+  saveCustomerConsultation,
+} from '../services/customerIntelligenceService';
 const AiVisualPartSearchModal = lazy(() => import('../components/search/AiVisualPartSearchModal').then(m=>({default:m.AiVisualPartSearchModal})));
 
 interface Message {
@@ -466,7 +478,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       setCapturedImage(dataUrl);
       setCapturedImageId(null);
       setImageEventId(null);
-      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg')).catch(error => setAnalysisError(error instanceof Error ? error.message : 'ذخیره تصویر دوربین ناموفق بود.'));
+      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg')).catch((error: unknown) => setAnalysisError(error instanceof Error ? error.message : 'ذخیره تصویر دوربین ناموفق بود.'));
       stopCamera();
     }
   };
@@ -575,7 +587,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           matchedProductCodes: (result.matchedProducts || []).map(item => item.code),
           similarProductCodes: (result.similarCandidates || []).map(item => item.code),
           confidence: result.summary?.confidence,
-        }).catch(error => console.warn('[Customer image history] result sync unavailable', error));
+        }).catch((error: unknown) => console.warn('[Customer image history] result sync unavailable', error));
       }
       setAnalysisResult(result);
     } catch (err: any) {
@@ -621,7 +633,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       productCodes: selectedConsultProducts.map(product => product.code),
       products: selectedConsultProducts.map(product => ({ code: product.code, name: product.name })),
       summary,
-    }).catch(error => console.warn('[FORZA CRM session sync]', error instanceof Error ? error.message : 'unavailable'));
+    }).catch((error: unknown) => console.warn('[FORZA CRM session sync]', error instanceof Error ? error.message : 'unavailable'));
   };
 
   const handleSend = async (queryText?: string) => {
