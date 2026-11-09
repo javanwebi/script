@@ -118,7 +118,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen]);
   React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -215,7 +214,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const sequence = ++imageUploadSequenceRef.current;
     if (typeof source === "string" && /^https?:\/\//i.test(source.trim())) return;
     setIsUploadingImage(true);
-    setUploadedImageUrl(null);
     try {
       const blob = typeof source === "string"
         ? await fetch(source).then(response => {
@@ -245,7 +243,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setLocalImageId(null);
     setImageEventId(null);
     setErrorMessage("");
-    setUploadedImageUrl(null);
     setAnalysisResult(null);setMeasurements({});
     setSelectedImage(URL.createObjectURL(file));
     setMimeType(file.type || "image/jpeg");
@@ -266,7 +263,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setAnalysisResult(null);setMeasurements({});
     setSelectedImage(preset.imageUrl);
-    setUploadedImageUrl(null);
     setLocalImageId(null);
     setImageEventId(null);
     setMimeType("image/jpeg");
@@ -365,8 +361,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (typeof reader.result !== "string") return;
       if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
       imageUploadSequenceRef.current += 1;
-      setUploadedImageUrl(null);
-      setAnalysisResult(null);
+        setAnalysisResult(null);
       setMeasurements({});
       setSelectedImage(reader.result);
       setLocalImageId(null);
@@ -399,8 +394,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           URL.revokeObjectURL(selectedImage);
         setAnalysisResult(null);setMeasurements({});
         setSelectedImage(dataUrl);
-        setUploadedImageUrl(null);
-        setLocalImageId(null);
+            setLocalImageId(null);
         setImageEventId(null);
         setMimeType("image/jpeg");
         setErrorMessage("");
@@ -411,7 +405,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           stopCamera();
           return;
         }
-        uploadSelectedImage(dataUrl);
         stopCamera();
       }
     }
@@ -433,7 +426,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
-    setUploadedImageUrl(null);
     setLocalImageId(null);
     setImageEventId(null);
     setLength("");
@@ -601,7 +593,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const retakeCameraPhoto = () => {
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
-    setUploadedImageUrl(null);
     setLocalImageId(null);
     setImageEventId(null);
     setCameraReview(false);
@@ -1135,8 +1126,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                           if (selectedImage?.startsWith("blob:"))
                             URL.revokeObjectURL(selectedImage);
                           setSelectedImage(null);
-                          setUploadedImageUrl(null);
-                          stopCamera();
+                                                stopCamera();
                         }}
                         className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
                       >
