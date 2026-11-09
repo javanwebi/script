@@ -7,6 +7,7 @@ import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
+import {registerCustomerIntelligenceApi} from './server/db/customerIntelligenceApi';
 import {registerAdminCustomerCredentialsApi} from './server/db/adminCustomerCredentialsApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
@@ -57,7 +58,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
+import {buildForzaConsultSystemMessage, configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
@@ -189,7 +190,6 @@ const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'image
 if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
-const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return ''; /* Direct vision: Worker retired. */ }
 
@@ -316,9 +316,6 @@ function getPublicAppBaseUrl(req: express.Request): string {
 function visionImagePublicOrigin(req:express.Request):string {
   return (process.env.VISION_IMAGE_PUBLIC_ORIGIN || getPublicAppBaseUrl(req)).trim().replace(/\/+$/,'');
 }
-function customerImagePublicUrl(req: express.Request, fileName: string): string {
-  return `${visionImagePublicOrigin(req)}/imageai/${encodeURIComponent(fileName)}`;
-}
 
 function normalizeBrowserOrigin(value: string): string | null {
   try {
@@ -416,6 +413,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
 registerAdminStaffApi(app);
 registerAdminSecurityApi(app);
 registerAdminCustomersApi(app);
+registerCustomerIntelligenceApi(app);
 registerAdminCustomerCredentialsApi(app);
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
@@ -477,66 +475,7 @@ app.use('/api/ai', async (req,res,next)=>{
 });
 app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, message: 'از مسیر ورود جدید استفاده کنید.' }));
 
-interface CachedCustomerImage {
-  buffer: Buffer;
-  mimeType: string;
-  createdAt: number;
-}
-const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
-const CUSTOMER_IMAGE_MEMORY_TTL_MS = 30 * 60 * 1000;
-const CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES = 32;
-const CUSTOMER_IMAGE_MEMORY_MAX_BYTES = 96 * 1024 * 1024;
-
-function cleanCustomerImageMemoryCache(now = Date.now()) {
-  for (const [key, val] of customerImageMemoryCache.entries()) {
-    if (now - val.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) customerImageMemoryCache.delete(key);
-  }
-  let totalBytes = 0;
-  for (const value of customerImageMemoryCache.values()) totalBytes += value.buffer.length;
-  while (customerImageMemoryCache.size > CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES || totalBytes > CUSTOMER_IMAGE_MEMORY_MAX_BYTES) {
-    const oldest = customerImageMemoryCache.entries().next().value as [string, CachedCustomerImage] | undefined;
-    if (!oldest) break;
-    totalBytes -= oldest[1].buffer.length;
-    customerImageMemoryCache.delete(oldest[0]);
-  }
-}
-
-function cacheCustomerImageBuffer(fileName: string, buffer: Buffer, mimeType = 'image/jpeg') {
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0 || buffer.length > CUSTOMER_IMAGE_MAX_BYTES) {
-    throw new Error('حجم تصویر بیش از ۱۰ مگابایت است یا دادهٔ تصویر نامعتبر است.');
-  }
-  customerImageMemoryCache.delete(fileName);
-  customerImageMemoryCache.set(fileName, { buffer, mimeType, createdAt: Date.now() });
-  cleanCustomerImageMemoryCache();
-}
-
-const customerImageCacheCleanupTimer = setInterval(cleanCustomerImageMemoryCache, 60_000);
-customerImageCacheCleanupTimer.unref?.();
-
-// New customer uploads are served only from this bounded, short-lived memory cache.
-// The disk-backed static fallback below exists solely for legacy files created by older releases.
-app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
-  const fileName = path.basename(req.params.fileName || '');
-  const cached = customerImageMemoryCache.get(fileName);
-  if (cached) {
-    if (Date.now() - cached.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) {
-      customerImageMemoryCache.delete(fileName);
-      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-      return res.status(404).end();
-    }
-    res.setHeader('Content-Type', cached.mimeType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    return res.end(cached.buffer);
-  }
-  next();
-});
-
-// Fallback to disk folder if image existed prior
+// Legacy static routes serve catalogue and historical assets only; new customer images never enter this directory.
 app.use(
   ['/imageai', '/imagemoshtari'],
   express.static(IMAGE_AI_DIR, {
@@ -2789,76 +2728,25 @@ async function readResponseBufferLimited(response: Response, maxBytes: number): 
   return Buffer.concat(chunks, total);
 }
 
-async function prepareCustomerImageInMemory(
+async function prepareCustomerImageForRequest(
   input: Buffer,
   declaredMime: string | undefined
-): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number }> {
-  if (!Buffer.isBuffer(input) || input.length === 0) {
-    throw new Error('فایل تصویر خالی یا نامعتبر است.');
-  }
-  if (input.length > CUSTOMER_IMAGE_MAX_BYTES) {
-    throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
-  }
-
+): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number; dataUrl: string; buffer: Buffer }> {
+  if (!Buffer.isBuffer(input) || input.length === 0) throw new Error('فایل تصویر خالی یا نامعتبر است.');
+  if (input.length > CUSTOMER_IMAGE_MAX_BYTES) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
   const normalizedMime = normalizeCustomerImageMime(declaredMime);
-  if (!normalizedMime) {
-    throw new Error('فقط تصاویر JPEG، PNG و WEBP پشتیبانی می‌شوند.');
-  }
-
+  if (!normalizedMime) throw new Error('فقط تصاویر JPEG، PNG و WEBP پشتیبانی می‌شوند.');
   const sharpOptions = { limitInputPixels: 40_000_000 };
   const metadata = await sharp(input, sharpOptions).metadata();
-  const actualMimeByFormat: Record<string, CustomerImageMime> = {
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    webp: 'image/webp',
-  };
+  const actualMimeByFormat: Record<string, CustomerImageMime> = { jpeg:'image/jpeg', png:'image/png', webp:'image/webp' };
   const actualMime = metadata.format ? actualMimeByFormat[metadata.format] : undefined;
-  if (!actualMime || actualMime !== normalizedMime) {
-    throw new Error('نوع واقعی فایل با پسوند یا نوع ارسالی تصویر مطابقت ندارد.');
-  }
-
-  const optimized = await sharp(input, sharpOptions)
-    .rotate()
-    .flatten({ background: '#ffffff' })
-    .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 94 })
-    .toBuffer();
-
+  if (!actualMime || actualMime !== normalizedMime) throw new Error('نوع واقعی فایل با پسوند یا نوع ارسالی تصویر مطابقت ندارد.');
+  const optimized = await sharp(input, sharpOptions).rotate().flatten({ background:'#ffffff' })
+    .resize(1600,1600,{fit:'inside',withoutEnlargement:true}).jpeg({quality:94}).toBuffer();
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
-  // Customer image bytes remain in process memory only: never write them to disk,
-  // persistent object storage, the database, logs, or GitHub backups.
-  cacheCustomerImageBuffer(fileName, optimized, 'image/jpeg');
-  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length };
-}
-
-const GITHUB_BACKUP_REPO = process.env.GITHUB_BACKUP_REPO || 'javanwebi/atlastrai';
-const GITHUB_BACKUP_TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_BACKUP_TOKEN || '';
-
-async function syncCustomerImageToGitHub(fileName: string, buffer: Buffer): Promise<string | null> {
-  if (!GITHUB_BACKUP_TOKEN || !GITHUB_BACKUP_REPO) return null;
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_BACKUP_REPO}/contents/imageai/${fileName}`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${GITHUB_BACKUP_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Atlas-AI-Search',
-      },
-      body: JSON.stringify({
-        message: `Upload customer image ${fileName} for AI recognition`,
-        content: buffer.toString('base64'),
-        branch: 'main',
-      }),
-    });
-    if (res.ok) {
-      return `https://raw.githubusercontent.com/${GITHUB_BACKUP_REPO}/main/imageai/${fileName}`;
-    }
-  } catch (err: any) {
-    console.warn('[GitHub Image Sync warning]:', err?.message);
-  }
-  return null;
+  const dataUrl = `data:image/jpeg;base64,${optimized.toString('base64')}`;
+  // Request-scoped only: no disk, object storage, database blob, public URL, or GitHub mirror.
+  return {fileName,mimeType:'image/jpeg',sizeBytes:optimized.length,dataUrl,buffer:optimized};
 }
 
 function validatePresetImageImportUrl(input: string): string | null {
@@ -2894,9 +2782,9 @@ app.post(
       if (!Buffer.isBuffer(req.body)) {
         return res.status(415).json({ error: { message: 'فقط فایل JPEG، PNG یا WEBP ارسال کنید.' } });
       }
-      const saved = await prepareCustomerImageInMemory(req.body, req.get('content-type'));
+      const saved = await prepareCustomerImageForRequest(req.body, req.get('content-type'));
       return res.status(201).json({
-        imageUrl: customerImagePublicUrl(req,saved.fileName),
+        imageUrl: saved.dataUrl,
         fileName: saved.fileName,
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,
@@ -2934,9 +2822,9 @@ app.post('/api/ai/customer-images/import', async (req, res) => {
       return res.status(502).json({ error: { message: 'دانلود تصویر نمونه ناموفق بود.' } });
     }
     const image = await readResponseBufferLimited(response, CUSTOMER_IMAGE_MAX_BYTES);
-    const saved = await prepareCustomerImageInMemory(image, response.headers.get('content-type') || undefined);
+    const saved = await prepareCustomerImageForRequest(image, response.headers.get('content-type') || undefined);
     return res.status(201).json({
-      imageUrl: customerImagePublicUrl(req,saved.fileName),
+      imageUrl: saved.dataUrl,
       fileName: saved.fileName,
       mimeType: saved.mimeType,
       sizeBytes: saved.sizeBytes,
@@ -2957,113 +2845,31 @@ async function resolveCustomerImageBufferAndInfo(
   _req: express.Request
 ): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
   const trimmed = String(input || '').trim();
-  if (!trimmed) {
-    throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
-  }
-
-  // 1. Data URL link (RFC 2397): directly contains full image bytes
+  if (!trimmed) throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
   if (trimmed.startsWith('data:image/')) {
-    const base64Index = trimmed.indexOf(';base64,');
-    if (base64Index !== -1) {
-      const rawBase64 = trimmed.slice(base64Index + 8);
-      if (rawBase64.length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
-      const buffer = Buffer.from(rawBase64, 'base64');
-      const fileName = `${crypto.randomUUID()}.jpg`;
-      cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
-      return {
-        imageUrl: trimmed,
-        fileName,
-        buffer,
-      };
-    }
+    const match = trimmed.match(/^data:(image\\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/i);
+    if (!match) throw new Error('دادهٔ تصویر معتبر نیست.');
+    if (match[2].length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
+    const prepared = await prepareCustomerImageForRequest(Buffer.from(match[2], 'base64'), match[1]);
+    return {imageUrl:prepared.dataUrl,fileName:prepared.fileName,buffer:prepared.buffer};
   }
-
-  // 2. Direct Base64 string without data prefix
   if (/^[A-Za-z0-9+/=]{100,}$/.test(trimmed)) {
     if (trimmed.length > Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
-    const buffer = Buffer.from(trimmed, 'base64');
-    const fileName = `${crypto.randomUUID()}.jpg`;
-    const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
-    return {
-      imageUrl: dataUrl,
-      fileName,
-      buffer,
-    };
+    const prepared = await prepareCustomerImageForRequest(Buffer.from(trimmed,'base64'),'image/jpeg');
+    return {imageUrl:prepared.dataUrl,fileName:prepared.fileName,buffer:prepared.buffer};
   }
-
-  // 3. HTTP or HTTPS Image URL link
+  const safeUrl = validatePresetImageImportUrl(trimmed);
+  if (!safeUrl) throw new Error('آدرس یا لینک تصویر معتبر نیست.');
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(),8000);
   try {
-    const url = new URL(trimmed);
-    const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
-    if (cached && cached.buffer && cached.buffer.length > 0) {
-      return {
-        imageUrl: url.toString(),
-        fileName,
-        buffer: cached.buffer,
-      };
-    }
-
-    // Actively fetch image from URL so we have its real bytes for visual comparison and AI vision!
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6000);
-      const fetchResp = await fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'image/jpeg,image/png,image/webp,*/*' },
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer));
-
-      if (fetchResp.ok) {
-        const rawBuffer = await readResponseBufferLimited(fetchResp, CUSTOMER_IMAGE_MAX_BYTES);
-        if (rawBuffer.length > 0) {
-          cacheCustomerImageBuffer(fileName, rawBuffer, fetchResp.headers.get('content-type') || 'image/jpeg');
-          return {
-            imageUrl: url.toString(),
-            fileName,
-            buffer: rawBuffer,
-          };
-        }
-      }
-    } catch (fetchErr: any) {
-      console.warn('[Resolve Image URL] Remote fetch warning:', fetchErr?.message);
-    }
-
-    return {
-      imageUrl: url.toString(),
-      fileName,
-      buffer: Buffer.alloc(0),
-    };
-  } catch {
-    throw new Error('آدرس یا لینک تصویر معتبر نیست.');
-  }
+    const response = await fetch(safeUrl,{method:'GET',redirect:'error',headers:{Accept:'image/jpeg,image/png,image/webp'},signal:controller.signal});
+    if (!response.ok) throw new Error('دریافت تصویر نمونه ناموفق بود.');
+    const raw = await readResponseBufferLimited(response,CUSTOMER_IMAGE_MAX_BYTES);
+    const prepared = await prepareCustomerImageForRequest(raw,response.headers.get('content-type')||undefined);
+    return {imageUrl:prepared.dataUrl,fileName:prepared.fileName,buffer:prepared.buffer};
+  } finally { clearTimeout(timer); }
 }
-
-// Backward compatibility alias
-const getUploadedCustomerImageFromUrl = (input: string, req: express.Request) => {
-  const trimmed = String(input || '').trim();
-  if (trimmed.startsWith('data:image/')) {
-    const base64Index = trimmed.indexOf(';base64,');
-    if (base64Index !== -1) {
-      const buffer = Buffer.from(trimmed.slice(base64Index + 8), 'base64');
-      const fileName = `${crypto.randomUUID()}.jpg`;
-      return { imageUrl: trimmed, fileName, buffer };
-    }
-  }
-  try {
-    const url = new URL(trimmed);
-    const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
-    return {
-      imageUrl: url.toString(),
-      fileName,
-      buffer: cached ? cached.buffer : Buffer.alloc(0),
-    };
-  } catch {
-    return { imageUrl: trimmed, fileName: `${crypto.randomUUID()}.jpg`, buffer: Buffer.alloc(0) };
-  }
-};
 
 async function callPartRecognitionWorker(
   imageUrl: string, fileName: string, prompt: string, catalogSourceUrl?: string,
@@ -4637,9 +4443,9 @@ async function saveBase64CustomerImageForWorker(
     throw error;
   }
 
-  const saved = await prepareCustomerImageInMemory(buffer, declaredMime);
+  const saved = await prepareCustomerImageForRequest(buffer, declaredMime);
   return {
-    imageUrl: customerImagePublicUrl(req,saved.fileName),
+    imageUrl: saved.dataUrl,
     fileName: saved.fileName,
   };
 }
