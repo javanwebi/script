@@ -510,6 +510,9 @@ function cacheCustomerImageBuffer(fileName: string, buffer: Buffer, mimeType = '
   cleanCustomerImageMemoryCache();
 }
 
+const customerImageCacheCleanupTimer = setInterval(cleanCustomerImageMemoryCache, 60_000);
+customerImageCacheCleanupTimer.unref?.();
+
 // New customer uploads are served only from this bounded, short-lived memory cache.
 // The disk-backed static fallback below exists solely for legacy files created by older releases.
 app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
