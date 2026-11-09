@@ -767,14 +767,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     audio.addEventListener('playing', playing);
     startWatchdog = window.setTimeout(() => {
       if(!settled && !isAiSpeakingRef.current) {
-        console.warn('[FORZA Audio] playback did not start before watchdog');
-        failed();
-        // WebAudio recovery is also bounded, even when suspended.
-        window.setTimeout(() => {
-          if(!settled) finish(new Error('amir_audio_start_timeout'));
-        }, 5000);
+        // The greeting is synthesized once by the private voice worker. Do
+        // not issue a second WebAudio fetch while that first WAV is still
+        // being generated; it can occupy the worker queue and break welcome.
+        console.warn('[FORZA Audio] playback start timeout');
+        finish(new Error('forza_audio_start_timeout'));
       }
-    }, 6500);
+    }, 18000);
     void audio.play().then(playing).catch((error: any) => {
       if (settled) return;
       if (error?.name === 'NotAllowedError') {
