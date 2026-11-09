@@ -48,7 +48,9 @@ export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,view
 }
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
- const data=await localRequest('/query',{image:image.toString('base64')},env);
+ // DINOv2 inference can exceed the generic 4.5s transport budget on a cold CPU worker.
+ // Keep the browser responsive with a bounded 12s request and a manual-crop fallback.
+ const data=await localRequest('/query',{image:image.toString('base64')},env,12000);
  const profile=localVisionProfile(env),vectors=validVectors(data,undefined,env);
  if((data.region!==null && data.region!==undefined && !validImageRegion(data.region)) || data.pipeline!==profile.pipeline || vectors.length<1 || vectors.length>profile.maxViews || !Array.isArray(data.markings))throw new Error('Invalid local query');
  if(data.viewRegions!==undefined && (!Array.isArray(data.viewRegions)||data.viewRegions.length!==vectors.length||data.viewRegions[0]!==null||data.viewRegions.some((box:any)=>box!==null&&!validImageRegion(box))))throw new Error('Invalid query regions');
