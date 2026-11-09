@@ -9,6 +9,7 @@ type Pending = {
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
   abort?: () => void;
+  signal?: AbortSignal;
 };
 type WorkerState = {
   child: ChildProcessWithoutNullStreams;
@@ -35,16 +36,22 @@ export function isForzaDibaSttReady(): boolean {
   return workers.some(worker => worker.ready && !worker.failed && worker.child.exitCode === null);
 }
 
+function settlePending(worker: WorkerState, id: string, error?: Error, text = ''): void {
+  const pending = worker.pending.get(id);
+  if (!pending) return;
+  worker.pending.delete(id);
+  worker.inflight = Math.max(0, worker.inflight - 1);
+  clearTimeout(pending.timer);
+  if (pending.abort) pending.signal?.removeEventListener('abort', pending.abort);
+  if (error) pending.reject(error);
+  else pending.resolve(text);
+}
+
 function failWorker(worker: WorkerState, reason: string): void {
   if (worker.failed) return;
   worker.failed = true;
   worker.ready = false;
-  for (const pending of worker.pending.values()) {
-    clearTimeout(pending.timer);
-    pending.reject(new Error(reason));
-  }
-  worker.pending.clear();
-  worker.inflight = 0;
+  for (const id of [...worker.pending.keys()]) settlePending(worker, id, new Error(reason));
 }
 
 function startWorker(): WorkerState {
@@ -82,12 +89,9 @@ function startWorker(): WorkerState {
       const id = String(message?.id || '');
       const pending = state.pending.get(id);
       if (!pending) return;
-      state.pending.delete(id);
-      state.inflight = Math.max(0, state.inflight - 1);
-      clearTimeout(pending.timer);
-      if (pending.abort) pending.signal?.removeEventListener('abort', pending.abort);
-      if (message?.ok === true) pending.resolve(String(message.text || '').trim());
-      else pending.reject(new Error(String(message?.code || 'diba_transcription_failed')));
+      settlePending(state, id,
+        message?.ok === true ? undefined : new Error(String(message?.code || 'diba_transcription_failed')),
+        String(message?.text || '').trim());
     });
     child.once('error', () => {
       clearTimeout(readyTimer);
@@ -139,25 +143,9 @@ export async function transcribeForzaDibaAudio(
   const timeoutMs = Math.max(1500, Math.min(20_000, options.timeoutMs ?? REQUEST_TIMEOUT_MS));
 
   return new Promise<string>((resolve, reject) => {
-    const finish = (error?: Error, text = '') => {
-      const pending = worker.pending.get(id);
-      if (!pending) return;
-      worker.pending.delete(id);
-      worker.inflight = Math.max(0, worker.inflight - 1);
-      clearTimeout(pending.timer);
-      if (pending.abort) options.signal?.removeEventListener('abort', pending.abort);
-      if (error) reject(error);
-      else resolve(text);
-    };
-    const abort = () => finish(new Error('stt_aborted'));
-    const timer = setTimeout(() => finish(new Error('diba_stt_timeout')), timeoutMs);
-    worker.pending.set(id, {
-      resolve: text => finish(undefined, text),
-      reject: error => finish(error),
-      timer,
-      abort,
-      signal: options.signal,
-    } as Pending & { signal?: AbortSignal });
+    const abort = () => settlePending(worker, id, new Error('stt_aborted'));
+    const timer = setTimeout(() => settlePending(worker, id, new Error('diba_stt_timeout')), timeoutMs);
+    worker.pending.set(id, { resolve, reject, timer, abort, signal: options.signal });
     worker.inflight++;
     if (options.signal) {
       options.signal.addEventListener('abort', abort, { once: true });
@@ -165,10 +153,10 @@ export async function transcribeForzaDibaAudio(
     }
     try {
       worker.child.stdin.write(JSON.stringify({ id, audioBase64: encoded }) + '\n', error => {
-        if (error) finish(new Error('diba_worker_write_failed'));
+        if (error) settlePending(worker, id, new Error('diba_worker_write_failed'));
       });
     } catch {
-      finish(new Error('diba_worker_write_failed'));
+      settlePending(worker, id, new Error('diba_worker_write_failed'));
     }
   });
 }
