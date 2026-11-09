@@ -19,7 +19,7 @@ test('FORZA streams live words and preserves the selected voice TTS fallback',()
   assert.match(frontend,/setAiText\(reply\)/);
   assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal,/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
+  assert.match(frontend,/body:JSON\.stringify\(\{text,turnId:requestTurnId\}\)/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
   assert.match(frontend,/phase=whole-pocket-wav-ready/);
