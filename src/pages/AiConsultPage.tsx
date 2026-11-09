@@ -554,7 +554,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             if (!response.ok) throw new Error('خواندن تصویر انتخاب‌شده ناموفق بود.');
             return response.blob();
           });
-          effectiveImageId = await persistCapturedImageOnDevice(imageBlob, 'customer-part-image.jpg') || undefined;
+          effectiveImageId = await persistCapturedImageOnDevice(imageBlob, 'customer-part-image.jpg') || null;
         }
         if (!effectiveImageId) throw new Error('تصویر در حافظه خصوصی دستگاه ذخیره نشد؛ لطفاً دوباره انتخاب کنید.');
         const localRecord = await getCustomerDeviceImage(effectiveImageId);

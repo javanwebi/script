@@ -55,5 +55,6 @@ test('agent accepts request-scoped customer pixels without a public customer ima
 
 test('agent refuses a non-public catalog image origin',async()=>{
  const {client}=setup([]);
- await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:'http://example.org',images:photos,products,...(await testPixels())}),/Catalog image origin requires public HTTPS/);
+ const pixels=await testPixels();
+ await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:'http://example.org',images:photos,products,...pixels}),/Catalog image origin requires public HTTPS/);
 });
