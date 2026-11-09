@@ -104,6 +104,34 @@ class WorkerTests(unittest.TestCase):
         self.assertGreaterEqual(len([box for box in result['viewRegions'] if box]), 2)
         self.assertTrue(all(box['width'] >= 0.03 and box['height'] >= 0.03 for box in result['viewRegions'] if box))
 
+    def test_authenticated_tap_selection_returns_only_the_clicked_object(self):
+        import cv2
+        import numpy as np
+        from retrieval import jpeg
+
+        image = np.full((280, 512, 3), 248, np.uint8)
+        cv2.rectangle(image, (64, 82), (164, 182), (28, 34, 38), -1)
+        cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
+        raw = jpeg(image)
+
+        with self.request({'image': raw, 'point': {'x': 0.22, 'y': 0.47}}, path='/select-region') as response:
+            left = json.load(response)
+        with self.request({'image': raw, 'point': {'x': 0.78, 'y': 0.47}}, path='/select-region') as response:
+            right = json.load(response)
+
+        self.assertEqual(left['pipeline'], worker.PIPELINE)
+        self.assertNotEqual(left['region'], right['region'])
+        self.assertLess(left['region']['x'], 0.2)
+        self.assertGreater(right['region']['x'], 0.6)
+
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request({'image': raw, 'point': {'x': 0.5, 'y': 0.5}}, path='/select-region')
+        self.assertEqual(error.exception.code, 422)
+
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request({'image': raw, 'point': {'x': 0.22, 'y': 0.47}}, token='wrong', path='/select-region')
+        self.assertEqual(error.exception.code, 401)
+
     def test_busy_is_bounded(self):
         worker.slot.acquire()
         try:
