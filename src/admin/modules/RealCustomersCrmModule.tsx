@@ -516,6 +516,7 @@ export const RealCustomersCrmModule: React.FC = () => {
                 {item.status!=='completed' && item.status!=='cancelled' && <button type="button" onClick={async()=>{try{await api('/api/admin/crm/followups/'+encodeURIComponent(item.id),{method:'PATCH',body:JSON.stringify({status:'completed'})});await openDetail(detail.customer.id);setDetailTab('followups');}catch(error){setError(error instanceof Error?error.message:'به‌روزرسانی پیگیری ناموفق بود.');}}} className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-700">علامت‌گذاری به‌عنوان انجام‌شده</button>}
               </div>) : <p className="py-5 text-center text-xs text-slate-500">پیگیری‌ای ثبت نشده است.</p>}
             </div>
+            </>}
           </>}
           {detailTab==='finance' && <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
