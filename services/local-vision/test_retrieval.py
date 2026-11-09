@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 import cv2
 import numpy as np
-from retrieval import foreground, regions, crop, geometric, jpeg, markings, select_region
+from retrieval import foreground, regions, crop, geometric, jpeg, markings, select_region, refine_regions
 
 
 class RetrievalTests(unittest.TestCase):
@@ -48,6 +48,22 @@ class RetrievalTests(unittest.TestCase):
         self.assertTrue(any(0.15 < center < 0.32 for center in centers))
         self.assertTrue(any(0.68 < center < 0.85 for center in centers))
         self.assertEqual(boxes, regions(image, limit=3))
+
+    def test_automatic_proposals_are_refined_around_each_object_without_losing_fallbacks(self):
+        image = np.full((280, 512, 3), 248, np.uint8)
+        cv2.rectangle(image, (64, 82), (164, 182), (28, 34, 38), -1)
+        cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
+
+        proposals = regions(image, limit=3)
+        refined = refine_regions(image, proposals)
+
+        self.assertEqual(len(refined), len(proposals))
+        self.assertGreaterEqual(len(refined), 2)
+        self.assertTrue(all(0 <= box['x'] < 1 and 0 <= box['y'] < 1 for box in refined))
+        centers = [box['x'] + box['width'] / 2 for box in refined]
+        self.assertTrue(any(0.15 < center < 0.32 for center in centers))
+        self.assertTrue(any(0.68 < center < 0.85 for center in centers))
+        self.assertEqual(refine_regions(np.full_like(image, 255), []), [])
 
     def test_tap_selects_the_object_at_that_point_and_rejects_background(self):
         image = np.full((280, 512, 3), 248, np.uint8)
