@@ -166,8 +166,8 @@ export const aiVisualSearchService = {
   // Compatibility helper: convert to an in-memory data URL only.
   // Customer image bytes are never uploaded to a permanent server image endpoint.
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
-    // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
-    // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
+    // Preset catalogue photos are same-origin persistent-storage paths, not customer uploads.
+    // Fetch their bytes in the browser and convert them to a request-scoped data URL; never store them on the server.
     if (typeof source === 'string' && source.startsWith('/storage/products/')) {
       const imageResponse = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
       if (!imageResponse.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');

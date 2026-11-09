@@ -6,7 +6,11 @@ import { refreshAuth } from './supabaseAuth';
 
 const fail = (status: number, message: string) => Object.assign(new Error(message), { status });
 const cleanText = (value: unknown, max = 500) => typeof value === 'string'
-  ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max)
+  ? value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+/gi, '[تصویر حذف شد]')
+    .replace(/\b[a-z0-9+/]{512,}={0,2}\b/gi, '[داده تصویری حذف شد]')
+    .trim().slice(0, max)
   : '';
 const codeList = (value: unknown) => Array.isArray(value)
   ? [...new Set(value.map(item => cleanText(item, 110)).filter(item => /^[\p{L}\p{N}_.:/ -]{1,110}$/u.test(item)))].slice(0, 40)

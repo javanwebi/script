@@ -100,6 +100,8 @@ test('CRM exposes image history, FORZA consultations, purchase analytics and CRM
   assert.ok(intelligence.includes('crm_customer_id'));
   assert.ok(intelligence.includes('host !== req.headers.host'));
   assert.ok(intelligence.includes('catalog_variants where code = any($1::text[])'));
+  assert.ok(intelligence.includes('data:image\\/(?:jpeg|png|webp);base64'));
+  assert.ok(intelligence.includes('داده تصویری حذف شد'));
   assert.ok(intelligence.includes('نتیجه شناسایی فقط می‌تواند کدهای واقعی کاتالوگ را ثبت کند'));
 });
 
