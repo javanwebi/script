@@ -41,6 +41,7 @@ type ProductInterest = { product_code: string; product_name: string; interaction
 type Followup = { id: string; title: string; notes: string; status: string; due_at: string | null; completed_at: string | null; created_at: string; assigned_staff_name: string };
 type Detail = {
   customer: Customer; orders: Order[]; finance: Entry[]; tickets: Ticket[];
+  intelligenceEnabled?: boolean;
   imageEvents: ImageEvent[]; consultations: Consultation[]; productInterests: ProductInterest[];
   monthlyPurchases: PurchasePeriod[]; yearlyPurchases: PurchasePeriod[]; topProducts: TopProduct[]; followups: Followup[];
 };
@@ -84,6 +85,7 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [detailTab,setDetailTab] = useState<'profile'|'orders'|'finance'|'tickets'|'images'|'consultations'|'purchases'|'followups'>('profile');
   const [imageRows,setImageRows] = useState<ImageEvent[]>([]);
   const [imagesLoading,setImagesLoading] = useState(false);
+  const [imageFeatureEnabled,setImageFeatureEnabled] = useState(true);
   const [imageQuery,setImageQuery] = useState('');
   const [followupTitle,setFollowupTitle] = useState('');
   const [followupNotes,setFollowupNotes] = useState('');
@@ -141,7 +143,7 @@ export const RealCustomersCrmModule: React.FC = () => {
         });
         const data=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
         if(!response.ok||!data.success)throw new Error(data.message||'دریافت تاریخچه تصاویر ممکن نشد.');
-        if(!controller.signal.aborted)setImageRows(data.rows||[]);
+        if(!controller.signal.aborted){setImageRows(data.rows||[]);setImageFeatureEnabled(data.enabled!==false);}
       }catch(error){
         if(!controller.signal.aborted)setError(error instanceof Error?error.message:'دریافت تصاویر ناموفق بود.');
       }finally{if(!controller.signal.aborted)setImagesLoading(false);}
@@ -275,7 +277,8 @@ export const RealCustomersCrmModule: React.FC = () => {
           <label className="relative block w-full sm:max-w-xs"><Search className="absolute right-3 top-3 h-4 w-4 text-slate-400"/>
             <input className={field+' pr-10'} value={imageQuery} onChange={event=>setImageQuery(event.target.value)} placeholder="نام، شرکت، موبایل یا کد محصول..." aria-label="جستجوی تاریخچه تصاویر"/></label>
         </div>
-        {imagesLoading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin"/>دریافت سوابق شناسایی...</div> :
+        {!imageFeatureEnabled ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">این قابلیت پس از بررسی مهاجرت دیتابیس و فعال‌سازی کنترل‌شده CUSTOMER_360_LOCAL_VAULT_ENABLED در دسترس قرار می‌گیرد.</div> :
+        imagesLoading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin"/>دریافت سوابق شناسایی...</div> :
           imageRows.length ? <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-right text-xs">
             <thead className="bg-slate-50 text-slate-500"><tr>{['مشتری','مجموعه / تماس','تاریخ ارسال','نوع قطعه','کد انتخابی','وضعیت','پرونده'].map(label=><th key={label} className="px-3 py-3">{label}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">{imageRows.map(row=><tr key={row.id} className="hover:bg-orange-50/50">
@@ -454,7 +457,8 @@ export const RealCustomersCrmModule: React.FC = () => {
             </div>
           </>}
           {detailTab==='images' && <div className={card+' space-y-3 p-4'}>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+            {!detail.intelligenceEnabled && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">ثبت سوابق تصویری پس از بررسی و اعمال مهاجرت دیتابیس و فعال‌سازی پرچم قابلیت انجام می‌شود.</div>}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-6 text-slate-600">
               فایل اصلی و برش تصویر فقط در حافظه محلی دستگاه مشتری نگهداری می‌شوند. این پرونده فقط اطلاعات شناسایی و کدهای محصول را نشان می‌دهد و امکان مشاهده یا دانلود تصویر را ندارد.
             </div>
             {detail.imageEvents.length ? detail.imageEvents.map(item=><div key={item.id} className="rounded-xl border border-slate-200 p-3">
@@ -473,6 +477,7 @@ export const RealCustomersCrmModule: React.FC = () => {
             </div>) : <p className="py-6 text-center text-sm text-slate-500">تصویر شناسایی ثبت‌شده‌ای برای این مشتری وجود ندارد.</p>}
           </div>}
           {detailTab==='consultations' && <div className="space-y-3">
+            {!detail.intelligenceEnabled && <div className={card+' p-4 text-xs leading-6 text-amber-800'}>ذخیره تاریخچه FORZA پس از اعمال مهاجرت دیتابیس و فعال‌سازی قابلیت Customer 360 فعال می‌شود.</div>}
             {detail.consultations.length ? detail.consultations.map(session=><div key={session.id} className={card+' space-y-3 p-4'}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div><b className="text-sm text-slate-800">{session.title||'مشاوره فنی FORZA'}</b>
@@ -494,6 +499,7 @@ export const RealCustomersCrmModule: React.FC = () => {
             </div>}
           </div>}
           {detailTab==='followups' && <>
+            {!detail.intelligenceEnabled ? <div className={card+' p-4 text-xs leading-6 text-amber-800'}>مدیریت پیگیری‌ها پس از اعمال مهاجرت دیتابیس و فعال‌سازی قابلیت Customer 360 در دسترس قرار می‌گیرد.</div> : <>
             <div className={card+' space-y-3 p-4'}>
               <h4 className="text-sm font-black text-slate-800">ثبت پیگیری جدید</h4>
               <input className={field} value={followupTitle} onChange={event=>setFollowupTitle(event.target.value)} placeholder="عنوان پیگیری؛ مثلاً تماس درباره استعلام بلبرینگ"/>
