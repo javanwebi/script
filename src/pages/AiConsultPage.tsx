@@ -271,7 +271,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     const name = entryParams.get('productName')?.trim();
     if (!code || productContextAddedRef.current === code) return;
     productContextAddedRef.current = code;
-    addProductToConsultation({ code, name: name || code });
+    const product = { code, name: name || code };
+    setSelectedConsultProducts(current => current.some(item => item.code === code) ? current : [...current, product].slice(0, 20));
+    setActiveWorkspaceTab('chat');
   }, [entryParams]);
 
   // Load Sessions from LocalStorage
