@@ -2,7 +2,12 @@ name: FORZA Nima private voice and SSE speech tests
 on:
   pull_request:
     paths:
+      - Dockerfile
       - Dockerfile.forza-nima
+      - scripts/forza_diba_stt_worker.py
+      - server/ai/forzaDibaStt.ts
+      - server/ai/forzaSttProvider.ts
+      - tests/forza-live-voice-regression.test.ts
       - scripts/forza_nima_voice_http.py
       - docs/forza/NIMA_GYRO_LIVE_STREAM.md
       - ops/deploy-forza-nima-pinned-vps.sh
@@ -40,6 +45,8 @@ on:
       - tests/forzaCallTeardown.test.ts
       - tests/forzaConsultContract.test.ts
       - tests/forzaSseImmediateCompletion.test.ts
+      - tests/forza-live-voice-regression.test.ts
+      - licenses/DIBA-STT-NOTICE.txt
       - src/components/forza/ParticleAvatar.tsx
       - server/ai/forzaVoiceRetry.ts
       - tests/test_forza_nima_private.py
@@ -64,10 +71,10 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
+        run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts tests/forza-live-voice-regression.test.ts
       - name: Validate Persian smart end-of-turn recognition
         run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition
-        run: node --import tsx --test tests/forza-stt-provider.test.ts
+        run: node --import tsx --test tests/forza-stt-provider.test.ts tests/forza-live-voice-regression.test.ts
       - name: Typecheck website and voice endpoints
         run: npm run lint
