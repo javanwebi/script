@@ -18,6 +18,7 @@ interface Props {
   busy?: boolean;
   selectionBusy?: boolean;
   onSelectPoint: (point:ImagePoint) => void;
+  onChange: (region:ImageRegion|undefined) => void;
   onConfirm: () => void;
   onRetryPreparation: () => void;
   onRetryAnalysis: () => void;
@@ -26,7 +27,7 @@ interface Props {
 
 export function ImageRegionReview({
   image, status, selectedRegion, candidateRegions, message, analysisError, selectionError, busy, selectionBusy,
-  onSelectPoint, onConfirm, onRetryPreparation, onRetryAnalysis, onChangeImage,
+  onSelectPoint, onChange, onConfirm, onRetryPreparation, onRetryAnalysis, onChangeImage,
 }: Props) {
   const preparing = status === 'uploading' || status === 'detecting';
   const detected = Boolean(selectedRegion);
@@ -79,7 +80,7 @@ export function ImageRegionReview({
             src={image}
             value={selectedRegion}
             candidateRegions={candidateRegions}
-            onChange={() => {}}
+            onChange={onChange}
             onSelectPoint={onSelectPoint}
             selectionBusy={selectionBusy}
             selectionError={selectionError}
