@@ -233,6 +233,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const friendlyVisionError = (error: any) => {
     if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی در حال پردازش تصویر دیگری است. چند لحظه دیگر دوباره تلاش کنید.';
     if (error?.code === 'INDEX_NOT_READY') return 'کاتالوگ تصویری در حال آماده‌سازی است. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
+    if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ ناحیه قطعه را دستی انتخاب کنید.';
+    if (error?.code === 'CATALOG_UNAVAILABLE') return 'ارتباط با کاتالوگ برقرار نیست. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
+    if (error?.code === 'INVALID_REGION') return 'کادر انتخاب‌شده معتبر نیست؛ لطفاً ناحیه را دوباره مشخص کنید.';
     if (error?.status === 503) return 'ارتباط با موتور تحلیل موقتاً برقرار نشد. تصویر شما حذف نشده است؛ دوباره تلاش کنید یا ناحیه را دستی انتخاب کنید.';
     if (error?.name === 'TypeError') return 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
     return error?.message || 'تحلیل تصویر کامل نشد. دوباره تلاش کنید.';
