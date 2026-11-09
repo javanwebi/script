@@ -1700,7 +1700,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
+                {localRegionEnabled && selectedImage && <ImageRegionSelector
+                  src={selectedImage}
+                  value={queryRegion}
+                  candidateRegions={candidateRegions}
+                  onChange={searchRegion}
+                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
+                />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
