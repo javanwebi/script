@@ -302,10 +302,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(!monitorOnly){
       setStatus('listening');
       setTurn('user');
-      activeTranscriptRef.current = '';
-      lastTranscriptChangedAtRef.current = 0;
-      hasSpeechSoundRef.current = false;
-      audioChunksRef.current = [];
+      // Resuming listening must preserve words that arrived as playback ended.
+      if (!activeTranscriptRef.current.trim()) {
+        lastTranscriptChangedAtRef.current = 0;
+        hasSpeechSoundRef.current = false;
+        audioChunksRef.current = [];
+      }
     }
 
     // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
@@ -334,7 +336,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     }
 
-    if (silenceTimerRef.current) {
+    if (silenceTimerRef.current && !activeTranscriptRef.current.trim()) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
@@ -1547,7 +1549,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
 
       rec.onresult = (event: any) => {
-        if(callClosedRef.current||micMutedRef.current)return;
+        if(callClosedRef.current||micMutedRef.current||recognitionRef.current!==rec)return;
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
         const total=Number(event.results?.length||0);
@@ -1565,8 +1567,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
-          if(!vadRef.current.heardSpeech)return;
+          // Recognized words are speech evidence even when the Web Audio
+          // analyser is suspended or its independent VAD threshold is missed.
           if(likelySpeakerEcho(currentSpeech)){
+            // Retire finalized echo so it cannot contaminate the next user
+            // utterance after playback finishes. Keep interim slots revisable.
+            let cursor=recognitionConsumedCountRef.current;
+            while(cursor<total && event.results[cursor]?.isFinal)cursor++;
+            recognitionConsumedCountRef.current=cursor;
             console.info('[FORZA_STT] source=browser echo_candidate_ignored=1');
             return;
           }
