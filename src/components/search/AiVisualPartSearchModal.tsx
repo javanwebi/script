@@ -1203,6 +1203,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
                   onChangeImage={() => fileInputRef.current?.click()}
                 />
+                {localImageId && <p className="px-1 text-[10px] leading-5 text-emerald-700">اصل تصویر در حافظه خصوصی مرورگر همین دستگاه نگهداری می‌شود؛ پاک‌سازی داده‌های سایت یا تعویض مرورگر می‌تواند آن را حذف کند.</p>}
               )}
               {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2300,6 +2301,22 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                     >
                                       <span>مشاهده کالا</span>
                                       <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (imageEventId) {
+                                          void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
+                                            console.warn('[Customer image history] selected product sync unavailable', error)
+                                          );
+                                        }
+                                        onClose();
+                                        navigate('/ai-consult?productCode=' + encodeURIComponent(match.code) + '&productName=' + encodeURIComponent(match.name || match.code));
+                                      }}
+                                      className="h-9 px-3 bg-orange-50 hover:bg-orange-100 text-[#A64B14] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer border border-orange-200"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      <span>مشاوره FORZA</span>
                                     </button>
                                   </div>
                                 </div>
