@@ -161,20 +161,13 @@ function dataUrlToBlob(value: string, fallbackMime = 'image/jpeg'): Blob {
   return new Blob([decodeURIComponent(payload)], { type: mimeType });
 }
 
-async function uploadResponseData(response: Response): Promise<{ imageUrl: string; fileName: string }> {
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.imageUrl) {
-    throw new Error(data?.error?.message || `بارگذاری تصویر ناموفق بود (کد ${response.status}).`);
-  }
-  return { imageUrl: String(data.imageUrl), fileName: String(data.fileName || '') };
-}
 
 export const aiVisualSearchService = {
+  // Compatibility helper: convert to an in-memory data URL only.
+  // Customer image bytes are never uploaded to a permanent server image endpoint.
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
-    assertBackendConfigured();
-
-    // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
-    // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
+    // Preset catalogue photos are same-origin persistent-storage paths, not customer uploads.
+    // Fetch their bytes in the browser and convert them to a request-scoped data URL; never store them on the server.
     if (typeof source === 'string' && source.startsWith('/storage/products/')) {
       const imageResponse = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
       if (!imageResponse.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
@@ -182,39 +175,28 @@ export const aiVisualSearchService = {
     }
 
     if (typeof source === 'string' && /^https?:\/\//i.test(source.trim())) {
-      const response = await fetch(apiUrl('/api/ai/customer-images/import'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: source.trim() }),
-      });
-      return uploadResponseData(response);
+      return { imageUrl: source.trim(), fileName: '' };
     }
-
-    let blob: Blob;
-    if (typeof source === 'string') {
-      blob = source.startsWith('blob:')
-        ? await fetch(source).then(response => response.blob())
-        : dataUrlToBlob(source);
-    } else {
-      blob = source;
-    }
-
+    const blob = typeof source === 'string'
+      ? (source.startsWith('blob:') ? await fetch(source).then(response => response.blob()) : dataUrlToBlob(source))
+      : source;
     const mimeType = (blob.type || 'image/jpeg').split(';')[0].toLowerCase();
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mimeType)) {
       throw new Error('فقط تصاویر JPEG، PNG یا WEBP پشتیبانی می‌شوند.');
     }
-
-    const response = await fetch(apiUrl('/api/ai/customer-images'), {
-      method: 'POST',
-      headers: { 'Content-Type': mimeType },
-      body: blob,
+    const imageUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.onerror = () => reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.readAsDataURL(blob);
     });
-    return uploadResponseData(response);
+    return { imageUrl, fileName: '' };
   },
 
   async detectImageRegions(imageUrl: string): Promise<ImageRegionDetectionResult> {
     assertBackendConfigured();
-    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.length > 2048) {
+    const maxDataUrlLength = Math.ceil(10 * 1024 * 1024 * 4 / 3) + 2048;
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.length > maxDataUrlLength) {
       throw new Error('نشانی تصویر برای تشخیص ناحیه معتبر نیست.');
     }
 
@@ -262,15 +244,14 @@ export const aiVisualSearchService = {
   async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress:ImageScanProgress)=>void): Promise<AiPartAnalysisResult> {
     assertBackendConfigured();
 
-    let imageUrl = request.imageUrl;
-    if (!imageUrl && request.imageBase64) {
-      imageUrl = (await this.uploadCustomerImage(request.imageBase64)).imageUrl;
-    }
-
-    const { imageBase64: _imageBase64, mimeType: _mimeType, ...analysisFields } = request;
-    const payload = imageUrl
-      ? { ...analysisFields, imageUrl }
-      : analysisFields;
+    const { imageBase64, mimeType, imageUrl, ...analysisFields } = request;
+    // Send bytes only in the active analysis request. The backend validates and
+    // processes them in memory; it does not write customer images to disk or Storage.
+    const payload = {
+      ...analysisFields,
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(imageBase64 ? { imageBase64, mimeType: mimeType || 'image/jpeg' } : {}),
+    };
 
     let response: Response | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {

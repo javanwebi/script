@@ -52,8 +52,8 @@ const {chromium}=require('playwright');
   const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
+   if(pathname==='/api/ai/customer-images'){uploads++;body={success:true};}
    if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
-   if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
    if(pathname==='/api/ai/detect-regions'){
     detections.push(route.request().postDataJSON());
     body={success:true,detectionId:'test-detection-id',autoDetected:true,queryRegion:{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120};
@@ -61,7 +61,7 @@ const {chromium}=require('playwright');
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
     await new Promise(resolve=>setTimeout(resolve,260));
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:request.fullImage?undefined:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
+    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
@@ -69,21 +69,26 @@ const {chromium}=require('playwright');
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
   await page.getByTestId('image-region-review').waitFor();
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
-  assert.equal(uploads,1);assert.equal(detections.length,1);assert.equal(queries.length,0);
+  assert.equal(uploads,0,'customer originals must not be uploaded to a server image-storage endpoint');
+  assert.equal(detections.length,1,'region detection is the only image request before crop approval');
+  assert.ok(typeof detections[0].imageUrl==='string'&&detections[0].imageUrl.startsWith('data:image/'),'region detection receives a request-scoped data URL');
+  assert.equal(queries.length,0,'catalogue analysis must wait for crop approval');
   const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
   await page.waitForTimeout(350);assert.equal(queries.length,0);
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
-  await page.getByTestId('analysis-approved-crop').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
   assert.equal(queries.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
-  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,1);
+  assert.ok(typeof queries[0].imageBase64==='string'&&queries[0].imageBase64.startsWith('data:image/'),'the original is sent only with the active analysis request');
+  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0);
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,1);
+  assert.equal(queries.length,2);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,0);
+  assert.equal(queries[1].imageBase64,queries[0].imageBase64,'full-image re-query must reuse the same IndexedDB original');
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
-  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
+  await page.close();console.log('LOCAL_VAULT_DETECT_CROP_APPROVAL_ANALYSIS_REUSE_AND_MOBILE_LAYOUT_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

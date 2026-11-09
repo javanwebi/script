@@ -4,6 +4,25 @@ on:
     branches: [main]
     paths:
       - 'server.ts'
+      - 'server/ai/baiConsult.ts'
+      - 'server/db/adminCustomersApi.ts'
+      - 'server/db/customerIntelligenceApi.ts'
+      - 'src/admin/modules/RealCustomersCrmModule.tsx'
+      - 'src/components/search/WorkspaceCatalog.tsx'
+      - 'src/pages/AiConsultPage.tsx'
+      - 'src/pages/ProductDetailPage.tsx'
+      - 'src/services/customerImageVault.ts'
+      - 'src/services/customerIntelligenceService.ts'
+      - 'src/services/visionCatalogAgent.ts'
+      - 'supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql'
+      - 'tests/customer-360-local-vault.test.ts'
+      - 'tests/customer-image-memory-only.test.ts'
+      - 'tests/vision-catalog-agent.test.ts'
+      - 'tests/mobile-scan-ui.test.ts'
+      - 'tests/database/adopted.fixture.ts'
+      - 'docs/customer-360-local-vault.md'
+      - 'AGENTS.md'
+      - 'package.json'
       - 'src/components/search/AiVisualPartSearchModal.tsx'
       - 'src/components/search/ImageRegionReview.tsx'
       - 'src/components/search/image-region-review.css'
@@ -57,6 +76,10 @@ jobs:
           tests/local-model-results.test.tsx
           tests/local-vision.test.ts
           tests/local-vision-detection-cache.test.ts
+          tests/customer-image-memory-only.test.ts
+          tests/customer-360-local-vault.test.ts
+          tests/vision-catalog-agent.test.ts
+          tests/mobile-scan-ui.test.ts
           tests/customer-image-memory-only.test.ts
           tests/catalog-visual-index.test.ts
           tests/image-region-interaction.test.ts
