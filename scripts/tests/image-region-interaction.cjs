@@ -81,7 +81,7 @@ const {chromium}=require('playwright');
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,1);
+  assert.equal(queries.length,2);assert.equal(queries[1].imageBase64,detections[0].imageBase64);assert.equal(queries[1].imageUrl,undefined);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
   await page.close();console.log('DEVICE_VAULT_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
 
