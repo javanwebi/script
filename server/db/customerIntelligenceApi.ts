@@ -27,8 +27,10 @@ const jsonResult = (value: unknown) => {
 };
 
 type Identity = Awaited<ReturnType<typeof getPortalIdentity>>;
+const customer360Enabled = () => process.env.CUSTOMER_360_LOCAL_VAULT_ENABLED === 'true';
 
 async function customerIdentity(req: Request, res: Response) {
+  if (!customer360Enabled()) throw fail(503, 'ثبت سوابق CRM تا فعال‌سازی کنترل‌شده این قابلیت در دسترس نیست.');
   if (!databaseEnabled() || !adoptedSchema()) throw fail(503, 'ثبت سوابق مشتری به دیتابیس اصلی نیاز دارد.');
   await refreshAuth(req, res);
   const identity = await getPortalIdentity(req);
@@ -40,6 +42,7 @@ async function customerIdentity(req: Request, res: Response) {
 }
 
 async function staffIdentity(req: Request, res: Response, action = 'view'): Promise<Identity> {
+  if (!customer360Enabled()) throw fail(503, 'قابلیت‌های تکمیلی CRM هنوز فعال نشده‌اند.');
   if (!databaseEnabled() || !adoptedSchema()) throw fail(503, 'CRM فقط با دیتابیس اصلی صنعت پیش در دسترس است.');
   if (req.method !== 'GET') {
     const origin = req.headers.origin;
@@ -207,6 +210,7 @@ export function registerCustomerIntelligenceApi(app: Express) {
 
   app.get('/api/admin/crm/images', async (req, res) => {
     try {
+      if (!customer360Enabled()) return res.json({ success: true, enabled: false, rows: [] });
       await staffIdentity(req, res, 'view');
       const limit = Math.max(1, Math.min(300, Number(req.query.limit) || 100));
       const search = cleanText(req.query.q, 120);
@@ -229,12 +233,13 @@ export function registerCustomerIntelligenceApi(app: Express) {
         [limit,search]
       );
       // Intentionally no image URL or bytes are returned to the administrator.
-      return res.json({ success: true, rows: result.rows });
+      return res.json({ success: true, enabled: true, rows: result.rows });
     } catch (error) { return respond(res, error); }
   });
 
   app.get('/api/admin/crm/customers/:key/followups', async (req, res) => {
     try {
+      if (!customer360Enabled()) return res.json({ success: true, enabled: false, rows: [] });
       await staffIdentity(req, res, 'view');
       const userId = await resolveCustomerUserId(req.params.key);
       const result = await database().query(
