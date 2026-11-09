@@ -861,7 +861,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(()=>{
     if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
     const acknowledgement=new ForzaStopAcknowledgement(signal=>
-      requestPocketAudio('بله، بفرما.',signal,'forza-stop-ack'));
+      requestPocketAudio('بله، بفرما.',signal,'call-'+callIdRef.current+'-stop-ack'));
     stopAcknowledgementRef.current=acknowledgement;
     void acknowledgement.warm();
     return ()=>{
