@@ -38,6 +38,14 @@ test('canonical one-command deploy safely repairs only the database currently us
  assert.match(deploy,/SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK/);
  assert.ok(deploy.indexOf('PRODUCTION_NAVIGATION_GROUPS_VERIFIED') < deploy.indexOf("echo '===== START NEW CANARY ====='"));
 });
+test('canonical deploy final HTTPS probe uses the production hostname and matching TLS SNI',()=>{
+ const wrapper=readFileSync('ops/sanatpish-deploy-main.sh','utf8');
+ assert.match(wrapper,/--resolve sanatpish\.com:443:127\.0\.0\.1/);
+ assert.match(wrapper,/https:\/\/sanatpish\.com\/api\/health/);
+ assert.match(wrapper,/FINAL_HTTPS_HEALTH_OK domain=sanatpish\.com sni=correct/);
+ assert.match(wrapper,/grep -q '"database":"ok"'/);
+ assert.doesNotMatch(wrapper,/https:\/\/127\.0\.0\.1\/api\/health/);
+});
 
 test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',()=>{
  const script=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
