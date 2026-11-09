@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {localVisionResult,embedLocalImages,selectLocalRegion,LOCAL_VISION_MODEL} from '../src/services/localVision';
+import {localVisionResult,embedLocalImages,selectLocalRegion,cachedQueryForRequest,LOCAL_VISION_MODEL} from '../src/services/localVision';
 import type {Product} from '../src/types';
 
 const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as Product[];
@@ -203,4 +203,19 @@ test('tap segmentation sends the normalized point to the private worker and reje
   await assert.rejects(()=>selectLocalRegion(Buffer.from('customer-photo'),{x:0.72,y:0.41},env),(error:any)=>error.code==='REGION_NOT_FOUND'&&error.status===422);
   assert.equal(requests,2);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
+
+
+test('full-image fallback reuses full-frame embeddings after a tap-selected crop without mixing query views',()=>{
+ const full={model:LOCAL_VISION_MODEL,vectors:[[1]],viewRegions:[null],markings:[],ocrAvailable:false};
+ const crop={model:LOCAL_VISION_MODEL,vectors:[[2]],viewRegions:[null],markings:[],ocrAvailable:false};
+ const automatic={x:0.1,y:0.2,width:0.2,height:0.3};
+ const selected={x:0.62,y:0.25,width:0.22,height:0.35};
+ const other={x:0.3,y:0.3,width:0.1,height:0.1};
+ const entry={query:full,queryRegions:[selected,automatic],selectedRegion:selected,selectedRegionQuery:crop};
+ assert.equal(cachedQueryForRequest(entry,selected,false),crop);
+ assert.equal(cachedQueryForRequest(entry,automatic,false),full);
+ assert.equal(cachedQueryForRequest(entry,undefined,true),full);
+ assert.equal(cachedQueryForRequest(entry,undefined,false),full);
+ assert.equal(cachedQueryForRequest(entry,other,false),undefined);
 });
