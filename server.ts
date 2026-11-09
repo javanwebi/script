@@ -7,6 +7,7 @@ import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
+import {registerCustomerIntelligenceApi} from './server/db/customerIntelligenceApi';
 import {registerAdminCustomerCredentialsApi} from './server/db/adminCustomerCredentialsApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
@@ -415,6 +416,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
 registerAdminStaffApi(app);
 registerAdminSecurityApi(app);
 registerAdminCustomersApi(app);
+registerCustomerIntelligenceApi(app);
 registerAdminCustomerCredentialsApi(app);
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
@@ -485,7 +487,7 @@ interface CachedCustomerImage {
 const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
 
 function cleanCustomerImageMemoryCache() {
-  const cutoff = Date.now() - 30 * 60 * 1000;
+  const cutoff = Date.now() - 5 * 60 * 1000;
   for (const [key, val] of customerImageMemoryCache.entries()) {
     if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
   }
@@ -2788,8 +2790,9 @@ async function persistCustomerImage(
     .jpeg({ quality: 94 })
     .toBuffer();
 
+  // Customer originals are persisted only in the browser's IndexedDB vault.
+  // The server keeps this optimized buffer in RAM only for the active AI request.
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
-  await fs.promises.writeFile(path.join(IMAGE_AI_DIR,fileName),optimized,{mode:0o600});
   const base64 = optimized.toString('base64');
   const dataUrl = `data:image/jpeg;base64,${base64}`;
 
@@ -2800,10 +2803,6 @@ async function persistCustomerImage(
     createdAt: Date.now(),
   });
   cleanCustomerImageMemoryCache();
-
-  // Also sync to GitHub in background if configured, providing an external mirror link
-  // Customer images stay in temporary media storage; do not mirror them to a Git repository.
-  void cleanVisionImageLinks(IMAGE_AI_DIR);
 
   return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
 }
@@ -2873,7 +2872,7 @@ app.post(
       }
       const saved = await persistCustomerImage(req.body, req.get('content-type'));
       return res.status(201).json({
-        imageUrl: customerImagePublicUrl(req,saved.fileName),
+        imageUrl: saved.dataUrl,
         fileName: saved.fileName,
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,
@@ -2913,7 +2912,7 @@ app.post('/api/ai/customer-images/import', async (req, res) => {
     const image = await readResponseBufferLimited(response, CUSTOMER_IMAGE_MAX_BYTES);
     const saved = await persistCustomerImage(image, response.headers.get('content-type') || undefined);
     return res.status(201).json({
-      imageUrl: customerImagePublicUrl(req,saved.fileName),
+      imageUrl: saved.dataUrl,
       fileName: saved.fileName,
       mimeType: saved.mimeType,
       sizeBytes: saved.sizeBytes,
@@ -4435,7 +4434,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     void retrievePartPhotos(observationKey,uploaded.buffer,buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage);
     return {success:true,isAiGenerated:true,stage:'quick',observationOnly:true,requiredMeasurements:fields,
     summary:{whatYouSee:analysis,visualAnalysis:analysis,detectedPartType:raw.part_family_farsi || raw.detected_part_type,detectedProfile:'برای تطبیق کد، مشخصات قطعه را وارد کنید.',confidence:0,unknownParameters:raw.unknown_parameters,readableMarkings:raw.readable_markings},
-    matchedProducts:[],similarCandidates:[],technicalAdvice:'مقادیر نامعلوم را حدس نزنید؛ مشخص نیست را انتخاب کنید.',customerImageUrl:uploaded.imageUrl};}
+    matchedProducts:[],similarCandidates:[],technicalAdvice:'مقادیر نامعلوم را حدس نزنید؛ مشخص نیست را انتخاب کنید.',};}
   if(body.measurements){const error=measurementError(fields,body.measurements);if(error)throw new Error(error);}
 
   // 3. Fallback baseline if all networks are down
@@ -4597,7 +4596,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     rejectedCandidates: [],
     fallbackNotice: aiAvailable ? undefined : 'تحلیل آنلاین انجام نشد؛ نتایج فقط پیشنهادهای جست‌وجو هستند. نوشتهٔ روی قطعه و ابعاد برای تأیید لازم است.',
     technicalAdvice: raw?.technical_advice || 'پیش از سفارش، ابعاد، جنس و کد فنی قطعه را با رکورد محصول و شرایط دستگاه تطبیق دهید.',
-    customerImageUrl: uploaded.imageUrl,
+    
     catalogImageMatches:imageScan.matches.map(photo=>({...photo,image:photo.image.startsWith('data:') ? `${visionImagePublicOrigin(req)}/api/ai/catalog-images/${encodeURIComponent(photo.imageId)}` : photo.image})),
     scanCoverage:imageScan.coverage,
     retrieval:{mode:retrievalMode,...catalogVisualIndex.coverage(corpus),verifiedPool:comparisonCorpus.length},
@@ -4639,7 +4638,7 @@ async function saveBase64CustomerImageForWorker(
 
   const saved = await persistCustomerImage(buffer, declaredMime);
   return {
-    imageUrl: customerImagePublicUrl(req,saved.fileName),
+    imageUrl: saved.dataUrl,
     fileName: saved.fileName,
   };
 }
@@ -4726,8 +4725,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       // Similarity thresholds require validation on owner-labelled industrial photos.
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
-      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
-      return res.json(publicCatalog({...result,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
+      return res.json(publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
       return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
@@ -4740,8 +4739,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const jobId=recognitionJobs.start(async progress=>{
         if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
         const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
-        const customerUrl=uploaded.imageUrl.startsWith('https://') ? uploaded.imageUrl
-          : await createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req))(uploaded.buffer,'image/jpeg');
+        const customerUrl='device-local://temporary-processing';
         if(!databaseEnabled())throw new Error('Catalog database unavailable');
         refreshRecognitionCatalog();
         const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
@@ -4792,7 +4790,6 @@ app.post('/api/ai/analyze-part', async (req, res) => {
           retrieval:{mode:'read-only-vision-agent',total:images.length,indexed:0,ready:true,verifiedPool:result.inspectedImages},
           catalogSearchWarning:result.warning,
           technicalAdvice:'انطباق دقیق مدل، ابعاد، گام و جنس را قبل از سفارش تأیید کنید.',
-          customerImageUrl:customerUrl,
           visionAgentMetrics:{modelCalls:result.modelCalls,imagesInspected:result.inspectedImages}
         });
       });
