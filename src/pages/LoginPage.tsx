@@ -1,16 +1,15 @@
-import React, { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-/** Preserve old URLs while using the same authentication popup as the header. */
-export const LoginPage = () => {
-  const opened = useRef(false);
-  const navigate = useNavigate();
-  const { openAuthModal } = useAuth();
-  useEffect(() => {
-    if (opened.current) return;
-    opened.current = true;
-    navigate("/", { replace: true });
-    openAuthModal(undefined, "login");
-  }, [navigate, openAuthModal]);
-  return null;
-};
+import React from 'react';
+import {Link,useNavigate,useSearchParams} from 'react-router-dom';
+import {AccountAccess} from '../components/auth/AccountAccess';
+export function LoginPage(){
+ const navigate=useNavigate();
+ const [params]=useSearchParams();
+ const requested=params.get('returnTo')||'/consumer-dashboard';
+ const destination=requested.startsWith('/')&&!requested.startsWith('//')?requested:'/consumer-dashboard';
+ return <main className="min-h-[100dvh] bg-slate-50 px-3 py-4 sm:py-10" dir="rtl">
+   <Link to="/" className="block max-w-5xl mx-auto mb-3 text-sm">بازگشت به صنعت پیش</Link>
+   <div className="max-w-5xl mx-auto overflow-hidden rounded-3xl bg-white shadow-sm">
+     <AccountAccess initial='login' returnTo={destination}/>
+   </div>
+ </main>;
+}

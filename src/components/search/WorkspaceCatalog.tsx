@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Search, ArrowUpLeft, Database } from "lucide-react";
 import { apiUrl } from "../../config/apiConfig";
 interface Result {
   code: string;
   name: string;
+  images?: string[];
   link: string;
   variants: { code: string; size: string }[];
 }
-export function WorkspaceCatalog() {
+export function WorkspaceCatalog({onSelect,disabled=false}: {onSelect?:(product:Result)=>void;disabled?:boolean}) {
   const [query, setQuery] = useState("");
   const [data, setData] = useState<{
     familyCount: number;
@@ -29,7 +29,8 @@ export function WorkspaceCatalog() {
             { signal: controller.signal },
           );
           if (!r.ok) throw Error();
-          setData(await r.json());
+          const result = await r.json();
+          if (!controller.signal.aborted) setData(result);
         } catch {
           if (!controller.signal.aborted) {
             setError("دریافت کاتالوگ ممکن نشد؛ دوباره جستجو کنید.");
@@ -50,7 +51,7 @@ export function WorkspaceCatalog() {
     <section className="workspace-catalog" aria-label="جستجوی کاتالوگ میزکار">
       <div>
         <Database size={17} />
-        <span>متصل به کاتالوگ جاری سایت</span>
+        <span>دنبال محصولی هستید؟ برای مشاوره جست‌وجو کنید.</span>
         {data && (
           <small>
             {data.familyCount.toLocaleString("fa-IR")} خانواده ·{" "}
@@ -76,7 +77,8 @@ export function WorkspaceCatalog() {
         )}
         {query &&
           data?.results.map((p) => (
-            <Link key={p.code} to={p.link}>
+            <button type="button" disabled={disabled} key={p.code} onClick={()=>{onSelect?.(p);setQuery("");setData(null);}} className="flex w-full items-center gap-3 text-right p-3 hover:bg-orange-50 disabled:opacity-50">
+              {p.images?.[0] && <img src={p.images[0]} alt="" loading="lazy" className="w-12 h-12 object-contain rounded-lg bg-white" />}
               <span>
                 <strong>{p.name}</strong>
                 <small dir="ltr">
@@ -88,7 +90,7 @@ export function WorkspaceCatalog() {
                 </small>
               </span>
               <ArrowUpLeft size={17} />
-            </Link>
+            </button>
           ))}
       </div>
       <p>قیمت، موجودی و استعلام پس از ورود در پنل شما در دسترس است.</p>

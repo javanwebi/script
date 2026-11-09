@@ -512,3 +512,9 @@
     animation: none !important;
   }
 }
+
+@media(max-width:639px){
+ .forza-conversation-panel{padding-bottom:env(safe-area-inset-bottom);overscroll-behavior:contain;scrollbar-width:thin;}
+ .forza-conversation-panel .backdrop-blur-xl,.forza-conversation-panel .backdrop-blur-md{backdrop-filter:none;}
+ .forza-conversation-panel .forza-persian-copy{line-height:1.85;}
+}

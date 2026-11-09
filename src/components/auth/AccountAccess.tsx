@@ -19,9 +19,11 @@ import { PhoneLogin } from "./PhoneLogin";
 export function AccountAccess({
   initial = "login",
   onDone,
+  returnTo,
 }: {
   initial?: "login" | "register";
   onDone?: () => void;
+  returnTo?: string;
 }) {
   const auth = useAuth(),
     navigate = useNavigate();
@@ -53,7 +55,7 @@ export function AccountAccess({
       try {
         sessionStorage.removeItem("sanat_access_destination");
       } catch {}
-      navigate(destination.startsWith(root + "/product/") ? destination : root);
+      navigate(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : destination.startsWith(root + "/product/") ? destination : root);
     } else navigate("/onboarding");
   };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -205,7 +207,7 @@ export function AccountAccess({
   return (
     <div className="account-access">
       <aside className="account-access-story">
-        <img src={A.authIndustrialHero} alt="" />
+        <img src={mode === "register" ? (A.bannerAuthRegister || A.authIndustrialHero) : (A.bannerAuthLogin || A.authIndustrialHero)} alt="" />
         <div>
           <span className="account-symbol" aria-hidden="true"><Layers size={26} /></span>
           <span className="inline-flex items-center justify-center w-36 h-14 rounded-xl bg-white/95 p-2">

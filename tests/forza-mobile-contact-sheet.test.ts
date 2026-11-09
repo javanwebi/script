@@ -5,10 +5,10 @@ import test from "node:test";
 
 const source = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 
-test("FORZA launcher preserves desktop direct navigation and mobile-only half-height contact sheet", () => {
+test("FORZA launcher opens workspace directly on desktop and mobile", () => {
   const code = source("src/components/common/AiFloatingButton.tsx");
   const css = source("src/components/common/floating-quick-actions.css");
-  assert.match(code, /window\.matchMedia\("\(max-width: 1023px\)"\)\.matches/);
+  assert.match(code, /const handleLauncherClick = \(\) => navigate\("\/ai-consult"\)/);
   assert.match(code, /navigate\("\/ai-consult"\)/);
   assert.match(code, /createPortal\(/);
   assert.match(code, /data-testid="forza-mobile-contact-sheet"/);

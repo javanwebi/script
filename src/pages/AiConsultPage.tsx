@@ -2,7 +2,7 @@ import {durableStorage} from "../services/durableStorage";
 import {WorkspaceCatalog} from '../components/search/WorkspaceCatalog';
 import {MemberAccess,memberPath} from '../components/storefront/MemberAccess';
 import {useAuth} from '../context/AuthContext';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
@@ -57,7 +57,7 @@ import {
   IndustrialPresetSample,
 } from '../services/aiVisualSearchService';
 import { useCart } from '../context/CartContext';
-import { AiVisualPartSearchModal } from '../components/search/AiVisualPartSearchModal';
+const AiVisualPartSearchModal = lazy(() => import('../components/search/AiVisualPartSearchModal').then(m=>({default:m.AiVisualPartSearchModal})));
 
 interface Message {
   id: string;
@@ -681,6 +681,13 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // Group and filter sessions
   const now = Date.now();
   const oneDay = 24 * 60 * 60 * 1000;
+  const entrySentRef=useRef(false);
+  useEffect(()=>{
+    const query=entryParams.get('q');
+    if(!query || !activeSessionId || entrySentRef.current)return;
+    entrySentRef.current=true;
+    void handleSend(query.slice(0,1500));
+  },[entryParams,activeSessionId]);
   const filteredSessions = sessions.filter(s =>
     sessionSearchQuery.trim()
       ? s.title.toLowerCase().includes(sessionSearchQuery.toLowerCase())
@@ -1620,6 +1627,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* TAB 2: ENGINEERING CHAT WORKSPACE                                 */
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
+              <div className="shrink-0 z-20 bg-white border-b border-slate-200 px-3 py-2 max-h-[32dvh] overflow-y-auto">
+                <WorkspaceCatalog disabled={loading} onSelect={product=>void handleSend(
+                  'برای محصول '+product.name+' با کد '+product.code+' مشاوره می‌خواهم. کاربرد و نکات انتخاب را کوتاه توضیح بده و یک سؤال درباره نیاز من بپرس. مشخصات تأییدنشده یا قیمت حدسی نگو.'
+                )}/>
+              </div>
               {/* Message Feed Area */}
               <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 max-w-4xl mx-auto w-full pb-4 md:pb-6">
                 {messages.length === 0 ? (
@@ -1638,7 +1650,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     </p>
 
                     {/* Quick Suggestions Grid */}
-                    <WorkspaceCatalog />
+
                   <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-right">
                       {PROMPT_SUGGESTIONS.map((item, idx) => {
                         const Icon = item.icon;
@@ -2058,10 +2070,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       )}
 
       {/* Visual Part Search Wizard Modal */}
-      <AiVisualPartSearchModal
+      {isVisualSearchModalOpen && <Suspense fallback={<div role="status">در حال آماده‌سازی شناسایی تصویر…</div>}><AiVisualPartSearchModal
         isOpen={isVisualSearchModalOpen}
         onClose={() => setIsVisualSearchModalOpen(false)}
-      />
+      /></Suspense>}
     </div>
   );
 };

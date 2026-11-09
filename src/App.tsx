@@ -1,3 +1,5 @@
+import {RouteIntentPreload} from './components/layout/RouteIntentPreload';
+import {MobileSwipeHint} from './components/layout/MobileSwipeHint';
 import { PartIdentificationProvider, PartIdentificationPage } from './components/search/PartIdentificationProvider';
 import {
   IndustryPage,
@@ -86,7 +88,7 @@ function CustomerPanelEntry() { const { currentUser } = useAuth(); return <Navig
 export default function App() {
   return (
     <BrowserRouter>
-      <ScrollToTop />
+      <ScrollToTop /><RouteIntentPreload /><MobileSwipeHint />
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>

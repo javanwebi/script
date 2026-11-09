@@ -67,6 +67,7 @@ interface Props {
   onClose: () => void;
   fullScreen?: boolean;
   initialCamera?: boolean;
+  onAnalysisResult?: (result: AiPartAnalysisResult, image: string) => void;
 }
 
 type WizardStep = 1 | 2 | 3 | "analyzing" | "results";
@@ -92,6 +93,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   onClose,
   fullScreen = false,
   initialCamera = false,
+  onAnalysisResult,
 }) => {
   const navigate = useNavigate();
   const { addItem } = useCart();
@@ -596,6 +598,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
+      if (!result.observationOnly && selectedImage) onAnalysisResult?.(result, selectedImage);
       setLastStage(result.stage || stage);
       setCurrentStep(result.observationOnly ? 2 : "results");
     } catch (err: any) {

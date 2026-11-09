@@ -193,14 +193,13 @@ export const ScrollToTop = () => {
       );
     };
 
-    let ticking = false;
+    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
     const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
+      if (scrollTimer) return;
+      scrollTimer = setTimeout(() => {
+        scrollTimer = undefined;
         persistCurrentScroll();
-        ticking = false;
-      });
+      }, 180);
     };
 
     const handlePointerOrClick = (e: Event) => {
@@ -222,6 +221,8 @@ export const ScrollToTop = () => {
     });
 
     return () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      persistCurrentScroll();
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('pointerdown', handlePointerOrClick, {
         capture: true,

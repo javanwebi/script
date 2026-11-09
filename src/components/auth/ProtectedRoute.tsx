@@ -21,7 +21,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         در حال بررسی حساب…
       </div>
     );
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser) return <Navigate to={"/login?returnTo="+encodeURIComponent(location.pathname+location.search)} replace />;
   // CRM-provisioned credentials are single-use. Enforce renewal before either portal.
   if ((currentUser as typeof currentUser & {mustChangePassword?:boolean}).mustChangePassword === true)
     return <Navigate to="/login" replace />;
