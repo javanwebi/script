@@ -43,6 +43,10 @@ export async function completeCustomerImageIdentification(
   await post('/api/customer-intelligence/image-identifications/' + encodeURIComponent(id) + '/result', result);
 }
 
+export async function selectCustomerImageProduct(id: string, productCode: string): Promise<void> {
+  await post('/api/customer-intelligence/image-identifications/' + encodeURIComponent(id) + '/select', { productCode });
+}
+
 export type ConsultationMessage = {
   id: string;
   role: 'user' | 'assistant';
