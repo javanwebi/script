@@ -155,7 +155,7 @@ export const Header: React.FC = () => {
       setTimeout(() => searchInputRef.current?.focus(), 80);
     };
     const handleOpenConsult = () => navigate('/ai-consult');
-    const handleOpenForza = () => navigate('/ai-consult?voice=1');
+    const handleOpenForza = () => { unlockForzaAudioFromGesture(); navigate('/ai-forza'); };
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
