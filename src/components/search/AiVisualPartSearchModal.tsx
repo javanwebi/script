@@ -293,12 +293,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setErrorMessage('');
   };
 
-  const confirmRegionAndAnalyze = () => {
-    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
-    setErrorMessage('');
-    void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
-  };
-
   // Upload first, then ask the local vision engine only for a crop proposal.
   // The full catalogue analysis is deliberately deferred until customer confirmation.
   const handleFile = (file: File) => {
@@ -429,7 +423,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۲ مگابایت انتخاب کنید.");
       return;
     }
-    imagePreparationSequenceRef.current++;
     const preparationSequence = ++imagePreparationSequenceRef.current;
     imageUploadSequenceRef.current += 1;
     setIsUploadingImage(false);
@@ -613,6 +606,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setErrorMessage(friendlyVisionError(err));
       setCurrentStep(stage === "quick" ? 1 : 3);
     }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
+  };
+
+  const confirmRegionAndAnalyze = () => {
+    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    setErrorMessage('');
+    void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
 
   // Region edits in the results view intentionally re-run the search; edits in the
