@@ -28,6 +28,8 @@ test('customer image uploads are processed in bounded process memory only', () =
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_TTL_MS/);
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES/);
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_MAX_BYTES/);
+  assert.match(cache, /setInterval\(cleanCustomerImageMemoryCache, 60_000\)/);
+  assert.match(cache, /customerImageCacheCleanupTimer\.unref/);
   assert.match(cache, /while \(customerImageMemoryCache\.size/);
 
   const imageRoute = sourceSection(
