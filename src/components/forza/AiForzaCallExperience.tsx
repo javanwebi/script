@@ -1070,6 +1070,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         return;
       }
 
+      // Resolve the private voice identity before selecting incremental Nima
+      // playback; a cold health lookup must not make the first turn choose Pocket.
+      await ensureVoiceMode();
       stopAcknowledgementRef.current?.cancel();
       // Chrome keeps final results from older turns while recognition stays
       // open to hear interruptions. Mark them consumed instead of stopping
@@ -1452,7 +1455,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 ' underruns='+continuousPlayer.underrunCount);
             }else{
               heardSpeechEchoRef.current=reply;
-              await playPocketFullAnswer(forzaSpokenPlainText(reply),continuousPlayer,pocketAbort.signal);
+              await playPocketFullAnswer(forzaSpokenPlainText(reply),continuousPlayer,pocketAbort.signal,
+                'call-'+callIdRef.current+'-turn-'+generation);
               recordHeard(reply);
             }
             if(!callClosedRef.current&&activeTurnRef.current?.generation===generation)
@@ -1499,7 +1503,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         startListening();
       }
     },
-    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted]
+    [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,ensureVoiceMode]
   );
 
   // Setup MediaRecorder for robust audio capture and fallback STT
