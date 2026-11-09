@@ -60,6 +60,7 @@ import { createForzaGreeting } from './src/services/forzaGreetingAudio';
 import {configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
+import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
 import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
@@ -78,6 +79,12 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.sms'), quiet: true });
 // Server-only staff administration key. Never include it in Vite assets or the browser.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.staff'), quiet: true });
 loadLocalVisionConfig(process.cwd());
+// Warm the offline Persian STT model before the first customer call. The worker
+// keeps model state in RAM and accepts audio only through stdin pipes.
+if(selectForzaSttProvider(process.env).provider==='diba'){
+  void warmForzaDibaStt().then(ready=>console.info('[FORZA_STT] provider=diba ready='+Number(ready)))
+    .catch(()=>console.warn('[FORZA_STT] provider=diba warmup_failed=1'));
+}
 // Example configuration is documentation only; never load placeholder defaults into runtime.
 
 // Placeholder values that must NOT be treated as a real API key
@@ -7151,15 +7158,19 @@ app.post('/api/ai/transcribe', async (req, res) => {
     }
 
     const sttSelection=selectForzaSttProvider(process.env);
+    const cleanAudioData = extractForzaAudioBase64(audioBase64);
+    if(sttSelection.provider==='diba'){
+      const text=await transcribeForzaDibaAudio(cleanAudioData,{timeoutMs:10_000});
+      return res.json({success:true,text,provider:'diba-vosk'});
+    }
     const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
     if (!apiKey) {
       return res.status(503).json({
         success:false,errorCode:'stt_not_configured',
-        error:'سرویس مجزای تبدیل گفتار به متن تنظیم نشده است. کلید xKiro فقط برای پاسخ متنی استفاده می‌شود.'
+        error:'سرویس تشخیص گفتار فارسی روی سرور آماده نیست. لطفاً دوباره تلاش کنید یا سؤال را تایپ کنید.'
       });
     }
 
-    const cleanAudioData = extractForzaAudioBase64(audioBase64);
     let cleanAudioMime = (audioMimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
     if (!cleanAudioMime || !cleanAudioMime.startsWith('audio/')) {
       cleanAudioMime = 'audio/webm';
@@ -7203,8 +7214,13 @@ app.post('/api/ai/transcribe', async (req, res) => {
 app.get('/api/ai/forza-stt-info',(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
-  res.json({serverSttConfigured:choice.provider==='gemini',serverSttProvider:choice.provider,
-    reason:choice.reason});
+  const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
+  res.json({
+    serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
+    serverSttProvider:choice.provider,
+    serverSttReady:choice.provider==='diba'?isForzaDibaSttReady():choice.provider==='gemini',
+    reason:choice.provider==='diba'&&!dibaConfigured?'model_missing':choice.reason,
+  });
 });
 
 // POST: /api/ai/forza-live - Face-to-Face conversational turn with AI FORZA
@@ -7241,6 +7257,20 @@ app.post('/api/ai/forza-live', async (req, res) => {
     let sttProviderError = false;
     let sttProviderStatus = 0;
 
+    // Local Diba/Vosk is the default server recognizer. It is independent from
+    // AvalAI/XKIRO and keeps the model warm in a bounded CPU worker pool.
+    if(!userQuery&&audioBase64&&sttSelection.provider==='diba'){
+      try{
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{timeoutMs:10_000});
+        userQuery=normalizePersianTranscript(transcript).slice(0,2500);
+        console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
+      }catch(sttErr:any){
+        sttProviderError=true;
+        sttProviderStatus=503;
+        console.warn('[AI FORZA STT] provider=diba failure code='+
+          String(sttErr?.message||'stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
+      }
+    }
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
     if (!userQuery && audioBase64 && sttApiKey) {
@@ -7325,7 +7355,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
     }
     if (!userQuery && audioBase64 && !image) {
       // Do not hallucinate an answer to words we could not transcribe.
-      const missingProvider=!sttApiKey && !configuredForzaWorkerUrl();
+      const missingProvider=sttSelection.provider==='none' && !configuredForzaWorkerUrl();
       if(sttProviderError||missingProvider){
         return res.status(503).json({
           success:false,
