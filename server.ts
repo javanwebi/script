@@ -189,7 +189,6 @@ const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'image
 if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
-const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return ''; /* Direct vision: Worker retired. */ }
 
@@ -490,10 +489,7 @@ function cleanCustomerImageMemoryCache() {
   }
 }
 
-// Serve customer images directly from memory cache (no disk folder needed)
-app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (_req, _res, next) => next());
-
-// Fallback to disk folder if image existed prior
+// Keep legacy image routes for catalogue assets. Customer uploads are never written to this directory.
 app.use(
   ['/imageai', '/imagemoshtari'],
   express.static(IMAGE_AI_DIR, {
@@ -2879,6 +2875,7 @@ async function resolveCustomerImageBufferAndInfo(
   input: string,
   _req: express.Request
 ): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
+  cleanCustomerImageMemoryCache();
   const trimmed = String(input || '').trim();
   if (!trimmed) {
     throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
