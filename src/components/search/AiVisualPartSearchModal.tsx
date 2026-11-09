@@ -510,7 +510,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
   // Navigation handlers
   const goToStep2 = () => {
-    if(selectedImage && !analysisResult?.requiredMeasurements){void handleAnalyze("quick");return;}
+    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
     setErrorMessage("");
     setCurrentStep(2);
   };
@@ -549,6 +549,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
     const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
+    const requestFullImage=localRegionEnabled && (regionOverride===null || (!requestRegion && fullImageSelected));
     analysisBusyRef.current=true;
     const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
@@ -571,19 +572,23 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         stage,
         observationOnly:false,
         region:requestRegion,
+        detectionId:regionDetectionId || undefined,
+        fullImage:requestFullImage,
         includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
         setScanCounts(progress);
         setAnalysisProgress(progress.total ? Math.floor(progress.compared*100/progress.total) : 0);
-        setAnalysisPhaseIndex(progress.stage==='verifying' ? 3 : progress.stage==='scanning' ? 2 : 0);
+        setAnalysisPhaseIndex(progress.stage==='verifying' ? 4 : progress.stage==='scanning' ? 3 : progress.stage==='preparing' ? 0 : 1);
       });
 
       if(sequence!==analysisSequenceRef.current)return;
       if(localRegionEnabled){
         setQueryRegion(result.queryRegion || requestRegion);
         if(!requestRegion)setCandidateRegions(result.queryRegions || []);
+        setFullImageSelected(requestFullImage);
+        setRegionDetectionState('ready');
       }
       if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
       setAnalysisResult(result);
@@ -592,29 +597,28 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     } catch (err: any) {
       if(sequence!==analysisSequenceRef.current)return;
       console.error(err);
-      setErrorMessage(
-        err.message || "خطا در ارتباط با سامانه تحلیل هوش مصنوعی.",
-      );
+      setErrorMessage(friendlyVisionError(err));
       setCurrentStep(stage === "quick" ? 1 : 3);
     }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
   };
 
-  // Auto-search only after gallery upload completes. Camera photos still require confirmation.
-  React.useEffect(()=>{
-    if(!isOpen||!localRegionEnabled||!uploadedImageUrl||isUploadingImage||!selectedImage||cameraFlowActive||cameraReview||currentStep!==1||autoAnalyzedImageRef.current===uploadedImageUrl)return;
-    autoAnalyzedImageRef.current=uploadedImageUrl;
-    void handleAnalyze("quick");
-  },[isOpen,localRegionEnabled,uploadedImageUrl,isUploadingImage,selectedImage,cameraFlowActive,cameraReview,currentStep]);
+  // Region edits in the results view intentionally re-run the search; edits in the
+  // review step only update the crop and wait for the explicit confirmation button.
   const searchRegion=(region:ImageRegion|undefined)=>{
     setQueryRegion(region);
+    setFullImageSelected(!region);
     if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
     regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
 
   const retakeCameraPhoto = () => {
+    regionDetectionSequenceRef.current++;
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
     setUploadedImageUrl(null);
+    setRegionDetectionId(null);
+    setQueryRegion(undefined);
+    setCandidateRegions([]);
     setCameraReview(false);
     setErrorMessage("");
     void startCamera();
