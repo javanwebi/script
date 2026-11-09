@@ -487,7 +487,7 @@ interface CachedCustomerImage {
 const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
 
 function cleanCustomerImageMemoryCache() {
-  const cutoff = Date.now() - 5 * 60 * 1000;
+  const cutoff = Date.now() - 60 * 1000;
   for (const [key, val] of customerImageMemoryCache.entries()) {
     if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
   }
@@ -2784,14 +2784,6 @@ async function persistCustomerImage(
   const base64 = optimized.toString('base64');
   const dataUrl = `data:image/jpeg;base64,${base64}`;
 
-  customerImageMemoryCache.set(fileName, {
-    buffer: optimized,
-    mimeType: 'image/jpeg',
-    dataUrl,
-    createdAt: Date.now(),
-  });
-  cleanCustomerImageMemoryCache();
-
   return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
 }
 
@@ -2932,12 +2924,6 @@ async function resolveCustomerImageBufferAndInfo(
       const rawBase64 = trimmed.slice(base64Index + 8);
       const buffer = Buffer.from(rawBase64, 'base64');
       const fileName = `${crypto.randomUUID()}.jpg`;
-      customerImageMemoryCache.set(fileName, {
-        buffer,
-        mimeType: 'image/jpeg',
-        dataUrl: trimmed,
-        createdAt: Date.now(),
-      });
       return {
         imageUrl: trimmed,
         fileName,
@@ -2951,12 +2937,6 @@ async function resolveCustomerImageBufferAndInfo(
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
     const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    customerImageMemoryCache.set(fileName, {
-      buffer,
-      mimeType: 'image/jpeg',
-      dataUrl,
-      createdAt: Date.now(),
-    });
     return {
       imageUrl: dataUrl,
       fileName,
