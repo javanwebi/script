@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './private-forza-config.test';
 import assert from 'node:assert/strict';
 import { BaiConsultError, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
