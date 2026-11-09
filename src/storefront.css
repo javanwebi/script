@@ -4236,3 +4236,308 @@ select {
  .account-access-story>div{display:block;position:relative;z-index:1;}
  .account-access-story .account-symbol{display:none;}
 }
+
+
+/* Distinct industry page compositions */
+.industry-textile .industry-hero {
+  min-height: 540px;
+  background: #f5f4ef;
+  color: #343a40;
+}
+.industry-textile .industry-hero > img {
+  inset: 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: 56%;
+  object-position: center;
+}
+.industry-textile .industry-hero-shade {
+  background: linear-gradient(90deg, #f5f4ef 0%, #f5f4ef 42%, rgba(245,244,239,.86) 57%, rgba(245,244,239,0) 100%);
+}
+.industry-textile .industry-hero > .editorial-wrap {
+  width: 51%;
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+  padding-block: 46px;
+}
+.industry-textile .editorial-crumb { color: #6b7280; }
+.industry-textile .industry-kicker { color: #b65b20; }
+.industry-textile .industry-hero h1,
+.industry-textile .industry-hero h1 em { color: #30363d; }
+.industry-textile .industry-hero h1 em { color: #d56822; }
+.industry-textile .industry-hero p { color: #59616a; }
+.industry-textile .industry-secondary {
+  color: #39424b;
+  border-color: #c9c9c3;
+  background: #ffffffb8;
+}
+
+.industry-packaging .industry-hero { background: #202a34; }
+.industry-packaging .industry-hero-shade {
+  background: linear-gradient(270deg, rgba(20,29,38,.96) 0%, rgba(27,38,49,.78) 46%, rgba(27,38,49,.18) 100%);
+}
+.industry-packaging .industry-kicker { color: #ffc18e; }
+.industry-packaging .industry-hero h1 em { color: #ffad70; }
+.industry-packaging .industry-hero::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(90deg, transparent, #e56b1e 35%, #f5a15f 70%, transparent);
+}
+
+.industry-food .industry-hero { background: #173b38; }
+.industry-food .industry-hero-shade {
+  background: linear-gradient(270deg, rgba(12,48,44,.94) 0%, rgba(17,57,51,.76) 48%, rgba(17,57,51,.12) 100%);
+}
+.industry-food .industry-kicker { color: #c2e2cf; }
+.industry-food .industry-hero h1 em { color: #b8e0c7; }
+.industry-food .industry-secondary { border-color: #a8d1bd80; background: #e6f4ec18; }
+
+.industry-machinery .industry-hero { background: #172738; }
+.industry-machinery .industry-hero-shade {
+  background:
+    linear-gradient(270deg, rgba(14,31,48,.96) 0%, rgba(17,39,58,.82) 48%, rgba(17,39,58,.2) 100%),
+    repeating-linear-gradient(0deg, transparent 0 34px, rgba(177,211,235,.10) 35px),
+    repeating-linear-gradient(90deg, transparent 0 34px, rgba(177,211,235,.10) 35px);
+}
+.industry-machinery .industry-kicker { color: #a8c8e3; }
+.industry-machinery .industry-hero h1 em { color: #f3a66e; }
+.industry-machinery .industry-secondary { border-color: #a8c8e380; }
+
+.industry-rubber .industry-hero { background: #2b2d2e; }
+.industry-rubber .industry-hero > img {
+  inset: 0;
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  width: 56%;
+  object-position: center;
+}
+.industry-rubber .industry-hero-shade {
+  background: linear-gradient(90deg, rgba(35,37,38,.12) 0%, rgba(35,37,38,.72) 42%, #242728 70%, #242728 100%);
+}
+.industry-rubber .industry-hero > .editorial-wrap {
+  width: 52%;
+  margin-inline-end: auto;
+  margin-inline-start: 0;
+  padding-block: 44px;
+}
+.industry-rubber .industry-kicker { color: #f1bd8f; }
+.industry-rubber .industry-hero h1 em { color: #f3a36b; }
+
+.industry-visual-module {
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: clamp(22px, 4vw, 52px);
+  margin-block: 50px !important;
+  padding: clamp(22px, 3.6vw, 42px);
+  border: 1px solid #e4e6e7;
+  border-radius: 24px;
+  background: #f7f7f4;
+  overflow: hidden;
+}
+.industry-visual-copy { min-width: 0; }
+.industry-visual-eyebrow {
+  display: inline-flex;
+  color: #c05e20;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.industry-visual-copy h2 {
+  margin: 10px 0 8px;
+  color: #30363d;
+  font-size: clamp(21px, 2.3vw, 30px);
+  line-height: 1.7;
+}
+.industry-visual-copy p {
+  margin: 0;
+  color: #626b72;
+  font-size: 12px;
+  line-height: 2.1;
+}
+.industry-visual-step-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+}
+.industry-visual-step {
+  min-height: 94px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #e7e3dc;
+  border-radius: 15px;
+  background: #fff;
+}
+.industry-visual-step b,
+.industry-packaging-number,
+.industry-rubber-criteria b {
+  color: #d66a26;
+  font-size: 13px;
+  font-weight: 900;
+}
+.industry-visual-step span { color: #3f474d; font-size: 12px; font-weight: 750; }
+.industry-material-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.industry-material-tags span {
+  padding: 7px 10px;
+  border: 1px solid #e7d5c6;
+  border-radius: 999px;
+  background: #fff;
+  color: #8c4c23;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.industry-visual-module--packaging {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  background: #222e39;
+  border-color: #344552;
+  color: #fff;
+}
+.industry-visual-module--packaging .industry-visual-copy h2 { color: #fff; }
+.industry-visual-module--packaging .industry-visual-copy p { color: #c3cdd5; }
+.industry-visual-module--packaging .industry-visual-eyebrow { color: #ffb47e; }
+.industry-packaging-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.industry-packaging-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 13px;
+  border: 1px solid #53616c;
+  border-radius: 14px;
+  background: #ffffff09;
+}
+.industry-packaging-number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #e56b1e;
+  color: #fff;
+}
+.industry-packaging-step b { display: block; color: #fff; font-size: 11px; }
+.industry-packaging-step small { display: block; margin-top: 5px; color: #c4cdd4; font-size: 10px; }
+
+.industry-visual-module--food { background: #f0f6f1; border-color: #dce9df; }
+.industry-food-seal {
+  width: min(100%, 250px);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  justify-self: center;
+  border: 1px solid #b9d4c1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 53%, #e6f1e9 54% 100%);
+  color: #225d47;
+  text-align: center;
+}
+.industry-food-seal span { font-size: 34px; font-weight: 950; letter-spacing: .12em; }
+.industry-food-seal b { font-size: 13px; }
+.industry-food-seal small { color: #5f7f6e; font-size: 10px; }
+.industry-visual-module--food .industry-visual-eyebrow { color: #327454; }
+.industry-food-points { display: grid; gap: 8px; margin-top: 16px; }
+.industry-food-points > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #fff;
+  color: #365346;
+  font-size: 11px;
+}
+.industry-food-points b { color: #39805b; }
+
+.industry-visual-module--machinery {
+  background: #1b2c3c;
+  border-color: #314b60;
+  color: #fff;
+}
+.industry-visual-module--machinery .industry-visual-copy h2 { color: #fff; }
+.industry-visual-module--machinery .industry-visual-copy p { color: #c2d0dc; }
+.industry-visual-module--machinery .industry-visual-eyebrow { color: #f4b17e; }
+.industry-machinery-blueprint {
+  padding: 22px;
+  border: 1px solid #4a657b;
+  border-radius: 17px;
+  background:
+    linear-gradient(rgba(36,70,95,.5),rgba(36,70,95,.5)),
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(183,216,239,.12) 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(183,216,239,.12) 24px);
+}
+.industry-machinery-blueprint > span { color: #a9c9e1; font-size: 9px; font-weight: 800; letter-spacing: .13em; }
+.industry-blueprint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-block: 17px; }
+.industry-blueprint-grid > div {
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 11px;
+  border: 1px solid #718da2;
+  background: #0f2131a8;
+}
+.industry-blueprint-grid b { color: #f4a66e; font-size: 11px; }
+.industry-blueprint-grid span { color: #fff; font-size: 12px; font-weight: 800; }
+.industry-machinery-blueprint small { color: #b5c7d5; font-size: 10px; }
+.industry-machinery-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.industry-machinery-steps span { display: flex; align-items: center; gap: 8px; color: #e5edf3; font-size: 10px; }
+.industry-machinery-steps b { color: #f2a36c; }
+
+.industry-visual-module--rubber { background: #f4f0eb; border-color: #e7ddd3; }
+.industry-visual-module--rubber .industry-visual-eyebrow { color: #9b572c; }
+.industry-rubber-criteria { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.industry-rubber-criteria > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 12px 15px;
+  border-radius: 13px;
+  background: #fff;
+  border: 1px solid #e8ddd2;
+  color: #48433f;
+  font-size: 11px;
+  font-weight: 700;
+}
+.industry-rubber-criteria b { color: #a85c2a; }
+
+@media (max-width: 767px) {
+  .industry-textile .industry-hero,
+  .industry-rubber .industry-hero { min-height: 650px; align-items: flex-end; }
+  .industry-textile .industry-hero > img,
+  .industry-rubber .industry-hero > img {
+    inset: 0 0 auto 0;
+    width: 100%;
+    height: 56%;
+    object-position: center;
+  }
+  .industry-textile .industry-hero-shade {
+    background: linear-gradient(0deg, #f5f4ef 26%, rgba(245,244,239,.95) 45%, rgba(245,244,239,0) 78%);
+  }
+  .industry-rubber .industry-hero-shade {
+    background: linear-gradient(0deg, #242728 25%, rgba(36,39,40,.92) 46%, rgba(36,39,40,.08) 82%);
+  }
+  .industry-textile .industry-hero > .editorial-wrap,
+  .industry-rubber .industry-hero > .editorial-wrap { width: 100%; margin: 0; padding-block: 28px; }
+  .industry-visual-module { grid-template-columns: 1fr; gap: 20px; margin-block: 28px !important; padding: 20px; border-radius: 18px; }
+  .industry-food-seal { width: 170px; }
+  .industry-food-seal span { font-size: 26px; }
+  .industry-packaging-flow { grid-template-columns: 1fr 1fr; }
+  .industry-machinery-blueprint { padding: 16px; }
+}
