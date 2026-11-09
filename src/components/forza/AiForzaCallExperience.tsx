@@ -1316,7 +1316,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                   completed.reduce((sum,phrase)=>sum+phrase.length,0));
                 for(const phrase of completed)queueSpeech(phrase);
               }
-            },380);
+            },180);
           }
         };
         try {
