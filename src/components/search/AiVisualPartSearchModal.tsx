@@ -61,7 +61,7 @@ import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
-import { createCustomerImageIdentification, completeCustomerImageIdentification } from "../../services/customerIntelligenceService";
+import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
 
 interface Props {
   isOpen: boolean;
@@ -2229,6 +2229,22 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                     >
                                       <span>مشاهده کالا</span>
                                       <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (imageEventId) {
+                                          void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
+                                            setErrorMessage(error instanceof Error ? error.message : "ثبت انتخاب محصول انجام نشد.")
+                                          );
+                                        }
+                                        onClose();
+                                        navigate('/ai-consult?productCode=' + encodeURIComponent(match.code) + '&productName=' + encodeURIComponent(match.name || match.code));
+                                      }}
+                                      className="h-9 px-3 bg-orange-50 hover:bg-orange-100 text-[#A64B14] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer border border-orange-200"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      <span>مشاوره FORZA</span>
                                     </button>
                                   </div>
                                 </div>
