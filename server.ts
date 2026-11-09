@@ -2787,36 +2787,6 @@ async function persistCustomerImage(
   return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
 }
 
-const GITHUB_BACKUP_REPO = process.env.GITHUB_BACKUP_REPO || 'javanwebi/atlastrai';
-const GITHUB_BACKUP_TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_BACKUP_TOKEN || '';
-
-async function syncCustomerImageToGitHub(fileName: string, buffer: Buffer): Promise<string | null> {
-  if (!GITHUB_BACKUP_TOKEN || !GITHUB_BACKUP_REPO) return null;
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_BACKUP_REPO}/contents/imageai/${fileName}`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${GITHUB_BACKUP_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Atlas-AI-Search',
-      },
-      body: JSON.stringify({
-        message: `Upload customer image ${fileName} for AI recognition`,
-        content: buffer.toString('base64'),
-        branch: 'main',
-      }),
-    });
-    if (res.ok) {
-      return `https://raw.githubusercontent.com/${GITHUB_BACKUP_REPO}/main/imageai/${fileName}`;
-    }
-  } catch (err: any) {
-    console.warn('[GitHub Image Sync warning]:', err?.message);
-  }
-  return null;
-}
-
 function validatePresetImageImportUrl(input: string): string | null {
   try {
     const url = new URL(input);
