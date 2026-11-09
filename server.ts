@@ -62,13 +62,13 @@ import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/x
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
 import {ForzaTtsBudget,forzaTtsLimits} from './server/ai/forzaTtsBudget';
+import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
 
 dotenv.config();
 // Optional VPS-only private FORZA configuration. The deployment preserves the
 // previous container's environment, so this private file is authoritative for
 // FORZA_ and AVALAI_ keys; unrelated process variables remain untouched.
 // Railway is unaffected when the file is absent.
-import { applyPrivateForzaConfig } from './server/ai/privateForzaConfig';
 const privateForzaConfigPath = path.resolve(process.cwd(), '.env.forza-voice');
 if (fs.existsSync(privateForzaConfigPath)) {
   applyPrivateForzaConfig(process.env, dotenv.parse(fs.readFileSync(privateForzaConfigPath)));
