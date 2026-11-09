@@ -27,7 +27,7 @@ type Entry = { id: string; kind: string; debt_delta: string | number; wallet_del
 type Ticket = { id: string; subject: string; status: string; created_at: string };
 type ImageEvent = {
   id: string; user_id: string; customer_name: string; company: string; phone: string;
-  original_name: string; mime_type: string; file_size: number; recognition_status: string;
+  image_sha256: string; original_name: string; mime_type: string; file_size: number; recognition_status: string;
   detected_part_type: string | null; recognized_summary: string | null; selected_product_code: string | null;
   matched_product_codes: string[]; similar_product_codes: string[]; created_at: string;
 };
