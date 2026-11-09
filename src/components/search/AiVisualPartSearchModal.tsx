@@ -3,6 +3,7 @@ import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
+import type {ImagePoint} from '../../utils/imageRegionInteraction';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { useState, useRef } from "react";
@@ -108,6 +109,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
+  const [regionSelectionBusy,setRegionSelectionBusy]=useState(false);
+  const [regionSelectionError,setRegionSelectionError]=useState('');
+  const regionSelectionBusyRef=useRef(false);
+  const regionSelectionSequenceRef=useRef(0);
   const regionDetectionSequenceRef=useRef(0);
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
@@ -122,7 +127,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);setRegionSelectionBusy(false);setRegionSelectionError('');regionSelectionBusyRef.current=false;regionSelectionSequenceRef.current++;regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -231,7 +236,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const friendlyVisionError = (error: any) => {
-    if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی در حال تأیید ناحیه دیگری است. چند لحظه دیگر دوباره تلاش کنید.';
+    if (error?.code === 'REGION_NOT_FOUND') return 'در این نقطه مرز قابل‌اعتماد قطعه پیدا نشد. روی بخش داخلی خود قطعه ضربه بزنید؛ برش قبلی حفظ شده است.';
+    if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی مشغول است. چند لحظه دیگر دوباره تلاش کنید.';
     if (error?.code === 'INDEX_NOT_READY') return 'کاتالوگ تصویری در حال آماده‌سازی است. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
     if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ ناحیه قطعه را دستی انتخاب کنید.';
     if (error?.code === 'CATALOG_UNAVAILABLE') return 'ارتباط با کاتالوگ برقرار نیست. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
@@ -255,7 +261,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setFullImageSelected(!detection.queryRegion);
       setRegionDetectionState('ready');
       setLocalRegionEnabled(true);
-      if (!detection.queryRegion) setRegionDetectionMessage('ناحیه خودکار قابل‌اعتماد پیدا نشد؛ می‌توانید کادر را دستی بکشید یا کل تصویر را انتخاب کنید.');
+      if (!detection.queryRegion) setRegionDetectionMessage('برش اولیه پیدا نشد؛ روی خود قطعه ضربه بزنید تا همان ناحیه استخراج شود.');
     } catch (error: any) {
       if (sequence !== regionDetectionSequenceRef.current) return;
       setRegionDetectionId(null);
@@ -507,6 +513,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
     regionDetectionSequenceRef.current++;
+    regionSelectionSequenceRef.current++;
+    regionSelectionBusyRef.current=false;
+    setRegionSelectionBusy(false);
+    setRegionSelectionError('');
     setRegionDetectionState('uploading');
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
@@ -607,7 +617,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const confirmRegionAndAnalyze = () => {
-    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    if (!uploadedImageUrl || isUploadingImage || regionSelectionBusyRef.current || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
@@ -627,9 +637,44 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
 
+  const selectRegionAtPoint=async(point:ImagePoint)=>{
+    if(!uploadedImageUrl || regionSelectionBusyRef.current)return;
+    const sequence=++regionSelectionSequenceRef.current;
+    regionSelectionBusyRef.current=true;
+    setRegionSelectionBusy(true);
+    setRegionSelectionError('');
+    try{
+      const selected=await aiVisualSearchService.selectImageRegion(uploadedImageUrl,point,regionDetectionId || undefined);
+      if(sequence!==regionSelectionSequenceRef.current)return;
+      setRegionDetectionId(selected.detectionId);
+      setCandidateRegions(previous=>[selected.region,...previous.filter(region=>
+        Math.abs(region.x-selected.region.x)>=0.002 || Math.abs(region.y-selected.region.y)>=0.002 ||
+        Math.abs(region.width-selected.region.width)>=0.002 || Math.abs(region.height-selected.region.height)>=0.002
+      )].slice(0,4));
+      setQueryRegion(selected.region);
+      setFullImageSelected(false);
+      setRegionDetectionState('ready');
+      if(currentStep==='results')searchRegion(selected.region);
+    }catch(error:any){
+      if(sequence!==regionSelectionSequenceRef.current)return;
+      setRegionSelectionError(error?.code==='REGION_NOT_FOUND'
+        ? (error.message || 'در این نقطه قطعه قابل جداسازی پیدا نشد؛ انتخاب قبلی حفظ شد.')
+        : friendlyVisionError(error));
+    }finally{
+      if(sequence===regionSelectionSequenceRef.current){
+        regionSelectionBusyRef.current=false;
+        setRegionSelectionBusy(false);
+      }
+    }
+  };
+
   const retakeCameraPhoto = () => {
     imagePreparationSequenceRef.current++;
     regionDetectionSequenceRef.current++;
+    regionSelectionSequenceRef.current++;
+    regionSelectionBusyRef.current=false;
+    setRegionSelectionBusy(false);
+    setRegionSelectionError('');
     imageUploadSequenceRef.current++;
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
@@ -1130,7 +1175,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   message={regionDetectionMessage}
                   analysisError={errorMessage}
                   busy={isUploadingImage || !uploadedImageUrl}
-                  onRegionChange={handleRegionSelection}
+                  selectionBusy={regionSelectionBusy}
+                  selectionError={regionSelectionError}
+                  onSelectPoint={selectRegionAtPoint}
                   onConfirm={confirmRegionAndAnalyze}
                   onRetryPreparation={retryRegionPreparation}
                   onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
@@ -1705,6 +1752,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   value={queryRegion}
                   candidateRegions={candidateRegions}
                   onChange={searchRegion}
+                  onSelectPoint={selectRegionAtPoint}
+                  selectionBusy={regionSelectionBusy}
+                  selectionError={regionSelectionError}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
                 {/* Fallback / AI-error notices */}
