@@ -7251,10 +7251,11 @@ app.post('/api/ai/transcribe', async (req, res) => {
 });
 
 // Public, credential-free diagnostics; never expose provider credentials.
-app.get('/api/ai/forza-stt-info',(_req,res)=>{
+app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
   const dibaConfigured=choice.provider==='diba'&&hasForzaDibaSttModel();
+  if(dibaConfigured&&!isForzaDibaSttReady())await warmForzaDibaStt();
   res.json({
     serverSttConfigured:choice.provider==='gemini'||dibaConfigured,
     serverSttProvider:choice.provider,
