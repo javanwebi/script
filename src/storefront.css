@@ -4643,3 +4643,10 @@ select {
   .ceramic-hero-primary, .ceramic-hero-secondary { padding-inline: 8px; font-size: 10px; }
   .ceramic-hero-features { gap: 9px 12px; }
 }
+
+.industry-visual-module--textile {
+  background: linear-gradient(135deg, #faf8f3 0%, #f1eee7 100%);
+  border-color: #e7dfd3;
+}
+.industry-visual-module--textile .industry-visual-copy h2 { color: #30363d; }
+.industry-visual-module--textile .industry-visual-step { border-color: #e8e0d6; }

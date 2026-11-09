@@ -18,4 +18,8 @@ test('non-ceramic industries have distinct editorial compositions', () => {
 test('ceramic retains its dedicated page instead of falling back to the generic industry template', () => {
   assert.match(page, /TileCeramicIndustryPage/);
   assert.match(page, /slug === "ceramic"/);
+  const ceramic = readFileSync(new URL('../src/pages/TileCeramicIndustryPage.tsx', import.meta.url), 'utf8');
+  assert.match(ceramic, /ceramic-hero-visual/);
+  assert.match(ceramic, /ceramic-hero-image/);
+  assert.match(ceramic, /ceramic-hero-content/);
 });
