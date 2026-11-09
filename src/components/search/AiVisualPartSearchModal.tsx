@@ -251,6 +251,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setCandidateRegions(detection.queryRegions);
       setFullImageSelected(!detection.queryRegion);
       setRegionDetectionState('ready');
+      setLocalRegionEnabled(true);
       if (!detection.queryRegion) setRegionDetectionMessage('ناحیه خودکار قابل‌اعتماد پیدا نشد؛ می‌توانید کادر را دستی بکشید یا کل تصویر را انتخاب کنید.');
     } catch (error: any) {
       if (sequence !== regionDetectionSequenceRef.current) return;
@@ -548,8 +549,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
 
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
-    const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
-    const requestFullImage=localRegionEnabled && (regionOverride===null || (!requestRegion && fullImageSelected));
+    const requestRegion=regionOverride===null?undefined:regionOverride || queryRegion;
+    const requestFullImage=regionOverride===null || (!requestRegion && fullImageSelected);
     analysisBusyRef.current=true;
     const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
