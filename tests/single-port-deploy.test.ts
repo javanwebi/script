@@ -36,11 +36,23 @@ test("promotion retains same database and storage settings and reverses failures
   assert.match(one, /SANATPISH_SINGLE_PORT_RELEASE_OK/);
 });
 
-test("live preflight retries transient empty HTTP replies without restarting the active container", () => {
+test("live preflight retries health and uses the canonical domain for HTTPS SNI", () => {
   assert.match(one, /wait_for_live_health\(\)/);
   assert.match(one, /for attempt in \$\(seq 1 8\)/);
   assert.match(one, /ACTIVE_HTTP_HEALTH/);
   assert.match(one, /ACTIVE_HTTPS_HEALTH/);
+  assert.match(one, /https:\/\/sanatpish\.com\/api\/health/);
+  assert.match(one, /--resolve "\$resolve_domain:443:127\.0\.0\.1"/);
+  assert.doesNotMatch(one, /wait_for_live_health "https:\/\/127\.0\.0\.1/);
+});
+
+test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", () => {
+  const verify = one.slice(one.indexOf("===== VERIFY PUBLIC HTTPS ====="), one.indexOf("===== VERIFY DOMAIN AND IP ROUTE"));
+  assert.match(verify, /domain='sanatpish\.com'/);
+  assert.match(verify, /--resolve',f'\{domain\}:443:127\.0\.0\.1'/);
+  assert.match(verify, /get\('\/api\/health'\)/);
+  assert.match(verify, /get\('\/api\/ai\/forza-stt-info'\)/);
+  assert.doesNotMatch(verify, /https:\/\/127\.0\.0\.1/);
 });
 
 test("AvalAI private config must be effective in canary before production promotion", () => {
