@@ -10,16 +10,18 @@ export interface SavedScrollEntry {
 
 const STORAGE_KEY = 'sanat_pish_scroll_positions_v2';
 const memoryScrollStore = new Map<string, SavedScrollEntry>();
+let cachedScrollStore: Record<string, SavedScrollEntry> | null = null;
 
 function readScrollStore(): Record<string, SavedScrollEntry> {
   if (typeof window === 'undefined') return {};
+  if (cachedScrollStore) return cachedScrollStore;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
+    if (!raw) return (cachedScrollStore = {});
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return (cachedScrollStore = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {});
   } catch {
-    return {};
+    return (cachedScrollStore = {});
   }
 }
 
@@ -31,6 +33,7 @@ function writeScrollStore(store: Record<string, SavedScrollEntry>): void {
       (a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0)
     );
     const trimmed = Object.fromEntries(entries.slice(0, 80));
+    cachedScrollStore = trimmed;
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
   } catch {
     // Ignore storage quota errors
