@@ -67,16 +67,9 @@ async function sha256(blob: Blob): Promise<string> {
   return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
 }
 
-export async function requestCustomerVaultPersistence(): Promise<{ supported: boolean; persisted: boolean }> {
-  const storage = typeof navigator !== 'undefined' ? navigator.storage : undefined;
-  if (!storage?.persist) return { supported: false, persisted: false };
-  try {
-    const already = storage.persisted ? await storage.persisted() : false;
-    return { supported: true, persisted: already || await storage.persist() };
-  } catch {
-    return { supported: true, persisted: false };
-  }
-}
+// IndexedDB is available without a storage permission prompt. Browser/site-data
+// cleanup remains under the device owner's control and cannot be prevented by a website.
+
 
 export async function saveCustomerDeviceImage(
   blob: Blob,
@@ -87,7 +80,6 @@ export async function saveCustomerDeviceImage(
   if (!ALLOWED_MIME.has(mimeType)) throw new Error('فقط تصاویر JPEG، PNG و WebP قابل ذخیره هستند.');
   if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.');
 
-  await requestCustomerVaultPersistence();
   const record: CustomerImageVaultRecord = {
     id: makeId(),
     ownerId: ownerId || 'guest',
