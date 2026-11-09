@@ -272,6 +272,13 @@ if [[ -f "$APP/.env.staff" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.staff'; then
   MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
 fi
+
+# Preserve the private server-only FORZA provider configuration across releases.
+# It contains AvalAI credentials and must never be copied into the Git release stage.
+if [[ -f "$APP/.env.forza-voice" ]] &&
+   ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.forza-voice'; then
+  MOUNTS+=(-v "$APP/.env.forza-voice:/app/.env.forza-voice:ro")
+fi
 # The release source is mounted at /app, so explicitly re-mount persistent
 # local-vision activation/configuration files from the canonical project folder.
 if [[ -f "$APP/.local-vision-enabled" ]]; then
