@@ -494,19 +494,7 @@ function cleanCustomerImageMemoryCache() {
 }
 
 // Serve customer images directly from memory cache (no disk folder needed)
-app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
-  const fileName = path.basename(req.params.fileName || '');
-  const cached = customerImageMemoryCache.get(fileName);
-  if (cached) {
-    res.setHeader('Content-Type', cached.mimeType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    return res.end(cached.buffer);
-  }
-  next();
-});
+app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (_req, _res, next) => next());
 
 // Fallback to disk folder if image existed prior
 app.use(
