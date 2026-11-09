@@ -57,7 +57,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
+import {configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
@@ -5975,18 +5975,29 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
 
   // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
+  // AvalAI is an explicitly selected paid provider; its key remains server-only.
   // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
   // B.AI remains available as an alternative. Gemini/Worker below is the existing fallback.
+  const selectedTextProvider = String((lowLatencyVoice ? process.env.FORZA_VOICE_PROVIDER : process.env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  const avalaiModel = configuredAvalaiModel(process.env, lowLatencyVoice);
   const xkiroModel = configuredXkiroModel(process.env, lowLatencyVoice);
   const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
-  const textProvider = xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
-  const textModel = xkiroModel || baiModel;
+  const textProvider = selectedTextProvider === 'avalai' ? 'avalai' : xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
+  const textModel = avalaiModel || xkiroModel || baiModel;
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
     ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
+    ' model='+(textModel||'default')+
     ' elapsedMs='+(Date.now()-startedAt));
-  const textApiKey = textProvider === 'xkiro'
-    ? process.env.XKIRO_API_KEY
-    : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
+  const textApiKey = textProvider === 'avalai'
+    ? process.env.AVALAI_API_KEY
+    : textProvider === 'xkiro'
+      ? process.env.XKIRO_API_KEY
+      : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
+  if (textProvider === 'avalai' && (!avalaiModel || !textApiKey?.trim())) {
+    sendEvent({type:'error',responseId,errorCode:'avalai_not_configured',
+      message:'اتصال AvalAI برای این بخش کامل تنظیم نشده است. کلید و شناسه مدل را بررسی کنید.'});
+    return res.end();
+  }
   if (textProvider && textModel && textApiKey?.trim() && includeAudio !== true) {
     if(lowLatencyVoice)sendEvent({type:'provider',responseId,provider:textProvider});
     // Do not replace a provider's already-streamed partial answer with a
@@ -5996,7 +6007,9 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     const onDisconnect = () => clientAbort.abort();
     res.once('close', onDisconnect);
     try {
-      const streamProvider = textProvider === 'xkiro' ? streamXkiroFreePool : streamBaiConsult;
+      const streamProvider = textProvider === 'xkiro'
+        ? streamXkiroFreePool
+        : textProvider === 'avalai' ? streamAvalaiConsult : streamBaiConsult;
       const result = await streamProvider({
         apiKey: textApiKey.trim(),
         model: textModel,
@@ -6036,20 +6049,22 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           message:'پاسخ هوش مصنوعی کامل دریافت نشد؛ لطفاً دوباره تلاش کنید.'});
         return res.end();
       }
-      if (textProvider === 'xkiro') {
-        // User opted in to free xKiro. Do not silently spend money on paid
-        // models or switch to a blocked Gemini key after free-tier exhaustion.
+      if (textProvider === 'xkiro' || textProvider === 'avalai') {
+        // Never silently switch a customer from an explicitly selected paid
+        // provider to another billing account. The client may retry the same turn.
         sendEvent({
           type: 'error',
           responseId,
           errorCode: code,
-          message: code === 'xkiro_account_free_quota_exhausted'
-            ? 'سهمیه رایگان روزانه حساب xKiro تمام شده است. با تغییر مدل رایگان قابل دور زدن نیست.'
-            : 'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند. لطفاً بعداً دوباره تلاش کنید.',
+          message: textProvider === 'avalai'
+            ? 'سرویس AvalAI فعلاً پاسخ کامل نداد. لطفاً چند لحظه دیگر دوباره تلاش کنید.'
+            : code === 'xkiro_account_free_quota_exhausted'
+              ? 'سهمیه رایگان روزانه حساب xKiro تمام شده است. با تغییر مدل رایگان قابل دور زدن نیست.'
+              : 'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند. لطفاً بعداً دوباره تلاش کنید.',
         });
         return res.end();
       }
-      console.info('[AI Consult Stream] B.AI unavailable; trying configured fallback.');
+      console.info('[AI Consult Stream] ' + textProvider + ' unavailable; trying configured fallback.');
     } finally {
       res.off('close', onDisconnect);
     }
