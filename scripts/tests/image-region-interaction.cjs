@@ -49,25 +49,45 @@ const {chromium}=require('playwright');
   // Mount the actual modal with isolated identity/cart hooks and mock only HTTP.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
   await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';createRoot(document.getElementById('root')).render(<MemoryRouter><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
-  const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
    if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
-   if(pathname==='/api/ai/customer-images'){uploads++;body={imageUrl:'/api/ai/customer-images/isolated-test.png'};}
+   if(pathname==='/api/ai/detect-regions'){
+    detections.push(route.request().postDataJSON());
+    body={success:true,detectionId:'test-detection-id',autoDetected:true,queryRegion:{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120};
+   }
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
-    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',customerImageUrl:'/api/ai/customer-images/isolated-test.png',queryRegion:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
+    await new Promise(resolve=>setTimeout(resolve,260));
+    body={success:true,isAiGenerated:true,stage:'quick',summary:{detectedPartType:'قطعه',detectedProfile:'',visualAnalysis:'',confidence:0},matchedProducts:[],modelSuggestions:[],nearestCatalogSuggestions:[{code:'unrelated-test',name:'محصول نامرتبط نباید نمایش داده شود',familyCode:'unrelated',familyName:'نامرتبط',imageScope:'variant',matchBasis:'explore',specs:[],reason:'test'}],technicalAdvice:'',queryRegion:request.fullImage?undefined:request.region || {x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],scanCoverage:{total:869,compared:869,failed:0,complete:true,providerAvailable:true,failedImageIds:[]},retrieval:{mode:'local-embedding',total:869,indexed:869,ready:true,verifiedPool:0}};
    }
    await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/modal.html`);
   await page.locator('input[type=file]').first().setInputFiles({name:'isolated.png',mimeType:'image/png',buffer:await fs.readFile(path.join(os.tmpdir(),'sanat-region-touch.png'))});
-  await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0,'original customer images must not be uploaded to a persistent server image endpoint');assert.equal(queries.length,1);assert.equal(queries[0].includeNearest,false);assert.ok(typeof queries[0].imageBase64==='string'&&queries[0].imageBase64.startsWith('data:image/'),'the image is sent only with the active recognition request');
-  const modalImage=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await modalImage.scrollIntoViewIfNeeded();const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
-  await page.mouse.click(bounds.x+bounds.width*0.72,bounds.y+bounds.height*0.4);
-  await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,2);assert.ok(queries[1].region);assert.ok(Math.abs(queries[1].region.x-0.65)<0.01);assert.equal(uploads,0);assert.equal(queries[1].imageBase64,queries[0].imageBase64,'region re-query must reuse the same device-vault image');
-  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();await page.waitForTimeout(500);await page.getByText(/۸۶۹ از ۸۶۹ تصویر/).waitFor();assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(uploads,0);assert.equal(queries[2].imageBase64,queries[0].imageBase64,'whole-image re-query must reuse the same device-vault image');await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
-  await page.close();console.log('AUTOMATIC_UPLOAD_TAP_REQUERY_MOBILE_LAYOUT_AND_IMAGE_REUSE_OK');
+  await page.getByTestId('image-region-review').waitFor();
+  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).waitFor();
+  assert.equal(uploads,0,'customer originals must not be uploaded to a server image-storage endpoint');
+  assert.equal(detections.length,1,'region detection is the only image request before crop approval');
+  assert.ok(typeof detections[0].imageUrl==='string'&&detections[0].imageUrl.startsWith('data:image/'),'region detection receives a request-scoped data URL');
+  assert.equal(queries.length,0,'catalogue analysis must wait for crop approval');
+  const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
+  await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
+  await page.waitForTimeout(350);assert.equal(queries.length,0);
+  await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
+  await page.getByTestId('analysis-approved-crop').waitFor();
+  await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
+  assert.equal(queries.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
+  assert.ok(typeof queries[0].imageBase64==='string'&&queries[0].imageBase64.startsWith('data:image/'),'the original is sent only with the active analysis request');
+  assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0);
+  await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
+  await page.getByTestId('vision-analyzing-screen').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
+  assert.equal(queries.length,2);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,0);
+  assert.equal(queries[1].imageBase64,queries[0].imageBase64,'full-image re-query must reuse the same IndexedDB original');
+  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
+  await page.close();console.log('LOCAL_VAULT_DETECT_CROP_APPROVAL_ANALYSIS_REUSE_AND_MOBILE_LAYOUT_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

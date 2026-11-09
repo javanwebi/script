@@ -6,9 +6,9 @@ type Part = {text?:string;fileData?:{fileUri:string;mimeType:string};inlineData?
 export interface CatalogAgentProduct {code:string;name:string;familyCode?:string;specs?:unknown;image?:string}
 export interface AgentModel {models:{generateContent:(args:any)=>Promise<any>}}
 export interface VisionAgentInput {
-  client:AgentModel;model:string;customerImageUrl:string;catalogImageOrigin:string;
+  client:AgentModel;model:string;catalogImageOrigin:string;
   images:CatalogImageRecord[];products:CatalogAgentProduct[];
-  customerImageBuffer?:Buffer;
+  customerImageBuffer:Buffer;
   loadCatalogImage?:(image:CatalogImageRecord)=>Promise<Buffer|null>;
   onProgress?:(state:{stage:'preparing'|'scanning';total:number;compared:number;failed:number})=>void;
   maxModelCalls?:number;deadlineMs?:number;
@@ -34,8 +34,6 @@ const declarations=[
 ];
 export async function runReadOnlyVisionCatalogAgent(input:VisionAgentInput):Promise<VisionAgentResult>{
  if(!isValidPublicHttps(input.catalogImageOrigin))throw new Error('Catalog image origin requires public HTTPS');
- // Customer pixels are supplied as request-scoped bytes; they are never published as a public URL.
- if(input.customerImageUrl && input.customerImageUrl!=='device-local://temporary-processing' && !isValidPublicHttps(input.customerImageUrl))throw new Error('Invalid customer image source');
  const images=input.images.filter(v=>v.id && v.url);const imageById=new Map(images.map(x=>[x.id,x]));
  const productByCode=new Map(input.products.map(x=>[x.code,x]));
  const seen=new Set<string>();const matched=new Set<string>();

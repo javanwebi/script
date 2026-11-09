@@ -7,7 +7,7 @@ function sameRegion(a?:ImageRegion,b?:ImageRegion){
  return !!a&&!!b&&Math.abs(a.x-b.x)<0.002&&Math.abs(a.y-b.y)<0.002&&Math.abs(a.width-b.width)<0.002&&Math.abs(a.height-b.height)<0.002;
 }
 function toPersianNumber(value:number){return String(value).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);}
-export function ImageRegionSelector({src,value,candidateRegions=[],onChange}:{src:string;value?:ImageRegion;candidateRegions?:ImageRegion[];onChange:(r:ImageRegion|undefined)=>void}){
+export function ImageRegionSelector({src,value,candidateRegions=[],onChange,onFullImageSearch}:{src:string;value?:ImageRegion;candidateRegions?:ImageRegion[];onChange:(r:ImageRegion|undefined)=>void;onFullImageSearch?:()=>void}){
  const start=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
  const [draft,setDraft]=useState<ImageRegion>();
  const [aspect,setAspect]=useState(1);
@@ -88,7 +88,7 @@ export function ImageRegionSelector({src,value,candidateRegions=[],onChange}:{sr
     {value?<div className="sanat-region-picker__crop" style={{aspectRatio:aspect*value.width/value.height,backgroundImage:'url('+JSON.stringify(src)+')',backgroundSize:(100/value.width)+'% '+(100/value.height)+'%',backgroundPosition:(value.width<1?100*value.x/(1-value.width):0)+'% '+(value.height<1?100*value.y/(1-value.height):0)+'%'}}/>:
      <div className="sanat-region-picker__empty">فعلاً برش جداگانه‌ای انتخاب نشده؛ جست‌وجو روی کل تصویر انجام شده است.</div>}
     <p>{value?'این محدوده برای جست‌وجوی مجدد استفاده می‌شود.':'اگر سیستم ناحیه‌ای پیدا نکند، می‌توانید با کشیدن کادر آن را مشخص کنید.'}</p>
-    <button type="button" onClick={()=>onChange(undefined)}>جست‌وجوی کل تصویر</button>
+    <button type="button" onClick={()=>onFullImageSearch ? onFullImageSearch() : onChange(undefined)}>جست‌وجوی کل تصویر</button>
    </aside>
   </div>
   <p className="sanat-region-picker__hint">لمس روی کادرهای پیشنهادی: انتخاب قطعه دیگر · لمس فضای خالی: حفظ انتخاب فعلی · کشیدن: برش دستی</p>

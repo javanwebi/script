@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowRight, Check, CircleDot, ScanLine, ShieldCheck, Sparkles, X } from "lucide-react";
 import { toPersianDigits } from "../../utils/formatters";
+import type { ImageRegion } from "../../utils/imageRegion";
 import "./vision-analysis-progress.css";
 
 type Phase = { title: string; tag: string; detail: string };
@@ -8,6 +9,7 @@ type ProgressCounts = { compared: number; total: number; stage: string } | null;
 
 interface Props {
   image: string | null;
+  region?: ImageRegion;
   progress: number;
   phaseIndex: number;
   phases: Phase[];
@@ -17,7 +19,7 @@ interface Props {
 }
 
 export function VisionAnalysisProgress({
-  image, progress, phaseIndex, phases, counts, quickMode, onClose,
+  image, region, progress, phaseIndex, phases, counts, quickMode, onClose,
 }: Props) {
   const activeIndex = Math.max(0, Math.min(phaseIndex, phases.length - 1));
   const phase = phases[activeIndex];
@@ -26,6 +28,11 @@ export function VisionAnalysisProgress({
     Number.isFinite(counts.compared) && counts.compared >= 0
   );
   const value = hasVerifiedCounts ? Math.max(0, Math.min(100, Math.round(progress))) : null;
+  const cropStyle = image && region ? {
+    backgroundImage: `url(${JSON.stringify(image)})`,
+    backgroundSize: `${100 / region.width}% ${100 / region.height}%`,
+    backgroundPosition: `${region.width < 1 ? 100 * region.x / (1 - region.width) : 0}% ${region.height < 1 ? 100 * region.y / (1 - region.height) : 0}%`,
+  } : undefined;
 
   return (
     <section className="sp-vision-analysis" dir="rtl" aria-label="پردازش تصویر قطعه">
@@ -48,7 +55,11 @@ export function VisionAnalysisProgress({
           <div className="sp-vision-analysis__photo" aria-label="تصویر قطعه در حال بررسی">
             <span className="sp-vision-analysis__photo-label"><CircleDot size={13}/> تصویر مشتری</span>
             {image ? (
-              <img src={image} alt="عکس واقعی قطعه در حال شناسایی" className="sp-vision-analysis__image" />
+              region ? (
+                <div className="sp-vision-analysis__image-crop" data-testid="analysis-approved-crop" style={cropStyle} role="img" aria-label="برش تأییدشده قطعه در حال تحلیل" />
+              ) : (
+                <img src={image} alt="عکس واقعی قطعه در حال شناسایی" className="sp-vision-analysis__image" />
+              )
             ) : (
               <div className="sp-vision-analysis__placeholder">
                 <ScanLine size={50} aria-hidden="true" />
@@ -71,10 +82,10 @@ export function VisionAnalysisProgress({
         <div className="sp-vision-analysis__details">
           <div className="sp-vision-analysis__status">
             <span className="sp-vision-analysis__status-dot" aria-hidden="true" />
-            <span>{quickMode ? "بررسی اولیه تصویر" : "بررسی تصویر و مشخصات فنی"}</span>
+            <span>{quickMode ? "تحلیل برش تأییدشده" : "تحلیل تصویر و مشخصات فنی"}</span>
           </div>
-          <h2>در حال بررسی قطعه شما</h2>
-          <p>شکل، کدهای قابل مشاهده و ویژگی‌های فنی قطعه با اطلاعات کاتالوگ مقایسه می‌شوند.</p>
+          <h2>در حال تطبیق قطعه با کاتالوگ صنعت پیش</h2>
+          <p>{region ? "برش تأییدشده شما مبنای استخراج ویژگی‌ها و مقایسه با تصاویر واقعی کاتالوگ است." : "تصویر کامل شما برای استخراج ویژگی‌های ظاهری و مقایسه با تصاویر واقعی کاتالوگ بررسی می‌شود."}</p>
 
           <div className="sp-vision-analysis__active-phase" aria-live="polite" aria-atomic="true">
             <span>مرحله {toPersianDigits(activeIndex + 1)} از {toPersianDigits(phases.length)}</span>
@@ -84,7 +95,7 @@ export function VisionAnalysisProgress({
 
           <div className="sp-vision-analysis__progress-section">
             <div className="sp-vision-analysis__progress-top">
-              <span>پیشرفت تطبیق تصاویر</span>
+              <span>پیشرفت مقایسه تصاویر کاتالوگ</span>
               <strong>{hasVerifiedCounts && counts
                 ? `${toPersianDigits(counts.compared)} از ${toPersianDigits(counts.total)} تصویر`
                 : "در انتظار گزارش سرور"}</strong>

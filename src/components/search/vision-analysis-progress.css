@@ -45,6 +45,16 @@
   background: radial-gradient(ellipse at center,#fafafa,#edf0f4);
 }
 .sp-vision-analysis__image { position:relative; z-index:2; width:100%; height:100%; display:block; object-fit:contain; padding: 27px; filter: drop-shadow(0 13px 14px #1722311b); }
+.sp-vision-analysis__image-crop {
+  position:relative;z-index:2;width:100%;height:100%;min-height:280px;
+  background-color:#f0f2f5;background-repeat:no-repeat;
+  filter:drop-shadow(0 13px 14px #1722311b);
+}
+.sp-vision-analysis__image-crop::after {
+  content:"برش تأییدشده";position:absolute;right:15px;bottom:15px;
+  padding:7px 10px;border:1px solid #f4c8a6;border-radius:999px;
+  color:#bc5413;background:#fffefef0;font-size:10px;font-weight:850;
+}
 .sp-vision-analysis__placeholder { z-index:2; position: relative; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; color:#7b8796; font-size:12px; text-align:center; }
 .sp-vision-analysis__photo-label { position:absolute; top:15px; right:15px; z-index:5; display:inline-flex; align-items:center; gap:6px; padding:8px 11px; border-radius:999px; border:1px solid #f4c8a6; background:#fffefef0; color:#bc5413; font-size:10px; font-weight:800; }
 .sp-vision-analysis__scan-grid { position:absolute; inset:0; z-index:1; pointer-events:none; background-image: linear-gradient(#c8d1dd45 1px,transparent 1px),linear-gradient(90deg,#c8d1dd45 1px,transparent 1px); background-size:26px 26px; opacity:.55; }
@@ -104,6 +114,7 @@
   .sp-vision-analysis__photo { min-height:210px; height:clamp(220px,35dvh,310px); }
   .sp-vision-analysis__photo-label { top:9px; right:9px; }
   .sp-vision-analysis__image { padding:20px; }
+  .sp-vision-analysis__image-crop { min-height:210px; }
   .sp-vision-analysis__details { padding:15px; gap:10px; }
   .sp-vision-analysis__brand-icon { flex-basis:38px; width:38px; height:38px; border-radius:12px; }
   .sp-vision-analysis__header { padding-inline:12px; }

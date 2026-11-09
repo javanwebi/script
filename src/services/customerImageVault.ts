@@ -76,19 +76,25 @@ export async function saveCustomerDeviceImage(
   ownerId: string,
   originalName = 'customer-image'
 ): Promise<CustomerImageVaultMetadata> {
-  const mimeType = (blob.type || '').split(';')[0].toLowerCase();
+  const safeName = String(originalName || 'customer-image').replace(/[\\/\u0000-\u001f]/g, '_').slice(0, 180);
+  const declaredMime = (blob.type || '').split(';')[0].toLowerCase();
+  const extensionMime = /\.png$/i.test(safeName) ? 'image/png'
+    : /\.webp$/i.test(safeName) ? 'image/webp'
+    : /\.jpe?g$/i.test(safeName) ? 'image/jpeg' : '';
+  const mimeType = ALLOWED_MIME.has(declaredMime) ? declaredMime : extensionMime;
   if (!ALLOWED_MIME.has(mimeType)) throw new Error('فقط تصاویر JPEG، PNG و WebP قابل ذخیره هستند.');
   if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.');
+  const storedBlob = blob.type === mimeType ? blob : new Blob([blob], { type: mimeType });
 
   const record: CustomerImageVaultRecord = {
     id: makeId(),
     ownerId: ownerId || 'guest',
-    originalName: String(originalName || 'customer-image').replace(/[\\/\u0000-\u001f]/g, '_').slice(0, 180),
+    originalName: safeName,
     mimeType,
-    sizeBytes: blob.size,
-    sha256: await sha256(blob),
+    sizeBytes: storedBlob.size,
+    sha256: await sha256(storedBlob),
     createdAt: Date.now(),
-    blob,
+    blob: storedBlob,
   };
   const db = await openDatabase();
   const tx = db.transaction(STORE_NAME, 'readwrite');

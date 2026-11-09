@@ -31,6 +31,13 @@ const customer360Enabled = () => process.env.CUSTOMER_360_LOCAL_VAULT_ENABLED ==
 async function customerIdentity(req: Request, res: Response) {
   if (!customer360Enabled()) throw fail(503, 'ثبت سوابق CRM تا فعال‌سازی کنترل‌شده این قابلیت در دسترس نیست.');
   if (!databaseEnabled() || !adoptedSchema()) throw fail(503, 'ثبت سوابق مشتری به دیتابیس اصلی نیاز دارد.');
+  const origin = req.headers.origin;
+  if (origin) {
+    let host = '';
+    try { host = new URL(origin).host; } catch { throw fail(403, 'مبدأ درخواست معتبر نیست.'); }
+    if (host !== req.headers.host) throw fail(403, 'مبدأ درخواست معتبر نیست.');
+  }
+  if (!req.is('application/json')) throw fail(415, 'فرمت درخواست باید JSON باشد.');
   await refreshAuth(req, res);
   const identity = await getPortalIdentity(req);
   const userId = String(identity.user?.authUserId || identity.user?.id || '');
@@ -128,6 +135,17 @@ export function registerCustomerIntelligenceApi(app: Express) {
       const summary = cleanText(req.body?.summary, 2500);
       const matched = codeList(req.body?.matchedProductCodes);
       const similar = codeList(req.body?.similarProductCodes);
+      const candidateCodes = [...new Set([...matched, ...similar])];
+      if (candidateCodes.length) {
+        const catalogRows = await database().query(
+          'select code from public.catalog_variants where code = any($1::text[])',
+          [candidateCodes]
+        );
+        const verifiedCodes = new Set(catalogRows.rows.map((row: any) => String(row.code)));
+        if (verifiedCodes.size !== candidateCodes.length) {
+          throw fail(400, 'نتیجه شناسایی فقط می‌تواند کدهای واقعی کاتالوگ را ثبت کند.');
+        }
+      }
       const safe = jsonResult(req.body);
       const updated = await database().query(
         `update public.customer_image_identifications set
@@ -178,6 +196,16 @@ export function registerCustomerIntelligenceApi(app: Express) {
         name: cleanText(item?.name, 180),
       })).filter((item: any) => item.code && /^[\p{L}\p{N}_.:/ -]{1,110}$/u.test(item.code)) : [];
       const productCodes = codeList(req.body?.productCodes || products.map((item: any) => item.code));
+      if (productCodes.length) {
+        const catalogRows = await database().query(
+          'select code from public.catalog_variants where code = any($1::text[])',
+          [productCodes]
+        );
+        const verifiedCodes = new Set(catalogRows.rows.map((row: any) => String(row.code)));
+        if (verifiedCodes.size !== productCodes.length) {
+          throw fail(400, 'فقط کدهای واقعی و تأییدشده کاتالوگ را می‌توان به پرونده مشاوره افزود.');
+        }
+      }
       const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-32).map((item: any) => ({
         id: cleanText(item?.id, 120),
         role: item?.role === 'assistant' || item?.role === 'model' ? 'assistant' : 'user',

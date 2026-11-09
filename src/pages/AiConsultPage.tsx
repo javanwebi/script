@@ -401,16 +401,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     };
   }, []);
 
-  const persistCapturedImageOnDevice = async (blob: Blob, originalName: string) => {
+  const persistCapturedImageOnDevice = async (blob: Blob, originalName: string): Promise<string | null> => {
     setIsSavingCapturedImage(true);
     try {
       const saved = await saveCustomerDeviceImage(blob, currentUser?.id || 'guest', originalName);
       setCapturedImageId(saved.id);
       setImageEventId(null);
       setAnalysisError(null);
+      return saved.id;
     } catch (error: any) {
       setCapturedImageId(null);
       setAnalysisError(error?.message || 'ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.');
+      return null;
     } finally {
       setIsSavingCapturedImage(false);
     }
@@ -468,7 +470,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       setCapturedImage(dataUrl);
       setCapturedImageId(null);
       setImageEventId(null);
-      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg')).catch(error => setAnalysisError(error instanceof Error ? error.message : 'ذخیره تصویر دوربین ناموفق بود.'));
+      // The camera frame remains in page memory until the customer confirms by starting analysis.
       stopCamera();
     }
   };
@@ -476,6 +478,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const mime = (file.type || '').toLowerCase();
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((mime ? !allowed.includes(mime) : !supportedExtension) || file.size > 10 * 1024 * 1024) {
+      setAnalysisError('لطفاً تصویر JPG، PNG یا WebP با حجم کمتر از ۱۰ مگابایت انتخاب کنید.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -507,11 +517,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       setAnalysisError('لطفاً صبر کنید تا تصویر در حافظه داخلی دستگاه ذخیره شود.');
       return;
     }
-    if (!currentUser) {
-      setAnalysisError('برای ثبت سابقه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.');
-      openAuthModal('/ai-consult', 'login');
-      return;
-    }
     setIsAnalyzing(true);
     setAnalysisError(null);
     setAnalysisResult(null);
@@ -528,30 +533,57 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     try {
       let imageBase64: string | undefined;
       let imageUrl: string | undefined;
-      if (/^https?:\/\//i.test(capturedImage)) {
+      const isCatalogPreset = /^https?:\/\//i.test(capturedImage) ||
+        capturedImage.startsWith('/storage/products/') ||
+        capturedImage.startsWith('/api/ai/catalog-images/');
+      if (isCatalogPreset && /^https?:\/\//i.test(capturedImage)) {
         imageUrl = capturedImage;
+      } else if (isCatalogPreset) {
+        const presetBlob = await fetch(capturedImage, { credentials: 'same-origin', cache: 'no-store' }).then(response => {
+          if (!response.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
+          return response.blob();
+        });
+        const presetMime = presetBlob.type || (/\.png(?:\?|$)/i.test(capturedImage) ? 'image/png' : /\.webp(?:\?|$)/i.test(capturedImage) ? 'image/webp' : 'image/jpeg');
+        const typedPresetBlob = presetBlob.type ? presetBlob : new Blob([presetBlob], { type: presetMime });
+        requestMimeType = presetMime;
+        imageBase64 = await customerImageBlobToDataUrl(typedPresetBlob);
       } else {
-        if (!capturedImageId) throw new Error('تصویر هنوز در حافظه داخلی دستگاه ذخیره نشده است؛ دوباره انتخاب کنید.');
-        const localRecord = await getCustomerDeviceImage(capturedImageId);
+        let effectiveImageId = capturedImageId;
+        if (!effectiveImageId) {
+          const imageBlob = await fetch(capturedImage, { cache: 'no-store' }).then(response => {
+            if (!response.ok) throw new Error('خواندن تصویر انتخاب‌شده ناموفق بود.');
+            return response.blob();
+          });
+          effectiveImageId = await persistCapturedImageOnDevice(imageBlob, 'customer-part-image.jpg') || undefined;
+        }
+        if (!effectiveImageId) throw new Error('تصویر در حافظه خصوصی دستگاه ذخیره نشد؛ لطفاً دوباره انتخاب کنید.');
+        const localRecord = await getCustomerDeviceImage(effectiveImageId);
         if (!localRecord) throw new Error('تصویر محلی پیدا نشد؛ دوباره انتخاب کنید.');
-        await adoptCustomerDeviceImage(capturedImageId, currentUser.id);
+        if (currentUser) {
+          try {
+            await adoptCustomerDeviceImage(effectiveImageId, currentUser.id);
+          } catch (adoptError) {
+            console.warn('[Customer image vault] local ownership update unavailable', adoptError);
+          }
+        }
         requestMimeType = localRecord.mimeType;
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
-        if (!activeImageEventId) {
-          const metadata = await getCustomerDeviceImageMetadata(capturedImageId);
-          if (!metadata) throw new Error('اطلاعات تصویر محلی پیدا نشد.');
-          try {
-            const event = await createCustomerImageIdentification({
-              deviceImageId: metadata.id,
-              sha256: metadata.sha256,
-              mimeType: metadata.mimeType,
-              sizeBytes: metadata.sizeBytes,
-              originalName: metadata.originalName,
-            });
-            activeImageEventId = event.id;
-            setImageEventId(event.id);
-          } catch (trackingError) {
-            console.warn('[Customer image history] metadata sync unavailable', trackingError);
+        if (currentUser && !activeImageEventId) {
+          const metadata = await getCustomerDeviceImageMetadata(effectiveImageId);
+          if (metadata) {
+            try {
+              const event = await createCustomerImageIdentification({
+                deviceImageId: metadata.id,
+                sha256: metadata.sha256,
+                mimeType: metadata.mimeType,
+                sizeBytes: metadata.sizeBytes,
+                originalName: metadata.originalName,
+              });
+              activeImageEventId = event.id;
+              setImageEventId(event.id);
+            } catch (trackingError) {
+              console.warn('[Customer image history] metadata sync unavailable', trackingError);
+            }
           }
         }
       }
@@ -583,9 +615,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     } catch (err: any) {
       if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: 'failed' }).catch(() => undefined);
       console.error('Part analysis error:', err);
-      setAnalysisError(
-        err?.message || 'خطا در ارتباط با موتور هوش مصنوعی فورزا. لطفاً مجدداً تلاش نمایید.'
-      );
+      setAnalysisError(err?.message || 'خطا در ارتباط با موتور هوش مصنوعی فورزا. لطفاً مجدداً تلاش نمایید.');
     } finally {
       setIsAnalyzing(false);
     }

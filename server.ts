@@ -23,7 +23,8 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
 import { lookup } from 'node:dns/promises';
@@ -189,6 +190,7 @@ const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'image
 if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
+const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return ''; /* Direct vision: Worker retired. */ }
 
@@ -315,7 +317,6 @@ function getPublicAppBaseUrl(req: express.Request): string {
 function visionImagePublicOrigin(req:express.Request):string {
   return (process.env.VISION_IMAGE_PUBLIC_ORIGIN || getPublicAppBaseUrl(req)).trim().replace(/\/+$/,'');
 }
-
 function normalizeBrowserOrigin(value: string): string | null {
   try {
     const url = new URL(value);
@@ -474,22 +475,7 @@ app.use('/api/ai', async (req,res,next)=>{
 });
 app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, message: 'از مسیر ورود جدید استفاده کنید.' }));
 
-interface CachedCustomerImage {
-  buffer: Buffer;
-  mimeType: string;
-  dataUrl: string;
-  createdAt: number;
-}
-const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
-
-function cleanCustomerImageMemoryCache() {
-  const cutoff = Date.now() - 60 * 1000;
-  for (const [key, val] of customerImageMemoryCache.entries()) {
-    if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
-  }
-}
-
-// Keep legacy image routes for catalogue assets. Customer uploads are never written to this directory.
+// Fallback to disk folder if image existed prior
 app.use(
   ['/imageai', '/imagemoshtari'],
   express.static(IMAGE_AI_DIR, {
@@ -902,7 +888,8 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
  .then(()=>{
   const coverage=catalogVisualIndex.coverage(corpus);
   console.log('[Visual index]',JSON.stringify(coverage));
-  // Retry only missing/unreadable catalogue rows; do not report ready until all are indexed.
+  // A missing/unreadable photo must not block later rows. Retry only the
+  // still-missing entries after a cooldown; ready remains false until all match.
   if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
  })
  .catch((error)=>{
@@ -2744,45 +2731,25 @@ async function readResponseBufferLimited(response: Response, maxBytes: number): 
 async function persistCustomerImage(
   input: Buffer,
   declaredMime: string | undefined
-): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number; dataUrl: string; buffer: Buffer }> {
-  if (!Buffer.isBuffer(input) || input.length === 0) {
-    throw new Error('فایل تصویر خالی یا نامعتبر است.');
-  }
-  if (input.length > CUSTOMER_IMAGE_MAX_BYTES) {
-    throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
-  }
-
-  const normalizedMime = normalizeCustomerImageMime(declaredMime);
-  if (!normalizedMime) {
-    throw new Error('فقط تصاویر JPEG، PNG و WEBP پشتیبانی می‌شوند.');
-  }
-
-  const sharpOptions = { limitInputPixels: 40_000_000 };
-  const metadata = await sharp(input, sharpOptions).metadata();
-  const actualMimeByFormat: Record<string, CustomerImageMime> = {
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    webp: 'image/webp',
+): Promise<{ fileName: string; mimeType: CustomerImageMime; sizeBytes: number; dataUrl: string; buffer: Buffer }> {
+  if (!Buffer.isBuffer(input) || input.length === 0) throw new Error('فایل تصویر خالی یا نامعتبر است.');
+  if (input.length > CUSTOMER_IMAGE_MAX_BYTES) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
+  const mimeType = normalizeCustomerImageMime(declaredMime);
+  if (!mimeType) throw new Error('فقط تصاویر JPEG، PNG و WEBP پشتیبانی می‌شوند.');
+  const metadata = await sharp(input, { limitInputPixels: 40_000_000 }).metadata();
+  const actualMime: CustomerImageMime | null =
+    metadata.format === 'jpeg' ? 'image/jpeg' :
+    metadata.format === 'png' ? 'image/png' :
+    metadata.format === 'webp' ? 'image/webp' : null;
+  if (!actualMime || actualMime !== mimeType) throw new Error('نوع واقعی فایل با فرمت اعلام‌شدهٔ تصویر مطابقت ندارد.');
+  // Request-scoped only: no disk, cache, object storage, database or GitHub write.
+  return {
+    fileName: `request-${crypto.randomUUID()}`,
+    mimeType,
+    sizeBytes: input.length,
+    dataUrl: `data:${mimeType};base64,${input.toString('base64')}`,
+    buffer: input,
   };
-  const actualMime = metadata.format ? actualMimeByFormat[metadata.format] : undefined;
-  if (!actualMime || actualMime !== normalizedMime) {
-    throw new Error('نوع واقعی فایل با پسوند یا نوع ارسالی تصویر مطابقت ندارد.');
-  }
-
-  const optimized = await sharp(input, sharpOptions)
-    .rotate()
-    .flatten({ background: '#ffffff' })
-    .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 94 })
-    .toBuffer();
-
-  // Customer originals are persisted only in the browser's IndexedDB vault.
-  // The server keeps this optimized buffer in RAM only for the active AI request.
-  const fileName = `vision-${crypto.randomUUID()}.jpg`;
-  const base64 = optimized.toString('base64');
-  const dataUrl = `data:image/jpeg;base64,${base64}`;
-
-  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
 }
 
 function validatePresetImageImportUrl(input: string): string | null {
@@ -2880,137 +2847,57 @@ async function resolveCustomerImageBufferAndInfo(
   input: string,
   _req: express.Request
 ): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
-  cleanCustomerImageMemoryCache();
   const trimmed = String(input || '').trim();
-  if (!trimmed) {
-    throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
+  if (!trimmed) throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
+  const maxEncodedBytes = Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048;
+  const dataUrlMatch = trimmed.match(/^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/i);
+  if (dataUrlMatch) {
+    const encoded = dataUrlMatch[2].replace(/\s+/g, '');
+    if (encoded.length > maxEncodedBytes || !/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) throw new Error('دادهٔ تصویر نامعتبر یا بیش از ۱۰ مگابایت است.');
+    const buffer = Buffer.from(encoded, 'base64');
+    if (!buffer.length || buffer.length > CUSTOMER_IMAGE_MAX_BYTES || buffer.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) throw new Error('دادهٔ تصویر خالی یا نامعتبر است.');
+    const prepared = await persistCustomerImage(buffer, dataUrlMatch[1]);
+    return { imageUrl: prepared.dataUrl, fileName: prepared.fileName, buffer: prepared.buffer };
   }
-
-  // 1. Data URL link (RFC 2397): directly contains full image bytes
-  if (trimmed.startsWith('data:image/')) {
-    const base64Index = trimmed.indexOf(';base64,');
-    if (base64Index !== -1) {
-      const rawBase64 = trimmed.slice(base64Index + 8);
-      const buffer = Buffer.from(rawBase64, 'base64');
-      const fileName = `${crypto.randomUUID()}.jpg`;
-      return {
-        imageUrl: trimmed,
-        fileName,
-        buffer,
-      };
-    }
-  }
-
-  // 2. Direct Base64 string without data prefix
   if (/^[A-Za-z0-9+/=]{100,}$/.test(trimmed)) {
+    if (trimmed.length > maxEncodedBytes) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است.');
     const buffer = Buffer.from(trimmed, 'base64');
-    const fileName = `${crypto.randomUUID()}.jpg`;
-    const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    return {
-      imageUrl: dataUrl,
-      fileName,
-      buffer,
-    };
+    if (!buffer.length || buffer.length > CUSTOMER_IMAGE_MAX_BYTES || buffer.toString('base64').replace(/=+$/, '') !== trimmed.replace(/=+$/, '')) throw new Error('دادهٔ تصویر خالی یا نامعتبر است.');
+    const prepared = await persistCustomerImage(buffer, 'image/jpeg');
+    return { imageUrl: prepared.dataUrl, fileName: prepared.fileName, buffer: prepared.buffer };
   }
-
-  // 3. HTTP or HTTPS Image URL link
+  const safeUrl = validatePresetImageImportUrl(trimmed);
+  if (!safeUrl) throw new Error('آدرس تصویر معتبر نیست.');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
   try {
-    const url = new URL(trimmed);
-    const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
-    if (cached && cached.buffer && cached.buffer.length > 0) {
-      return {
-        imageUrl: url.toString(),
-        fileName,
-        buffer: cached.buffer,
-      };
-    }
-
-    // Actively fetch image from URL so we have its real bytes for visual comparison and AI vision!
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6000);
-      const fetchResp = await fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'image/jpeg,image/png,image/webp,*/*' },
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer));
-
-      if (fetchResp.ok) {
-        const arrayBuf = await fetchResp.arrayBuffer();
-        const rawBuffer = Buffer.from(arrayBuf);
-        if (rawBuffer.length > 0) {
-          let previewBuf = rawBuffer;
-          try {
-            previewBuf = await sharp(rawBuffer)
-              .rotate()
-              .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
-              .jpeg({ quality: 85 })
-              .toBuffer();
-          } catch {}
-          const dataUrl = `data:image/jpeg;base64,${previewBuf.toString('base64')}`;
-          customerImageMemoryCache.set(fileName, {
-            buffer: rawBuffer,
-            mimeType: fetchResp.headers.get('content-type') || 'image/jpeg',
-            dataUrl,
-            createdAt: Date.now(),
-          });
-          return {
-            imageUrl: url.toString(),
-            fileName,
-            buffer: rawBuffer,
-          };
-        }
-      }
-    } catch (fetchErr: any) {
-      console.warn('[Resolve Image URL] Remote fetch warning:', fetchErr?.message);
-    }
-
-    return {
-      imageUrl: url.toString(),
-      fileName,
-      buffer: Buffer.alloc(0),
-    };
-  } catch {
-    throw new Error('آدرس یا لینک تصویر معتبر نیست.');
+    const response = await fetch(safeUrl, { method: 'GET', redirect: 'error', headers: { Accept: 'image/jpeg,image/png,image/webp' }, signal: controller.signal });
+    if (!response.ok) throw new Error('دریافت تصویر از نشانی اعلام‌شده ناموفق بود.');
+    const rawBuffer = await readResponseBufferLimited(response, CUSTOMER_IMAGE_MAX_BYTES);
+    const prepared = await persistCustomerImage(rawBuffer, response.headers.get('content-type') || undefined);
+    return { imageUrl: prepared.dataUrl, fileName: prepared.fileName, buffer: prepared.buffer };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 // Backward compatibility alias
-const getUploadedCustomerImageFromUrl = (input: string, req: express.Request) => {
+const getUploadedCustomerImageFromUrl = (input: string, _req: express.Request) => {
   const trimmed = String(input || '').trim();
-  if (trimmed.startsWith('data:image/')) {
-    const base64Index = trimmed.indexOf(';base64,');
-    if (base64Index !== -1) {
-      const buffer = Buffer.from(trimmed.slice(base64Index + 8), 'base64');
-      const fileName = `${crypto.randomUUID()}.jpg`;
-      return { imageUrl: trimmed, fileName, buffer };
-    }
-  }
-  try {
-    const url = new URL(trimmed);
-    const fileName = path.basename(url.pathname) || `${crypto.randomUUID()}.jpg`;
-    const cached = customerImageMemoryCache.get(fileName);
-    return {
-      imageUrl: url.toString(),
-      fileName,
-      buffer: cached ? cached.buffer : Buffer.alloc(0),
-    };
-  } catch {
-    return { imageUrl: trimmed, fileName: `${crypto.randomUUID()}.jpg`, buffer: Buffer.alloc(0) };
-  }
+  const match = trimmed.match(/^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/i);
+  if (match) return { imageUrl: trimmed, fileName: `request-${crypto.randomUUID()}`, buffer: Buffer.from(match[2], 'base64') };
+  return { imageUrl: trimmed, fileName: `request-${crypto.randomUUID()}`, buffer: Buffer.alloc(0) };
 };
 
 async function callPartRecognitionWorker(
   imageUrl: string, fileName: string, prompt: string, catalogSourceUrl?: string,
-  imageBuffer?: Buffer, req?: express.Request, publishImage?:ImagePublisher
+  imageBuffer?: Buffer, req?: express.Request
 ): Promise<any> {
   if (!getPartRecognitionWorkerUrl()) return {success:false,recognition:null};
   try {
     const buffer=imageBuffer?.length ? imageBuffer : (await resolveCustomerImageBufferAndInfo(imageUrl,req!)).buffer;
     const optimized=await sharp(buffer).resize(1600,1600,{fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:94}).toBuffer();
-    const publisher=publishImage || (req ? createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req)) : undefined);
-    const result=await workerVision([{role:'user',parts:[{text:prompt},{inlineData:{mimeType:'image/jpeg',data:optimized.toString('base64')}}]}],{publishImage:publisher,responseSchema:observationSchema});
+    const result=await workerVision([{role:'user',parts:[{text:prompt},{inlineData:{mimeType:'image/jpeg',data:optimized.toString('base64')}}]}],{responseSchema:observationSchema});
     const recognition=normalizeRecognitionObservation(JSON.parse(stripJsonFences(result.text)));
     if (!recognition || Array.isArray(recognition) || ![recognition.whatYouSee, recognition.detected_part_type, recognition.visual_shape].some(value=>typeof value==='string' && value.trim())) throw new Error('Invalid visual observation');
     return {success:true, recognition,model:result.model};
@@ -3945,7 +3832,6 @@ async function verifyCandidatesVisuallyWithGemini(
   userBuffer: Buffer,
   candidates: any[],
   detectedPartType: string,
-  publishImage?:ImagePublisher
 ): Promise<{ matched: any[]; similar: any[]; hasExact: boolean }> {
   if (!candidates || candidates.length === 0) {
     return { matched: [], similar: [], hasExact: false };
@@ -4042,7 +3928,7 @@ ${candidatePrompts}
   try {
     let responseText='';
     if (getPartRecognitionWorkerUrl()) {
-      try { responseText=(await workerVision([{role:'user',parts}],{publishImage})).text; }
+      try { responseText=(await workerVision([{role:'user',parts}])).text; }
       catch { /* The direct key can provide the same comparison if configured. */ }
     }
     if (!responseText && ai) responseText=(await generateWithModelCascade(ai,[{role:'user',parts}],{responseMimeType:'application/json'},'Candidate comparison',GEMINI_MODELS,30000)).text;
@@ -4238,7 +4124,7 @@ async function analyzePartWithWorker(
   onProgress?: (state:ScanProgress)=>void
 ): Promise<any> {
   refreshRecognitionCatalog();
-  const publishImage=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
+  const catalogImagePublisher=createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req));
   void cleanVisionImageLinks(IMAGE_AI_DIR);
   const uploaded = await resolveCustomerImageBufferAndInfo(String(body?.imageUrl || '').trim(), req);
   let prompt = buildWorkerAnalysisPrompt(body, stage);
@@ -4259,8 +4145,7 @@ async function analyzePartWithWorker(
         prompt,
         catalogSourceUrl,
         uploaded.buffer,
-        req,
-        publishImage
+        req
       );
       if (workerData && workerData.success === true && workerData.recognition && typeof workerData.recognition === 'object') {
         raw = workerData.recognition;
@@ -4368,7 +4253,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
   while(partObservationCache.size>128)partObservationCache.delete(partObservationCache.keys().next().value!);
   if(body.observationOnly===true){
     // Prepare retrieval while the customer measures the part; a changed admin catalogue produces a new cache key.
-    void retrievePartPhotos(observationKey,uploaded.buffer,buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage);
+    void retrievePartPhotos(observationKey,uploaded.buffer,buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),catalogImagePublisher);
     return {success:true,isAiGenerated:true,stage:'quick',observationOnly:true,requiredMeasurements:fields,
     summary:{whatYouSee:analysis,visualAnalysis:analysis,detectedPartType:raw.part_family_farsi || raw.detected_part_type,detectedProfile:'برای تطبیق کد، مشخصات قطعه را وارد کنید.',confidence:0,unknownParameters:raw.unknown_parameters,readableMarkings:raw.readable_markings},
     matchedProducts:[],similarCandidates:[],technicalAdvice:'مقادیر نامعلوم را حدس نزنید؛ مشخص نیست را انتخاب کنید.',};}
@@ -4396,7 +4281,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
   let comparisonCorpus=corpus;
   let retrievalMode='exhaustive';
   try{
-    const retrieved=await retrievePartPhotos(observationKey,uploaded.buffer,corpus,publishImage);
+    const retrieved=await retrievePartPhotos(observationKey,uploaded.buffer,corpus,catalogImagePublisher);
     if(retrieved){comparisonCorpus=retrieved;retrievalMode='indexed';}
   }catch{ /* A failed retrieval cannot silently remove catalogue images. */ }
   // Run the site's technical search over real inventory, using the AI observation as query data.
@@ -4409,7 +4294,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
   const technicalFamilies=new Set(technicalRanking.slice(0,20).map(hit=>hit.item.familyCode));
   const context=catalogRecognitionContext(recognitionProducts(),raw);
   if(retrievalMode==='indexed')comparisonCorpus=[...new Map([...comparisonCorpus,...context.supplement(corpus),...corpus.filter(row=>row.bindings.some(binding=>technicalFamilies.has(binding.familyCode))).slice(0,24)].map(row=>[row.id,row])).values()];
-  warmCatalogVisualIndex(corpus,publishImage);
+  warmCatalogVisualIndex(corpus,catalogImagePublisher);
   let imageScan:Awaited<ReturnType<typeof scanEveryCatalogImage>>={matches:[],coverage:{total:corpus.length,compared:0,failed:0,complete:false,providerAvailable:false,failedImageIds:[]}};
   if(aiAvailable){
     const direct=apiKey ? new GoogleGenAI({apiKey}) : null;
@@ -4418,7 +4303,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
       observation:raw,customerDetails:{length:body.length,width:body.width,pitch:body.pitch,application:body.application,features:body.features,measurements:body.measurements},describeImage:context.describe,
       vision:async (parts,schema)=>{
         if(getPartRecognitionWorkerUrl()) {
-          try{return (await workerVision([{role:'user',parts}],{publishImage,responseSchema:schema})).text;}catch(error){if(!direct)throw error;}
+          try{return (await workerVision([{role:'user',parts}],{responseSchema:schema})).text;}catch(error){if(!direct)throw error;}
         }
         if(!direct)throw new Error('No vision provider');
         return (await generateWithModelCascade(direct,[{role:'user',parts}],{responseMimeType:'application/json',responseSchema:schema},'Full catalogue image scan',GEMINI_MODELS,45000)).text;
@@ -4533,7 +4418,6 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     rejectedCandidates: [],
     fallbackNotice: aiAvailable ? undefined : 'تحلیل آنلاین انجام نشد؛ نتایج فقط پیشنهادهای جست‌وجو هستند. نوشتهٔ روی قطعه و ابعاد برای تأیید لازم است.',
     technicalAdvice: raw?.technical_advice || 'پیش از سفارش، ابعاد، جنس و کد فنی قطعه را با رکورد محصول و شرایط دستگاه تطبیق دهید.',
-    
     catalogImageMatches:imageScan.matches.map(photo=>({...photo,image:photo.image.startsWith('data:') ? `${visionImagePublicOrigin(req)}/api/ai/catalog-images/${encodeURIComponent(photo.imageId)}` : photo.image})),
     scanCoverage:imageScan.coverage,
     retrieval:{mode:retrievalMode,...catalogVisualIndex.coverage(corpus),verifiedPool:comparisonCorpus.length},
@@ -4542,42 +4426,21 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
 }
 
 async function saveBase64CustomerImageForWorker(
-  req: express.Request,
+  _req: express.Request,
   imageInput: unknown,
   mimeTypeInput: unknown
 ): Promise<{ imageUrl: string; fileName: string }> {
   const raw = typeof imageInput === 'string' ? imageInput.trim() : '';
   const maxEncodedBytes = Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048;
-  if (!raw || raw.length > maxEncodedBytes) {
-    const error: any = new Error('حجم تصویر بیش از ۱۰ مگابایت است یا دادهٔ تصویر نامعتبر است.');
-    error.statusCode = raw.length > maxEncodedBytes ? 413 : 400;
-    throw error;
-  }
-
+  if (!raw || raw.length > maxEncodedBytes) throw new Error('حجم تصویر بیش از ۱۰ مگابایت است یا دادهٔ تصویر نامعتبر است.');
   const dataUrl = raw.match(/^data:([^;,]+);base64,([\s\S]+)$/i);
   const declaredMime = dataUrl?.[1] || String(mimeTypeInput || 'image/jpeg');
   const encoded = (dataUrl?.[2] || raw).replace(/\s+/g, '');
-  if (!/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) {
-    const error: any = new Error('دادهٔ Base64 تصویر معتبر نیست.');
-    error.statusCode = 400;
-    throw error;
-  }
-
+  if (!/^[a-z0-9+/]*={0,2}$/i.test(encoded) || encoded.length % 4 === 1) throw new Error('دادهٔ Base64 تصویر معتبر نیست.');
   const buffer = Buffer.from(encoded, 'base64');
-  if (!buffer.length || buffer.length > CUSTOMER_IMAGE_MAX_BYTES ||
-      buffer.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) {
-    const error: any = new Error(buffer.length > CUSTOMER_IMAGE_MAX_BYTES
-      ? 'حجم تصویر بیش از ۱۰ مگابایت است.'
-      : 'دادهٔ تصویر خالی یا نامعتبر است.');
-    error.statusCode = buffer.length > CUSTOMER_IMAGE_MAX_BYTES ? 413 : 400;
-    throw error;
-  }
-
-  const saved = await persistCustomerImage(buffer, declaredMime);
-  return {
-    imageUrl: saved.dataUrl,
-    fileName: saved.fileName,
-  };
+  if (!buffer.length || buffer.length > CUSTOMER_IMAGE_MAX_BYTES || buffer.toString('base64').replace(/=+$/, '') !== encoded.replace(/=+$/, '')) throw new Error('دادهٔ تصویر خالی یا نامعتبر است.');
+  const prepared = await persistCustomerImage(buffer, declaredMime);
+  return { imageUrl: prepared.dataUrl, fileName: prepared.fileName };
 }
 
 app.get('/api/ai/catalog-images/:id',async(req,res)=>{
@@ -4614,14 +4477,75 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
   return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
  }catch{return res.status(503).json({enabled:true,ready:false});}
 });
+
+const localVisionDetectionCache = new LocalVisionDetectionCache();
+app.post('/api/ai/detect-regions', async (req,res)=>{
+  if(!localVisionEnabled)return res.status(503).json({error:{code:'VISION_DISABLED',message:'تشخیص خودکار در این سرور فعال نیست؛ ناحیه را دستی انتخاب کنید.'}});
+  if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور شناسایی در حال پردازش تصویر دیگری است.'}});
+  localVisionQueries++;
+  const started=Date.now();
+  try{
+    if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+    const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
+    if(!imageUrl || imageUrl.length>Math.ceil(CUSTOMER_IMAGE_MAX_BYTES * 4 / 3) + 2048)return res.status(400).json({error:{code:'INVALID_IMAGE',message:'تصویر بارگذاری‌شده معتبر نیست.'}});
+    const uploaded=await resolveCustomerImageBufferAndInfo(imageUrl,req);
+    refreshRecognitionCatalog();
+    const products=recognitionProducts();
+    const images=buildCatalogImageCorpus(products,loadCatalogOverridesDb().updatedAt);
+    await catalogVisualIndex.load();
+    const coverage=catalogVisualIndex.coverage(images);
+    if(!images.length || !coverage.ready){
+      warmCatalogVisualIndex(images,localImagePublisher);
+      return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}).`},retrieval:coverage});
+    }
+    const queryImage=await prepareLocalQuery(uploaded.buffer);
+    const query=await describeLocalQuery(queryImage);
+    const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
+    if(!retrieved)throw new Error('Index changed during region detection');
+    const viewScores=bestBoundQueryViewScores(retrieved,products);
+    const selectedRegion=selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+    const queryRegions=(query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+    if(selectedRegion && !queryRegions.some(region=>
+      Math.abs(region.x-selectedRegion.x)<0.002 && Math.abs(region.y-selectedRegion.y)<0.002 &&
+      Math.abs(region.width-selectedRegion.width)<0.002 && Math.abs(region.height-selectedRegion.height)<0.002
+    ))queryRegions.unshift(selectedRegion);
+    queryRegions.splice(4);
+    const detectionId=crypto.randomUUID();
+    localVisionDetectionCache.set(detectionId,{
+      imageHash:crypto.createHash('sha256').update(uploaded.buffer).digest('hex'),
+      model:localProfile.model,
+      query:query as QueryEvidence,
+      queryRegions,
+      selectedRegion,
+    });
+    return res.json({
+      success:true,
+      detectionId,
+      queryRegion:selectedRegion || null,
+      queryRegions,
+      autoDetected:Boolean(selectedRegion),
+      model:localProfile.model,
+      pipeline:localProfile.pipeline,
+      elapsedMs:Date.now()-started,
+    });
+  }catch(error){
+    const errorId=crypto.randomUUID();
+    const detail=error instanceof Error?error.message:String(error);
+    console.warn('[Local vision region detection]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
+    return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تشخیص خودکار موقتاً کامل نشد؛ می‌توانید ناحیه قطعه را دستی انتخاب کنید.'},errorId});
+  }finally{
+    localVisionQueries--;
+  }
+});
+
 app.post('/api/ai/analyze-part', async (req, res) => {
   if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
-    if(localVisionQueries>=1)return res.status(429).json({error:{message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
+    if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
     localVisionQueries++;
     try{
-      if(!databaseEnabled())return res.status(503).json({error:{message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+      if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
       const body={...req.body};
-      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
+      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{code:'INVALID_REGION',message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
       if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
       const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
       refreshRecognitionCatalog();
@@ -4632,17 +4556,26 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const coverage=catalogVisualIndex.coverage(images);
       if(!images.length || !coverage.ready){
         warmCatalogVisualIndex(images,publish);
-        return res.status(503).json({error:{message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
+        return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
       }
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
-      const query=await describeLocalQuery(queryImage);
+      const cachedDetection=typeof body.detectionId==='string'
+        ? localVisionDetectionCache.get(body.detectionId,crypto.createHash('sha256').update(uploaded.buffer).digest('hex'),localProfile.model)
+        : undefined;
+      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
+        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
+        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
+      ));
+      const query=cachedDetection && cachedRegionMatches
+        ? cachedDetection.query
+        : await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
       const viewScores=bestBoundQueryViewScores(retrieved,products);
-      const selectedRegion=body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
-      const detailImage=body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
+      const selectedRegion=body.fullImage===true ? undefined : body.region || selectBestQueryRegion(query.viewRegions,viewScores,query.region);
+      const detailImage=body.fullImage===true || body.region || !selectedRegion ? queryImage : await prepareLocalQuery(uploaded.buffer,selectedRegion);
       let geometryComplete=false;
       try{
         const candidates=await Promise.all(hits.slice(0,6).map(async hit=>{
@@ -4662,11 +4595,15 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
       const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
-      const queryRegions=body.region ? [body.region] : (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
-      return res.json(publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      const queryRegions=body.region ? [body.region] : cachedDetection?.queryRegions || (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
+      const responsePayload=publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")});
+      if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
+      return res.json(responsePayload);
     }catch(error){
-      console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
-      return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
+      const errorId=crypto.randomUUID();
+      const detail=error instanceof Error?error.message:String(error);
+      console.warn('[Local vision request]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
+      return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تحلیل تصویر موقتاً کامل نشد. تصویر شما محفوظ است؛ دوباره تلاش کنید.'},errorId});
     }finally{localVisionQueries--;}
   }
 
@@ -4676,7 +4613,6 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const jobId=recognitionJobs.start(async progress=>{
         if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
         const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
-        const customerUrl='device-local://temporary-processing';
         if(!databaseEnabled())throw new Error('Catalog database unavailable');
         refreshRecognitionCatalog();
         const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
@@ -4685,7 +4621,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
         progress({stage:'preparing',total:images.length,compared:0,failed:0});
         const model=process.env.FORZA_VISION_AGENT_MODEL?.trim() || 'gemini-flash-latest';
         const result=await runReadOnlyVisionCatalogAgent({
-          client:new GoogleGenAI({apiKey}),model,customerImageUrl:customerUrl,
+          client:new GoogleGenAI({apiKey}),model,
           customerImageBuffer:uploaded.buffer,
           catalogImageOrigin:visionImagePublicOrigin(req),images,
           loadCatalogImage:async image=>getCatalogImageBuffer(image.url,image.revision),
@@ -5022,8 +4958,7 @@ ${stageInstruction}
             ai,
             normalizedImage.buffer,
             candidatePool,
-            String(parsedResult?.detectedPartType || parsedResult?.visualShape || 'قطعه صنعتی'),
-            createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req))
+            String(parsedResult?.detectedPartType || parsedResult?.visualShape || 'قطعه صنعتی')
           );
 
           const vMatched = canonicalizeCatalogMatchList(verifiedResult.matched || []);

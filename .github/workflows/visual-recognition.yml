@@ -4,11 +4,35 @@ on:
     branches: [main]
     paths:
       - 'server.ts'
+      - 'server/ai/baiConsult.ts'
+      - 'server/db/adminCustomersApi.ts'
+      - 'server/db/customerIntelligenceApi.ts'
+      - 'src/admin/modules/RealCustomersCrmModule.tsx'
+      - 'src/components/search/WorkspaceCatalog.tsx'
+      - 'src/pages/AiConsultPage.tsx'
+      - 'src/pages/ProductDetailPage.tsx'
+      - 'src/services/customerImageVault.ts'
+      - 'src/services/customerIntelligenceService.ts'
+      - 'src/services/visionCatalogAgent.ts'
+      - 'supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql'
+      - 'tests/customer-360-local-vault.test.ts'
+      - 'tests/customer-image-memory-only.test.ts'
+      - 'tests/vision-catalog-agent.test.ts'
+      - 'tests/mobile-scan-ui.test.ts'
+      - 'tests/database/adopted.fixture.ts'
+      - 'docs/customer-360-local-vault.md'
+      - 'AGENTS.md'
+      - 'package.json'
       - 'src/components/search/AiVisualPartSearchModal.tsx'
+      - 'src/components/search/ImageRegionReview.tsx'
+      - 'src/components/search/image-region-review.css'
+      - 'src/components/search/VisionAnalysisProgress.tsx'
+      - 'src/components/search/vision-analysis-progress.css'
       - 'src/components/search/ImageRegionSelector.tsx'
       - 'src/components/search/LocalModelResults.tsx'
       - 'src/components/search/industrial-scan.css'
       - 'src/services/aiVisualSearchService.ts'
+      - 'src/services/localVisionDetectionCache.ts'
       - 'src/services/localModelSuggestions.ts'
       - 'src/services/localVision.ts'
       - 'src/services/catalogVisualIndex.ts'
@@ -18,7 +42,10 @@ on:
       - 'tests/local-model-suggestions.test.ts'
       - 'tests/local-model-results.test.tsx'
       - 'tests/local-vision.test.ts'
+      - 'tests/local-vision-detection-cache.test.ts'
+      - 'tests/customer-image-memory-only.test.ts'
       - 'tests/catalog-visual-index.test.ts'
+      - 'tests/mobile-scan-ui.test.ts'
       - 'tests/image-region-interaction.test.ts'
       - 'tests/local-query-image.test.ts'
       - 'scripts/tests/image-region-interaction.cjs'
@@ -48,6 +75,12 @@ jobs:
           tests/local-model-suggestions.test.ts
           tests/local-model-results.test.tsx
           tests/local-vision.test.ts
+          tests/local-vision-detection-cache.test.ts
+          tests/customer-image-memory-only.test.ts
+          tests/customer-360-local-vault.test.ts
+          tests/vision-catalog-agent.test.ts
+          tests/mobile-scan-ui.test.ts
+          tests/customer-image-memory-only.test.ts
           tests/catalog-visual-index.test.ts
           tests/image-region-interaction.test.ts
           tests/local-query-image.test.ts

@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(path, 'utf8');
 test('customer image originals are saved automatically in device-local IndexedDB without a permission prompt', () => {
   const vault = read('src/services/customerImageVault.ts');
   assert.ok(vault.includes('indexedDB.open'));
+  assert.ok(vault.includes('new Blob([blob], { type: mimeType })'));
   assert.ok(vault.includes('createObjectStore(STORE_NAME'));
   assert.ok(vault.includes('blob,'));
   assert.ok(!vault.includes('navigator.storage.persist('));
@@ -24,8 +25,15 @@ test('new customer-image processing does not write image bytes to server disk or
     assert.ok(!processor.includes(forbidden), 'image processor must not use ' + forbidden);
   }
   assert.ok(!server.includes('syncCustomerImageToGitHub'));
+  assert.ok(!server.includes('GITHUB_BACKUP_REPO'));
+  assert.ok(!server.includes('customerImageMemoryCache'));
+  assert.ok(!server.includes('cacheCustomerImageBuffer'));
+  assert.ok(!server.includes('customerImagePublicUrl'));
+  assert.ok(server.includes('imageHash:crypto.createHash'));
   assert.ok(server.includes('imageUrl: saved.dataUrl'));
-  assert.ok(server.includes('device-local://temporary-processing'));
+  assert.ok(server.includes('customerImageBuffer:uploaded.buffer'));
+  assert.ok(!server.includes('customerUrl'));
+  assert.ok(!server.includes('customerImageUrl:customerUrl'));
 });
 
 test('customer intelligence API stores only device metadata and verifies selected recognition candidates', () => {
@@ -90,6 +98,41 @@ test('CRM exposes image history, FORZA consultations, purchase analytics and CRM
     assert.ok(api.includes(required), 'CRM API should include ' + required);
   }
   assert.ok(intelligence.includes('crm_customer_id'));
+  assert.ok(intelligence.includes('host !== req.headers.host'));
+  assert.ok(intelligence.includes('catalog_variants where code = any($1::text[])'));
+  assert.ok(intelligence.includes('نتیجه شناسایی فقط می‌تواند کدهای واقعی کاتالوگ را ثبت کند'));
+});
+
+test('customer image bytes are never published to a server image directory for worker or candidate verification', () => {
+  const server = read('server.ts');
+  const workerStart = server.indexOf('async function callPartRecognitionWorker(');
+  const workerEnd = server.indexOf('function buildWorkerAnalysisPrompt', workerStart);
+  assert.ok(workerStart >= 0 && workerEnd > workerStart);
+  const worker = server.slice(workerStart, workerEnd);
+  assert.ok(!worker.includes('createVisionImagePublisher'));
+  assert.ok(!worker.includes('publishImage'));
+  const verifyStart = server.indexOf('async function verifyCandidatesVisuallyWithGemini(');
+  const verifyEnd = server.indexOf('async function analyzePartWithWorker(', verifyStart);
+  assert.ok(verifyStart >= 0 && verifyEnd > verifyStart);
+  const verify = server.slice(verifyStart, verifyEnd);
+  assert.ok(!verify.includes('createVisionImagePublisher'));
+  assert.ok(!verify.includes('publishImage'));
+});
+
+test('guest image recognition stays available and camera frames are not saved before confirmation', () => {
+  const page = read('src/pages/AiConsultPage.tsx');
+  const modal = read('src/components/search/AiVisualPartSearchModal.tsx');
+  assert.ok(!page.includes('برای ثبت سابقه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید'));
+  assert.ok(page.includes("currentUser?.id || 'guest'"));
+  const pageCamera = page.slice(page.indexOf('const capturePhoto'), page.indexOf('const handleFileUpload'));
+  assert.ok(!pageCamera.includes('persistCapturedImageOnDevice'));
+  const modalCamera = modal.slice(modal.indexOf('const capturePhoto'), modal.indexOf('// Use the existing secure camera'));
+  assert.ok(modalCamera.includes('setCameraReview(true)'));
+  assert.ok(!modalCamera.includes('saveCustomerDeviceImage'));
+  assert.ok(!modalCamera.includes('uploadAndPrepareImage'));
+  const confirm = modal.slice(modal.indexOf('const confirmCameraPhoto'), modal.indexOf('// Resolve a match image'));
+  assert.ok(confirm.includes('uploadAndPrepareImage(selectedImage, "camera-capture.jpg")'));
+  assert.ok(!confirm.includes('handleAnalyze'));
 });
 
 test('FORZA uses a shared evidence-led engineering consultation strategy', () => {

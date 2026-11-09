@@ -1,6 +1,7 @@
 import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
+import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
@@ -60,8 +61,18 @@ import { pricingCreditService } from "../../services/pricingCreditService";
 import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
-import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
-import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
+import {
+  saveCustomerDeviceImage,
+  getCustomerDeviceImage,
+  getCustomerDeviceImageMetadata,
+  adoptCustomerDeviceImage,
+  customerImageBlobToDataUrl,
+} from "../../services/customerImageVault";
+import {
+  createCustomerImageIdentification,
+  completeCustomerImageIdentification,
+  selectCustomerImageProduct,
+} from "../../services/customerIntelligenceService";
 
 interface Props {
   isOpen: boolean;
@@ -81,10 +92,11 @@ interface AnalysisPhase {
 }
 
 const ANALYSIS_PHASES: AnalysisPhase[] = [
-  {title:"آماده‌سازی تصویر مشتری",en:"IMAGE PREPARATION",icon:Scan,tag:"تصویر مشتری",detail:"بررسی کیفیت و نشانه‌های قابل مشاهده"},
-  {title:"خواندن نوشته و ویژگی‌های ظاهری",en:"VISIBLE FEATURES",icon:Ruler,tag:"نشانه‌های قطعه",detail:"بدون حدس ابعاد یا جنس نامشخص"},
-  {title:"مقایسه تمام تصاویر کاتالوگ",en:"FULL CATALOGUE SCAN",icon:Layers,tag:"همهٔ تصاویر",detail:"بررسی عکس‌های کاتالوگ و تصاویر تازه"},
-  {title:"بررسی دوبارهٔ گزینه‌های مشابه",en:"DETAILED COMPARISON",icon:Cpu,tag:"بررسی دقیق‌تر",detail:"مقایسهٔ جزئیات با وضوح بالاتر"},
+  {title:"آماده‌سازی برش تأییدشده",en:"APPROVED CROP",icon:Scan,tag:"برش قطعه",detail:"استفاده از همان ناحیه‌ای که مشتری تأیید کرده است"},
+  {title:"استخراج ویژگی‌های ظاهری",en:"VISIBLE FEATURES",icon:Ruler,tag:"ویژگی‌های ظاهری",detail:"بررسی شکل، نشانه‌ها و نوشته‌های قابل مشاهده"},
+  {title:"ساخت توصیف تصویری",en:"VISUAL EMBEDDING",icon:Cpu,tag:"تحلیل تصویر",detail:"استخراج بردار تصویری از موتور محلی"},
+  {title:"مقایسه با کاتالوگ واقعی",en:"CATALOGUE RETRIEVAL",icon:Layers,tag:"مقایسه کاتالوگ",detail:"مقایسه با تصاویر خانواده‌ها و مدل‌های ثبت‌شده"},
+  {title:"مرتب‌سازی گزینه‌های معتبر",en:"RESULT VALIDATION",icon:ShieldCheck,tag:"اعتبارسنجی نتایج",detail:"حذف پیشنهادهای ضعیف و نامرتبط"},
 ];
 
 export const AiVisualPartSearchModal: React.FC<Props> = ({
@@ -104,9 +116,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
   const [candidateRegions,setCandidateRegions]=useState<ImageRegion[]>([]);
+  const [regionDetectionState,setRegionDetectionState]=useState<RegionPreparationState>('uploading');
+  const [regionDetectionMessage,setRegionDetectionMessage]=useState('');
+  const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
+  const [fullImageSelected,setFullImageSelected]=useState(false);
+  const regionDetectionSequenceRef=useRef(0);
+  const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
-  const autoAnalyzedImageRef=useRef<string|null>(null);
   const regionTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
@@ -117,8 +134,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
@@ -211,47 +229,156 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     "بدون لغزش دندانه و انعطاف بالا",
   ];
 
-  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image"): Promise<string | null> => {
+  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image"): Promise<string> => {
     const sequence = ++imageUploadSequenceRef.current;
-    if (typeof source === "string" && /^https?:\/\//i.test(source.trim())) return null;
     setIsUploadingImage(true);
+    setUploadedImageUrl(null);
+    setLocalImageId(null);
+    setImageEventId(null);
     try {
-      const blob = typeof source === "string"
-        ? await fetch(source).then(response => {
+      // Preset images are public catalogue assets, not customer uploads.
+      if (typeof source === "string" && /^https?:\/\//i.test(source.trim())) {
+        setMimeType("image/jpeg");
+        if (sequence === imageUploadSequenceRef.current) setUploadedImageUrl(source.trim());
+        return source.trim();
+      }
+      if (typeof source === "string" && (source.startsWith("/storage/products/") || source.startsWith("/api/ai/catalog-images/"))) {
+        const presetResponse = await fetch(source, { credentials: "same-origin", cache: "no-store" });
+        if (!presetResponse.ok) throw new Error("دریافت تصویر نمونه از کاتالوگ انجام نشد.");
+        const presetBlob = await presetResponse.blob();
+        const presetMime = presetBlob.type || (/\.png(?:\?|$)/i.test(source) ? "image/png" : /\.webp(?:\?|$)/i.test(source) ? "image/webp" : "image/jpeg");
+        const typedPresetBlob = presetBlob.type ? presetBlob : new Blob([presetBlob], { type: presetMime });
+        const presetDataUrl = await customerImageBlobToDataUrl(typedPresetBlob);
+        if (sequence === imageUploadSequenceRef.current) {
+          setMimeType(presetMime);
+          setUploadedImageUrl(presetDataUrl);
+        }
+        return presetDataUrl;
+      }
+      let blob = typeof source === "string"
+        ? await fetch(source, { credentials: "same-origin", cache: "no-store" }).then(response => {
             if (!response.ok) throw new Error("خواندن تصویر انتخاب‌شده ناموفق بود.");
             return response.blob();
           })
         : source;
-      const saved = await saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName);
-      if (sequence === imageUploadSequenceRef.current) {
-        setLocalImageId(saved.id);
-        setMimeType(saved.mimeType);
-        return saved.id;
+      if (!blob.type) {
+        const inferredMime = /\.png$/i.test(originalName) ? "image/png"
+          : /\.webp$/i.test(originalName) ? "image/webp" : "image/jpeg";
+        blob = new Blob([blob], { type: inferredMime });
       }
-      return null;
+      const saved = await saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName);
+      if (sequence !== imageUploadSequenceRef.current) return "";
+      const imageDataUrl = await customerImageBlobToDataUrl(blob);
+      setLocalImageId(saved.id);
+      setMimeType(saved.mimeType);
+      setUploadedImageUrl(imageDataUrl);
+      return imageDataUrl;
     } catch (error: any) {
       if (sequence === imageUploadSequenceRef.current) {
         setLocalImageId(null);
-        setErrorMessage(error?.message || "ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.");
+        setUploadedImageUrl(null);
+        setErrorMessage(error?.message || "ذخیره تصویر در حافظه خصوصی همین دستگاه انجام نشد.");
       }
-      return null;
+      throw error;
     } finally {
       if (sequence === imageUploadSequenceRef.current) setIsUploadingImage(false);
     }
   };
 
-  // Every customer upload is saved automatically in the private browser vault.
+  const friendlyVisionError = (error: any) => {
+    if (error?.code === 'VISION_BUSY' || error?.status === 429) return 'موتور شناسایی در حال تأیید ناحیه دیگری است. چند لحظه دیگر دوباره تلاش کنید.';
+    if (error?.code === 'INDEX_NOT_READY') return 'کاتالوگ تصویری در حال آماده‌سازی است. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
+    if (error?.code === 'VISION_DISABLED') return 'تشخیص خودکار روی این سرور فعال نیست؛ ناحیه قطعه را دستی انتخاب کنید.';
+    if (error?.code === 'CATALOG_UNAVAILABLE') return 'ارتباط با کاتالوگ برقرار نیست. تصویر شما محفوظ است؛ کمی بعد دوباره تلاش کنید.';
+    if (error?.code === 'INVALID_REGION') return 'کادر انتخاب‌شده معتبر نیست؛ لطفاً ناحیه را دوباره مشخص کنید.';
+    if (error?.status === 503) return 'ارتباط با موتور تحلیل موقتاً برقرار نشد. تصویر شما حذف نشده است؛ دوباره تلاش کنید یا ناحیه را دستی انتخاب کنید.';
+    if (error?.name === 'TypeError') return 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
+    return error?.message || 'تحلیل تصویر کامل نشد. دوباره تلاش کنید.';
+  };
+
+  const detectUploadedImageRegions = async (imageUrl: string) => {
+    const sequence = ++regionDetectionSequenceRef.current;
+    setRegionDetectionState('detecting');
+    setRegionDetectionMessage('');
+    setRegionDetectionId(null);
+    try {
+      const detection = await aiVisualSearchService.detectImageRegions(imageUrl);
+      if (sequence !== regionDetectionSequenceRef.current) return;
+      setRegionDetectionId(detection.detectionId);
+      setQueryRegion(detection.queryRegion);
+      setCandidateRegions(detection.queryRegions);
+      setFullImageSelected(!detection.queryRegion);
+      setRegionDetectionState('ready');
+      setLocalRegionEnabled(true);
+      if (!detection.queryRegion) setRegionDetectionMessage('ناحیه خودکار قابل‌اعتماد پیدا نشد؛ می‌توانید کادر را دستی بکشید یا کل تصویر را انتخاب کنید.');
+    } catch (error: any) {
+      if (sequence !== regionDetectionSequenceRef.current) return;
+      setRegionDetectionId(null);
+      setQueryRegion(undefined);
+      setCandidateRegions([]);
+      setFullImageSelected(true);
+      setRegionDetectionState('fallback');
+      setRegionDetectionMessage(friendlyVisionError(error));
+    }
+  };
+
+  const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image.jpg") => {
+    const sequence = ++imagePreparationSequenceRef.current;
+    setErrorMessage('');
+    setRegionDetectionMessage('');
+    setRegionDetectionState('uploading');
+    setRegionDetectionId(null);
+    setQueryRegion(undefined);
+    setCandidateRegions([]);
+    setLocalRegionEnabled(false);
+    setFullImageSelected(false);
+    try {
+      const imageUrl = await uploadSelectedImage(source, originalName);
+      if (sequence !== imagePreparationSequenceRef.current || !imageUrl) return;
+      // The original stays in IndexedDB. Its bytes are sent only with this active region-detection request.
+      await detectUploadedImageRegions(imageUrl);
+    } catch (error: any) {
+      if (sequence !== imagePreparationSequenceRef.current) return;
+      setRegionDetectionState('fallback');
+      setFullImageSelected(true);
+      setRegionDetectionMessage(friendlyVisionError(error));
+    }
+  };
+
+  const retryRegionPreparation = () => {
+    if (uploadedImageUrl) void detectUploadedImageRegions(uploadedImageUrl);
+    else if (selectedImage) void uploadAndPrepareImage(selectedImage);
+  };
+
+  const handleRegionSelection = (region: ImageRegion | undefined) => {
+    setQueryRegion(region);
+    setFullImageSelected(!region);
+    setErrorMessage('');
+  };
+
+  // Upload first, then ask the local vision engine only for a crop proposal.
+  // The full catalogue analysis is deliberately deferred until customer confirmation.
   const handleFile = (file: File) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const fileMime = (file.type || '').toLowerCase();
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((fileMime ? !allowed.includes(fileMime) : !supportedExtension) || file.size > 10 * 1024 * 1024) {
+      setErrorMessage('لطفاً تصویر JPG، PNG یا WebP با حجم کمتر از ۱۰ مگابایت انتخاب کنید.');
+      return;
+    }
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    imageUploadSequenceRef.current++;
+    setErrorMessage('');
+    setUploadedImageUrl(null);
     setLocalImageId(null);
     setImageEventId(null);
-    setErrorMessage("");
-    setAnalysisResult(null);setMeasurements({});
+    setAnalysisResult(null);
+    setMeasurements({});
     setSelectedImage(URL.createObjectURL(file));
     setMimeType(file.type || "image/jpeg");
+    setRegionDetectionState('uploading');
+    setFullImageSelected(false);
     if (isUsingCamera) stopCamera();
-    void uploadSelectedImage(file, file.name);
+    void uploadAndPrepareImage(file, file.name);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -265,21 +392,24 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Preset sample loader
   const loadPreset = (preset: IndustrialPresetSample) => {
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setAnalysisResult(null);setMeasurements({});
-    setSelectedImage(preset.imageUrl);
     setLocalImageId(null);
     setImageEventId(null);
+    setAnalysisResult(null);
+    setMeasurements({});
+    setSelectedImage(preset.imageUrl);
+    setUploadedImageUrl(null);
     setMimeType("image/jpeg");
     setErrorMessage("");
+    setRegionDetectionState('uploading');
+    setFullImageSelected(false);
+    void uploadAndPrepareImage(preset.imageUrl, "preset-image.jpg");
     setLength(preset.length ? preset.length.toString() : "");
     setWidth(preset.width ? preset.width.toString() : "");
     if (preset.pitch) setPitch(preset.pitch.toString());
     else setPitch("");
     setApplication(preset.application);
     setFeatures(preset.features);
-    setErrorMessage("");
     if (isUsingCamera) stopCamera();
-    // Presets follow the same observation and measurement flow as uploads.
     setCurrentStep(1);
   };
 
@@ -356,23 +486,27 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
   };
   const selectCameraGalleryImage = (file: File) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 12 * 1024 * 1024) {
-      setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۲ مگابایت انتخاب کنید.");
+    const fileMime = (file.type || '').toLowerCase();
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((fileMime ? !['image/jpeg','image/jpg','image/png','image/webp'].includes(fileMime) : !supportedExtension) || file.size > 10 * 1024 * 1024) {
+      setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۰ مگابایت انتخاب کنید.");
       return;
     }
+    const preparationSequence = ++imagePreparationSequenceRef.current;
+    imageUploadSequenceRef.current += 1;
+    setIsUploadingImage(false);
+    setLocalImageId(null);
+    setImageEventId(null);
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result !== "string") return;
+      if (preparationSequence !== imagePreparationSequenceRef.current || typeof reader.result !== "string") return;
       if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-      imageUploadSequenceRef.current += 1;
-        setAnalysisResult(null);
+      setUploadedImageUrl(null);
+      setAnalysisResult(null);
       setMeasurements({});
       setSelectedImage(reader.result);
-      setLocalImageId(null);
-      setImageEventId(null);
-      setMimeType(file.type);
+      setMimeType(file.type || "image/jpeg");
       setErrorMessage("");
-      void uploadSelectedImage(file, file.name);
       setCameraReview(true);
       stopCamera();
     };
@@ -394,21 +528,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        if (selectedImage?.startsWith("blob:"))
-          URL.revokeObjectURL(selectedImage);
-        setAnalysisResult(null);setMeasurements({});
-        setSelectedImage(dataUrl);
-            setLocalImageId(null);
+        imagePreparationSequenceRef.current++;
+        imageUploadSequenceRef.current++;
+        setLocalImageId(null);
         setImageEventId(null);
+        if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
+        setAnalysisResult(null);
+        setMeasurements({});
+        setSelectedImage(dataUrl);
+        setUploadedImageUrl(null);
         setMimeType("image/jpeg");
         setErrorMessage("");
-        if (cameraFlowActive) {
-          // Keep the captured frame in memory only until the customer confirms it.
-          setCameraReview(true);
-          stopCamera();
-          return;
-        }
-        void uploadSelectedImage(dataUrl, "camera-capture.jpg");
+        // Camera frame remains only in page memory until the customer confirms the photo.
+        setCameraReview(true);
+        setCameraFlowActive(true);
         stopCamera();
       }
     }
@@ -426,10 +559,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Reset all
   const resetForm = () => {
     stopCamera();
+    imagePreparationSequenceRef.current++;
     imageUploadSequenceRef.current += 1;
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
+    setUploadedImageUrl(null);
     setLocalImageId(null);
     setImageEventId(null);
     setLength("");
@@ -438,6 +573,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setApplication("");
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
+    regionDetectionSequenceRef.current++;
+    setRegionDetectionState('uploading');
+    setRegionDetectionMessage('');
+    setRegionDetectionId(null);
+    setFullImageSelected(false);
     setErrorMessage("");
     setPendingStage("refined");
     setLastStage("refined");
@@ -445,12 +585,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Navigation handlers
-  const goToStep2 = () => {
-    if(selectedImage && !analysisResult?.requiredMeasurements){void handleAnalyze("quick");return;}
-    setErrorMessage("");
-    setCurrentStep(2);
-  };
-
   const goToStep3 = () => {
     const issue=analysisResult?.requiredMeasurements && measurementError(analysisResult.requiredMeasurements,measurements);
     if(issue){setErrorMessage(issue);return;}
@@ -465,26 +599,27 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null, localImageIdOverride?:string) => {
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null) => {
     if(analysisBusyRef.current)return;
     if (!selectedImage && !length && !width) {
-      setErrorMessage(
-        "لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید.",
-      );
+      setErrorMessage("لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید.");
       return;
     }
     if (stage === "quick" && !selectedImage) {
       setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید.");
       return;
     }
-
-    if (isUploadingImage && !localImageIdOverride) {
+    if (isUploadingImage) {
       setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود.");
       return;
     }
-    const effectiveLocalImageId = localImageIdOverride || localImageId;
-    if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
-    const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
+    if(stage==="refined" && analysisResult?.requiredMeasurements){
+      const issue=measurementError(analysisResult.requiredMeasurements,measurements);
+      if(issue){setErrorMessage(issue);setCurrentStep(2);return;}
+    }
+
+    const requestRegion=regionOverride===null?undefined:regionOverride || queryRegion;
+    const requestFullImage=regionOverride===null || (!requestRegion && fullImageSelected);
     analysisBusyRef.current=true;
     const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
@@ -496,40 +631,57 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     let activeImageEventId: string | null = imageEventId;
 
     try {
-      let imageUrl: string | undefined;
       let imageBase64: string | undefined;
-      if (selectedImage && /^https?:\/\//i.test(selectedImage)) {
-        imageUrl = selectedImage;
+      let imageUrl: string | undefined;
+      let requestMimeType = mimeType;
+      const isCatalogPreset = Boolean(selectedImage && (
+        /^https?:\/\//i.test(selectedImage) ||
+        selectedImage.startsWith("/storage/products/") ||
+        selectedImage.startsWith("/api/ai/catalog-images/")
+      ));
+      if (isCatalogPreset) {
+        // Preset assets are not customer uploads; use the temporary data URL if fetched locally.
+        if (uploadedImageUrl?.startsWith("data:")) imageBase64 = uploadedImageUrl;
+        else imageUrl = selectedImage || undefined;
       } else if (selectedImage) {
-        if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+        if (!localImageId) throw new Error("تصویر در حافظه خصوصی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        const localRecord = await getCustomerDeviceImage(localImageId);
         if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
-        if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+        requestMimeType = localRecord.mimeType;
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
-        if (currentUser && !activeImageEventId) {
-          const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
-          if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
+
+        if (currentUser) {
           try {
-            const event = await createCustomerImageIdentification({
-              deviceImageId: metadata.id,
-              sha256: metadata.sha256,
-              mimeType: metadata.mimeType,
-              sizeBytes: metadata.sizeBytes,
-              originalName: metadata.originalName,
-            });
-            activeImageEventId = event.id;
-            setImageEventId(event.id);
+            await adoptCustomerDeviceImage(localImageId, currentUser.id);
+          } catch (adoptError) {
+            console.warn("[Customer image vault] local ownership update unavailable", adoptError);
+          }
+        }
+        if (currentUser && !activeImageEventId) {
+          try {
+            const metadata = await getCustomerDeviceImageMetadata(localImageId);
+            if (metadata) {
+              const event = await createCustomerImageIdentification({
+                deviceImageId: metadata.id,
+                sha256: metadata.sha256,
+                mimeType: metadata.mimeType,
+                sizeBytes: metadata.sizeBytes,
+                originalName: metadata.originalName,
+              });
+              activeImageEventId = event.id;
+              setImageEventId(event.id);
+            }
           } catch (trackingError) {
-            // CRM metadata sync must never block the actual recognition request.
-            console.warn('[Customer image history] metadata sync unavailable', trackingError);
+            console.warn("[Customer image history] metadata sync unavailable", trackingError);
           }
         }
       }
 
+      if(sequence!==analysisSequenceRef.current)return;
       const result = await aiVisualSearchService.analyzePartWithAi({
         imageUrl,
         imageBase64,
-        mimeType: mimeType,
+        mimeType: requestMimeType,
         length: length ? parseFloat(length) : undefined,
         width: width ? parseFloat(width) : undefined,
         pitch: pitch ? parseFloat(pitch) : undefined,
@@ -538,19 +690,24 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         stage,
         observationOnly:false,
         region:requestRegion,
+        detectionId:regionDetectionId || undefined,
+        fullImage:requestFullImage,
         includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
         setScanCounts(progress);
         setAnalysisProgress(progress.total ? Math.floor(progress.compared*100/progress.total) : 0);
-        setAnalysisPhaseIndex(progress.stage==='verifying' ? 3 : progress.stage==='scanning' ? 2 : 0);
+        setAnalysisPhaseIndex(progress.stage==='verifying' ? 4 : progress.stage==='scanning' ? 3 : progress.stage==='preparing' ? 0 : 1);
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled){
+      if(localRegionEnabled || result.localVisionMetrics){
+        setLocalRegionEnabled(true);
         setQueryRegion(result.queryRegion || requestRegion);
         if(!requestRegion)setCandidateRegions(result.queryRegions || []);
+        setFullImageSelected(requestFullImage);
+        setRegionDetectionState('ready');
       }
       if (activeImageEventId) {
         const matched = result.matchedProducts || [];
@@ -560,10 +717,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           detectedPartType: result.summary?.detectedPartType,
           summary: result.summary?.whatYouSee || result.summary?.visualAnalysis,
           technicalAdvice: result.technicalAdvice,
-          matchedProductCodes: matched.map(item => item.code),
-          similarProductCodes: similar.map(item => item.code),
+          matchedProductCodes: matched.map(item => item.code).filter(Boolean),
+          similarProductCodes: similar.map(item => item.code).filter(Boolean),
           confidence: result.summary?.confidence,
-        }).catch(error => console.warn('[Customer image history] result sync unavailable', error));
+        }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
       }
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
@@ -571,50 +728,64 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     } catch (err: any) {
       if(sequence!==analysisSequenceRef.current)return;
       console.error(err);
-      if (activeImageEventId) {
-        void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
-      }
-      setErrorMessage(
-        err.message || "خطا در ارتباط با سامانه تحلیل هوش مصنوعی.",
-      );
+      if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
+      setErrorMessage(friendlyVisionError(err));
       setCurrentStep(stage === "quick" ? 1 : 3);
-    }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
+    } finally {
+      if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;
+    }
   };
 
-  // Auto-search only after the local device vault confirms persistence. Camera photos still require confirmation.
-  React.useEffect(()=>{
-    if(!isOpen||!localRegionEnabled||!localImageId||isUploadingImage||!selectedImage||cameraFlowActive||cameraReview||currentStep!==1||autoAnalyzedImageRef.current===localImageId)return;
-    autoAnalyzedImageRef.current=localImageId;
-    void handleAnalyze("quick");
-  },[isOpen,localRegionEnabled,localImageId,isUploadingImage,selectedImage,cameraFlowActive,cameraReview,currentStep]);
+  const confirmRegionAndAnalyze = () => {
+    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    setErrorMessage('');
+    void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
+  };
+
+  const goToStep2 = () => {
+    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
+    setErrorMessage("");
+    setCurrentStep(2);
+  };
+
+  // Region edits in the results view intentionally re-run the search; edits in the
+  // review step only update the crop and wait for the explicit confirmation button.
   const searchRegion=(region:ImageRegion|undefined)=>{
     setQueryRegion(region);
+    setFullImageSelected(!region);
     if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
     regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
   };
 
   const retakeCameraPhoto = () => {
-    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-    setSelectedImage(null);
+    imagePreparationSequenceRef.current++;
+    regionDetectionSequenceRef.current++;
+    imageUploadSequenceRef.current++;
+    setIsUploadingImage(false);
     setLocalImageId(null);
     setImageEventId(null);
+    if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
+    setSelectedImage(null);
+    setUploadedImageUrl(null);
+    setRegionDetectionId(null);
+    setQueryRegion(undefined);
+    setCandidateRegions([]);
     setCameraReview(false);
     setErrorMessage("");
     void startCamera();
   };
 
-  const confirmCameraPhoto = async () => {
+  const confirmCameraPhoto = () => {
     if (!selectedImage) {
       setErrorMessage("ابتدا عکس قطعه را ثبت کنید.");
       return;
     }
+    // Explicit confirmation saves locally and begins region detection only; final analysis waits for crop approval.
     setErrorMessage("");
-    const imageId = localImageId || await uploadSelectedImage(selectedImage, "camera-capture.jpg");
-    if (!imageId) return;
-    // Only after explicit confirmation is the original persisted locally and a request-scoped copy sent for recognition.
     setCameraReview(false);
     setCameraFlowActive(false);
-    void handleAnalyze("quick", undefined, imageId);
+    setRegionDetectionState('uploading');
+    void uploadAndPrepareImage(selectedImage, "camera-capture.jpg");
   };
 
   // Resolve a match image that may be a bare catalog filename (e.g. "e(001).png")
@@ -750,7 +921,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               <div className="sanat-camera-experience__actions">
                 <button type="button" onClick={confirmCameraPhoto} className="sanat-camera-experience__confirm">
                   <CheckCircle2 size={19} />
-                  <span>تأیید و جستجوی قطعه</span>
+                  <span>تأیید عکس و تشخیص ناحیه</span>
                 </button>
                 <button type="button" onClick={retakeCameraPhoto} className="sanat-camera-experience__retake">
                   <RefreshCw size={18} />
@@ -974,7 +1145,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     ۳
                   </div>
                   <span className="text-xs font-medium text-slate-600">
-                    کاتالوگ و جزئیات
+                    تحلیل و نتایج
                   </span>
                 </div>
               </div>
@@ -1001,8 +1172,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
               {/* Error notification banner */}
-              {errorMessage && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+              {errorMessage && !selectedImage && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2" role="alert">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
                   <span className="font-medium">{errorMessage}</span>
                 </div>
@@ -1017,6 +1188,23 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   event.currentTarget.value = "";
                 }}
               />
+              {selectedImage && (
+                <div data-testid="customer-image-local-status" role="status" aria-live="polite"
+                  className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[11px] leading-5 text-emerald-800">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>
+                    {cameraReview && !localImageId
+                      ? "تا تأیید عکس، هیچ نسخه‌ای ذخیره یا ارسال نمی‌شود."
+                      : isUploadingImage
+                        ? "در حال ذخیره امن تصویر روی همین دستگاه…"
+                        : localImageId
+                          ? "اصل تصویر در حافظه خصوصی همین دستگاه نگهداری می‌شود؛ ارسال فقط هنگام درخواست فعال تشخیص انجام می‌شود."
+                          : (uploadedImageUrl?.startsWith("http") || selectedImage?.startsWith("/storage/products/") || selectedImage?.startsWith("/api/ai/catalog-images/"))
+                            ? "تصویر نمونه کاتالوگ است و در پرونده تصاویر مشتری ذخیره نمی‌شود."
+                            : "تصویر هنوز در حافظه خصوصی دستگاه ثبت نشده است."}
+                  </span>
+                </div>
+              )}
               {/* Upload Dropzone OR Camera OR Selected Image */}
               {!selectedImage && !isUsingCamera ? (
                 <div
@@ -1084,74 +1272,22 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                /* Selected Image Preview Box */
-                <div className="sanat-visual-image-preview bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 my-2">
-                  <div className="w-full sm:w-36 h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative shrink-0">
-                    <img
-                      src={selectedImage || undefined}
-                      alt="قطعه انتخابی"
-                      className="w-full h-full object-contain"
-                    />
-                    <div
-                      className={`absolute top-2 right-2 ${isUploadingImage ? "bg-amber-500" : localImageId ? "bg-emerald-600" : "bg-slate-600"} text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs`}
-                    >
-                      {isUploadingImage ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3 h-3" />
-                      )}
-                      <span>
-                        {isUploadingImage
-                          ? "ذخیره روی دستگاه..."
-                          : localImageId
-                            ? "ذخیره امن روی دستگاه"
-                            : "انتخاب شد"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 space-y-2 text-right">
-                    <span className="text-xs font-bold text-[#2B313A] block">
-                      تصویر آماده پردازش هوش مصنوعی است
-                    </span>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      هوش مصنوعی ظاهر فیزیکی قطعه را بررسی می‌کند.
-                    </p>
-                    {localImageId && (
-                      <p className="text-[10px] leading-5 text-emerald-700">
-                        تصویر در حافظه خصوصی مرورگر همین دستگاه ذخیره شده است. پاک‌سازی داده‌های سایت یا تعویض مرورگر می‌تواند آن را حذف کند.
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-xs font-bold text-slate-700 hover:text-[#E06518] bg-white border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        تغییر تصویر
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          imageUploadSequenceRef.current += 1;
-                          setIsUploadingImage(false);
-                          if (selectedImage?.startsWith("blob:"))
-                            URL.revokeObjectURL(selectedImage);
-                          setSelectedImage(null);
-                                                stopCamera();
-                        }}
-                        className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        حذف
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ImageRegionReview
+                  image={selectedImage || ''}
+                  status={regionDetectionState}
+                  selectedRegion={queryRegion}
+                  candidateRegions={candidateRegions}
+                  message={regionDetectionMessage}
+                  analysisError={errorMessage}
+                  busy={isUploadingImage || !uploadedImageUrl}
+                  onRegionChange={handleRegionSelection}
+                  onConfirm={confirmRegionAndAnalyze}
+                  onRetryPreparation={retryRegionPreparation}
+                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
+                  onChangeImage={() => fileInputRef.current?.click()}
+                />
               )}
-
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
-
-              {/* MAIN ACTION BUTTONS */}
+              {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -1180,8 +1316,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   <span>استفاده از دوربین</span>
                 </button>
               </div>
+              )}
 
               {/* 3 FEATURE HIGHLIGHT BADGES */}
+              {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
                 <div className="flex flex-col items-center justify-center">
                   <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
@@ -1202,9 +1340,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </span>
                 </div>
               </div>
+              )}
             </div>
 
             {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
+            {!selectedImage && !isUsingCamera && (
             <div className="pt-3 border-t border-slate-200/80 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600">
                 <span>نمونه تصاویر قابل قبول</span>
@@ -1234,6 +1374,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       ) : (
@@ -1686,6 +1827,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               >
                 <VisionAnalysisProgress
                   image={selectedImage}
+                  region={queryRegion}
                   progress={analysisProgress}
                   phaseIndex={analysisPhaseIndex}
                   phases={ANALYSIS_PHASES}
@@ -1708,7 +1850,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
+                {localRegionEnabled && selectedImage && <ImageRegionSelector
+                  src={selectedImage}
+                  value={queryRegion}
+                  candidateRegions={candidateRegions}
+                  onChange={searchRegion}
+                  onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
+                />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -2241,7 +2389,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                       onClick={() => {
                                         if (imageEventId) {
                                           void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
-                                            console.warn('[Customer image history] selected product sync unavailable', error)
+                                            console.warn("[Customer image history] selected product sync unavailable", error)
                                           );
                                         }
                                         onClose();

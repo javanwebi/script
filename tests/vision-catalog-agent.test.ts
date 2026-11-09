@@ -13,7 +13,6 @@ const setup=(replies:any[])=>{
  const client={models:{async generateContent(input:any){calls.push(input);return replies[index++];}}};
  return {calls,client};
 };
-const userImage='https://example.org/imageai/vision-abc.jpg';
 const origin='https://example.org';
 const testPixels=async()=>{
  const jpeg=await sharp({create:{width:20,height:20,channels:3,
@@ -27,7 +26,7 @@ test('agent exposes only read-only tools and validates observed image ids and ve
   {candidates:[{content:{role:'model',parts:[{functionCall:{name:'inspect_catalog_images',args:{image_ids:['a']}}}]}}],functionCalls:[{name:'inspect_catalog_images',args:{image_ids:['a']}}]},
   {text:JSON.stringify({summary:'قطعه مشابه است',matches:[{image_id:'a',relation:'similar',code:'SKU-1',reason:'same teeth'},{image_id:'b',code:'SKU-2',reason:'unknown'}]})}
  ]);
- const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
+ const result=await runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
  assert.equal(result.modelCalls,3);
  assert.equal(result.inspectedImages,1);
  assert.equal(result.matches.length,1);
@@ -45,10 +44,16 @@ test('unverified code is never promoted to SKU despite model claim',async()=>{
  {candidates:[{content:{role:'model',parts:[{functionCall:{name:'inspect_catalog_images',args:{image_ids:['b']}}}]}}],functionCalls:[{name:'inspect_catalog_images',args:{image_ids:['b']}}]},
  {text:JSON.stringify({summary:'similar',matches:[{image_id:'b',relation:'similar',code:'SKU-2',reason:'shape'}]})}
  ]);
- const result=await runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
+ const result=await runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
  assert.equal(result.matches[0].code,undefined);
 });
-test('agent refuses insecure customer or catalog origins',async()=>{
+test('agent accepts request-scoped customer pixels without a public customer image URL',async()=>{
+ const {client}=setup([{text:JSON.stringify({summary:'بررسی انجام شد',matches:[]})}]);
+ const result=await runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:origin,images:photos,products,...(await testPixels())});
+ assert.equal(result.summary,'بررسی انجام شد');
+});
+
+test('agent refuses a non-public catalog image origin',async()=>{
  const {client}=setup([]);
- await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:'http://example.org/image.jpg',catalogImageOrigin:origin,images:photos,products}),/HTTPS/);
+ await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',catalogImageOrigin:'http://example.org',images:photos,products,...(await testPixels())}),/Catalog image origin requires public HTTPS/);
 });

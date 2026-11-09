@@ -24,7 +24,10 @@ test("camera flow captures only a real frame and releases media tracks", () => {
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
-  assert.match(modal, /uploadSelectedImage\(dataUrl\)/);
+  const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
+  assert.match(capture, /setCameraReview\(true\)/);
+  assert.doesNotMatch(capture, /uploadAndPrepareImage|saveCustomerDeviceImage|handleAnalyze/);
+  assert.doesNotMatch(modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera")), /handleAnalyze/);
 });
 
 test("mobile/tablet dock and branded scanner preserve RTL and desktop header", () => {
@@ -101,26 +104,44 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /sanat-camera-experience__preview/);
   assert.match(modal, /onClick=\{confirmCameraPhoto\}/);
   assert.match(modal, /onClick=\{retakeCameraPhoto\}/);
-  assert.match(modal, /تأیید و جستجوی قطعه/);
+  assert.match(modal, /تأیید عکس و تشخیص ناحیه/);
   assert.match(modal, /عکس‌برداری مجدد/);
   assert.match(modal, /setCameraReview\(true\)/);
-  assert.match(modal, /handleAnalyze\("quick"\)/);
+  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
+  assert.match(modal, /void uploadAndPrepareImage\(selectedImage, "camera-capture\.jpg"\)/);
   assert.match(styles, /height: 100dvh/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
 });
 
-test("captured camera image is not uploaded until the customer confirms it", () => {
+test("camera capture remains in page memory until explicit confirmation, then waits for crop approval", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
-  const reviewBranch = capture.indexOf("if (cameraFlowActive)");
-  const stopAndReturn = capture.indexOf("return;", reviewBranch);
-  const upload = capture.indexOf("uploadSelectedImage(dataUrl,");
-  assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
-  assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
-  assert.ok(upload > stopAndReturn, "local device-vault persistence must happen after the review-only return");
   const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Resolve a match image"));
-  assert.match(confirm, /uploadSelectedImage\(selectedImage, "camera-capture\.jpg"\)/);
-  assert.match(confirm, /handleAnalyze\("quick", undefined, imageId\)/);
+  assert.match(capture, /setCameraReview\(true\)/);
+  assert.match(capture, /setCameraFlowActive\(true\)/);
+  assert.match(capture, /stopCamera\(\)/);
+  assert.doesNotMatch(capture, /uploadAndPrepareImage|saveCustomerDeviceImage|handleAnalyze/);
+  assert.match(confirm, /uploadAndPrepareImage\(selectedImage, "camera-capture\.jpg"\)/);
+  assert.doesNotMatch(confirm, /handleAnalyze/, "photo confirmation must only start crop detection");
+  assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/, "final analysis must wait for crop approval");
+});
+
+test("customer originals use the local vault and metadata-only CRM history", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const vault = source("src/services/customerImageVault.ts");
+  const service = source("src/services/aiVisualSearchService.ts");
+  assert.match(vault, /indexedDB\.open/);
+  assert.match(modal, /saveCustomerDeviceImage/);
+  assert.match(modal, /getCustomerDeviceImage\(/);
+  assert.match(modal, /customerImageBlobToDataUrl/);
+  assert.match(modal, /createCustomerImageIdentification/);
+  assert.match(modal, /completeCustomerImageIdentification/);
+  assert.match(modal, /selectCustomerImageProduct/);
+  assert.match(service, /imageBase64/);
+  const start = service.indexOf("async analyzePartWithAi");
+  const end = service.indexOf("async ", start + 10);
+  const analyze = service.slice(start, end > start ? end : undefined);
+  assert.doesNotMatch(analyze, /uploadCustomerImage/);
 });
 
 test("full-screen identification hides storefront dock and floating actions across capture, review and results", () => {
