@@ -224,7 +224,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (sequence === imageUploadSequenceRef.current) setUploadedImageUrl(uploaded.imageUrl);
       return uploaded.imageUrl;
     } catch (error: any) {
-      if (sequence === imageUploadSequenceRef.current) setErrorMessage(error?.message || "ذخیره تصویر در سرور انجام نشد.");
       throw error;
     } finally {
       if (sequence === imageUploadSequenceRef.current) setIsUploadingImage(false);
