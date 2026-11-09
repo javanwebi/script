@@ -205,11 +205,11 @@ test("customer identification saves the original image only in the device vault 
   const service = source("src/services/aiVisualSearchService.ts");
   const vault = source("src/services/customerImageVault.ts");
   assert.match(modal, /saveCustomerDeviceImage/);
-  assert.match(modal, /getCustomerDeviceImage\\(imageId\\)/);
+  assert.match(modal, /getCustomerDeviceImage\(imageId\)/);
   assert.match(modal, /customerImageBlobToDataUrl/);
   assert.match(modal, /createCustomerImageIdentification/);
-  assert.match(service, /body: JSON.stringify\\(\\{ imageBase64, mimeType \\}\\)/);
-  assert.match(service, /imageBase64, mimeType: mimeType \\|\\| 'image\\/jpeg'/);
+  assert.match(service, /body: JSON.stringify\(\{ imageBase64, mimeType \}\)/);
+  assert.match(service, /imageBase64, mimeType: mimeType \|\| 'image\\/jpeg'/);
   assert.match(vault, /indexedDB.open/);
   assert.doesNotMatch(modal, /uploadCustomerImage\\(/);
 });
