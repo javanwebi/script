@@ -49,3 +49,45 @@ test('empty recording without server STT does not create an AI turn or erase val
  assert.equal(monitored,1);assert.equal(warnings,0);
  execute({current:true},{current:true},()=>warnings++,()=>{});assert.equal(warnings,1);
 });
+
+test('recognized interruption works without analyser VAD and finalized echo is retired', async()=>{
+ const {extractPersianSpeechSince}=await import('../src/utils/forzaSpeechPipeline');
+ const body=source.split('      rec.onresult = (event: any) => {')[1]
+   .split("        if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){")[0];
+ const ref=(current:any)=>({current});
+ const rec={};
+ let interrupted=0,echo=true;
+ const scope:Record<string,any>={
+  rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
+  recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
+  extractPersianSpeechSince,recognitionRetryRef:ref(0),
+  recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
+  setMicrophoneError:()=>{},setErrorNotice:()=>{},
+  isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
+  isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),
+  likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
+ };
+ const run=new Function(...Object.keys(scope),'event',body);
+ const result=(text:string,isFinal=true)=>({0:{transcript:text},isFinal});
+ const fire=(results:any[])=>run(...Object.values(scope),{results});
+ fire([result('بلبرینگ مناسب موتور')]);
+ assert.equal(interrupted,0);
+ assert.equal(scope.recognitionConsumedCountRef.current,1);
+ echo=false;
+ fire([result('بلبرینگ مناسب موتور'),result('صبر کن منظورم شش هزار و دویست و سه بود',false)]);
+ assert.equal(interrupted,1);
+ scope.recognitionRef.current={};
+ fire([result('این رویداد قدیمی است')]);
+ assert.equal(interrupted,1);
+});
+test('return to listening preserves a customer sentence arriving at playback completion',()=>{
+ const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer Chrome')[0];
+ const execute=new Function('activeTranscriptRef','lastTranscriptChangedAtRef','hasSpeechSoundRef','audioChunksRef','setStatus','setTurn','if(true){'+body);
+ const transcript={current:'ده عدد از همان می خواهم'};
+ const changed={current:123},speech={current:true},chunks={current:['audio']};
+ execute(transcript,changed,speech,chunks,()=>{},()=>{});
+ assert.equal(transcript.current,'ده عدد از همان می خواهم');
+ assert.equal(changed.current,123);
+ assert.equal(speech.current,true);
+ assert.deepEqual(chunks.current,['audio']);
+});
