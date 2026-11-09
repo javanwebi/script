@@ -18,6 +18,8 @@ bash -n "$TEMP"
 echo "===== CANARY, TESTS, NGINX SWITCH AND ROLLBACK ====="
 SANATPISH_RELEASE_SHA="$SHA" bash "$TEMP"
 echo "===== FINAL HTTPS HEALTH ====="
-curl --noproxy '*' -kfsS --max-time 15 https://127.0.0.1/api/health
-echo
+curl --noproxy '*' -kfsS --max-time 15 \
+  --resolve sanatpish.com:443:127.0.0.1 \
+  https://sanatpish.com/api/health | grep -q '"database":"ok"'
+echo "FINAL_HTTPS_HEALTH_OK domain=sanatpish.com sni=correct"
 echo "SANATPISH_MAIN_DEPLOY_COMMAND_OK commit=$SHA"
