@@ -52,6 +52,7 @@ const {chromium}=require('playwright');
   const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
+   if(pathname==='/api/ai/customer-images'){uploads++;body={success:true};}
    if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
    if(pathname==='/api/ai/detect-regions'){
     detections.push(route.request().postDataJSON());
@@ -76,7 +77,7 @@ const {chromium}=require('playwright');
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
   await page.waitForTimeout(350);assert.equal(queries.length,0);
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
-  await page.getByTestId('analysis-approved-crop').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
   assert.equal(queries.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
   assert.ok(typeof queries[0].imageBase64==='string'&&queries[0].imageBase64.startsWith('data:image/'),'the original is sent only with the active analysis request');
