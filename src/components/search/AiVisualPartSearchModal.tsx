@@ -61,6 +61,8 @@ import { pricingCreditService } from "../../services/pricingCreditService";
 import { IMAGES } from "../../assets/images";
 import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
+import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
+import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
 
 interface Props {
   isOpen: boolean;
@@ -124,7 +126,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen]);
   React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [localImageId, setLocalImageId] = useState<string | null>(null);
+  const [imageEventId, setImageEventId] = useState<string | null>(null);
+  // Request-scoped data URL only; original Blob remains in the device vault.
+  const [temporaryImageDataUrl, setTemporaryImageDataUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const imageUploadSequenceRef = useRef(0);
   const [mimeType, setMimeType] = useState<string>("image/jpeg");
@@ -215,15 +220,30 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     "بدون لغزش دندانه و انعطاف بالا",
   ];
 
-  const uploadSelectedImage = async (source: string | Blob): Promise<string> => {
+  const uploadSelectedImage = async (source: string | Blob, originalName = "customer-image"): Promise<string> => {
     const sequence = ++imageUploadSequenceRef.current;
     setIsUploadingImage(true);
-    setUploadedImageUrl(null);
     try {
-      const uploaded = await aiVisualSearchService.uploadCustomerImage(source);
-      if (sequence === imageUploadSequenceRef.current) setUploadedImageUrl(uploaded.imageUrl);
-      return uploaded.imageUrl;
+      const blob = typeof source === "string"
+        ? await fetch(source, { credentials: "same-origin", cache: "no-store" }).then(response => {
+            if (!response.ok) throw new Error("خواندن تصویر انتخاب‌شده ناموفق بود.");
+            return response.blob();
+          })
+        : source;
+      const saved = await saveCustomerDeviceImage(blob, currentUser?.id || "guest", originalName);
+      const dataUrl = await customerImageBlobToDataUrl(blob);
+      if (sequence === imageUploadSequenceRef.current) {
+        setLocalImageId(saved.id);
+        setMimeType(saved.mimeType);
+        setTemporaryImageDataUrl(dataUrl);
+      }
+      return dataUrl;
     } catch (error: any) {
+      if (sequence === imageUploadSequenceRef.current) {
+        setLocalImageId(null);
+        setTemporaryImageDataUrl(null);
+        setErrorMessage(error?.message || "ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.");
+      }
       throw error;
     } finally {
       if (sequence === imageUploadSequenceRef.current) setIsUploadingImage(false);
@@ -267,13 +287,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
   };
 
-  const uploadAndPrepareImage = async (source: string | Blob) => {
+  const uploadAndPrepareImage = async (source: string | Blob, originalName = "customer-image") => {
     const sequence = ++imagePreparationSequenceRef.current;
     setErrorMessage('');
     setRegionDetectionMessage('');
     setRegionDetectionState('uploading');
     try {
-      const imageUrl = await uploadSelectedImage(source);
+      const imageUrl = await uploadSelectedImage(source, originalName);
       if (sequence !== imagePreparationSequenceRef.current) return;
       await detectUploadedImageRegions(imageUrl);
     } catch (error: any) {
@@ -285,8 +305,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const retryRegionPreparation = () => {
-    if (uploadedImageUrl) void detectUploadedImageRegions(uploadedImageUrl);
-    else if (selectedImage) void uploadAndPrepareImage(selectedImage);
+    if (temporaryImageDataUrl) void detectUploadedImageRegions(temporaryImageDataUrl);
+    else if (selectedImage) void uploadAndPrepareImage(selectedImage, "camera-capture.jpg");
   };
 
   const handleRegionSelection = (region: ImageRegion | undefined) => {
@@ -301,13 +321,16 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const fileMime = (file.type || '').toLowerCase();
     const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
-    if ((fileMime ? !allowed.includes(fileMime) : !supportedExtension) || file.size > 12 * 1024 * 1024) {
-      setErrorMessage('لطفاً تصویر JPG، PNG یا WebP با حجم کمتر از ۱۲ مگابایت انتخاب کنید.');
+    if ((fileMime ? !allowed.includes(fileMime) : !supportedExtension) || file.size > 10 * 1024 * 1024) {
+      setErrorMessage('لطفاً تصویر JPG، PNG یا WebP با حجم حداکثر ۱۰ مگابایت انتخاب کنید.');
       return;
     }
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
+    imageUploadSequenceRef.current++;
+    setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+    setImageEventId(null);
     setErrorMessage('');
-    setUploadedImageUrl(null);
     setAnalysisResult(null);
     setMeasurements({});
     setSelectedImage(URL.createObjectURL(file));
@@ -315,7 +338,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setRegionDetectionState('uploading');
     setFullImageSelected(false);
     if (isUsingCamera) stopCamera();
-    void uploadAndPrepareImage(file);
+    void uploadAndPrepareImage(file, file.name);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -331,7 +354,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setAnalysisResult(null);setMeasurements({});
     setSelectedImage(preset.imageUrl);
-    setUploadedImageUrl(null);
+    setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+    setImageEventId(null);
     setMimeType("image/jpeg");
     setErrorMessage("");
     setRegionDetectionState('uploading');
@@ -434,12 +459,15 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     reader.onload = () => {
       if (preparationSequence !== imagePreparationSequenceRef.current || typeof reader.result !== "string") return;
       if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-      setUploadedImageUrl(null);
-      setAnalysisResult(null);
+        setAnalysisResult(null);
       setMeasurements({});
       setSelectedImage(reader.result);
+      setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+      setImageEventId(null);
       setMimeType(file.type || (file.name.toLowerCase().endsWith('.png') ? 'image/png' : file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg'));
       setErrorMessage("");
+      void uploadSelectedImage(file, file.name);
       setCameraReview(true);
       stopCamera();
     };
@@ -466,17 +494,19 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           URL.revokeObjectURL(selectedImage);
         setAnalysisResult(null);setMeasurements({});
         setSelectedImage(dataUrl);
-        setUploadedImageUrl(null);
+            setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+        setImageEventId(null);
         setMimeType("image/jpeg");
         setErrorMessage("");
         if (cameraFlowActive) {
-          // Keep the captured frame local until the customer confirms it.
+          // Keep the captured frame in memory only until the customer confirms it.
           setCameraReview(true);
           stopCamera();
           return;
         }
         setRegionDetectionState('uploading');
-        void uploadAndPrepareImage(dataUrl);
+        void uploadAndPrepareImage(dataUrl, "camera-capture.jpg");
         stopCamera();
       }
     }
@@ -499,7 +529,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
-    setUploadedImageUrl(null);
+    setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+    setImageEventId(null);
     setLength("");
     setWidth("");
     setPitch("");
@@ -532,82 +564,75 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null) => {
-    if(analysisBusyRef.current)return;
-    if (!selectedImage && !length && !width) {
-      setErrorMessage(
-        "لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید.",
-      );
-      return;
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?: ImageRegion | null, localImageIdOverride?: string) => {
+    if (analysisBusyRef.current) return;
+    if (!selectedImage && !length && !width) { setErrorMessage("لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید."); return; }
+    if (stage === "quick" && !selectedImage) { setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید."); return; }
+    if (isUploadingImage && !localImageIdOverride) { setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود."); return; }
+    const effectiveLocalImageId = localImageIdOverride || localImageId;
+    if (stage === "refined" && analysisResult?.requiredMeasurements) {
+      const issue = measurementError(analysisResult.requiredMeasurements, measurements);
+      if (issue) { setErrorMessage(issue); setCurrentStep(2); return; }
     }
-    if (stage === "quick" && !selectedImage) {
-      setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید.");
-      return;
-    }
-
-    if (isUploadingImage) {
-      setErrorMessage("لطفاً صبر کنید تا بارگذاری تصویر روی سرور کامل شود.");
-      return;
-    }
-
-    if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
-    const requestRegion=regionOverride===null?undefined:regionOverride || queryRegion;
-    const requestFullImage=regionOverride===null || (!requestRegion && fullImageSelected);
-    analysisBusyRef.current=true;
-    const sequence=++analysisSequenceRef.current;
-    setErrorMessage("");
-    setPendingStage(stage);
-    setAnalysisProgress(0);
-    setAnalysisPhaseIndex(0);
-    setScanCounts(null);
-    setCurrentStep("analyzing");
-
+    const requestRegion = localRegionEnabled ? (regionOverride === null ? undefined : regionOverride || queryRegion) : undefined;
+    const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
+    analysisBusyRef.current = true;
+    const sequence = ++analysisSequenceRef.current;
+    setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null); setCurrentStep("analyzing");
+    let activeImageEventId: string | null = imageEventId;
     try {
-      const result = await aiVisualSearchService.analyzePartWithAi({
-        imageUrl: uploadedImageUrl || undefined,
-        imageBase64: uploadedImageUrl ? undefined : selectedImage || undefined,
-        mimeType: mimeType,
-        length: length ? parseFloat(length) : undefined,
-        width: width ? parseFloat(width) : undefined,
-        pitch: pitch ? parseFloat(pitch) : undefined,
-        application: application.trim() || undefined,
-        features: features.trim() || undefined,
-        stage,
-        observationOnly:false,
-        region:requestRegion,
-        detectionId:regionDetectionId || undefined,
-        fullImage:requestFullImage,
-        includeNearest:false,
-        measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
-      }, progress => {
-        if(sequence!==analysisSequenceRef.current)return;
-        setScanCounts(progress);
-        setAnalysisProgress(progress.total ? Math.floor(progress.compared*100/progress.total) : 0);
-        setAnalysisPhaseIndex(progress.stage==='verifying' ? 4 : progress.stage==='scanning' ? 3 : progress.stage==='preparing' ? 0 : 1);
-      });
-
-      if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled || result.localVisionMetrics){
-        setLocalRegionEnabled(true);
-        setQueryRegion(result.queryRegion || requestRegion);
-        if(!requestRegion)setCandidateRegions(result.queryRegions || []);
-        setFullImageSelected(requestFullImage);
-        setRegionDetectionState('ready');
+      let imageBase64: string | undefined;
+      if (selectedImage) {
+        if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+        if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+        imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
+        if (currentUser && !activeImageEventId) {
+          const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
+          if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
+          try {
+            const event = await createCustomerImageIdentification({ deviceImageId: metadata.id, sha256: metadata.sha256, mimeType: metadata.mimeType, sizeBytes: metadata.sizeBytes, originalName: metadata.originalName });
+            activeImageEventId = event.id; setImageEventId(event.id);
+          } catch (trackingError) { console.warn("[Customer image history] metadata sync unavailable", trackingError); }
+        }
       }
-      if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
-      setAnalysisResult(result);
-      setLastStage(result.stage || stage);
-      setCurrentStep(result.observationOnly ? 2 : "results");
-    } catch (err: any) {
-      if(sequence!==analysisSequenceRef.current)return;
-      console.error(err);
-      setErrorMessage(friendlyVisionError(err));
-      setCurrentStep(stage === "quick" ? 1 : 3);
-    }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
+      const result = await aiVisualSearchService.analyzePartWithAi({
+        imageBase64, mimeType,
+        length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
+        application: application.trim() || undefined, features: features.trim() || undefined,
+        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
+        measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
+      }, progress => {
+        if (sequence !== analysisSequenceRef.current) return;
+        setScanCounts(progress); setAnalysisProgress(progress.total ? Math.floor(progress.compared * 100 / progress.total) : 0);
+        setAnalysisPhaseIndex(progress.stage === "verifying" ? 4 : progress.stage === "scanning" ? 3 : progress.stage === "preparing" ? 0 : 1);
+      });
+      if (sequence !== analysisSequenceRef.current) return;
+      if (localRegionEnabled || result.localVisionMetrics) {
+        setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
+        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
+        setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
+      }
+      if (activeImageEventId) {
+        const matched = result.matchedProducts || [], similar = result.similarCandidates || [];
+        void completeCustomerImageIdentification(activeImageEventId, {
+          status: matched.length || similar.length ? "completed" : "unmatched", detectedPartType: result.summary?.detectedPartType,
+          summary: result.summary?.whatYouSee || result.summary?.visualAnalysis, technicalAdvice: result.technicalAdvice,
+          matchedProductCodes: matched.map(item => item.code), similarProductCodes: similar.map(item => item.code), confidence: result.summary?.confidence,
+        }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
+      }
+      setAnalysisResult(result); setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
+    } catch (error: any) {
+      if (sequence !== analysisSequenceRef.current) return;
+      console.error(error);
+      if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
+      setErrorMessage(friendlyVisionError(error)); setCurrentStep(stage === "quick" ? 1 : 3);
+    } finally { if (sequence === analysisSequenceRef.current) analysisBusyRef.current = false; }
   };
 
   const confirmRegionAndAnalyze = () => {
-    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
@@ -634,7 +659,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
-    setUploadedImageUrl(null);
+    setLocalImageId(null);
+    setTemporaryImageDataUrl(null);
+    setImageEventId(null);
     setRegionDetectionId(null);
     setQueryRegion(undefined);
     setCandidateRegions([]);
@@ -643,7 +670,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void startCamera();
   };
 
-  const confirmCameraPhoto = () => {
+  const confirmCameraPhoto = async () => {
     if (!selectedImage) {
       setErrorMessage("ابتدا عکس قطعه را ثبت کنید.");
       return;
@@ -1127,9 +1154,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   status={regionDetectionState}
                   selectedRegion={queryRegion}
                   candidateRegions={candidateRegions}
-                  message={regionDetectionMessage}
+                  message={[regionDetectionMessage, localImageId ? 'تصویر اصلی فقط در حافظه خصوصی همین مرورگر نگهداری می‌شود.' : ''].filter(Boolean).join(' ')}
                   analysisError={errorMessage}
-                  busy={isUploadingImage || !uploadedImageUrl}
+                  busy={isUploadingImage || !temporaryImageDataUrl}
                   onRegionChange={handleRegionSelection}
                   onConfirm={confirmRegionAndAnalyze}
                   onRetryPreparation={retryRegionPreparation}
@@ -2233,6 +2260,22 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                     >
                                       <span>مشاهده کالا</span>
                                       <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (imageEventId) {
+                                          void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
+                                            console.warn('[Customer image history] selected product sync unavailable', error)
+                                          );
+                                        }
+                                        onClose();
+                                        navigate('/ai-consult?productCode=' + encodeURIComponent(match.code) + '&productName=' + encodeURIComponent(match.name || match.code));
+                                      }}
+                                      className="h-9 px-3 bg-orange-50 hover:bg-orange-100 text-[#A64B14] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer border border-orange-200"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      <span>مشاوره FORZA</span>
                                     </button>
                                   </div>
                                 </div>
