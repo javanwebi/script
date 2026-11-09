@@ -58,6 +58,8 @@ import {
 } from '../services/aiVisualSearchService';
 import { useCart } from '../context/CartContext';
 import { AiVisualPartSearchModal } from '../components/search/AiVisualPartSearchModal';
+import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from '../services/customerImageVault';
+import { createCustomerImageIdentification, completeCustomerImageIdentification, saveCustomerConsultation } from '../services/customerIntelligenceService';
 
 interface Message {
   id: string;
@@ -76,6 +78,8 @@ interface ChatSession {
   timestamp: number;
   messages: Message[];
 }
+
+type ConsultationProduct = { code: string; name: string; size?: string };
 
 const STORAGE_KEY = 'forza_industrial_chat_sessions_v2';
 const ACTIVE_SESSION_KEY = 'forza_active_session_id_v2';
@@ -210,6 +214,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // Visual Part Studio State
   const [selectedPartCategory, setSelectedPartCategory] = useState<string>('belts');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImageId, setCapturedImageId] = useState<string | null>(null);
+  const [imageEventId, setImageEventId] = useState<string | null>(null);
+  const [selectedConsultProducts, setSelectedConsultProducts] = useState<ConsultationProduct[]>([]);
+  const [showProductPicker, setShowProductPicker] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -243,10 +251,26 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const productContextAddedRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const addProductToConsultation = (product: ConsultationProduct) => {
+    setSelectedConsultProducts(current => current.some(item => item.code === product.code)
+      ? current
+      : [...current, product].slice(0, 20));
+    setActiveWorkspaceTab('chat');
+  };
+
+  useEffect(() => {
+    const code = entryParams.get('productCode')?.trim();
+    const name = entryParams.get('productName')?.trim();
+    if (!code || productContextAddedRef.current === code) return;
+    productContextAddedRef.current = code;
+    addProductToConsultation({ code, name: name || code });
+  }, [entryParams]);
 
   // Load Sessions from LocalStorage
   useEffect(() => {
@@ -373,6 +397,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     };
   }, []);
 
+  const persistCapturedImageOnDevice = async (blob: Blob, originalName: string) => {
+    try {
+      const saved = await saveCustomerDeviceImage(blob, currentUser?.id || 'guest', originalName);
+      setCapturedImageId(saved.id);
+      setImageEventId(null);
+      setAnalysisError(null);
+    } catch (error: any) {
+      setCapturedImageId(null);
+      setAnalysisError(error?.message || 'ذخیره تصویر در حافظه داخلی دستگاه انجام نشد.');
+    }
+  };
+
   // Camera Handling
   const startCamera = async (facing: 'environment' | 'user' = cameraFacing) => {
     setCameraError(null);
@@ -423,6 +459,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
       setCapturedImage(dataUrl);
+      setCapturedImageId(null);
+      setImageEventId(null);
+      void fetch(dataUrl).then(response => response.blob()).then(blob => persistCapturedImageOnDevice(blob, 'camera-capture.jpg'));
       stopCamera();
     }
   };
@@ -434,6 +473,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setCapturedImage(reader.result);
+        setCapturedImageId(null);
+        setImageEventId(null);
+        void persistCapturedImageOnDevice(file, file.name);
         stopCamera();
       }
     };
@@ -442,6 +484,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const handleSelectPresetSample = (sample: IndustrialPresetSample) => {
     setCapturedImage(sample.imageUrl);
+    setCapturedImageId(null);
+    setImageEventId(null);
     stopCamera();
     setDimensionLength(sample.length ? sample.length.toString() : "");
     setDimensionWidth(sample.width ? sample.width.toString() : "");
@@ -452,6 +496,11 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const runAiPartAnalysis = async () => {
     if (!capturedImage) return;
+    if (!currentUser) {
+      setAnalysisError('برای ثبت سابقه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.');
+      openAuthModal('/ai-consult', 'login');
+      return;
+    }
     setIsAnalyzing(true);
     setAnalysisError(null);
     setAnalysisResult(null);
@@ -463,9 +512,36 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     const markingHint = partMarking ? `کد و مارکینگ حک‌شده روی بدنه قطعه: ${partMarking}. ` : '';
     const fullFeatures = `${categoryPromptHint}${markingHint}`;
 
+    let activeImageEventId: string | null = imageEventId;
     try {
+      let imageBase64: string | undefined;
+      let imageUrl: string | undefined;
+      if (/^https?:\/\//i.test(capturedImage)) {
+        imageUrl = capturedImage;
+      } else {
+        if (!capturedImageId) throw new Error('تصویر هنوز در حافظه داخلی دستگاه ذخیره نشده است؛ دوباره انتخاب کنید.');
+        const localRecord = await getCustomerDeviceImage(capturedImageId);
+        if (!localRecord) throw new Error('تصویر محلی پیدا نشد؛ دوباره انتخاب کنید.');
+        await adoptCustomerDeviceImage(capturedImageId, currentUser.id);
+        imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
+        if (!activeImageEventId) {
+          const metadata = await getCustomerDeviceImageMetadata(capturedImageId);
+          if (!metadata) throw new Error('اطلاعات تصویر محلی پیدا نشد.');
+          const event = await createCustomerImageIdentification({
+            deviceImageId: metadata.id,
+            sha256: metadata.sha256,
+            mimeType: metadata.mimeType,
+            sizeBytes: metadata.sizeBytes,
+            originalName: metadata.originalName,
+          });
+          activeImageEventId = event.id;
+          setImageEventId(event.id);
+        }
+      }
+
       const result = await aiVisualSearchService.analyzePartWithAi({
-        imageBase64: capturedImage,
+        imageUrl,
+        imageBase64,
         mimeType: 'image/jpeg',
         length: dimensionLength ? parseFloat(dimensionLength) : undefined,
         width: dimensionWidth ? parseFloat(dimensionWidth) : undefined,
@@ -475,8 +551,20 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         stage: 'refined',
       });
 
+      if (activeImageEventId) {
+        await completeCustomerImageIdentification(activeImageEventId, {
+          status: (result.matchedProducts?.length || result.similarCandidates?.length) ? 'completed' : 'unmatched',
+          detectedPartType: result.summary?.detectedPartType,
+          summary: result.summary?.whatYouSee || result.summary?.visualAnalysis,
+          technicalAdvice: result.technicalAdvice,
+          matchedProductCodes: (result.matchedProducts || []).map(item => item.code),
+          similarProductCodes: (result.similarCandidates || []).map(item => item.code),
+          confidence: result.summary?.confidence,
+        });
+      }
       setAnalysisResult(result);
     } catch (err: any) {
+      if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: 'failed' }).catch(() => undefined);
       console.error('Part analysis error:', err);
       setAnalysisError(
         err?.message || 'خطا در ارتباط با موتور هوش مصنوعی فورزا. لطفاً مجدداً تلاش نمایید.'
@@ -498,6 +586,26 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         `هوش مصنوعی فورزا قطعه را به عنوان «${analysisResult.summary.detectedPartType}» با پروفیل «${analysisResult.summary.detectedProfile}» شناسایی کرده است. لطفاً توصیه‌های فنی و مدل‌های موجود در کاتالوگ را بررسی کنید.`
       );
     }
+  };
+
+  const persistConsultationForCrm = (
+    sessionId: string,
+    title: string,
+    sessionMessages: Message[],
+    summary: string,
+  ) => {
+    if (!currentUser || !sessionId || !sessionMessages.length) return;
+    void saveCustomerConsultation({
+      sessionId,
+      title,
+      messages: sessionMessages.map(message => ({
+        id: message.id,
+        role: message.sender === 'ai' ? 'assistant' : 'user',
+        text: message.text,
+      })),
+      productCodes: selectedConsultProducts.map(product => product.code),
+      summary,
+    }).catch(error => console.warn('[FORZA CRM session sync]', error instanceof Error ? error.message : 'unavailable'));
   };
 
   const handleSend = async (queryText?: string) => {
@@ -561,9 +669,12 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : '';
 
       const stageContext = entryParams.get("stage")?.slice(0, 150);
+      const productContext = selectedConsultProducts.length
+        ? `[محصولات انتخاب‌شده برای مشاوره: ${selectedConsultProducts.map(product => `${product.code} - ${product.name}${product.size ? ' (' + product.size + ')' : ''}`).join('؛ ')}] `
+        : '';
       const queryWithContext = `${industryPrefix}${stageContext ? `[بخش خط تولید: ${stageContext}] ` : ""}${
         isDeeperResearchActive ? '[تحلیل عمیق و استاندارد فنی] ' : ''
-      }${textToSend}`;
+      }${productContext}${textToSend}`;
 
       let finalAiText = '';
       const res = await fetch(apiUrl('/api/ai/consult-stream'), {
@@ -575,6 +686,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           history: historyPayload,
           responseId: uniqueResponseId,
           includeAudio: false,
+          productCodes: selectedConsultProducts.map(product => product.code),
         }),
       });
 
@@ -622,6 +734,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : s
       );
       saveSessionsToStorage(updatedSessions);
+      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, finalAiText);
     } catch (error) {
       // A superseded or explicitly cancelled request must not overwrite the
       // newer turn. In particular, never retry through /api/ai/consult here:
@@ -655,6 +768,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : s
       );
       saveSessionsToStorage(updatedSessions);
+      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, failureText);
     } finally {
       // Only the request that still owns the composer may clear its loading
       // state; an older aborted request must not stop a newer request's spinner.
@@ -1638,7 +1752,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     </p>
 
                     {/* Quick Suggestions Grid */}
-                    <WorkspaceCatalog />
+                    <WorkspaceCatalog onAddToConsultation={addProductToConsultation} />
+                    {selectedConsultProducts.length > 0 && (
+                      <div className="mt-3 flex w-full flex-wrap gap-2">
+                        {selectedConsultProducts.map(product => (
+                          <button key={product.code} type="button"
+                            onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}
+                            className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[11px] font-bold text-[#A64B14]">
+                            {product.code} ×
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-right">
                       {PROMPT_SUGGESTIONS.map((item, idx) => {
                         const Icon = item.icon;
@@ -1791,8 +1916,27 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 )}
               </div>
 
+              {/* Product picker remains available while a consultation is in progress. */}
+              {showProductPicker && (
+                <div className="max-h-64 overflow-y-auto border-t border-[#CBD2D8] bg-[#F8FAFC] p-3">
+                  <div className="mx-auto max-w-4xl">
+                    <WorkspaceCatalog onAddToConsultation={addProductToConsultation} />
+                  </div>
+                </div>
+              )}
               {/* Bottom Sticky Composer Bar (Ergonomic with safe-area padding on mobile) */}
               <div className="p-2 sm:p-3 bg-[#FFFFFF] border-t border-[#CBD2D8] shrink-0 z-20 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                {selectedConsultProducts.length > 0 && (
+                  <div className="mx-auto mb-2 flex max-w-4xl flex-wrap gap-1.5">
+                    {selectedConsultProducts.map(product => (
+                      <span key={product.code} className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]">
+                        <span dir="ltr">{product.code}</span>
+                        <button type="button" aria-label={`حذف ${product.code} از فهرست مشاوره`}
+                          onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="max-w-4xl mx-auto w-full bg-[#F4F4F5] rounded-2xl border border-[#CBD2D8] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
                   <div className="flex items-end gap-2">
                     <textarea
@@ -1826,10 +1970,20 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                         <Sparkles className="w-4 h-4" />
                       </button>
 
+                      {/* Add a product to the current technical consultation */}
+                      <button
+                        type="button"
+                        onClick={() => setShowProductPicker(value => !value)}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${showProductPicker ? 'bg-orange-100 text-[#E06518]' : 'text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5]'}`}
+                        title="افزودن محصول به مشاوره"
+                      >
+                        <Search className="w-4 h-4" />
+                      </button>
+
                       {/* Camera / Visual Part Switch */}
                       <button
                         type="button"
-                        onClick={() => navigate('/identify-part?from=workspace')}
+                        onClick={() => navigate('/identify-part?from=workspace')
                         className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="شناسایی قطعه با دوربین"
                       >
