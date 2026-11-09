@@ -5678,7 +5678,7 @@ async function resolveForzaVoiceEngine():Promise<string>{
 }
 // During migration a Piper greeting must never accidentally serve a prerecorded
 // Pocket WAV from the original application image.
-const privatePiperGreeting=createForzaGreeting(renderPocketSpeech,[]);
+const privateServiceGreeting=createForzaGreeting(renderPocketSpeech,[]);
 
 async function renderPocketSpeech(
   phrase:string,
@@ -5763,7 +5763,7 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
     // The selected voice is warmed and cached in RAM while particles form.
     const activeVoice=await resolveForzaVoiceEngine();
     const isPiper=activeVoice!=='pocket-farsi-v2';
-    const audio=await (isPiper?privatePiperGreeting():getForzaGreeting());
+    const audio=await (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('X-Forza-Voice',activeVoice);
     res.setHeader('Cache-Control',isPiper?'no-store':'public, max-age=3600');
@@ -5786,11 +5786,12 @@ app.get('/api/ai/forza-voice-info',async(_req,res)=>{
   }
   const voice=await resolveForzaVoiceEngine();
   const ready=Boolean(internalForzaVoiceUrl&&process.env.FORZA_VOICE_TOKEN&&verifiedPrivateVoice);
-  if(voice==='piper-nima-gyro-medium'){
-    // Share the same pending synthesis with the greeting WAV request. This
-    // removes first-customer inference from the 100%-particles transition.
-    void privatePiperGreeting().then(()=>console.info('[FORZA greeting] warm=ready voice=nima'))
-      .catch(()=>console.warn('[FORZA greeting] warm=deferred voice=nima'));
+  if(internalForzaVoiceUrl){
+    // Warm the exact same private voice that serves replies, regardless of
+    // whether its engine is Pocket or Nima. The greeting route shares this
+    // single cached promise instead of generating duplicate first-call audio.
+    void privateServiceGreeting().then(()=>console.info('[FORZA greeting] warm=ready voice='+voice))
+      .catch(()=>console.warn('[FORZA greeting] warm=deferred voice='+voice));
   }
   res.setHeader('Cache-Control','no-store');
   res.json({voice,incrementalSpeech:voice==='piper-nima-gyro-medium',ready});
@@ -7952,7 +7953,7 @@ async function start() {
     if(localVisionEnabled)warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
-    void (forzaVoiceEngine!=='pocket-farsi-v2'?privatePiperGreeting():getForzaGreeting()).catch(()=>{});
+    void (forzaVoiceEngine!=='pocket-farsi-v2'?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
     // The app container never runs ONNX inference. The private voice service
     // is always kept separate from the database and web catalog.
     console.info(internalForzaVoiceUrl
