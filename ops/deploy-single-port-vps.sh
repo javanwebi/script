@@ -70,8 +70,26 @@ echo "DOMAIN_PORT_BEFORE=$DOMAIN_ACTIVE"
 if test "$DOMAIN_ACTIVE" != "$ACTIVE"; then
   echo "DOMAIN_PORT_DRIFT_DETECTED origin=$ACTIVE domain=$DOMAIN_ACTIVE"
 fi
-curl --noproxy '*' -fsS --max-time 12 "http://127.0.0.1:$ACTIVE/api/health" | grep -q '"database":"ok"'
-curl --noproxy '*' -kfsS --max-time 12 'https://127.0.0.1/api/health' | grep -q '"database":"ok"'
+# The live app can briefly reset a connection while Node finishes an in-flight
+# request. Retry the preflight without changing or restarting the current app.
+wait_for_live_health() {
+  local url="$1" label="$2" insecure="${3:-0}" attempt body
+  local -a args=(--noproxy '*' -fsS --connect-timeout 3 --max-time 12)
+  [[ "$insecure" == 1 ]] && args+=(-k)
+  for attempt in $(seq 1 8); do
+    if body="$(curl "${args[@]}" "$url" 2>/dev/null)" &&
+       grep -q '"database":"ok"' <<<"$body"; then
+      echo "${label}=OK attempt=${attempt}"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "${label}=FAILED url=${url}" >&2
+  curl --noproxy '*' -skv --connect-timeout 3 --max-time 8 "$url" 2>&1 | tail -25 >&2 || true
+  return 1
+}
+wait_for_live_health "http://127.0.0.1:$ACTIVE/api/health" ACTIVE_HTTP_HEALTH
+wait_for_live_health "https://127.0.0.1/api/health" ACTIVE_HTTPS_HEALTH 1
 OLD=''
 for c in $(docker ps --format '{{.Names}}'); do
  if docker port "$c" 3000/tcp 2>/dev/null | grep -Fxq "127.0.0.1:$ACTIVE"; then OLD="$c"; break; fi
@@ -410,6 +428,21 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
     exit 1
   }
   echo "PRIVATE_FORZA_CONFIG_MOUNT_OK"
+  # Verify the same loader used by server.ts resolves the selected AvalAI
+  # provider and key before the canary is allowed to take production traffic.
+  docker exec "$CANARY_NAME" node --import tsx --input-type=module -e '
+    import fs from "node:fs";
+    import dotenv from "dotenv";
+    import { applyPrivateForzaConfig } from "./server/ai/privateForzaConfig.ts";
+    const parsed = dotenv.parse(fs.readFileSync("/app/.env.forza-voice"));
+    applyPrivateForzaConfig(process.env, parsed);
+    for (const surface of ["DESK", "VOICE"]) {
+      const provider = process.env["FORZA_" + surface + "_PROVIDER"];
+      if (provider !== "avalai") throw new Error(surface + "_PROVIDER_NOT_AVALAI");
+    }
+    if (!process.env.AVALAI_API_KEY?.trim()) throw new Error("AVALAI_API_KEY_NOT_EFFECTIVE");
+    console.log("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
+  '
 fi
 docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
 
