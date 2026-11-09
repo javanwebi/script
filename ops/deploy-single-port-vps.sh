@@ -556,7 +556,7 @@ try:
 except Exception as exc:
  raise AssertionError('FORZA_STT_PUBLIC_API_RETURNED_NON_JSON') from exc
 assert isinstance(stt_info.get('serverSttConfigured'),bool), ('FORZA_STT_PUBLIC_BAD_CONTRACT',stt_info)
-assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+assert stt_info.get('serverSttProvider') in ('none','gemini','diba'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
 print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
 print('PUBLIC_HTTPS_AND_DATABASE_OK domain='+domain+' sni=correct')
 PY
