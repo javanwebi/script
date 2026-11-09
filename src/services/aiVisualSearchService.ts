@@ -161,18 +161,11 @@ function dataUrlToBlob(value: string, fallbackMime = 'image/jpeg'): Blob {
   return new Blob([decodeURIComponent(payload)], { type: mimeType });
 }
 
-async function uploadResponseData(response: Response): Promise<{ imageUrl: string; fileName: string }> {
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.imageUrl) {
-    throw new Error(data?.error?.message || `بارگذاری تصویر ناموفق بود (کد ${response.status}).`);
-  }
-  return { imageUrl: String(data.imageUrl), fileName: String(data.fileName || '') };
-}
 
 export const aiVisualSearchService = {
+  // Compatibility helper: convert to an in-memory data URL only.
+  // Customer image bytes are never uploaded to a permanent server image endpoint.
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
-    assertBackendConfigured();
-
     // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
     // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
     if (typeof source === 'string' && source.startsWith('/storage/products/')) {
@@ -182,151 +175,88 @@ export const aiVisualSearchService = {
     }
 
     if (typeof source === 'string' && /^https?:\/\//i.test(source.trim())) {
-      const response = await fetch(apiUrl('/api/ai/customer-images/import'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: source.trim() }),
-      });
-      return uploadResponseData(response);
+      return { imageUrl: source.trim(), fileName: '' };
     }
-
-    let blob: Blob;
-    if (typeof source === 'string') {
-      blob = source.startsWith('blob:')
-        ? await fetch(source).then(response => response.blob())
-        : dataUrlToBlob(source);
-    } else {
-      blob = source;
-    }
-
+    const blob = typeof source === 'string'
+      ? (source.startsWith('blob:') ? await fetch(source).then(response => response.blob()) : dataUrlToBlob(source))
+      : source;
     const mimeType = (blob.type || 'image/jpeg').split(';')[0].toLowerCase();
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mimeType)) {
       throw new Error('فقط تصاویر JPEG، PNG یا WEBP پشتیبانی می‌شوند.');
     }
-
-    const response = await fetch(apiUrl('/api/ai/customer-images'), {
-      method: 'POST',
-      headers: { 'Content-Type': mimeType },
-      body: blob,
+    const imageUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.onerror = () => reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.readAsDataURL(blob);
     });
-    return uploadResponseData(response);
+    return { imageUrl, fileName: '' };
   },
 
-  async detectImageRegions(imageUrl: string): Promise<ImageRegionDetectionResult> {
+  async detectImageRegions(imageData: string): Promise<ImageRegionDetectionResult> {
     assertBackendConfigured();
-    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.length > 2048) {
-      throw new Error('نشانی تصویر برای تشخیص ناحیه معتبر نیست.');
+    const isDataUrl = /^data:image\/(?:jpeg|png|webp);base64,/i.test(imageData || "");
+    if (!imageData || typeof imageData !== "string" || (isDataUrl ? imageData.length > 15 * 1024 * 1024 : imageData.length > 2048)) {
+      throw new Error("تصویر برای تشخیص ناحیه معتبر نیست یا حجم آن بیش از حد مجاز است.");
     }
-
+    const mimeType = imageData.match(/^data:([^;]+);base64,/i)?.[1] || "image/jpeg";
+    const body = isDataUrl ? { imageBase64: imageData, mimeType } : { imageUrl: imageData };
     let response: Response | undefined;
     let data: any = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        response = await fetch(apiUrl('/api/ai/detect-regions'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-          body: JSON.stringify({ imageUrl }),
-        });
+        response = await fetch(apiUrl("/api/ai/detect-regions"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify(body) });
         data = await response.json().catch(() => null);
         if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
-      } catch (error) {
-        if (attempt === 1) throw error;
-      }
+      } catch (error) { if (attempt === 1) throw error; }
       await new Promise(resolve => setTimeout(resolve, 650));
     }
-
-    if (!response?.ok || !data?.success || typeof data.detectionId !== 'string') {
-      const error = new Error(data?.error?.message || 'تشخیص خودکار ناحیه کامل نشد.') as Error & { status?: number; code?: string };
-      error.status = response?.status;
-      error.code = data?.error?.code;
-      throw error;
+    if (!response?.ok || !data?.success || typeof data.detectionId !== "string") {
+      const error = new Error(data?.error?.message || "تشخیص خودکار ناحیه کامل نشد.") as Error & { status?: number; code?: string };
+      error.status = response?.status; error.code = data?.error?.code; throw error;
     }
-    const validRegion = (region: any) => region && [region.x, region.y, region.width, region.height].every((n: unknown) => typeof n === 'number' && Number.isFinite(n)) &&
-      region.x >= 0 && region.y >= 0 && region.width >= 0.03 && region.height >= 0.03 &&
-      region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001;
+    const validRegion = (region: any) => region && [region.x, region.y, region.width, region.height].every((n: unknown) => typeof n === "number" && Number.isFinite(n)) && region.x >= 0 && region.y >= 0 && region.width >= 0.03 && region.height >= 0.03 && region.x + region.width <= 1.000001 && region.y + region.height <= 1.000001;
     const queryRegions = Array.isArray(data.queryRegions) ? data.queryRegions.filter(validRegion).slice(0, 4) : [];
     const queryRegion = validRegion(data.queryRegion) ? data.queryRegion : undefined;
-    return {
-      success: true,
-      detectionId: data.detectionId,
-      queryRegion,
-      queryRegions,
-      autoDetected: Boolean(queryRegion),
-      pipeline: String(data.pipeline || ''),
-      model: String(data.model || ''),
-      elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0,
-    };
+    return { success: true, detectionId: data.detectionId, queryRegion, queryRegions, autoDetected: Boolean(queryRegion), pipeline: String(data.pipeline || ""), model: String(data.model || ""), elapsedMs: Number.isFinite(data.elapsedMs) ? data.elapsedMs : 0 };
   },
 
-  async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress:ImageScanProgress)=>void): Promise<AiPartAnalysisResult> {
+  async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress: ImageScanProgress) => void): Promise<AiPartAnalysisResult> {
     assertBackendConfigured();
-
-    let imageUrl = request.imageUrl;
-    if (!imageUrl && request.imageBase64) {
-      imageUrl = (await this.uploadCustomerImage(request.imageBase64)).imageUrl;
-    }
-
-    const { imageBase64: _imageBase64, mimeType: _mimeType, ...analysisFields } = request;
-    const payload = imageUrl
-      ? { ...analysisFields, imageUrl }
-      : analysisFields;
-
+    const { imageBase64, mimeType, imageUrl, ...analysisFields } = request;
+    const payload = { ...analysisFields, ...(imageUrl ? { imageUrl } : {}), ...(imageBase64 ? { imageBase64, mimeType: mimeType || "image/jpeg" } : {}) };
     let response: Response | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
-      response = await fetch(apiUrl('/api/ai/analyze-part'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-        body: JSON.stringify(payload),
-      });
+      response = await fetch(apiUrl("/api/ai/analyze-part"), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify(payload) });
       if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
       await new Promise(resolve => setTimeout(resolve, 650));
     }
-
     if (!response || !response.ok) {
       const failure = response ? await response.json().catch(() => null) : null;
       const status = response?.status ?? 503;
       const error = new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${status}`) as Error & { status?: number; code?: string };
-      error.status = status;
-      error.code = failure?.error?.code;
-      throw error;
+      error.status = status; error.code = failure?.error?.code; throw error;
     }
-
     let data: AiPartAnalysisResult = await response.json();
-    if(response.status===202) {
-      const jobId=(data as any).jobId;
-      if(typeof jobId!=='string')throw new Error('شناسهٔ بررسی تصاویر دریافت نشد.');
-      const deadline=Date.now()+30*60*1000;
-      while(true) {
-        if(Date.now()>deadline)throw new Error('مهلت بررسی کامل تصاویر تمام شد؛ دوباره تلاش کنید.');
-        await new Promise(resolve=>setTimeout(resolve,1200));
-        const poll=await fetch(apiUrl(`/api/ai/recognition-jobs/${encodeURIComponent(jobId)}`),{cache:'no-store'});
-        const job=await poll.json();
-        if(!poll.ok)throw new Error(job.error?.message || 'دریافت وضعیت بررسی تصاویر ناموفق بود.');
-        if(job.progress)onProgress?.(job.progress);
-        if(job.status==='failed')throw new Error(job.error || 'بررسی تصاویر کامل نشد.');
-        if(job.status==='complete'){data=job.result;break;}
+    if (response.status === 202) {
+      const jobId = (data as any).jobId;
+      if (typeof jobId !== "string") throw new Error("شناسهٔ بررسی تصاویر دریافت نشد.");
+      const deadline = Date.now() + 30 * 60 * 1000;
+      while (true) {
+        if (Date.now() > deadline) throw new Error("مهلت بررسی کامل تصاویر تمام شد؛ دوباره تلاش کنید.");
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        const poll = await fetch(apiUrl(`/api/ai/recognition-jobs/${encodeURIComponent(jobId)}`), { cache: "no-store" });
+        const job = await poll.json();
+        if (!poll.ok) throw new Error(job.error?.message || "دریافت وضعیت بررسی تصاویر ناموفق بود.");
+        if (job.progress) onProgress?.(job.progress);
+        if (job.status === "failed") throw new Error(job.error || "بررسی تصاویر کامل نشد.");
+        if (job.status === "complete") { data = job.result; break; }
       }
     }
-
-    // Enrich only by the exact product code. Never invent a catalog result
-    // through a partial name match or generated fallback product.
-    const mapWithCatalog = (m: MatchedPartItem): MatchedPartItem => ({
-      ...m,
-      catalogProduct: getProductByCode(m.code),
-    });
-
+    const mapWithCatalog = (item: MatchedPartItem): MatchedPartItem => ({ ...item, catalogProduct: getProductByCode(item.code) });
     data.matchedProducts = (data.matchedProducts || []).map(mapWithCatalog);
-    if (data.rejectedCandidates && Array.isArray(data.rejectedCandidates)) {
-      data.rejectedCandidates = data.rejectedCandidates.map(mapWithCatalog);
-    }
-    if (data.similarCandidates && Array.isArray(data.similarCandidates)) {
-      data.similarCandidates = data.similarCandidates.map(mapWithCatalog);
-    }
-
+    if (Array.isArray(data.rejectedCandidates)) data.rejectedCandidates = data.rejectedCandidates.map(mapWithCatalog);
+    if (Array.isArray(data.similarCandidates)) data.similarCandidates = data.similarCandidates.map(mapWithCatalog);
     return data;
   },
 

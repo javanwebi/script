@@ -174,18 +174,48 @@ export function registerAdminCustomersApi(app: Express) {
       await guard(req, res);
       const key = customerKey(req.params.key);
       const customer = await loadOne(key.source + ':' + key.id);
-      const [orders, finance, tickets] = await Promise.all([
+      const userId = customer.user_id || null;
+      const crmId = customer.crm_id || null;
+      const intelligenceEnabled = process.env.CUSTOMER_360_LOCAL_VAULT_ENABLED === 'true';
+      const purchaseOwner = "((o.user_id=$1::uuid and $1::uuid is not null) or (o.crm_customer_id=$2::text and $2::text is not null))";
+      const [orders, finance, tickets, imageEvents, consultations, productInterests, monthlyPurchases, yearlyPurchases, topProducts, followups] = await Promise.all([
         database().query(
-          "select o.id,o.created_at,o.status::text as status,o.payment_status,o.currency,o.total_amount,o.final_amount,o.discount_amount from public.orders o where (o.user_id=$1::uuid and $1::uuid is not null) or (o.crm_customer_id=$2::text and $2::text is not null) order by o.created_at desc limit 30",
-          [customer.user_id || null,customer.crm_id || null]),
-        customer.user_id
-          ? database().query("select id,kind,debt_delta,wallet_delta,points_delta,reference,order_id,description,created_at from public.financial_entries where user_id=$1 order by created_at desc limit 40",[customer.user_id])
+          "select o.id,o.created_at,o.status::text as status,o.payment_status,o.currency,o.total_amount,o.final_amount,o.discount_amount from public.orders o where " + purchaseOwner + " order by o.created_at desc limit 50",
+          [userId,crmId]),
+        userId
+          ? database().query("select id,kind,debt_delta,wallet_delta,points_delta,reference,order_id,description,created_at from public.financial_entries where user_id=$1 order by created_at desc limit 40",[userId])
           : Promise.resolve({rows:[]}),
-        customer.user_id
-          ? database().query("select id,subject,status,created_at,updated_at from public.support_tickets where user_id=$1 order by created_at desc limit 30",[customer.user_id])
+        userId
+          ? database().query("select id,subject,status,created_at,updated_at from public.support_tickets where user_id=$1 order by created_at desc limit 30",[userId])
+          : Promise.resolve({rows:[]}),
+        userId && intelligenceEnabled
+          ? database().query("select id,device_image_id,image_sha256,mime_type,file_size,original_name,recognition_status,detected_part_type,recognized_summary,selected_product_code,matched_product_codes,similar_product_codes,recognition_result,created_at from public.customer_image_identifications where user_id=$1 order by created_at desc limit 100",[userId])
+          : Promise.resolve({rows:[]}),
+        userId && intelligenceEnabled
+          ? database().query("select id,title,summary,status,messages,product_codes,message_count,started_at,last_message_at from public.customer_ai_consultations where user_id=$1 order by last_message_at desc limit 50",[userId])
+          : Promise.resolve({rows:[]}),
+        userId && intelligenceEnabled
+          ? database().query("select product_code,product_name,interaction_count,first_seen_at,last_seen_at,last_consultation_id from public.customer_product_interests where user_id=$1 order by interaction_count desc,last_seen_at desc limit 30",[userId])
+          : Promise.resolve({rows:[]}),
+        database().query(
+          "select to_char(date_trunc('month',o.created_at),'YYYY-MM') as period,count(*)::int as order_count,coalesce(sum(" + amount + "),0)::numeric as total from public.orders o where (" + completed + ") and " + purchaseOwner + " group by 1 order by 1 desc limit 24",
+          [userId,crmId]),
+        database().query(
+          "select to_char(date_trunc('year',o.created_at),'YYYY') as period,count(*)::int as order_count,coalesce(sum(" + amount + "),0)::numeric as total from public.orders o where (" + completed + ") and " + purchaseOwner + " group by 1 order by 1 desc limit 10",
+          [userId,crmId]),
+        database().query(
+          "select oi.product_code, max(oi.product_name) as product_name, sum(oi.quantity)::numeric as quantity, coalesce(sum(oi.total_price / case when o.currency='IRR' then 10 else 1 end),0)::numeric as revenue, count(distinct o.id)::int as order_count from public.order_items oi join public.orders o on o.id=oi.order_id where (" + completed + ") and " + purchaseOwner + " group by oi.product_code order by quantity desc,revenue desc limit 15",
+          [userId,crmId]),
+        intelligenceEnabled && (userId || crmId)
+          ? database().query("select f.id,f.title,f.notes,f.status,f.due_at,f.completed_at,f.created_at,f.assigned_staff_id,coalesce(u.full_name,u.username,'') as assigned_staff_name from public.customer_followups f left join public.user_profiles u on u.id=f.assigned_staff_id where ($1::uuid is not null and f.user_id=$1::uuid) or ($2::text is not null and f.crm_customer_id=$2::text) order by f.due_at asc nulls last,f.created_at desc limit 100",[userId,crmId])
           : Promise.resolve({rows:[]})
       ]);
-      res.json({ success: true, customer, orders: orders.rows, finance: finance.rows, tickets: tickets.rows });
+      res.json({
+        success: true, customer, intelligenceEnabled, orders: orders.rows, finance: finance.rows, tickets: tickets.rows,
+        imageEvents: imageEvents.rows, consultations: consultations.rows, productInterests: productInterests.rows,
+        monthlyPurchases: monthlyPurchases.rows, yearlyPurchases: yearlyPurchases.rows,
+        topProducts: topProducts.rows, followups: followups.rows
+      });
     } catch (e) { respond(res, e); }
   });
 

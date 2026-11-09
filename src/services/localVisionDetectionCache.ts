@@ -2,7 +2,7 @@ import type { QueryEvidence } from './localVision';
 import type { ImageRegion } from '../utils/imageRegion';
 
 export interface LocalVisionDetectionEntry {
-  imageUrl: string;
+  imageFingerprint: string;
   model: string;
   query: QueryEvidence;
   queryRegions: ImageRegion[];
@@ -33,10 +33,10 @@ export class LocalVisionDetectionCache {
     }
   }
 
-  get(id: string, imageUrl: string, model: string, now = Date.now()): LocalVisionDetectionEntry | undefined {
+  get(id: string, imageFingerprint: string, model: string, now = Date.now()): LocalVisionDetectionEntry | undefined {
     const entry = this.entries.get(id);
     if (!entry) return undefined;
-    if (now - entry.createdAt > this.ttlMs || entry.imageUrl !== imageUrl || entry.model !== model) {
+    if (now - entry.createdAt > this.ttlMs || entry.imageFingerprint !== imageFingerprint || entry.model !== model) {
       this.entries.delete(id);
       return undefined;
     }

@@ -198,3 +198,12 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   assert.match(css, /object-fit: cover/);
   assert.match(css, /safe-area-inset-bottom/);
 });
+
+
+test("customer image originals stay in the device vault and are sent only with active requests", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  assert.match(modal, /saveCustomerDeviceImage/);
+  assert.match(modal, /getCustomerDeviceImage/);
+  assert.match(modal, /imageBase64/);
+  assert.doesNotMatch(modal, /uploadCustomerImage\\(source\\)/);
+});
