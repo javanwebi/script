@@ -754,6 +754,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     };
     const failed = () => {
       if (settled || fallbackStarted) return;
+      // A network/HTTP error must not trigger a second request while the
+      // private TTS worker is still generating the same greeting. WebAudio
+      // recovery is reserved for a genuine media decode failure.
+      if(audio.error?.code!==3){
+        finish(new Error('audio-playback-failed'));
+        return;
+      }
       audio.pause();
       fallbackStarted = true;
       cleanup();
