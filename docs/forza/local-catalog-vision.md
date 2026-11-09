@@ -126,11 +126,12 @@ The query path now has these bounded stages:
    point and returns a normalized crop rectangle. The inline selector supports
    pointer/touch and keyboard activation; it never asks the customer to draw a box.
 2. Full-frame query plus up to three bounded object-region proposals. The proposal
-   stage combines border-foreground and Lab connected-component candidates, so
-   separated objects in one frame can be offered independently. These are
-   class-agnostic crop proposals, **not a trained industrial detector or pixel
-   segmentation model**. The catalogue similarity scores choose which crop best
-   matches; the system does not assume the largest or central object is correct.
+   stage combines border-foreground and Lab connected-component candidates, then
+   refines each candidate around its center with click-seeded GrabCut when overlap
+   and area checks pass. Segmentation is bounded to a 384px working image to limit
+   CPU cost. These remain class-agnostic proposals, **not a trained industrial
+   detector or semantic segmentation model**. Catalogue similarity chooses the
+   best crop; the system does not assume the largest or central object is correct.
 3. The interface shows automatic proposals and the currently selected crop. A tap
    anywhere on the photo sends its normalized point to the private sidecar. GrabCut
    segments the connected object under that point; a valid result replaces the crop
