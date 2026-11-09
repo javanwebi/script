@@ -25,7 +25,25 @@ type Summary = { total: number; high_volume: number; retail: number };
 type Order = { id: string; created_at: string; status: string; payment_status: string; currency: string; total_amount: string | number; final_amount: string | number | null; discount_amount: number | string | null };
 type Entry = { id: string; kind: string; debt_delta: string | number; wallet_delta: string | number; points_delta: string | number; description: string; reference: string; created_at: string };
 type Ticket = { id: string; subject: string; status: string; created_at: string };
-type Detail = { customer: Customer; orders: Order[]; finance: Entry[]; tickets: Ticket[] };
+type ImageEvent = {
+  id: string; user_id: string; customer_name: string; company: string; phone: string;
+  original_name: string; mime_type: string; file_size: number; recognition_status: string;
+  detected_part_type: string | null; recognized_summary: string | null; selected_product_code: string | null;
+  matched_product_codes: string[]; similar_product_codes: string[]; created_at: string;
+};
+type Consultation = {
+  id: string; title: string; summary: string; status: string; messages: Array<{id:string;role:string;text:string}>;
+  product_codes: string[]; message_count: number; started_at: string; last_message_at: string;
+};
+type PurchasePeriod = { period: string; order_count: number; total: number | string };
+type TopProduct = { product_code: string; product_name: string; quantity: number | string; revenue: number | string; order_count: number };
+type ProductInterest = { product_code: string; product_name: string; interaction_count: number; first_seen_at: string; last_seen_at: string };
+type Followup = { id: string; title: string; notes: string; status: string; due_at: string | null; completed_at: string | null; created_at: string; assigned_staff_name: string };
+type Detail = {
+  customer: Customer; orders: Order[]; finance: Entry[]; tickets: Ticket[];
+  imageEvents: ImageEvent[]; consultations: Consultation[]; productInterests: ProductInterest[];
+  monthlyPurchases: PurchasePeriod[]; yearlyPurchases: PurchasePeriod[]; topProducts: TopProduct[]; followups: Followup[];
+};
 type FormValues = CustomerCrmFormValues;
 const emptyForm = (kind: FormValues['kind']): FormValues => ({ name:'',company:'',phone:'',email:'',province:'',city:'',notes:'',kind });
 const nf = (value: number | string | null | undefined) => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -50,7 +68,7 @@ function Metric({label,value,Icon}:{label:string;value:string;Icon:React.Element
 
 export const RealCustomersCrmModule: React.FC = () => {
   const [kind,setKind] = useState<'retail'|'high_volume'>('retail');
-  const [section,setSection] = useState<'customers'|'tickets'>('customers');
+  const [section,setSection] = useState<'customers'|'tickets'|'images'>('customers');
   const [q,setQ] = useState('');
   const [page,setPage] = useState(1);
   const [revision,setRevision] = useState(0);
@@ -63,7 +81,14 @@ export const RealCustomersCrmModule: React.FC = () => {
   const [form,setForm] = useState<FormValues | null>(null);
   const [editing,setEditing] = useState<Customer|null>(null);
   const [detail,setDetail] = useState<Detail|null>(null);
-  const [detailTab,setDetailTab] = useState<'profile'|'orders'|'finance'|'tickets'>('profile');
+  const [detailTab,setDetailTab] = useState<'profile'|'orders'|'finance'|'tickets'|'images'|'consultations'|'purchases'|'followups'>('profile');
+  const [imageRows,setImageRows] = useState<ImageEvent[]>([]);
+  const [imagesLoading,setImagesLoading] = useState(false);
+  const [imageQuery,setImageQuery] = useState('');
+  const [followupTitle,setFollowupTitle] = useState('');
+  const [followupNotes,setFollowupNotes] = useState('');
+  const [followupDueAt,setFollowupDueAt] = useState('');
+  const [followupSaving,setFollowupSaving] = useState(false);
   const [detailsLoading,setDetailsLoading] = useState(false);
   const [busy,setBusy] = useState(false);
   const [exporting,setExporting] = useState(false);
@@ -105,6 +130,40 @@ export const RealCustomersCrmModule: React.FC = () => {
   },[kind,q,page,revision]);
 
   const refresh = useCallback(()=>setRevision(n=>n+1),[]);
+  useEffect(()=>{
+    if(section!=='images')return;
+    const controller=new AbortController();
+    const timer=window.setTimeout(async()=>{
+      try{
+        setImagesLoading(true);
+        const response=await fetch('/api/admin/crm/images?limit=250&q='+encodeURIComponent(imageQuery),{
+          credentials:'same-origin',cache:'no-store',signal:controller.signal
+        });
+        const data=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
+        if(!response.ok||!data.success)throw new Error(data.message||'دریافت تاریخچه تصاویر ممکن نشد.');
+        if(!controller.signal.aborted)setImageRows(data.rows||[]);
+      }catch(error){
+        if(!controller.signal.aborted)setError(error instanceof Error?error.message:'دریافت تصاویر ناموفق بود.');
+      }finally{if(!controller.signal.aborted)setImagesLoading(false);}
+    },imageQuery?250:0);
+    return ()=>{controller.abort();window.clearTimeout(timer);};
+  },[section,imageQuery,revision]);
+
+  const createFollowup = async () => {
+    if(!detail || followupTitle.trim().length<2)return;
+    setFollowupSaving(true);
+    try{
+      await api('/api/admin/crm/customers/'+encodeURIComponent(detail.customer.id)+'/followups',{
+        method:'POST',body:JSON.stringify({title:followupTitle,notes:followupNotes,dueAt:followupDueAt||null})
+      });
+      setFollowupTitle('');setFollowupNotes('');setFollowupDueAt('');
+      setNotice('پیگیری مشتری ثبت شد.');
+      await openDetail(detail.customer.id);
+      setDetailTab('followups');
+    }catch(error){setError(error instanceof Error?error.message:'ثبت پیگیری ناموفق بود.');}
+    finally{setFollowupSaving(false);}
+  };
+
   const openDetail = async (id:string) => {
     try {
       setDetailsLoading(true);setDetail(null);setError('');
@@ -205,8 +264,32 @@ export const RealCustomersCrmModule: React.FC = () => {
     <nav className="flex flex-wrap gap-2" aria-label="بخش‌های مدیریت مشتریان">
       <button type="button" onClick={()=>setSection('customers')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='customers'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>مشتریان خرید تکی و بالا</button>
       <button type="button" onClick={()=>setSection('tickets')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='tickets'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>تیکت‌های پشتیبانی</button>
+      <button type="button" onClick={()=>setSection('images')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='images'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>تاریخچه تصاویر شناسایی</button>
     </nav>
-    {section === 'tickets' ? <RealCrmTickets/> : <>
+    {section === 'tickets' ? <RealCrmTickets/> : section === 'images' ? <>
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className={card+' space-y-3 p-4'}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="font-black text-slate-800">تصاویر ارسالی مشتریان برای شناسایی</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">فایل اصلی فقط روی دستگاه مشتری نگهداری می‌شود؛ این صفحه فقط فراداده و نتیجه شناسایی را نمایش می‌دهد.</p></div>
+          <label className="relative block w-full sm:max-w-xs"><Search className="absolute right-3 top-3 h-4 w-4 text-slate-400"/>
+            <input className={field+' pr-10'} value={imageQuery} onChange={event=>setImageQuery(event.target.value)} placeholder="نام، شرکت، موبایل یا کد محصول..." aria-label="جستجوی تاریخچه تصاویر"/></label>
+        </div>
+        {imagesLoading ? <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="h-5 w-5 animate-spin"/>دریافت سوابق شناسایی...</div> :
+          imageRows.length ? <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-right text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr>{['مشتری','مجموعه / تماس','تاریخ ارسال','نوع قطعه','کد انتخابی','وضعیت','پرونده'].map(label=><th key={label} className="px-3 py-3">{label}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-100">{imageRows.map(row=><tr key={row.id} className="hover:bg-orange-50/50">
+              <td className="px-3 py-3 font-bold text-slate-800">{row.customer_name}</td>
+              <td className="px-3 py-3"><div>{row.company||'—'}</div><div className="mt-1 text-slate-500" dir="ltr">{row.phone}</div></td>
+              <td className="px-3 py-3">{date(row.created_at)}</td>
+              <td className="px-3 py-3">{row.detected_part_type||'در انتظار شناسایی'}</td>
+              <td className="px-3 py-3 font-bold" dir="ltr">{row.selected_product_code||'—'}</td>
+              <td className="px-3 py-3">{row.recognition_status}</td>
+              <td className="px-3 py-3"><button type="button" onClick={()=>void openDetail('profile:'+row.user_id)} className="rounded-lg bg-orange-50 px-3 py-2 font-bold text-orange-700">پرونده مشتری</button></td>
+            </tr>)}</tbody>
+          </table></div> : <div className="py-10 text-center text-sm text-slate-500">هنوز سابقه شناسایی ثبت نشده است.</div>}
+      </div>
+    </> : <>
     {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -302,7 +385,16 @@ export const RealCustomersCrmModule: React.FC = () => {
           <button className="rounded-lg border border-slate-200 p-2" aria-label="بستن پرونده" onClick={()=>setDetail(null)}><X className="h-5 w-5"/></button>
         </div>
         <div className="flex flex-wrap gap-2 border-b bg-white p-3">
-          {([{key:'profile',label:'مشخصات',Icon:Users},{key:'orders',label:'سفارش‌ها',Icon:Package},{key:'finance',label:'گردش مالی',Icon:Wallet},{key:'tickets',label:'پشتیبانی',Icon:MessageCircle}] as const).map(t=>
+          {([
+            {key:'profile',label:'مشخصات',Icon:Users},
+            {key:'orders',label:'سفارش‌ها',Icon:Package},
+            {key:'purchases',label:'تحلیل خرید',Icon:ShoppingBag},
+            {key:'images',label:'تصاویر AI',Icon:Eye},
+            {key:'consultations',label:'مشاوره FORZA',Icon:MessageCircle},
+            {key:'followups',label:'پیگیری‌ها',Icon:CalendarClock},
+            {key:'finance',label:'گردش مالی',Icon:Wallet},
+            {key:'tickets',label:'پشتیبانی',Icon:FileText}
+          ] as const).map(t=>
             <button key={t.key} onClick={()=>setDetailTab(t.key)} className={'flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold '+(detailTab===t.key?'bg-[#55565A] text-white':'bg-slate-100 text-slate-600')}><t.Icon className="h-4 w-4"/>{t.label}</button>)}
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
