@@ -7,6 +7,7 @@ import {registerCatalogNavigationApi} from './server/catalogNavigationApi';
 import {registerAdminStaffApi} from './server/db/adminStaffApi';
 import {registerAdminSecurityApi} from './server/db/adminSecurityApi';
 import {registerAdminCustomersApi} from './server/db/adminCustomersApi';
+import {registerCustomerIntelligenceApi} from './server/db/customerIntelligenceApi';
 import {registerAdminCustomerCredentialsApi} from './server/db/adminCustomerCredentialsApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
@@ -56,7 +57,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
+import {buildForzaConsultSystemMessage, configuredBaiModel, configuredXkiroModel, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {forzaVoiceRetryDelayMs,waitForForzaVoiceRetry} from './server/ai/forzaVoiceRetry';
@@ -188,7 +189,6 @@ const IMAGE_AI_DIR = process.env.IMAGE_AI_DIR || path.join(process.cwd(), 'image
 if (!fs.existsSync(IMAGE_AI_DIR)) {
   fs.mkdirSync(IMAGE_AI_DIR, { recursive: true });
 }
-const CUSTOMER_IMAGES_DIR = IMAGE_AI_DIR;
 const CUSTOMER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 function getPartRecognitionWorkerUrl(): string { return ''; /* Direct vision: Worker retired. */ }
 
@@ -315,9 +315,6 @@ function getPublicAppBaseUrl(req: express.Request): string {
 function visionImagePublicOrigin(req:express.Request):string {
   return (process.env.VISION_IMAGE_PUBLIC_ORIGIN || getPublicAppBaseUrl(req)).trim().replace(/\/+$/,'');
 }
-function customerImagePublicUrl(req: express.Request, fileName: string): string {
-  return `${visionImagePublicOrigin(req)}/imageai/${encodeURIComponent(fileName)}`;
-}
 
 function normalizeBrowserOrigin(value: string): string | null {
   try {
@@ -415,6 +412,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
 registerAdminStaffApi(app);
 registerAdminSecurityApi(app);
 registerAdminCustomersApi(app);
+registerCustomerIntelligenceApi(app);
 registerAdminCustomerCredentialsApi(app);
 app.get('/api/admin/reports',adminReportsApi);
 app.post('/api/checkout',checkoutApi);
@@ -485,28 +483,13 @@ interface CachedCustomerImage {
 const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
 
 function cleanCustomerImageMemoryCache() {
-  const cutoff = Date.now() - 30 * 60 * 1000;
+  const cutoff = Date.now() - 60 * 1000;
   for (const [key, val] of customerImageMemoryCache.entries()) {
     if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
   }
 }
 
-// Serve customer images directly from memory cache (no disk folder needed)
-app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
-  const fileName = path.basename(req.params.fileName || '');
-  const cached = customerImageMemoryCache.get(fileName);
-  if (cached) {
-    res.setHeader('Content-Type', cached.mimeType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    return res.end(cached.buffer);
-  }
-  next();
-});
-
-// Fallback to disk folder if image existed prior
+// Keep legacy image routes for catalogue assets. Customer uploads are never written to this directory.
 app.use(
   ['/imageai', '/imagemoshtari'],
   express.static(IMAGE_AI_DIR, {
@@ -919,8 +902,7 @@ function warmCatalogVisualIndex(corpus:ReturnType<typeof buildCatalogImageCorpus
  .then(()=>{
   const coverage=catalogVisualIndex.coverage(corpus);
   console.log('[Visual index]',JSON.stringify(coverage));
-  // A missing/unreadable photo must not block later rows. Retry only the
-  // still-missing entries after a cooldown; ready remains false until all match.
+  // Retry only missing/unreadable catalogue rows; do not report ready until all are indexed.
   if(!coverage.ready)setTimeout(()=>warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage),65000).unref();
  })
  .catch((error)=>{
@@ -2794,54 +2776,13 @@ async function persistCustomerImage(
     .jpeg({ quality: 94 })
     .toBuffer();
 
+  // Customer originals are persisted only in the browser's IndexedDB vault.
+  // The server keeps this optimized buffer in RAM only for the active AI request.
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
-  await fs.promises.writeFile(path.join(IMAGE_AI_DIR,fileName),optimized,{mode:0o600});
   const base64 = optimized.toString('base64');
   const dataUrl = `data:image/jpeg;base64,${base64}`;
 
-  customerImageMemoryCache.set(fileName, {
-    buffer: optimized,
-    mimeType: 'image/jpeg',
-    dataUrl,
-    createdAt: Date.now(),
-  });
-  cleanCustomerImageMemoryCache();
-
-  // Also sync to GitHub in background if configured, providing an external mirror link
-  // Customer images stay in temporary media storage; do not mirror them to a Git repository.
-  void cleanVisionImageLinks(IMAGE_AI_DIR);
-
   return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
-}
-
-const GITHUB_BACKUP_REPO = process.env.GITHUB_BACKUP_REPO || 'javanwebi/atlastrai';
-const GITHUB_BACKUP_TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_BACKUP_TOKEN || '';
-
-async function syncCustomerImageToGitHub(fileName: string, buffer: Buffer): Promise<string | null> {
-  if (!GITHUB_BACKUP_TOKEN || !GITHUB_BACKUP_REPO) return null;
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_BACKUP_REPO}/contents/imageai/${fileName}`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${GITHUB_BACKUP_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Atlas-AI-Search',
-      },
-      body: JSON.stringify({
-        message: `Upload customer image ${fileName} for AI recognition`,
-        content: buffer.toString('base64'),
-        branch: 'main',
-      }),
-    });
-    if (res.ok) {
-      return `https://raw.githubusercontent.com/${GITHUB_BACKUP_REPO}/main/imageai/${fileName}`;
-    }
-  } catch (err: any) {
-    console.warn('[GitHub Image Sync warning]:', err?.message);
-  }
-  return null;
 }
 
 function validatePresetImageImportUrl(input: string): string | null {
@@ -2879,7 +2820,7 @@ app.post(
       }
       const saved = await persistCustomerImage(req.body, req.get('content-type'));
       return res.status(201).json({
-        imageUrl: customerImagePublicUrl(req,saved.fileName),
+        imageUrl: saved.dataUrl,
         fileName: saved.fileName,
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,
@@ -2919,7 +2860,7 @@ app.post('/api/ai/customer-images/import', async (req, res) => {
     const image = await readResponseBufferLimited(response, CUSTOMER_IMAGE_MAX_BYTES);
     const saved = await persistCustomerImage(image, response.headers.get('content-type') || undefined);
     return res.status(201).json({
-      imageUrl: customerImagePublicUrl(req,saved.fileName),
+      imageUrl: saved.dataUrl,
       fileName: saved.fileName,
       mimeType: saved.mimeType,
       sizeBytes: saved.sizeBytes,
@@ -2939,6 +2880,7 @@ async function resolveCustomerImageBufferAndInfo(
   input: string,
   _req: express.Request
 ): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
+  cleanCustomerImageMemoryCache();
   const trimmed = String(input || '').trim();
   if (!trimmed) {
     throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
@@ -2951,12 +2893,6 @@ async function resolveCustomerImageBufferAndInfo(
       const rawBase64 = trimmed.slice(base64Index + 8);
       const buffer = Buffer.from(rawBase64, 'base64');
       const fileName = `${crypto.randomUUID()}.jpg`;
-      customerImageMemoryCache.set(fileName, {
-        buffer,
-        mimeType: 'image/jpeg',
-        dataUrl: trimmed,
-        createdAt: Date.now(),
-      });
       return {
         imageUrl: trimmed,
         fileName,
@@ -2970,12 +2906,6 @@ async function resolveCustomerImageBufferAndInfo(
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
     const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    customerImageMemoryCache.set(fileName, {
-      buffer,
-      mimeType: 'image/jpeg',
-      dataUrl,
-      createdAt: Date.now(),
-    });
     return {
       imageUrl: dataUrl,
       fileName,
@@ -4441,7 +4371,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     void retrievePartPhotos(observationKey,uploaded.buffer,buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),publishImage);
     return {success:true,isAiGenerated:true,stage:'quick',observationOnly:true,requiredMeasurements:fields,
     summary:{whatYouSee:analysis,visualAnalysis:analysis,detectedPartType:raw.part_family_farsi || raw.detected_part_type,detectedProfile:'برای تطبیق کد، مشخصات قطعه را وارد کنید.',confidence:0,unknownParameters:raw.unknown_parameters,readableMarkings:raw.readable_markings},
-    matchedProducts:[],similarCandidates:[],technicalAdvice:'مقادیر نامعلوم را حدس نزنید؛ مشخص نیست را انتخاب کنید.',customerImageUrl:uploaded.imageUrl};}
+    matchedProducts:[],similarCandidates:[],technicalAdvice:'مقادیر نامعلوم را حدس نزنید؛ مشخص نیست را انتخاب کنید.',};}
   if(body.measurements){const error=measurementError(fields,body.measurements);if(error)throw new Error(error);}
 
   // 3. Fallback baseline if all networks are down
@@ -4603,7 +4533,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
     rejectedCandidates: [],
     fallbackNotice: aiAvailable ? undefined : 'تحلیل آنلاین انجام نشد؛ نتایج فقط پیشنهادهای جست‌وجو هستند. نوشتهٔ روی قطعه و ابعاد برای تأیید لازم است.',
     technicalAdvice: raw?.technical_advice || 'پیش از سفارش، ابعاد، جنس و کد فنی قطعه را با رکورد محصول و شرایط دستگاه تطبیق دهید.',
-    customerImageUrl: uploaded.imageUrl,
+    
     catalogImageMatches:imageScan.matches.map(photo=>({...photo,image:photo.image.startsWith('data:') ? `${visionImagePublicOrigin(req)}/api/ai/catalog-images/${encodeURIComponent(photo.imageId)}` : photo.image})),
     scanCoverage:imageScan.coverage,
     retrieval:{mode:retrievalMode,...catalogVisualIndex.coverage(corpus),verifiedPool:comparisonCorpus.length},
@@ -4645,7 +4575,7 @@ async function saveBase64CustomerImageForWorker(
 
   const saved = await persistCustomerImage(buffer, declaredMime);
   return {
-    imageUrl: customerImagePublicUrl(req,saved.fileName),
+    imageUrl: saved.dataUrl,
     fileName: saved.fileName,
   };
 }
@@ -4731,9 +4661,9 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       // Similarity thresholds require validation on owner-labelled industrial photos.
       const configured=Number(process.env.LOCAL_VISION_MIN_SIMILARITY || String(localProfile.minSimilarity));
       const threshold=Number.isFinite(configured) ? Math.max(0,Math.min(1,configured)) : localProfile.minSimilarity;
-      const result=localVisionResult(hits,products,coverage,uploaded.imageUrl,threshold,query,body.includeNearest===true);
+      const result=localVisionResult(hits,products,coverage,'',threshold,query,body.includeNearest===true);
       const queryRegions=body.region ? [body.region] : (query.viewRegions || []).filter((region):region is {x:number;y:number;width:number;height:number}=>region!==null);
-       return res.json(publicCatalog({...result,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
+      return res.json(publicCatalog({...result,customerImageUrl:undefined,queryRegion:selectedRegion,queryRegions,localVisionMetrics:{pipeline:localProfile.pipeline,queryViews:query.vectors.length,geometryComplete,ocrAvailable:query.ocrAvailable,retrievalMs:Date.now()-started},catalogSearchWarning:result.catalogSearchWarning+(geometryComplete?"":" بازبینی جزئیات همهٔ گزینه‌های برتر کامل نشد.")}));
     }catch(error){
       console.warn('[Local vision request]',error instanceof Error ? error.name : 'unavailable');
       return res.status(503).json({error:{message:'موتور جست‌وجوی تصویری محلی در دسترس نیست یا مشغول است؛ دوباره تلاش کنید.'}});
@@ -4746,8 +4676,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const jobId=recognitionJobs.start(async progress=>{
         if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
         const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
-        const customerUrl=uploaded.imageUrl.startsWith('https://') ? uploaded.imageUrl
-          : await createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req))(uploaded.buffer,'image/jpeg');
+        const customerUrl='device-local://temporary-processing';
         if(!databaseEnabled())throw new Error('Catalog database unavailable');
         refreshRecognitionCatalog();
         const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
@@ -4798,7 +4727,6 @@ app.post('/api/ai/analyze-part', async (req, res) => {
           retrieval:{mode:'read-only-vision-agent',total:images.length,indexed:0,ready:true,verifiedPool:result.inspectedImages},
           catalogSearchWarning:result.warning,
           technicalAdvice:'انطباق دقیق مدل، ابعاد، گام و جنس را قبل از سفارش تأیید کنید.',
-          customerImageUrl:customerUrl,
           visionAgentMetrics:{modelCalls:result.modelCalls,imagesInspected:result.inspectedImages}
         });
       });
@@ -5357,9 +5285,7 @@ app.post('/api/ai/consult', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    const systemPrompt = `شما مشاور فنی و مهندسی تخصصی صنعت پیش (اطلس صنعت) هستید.
-حیطه تخصص شما: تسمه‌های انتقال قدرت و نوار نقاله، پولی‌ها، بلبرینگ‌ها و یاتاقان‌های صنعتی.
-پاسخ‌های شما فنی، دقیق، مستند به استانداردهای صنعتی DIN و ISO و به زبان فارسی سلیس و محترمانه است.`;
+    const systemPrompt = buildForzaConsultSystemMessage(false);
 
     let replyText = '';
 
@@ -5995,9 +5921,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       const workerMessages: Array<{ role: string; content: any }> = [
         {
           role: 'system',
-          content: (lowLatencyVoice
-            ? 'شما FORZA، مشاور صوتی فارسی صنعت پیش هستید. فقط متن ساده فارسی، بدون ستاره، بولت، Markdown، جدول، backtick و URL خام بدهید. کوتاه و مستقیم پاسخ دهید؛ جواب سلام طبیعی و کوتاه است. به «خیلی ضعیفه» با پرسش کوتاه درباره قسمت مشکل‌دار پاسخ دهید. در اصلاح «۶۲۰۲ نه ۶۲۰۳» فقط مقدار آخر معتبر است. بخش قطع‌شده را شنیده‌شده فرض نکنید. کد نامطمئن را تأیید بگیرید.'
-            : 'شما مشاور فنی صنعت پیش هستید. پاسخ کوتاه و تخصصی فارسی باشد. اصلاح کاربر مثل «۶۲۰۲ نه ۶۲۰۳» یعنی کد آخر معتبر است. اگر پاسخ قبلی قطع شده، «ادامه بده» باید فقط بخش شنیده‌نشده را از زمینه موجود ادامه دهد؛ کد نامطمئن را تأیید بگیرد.')+catalogContext,
+          content: buildForzaConsultSystemMessage(lowLatencyVoice)+catalogContext,
         },
       ];
       if (Array.isArray(history)) {
@@ -6065,14 +5989,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
       },
     });
 
-    const systemPrompt = mode === 'forza' ? `شما «AI FORZA»، مشاور صوتی صنعت پیش هستید. با فارسی طبیعی و کوتاه پاسخ بدهید. اولین جمله کوتاه، کامل و مستقل باشد تا فوراً به گفتار تبدیل شود. از کلمات ساده و قابل تلفظ استفاده کنید؛ کدهای فنی را بدون تغییر نگه دارید. هنگام اصلاح «۶۲۰۲، نه ۶۲۰۳» فقط مقدار جدید را ملاک بگیرید. اگر پاسخ قبلی قطع شد، فقط متن واقعاً پخش‌شده را شنیده‌شده فرض کنید. برای «ادامه بده» از همان نقطه ادامه دهید، و برای سؤال یا مشخصات جدید مسیر پاسخ را اصلاح کنید. درباره قطعات، مشخصات، برندها و موجودی فقط بر پایه اطلاعات واقعی کاتالوگ پاسخ دهید؛ اگر کد مهم مبهم بود کوتاه تأیید بگیرید و حدس نزنید. فقط متن ساده فارسی بدهید: بدون ستاره، Markdown، بولت، جدول، backtick، URL خام یا علامت تزئینی. برای سلام پاسخ سلام طبیعی بدهید. اگر مشتری گفت «خیلی ضعیفه» کوتاه بپرسید کدام قسمت مشکل دارد. «دارم بررسی می‌کنم» را فقط هنگام عملیات واقعی و زمان‌بر و یک بار بگویید.` : `شما «مشاور ارشد مهندسی و بازرگانی صنعت پیش» هستید؛ بزرگ‌ترین مرجع مهندسی و تأمین تسمه‌های صنعتی، پولی، بلبرینگ و قطعات خطوط تولید کارخانجات از سال ۱۳۶۶ و نماینده انحصاری برندهای SWR آلمان و FORZA ایتالیا در ایران.
-
-دستورالعمل ویژه سرعت پاسخ و ساختار مهندسی:
-۱. جمله اول باید یک عبارت کوتاه و مستقیم فنی (زیر ۱۰ کلمه) باشد؛ مثلاً: «سلام و درود، مهندس گرامی؛ بررسی مشخصات فنی درخواست شما:» یا «بررسی فنی استاندارد تسمه مورد نظر شما:». این عبارت کوتاه برای شروع بلادرنگ صوت فیستوفیس در کمتر از ۳۸۰ میلی‌ثانیه حیاتی است.
-۲. بلافاصله مشخصات فنی و استانداردهای صنعتی مرتبط را بیان کنید (مانند استانداردهای DIN 2215 برای وی‌بلت ساده، DIN 7753 برای وی‌بلت باریک SPZ/SPA/SPB/SPC، ISO 4184، DIN 7721 و ISO 5296 برای تسمه‌های تایمینگ HTD، و DIN 7867 برای تسمه‌های شیاردار PK/PJ).
-۳. یک جدول مقایسه‌ای استاندارد در قالب Markdown با ستون‌های مشخصات فنی، ابعاد (عرض، ضخامت، گام)، کد فنی معادل در کاتالوگ اطلس، متریال (EPDM / PU / کلروپرن با کورد استیل یا کولار) و برندهای انحصاری SWR آلمان و FORZA ایتالیا درج نمایید.
-۴. در صورت نیاز به فرمول یا محاسبه (طول گام، نسبت تبدیل دور یا گشتاور)، رابطه ریاضی را شفاف بنویسید.
-۵. در پایان نحوه استعلام فوری قیمت یا صدور پیش‌فاکتور رسمی را اعلام فرمایید.`;
+    const systemPrompt = buildForzaConsultSystemMessage(lowLatencyVoice);
 
     const contents: any[] = [];
     if (Array.isArray(history) && history.length > 0) {
