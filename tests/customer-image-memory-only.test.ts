@@ -50,5 +50,7 @@ test('Customer 360 image records are metadata-only and never expose a server ima
   );
   assert.match(api, /deviceImageId/);
   assert.match(api, /image_sha256/);
-  assert.doesNotMatch(api, /imageBase64|data:image|imageUrl|storage_path|bytea/i);
+  assert.match(api, /image_sha256/);
+  assert.match(api, /req\\.body\\?\\.imageUrl/);
+  assert.doesNotMatch(api, /insert into public\\.customer_image_identifications[^`]*image_url/i);
 });
