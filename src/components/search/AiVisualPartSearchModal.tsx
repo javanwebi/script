@@ -1659,6 +1659,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               >
                 <VisionAnalysisProgress
                   image={selectedImage}
+                  region={queryRegion}
                   progress={analysisProgress}
                   phaseIndex={analysisPhaseIndex}
                   phases={ANALYSIS_PHASES}
