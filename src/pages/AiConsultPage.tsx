@@ -3,6 +3,7 @@ import {WorkspaceCatalog} from '../components/search/WorkspaceCatalog';
 import {MemberAccess,memberPath} from '../components/storefront/MemberAccess';
 import {useAuth} from '../context/AuthContext';
 import React, { useState, useRef, useEffect } from 'react';
+import { unlockForzaAudioFromGesture } from '../utils/forzaAudioUnlock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
@@ -767,6 +768,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             type="button"
             onClick={() => {
               setIsMobileDrawerOpen(false);
+              unlockForzaAudioFromGesture();
               navigate('/ai-forza');
             }}
             className="w-full py-2 px-3 rounded-xl bg-[#FFFFFF] border border-[#CBD2D8] hover:border-[#E06518] hover:text-[#E06518] flex items-center justify-between text-right transition-all cursor-pointer shadow-2xs group"
@@ -1056,7 +1058,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
               {/* Live Voice Call Button */}
               <button
                 type="button"
-                onClick={() => navigate('/ai-forza')}
+                onClick={() => { unlockForzaAudioFromGesture(); navigate('/ai-forza'); }}
                 className="px-2 sm:px-3 py-1.5 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                 title="مکالمه زنده و چهره‌به‌چهره با هوش مصنوعی FORZA"
               >

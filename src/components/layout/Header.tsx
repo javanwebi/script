@@ -42,6 +42,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { unlockForzaAudioFromGesture } from '../../utils/forzaAudioUnlock';
 import { STORE_ASSETS } from '../../assets/images';
 import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, resolveCategorySlug } from '../../data/categories';
 import { CategoryNavigation } from '../catalog/CategoryNavigation';
@@ -155,7 +156,7 @@ export const Header: React.FC = () => {
       setTimeout(() => searchInputRef.current?.focus(), 80);
     };
     const handleOpenConsult = () => navigate('/ai-consult');
-    const handleOpenForza = () => navigate('/ai-consult?voice=1');
+    const handleOpenForza = () => { unlockForzaAudioFromGesture(); navigate('/ai-forza'); };
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

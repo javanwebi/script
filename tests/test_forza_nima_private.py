@@ -156,8 +156,8 @@ class NimaCandidateTests(unittest.TestCase):
         self.assertIn("maxConcurrent:2",frontend)
         self.assertIn("initialBufferSeconds:2",frontend)
         self.assertIn("phase=nima-incremental-finished",frontend)
-        self.assertIn("incrementalSpeech:forzaVoiceEngine==='piper-nima-gyro-medium'",backend)
-        self.assertIn("privatePiperGreeting()",backend)
+        self.assertIn("incrementalSpeech:voice==='piper-nima-gyro-medium'",backend)
+        self.assertIn("privateServiceGreeting()",backend)
         self.assertNotIn("privateAmirGreeting()",backend)
 
 if __name__=="__main__":

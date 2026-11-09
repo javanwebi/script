@@ -13,13 +13,13 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA renders live words but requests only one original Pocket WAV per complete reply',()=>{
+test('FORZA streams live words and preserves the selected voice TTS fallback',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/reply=callPlainText\.push\(fullText\)/);
   assert.match(frontend,/setAiText\(reply\)/);
-  assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
+  assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal,/);
   assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
+  assert.match(frontend,/body:JSON\.stringify\(\{text,turnId:requestTurnId\}\)/);
   assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
   assert.match(frontend,/phase=whole-pocket-wav-ready/);

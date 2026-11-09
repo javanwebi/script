@@ -6,10 +6,24 @@ COPY . .
 # FORZA's selected voice is Pocket TTS Farsi v2, not Piper Amir.
 # Fetch and bundle ONNX weights at build time; production inference is offline.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-venv git curl ca-certificates libsndfile1 \
+ && apt-get install -y --no-install-recommends python3 python3-venv git curl ca-certificates libsndfile1 ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/forza-pocket \
- && /opt/forza-pocket/bin/pip install --no-cache-dir onnxruntime numpy scipy soundfile sentencepiece typer "huggingface_hub[cli]"
+ && /opt/forza-pocket/bin/pip install --no-cache-dir onnxruntime numpy scipy soundfile sentencepiece typer "huggingface_hub[cli]" vosk==0.3.45
+# Diba Persian small model runs on the server CPU. Audio is decoded in pipes;
+# customer audio and transcripts are never written to disk.
+RUN mkdir -p /opt/diba-stt \
+ && curl -fL --retry 3 --connect-timeout 30 \
+    https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
+    -o /tmp/diba-stt-fa-small.tar.gz \
+ && tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt \
+ && MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)" \
+ && test -n "$MODEL_ROOT" \
+ && ln -s "$MODEL_ROOT" /opt/diba-stt/model \
+ && test -d /opt/diba-stt/model/conf \
+ && rm -f /tmp/diba-stt-fa-small.tar.gz
+ENV FORZA_STT_PROVIDER=diba FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model FORZA_STT_PYTHON=/opt/forza-pocket/bin/python
+
 RUN mkdir -p vendor/persian_tts \
  && git init vendor/persian_tts \
  && git -C vendor/persian_tts remote add origin https://github.com/nimaone/persian_tts.git \

@@ -34,6 +34,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { unlockForzaAudioFromGesture } from "../utils/forzaAudioUnlock";
 import { useCart } from "../context/CartContext";
 import { getManagedCatalogProducts, getProductByCode, subscribeCatalogChanges } from "../data/mockGenerator";
 import { searchConsumerProducts, resolveCurrentRetailReorder } from "../utils/consumerCatalogView";
@@ -515,7 +516,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 <button type="button" onClick={() => setActiveTab("receipts")}>
                   <CreditCard size={29} aria-hidden="true" /><span><b>وضعیت حساب</b><small>حساب فعال</small></span><ChevronLeft size={16} />
                 </button>
-                <button type="button" onClick={() => navigate("/ai-forza")}>
+                <button type="button" onClick={() => { unlockForzaAudioFromGesture(); navigate("/ai-forza"); }}>
                   <Headphones size={29} aria-hidden="true" /><span><b>پشتیبانی</b><small>مشاوره و راهنمایی قطعات</small></span><ChevronLeft size={16} />
                 </button>
                 <button type="button" onClick={() => setActiveTab("orders")}>
@@ -673,7 +674,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                   <h2>FORZA کنار شماست</h2>
                   <p>برای انتخاب قطعه، بررسی کد فنی و راهنمایی تخصصی گفتگو کنید.</p>
                 </div>
-                <Link to="/ai-forza" className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
+                <Link to="/ai-forza" onClick={unlockForzaAudioFromGesture} className="consumer-forza-button">شروع گفتگو <ChevronLeft size={16} /></Link>
               </section>
               <details className="consumer-overview-extra" onToggle={(event) => setExtraOpen(event.currentTarget.open)}>
                 <summary>سایر خدمات و گزارش‌های حساب <ChevronLeft size={15}/></summary>

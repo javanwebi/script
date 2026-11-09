@@ -1,0 +1,7 @@
+Diba-STT / Persian Vosk model attribution
+
+Diba-STT is distributed by Dibachain under the Apache License, Version 2.0.
+The Persian acoustic and language models are redistributed Vosk Persian models
+(vosk-model-small-fa-0.42) by Alpha Cephei Inc., also under Apache 2.0.
+Dibachain's contribution includes model selection, packaging and browser support.
+Project: https://huggingface.co/Dibachain/Diba-STT
