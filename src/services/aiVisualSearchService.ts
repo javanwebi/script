@@ -173,6 +173,14 @@ export const aiVisualSearchService = {
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
     assertBackendConfigured();
 
+    // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
+    // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
+    if (typeof source === 'string' && source.startsWith('/storage/products/')) {
+      const imageResponse = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
+      if (!imageResponse.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
+      source = await imageResponse.blob();
+    }
+
     if (typeof source === 'string' && /^https?:\/\//i.test(source.trim())) {
       const response = await fetch(apiUrl('/api/ai/customer-images/import'), {
         method: 'POST',
