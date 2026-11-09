@@ -22,7 +22,7 @@ RUN mkdir -p /opt/diba-stt \
  && ln -s "$MODEL_ROOT" /opt/diba-stt/model \
  && test -d /opt/diba-stt/model/conf \
  && rm -f /tmp/diba-stt-fa-small.tar.gz
-ENV FORZA_STT_PROVIDER=diba FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model
+ENV FORZA_STT_PROVIDER=diba FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model FORZA_STT_PYTHON=/opt/forza-pocket/bin/python
 
 RUN mkdir -p vendor/persian_tts \
  && git init vendor/persian_tts \
