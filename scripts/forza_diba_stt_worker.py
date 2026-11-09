@@ -83,6 +83,7 @@ def main():
     emit({"type": "ready", "provider": "diba-vosk", "sampleRate": 16000})
 
     for line in sys.stdin:
+        request_id = ''
         try:
             request = json.loads(line)
             request_id = str(request.get("id") or "")[:80]
