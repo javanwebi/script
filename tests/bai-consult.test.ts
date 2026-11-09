@@ -30,9 +30,9 @@ test('AvalAI streams SSE through the shared FORZA contract and uses low reasonin
     assert.equal((options?.headers as Record<string, string>)?.Authorization, 'Bearer secret-placeholder');
     requestBody = JSON.parse(String(options?.body));
     return fakeStream([
-      'data: {"choices":[{"delta":{"content":"پاسخ فنی "}}]}\\n\\n'.replaceAll('\\\\n','\\n'),
-      'data: {"choices":[{"delta":{"content":"آماده است."}}]}\\n\\n'.replaceAll('\\\\n','\\n'),
-      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n'.replaceAll('\\\\n','\\n'),
+      'data: {"choices":[{"delta":{"content":"پاسخ فنی "}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"آماده است."}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
     ]);
   }) as typeof fetch;
   const result = await streamAvalaiConsult({
@@ -58,7 +58,10 @@ test('AvalAI Qwen Flash route does not receive GLM-specific reasoning parameters
     apiKey: 'secret-placeholder', model: 'qwen3.8-flash', query: 'سلام',
     fetchImpl: (async (_url: string | URL | Request, options?: RequestInit) => {
       requestBody = JSON.parse(String(options?.body));
-      return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n'.replaceAll('\\\\n','\\n'), 'data: [DONE]\\n\\n'.replaceAll('\\\\n','\\n')]);
+      return fakeStream([
+        'data: {"choices":[{"delta":{"content":"سلام"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]);
     }) as typeof fetch,
     onDelta: () => {},
   });
