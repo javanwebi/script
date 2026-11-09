@@ -1020,8 +1020,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
               {/* Error notification banner */}
-              {errorMessage && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+              {errorMessage && !selectedImage && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2" role="alert">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
                   <span className="font-medium">{errorMessage}</span>
                 </div>
@@ -1103,70 +1103,21 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                /* Selected Image Preview Box */
-                <div className="sanat-visual-image-preview bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 my-2">
-                  <div className="w-full sm:w-36 h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative shrink-0">
-                    <img
-                      src={selectedImage || undefined}
-                      alt="قطعه انتخابی"
-                      className="w-full h-full object-contain"
-                    />
-                    <div
-                      className={`absolute top-2 right-2 ${isUploadingImage ? "bg-amber-500" : uploadedImageUrl ? "bg-emerald-600" : "bg-slate-600"} text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs`}
-                    >
-                      {isUploadingImage ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3 h-3" />
-                      )}
-                      <span>
-                        {isUploadingImage
-                          ? "ذخیره در سرور..."
-                          : uploadedImageUrl
-                            ? "ذخیره شد"
-                            : "انتخاب شد"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 space-y-2 text-right">
-                    <span className="text-xs font-bold text-[#2B313A] block">
-                      تصویر آماده پردازش هوش مصنوعی است
-                    </span>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      هوش مصنوعی ظاهر فیزیکی قطعه را بررسی می‌کند.
-                    </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-xs font-bold text-slate-700 hover:text-[#E06518] bg-white border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        تغییر تصویر
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          imageUploadSequenceRef.current += 1;
-                          setIsUploadingImage(false);
-                          if (selectedImage?.startsWith("blob:"))
-                            URL.revokeObjectURL(selectedImage);
-                          setSelectedImage(null);
-                          setUploadedImageUrl(null);
-                          stopCamera();
-                        }}
-                        className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        حذف
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
-
-              {/* MAIN ACTION BUTTONS */}
+                <ImageRegionReview
+                  image={selectedImage || ''}
+                  status={regionDetectionState}
+                  selectedRegion={queryRegion}
+                  candidateRegions={candidateRegions}
+                  message={regionDetectionMessage}
+                  analysisError={errorMessage}
+                  busy={isUploadingImage || !uploadedImageUrl}
+                  onRegionChange={handleRegionSelection}
+                  onConfirm={confirmRegionAndAnalyze}
+                  onRetryPreparation={retryRegionPreparation}
+                  onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
+                  onChangeImage={() => fileInputRef.current?.click()}
+                />
+              {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -1195,7 +1146,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   <span>استفاده از دوربین</span>
                 </button>
               </div>
+              )}
 
+              {!selectedImage && !isUsingCamera && (
               {/* 3 FEATURE HIGHLIGHT BADGES */}
               <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
                 <div className="flex flex-col items-center justify-center">
@@ -1217,8 +1170,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   </span>
                 </div>
               </div>
+              )}
             </div>
 
+            {!selectedImage && !isUsingCamera && (
             {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
             <div className="pt-3 border-t border-slate-200/80 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600">
@@ -1249,6 +1204,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       ) : (
