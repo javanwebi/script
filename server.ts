@@ -2975,7 +2975,6 @@ async function resolveCustomerImageBufferAndInfo(
   if (/^[A-Za-z0-9+/=]{100,}$/.test(trimmed)) {
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
-    const dataUrl = `data:image/jpeg;base64,${trimmed}`;
     cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
     return {
       imageUrl: dataUrl,
@@ -3011,15 +3010,6 @@ async function resolveCustomerImageBufferAndInfo(
         const arrayBuf = await fetchResp.arrayBuffer();
         const rawBuffer = Buffer.from(arrayBuf);
         if (rawBuffer.length > 0) {
-          let previewBuf = rawBuffer;
-          try {
-            previewBuf = await sharp(rawBuffer)
-              .rotate()
-              .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
-              .jpeg({ quality: 85 })
-              .toBuffer();
-          } catch {}
-          const dataUrl = `data:image/jpeg;base64,${previewBuf.toString('base64')}`;
           cacheCustomerImageBuffer(fileName, rawBuffer, fetchResp.headers.get('content-type') || 'image/jpeg');
           return {
             imageUrl: url.toString(),
