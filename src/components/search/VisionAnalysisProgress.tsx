@@ -56,7 +56,7 @@ export function VisionAnalysisProgress({
             <span className="sp-vision-analysis__photo-label"><CircleDot size={13}/> تصویر مشتری</span>
             {image ? (
               region ? (
-                <div className="sp-vision-analysis__image-crop" style={cropStyle} role="img" aria-label="برش تأییدشده قطعه در حال تحلیل" />
+                <div className="sp-vision-analysis__image-crop" data-testid="analysis-approved-crop" style={cropStyle} role="img" aria-label="برش تأییدشده قطعه در حال تحلیل" />
               ) : (
                 <img src={image} alt="عکس واقعی قطعه در حال شناسایی" className="sp-vision-analysis__image" />
               )
