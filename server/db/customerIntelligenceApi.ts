@@ -142,6 +142,23 @@ export function registerCustomerIntelligenceApi(app: Express) {
     } catch (error) { return respond(res, error); }
   });
 
+  app.post('/api/customer-intelligence/image-identifications/:id/select', async (req, res) => {
+    try {
+      const { userId } = await customerIdentity(req, res);
+      const id = cleanText(req.params.id, 64);
+      const productCode = cleanText(req.body?.productCode, 110);
+      if (!/^[0-9a-f-]{36}$/i.test(id) || !productCode) throw fail(400, 'شناسه سابقه یا کد محصول معتبر نیست.');
+      const product = await database().query('select code from public.catalog_variants where code=$1 limit 1', [productCode]);
+      if (!product.rowCount) throw fail(404, 'کد انتخاب‌شده در کاتالوگ واقعی پیدا نشد.');
+      const updated = await database().query(
+        'update public.customer_image_identifications set selected_product_code=$3,updated_at=now() where id=$1 and user_id=$2 returning id',
+        [id,userId,productCode]
+      );
+      if (!updated.rowCount) throw fail(404, 'سابقه شناسایی متعلق به این حساب نیست یا پیدا نشد.');
+      return res.json({ success: true });
+    } catch (error) { return respond(res, error); }
+  });
+
   app.post('/api/customer-intelligence/consultations', async (req, res) => {
     try {
       const { userId } = await customerIdentity(req, res);
