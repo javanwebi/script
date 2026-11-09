@@ -59,6 +59,7 @@ export async function saveCustomerConsultation(input: {
   title: string;
   messages: ConsultationMessage[];
   productCodes: string[];
+  products?: Array<{ code: string; name: string }>;
   summary: string;
 }): Promise<void> {
   await post('/api/customer-intelligence/consultations', input);
