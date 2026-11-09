@@ -6,9 +6,9 @@ const serverSource = await readFile(new URL('../server.ts', import.meta.url), 'u
 
 function sourceSection(startMarker: string, endMarker: string) {
   const start = serverSource.indexOf(startMarker);
-  assert.notEqual(start, -1, \`missing source marker: \${startMarker}\`);
+  assert.notEqual(start, -1, 'missing source marker: ' + startMarker);
   const end = serverSource.indexOf(endMarker, start);
-  assert.notEqual(end, -1, \`missing source end marker: \${endMarker}\`);
+  assert.notEqual(end, -1, 'missing source end marker: ' + endMarker);
   return serverSource.slice(start, end);
 }
 
