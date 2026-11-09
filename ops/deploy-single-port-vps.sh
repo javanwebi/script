@@ -12,10 +12,25 @@ flock -w 15 9 || { echo "DEPLOY_LOCK_BUSY"; exit 1; }
 test "$(git -C "$APP" remote get-url origin)" = https://github.com/javanwebi/script.git
 test "$(git -C "$APP" cat-file -t "$EXPECTED")" = commit
 
-CONF1="$(readlink -f /etc/nginx/sites-enabled/default)"
-CONF2="$(readlink -f /etc/nginx/sites-enabled/sanatpish-https.conf)"
-# The public .com domain has a separate virtual host from the IP/default ones.
-CONF_DOMAIN="$(readlink -f /etc/nginx/sites-enabled/sanatpish-domain-20261103.conf)"
+# Resolve the actual Nginx vhosts. Older VPS images used sites-enabled;
+# the current Hostino layout keeps the domain and IP vhosts under conf.d.
+if [[ -f /etc/nginx/sites-enabled/default && \
+      -f /etc/nginx/sites-enabled/sanatpish-https.conf && \
+      -f /etc/nginx/sites-enabled/sanatpish-domain-20261103.conf ]]; then
+  CONF1="$(readlink -f /etc/nginx/sites-enabled/default)"
+  CONF2="$(readlink -f /etc/nginx/sites-enabled/sanatpish-https.conf)"
+  CONF_DOMAIN="$(readlink -f /etc/nginx/sites-enabled/sanatpish-domain-20261103.conf)"
+elif [[ -f /etc/nginx/conf.d/sanatpish-new-ip.conf && \
+        -f /etc/nginx/conf.d/sanatpish-hostino-https.conf && \
+        -f /etc/nginx/conf.d/sanatpish-domain-http.conf ]]; then
+  CONF1="$(readlink -f /etc/nginx/conf.d/sanatpish-new-ip.conf)"
+  CONF2="$(readlink -f /etc/nginx/conf.d/sanatpish-hostino-https.conf)"
+  CONF_DOMAIN="$(readlink -f /etc/nginx/conf.d/sanatpish-domain-http.conf)"
+else
+  echo "SANATPISH_NGINX_LAYOUT_UNRECOGNIZED" >&2
+  find /etc/nginx/sites-enabled /etc/nginx/conf.d -maxdepth 1 -type f -o -type l 2>/dev/null | sort >&2
+  exit 1
+fi
 test -f "$CONF1" && test -f "$CONF2" && test -f "$CONF_DOMAIN"
 test "$CONF1" != "$CONF2" && test "$CONF1" != "$CONF_DOMAIN" && test "$CONF2" != "$CONF_DOMAIN"
 grep -Eq 'server_name[[:space:]]+sanatpish\.com[[:space:]]+www\.sanatpish\.com;' "$CONF_DOMAIN"
@@ -245,21 +260,22 @@ with open(sys.argv[1],"w") as f:
 ' "$ENV_FILE"
 mapfile -d '' MOUNTS < <(
  docker inspect "$OLD" | python3 -c '
-import json,sys
+import json,os,sys
 mounts=json.load(sys.stdin)[0]["Mounts"]
 stage=sys.argv[1]
+replace_forza=os.path.isfile(sys.argv[2])
 assert any(m["Destination"]=="/app" for m in mounts)
 for m in mounts:
  dest=m["Destination"]
- # The source release replaces /app; private local-vision files must be
- # re-mounted from the canonical persistent project directory below.
- if dest in ("/app/.local-vision-enabled","/app/.env.local-vision"):
+ # The source release replaces /app; private local-vision files and, when
+ # present on the host, the canonical FORZA config are re-mounted below.
+ if dest in ("/app/.local-vision-enabled","/app/.env.local-vision") or (dest=="/app/.env.forza-voice" and replace_forza):
   continue
  source=stage if dest=="/app" else m["Source"]
  mode="rw" if m["RW"] else "ro"
  for arg in ("-v",f"{source}:{dest}:{mode}"):
   sys.stdout.buffer.write(arg.encode()+b"\0")
-' "$STAGE"
+' "$STAGE" "$APP/.env.forza-voice"
 )
 test "${#MOUNTS[@]}" -ge 2
 # Preserve optional private SMS credentials if an earlier canary lacked that mount.
@@ -273,11 +289,27 @@ if [[ -f "$APP/.env.staff" ]] &&
   MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
 fi
 
-# Preserve the private server-only FORZA provider configuration across releases.
-# It contains AvalAI credentials and must never be copied into the Git release stage.
-if [[ -f "$APP/.env.forza-voice" ]] &&
-   ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.forza-voice'; then
+# Always bind the canonical host FORZA config when present. Do not inherit
+# a stale mount source from the previous container just because its destination
+# happens to be /app/.env.forza-voice.
+if [[ -f "$APP/.env.forza-voice" ]]; then
   MOUNTS+=(-v "$APP/.env.forza-voice:/app/.env.forza-voice:ro")
+  python3 - "$APP/.env.forza-voice" <<'PYFORZACONFIG'
+from pathlib import Path
+import sys
+values={}
+for line in Path(sys.argv[1]).read_text().splitlines():
+ if '=' in line and not line.lstrip().startswith('#'):
+  key,value=line.split('=',1)
+  values[key.strip()]=value.strip().strip('"').strip("'")
+for surface in ('DESK','VOICE'):
+ provider=values.get('FORZA_'+surface+'_PROVIDER','').lower()
+ if provider=='avalai' and not values.get('AVALAI_API_KEY','').strip():
+  raise SystemExit('AVALAI_PROVIDER_SELECTED_BUT_PRIVATE_KEY_MISSING')
+print('PRIVATE_FORZA_CONFIG_PRESENT desk='+values.get('FORZA_DESK_PROVIDER','unset')+
+      ' voice='+values.get('FORZA_VOICE_PROVIDER','unset')+
+      ' avalai_key='+('SET' if values.get('AVALAI_API_KEY','').strip() else 'EMPTY'))
+PYFORZACONFIG
 fi
 # The release source is mounted at /app, so explicitly re-mount persistent
 # local-vision activation/configuration files from the canonical project folder.
@@ -370,6 +402,15 @@ for i in $(seq 1 65); do
 done
 test "$READY" = 1
 test "$(docker inspect "$CANARY_NAME" --format '{{.State.OOMKilled}}')" = false
+if [[ -f "$APP/.env.forza-voice" ]]; then
+  HOST_FORZA_SHA="$(sha256sum "$APP/.env.forza-voice" | awk '{print $1}')"
+  CANARY_FORZA_SHA="$(docker exec "$CANARY_NAME" sha256sum /app/.env.forza-voice | awk '{print $1}')"
+  test "$HOST_FORZA_SHA" = "$CANARY_FORZA_SHA" || {
+    echo "PRIVATE_FORZA_CONFIG_MOUNT_MISMATCH" >&2
+    exit 1
+  }
+  echo "PRIVATE_FORZA_CONFIG_MOUNT_OK"
+fi
 docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
 
 if [[ -f "$APP/.local-vision-enabled" ]]; then
