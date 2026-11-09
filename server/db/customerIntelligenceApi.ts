@@ -171,7 +171,7 @@ export function registerCustomerIntelligenceApi(app: Express) {
       const products = Array.isArray(req.body?.products) ? req.body.products.slice(0, 40).map((item: any) => ({
         code: cleanText(item?.code, 110),
         name: cleanText(item?.name, 180),
-      })).filter((item: any) => item.code && /^[\\p{L}\\p{N}_.:-]{1,110}$/u.test(item.code)) : [];
+      })).filter((item: any) => item.code && /^[\p{L}\p{N}_.:-]{1,110}$/u.test(item.code)) : [];
       const productCodes = codeList(req.body?.productCodes || products.map((item: any) => item.code));
       const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-100).map((item: any) => ({
         id: cleanText(item?.id, 120),
