@@ -40,6 +40,12 @@ test('first TTS turn waits for voice identity and carries a unique rate-limit tu
   assert.match(client,/returnedVoice=response\.headers\.get\('X-Forza-Voice'\)/);
 });
 
+test('greeting recovers through the already-unlocked shared AudioContext when HTML audio is blocked',()=>{
+  assert.match(client,/if \(audio\.src !== targetUrl \|\| audio\.error\)[\s\S]{0,180}audio\.load\(\)/);
+  assert.match(client,/unlockedContext\?\.state === 'running'[\s\S]{0,450}playViaWebAudio\(\)/);
+  assert.match(client,/autoplay_fallback=shared_webaudio/);
+});
+
 test('greeting prewarm shares one private voice and timeout never launches duplicate synthesis',()=>{
   assert.match(server,/const privateServiceGreeting=createForzaGreeting\(renderPocketSpeech,\[\]\)/);
   assert.match(server,/internalForzaVoiceUrl\?privateServiceGreeting\(\):getForzaGreeting\(\)/);
