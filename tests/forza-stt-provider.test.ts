@@ -67,6 +67,10 @@ test('legacy private credentials cannot disable the image-provisioned Diba runti
   assert.equal(env.FORZA_STT_WORKERS,'2');
   assert.equal(env.FORZA_VOICE_PROVIDER,'avalai');
   assert.equal(env.AVALAI_API_KEY,'private-key');
+
+  const nonBundledEnv:Record<string,string|undefined>={};
+  applyPrivateForzaConfig(nonBundledEnv,{FORZA_STT_PROVIDER:'gemini'});
+  assert.equal(nonBundledEnv.FORZA_STT_PROVIDER,'gemini');
 });
 
 test('the real single-port VPS runtime provisions and requires ready Diba STT',()=>{
