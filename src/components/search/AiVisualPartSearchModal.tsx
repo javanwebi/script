@@ -430,11 +430,13 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       return;
     }
     imagePreparationSequenceRef.current++;
+    const preparationSequence = ++imagePreparationSequenceRef.current;
+    imageUploadSequenceRef.current += 1;
+    setIsUploadingImage(false);
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result !== "string") return;
+      if (preparationSequence !== imagePreparationSequenceRef.current || typeof reader.result !== "string") return;
       if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
-      imageUploadSequenceRef.current += 1;
       setUploadedImageUrl(null);
       setAnalysisResult(null);
       setMeasurements({});
@@ -594,7 +596,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled){
+      if(localRegionEnabled || result.localVisionMetrics){
+        setLocalRegionEnabled(true);
         setQueryRegion(result.queryRegion || requestRegion);
         if(!requestRegion)setCandidateRegions(result.queryRegions || []);
         setFullImageSelected(requestFullImage);
@@ -624,6 +627,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const retakeCameraPhoto = () => {
     imagePreparationSequenceRef.current++;
     regionDetectionSequenceRef.current++;
+    imageUploadSequenceRef.current++;
+    setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
     setUploadedImageUrl(null);
