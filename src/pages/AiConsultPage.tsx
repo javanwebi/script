@@ -527,15 +527,19 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         if (!activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(capturedImageId);
           if (!metadata) throw new Error('اطلاعات تصویر محلی پیدا نشد.');
-          const event = await createCustomerImageIdentification({
-            deviceImageId: metadata.id,
-            sha256: metadata.sha256,
-            mimeType: metadata.mimeType,
-            sizeBytes: metadata.sizeBytes,
-            originalName: metadata.originalName,
-          });
-          activeImageEventId = event.id;
-          setImageEventId(event.id);
+          try {
+            const event = await createCustomerImageIdentification({
+              deviceImageId: metadata.id,
+              sha256: metadata.sha256,
+              mimeType: metadata.mimeType,
+              sizeBytes: metadata.sizeBytes,
+              originalName: metadata.originalName,
+            });
+            activeImageEventId = event.id;
+            setImageEventId(event.id);
+          } catch (trackingError) {
+            console.warn('[Customer image history] metadata sync unavailable', trackingError);
+          }
         }
       }
 
@@ -552,7 +556,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       });
 
       if (activeImageEventId) {
-        await completeCustomerImageIdentification(activeImageEventId, {
+        void completeCustomerImageIdentification(activeImageEventId, {
           status: (result.matchedProducts?.length || result.similarCandidates?.length) ? 'completed' : 'unmatched',
           detectedPartType: result.summary?.detectedPartType,
           summary: result.summary?.whatYouSee || result.summary?.visualAnalysis,
@@ -560,7 +564,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           matchedProductCodes: (result.matchedProducts || []).map(item => item.code),
           similarProductCodes: (result.similarCandidates || []).map(item => item.code),
           confidence: result.summary?.confidence,
-        });
+        }).catch(error => console.warn('[Customer image history] result sync unavailable', error));
       }
       setAnalysisResult(result);
     } catch (err: any) {
