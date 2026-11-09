@@ -582,7 +582,7 @@
   max-height: 540px;
   overflow: hidden;
   border-radius: 14px;
-  cursor: crosshair;
+  cursor: pointer;
   touch-action: none;
   user-select: none;
   outline-offset: 3px;
@@ -622,6 +622,20 @@
   color: #fff;
   font-size: 10px;
   font-weight: 850;
+}
+.sanat-region-picker__busy {
+  position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:18px;background:rgba(17,28,43,.72);backdrop-filter:blur(3px);color:#fff;
+  font-size:12px;font-weight:850;text-align:center;pointer-events:none;
+}
+.sanat-region-picker__busy-spinner {
+  width:19px;height:19px;flex:0 0 19px;border:2px solid rgba(255,255,255,.35);
+  border-top-color:#ff9148;border-radius:50%;animation:sanat-region-tap-spin .75s linear infinite;
+}
+@keyframes sanat-region-tap-spin {to{transform:rotate(360deg)}}
+.sanat-region-picker__error {
+  margin:9px 0 0;padding:9px 11px;border:1px solid #f1c7c3;border-radius:11px;
+  background:#fff7f6;color:#a63830;font-size:10px;line-height:1.8;font-weight:750;
 }
 .sanat-region-picker__candidate.is-selected {
   z-index: 3;
