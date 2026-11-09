@@ -19,7 +19,7 @@ RUN mkdir -p /opt/diba-stt \
     https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
     -o /tmp/diba-stt-fa-small.tar.gz \
  && tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt \
- && MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\\n' | head -n 1)" \
+ && MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)" \
  && test -n "$MODEL_ROOT" \
  && ln -s "$MODEL_ROOT" /opt/diba-stt/model \
  && test -d /opt/diba-stt/model/conf \
