@@ -39,7 +39,7 @@ test('customer intelligence API rejects image bytes and only records device meta
 
 test('Customer 360 schema has RLS and no image blob or permanent storage path', () => {
   const migration = read('supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql');
-  for (const table of ['customer_image_identifications','customer_ai_consultations','customer_product_interests','customer_followups']) {
+  for (const table of ['customer_image_identifications','customer_ai_consultations','customer_product_interests','customer_product_consultation_items','customer_followups']) {
     assert.match(migration, new RegExp('create table if not exists public\\.' + table));
     assert.match(migration, new RegExp('alter table public\\.' + table + ' enable row level security'));
   }
