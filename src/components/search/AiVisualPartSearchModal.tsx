@@ -501,11 +501,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setAnalysisPhaseIndex(0);
     setScanCounts(null);
     setCurrentStep("analyzing");
+    let activeImageEventId: string | null = imageEventId;
 
     try {
       let imageUrl: string | undefined;
       let imageBase64: string | undefined;
-      let activeImageEventId = imageEventId;
       if (selectedImage && /^https?:\/\//i.test(selectedImage)) {
         imageUrl = selectedImage;
       } else if (selectedImage) {
@@ -571,8 +571,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     } catch (err: any) {
       if(sequence!==analysisSequenceRef.current)return;
       console.error(err);
-      if (imageEventId) {
-        void completeCustomerImageIdentification(imageEventId, { status: "failed" }).catch(() => undefined);
+      if (activeImageEventId) {
+        void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
       }
       setErrorMessage(
         err.message || "خطا در ارتباط با سامانه تحلیل هوش مصنوعی.",
@@ -1090,7 +1090,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       className="w-full h-full object-contain"
                     />
                     <div
-                      className={`absolute top-2 right-2 ${isUploadingImage ? "bg-amber-500" : uploadedImageUrl ? "bg-emerald-600" : "bg-slate-600"} text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs`}
+                      className={`absolute top-2 right-2 ${isUploadingImage ? "bg-amber-500" : localImageId ? "bg-emerald-600" : "bg-slate-600"} text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs`}
                     >
                       {isUploadingImage ? (
                         <RefreshCw className="w-3 h-3 animate-spin" />
@@ -1099,9 +1099,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                       )}
                       <span>
                         {isUploadingImage
-                          ? "ذخیره در سرور..."
-                          : uploadedImageUrl
-                            ? "ذخیره شد"
+                          ? "ذخیره روی دستگاه..."
+                          : localImageId
+                            ? "ذخیره امن روی دستگاه"
                             : "انتخاب شد"}
                       </span>
                     </div>
