@@ -626,7 +626,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       setAnalysisResult(result);
       if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
-        onAnalysisResult?.(result, temporaryImageDataUrl || selectedImage);
+        const conversationImage = temporaryImageDataUrl || selectedImage;
+        if (conversationImage) onAnalysisResult?.(result, conversationImage);
       } setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
     } catch (error: any) {
       if (sequence !== analysisSequenceRef.current) return;
