@@ -683,7 +683,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     audio.pause();
     // Preserve the buffered, same-origin Pocket greeting; rewriting src forces
     // an unnecessary fetch exactly when the particles finish.
-    if (audio.src !== new URL(url, window.location.href).href) audio.src = url;
+    const targetUrl = new URL(url, window.location.href).href;
+    // A preload can fail while the private voice worker is still warming.
+    // Re-load the same URL rather than reusing a poisoned HTMLMediaElement.
+    if (audio.src !== targetUrl || audio.error) {
+      audio.src = url;
+      audio.load();
+    }
     audio.muted = isSpeakerMuted;
     audio.volume = 1;
     let settled = false;
@@ -780,7 +786,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     void audio.play().then(playing).catch((error: any) => {
       if (settled) return;
       if (error?.name === 'NotAllowedError') {
-        // Respect browser autoplay policy; the visible CTA is only used when required.
+        // The navigation click may already have unlocked our shared AudioContext
+        // even though HTMLAudioElement playback is still blocked. Use that
+        // gesture-authorized context before asking the customer to click again.
+        const unlockedContext = ensureCtx();
+        if (unlockedContext?.state === 'running' && !fallbackStarted) {
+          audio.pause();
+          fallbackStarted = true;
+          cleanup();
+          console.info('[FORZA greeting] autoplay_fallback=shared_webaudio');
+          void playViaWebAudio().catch((fallbackError: any) => {
+            console.warn('[FORZA audio] unlocked WebAudio greeting failed',
+              fallbackError?.name || fallbackError?.message || 'audio_error');
+            setAutoplayBlocked(true);
+            setPendingAudioUrl(url);
+            finish(new Error('autoplay_permission_required'));
+          });
+          return;
+        }
         setAutoplayBlocked(true);
         setPendingAudioUrl(url);
         finish(new Error('autoplay_permission_required'));
