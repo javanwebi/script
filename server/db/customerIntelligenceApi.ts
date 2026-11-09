@@ -178,10 +178,10 @@ export function registerCustomerIntelligenceApi(app: Express) {
         name: cleanText(item?.name, 180),
       })).filter((item: any) => item.code && /^[\p{L}\p{N}_.:/ -]{1,110}$/u.test(item.code)) : [];
       const productCodes = codeList(req.body?.productCodes || products.map((item: any) => item.code));
-      const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-100).map((item: any) => ({
+      const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-32).map((item: any) => ({
         id: cleanText(item?.id, 120),
         role: item?.role === 'assistant' || item?.role === 'model' ? 'assistant' : 'user',
-        text: cleanText(item?.text, 8000),
+        text: cleanText(item?.text, 1800),
         createdAt: Number.isFinite(Number(item?.createdAt)) ? Number(item.createdAt) : null,
       })).filter((item: any) => item.id && item.text) : [];
       if (!sessionId) throw fail(400, 'شناسه گفتگوی FORZA معتبر نیست.');
