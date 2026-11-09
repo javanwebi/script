@@ -1,5 +1,4 @@
 import type { Express, Request, Response } from 'express';
-import crypto from 'node:crypto';
 import { database, databaseEnabled, adoptedSchema } from './connection';
 import { getPortalIdentity } from '../../api/portal';
 import { canStaff } from './staffPermissions';
