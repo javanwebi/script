@@ -42,6 +42,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { unlockForzaAudioFromGesture } from '../../utils/forzaAudioUnlock';
 import { STORE_ASSETS } from '../../assets/images';
 import { CATEGORIES, PRIMARY_CATALOG_CATEGORIES, resolveCategorySlug } from '../../data/categories';
 import { CategoryNavigation } from '../catalog/CategoryNavigation';
