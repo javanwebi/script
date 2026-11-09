@@ -187,3 +187,24 @@ test('a short stable initial word group can start during provider idle without s
  const full='برای بررسی کد 6203ZZ نام سازنده را هم بفرمایید.';
  assert.equal([...early,...planner.complete(full)].join(' '),full);
 });
+
+test('a held complete phrase is released after 180ms even while SSE continues',()=>{
+  const originalNow=Date.now;
+  let now=1000;
+  Date.now=()=>now;
+  try{
+    const planner=new ForzaIncrementalSpeechText();
+    const prefix='برای انتخاب تسمه مناسب باید ابتدا مدل دستگاه و شرایط کاری آن را بررسی کنیم تا بتوانیم کد فنی و ابعاد قطعه را با اطلاعات کاتالوگ صنعت پیش تطبیق دهیم';
+    const early=planner.push(prefix);
+    assert.ok(early.length>0,'the first complete phrase is dispatched immediately');
+    now+=181;
+    const nextText=prefix+' و شماره فنی دقیق را هم اعلام کنید.';
+    const released=planner.push(nextText);
+    assert.equal(released.length,1,'the older complete phrase is released without waiting for SSE done');
+    const rest=[...planner.push(nextText),...planner.complete(nextText)];
+    const all=[...early,...released,...rest].join(' ').replace(/\\s+/g,' ').trim();
+    assert.equal(all,nextText.trim(),'all Persian words must remain in order and appear exactly once');
+  }finally{
+    Date.now=originalNow;
+  }
+});
