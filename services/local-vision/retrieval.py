@@ -181,6 +181,46 @@ def select_region(image, point):
         'height': (y1-y0) / h,
     }
 
+
+
+def refine_regions(image, boxes):
+    """Tighten automatic proposals with a center-prompted foreground crop.
+
+    Keep the original deterministic proposal whenever GrabCut cannot refine it
+    confidently or the refined box no longer overlaps the proposal sufficiently.
+    """
+    refined = []
+    for box in boxes[:3]:
+        point = {
+            'x': box['x'] + box['width'] / 2,
+            'y': box['y'] + box['height'] / 2,
+        }
+        candidate = select_region(image, point)
+        if candidate is None:
+            refined.append(box)
+            continue
+        intersection_width = max(
+            0.0,
+            min(box['x'] + box['width'], candidate['x'] + candidate['width'])
+            - max(box['x'], candidate['x']),
+        )
+        intersection_height = max(
+            0.0,
+            min(box['y'] + box['height'], candidate['y'] + candidate['height'])
+            - max(box['y'], candidate['y']),
+        )
+        overlap = (intersection_width * intersection_height) / max(
+            1e-9,
+            min(box['width'] * box['height'], candidate['width'] * candidate['height']),
+        )
+        candidate_area = candidate['width'] * candidate['height']
+        proposal_area = box['width'] * box['height']
+        if overlap < 0.55 or candidate_area > proposal_area * 2.5:
+            refined.append(box)
+        else:
+            refined.append(candidate)
+    return refined
+
 def decode(value):
     raw = base64.b64decode(value, validate=True)
     header = Image.open(io.BytesIO(raw))
