@@ -7,14 +7,18 @@ export function applyPrivateForzaConfig(
   env: Record<string, string | undefined>,
   config: Record<string, string>,
 ): void {
+  const hasBundledDibaRuntime = Boolean(String(env.FORZA_STT_DIBA_MODEL_PATH || '').trim());
+  const imageOwnedSttKeys = new Set([
+    'FORZA_STT_PROVIDER',
+    'FORZA_STT_DIBA_MODEL_PATH',
+    'FORZA_STT_PYTHON',
+    'FORZA_STT_WORKERS',
+  ]);
   for (const [key, value] of Object.entries(config)) {
-    // The local STT runtime is provisioned by the pinned VPS image. A stale
-    // value in the legacy private env file must not disable Diba or point the
-    // worker at a Python/model path that does not exist in the live container.
-    if (key === 'FORZA_STT_PROVIDER' ||
-        key === 'FORZA_STT_DIBA_MODEL_PATH' ||
-        key === 'FORZA_STT_PYTHON' ||
-        key === 'FORZA_STT_WORKERS') continue;
+    // When the pinned VPS image includes Diba, its provider and runtime paths
+    // are authoritative. A stale private-file value must not disable it or
+    // point the worker at a Python/model path absent from the live container.
+    if (hasBundledDibaRuntime && imageOwnedSttKeys.has(key)) continue;
     if ((key.startsWith('FORZA_') || key.startsWith('AVALAI_')) && typeof value === 'string') {
       env[key] = value;
     }
