@@ -1032,7 +1032,7 @@ export const ProductDetailPage: React.FC = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     <button
                       type="button"
                       onClick={handleAddToCart}
@@ -1070,6 +1070,14 @@ export const ProductDetailPage: React.FC = () => {
                       <FileSpreadsheet className="w-4 h-4 text-[#E06518]" />
                       <span>درخواست پیش‌فاکتور رسمی / خرید عمده</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/ai-consult?productCode=' + encodeURIComponent(requestedProduct.code) + '&productName=' + encodeURIComponent(product?.name || requestedProduct.name || requestedProduct.code))}
+                      className="h-12 rounded-xl border border-orange-200 bg-orange-50 text-[#A64B14] hover:bg-orange-100 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>مشاوره فنی با FORZA</span>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1088,14 +1096,24 @@ export const ProductDetailPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleInquirePriceClick}
-                    className="h-11 sm:h-12 px-6 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-98"
-                  >
-                    <PhoneCall className="w-4 h-4" />
-                    <span>ثبت استعلام قیمت کد {requestedProduct.code}</span>
-                  </button>
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={handleInquirePriceClick}
+                      className="h-11 sm:h-12 px-6 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                      <span>ثبت استعلام قیمت کد {requestedProduct.code}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/ai-consult?productCode=' + encodeURIComponent(requestedProduct.code) + '&productName=' + encodeURIComponent(product?.name || requestedProduct.name || requestedProduct.code))}
+                      className="h-11 sm:h-12 px-6 border border-orange-200 bg-orange-50 text-[#A64B14] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-orange-100 active:scale-98"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>مشاوره فنی با FORZA</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
