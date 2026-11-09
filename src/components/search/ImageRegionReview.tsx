@@ -1,7 +1,8 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, ImagePlus, LoaderCircle, RefreshCw, ScanSearch, Sparkles, Target } from 'lucide-react';
 import { ImageRegionSelector } from './ImageRegionSelector';
-import type { ImagePoint, ImageRegion } from '../../utils/imageRegionInteraction';
+import type { ImagePoint } from '../../utils/imageRegionInteraction';
+import type { ImageRegion } from '../../utils/imageRegion';
 import './image-region-review.css';
 
 export type RegionPreparationState = 'uploading' | 'detecting' | 'ready' | 'fallback';
