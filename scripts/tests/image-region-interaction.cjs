@@ -19,7 +19,7 @@ const {chromium}=require('playwright');
   const source='data:image/svg+xml;base64,'+Buffer.from(svg).toString('base64');
   const portraitSource='data:image/svg+xml;base64,'+Buffer.from(portraitSvg).toString('base64');
   const entryPath=path.join(fixture,'entry.tsx');
-  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();return <ImageRegionSelector src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
+  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();return <ImageRegionSelector src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}} onSelectPoint={p=>{window.lastPoint=p;const next={x:Math.max(0,Math.min(0.86,p.x-0.07)),y:Math.max(0,Math.min(0.72,p.y-0.14)),width:0.14,height:0.28};window.lastRegion=next;setRegion(next)}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
   await fs.writeFile(entryPath,entry(source));
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
@@ -30,26 +30,28 @@ const {chromium}=require('playwright');
    const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1000,height:900},hasTouch:mobile,isMobile:mobile});
    const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/${path.basename(fixture)}/index.html`);
-   await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('عکس ارسالی؛ ناحیه قطعه را انتخاب کنید');await image.waitFor({state:'visible'});
+   await page.getByTestId('image-region-selector').waitFor();const image=page.getByAltText('تصویر قطعه؛ برای انتخاب روی خود قطعه ضربه بزنید');await image.waitFor({state:'visible'});
    await page.waitForFunction(expected=>document.querySelector('img')?.naturalWidth===expected,mobile?500:1000);
    const frame=page.locator('.sanat-region-picker__frame');const box=await frame.boundingBox();assert.ok(box,'region frame must be visible');const x=box.x+box.width*0.6,y=box.y+box.height*0.5;
    if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
-   await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش').waitFor();
+   await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش واقعی').waitFor();
    await page.screenshot({path:path.join(os.tmpdir(),`sanat-region-${mobile?'touch':'desktop'}.png`)});
    let r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.x+r.width/2-0.6)<0.01);assert.ok(Math.abs(r.y+r.height/2-0.5)<0.01);
-   if(mobile){await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);assert.deepEqual(await page.evaluate(()=>window.lastRegion),r);}
+   if(mobile){await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);const tapped=await page.evaluate(()=>window.lastPoint);assert.ok(Math.abs(tapped.x-0.45)<0.01);assert.ok(Math.abs(tapped.y-0.9)<0.01);}
    if(!mobile){
-    const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
-    r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
-    await page.getByRole('group').press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
+    const dragBox=await frame.boundingBox();const before=await page.evaluate(()=>window.lastRegion);const pointBefore=await page.evaluate(()=>window.lastPoint);
+    await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
+    assert.deepEqual(await page.evaluate(()=>window.lastRegion),before,'dragging must not create a manual crop');
+    assert.deepEqual(await page.evaluate(()=>window.lastPoint),pointBefore,'dragging must not start an object selection');
+    await page.getByRole('group').press('Enter');assert.ok(await page.evaluate(()=>window.lastPoint),'keyboard activation must select an object point');
    }
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
-   assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
+   assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_TAP_SELECTION_OK':'POINTER_TAP_NO_DRAG_KEYBOARD_OK');
   }
   // Mount the actual modal with isolated identity/cart hooks and mock only HTTP.
   await fs.writeFile(path.join(fixture,'modal.html'),'<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="./modal.tsx"></script>');
   await fs.writeFile(path.join(fixture,'modal.tsx'),`import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';import {AiVisualPartSearchModal} from '/src/components/search/AiVisualPartSearchModal.tsx';import '/src/index.css';createRoot(document.getElementById('root')).render(<MemoryRouter><AiVisualPartSearchModal isOpen={true} onClose={()=>{}}/></MemoryRouter>);`);
-  const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage({viewport:{width:1000,height:1000}});let uploads=0;const detections=[],selections=[],queries=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const pathname=new URL(route.request().url()).pathname;let body={success:true,values:{},products:[]};
    if(pathname==='/api/ai/local-vision-status')body={enabled:true,pipeline:'local-lens-v2',ready:true,total:869,indexed:869};
@@ -57,6 +59,10 @@ const {chromium}=require('playwright');
    if(pathname==='/api/ai/detect-regions'){
     detections.push(route.request().postDataJSON());
     body={success:true,detectionId:'test-detection-id',autoDetected:true,queryRegion:{x:0.4,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.4,y:0.3,width:0.2,height:0.3},{x:0.65,y:0.3,width:0.2,height:0.3}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:120};
+   }
+   if(pathname==='/api/ai/select-region'){
+    selections.push(route.request().postDataJSON());
+    body={success:true,detectionId:'test-selected-detection-id',region:{x:0.65,y:0.3,width:0.2,height:0.3},queryRegions:[{x:0.65,y:0.3,width:0.2,height:0.3}],model:'dinov2-test',pipeline:'local-lens-v2',elapsedMs:45};
    }
    if(pathname==='/api/ai/analyze-part'){
     const request=route.request().postDataJSON();queries.push(request);
@@ -72,11 +78,14 @@ const {chromium}=require('playwright');
   assert.equal(uploads,1);assert.equal(detections.length,1);assert.equal(queries.length,0);
   const modalFrame=page.locator('.sanat-region-picker__frame');const bounds=await modalFrame.boundingBox();
   await page.mouse.click(bounds.x+bounds.width*0.75,bounds.y+bounds.height*0.45);
-  await page.waitForTimeout(350);assert.equal(queries.length,0);
+  await page.waitForFunction(()=>!document.querySelector('.sanat-region-picker__busy'));
+  await page.waitForTimeout(100);assert.equal(selections.length,1);assert.equal(queries.length,0);
+  assert.equal(selections[0].imageUrl,'/api/ai/customer-images/isolated-test.png');
+  assert.ok(Math.abs(selections[0].point.x-0.75)<0.01);assert.ok(Math.abs(selections[0].point.y-0.45)<0.01);
   await page.getByRole('button',{name:'تأیید برش و شروع تحلیل'}).click();
   await page.getByTestId('analysis-approved-crop').waitFor();
   await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
-  assert.equal(queries.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
+  assert.equal(queries.length,1);assert.equal(selections.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-selected-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
   assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,1);
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
