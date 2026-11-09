@@ -61,6 +61,24 @@ export function normalizePersianTranscript(value: string): string {
     .trim();
 }
 
+/** Combine live browser interim/final text with the server's final Diba result.
+ * Keep browser-recognized industrial part codes when the acoustic model drops
+ * them, but otherwise prefer the server transcript as the final authority.
+ */
+export function chooseForzaFinalTranscript(browserValue:string,serverValue:string):string{
+  const browser=normalizePersianTranscript(browserValue);
+  const server=normalizePersianTranscript(serverValue);
+  if(!server)return browser;
+  if(!browser)return server;
+  const toAsciiDigits=(value:string)=>value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  const codePattern=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i;
+  const browserHasCode=codePattern.test(toAsciiDigits(browser));
+  const serverHasCode=codePattern.test(toAsciiDigits(server));
+  if(browserHasCode&&!serverHasCode)return browser;
+  if(browser.length>=10&&server.length<browser.length*0.5)return browser;
+  return server;
+}
+
 /** Finish complete questions quickly, but preserve natural mid-thought pauses.
  * No fixed 2.3s delay after every recognition event.
  */
