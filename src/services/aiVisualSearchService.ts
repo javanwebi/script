@@ -192,7 +192,7 @@ export const aiVisualSearchService = {
   async detectImageRegions(imageBase64: string, mimeType = 'image/jpeg'): Promise<ImageRegionDetectionResult> {
     assertBackendConfigured();
     if (!imageBase64 || typeof imageBase64 !== 'string' || imageBase64.length > 16 * 1024 * 1024) {
-      throw new Error('نشانی تصویر برای تشخیص ناحیه معتبر نیست.');
+      throw new Error('داده تصویر برای تشخیص ناحیه معتبر نیست.');
     }
 
     let response: Response | undefined;
