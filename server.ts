@@ -22,7 +22,7 @@ import {partMeasurements,measurementError,measurementText,persianPartAnalysis} f
 import {observationSchema} from './src/services/recognitionSchemas';
 import { catalogRecognitionContext, normalizeRecognitionObservation } from './src/services/catalogRecognitionContext';
 import { CatalogVisualIndex } from './src/services/catalogVisualIndex';
-import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,selectLocalRegion,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
+import {embedLocalImages,localVisionResult,localVisionProfile,describeLocalQuery,selectLocalRegion,cachedQueryForRequest,geometricEvidence,rankLocalEvidence,selectBestQueryRegion,bestBoundQueryViewScores,type QueryEvidence} from './src/services/localVision';
 import {LocalVisionDetectionCache} from './src/services/localVisionDetectionCache';
 import { RecognitionServiceError } from './src/services/recognitionErrors';
 import { createVisionImagePublisher, cleanVisionImageLinks, type ImagePublisher } from './src/services/visionImageLinks';
@@ -4753,15 +4753,17 @@ app.post('/api/ai/select-region', async (req,res)=>{
       return res.status(400).json({error:{code:'INVALID_POINT',message:'نقطه انتخاب‌شده معتبر نیست.'}});
     }
     const uploaded=await resolveCustomerImageBufferAndInfo(imageUrl,req);
-    const region=await selectLocalRegion(uploaded.buffer,{x:point.x,y:point.y});
-    // Cache a fresh embedding of the selected crop. Reusing the initial full-frame
-    // vectors here would make the UI highlight one object but search another.
-    const queryImage=await prepareLocalQuery(uploaded.buffer,region);
-    const query=await describeLocalQuery(queryImage);
     const previousId=typeof req.body?.detectionId==='string'?req.body.detectionId:'';
     const previous=previousId
       ? localVisionDetectionCache.get(previousId,uploaded.imageUrl,localProfile.model)
       : undefined;
+    const region=await selectLocalRegion(uploaded.buffer,{x:point.x,y:point.y});
+    // Keep the original full-frame query separately. The selected crop gets its
+    // own embedding so confirming the crop searches exactly what the UI previews,
+    // while the full-image fallback still searches the complete original photo.
+    const queryImage=await prepareLocalQuery(uploaded.buffer,region);
+    const selectedRegionQuery=await describeLocalQuery(queryImage);
+    const fullImageQuery=previous?.query || await describeLocalQuery(await prepareLocalQuery(uploaded.buffer));
     const detectionId=previous ? previousId : crypto.randomUUID();
     const queryRegions=[region,...(previous?.queryRegions || []).filter(candidate=>
       Math.abs(candidate.x-region.x)>=0.002 || Math.abs(candidate.y-region.y)>=0.002 ||
@@ -4770,9 +4772,10 @@ app.post('/api/ai/select-region', async (req,res)=>{
     localVisionDetectionCache.set(detectionId,{
       imageUrl:uploaded.imageUrl,
       model:localProfile.model,
-      query:query as QueryEvidence,
+      query:fullImageQuery as QueryEvidence,
       queryRegions,
       selectedRegion:region,
+      selectedRegionQuery:selectedRegionQuery as QueryEvidence,
     });
     return res.json({
       success:true,
@@ -4821,13 +4824,8 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const cachedDetection=typeof body.detectionId==='string'
         ? localVisionDetectionCache.get(body.detectionId,uploaded.imageUrl,localProfile.model)
         : undefined;
-      const cachedRegionMatches=!body.region || Boolean(cachedDetection?.queryRegions.some(region=>
-        Math.abs(region.x-body.region.x)<0.002 && Math.abs(region.y-body.region.y)<0.002 &&
-        Math.abs(region.width-body.region.width)<0.002 && Math.abs(region.height-body.region.height)<0.002
-      ));
-      const query=cachedDetection && cachedRegionMatches
-        ? cachedDetection.query
-        : await describeLocalQuery(queryImage);
+      const query=cachedQueryForRequest(cachedDetection,body.region,body.fullImage===true)
+        || await describeLocalQuery(queryImage);
       const retrieved=await catalogVisualIndex.rankVectors(query.vectors,images,images.length,localProfile.pipeline==='local-lens-v3');
       if(!retrieved)throw new Error('Index changed');
       let hits:import('./src/services/localVision').LocalVisualHit[]=retrieved;
