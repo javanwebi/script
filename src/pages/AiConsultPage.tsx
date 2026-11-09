@@ -681,11 +681,12 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   // Group and filter sessions
   const now = Date.now();
   const oneDay = 24 * 60 * 60 * 1000;
-  const entrySentRef=useRef(false);
+  const entrySentRef=useRef<string | null>(null);
   useEffect(()=>{
     const query=entryParams.get('q');
-    if(!query || !activeSessionId || entrySentRef.current)return;
-    entrySentRef.current=true;
+    const entryKey=entryParams.toString();
+    if(!query || !activeSessionId || entrySentRef.current===entryKey)return;
+    entrySentRef.current=entryKey;
     void handleSend(query.slice(0,1500));
   },[entryParams,activeSessionId]);
   const filteredSessions = sessions.filter(s =>
