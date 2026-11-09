@@ -624,7 +624,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           matchedProductCodes: matched.map(item => item.code), similarProductCodes: similar.map(item => item.code), confidence: result.summary?.confidence,
         }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
       }
-      setAnalysisResult(result); setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
+      setAnalysisResult(result);
+      if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
+        onAnalysisResult?.(result, temporaryImageDataUrl || selectedImage);
+      } setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
     } catch (error: any) {
       if (sequence !== analysisSequenceRef.current) return;
       console.error(error);
