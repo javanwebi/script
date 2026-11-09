@@ -204,6 +204,29 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
+echo '===== APPLY REVIEWED FAMILY MENU ASSIGNMENTS ====='
+# This snapshot contains 832 curated family-to-Excel-category mappings.
+# It is additive and idempotent: existing admin-verified assignments win.
+# SQL owns its transaction; any FK/validation error rolls back the whole seed.
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  await database().query(sql);
+  const result=await database().query(
+   "select count(*)::int as total, " +
+   "count(*) filter(where method=\x27admin_verified\x27)::int as admin_verified " +
+   "from public.catalog_family_menu_assignments");
+  const total=Number(result.rows[0].total);
+  if(total<832)throw Error("Expected at least 832 curated family assignments, found "+total);
+  console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total,
+    "admin_verified="+result.rows[0].admin_verified);
+ }catch(error){
+  console.error("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$STAGE/ops/sql/20261101_catalog_family_menu_assignments.sql"
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
 echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
 mkdir -m 700 -p "$BACKUP"
