@@ -5,6 +5,8 @@
  * one copy of each emitted character; a provider revision or stream truncation
  * must fail closed before any additional voice can be generated.
  */
+const MAX_HELD_PHRASE_MS = 180;
+
 export class ForzaIncrementalSpeechText {
   private seen = '';
   private emitted = 0;
@@ -14,6 +16,7 @@ export class ForzaIncrementalSpeechText {
   // The very first short phrase is still dispatched immediately.
   private started = false;
   private heldPhrase = '';
+  private heldAt: number | null = null;
 
   push(fullText: string): string[] {
     if (!fullText.startsWith(this.seen)) {
@@ -21,6 +24,15 @@ export class ForzaIncrementalSpeechText {
     }
     this.seen = fullText;
     const output: string[] = [];
+    // Do not let a complete middle phrase wait for another full phrase or
+    // the final SSE event. Release it after a short age even while tokens
+    // continue to arrive; only the unfinished suffix remains protected.
+    if (this.heldPhrase && this.heldAt !== null &&
+        Date.now() - this.heldAt >= MAX_HELD_PHRASE_MS) {
+      output.push(this.heldPhrase);
+      this.heldPhrase = '';
+      this.heldAt = null;
+    }
     for (;;) {
       const tail = this.seen.slice(this.emitted);
       if (!tail.trim()) break;
@@ -38,8 +50,10 @@ export class ForzaIncrementalSpeechText {
           // enter the audio queue. Always keep the newest group in reserve.
           output.push(this.heldPhrase);
           this.heldPhrase = speech;
+          this.heldAt = Date.now();
         } else {
           this.heldPhrase = speech;
+          this.heldAt = Date.now();
         }
       }
       this.emitted += cut;
@@ -67,6 +81,7 @@ export class ForzaIncrementalSpeechText {
     if(!this.heldPhrase)return [];
     const phrase=this.heldPhrase;
     this.heldPhrase='';
+    this.heldAt=null;
     return [phrase];
   }
 
@@ -85,6 +100,7 @@ export class ForzaIncrementalSpeechText {
     const ready = [this.heldPhrase, remaining].filter(Boolean).join(' ');
     if (!ready) return [];
     this.heldPhrase = '';
+    this.heldAt = null;
     this.emitted = this.seen.length;
     return [ready];
   }
@@ -97,6 +113,7 @@ export class ForzaIncrementalSpeechText {
     // separate TTS task just for the last words at the SSE done event.
     const finalPhrase = [this.heldPhrase, remaining].filter(Boolean).join(' ');
     this.heldPhrase = '';
+    this.heldAt = null;
     if (finalPhrase) output.push(finalPhrase);
     this.emitted = this.seen.length;
     return output;
