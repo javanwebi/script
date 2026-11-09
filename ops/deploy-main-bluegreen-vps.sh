@@ -272,7 +272,7 @@ with urllib.request.urlopen(url,timeout=15) as response:
  assert 'application/json' in content_type, ('FORZA_STT_RETURNED_HTML_IN_CANARY',content_type)
  info=json.loads(response.read())
 assert isinstance(info.get('serverSttConfigured'),bool), ('FORZA_STT_BAD_CONTRACT',info)
-assert info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_BAD_PROVIDER',info)
+assert info.get('serverSttProvider') in ('none','gemini','diba'), ('FORZA_STT_BAD_PROVIDER',info)
 assert isinstance(info.get('reason'),str), ('FORZA_STT_MISSING_REASON',info)
 print('FORZA_STT_CANARY_API_JSON_OK provider='+info['serverSttProvider'])
 PY
@@ -369,7 +369,7 @@ with urllib.request.urlopen('https://127.0.0.1/api/ai/forza-stt-info',timeout=15
  assert 'application/json' in content_type, ('FORZA_STT_PUBLIC_API_RETURNED_HTML',content_type)
  stt_info=json.loads(stt_response.read())
 assert isinstance(stt_info.get('serverSttConfigured'),bool), ('FORZA_STT_PUBLIC_BAD_CONTRACT',stt_info)
-assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+assert stt_info.get('serverSttProvider') in ('none','gemini','diba'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
 print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
 print('PUBLIC_HTTPS_AND_DATABASE_OK')
 PY
