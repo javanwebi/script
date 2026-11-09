@@ -629,161 +629,53 @@ export const TileCeramicIndustryPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. HERO BANNER SECTION (باکس روشن سمت چپ و تصویر خط تولید + آمار سمت راست) */}
       {/* ========================================================================= */}
-      <section id="ceramic-hero" className="relative w-full overflow-hidden border-b border-slate-200/80 bg-[#23262B]">
-        {/* Background Factory Production Line Image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={STORE_ASSETS.industries.ceramic}
-            alt="خط تولید کاشی و سرامیک"
-            className="w-full h-full object-cover object-center"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/35 via-black/20 to-black/45" />
-        </div>
-
-        <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end min-h-[420px] sm:min-h-[460px]">
-            {/* RIGHT COLUMN IN RTL (Factory View + Bottom Dark Stats Bar) */}
-            <div className="lg:col-span-7 flex flex-col justify-end h-full order-2 lg:order-1">
-              <div className="w-full sm:w-auto self-start bg-[#1E2024]/88 backdrop-blur-md text-white rounded-2xl border border-white/15 px-5 sm:px-8 py-4 shadow-xl">
-                <div className="grid grid-cols-3 gap-4 sm:gap-8 divide-x divide-x-reverse divide-white/15">
-                  {/* Stat 1 */}
-                  <div className="flex items-center gap-3 pr-0 pl-2 sm:pl-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-orange-400">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg sm:text-2xl font-black tracking-tight tabular-nums text-white" dir="ltr">
-                        +20
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-slate-300 font-medium whitespace-nowrap">
-                        سال تجربه صنعتی
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stat 2 */}
-                  <div className="flex items-center gap-3 pr-4 sm:pr-6 pl-2 sm:pl-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-orange-400">
-                      <Factory className="w-5 h-5" />
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg sm:text-2xl font-black tracking-tight tabular-nums text-white" dir="ltr">
-                        +120
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-slate-300 font-medium whitespace-nowrap">
-                        کارخانه فعال
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stat 3 */}
-                  <div className="flex items-center gap-3 pr-4 sm:pr-6">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-orange-400">
-                      <Layers className="w-5 h-5" />
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg sm:text-2xl font-black tracking-tight tabular-nums text-white" dir="ltr">
-                        +5,000
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-slate-300 font-medium whitespace-nowrap">
-                        قطعه مرتبط
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <section id="ceramic-hero" className="ceramic-hero">
+        <div className="ceramic-hero-layout max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="ceramic-hero-visual">
+            <img
+              src={STORE_ASSETS.industries.ceramic}
+              alt="خط تولید کاشی و سرامیک از آماده‌سازی تا بسته‌بندی"
+              fetchPriority="high"
+              className="ceramic-hero-image"
+            />
+            <div className="ceramic-hero-visual-caption">
+              <span>خط تولید کاشی و سرامیک</span>
+              <b>از مواد اولیه تا بسته‌بندی نهایی</b>
             </div>
-
-            {/* LEFT COLUMN IN RTL (Frosted White Hero Card matching reference image) */}
-            <div className="lg:col-span-5 order-1 lg:order-2">
-              <div className="bg-white/92 backdrop-blur-xl rounded-3xl border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.18)] p-6 sm:p-8 text-right space-y-5">
-                {/* Breadcrumb */}
-                <nav
-                  aria-label="مسیر صفحه"
-                  className="flex items-center gap-2 text-xs font-medium text-slate-500"
-                >
-                  <Link to="/" className="hover:text-[#E06518] transition-colors">
-                    خانه
-                  </Link>
-                  <span className="text-slate-300">|</span>
-                  <Link to="/industries" className="hover:text-[#E06518] transition-colors">
-                    صنایع هدف
-                  </Link>
-                  <span className="text-slate-300">|</span>
-                  <span className="font-bold text-slate-800">صنعت کاشی و سرامیک</span>
-                </nav>
-
-                {/* Main Title */}
-                <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-black text-[#23262B] leading-[1.35] tracking-tight">
-                  تأمین <span className="text-[#E06518]">تخصصی قطعات</span>
-                  <span className="block mt-1">خطوط تولید کاشی و سرامیک</span>
-                </h1>
-
-                {/* Subtitle */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                  از انتقال مواد اولیه تا بسته‌بندی نهایی
-                  <br />
-                  با قطعات باکیفیت و خدمات فنی صنعت پیش
-                </p>
-
-                {/* Two CTA Buttons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <Link
-                    to="/ai-consult?industry=ceramic"
-                    className="h-11 px-4 rounded-xl border-2 border-[#E06518]/80 bg-white hover:bg-orange-50 text-[#E06518] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-                  >
-                    <MessageSquare className="w-4 h-4 shrink-0" />
-                    <span>مشاوره تخصصی FORZA</span>
-                  </Link>
-
-                  <a
-                    href="#ceramic-recommended-products"
-                    className="h-11 px-4 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 transition-all whitespace-nowrap"
-                  >
-                    <Search className="w-4 h-4 shrink-0" />
-                    <span>جستجوی قطعات</span>
-                  </a>
-                </div>
-
-                {/* 4 Bottom Trust Items inside Hero Card */}
-                <div className="pt-4 border-t border-slate-200/80 grid grid-cols-4 gap-2 divide-x divide-x-reverse divide-slate-200/80 text-center">
-                  <div className="px-1 flex flex-col items-center gap-1.5">
-                    <ShieldCheck className="w-5 h-5 text-slate-600" />
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 leading-tight">
-                      پوشش کامل
-                      <br />
-                      خطوط تولید
-                    </span>
-                  </div>
-
-                  <div className="px-1 flex flex-col items-center gap-1.5">
-                    <Clock className="w-5 h-5 text-slate-600" />
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 leading-tight">
-                      تأمین سریع و
-                      <br />
-                      مطمئن
-                    </span>
-                  </div>
-
-                  <div className="px-1 flex flex-col items-center gap-1.5">
-                    <HelpCircle className="w-5 h-5 text-slate-600" />
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 leading-tight">
-                      مشاوره فنی و
-                      <br />
-                      انتخاب قطعه
-                    </span>
-                  </div>
-
-                  <div className="px-1 flex flex-col items-center gap-1.5">
-                    <RefreshCw className="w-5 h-5 text-slate-600" />
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 leading-tight">
-                      پوشش کامل
-                      <br />و جایگزین
-                    </span>
-                  </div>
-                </div>
-              </div>
+          </div>
+          <div className="ceramic-hero-content">
+            <nav aria-label="مسیر صفحه" className="ceramic-hero-crumb">
+              <Link to="/" className="hover:text-[#E06518] transition-colors">خانه</Link>
+              <span>/</span>
+              <Link to="/industries" className="hover:text-[#E06518] transition-colors">صنایع هدف</Link>
+              <span>/</span>
+              <span>کاشی و سرامیک</span>
+            </nav>
+            <span className="ceramic-hero-eyebrow">تأمین تخصصی قطعات خطوط تولید</span>
+            <h1 className="ceramic-hero-title">
+              همراه خط تولید
+              <span>کاشی و سرامیک</span>
+            </h1>
+            <p className="ceramic-hero-description">
+              از آماده‌سازی مواد اولیه تا پرس، لعاب، پخت و بسته‌بندی؛ قطعه را بر اساس مرحله خط، شرایط واقعی کار و مشخصات دستگاه انتخاب کنید.
+            </p>
+            <div className="ceramic-hero-actions">
+              <Link
+                to="/ai-consult?industry=ceramic"
+                className="ceramic-hero-primary"
+              >
+                <MessageSquare className="w-4 h-4" />
+                مشاوره تخصصی FORZA
+              </Link>
+              <a href="#ceramic-recommended-products" className="ceramic-hero-secondary">
+                <Search className="w-4 h-4" />
+                جستجوی قطعات
+              </a>
+            </div>
+            <div className="ceramic-hero-features">
+              <span><ShieldCheck className="w-4 h-4"/>تطبیق فنی قطعه</span>
+              <span><Factory className="w-4 h-4"/>پوشش مراحل خط</span>
+              <span><Wrench className="w-4 h-4"/>بررسی ساخت سفارشی</span>
             </div>
           </div>
         </div>

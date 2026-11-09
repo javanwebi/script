@@ -4541,3 +4541,105 @@ select {
   .industry-packaging-flow { grid-template-columns: 1fr 1fr; }
   .industry-machinery-blueprint { padding: 16px; }
 }
+
+/* Ceramic industry hero: image on the right, clean copy panel on the left */
+.ceramic-hero {
+  padding-block: clamp(22px, 4vw, 52px);
+  background: linear-gradient(135deg, #f4f5f6 0%, #f8f7f4 58%, #f2f3f4 100%);
+  border-bottom: 1px solid #e4e7eb;
+}
+.ceramic-hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(360px, .88fr);
+  align-items: stretch;
+  gap: clamp(16px, 2vw, 26px);
+}
+.ceramic-hero-visual {
+  position: relative;
+  min-height: 460px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #d7dce0;
+  box-shadow: 0 18px 46px rgba(28, 39, 48, .12);
+}
+.ceramic-hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.ceramic-hero-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(19,28,36,.78) 0%, rgba(19,28,36,.18) 34%, transparent 70%);
+}
+.ceramic-hero-visual-caption {
+  position: absolute;
+  z-index: 1;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #fff;
+}
+.ceramic-hero-visual-caption span { color: #ffd2b0; font-size: 11px; font-weight: 800; }
+.ceramic-hero-visual-caption b { font-size: clamp(18px, 2.1vw, 27px); line-height: 1.6; }
+.ceramic-hero-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: clamp(22px, 3vw, 38px);
+  border: 1px solid #e5e7eb;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 14px 38px rgba(28,39,48,.06);
+  text-align: right;
+}
+.ceramic-hero-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; color: #7b828a; font-size: 10px; margin-bottom: 24px; }
+.ceramic-hero-crumb span:last-child { color: #39414a; font-weight: 800; }
+.ceramic-hero-eyebrow { color: #c45f20; font-size: 11px; font-weight: 900; }
+.ceramic-hero-title { margin: 12px 0 10px; color: #252c33; font-size: clamp(28px, 3.2vw, 43px); font-weight: 950; line-height: 1.45; }
+.ceramic-hero-title span { display: block; color: #d56822; }
+.ceramic-hero-description { max-width: 540px; color: #626b74; font-size: 12px; line-height: 2.2; }
+.ceramic-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.ceramic-hero-primary, .ceramic-hero-secondary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 850;
+  transition: .2s ease;
+}
+.ceramic-hero-primary { background: #e56b1e; color: #fff; }
+.ceramic-hero-primary:hover { background: #c95513; }
+.ceramic-hero-secondary { border: 1px solid #e3e6e8; color: #4a525a; background: #fff; }
+.ceramic-hero-secondary:hover { border-color: #e56b1e; color: #c95513; }
+.ceramic-hero-features { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 24px; padding-top: 17px; border-top: 1px solid #edf0f2; }
+.ceramic-hero-features span { display: inline-flex; align-items: center; gap: 6px; color: #606b73; font-size: 10px; font-weight: 750; }
+.ceramic-hero-features svg { color: #d56822; }
+
+@media (max-width: 1023px) {
+  .ceramic-hero-layout { grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); }
+  .ceramic-hero-visual { min-height: 420px; }
+}
+@media (max-width: 767px) {
+  .ceramic-hero { padding-block: 14px 22px; }
+  .ceramic-hero-layout { grid-template-columns: 1fr; gap: 12px; }
+  .ceramic-hero-visual { min-height: 260px; aspect-ratio: 1.45; border-radius: 18px; }
+  .ceramic-hero-content { padding: 20px; border-radius: 18px; }
+  .ceramic-hero-crumb { margin-bottom: 15px; }
+  .ceramic-hero-title { font-size: 30px; }
+  .ceramic-hero-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .ceramic-hero-primary, .ceramic-hero-secondary { padding-inline: 8px; font-size: 10px; }
+  .ceramic-hero-features { gap: 9px 12px; }
+}
