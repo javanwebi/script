@@ -8,38 +8,47 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
  if(!items.length)return null;
  const exploring=items.every(item=>item.matchBasis==='explore');
  const shown=expanded?items:items.slice(0,12);
- return <section className="space-y-3" aria-label="مدل‌های مشابه و گزینه‌های هم‌خانواده" dir="rtl">
-  <div className="flex items-center justify-between gap-2">
-   <h4 className="text-sm font-black text-slate-800">{exploring?'نزدیک‌ترین گزینه‌ها؛ تطبیق تأیید نشده':'مدل‌های مشابه برای مقایسه'}</h4>
-   <span className="text-xs text-slate-500">{toPersianDigits(items.length)} گزینه</span>
-  </div>
-  <p className="text-xs leading-6 text-slate-600">{exploring?'تطبیق قابل اتکا پیدا نشد. این‌ها نزدیک‌ترین گزینه‌های واقعی برای بررسی هستند؛ روی قطعه در عکس بزنید یا محدوده را دقیق‌تر انتخاب کنید.':'مدل‌هایی که عکسشان شباهت بیشتری دارد، ابتدا آمده‌اند. گزینه‌های دارای عکس مشترک با عنوان «هم‌خانواده» نمایش داده می‌شوند و امتیاز مستقل ندارند.'}</p>
-  <ol className="grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0 m-0">
-   {shown.map((item,index)=><li key={item.code}>
-    <article className="h-full rounded-2xl border border-slate-200 bg-white p-3 flex flex-col gap-3">
-     <div className="flex items-center justify-between gap-2 text-xs">
-      <span className="font-bold text-orange-700">گزینه {toPersianDigits(index+1)}</span>
-      {item.matchBasis==='visual'&&item.visualScore!==undefined?
-       <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-800">شباهت تصویری: {toPersianDigits(item.visualScore)} از ۱۰۰</span>:
-       <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600">{item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد بر اساس کد خوانده‌شده':'مدل هم‌خانواده'}</span>}
-     </div>
-     {item.image?<img src={item.image} alt={item.name} loading="lazy" className="w-full h-36 object-contain rounded-xl bg-slate-50" />:
-      <div className="h-36 grid place-items-center rounded-xl bg-slate-50 text-xs text-slate-500">عکس اختصاصی ثبت نشده</div>}
-     {item.imageScope==='family'&&item.image&&<p className="text-[11px] text-slate-500">عکس نمونهٔ خانواده / مشترک بین مدل‌ها</p>}
-     <div>
-      <h5 className="text-sm font-bold text-slate-800">{item.name}</h5>
-      <p className="text-xs text-slate-500 mt-1">{item.familyName}{item.model?` · مدل ${item.model}`:''}{item.size?` · سایز ${item.size}`:''}</p>
-      <p className="mt-1 text-xs font-mono text-orange-700" dir="ltr">{item.code}</p>
-     </div>
-     {!!item.specs.length&&<dl className="grid grid-cols-2 gap-2 text-xs">{item.specs.slice(0,4).map((spec,i)=><div key={i} className="bg-slate-50 rounded-lg p-2"><dt className="text-slate-500">{spec.key}</dt><dd className="m-0 mt-1 font-bold text-slate-700" dir="auto">{spec.value}</dd></div>)}</dl>}
-     <p className="text-xs leading-6 text-slate-500">{item.reason}</p>
-     <div className="mt-auto flex gap-2 text-xs">
-      <Link to={`/product/${encodeURIComponent(item.code)}`} onClick={onClose} className="flex-1 text-center rounded-xl bg-orange-600 text-white px-3 py-2.5">مشاهده این مدل</Link>
-      <Link to={`/product/${encodeURIComponent(item.familyCode)}`} onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-2.5 text-slate-700">همه مدل‌های خانواده</Link>
-     </div>
-    </article>
-   </li>)}
+ return <section className="sanat-visual-results space-y-3" aria-label="مدل‌های مشابه و گزینه‌های هم‌خانواده" dir="rtl">
+  <header className="sanat-visual-results__header">
+   <div>
+    <span className="sanat-visual-results__eyebrow">FORZA VISION · CATALOGUE MATCH</span>
+    <h4>{exploring?'نزدیک‌ترین گزینه‌ها برای بررسی':'محصولات مشابه پیدا‌شده'}</h4>
+    <p>{exploring?'این گزینه‌ها تطبیق تأییدشده نیستند.':'نتایج بر اساس شباهت تصویر مرتب شده‌اند؛ کد، سایز و سازگاری فنی باید جداگانه بررسی شوند.'}</p>
+   </div>
+   <span className="sanat-visual-results__count">{toPersianDigits(items.length)} گزینه</span>
+  </header>
+  <ol className="sanat-visual-results__grid">
+   {shown.map((item,index)=>{
+    const target=item.code?'/product/'+encodeURIComponent(item.code):'/product/'+encodeURIComponent(item.familyCode);
+    return <li key={item.code || 'family-'+item.familyCode}>
+     <article className="sanat-visual-result-card">
+      <div className="sanat-visual-result-card__meta">
+       <span className="sanat-visual-result-card__rank">گزینه {toPersianDigits(index+1)}</span>
+       {item.matchBasis==='visual'&&item.visualScore!==undefined?
+        <span className="sanat-visual-result-card__score">شباهت تصویری {toPersianDigits(item.visualScore)} از ۱۰۰</span>:
+        <span className="sanat-visual-result-card__kind">{item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد بر اساس کد خوانده‌شده':'مدل هم‌خانواده'}</span>}
+      </div>
+      <div className="sanat-visual-result-card__image">
+       {item.image?<img src={item.image} alt={item.name} loading="lazy"/>:<span>عکس اختصاصی ثبت نشده</span>}
+      </div>
+      <div className="sanat-visual-result-card__body">
+       <h5>{item.name}</h5>
+       <p className="sanat-visual-result-card__family">{item.familyName}{item.model?' · مدل '+item.model:''}{item.size?' · سایز '+item.size:''}</p>
+       {item.code?
+        <p className="sanat-visual-result-card__code" dir="ltr">{item.code}</p>:
+        <span className="sanat-visual-result-card__no-code">کد SKU مشخص نیست</span>}
+       {item.imageScope==='family'&&item.image&&<p className="sanat-visual-result-card__image-note">{item.code?'تصویر نمونهٔ خانواده؛ شباهت مستقل این مدل تأیید نشده است.':'تصویر ثبت‌شده برای همین خانوادهٔ محصول'}</p>}
+      </div>
+      {!!item.specs.length&&<dl className="sanat-visual-result-card__specs">{item.specs.slice(0,4).map((spec,i)=><div key={i}><dt>{spec.key}</dt><dd dir="auto">{spec.value}</dd></div>)}</dl>}
+      <p className="sanat-visual-result-card__reason">{item.reason}</p>
+      <div className="sanat-visual-result-card__actions">
+       <Link to={target} onClick={onClose}>{item.code?'مشاهده این مدل':'مشاهده خانواده محصول'}</Link>
+       {item.code&&<Link to={'/product/'+encodeURIComponent(item.familyCode)} onClick={onClose}>همه مدل‌ها</Link>}
+      </div>
+     </article>
+    </li>;
+   })}
   </ol>
-  {!expanded&&items.length>shown.length&&<button type="button" onClick={()=>setExpanded(true)} className="w-full rounded-xl border border-orange-200 bg-orange-50 py-3 text-xs font-bold text-orange-700">نمایش مدل‌های بیشتر ({toPersianDigits(items.length-shown.length)} گزینه)</button>}
+  {!expanded&&items.length>shown.length&&<button type="button" className="sanat-visual-results__more" onClick={()=>setExpanded(true)}>نمایش مدل‌های بیشتر ({toPersianDigits(items.length-shown.length)} گزینه)</button>}
  </section>;
 }

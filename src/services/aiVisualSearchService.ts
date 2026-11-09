@@ -75,7 +75,7 @@ export interface MatchedPartItem {
 export interface ImageScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
 export interface CatalogPhotoMatch {imageId:string;image:string;label:string;score:number;reason:string;relation?:'very_similar'|'related';familyNames?:string[];bindings:{familyCode:string;code?:string;verified:boolean}[];}
 export interface CatalogModelSuggestion {
-  code:string;name:string;familyCode:string;familyName:string;
+  code?:string;name:string;familyCode:string;familyName:string;
   model?:string;size?:string;brand?:string;image?:string;
   imageScope:'variant'|'family'|'none';
   matchBasis:'visual'|'read_code'|'family'|'explore';
@@ -87,6 +87,7 @@ export interface AiPartAnalysisResult {
   nearestCatalogSuggestions?:CatalogModelSuggestion[];
   modelSuggestions?:CatalogModelSuggestion[];
   queryRegion?:{x:number;y:number;width:number;height:number}|null;
+  queryRegions?:{x:number;y:number;width:number;height:number}[];
   localVisionMetrics?:{pipeline:string;queryViews:number;geometryComplete:boolean;ocrAvailable:boolean;retrievalMs:number};
   observationOnly?:boolean;
   requiredMeasurements?:PartMeasurement[];

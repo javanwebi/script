@@ -1,5 +1,5 @@
 import {localModelSuggestions} from './localModelSuggestions';
-import {validImageRegion} from './localQueryImage';
+import {validImageRegion} from '../utils/imageRegion';
 import type {CatalogImageRecord} from './catalogImageCorpus';
 import type {AiPartAnalysisResult} from './aiVisualSearchService';
 import type {Product} from '../types';
@@ -11,7 +11,7 @@ export const LOCAL_VISION_DIMENSIONS=384;
 export function localVisionProfile(env:Record<string,string|undefined>=process.env){
  if(env.LOCAL_VISION_ENCODER==='mobileclip2-s0')return {model:'mobileclip2-s0-095906d2-fp32-pad-256-v1',dimensions:512,pipeline:'local-lens-v3',minSimilarity:0.55,maxViews:4};
  if(env.LOCAL_VISION_ENCODER && env.LOCAL_VISION_ENCODER!=='dinov2-small')throw new Error('Unsupported local vision encoder');
- return {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,pipeline:'local-lens-v2',minSimilarity:0.65,maxViews:2};
+ return {model:LOCAL_VISION_MODEL,dimensions:LOCAL_VISION_DIMENSIONS,pipeline:'local-lens-v2',minSimilarity:0.65,maxViews:4};
 }
 async function localRequest(route:string,body:unknown,env=process.env,timeout=4500):Promise<any>{
  const endpoint=new URL(env.LOCAL_VISION_URL || 'http://sanatpish-local-vision-lens-v2:8091');
@@ -38,6 +38,14 @@ export async function embedLocalImages(buffers:Buffer[],env=process.env):Promise
 }
 export const LOCAL_VISION_PIPELINE='local-lens-v2';
 type Region={x:number;y:number;width:number;height:number};
+export function selectBestQueryRegion(viewRegions:(Region|null)[]|undefined,viewScores:number[],fallback?:Region|null):Region|undefined{
+ let best:Region|undefined,bestScore=-Infinity;
+ for(let i=0;i<(viewRegions?.length || 0);i++){
+  const region=viewRegions![i],score=viewScores[i];
+  if(region && Number.isFinite(score) && score>bestScore){best=region;bestScore=score;}
+ }
+ return best || fallback || viewRegions?.find((region):region is Region=>region!==null) || undefined;
+}
 export type QueryEvidence={model?:string;vectors:number[][];region?:Region|null;viewRegions?:(Region|null)[];markings:{text:string;confidence:number}[];ocrAvailable:boolean;};
 export async function describeLocalQuery(image:Buffer,env=process.env):Promise<QueryEvidence>{
  const data=await localRequest('/query',{image:image.toString('base64')},env);
@@ -53,10 +61,15 @@ export async function geometricEvidence(image:Buffer,candidates:Buffer[],env=pro
  if(data.pipeline!==localVisionProfile(env).pipeline || !Array.isArray(data.evidence) || data.evidence.length!==candidates.length || data.evidence.some((e:any)=>typeof e.supported!=='boolean'||!Number.isInteger(e.inliers)||e.inliers<0||!Number.isFinite(e.coverage)||e.coverage<0||e.coverage>1))throw new Error('Invalid geometric evidence');
  return data.evidence as {supported:boolean;inliers:number;coverage:number}[];
 }
-export type LocalVisualHit={row:CatalogImageRecord;score:number;visualScore?:number;eligible?:boolean;geometry?:{supported:boolean;inliers:number;coverage:number};codeHint?:boolean;};
+export type LocalVisualHit={row:CatalogImageRecord;score:number;visualScore?:number;viewScores?:number[];eligible?:boolean;geometry?:{supported:boolean;inliers:number;coverage:number};codeHint?:boolean;};
 /** Moderate cross-domain resemblance needs distinct catalogue photographs agreeing
  * on one active family. A lone similar texture is insufficient. Never raise scores.
  */
+export function bestBoundQueryViewScores(hits:LocalVisualHit[],products:Product[]):number[]{
+ const families=new Set(products.filter(product=>product.active!==false).map(product=>product.code));
+ const best=hits.find(hit=>hit.row.bindings.some(binding=>families.has(binding.familyCode)));
+ return best?.viewScores || [];
+}
 export function corroborateLocalFamilies(hits:LocalVisualHit[],products:Product[],minimum:number){
  const active=new Set(products.filter(p=>p.active!==false).map(p=>p.code));
  const familyOf=(hit:LocalVisualHit)=>[...new Set(hit.row.bindings.map(b=>b.familyCode).filter(code=>active.has(code)))];
@@ -77,8 +90,8 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  if(query?.model===localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'}).model)hits=corroborateLocalFamilies(hits,products,minSimilarity);
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
  const familyCounts=new Map<string,number>();
- const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity);
- const diversified=eligible.filter(hit=>{const key=[...new Set(hit.row.bindings.map(b=>b.familyCode))].sort().join('|') || hit.row.id;const n=familyCounts.get(key)||0;if(n>=2)return false;familyCounts.set(key,n+1);return true;});
+ const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity&&hit.row.bindings.some(binding=>families.has(binding.familyCode)));
+ const diversified=eligible.filter(hit=>{const key=[...new Set(hit.row.bindings.map(b=>b.familyCode).filter(code=>families.has(code)))].sort().join('|') || hit.row.id;const n=familyCounts.get(key)||0;if(n>=2)return false;familyCounts.set(key,n+1);return true;});
  const photoMatches=diversified.slice(0,8).map(({row,score})=>({
   imageId:row.id,image:row.url,label:row.label,score:Math.round(Math.max(0,Math.min(1,score))*100),
   reason:scoreReason(hits.find(h=>h.row.id===row.id)!),

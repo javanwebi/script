@@ -41,20 +41,34 @@ export class CatalogVisualIndex {
    const outcomes=await Promise.allSettled(Array.from({length:Math.min(this.options.concurrency || 3,Math.ceil(missing.length/batchSize))},async()=>{
    try{while(next<missing.length && !stopped){
     const offset=next;next+=batchSize;const rows=missing.slice(offset,offset+batchSize);
-    const loaded=await Promise.all(rows.map(async row=>{const bytes=await read(row);if(!bytes)throw new Error('Catalogue image unavailable: '+row.id);return sharp(bytes).rotate().resize(this.options.imageSize || 768,this.options.imageSize || 768,{fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();}));
-    const vectors=await embed(loaded);if(vectors.length!==rows.length)throw new Error('Embedding count mismatch');
-    const entries=vectors.map((v,i)=>({id:rows[i].id,signature:signature(rows[i]),vector:normalized(v,this.options.dimensions)}));
-    for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
-    // Persist completed batches so a provider interruption does not restart the entire index.
+    const loaded=await Promise.all(rows.map(async row=>{
+     try{
+      const bytes=await read(row);if(!bytes)return null;
+      const buffer=await sharp(bytes).rotate().resize(this.options.imageSize || 768,this.options.imageSize || 768,{fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();
+      return {row,buffer};
+     }catch(error:any){
+      console.warn('[Visual index] Image unavailable for this pass:',row.id,String(error?.message || 'read_failed').slice(0,120));
+      return null;
+     }
+    }));
+    const usable=loaded.filter((item):item is NonNullable<typeof item>=>item!==null);
+    if(!usable.length)continue;
+    const vectors=await embed(usable.map(item=>item.buffer));if(vectors.length!==usable.length)throw new Error('Embedding count mismatch');
+    const entries=vectors.map((v,i)=>({id:usable[i].row.id,signature:signature(usable[i].row),vector:normalized(v,this.options.dimensions)}));
+    // Persist each batch before publishing it in memory. A failed database/file
+    // write must never make coverage look complete for vectors that cannot survive restart.
     const write=this.writes.catch(()=>{}).then(async()=>{
      if(this.persistence) await this.persistence.saveEntries(entries);
      else {
+      const merged=new Map(this.entries);
+      for(const entry of entries)merged.set(entry.id,{signature:entry.signature,vector:entry.vector});
       await fs.mkdir(path.dirname(this.file),{recursive:true});
       const temp=this.file+'.'+randomUUID()+'.tmp';
-      await fs.writeFile(temp,JSON.stringify({model:this.options.model,entries:Object.fromEntries(this.entries)}),{mode:0o600});
+      await fs.writeFile(temp,JSON.stringify({model:this.options.model,entries:Object.fromEntries(merged)}),{mode:0o600});
       await fs.rename(temp,this.file);
      }
     });this.writes=write;await write;
+    for(const entry of entries)this.entries.set(entry.id,{signature:entry.signature,vector:entry.vector});
     if(this.options.concurrency===1)await new Promise(resolve=>setTimeout(resolve,50));
    }}catch(error){stopped=true;throw error;}
    }));
@@ -72,12 +86,13 @@ export class CatalogVisualIndex {
  }
  async rankVectors(vectors:number[][],images:CatalogImageRecord[],limit=48,independentViews=false){
   await this.load();if(!this.coverage(images).ready)return null;
-  if(!vectors.length || vectors.length>(independentViews?4:2))throw new Error('Invalid query views');
+  if(!vectors.length || vectors.length>4)throw new Error('Invalid query views');
   const queries=vectors.map(v=>normalized(v,this.options.dimensions));
   return images.map(row=>{
    const vector=this.entries.get(row.id)!.vector;
    const viewScores=queries.map(q=>vector.reduce((sum,n,i)=>sum+n*q[i],0));
-   const score=independentViews ? Math.max(...viewScores) : viewScores.length===1 ? viewScores[0] : Math.max(viewScores[0],0.25*viewScores[0]+0.75*viewScores[1]);
+   const bestCrop=viewScores.length>1?Math.max(...viewScores.slice(1)):viewScores[0];
+   const score=independentViews ? Math.max(...viewScores) : viewScores.length===1 ? viewScores[0] : Math.max(viewScores[0],0.25*viewScores[0]+0.75*bestCrop);
    return {row,score,viewScores};
   }).sort((a,b)=>b.score-a.score || a.row.id.localeCompare(b.row.id)).slice(0,limit);
  }

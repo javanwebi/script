@@ -32,9 +32,22 @@ class RetrievalTests(unittest.TestCase):
             self.assertIsNone(foreground(image))
             boxes = regions(image)
             self.assertTrue(1 <= len(boxes) <= 3)
+            self.assertTrue(all(b['width'] >= 0.03 and b['height'] >= 0.03 and b['x'] + b['width'] <= 1.000001 and b['y'] + b['height'] <= 1.000001 for b in boxes))
             self.assertTrue(any(b['x'] <= 224/512 and b['x']+b['width'] >= 292/512 and b['y'] <= 104/280 and b['y']+b['height'] >= 172/280 for b in boxes))
             self.assertEqual(boxes, regions(image))
         self.assertEqual(regions(np.full((256, 256, 3), 255, np.uint8)), [])
+
+
+    def test_multiple_separated_objects_receive_independent_crop_proposals(self):
+        image = np.full((280, 512, 3), 248, np.uint8)
+        cv2.rectangle(image, (64, 82), (164, 182), (28, 34, 38), -1)
+        cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
+        boxes = regions(image, limit=3)
+        self.assertGreaterEqual(len(boxes), 2)
+        centers = [b['x'] + b['width'] / 2 for b in boxes]
+        self.assertTrue(any(0.15 < center < 0.32 for center in centers))
+        self.assertTrue(any(0.68 < center < 0.85 for center in centers))
+        self.assertEqual(boxes, regions(image, limit=3))
 
     def test_geometry_supports_distributed_correspondence_but_not_unrelated_or_blank(self):
         image = np.random.default_rng(3).integers(0, 256, (320, 320, 3), dtype=np.uint8)

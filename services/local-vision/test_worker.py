@@ -79,7 +79,8 @@ class WorkerTests(unittest.TestCase):
         with self.request({'image': raw}, path='/query') as response:
             result = json.load(response)
         self.assertEqual(result['pipeline'], worker.PIPELINE)
-        self.assertEqual(len(result['vectors']), 2)
+        self.assertGreaterEqual(len(result['vectors']), 2)
+        self.assertLessEqual(len(result['vectors']), 4)
         self.assertEqual(len(result['viewRegions']), len(result['vectors']))
         self.assertIsNotNone(result['region'])
         self.assertIsInstance(result['ocrAvailable'], bool)
@@ -87,6 +88,21 @@ class WorkerTests(unittest.TestCase):
             reranked = json.load(response)
         self.assertEqual(len(reranked['evidence']), 1)
         self.assertIsInstance(reranked['evidence'][0]['supported'], bool)  # Corners can align; this is never SKU proof.
+
+
+    def test_query_returns_multiple_proposals_for_separated_objects(self):
+        import cv2
+        import numpy as np
+        from retrieval import jpeg
+        image = np.full((280, 512, 3), 248, np.uint8)
+        cv2.rectangle(image, (64, 82), (164, 182), (28, 34, 38), -1)
+        cv2.rectangle(image, (348, 82), (448, 182), (28, 34, 38), -1)
+        with self.request({'image': jpeg(image)}, path='/query') as response:
+            result = json.load(response)
+        self.assertEqual(len(result['vectors']), 4)
+        self.assertEqual(len(result['viewRegions']), 4)
+        self.assertGreaterEqual(len([box for box in result['viewRegions'] if box]), 2)
+        self.assertTrue(all(box['width'] >= 0.03 and box['height'] >= 0.03 for box in result['viewRegions'] if box))
 
     def test_busy_is_bounded(self):
         worker.slot.acquire()

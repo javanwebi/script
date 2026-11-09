@@ -124,26 +124,37 @@ The query path now has these bounded stages:
 1. Optional customer-selected normalized rectangle, applied after EXIF orientation.
    The inline region selector supports pointer/touch and keyboard editing. It is
    only displayed when the local pipeline advertises support.
-2. Full-frame query plus one automatic foreground crop on consistent backgrounds.
-   The crop is a conservative border-colour/component heuristic, **not a general
-   object detector or segmentation model**. Cluttered borders yield no automatic
-   crop; the customer can select the part manually. Full-frame candidates remain.
-3. DINOv2 retrieval using full-frame and cropped-view scores. At most two neural
-   query encodes are performed; indexing remains asynchronous and incremental.
-4. Up to six best catalogue photos are compared with ORB keypoints and a bounded
+2. Full-frame query plus up to three bounded object-region proposals. The proposal
+   stage combines border-foreground and Lab connected-component candidates, so
+   separated objects in one frame can be offered independently. These are
+   class-agnostic crop proposals, **not a trained industrial detector or pixel
+   segmentation model**. The catalogue similarity scores choose which crop best
+   matches; the system does not assume the largest or central object is correct.
+3. The interface draws every proposed region. Tapping a proposal switches the
+   crop and re-runs retrieval; a tap outside all valid proposals is a no-op and
+   preserves the current automatic selection. Dragging creates an explicit manual
+   rectangle. The crop is prepared server-side from the original uploaded image.
+4. DINOv2 retrieval compares the full frame and up to three crop views (at most
+   four query encodes). Its existing conservative score rule is retained: the
+   stronger of the full-frame score and a 25% full-frame / 75% best-crop blend.
+   It does not switch DINOv2 to an unweighted maximum across four views. The
+   independent-view maximum remains specific to the MobileCLIP pipeline. The
+   model identity and catalogue-vector space are unchanged; indexing remains
+   asynchronous and incremental.
+5. Up to six best catalogue photos are compared with ORB keypoints and a bounded
    RANSAC homography. Distributed inliers provide an additional ranking signal.
    Textureless parts may have no evidence; missing evidence is not proof of a
    mismatch. A shared logo/tiny patch is rejected by spatial coverage checks.
    No geometric score proves physical compatibility or unique SKU identity.
-5. Local Tesseract English OCR reads sparse Latin industrial markings, with an
+6. Local Tesseract English OCR reads sparse Latin industrial markings, with an
    800 ms process timeout. Only code-like tokens with reported confidence >=85
    are retained. OCR remains fallible; Persian descriptions and unreadable engraving
    are not reliably handled by this engine. OCR failure/timeout is disclosed.
-6. Real active inventory codes are compared with the OCR text. Unique code
+7. Real active inventory codes are compared with the OCR text. Unique code
    suggestions require a visually eligible family and remain unconfirmed product
    candidates. Ambiguous normalized codes never select an arbitrary SKU. Code and
    geometry bonuses cannot rescue a photo below the base visual threshold.
-7. The raw photo gallery is diversified to at most two photos per family grouping.
+8. The raw photo gallery is diversified to at most two photos per family grouping.
    The product/model list is generated independently from all retrieved eligible
    hits, so this photo-gallery limit cannot hide additional matching models in
    the same family. Close top family scores remain explicitly ambiguous.
@@ -177,7 +188,7 @@ cd /opt/sanatpish
 git fetch origin main
 VISION_SETUP_DIR=$(mktemp -d /tmp/sanatpish-vision-setup.XXXXXXXX)
 git archive FETCH_HEAD services/local-vision ops/setup-local-vision-vps.sh | tar -xf - -C "$VISION_SETUP_DIR"
-sudo bash "$VISION_SETUP_DIR/ops/setup-local-vision-vps.sh"
+sudo bash "$VISION_SETUP_DIR/ops/setup-local-vision-vps.sh" --app sanatpish-app
 rm -rf -- "$VISION_SETUP_DIR"
 ```
 
@@ -205,7 +216,7 @@ every application release. Initial background catalogue indexing can take minute
 customer requests do not trigger a full synchronous rebuild.
 
 Check `GET /api/ai/local-vision-status` for enabled/model/total/indexed/ready and
-`docker stats --no-stream sanatpish-local-vision-lens-v2` for actual resource use. Status
+`docker ps --filter label=com.sanatpish.role=local-vision --format '{{.Names}}'` to list the versioned sidecar and `docker stats --no-stream <container-name>` for actual resource use. Status
 contains no credentials. Accuracy and p95 end-to-end latency must be recorded on
 real customer photos; passing unit/protocol tests alone is insufficient.
 
@@ -255,8 +266,12 @@ upload-plus-search time. Keep customer photos and manifests out of Git. No label
 in this example is a real product code or evidence of model quality.
 
 
-The `local-lens-v2` encoder has a separate container/image identity
-`sanatpish-local-vision-lens-v2` / `sanatpish-local-vision:dinov2-small-lens-v2`.
+The original `local-lens-v2` encoder is retained as the rollback sidecar
+`sanatpish-local-vision-lens-v2`. Region-proposal updates use a new, versioned
+container named `sanatpish-local-vision-lens-v2-regions-<UTC timestamp>` and a
+matching versioned image tag. The setup script switches the app's private URL
+only after the new container passes its health check; the old container is not
+removed automatically.
 Re-run one-time setup to build this version and update the private service URL;
 no external credentials are requested. The previous encoder can keep serving an
 old app until promotion completes. Stop an unused older encoder only after the
@@ -317,31 +332,34 @@ same way. This download choice concerns provisioning only; runtime remains local
 
 ## Multiple model results
 
-The local API now includes `modelSuggestions`, a bounded list of up to 24 real
-active catalogue models. Independently image-bound models are deduplicated by SKU
-using their best matching photo, and sorted by the full-precision visual ranking
-score. This considers all retrieved eligible images, not just the eight displayed
-photo matches. More than two models from one family can appear. The frontend
-renders twelve model cards initially, with a button for the remaining returned
-models and links to the complete family catalogue.
+The local API includes `modelSuggestions`, a bounded list of real active
+catalogue models. Independently image-bound SKUs are deduplicated by their best
+matching photograph and sorted by full-precision visual evidence. The list is
+built independently of the eight-photo gallery, so a family with many images
+cannot hide its other matching models.
 
-Each card carries its real code, model/size, available technical specifications,
-and registered image. Visual models show their individual ranking score. Unique
-OCR-only suggestions follow independently image-ranked results. Other existing
-models from the closest eligible families are displayed as family alternatives,
-round-robin across families. Their own registered photo is used when available;
-otherwise a family representative is clearly labelled. No independent visual
-score is assigned to shared-photo or family-only alternatives, and no photo is
-invented when none is registered. Unrelated/inactive families, inactive SKUs and
-unregistered codes are excluded. The exact-match list remains unchanged/empty
-without identity evidence.
+A real active family-image binding without a SKU code remains eligible even
+when that family also contains coded SKUs. It appears as a family-level card with
+the registered image, the family-level visual ranking score, and the explicit
+label `کد کالا در کاتالوگ ثبت نشده`. No SKU is fabricated. These family-only
+visual results participate in the same score ordering as coded visual results,
+so a more similar uncoded family photo can rank above a less similar coded model.
+Coded SKU siblings remain clearly labelled, unscored family alternatives unless
+their own image is independently bound. OCR-only
+suggestions follow independently image-ranked results. Inactive families, inactive
+SKUs, unbound photos and unregistered codes are excluded from customer results.
 
-This is an application/UI update. It needs only `sudo sanatpish-deploy-main` after
-merge, no Python image rebuild, new model download, database migration, or full
-vector reindex. Existing derived DINOv2 vectors are reused. Tests cover five
-independently photographed models in one family, score order, best-photo dedup,
-shared-photo ambiguity, real-code/OCR handling, inactive/weak exclusions, bounded
-alternatives, and server-rendered product cards.
+This update changes the Python query worker to produce up to three crop proposals
+as well as the app/UI. After merge, rebuild the private sidecar once with
+`sudo bash ops/setup-local-vision-vps.sh --app sanatpish-app`, then run
+`sudo sanatpish-deploy-main`. The DINOv2 weights, model identity, catalogue
+embedding vectors, database schema and image bindings remain unchanged; no
+database migration, model download or full vector reindex is required. The setup
+script starts a versioned sidecar beside the old one, checks its health, and only
+then changes the app's private encoder URL. Keep the old container until the
+application passes production acceptance. Tests cover multiple object proposals,
+no-code family ranking, score order, best-photo dedup, shared-photo ambiguity,
+real-code/OCR handling, inactive/weak exclusions and product-card rendering.
 
 ## Owner-photo check — 2026-11-07
 
@@ -367,33 +385,53 @@ catalogue-image reads, geometric reranking and production VPS/network overhead;
 they are not an end-to-end sub-five-second SLA. Browser interaction and the new
 Docker image still require on-VPS acceptance after provisioning and reindexing.
 
-## Tap-to-search and explicitly unconfirmed neighbours
+## Production index readiness gate
 
-Local gallery uploads now start quick retrieval when upload completes. Camera
-capture still requires the existing confirmation. The source image remains
-interactive on the results screen: tap selects a bounded, pixel-square vicinity;
-drag draws a precise rectangle, keyboard controls remain available, and a zoomed
-crop preview shows what is selected. Selection changes debounce for 300 ms and
-reuse the uploaded photo. Older requests cannot replace results after a different
-photo is selected or the modal closes. This is region selection, not a claim of
-pixel-perfect object segmentation.
+The DINOv2 image vectors are persisted per image in
+`app_private.scoped_documents` under the model-specific namespace. Each completed
+batch is saved, so a process restart does not discard completed image vectors.
+When local vision is enabled, server startup resumes any missing or signature-
+changed catalogue images through the existing background warmup. An unreadable
+photo no longer stops the batch queue: later images continue to index, the failed
+image remains pending, and the background worker retries the still-missing rows
+after a cooldown. Coverage stays incomplete until every catalogue image is indexed.
 
-Every indexed catalogue vector is scored for every query view. The local route
-now retains the full sorted list rather than truncating it before family lookup,
-so attached products remain discoverable even behind many unbound photos. An
-incomplete index still fails explicitly; missing/unindexed photos are never
-silently counted as compared. This uses precomputed image features rather than
-rerunning a generative model on all photos for each customer request.
+Do not declare the visual-search rollout ready until
+`GET /api/ai/local-vision-status` reports `enabled:true`, `ready:true`, and
+`indexed === total`. The last confirmed production observation on 2026-11-08
+was `412/869` with `ready:false`; that is a partial index, not an accepted
+production state. Recheck the live endpoint after deployment and wait for all
+869 images to be indexed. The feature returns HTTP 503 rather than silently
+searching a partial catalogue.
 
-`includeNearest: true` opts into `nearestCatalogSuggestions` when there are no
-accepted photo matches. These are up to 24 real, active catalogue models from the
-nearest ranked families, tagged `matchBasis: explore`, with no similarity score
-or identity/compatibility assertion. They are outside `matchedProducts`,
-`similarCandidates`, `modelSuggestions` and `catalogImageMatches`; the accepted
-match thresholds and the negative-control tests remain intact. The UI labels
-these cards “نزدیک‌ترین گزینه‌ها؛ تطبیق تأیید نشده”. An absent or inactive catalogue
-product is never invented to fill the list. This cannot guarantee that the exact
-customer product exists in the catalogue.
+## Automatic object proposals and strict no-match behavior
+
+Gallery uploads start quick retrieval after upload completes; camera capture
+keeps its explicit confirmation. The query worker now returns the full-frame view
+plus up to three independent crop proposals. The interface overlays those
+proposals on the original photo and shows the currently selected crop. A tap
+inside a proposal selects that object and re-runs the same uploaded image. A tap
+outside every proposal preserves the current system selection; it never creates
+an arbitrary square around empty background. Dragging remains available as an
+explicit manual rectangle. Selection changes debounce for 300 ms, and stale
+requests cannot replace results after another photo is selected or the modal
+closes. These proposals are heuristic crop candidates, not pixel-perfect masks or
+a trained industrial object detector.
+
+Every indexed catalogue vector is scored for every query view. Only hits attached
+to a real active catalogue family and above the visual threshold can become
+customer-facing photo or model results. Unbound catalogue images are not exposed
+as products. Family-bound images without a SKU-specific binding remain eligible at family
+level, even when active coded variants exist; the family result carries the
+visual score while its individual SKU siblings remain unscored. If no exact or meaningful similar family/model passes
+the threshold, the customer sees no product cards and is offered expert review
+instead. The UI explicitly disables the nearest-neighbour exploration list; it
+does not fill an empty result page with unrelated products.
+
+An incomplete index still fails explicitly; missing/unindexed photos are never
+silently counted as compared. The query uses precomputed catalogue features
+rather than rerunning a generative model over every catalogue image for each
+customer request.
 
 Browser pointer/touch/drag/keyboard smoke for the source selector:
 `node scripts/tests/image-region-interaction.cjs` (requires Playwright Chromium).

@@ -14,6 +14,18 @@ test('family images produce navigable family bindings, never an arbitrary SKU or
  assert.deepEqual(result.similarCandidates,[]);assert.deepEqual(result.matchedProducts,[]);
  assert.equal(result.summary.exactVisualMatch,false);assert.equal(result.summary.confidence,0);
 });
+test('a family-bound photo is scored at family level when no SKU-specific binding identifies its model',()=>{
+ const uncoded=[{...products[0],code:'uncoded',name:'قطعه بدون کد',variants:[{code:'uncoded-0',name:'مدل دارای کد',active:true}]}] as Product[];
+ const result=localVisionResult([hit([{familyCode:'uncoded',verified:false}],0.94)],uncoded,coverage,'/customer');
+ assert.ok(result.modelSuggestions!.length>=1);
+ assert.equal(result.modelSuggestions![0].familyCode,'uncoded');
+ assert.equal(result.modelSuggestions![0].code,undefined);
+ assert.equal(result.modelSuggestions![0].matchBasis,'visual');
+ assert.equal(result.modelSuggestions![0].visualScore,94);
+ assert.equal(result.catalogImageMatches![0].bindings.length,1);
+ assert.equal(result.catalogImageMatches![0].bindings[0].code,undefined);
+ assert.deepEqual(result.similarCandidates,[]);
+});
 test('only active, explicitly bound real SKUs are returned, even when the photo is identity verified',()=>{
  const result=localVisionResult([hit([{familyCode:'family',code:'sku',verified:true},{familyCode:'family',code:'invented',verified:true},{familyCode:'family',code:'inactive',verified:true},{familyCode:'deleted',code:'sku',verified:true}])],products,coverage,'/customer');
  assert.deepEqual(result.similarCandidates!.map(p=>p.code),['sku']);
@@ -77,7 +89,7 @@ test('extended local query transport validates protocol, crop and bounded geomet
  const server=http.createServer(async(req,res)=>{
   for await(const _chunk of req){};
   res.setHeader('content-type','application/json');
-  res.end(JSON.stringify(req.url==='/query'?{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,vectors:[Array(384).fill(0.1)],region:broken?{x:-1,y:0,width:1,height:1}:null,markings:[{text:'6203ZZ',confidence:96}],ocrAvailable:true}:{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,evidence:[{supported:true,inliers:20,coverage:0.3}]}));
+  res.end(JSON.stringify(req.url==='/query'?{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,vectors:[Array(384).fill(0.1)],viewRegions:[null],region:broken?{x:-1,y:0,width:1,height:1}:null,markings:[{text:'6203ZZ',confidence:96}],ocrAvailable:true}:{model:LOCAL_VISION_MODEL,pipeline:LOCAL_VISION_PIPELINE,evidence:[{supported:true,inliers:20,coverage:0.3}]}));
  });
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
  try{
@@ -118,7 +130,9 @@ test('moderate MobileCLIP evidence needs multiple distinct photos in one family;
  assert.deepEqual(duplicate.modelSuggestions,[]);
  const second={...bound,score:0.56,row:{...bound.row,id:'second-photo',url:'/storage/second-photo.webp'}};
  const supported=localVisionResult([bound,second],products,coverage,'/customer',0.55,query);
- assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,2);
+ assert.equal(supported.catalogImageMatches!.length,2);assert.equal(supported.modelSuggestions!.length,3);
+ assert.equal(supported.modelSuggestions![0].code,undefined);assert.equal(supported.modelSuggestions![0].matchBasis,'visual');
+ assert.deepEqual(supported.modelSuggestions!.slice(1).map(item=>item.code),['other-size','sku']);
  assert.equal(supported.catalogImageMatches![0].score,57);assert.deepEqual(supported.matchedProducts,[]);
  const inactive=localVisionResult([bound,second],products.map(p=>({...p,active:false})),coverage,'/customer',0.55,query);
  assert.deepEqual(inactive.modelSuggestions,[]);
@@ -129,8 +143,38 @@ test('opt-in nearest catalogue suggestions are unconfirmed, bounded and separate
  const low=hit([{familyCode:'family',verified:false}],0.31);
  const result=localVisionResult([low],products,coverage,'/customer',0.65,undefined,true);
  assert.deepEqual(result.catalogImageMatches,[]);assert.deepEqual(result.matchedProducts,[]);assert.deepEqual(result.similarCandidates,[]);
- assert.equal(result.nearestCatalogSuggestions!.length,2);
+ assert.equal(result.nearestCatalogSuggestions!.length,3);
+ assert.ok(result.nearestCatalogSuggestions!.some(m=>m.code===undefined&&m.familyCode==='family'));
  assert.ok(result.nearestCatalogSuggestions!.every(m=>m.matchBasis==='explore'&&m.visualScore===undefined&&m.code!=='inactive'));
  const strong=localVisionResult([hit([{familyCode:'family',verified:false}],0.9)],products,coverage,'/customer',0.65,undefined,true);
  assert.equal(strong.nearestCatalogSuggestions,undefined);
+});
+
+test('the retained DINOv2 profile supports a full frame plus three independent region proposals',async()=>{
+ const {localVisionProfile}=await import('../src/services/localVision');
+ assert.equal(localVisionProfile({}).maxViews,4);
+});
+
+test('high-scoring unbound photos are not exposed as catalogue products',()=>{
+ const result=localVisionResult([hit([],0.98)],products,coverage,'/customer');
+ assert.deepEqual(result.catalogImageMatches,[]);
+ assert.deepEqual(result.similarCandidates,[]);
+ assert.deepEqual(result.modelSuggestions,[]);
+});
+
+test('automatic crop defaults to the highest-scoring detected object, not the uncropped full frame',async()=>{
+ const {selectBestQueryRegion}=await import('../src/services/localVision');
+ const first={x:0.1,y:0.2,width:0.2,height:0.3};
+ const second={x:0.62,y:0.3,width:0.25,height:0.35};
+ assert.deepEqual(selectBestQueryRegion([null,first,second],[0.99,0.72,0.91],first),second);
+ assert.deepEqual(selectBestQueryRegion([null,first,second],[0.99,Number.NaN,Number.NaN],first),first);
+ assert.equal(selectBestQueryRegion([null],[0.99]),undefined);
+});
+
+test('automatic crop scores come from the best real catalogue-bound photo, never an unbound nearest image',async()=>{
+ const {bestBoundQueryViewScores}=await import('../src/services/localVision');
+ const unbound={...hit([],0.99),viewScores:[0.99,0.12]};
+ const bound={...hit([{familyCode:'family',verified:false}],0.91),viewScores:[0.72,0.88]};
+ assert.deepEqual(bestBoundQueryViewScores([unbound,bound],products),[0.72,0.88]);
+ assert.deepEqual(bestBoundQueryViewScores([unbound],products),[]);
 });

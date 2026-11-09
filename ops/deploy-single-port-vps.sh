@@ -134,6 +134,14 @@ if test "$FREE_KB" -lt 4194304; then
 fi
 mkdir -m 700 "$STAGE"
 git -C "$APP" archive "$EXPECTED" | tar -xf - -C "$STAGE"
+# Preserve the owner-managed mobile image directory that is intentionally untracked.
+# Git archive omits it; copy it into the isolated release stage without touching APP.
+if [[ -d "$APP/src/assets/IMAGESITE/mobile" ]]; then
+  install -d -m 755 "$STAGE/src/assets/IMAGESITE/mobile"
+  cp -a "$APP/src/assets/IMAGESITE/mobile/." "$STAGE/src/assets/IMAGESITE/mobile/"
+  diff -qr "$APP/src/assets/IMAGESITE/mobile" "$STAGE/src/assets/IMAGESITE/mobile" >/dev/null
+  echo 'PRESERVED_OWNER_MANAGED_MOBILE_ASSETS=YES'
+fi
 test -s "$STAGE/package-lock.json"
 # Use official integrity-checked tarballs, not the previously failing mirror.
 sed -i 's#https://registry.npmmirror.com/#https://registry.npmjs.org/#g' "$STAGE/package-lock.json"
@@ -243,6 +251,10 @@ stage=sys.argv[1]
 assert any(m["Destination"]=="/app" for m in mounts)
 for m in mounts:
  dest=m["Destination"]
+ # The source release replaces /app; private local-vision files must be
+ # re-mounted from the canonical persistent project directory below.
+ if dest in ("/app/.local-vision-enabled","/app/.env.local-vision"):
+  continue
  source=stage if dest=="/app" else m["Source"]
  mode="rw" if m["RW"] else "ro"
  for arg in ("-v",f"{source}:{dest}:{mode}"):
@@ -260,34 +272,63 @@ if [[ -f "$APP/.env.staff" ]] &&
    ! docker inspect "$OLD" --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -Fxq '/app/.env.staff'; then
   MOUNTS+=(-v "$APP/.env.staff:/app/.env.staff:ro")
 fi
+# The release source is mounted at /app, so explicitly re-mount persistent
+# local-vision activation/configuration files from the canonical project folder.
+if [[ -f "$APP/.local-vision-enabled" ]]; then
+  test -s "$APP/.env.local-vision"
+  MOUNTS+=(-v "$APP/.local-vision-enabled:/app/.local-vision-enabled:ro")
+  MOUNTS+=(-v "$APP/.env.local-vision:/app/.env.local-vision:ro")
+fi
 # Optional local vision sidecar: provisioned once, reused across application releases.
 # The explicit marker is only created after photo binding reconciliation/benchmarks.
 if [[ -f "$APP/.local-vision-enabled" ]]; then
  test -s "$APP/.env.local-vision"
- VISION_NAME=sanatpish-local-vision-lens-v2
- VISION_IMAGE=sanatpish-local-vision:dinov2-small-lens-v2
+ # The URL hostname is the exact versioned sidecar created by
+ # ops/setup-local-vision-vps.sh. Do not silently start an older fixed-name image.
+ VISION_NAME="$(python3 - "$APP/.env.local-vision" <<'PYVISION'
+from pathlib import Path
+from urllib.parse import urlparse
+import re,sys
+values=[line.split('=',1)[1].strip() for line in Path(sys.argv[1]).read_text().splitlines() if line.startswith('LOCAL_VISION_URL=')]
+if not values: raise SystemExit('LOCAL_VISION_URL_MISSING')
+url=urlparse(values[-1])
+host=url.hostname or ''
+if url.scheme not in ('http','https') or url.port!=8091 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*',host):
+ raise SystemExit('INVALID_PRIVATE_VISION_CONTAINER_URL')
+print(host)
+PYVISION
+)"
+ VISION_ENCODER="$(sed -n 's/^LOCAL_VISION_ENCODER=//p' "$APP/.env.local-vision" | tail -1 | tr -d '\r')"
  VISION_MODEL=dinov2-small-ed25f3a3-fp32-cls-224-v1
  VISION_DIMENSIONS=384
  VISION_PIPELINE=local-lens-v2
- if grep -Eq '^LOCAL_VISION_ENCODER=mobileclip2-s0\r?$' "$APP/.env.local-vision"; then
-  VISION_NAME=sanatpish-local-vision-mobileclip-v3
-  VISION_IMAGE=sanatpish-local-vision:mobileclip2-s0-lens-v3
+ if [[ "$VISION_ENCODER" == mobileclip2-s0 ]]; then
   VISION_MODEL=mobileclip2-s0-095906d2-fp32-pad-256-v1
   VISION_DIMENSIONS=512
   VISION_PIPELINE=local-lens-v3
+ elif [[ -n "$VISION_ENCODER" && "$VISION_ENCODER" != dinov2-small ]]; then
+  echo "UNSUPPORTED_LOCAL_VISION_ENCODER=$VISION_ENCODER" >&2
+  exit 1
  fi
- docker image inspect "$VISION_IMAGE" >/dev/null
- if ! docker container inspect "$VISION_NAME" >/dev/null 2>&1; then
-  docker run -d --name "$VISION_NAME" --restart unless-stopped \
-   --network "$NETWORK" --cpus=1 --memory=1200m --memory-swap=1200m \
-   --pids-limit=64 --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-   --cap-drop=ALL --security-opt=no-new-privileges \
-   --env-file "$APP/.env.local-vision" "$VISION_IMAGE" >/dev/null
- else
-  docker network connect "$NETWORK" "$VISION_NAME" 2>/dev/null || \
-   docker inspect "$VISION_NAME" --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
-  docker start "$VISION_NAME" >/dev/null
- fi
+ docker container inspect "$VISION_NAME" >/dev/null || { echo "LOCAL_VISION_SIDECAR_MISSING=$VISION_NAME" >&2; exit 1; }
+ VISION_IMAGE_ID="$(docker inspect "$VISION_NAME" --format '{{.Image}}')"
+ docker image inspect "$VISION_IMAGE_ID" >/dev/null
+ # The app config and already-running sidecar must use the same private token.
+ python3 - "$APP/.env.local-vision" "$VISION_NAME" <<'PYTOKEN'
+from pathlib import Path
+import json,subprocess,sys
+config={}
+for line in Path(sys.argv[1]).read_text().splitlines():
+ if '=' in line and not line.lstrip().startswith('#'):
+  key,value=line.split('=',1);config[key.strip()]=value.strip().strip('"').strip("'")
+container=json.loads(subprocess.check_output(['docker','inspect',sys.argv[2]]))[0]
+runtime=dict(item.split('=',1) for item in container['Config'].get('Env',[]) if '=' in item)
+if len(config.get('LOCAL_VISION_TOKEN',''))<32 or runtime.get('LOCAL_VISION_TOKEN')!=config.get('LOCAL_VISION_TOKEN'):
+ raise SystemExit('LOCAL_VISION_TOKEN_MISMATCH')
+PYTOKEN
+ docker network connect "$NETWORK" "$VISION_NAME" 2>/dev/null || \
+  docker inspect "$VISION_NAME" --format '{{json .NetworkSettings.Networks}}' | grep -Fq "\"$NETWORK\""
+ docker start "$VISION_NAME" >/dev/null
  VISION_READY=0
  for _ in $(seq 1 30); do
   if docker exec "$VISION_NAME" python -c 'import json,sys,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=2)); assert d["model"]==sys.argv[1] and d.get("pipeline")==sys.argv[2]' "$VISION_MODEL" "$VISION_PIPELINE" 2>/dev/null; then VISION_READY=1; break; fi
