@@ -16,7 +16,7 @@ test('customer image originals are saved automatically in device-local IndexedDB
 
 test('new customer-image processing does not write image bytes to server disk or GitHub', () => {
   const server = read('server.ts');
-  const start = server.indexOf('async function persistCustomerImage');
+  const start = server.indexOf('async function prepareCustomerImageInMemory');
   const end = server.indexOf('function validatePresetImageImportUrl', start);
   assert.ok(start >= 0 && end > start, 'customer image processor must exist');
   const processor = server.slice(start, end);
