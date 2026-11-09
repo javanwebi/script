@@ -3813,8 +3813,7 @@ async function verifyCandidatesVisuallyWithGemini(
   ai: GoogleGenAI | null,
   userBuffer: Buffer,
   candidates: any[],
-  detectedPartType: string,
-  publishImage?:ImagePublisher
+  detectedPartType: string
 ): Promise<{ matched: any[]; similar: any[]; hasExact: boolean }> {
   if (!candidates || candidates.length === 0) {
     return { matched: [], similar: [], hasExact: false };
@@ -3911,7 +3910,7 @@ ${candidatePrompts}
   try {
     let responseText='';
     if (getPartRecognitionWorkerUrl()) {
-      try { responseText=(await workerVision([{role:'user',parts}],{publishImage})).text; }
+      try { responseText=(await workerVision([{role:'user',parts}])).text; }
       catch { /* The direct key can provide the same comparison if configured. */ }
     }
     if (!responseText && ai) responseText=(await generateWithModelCascade(ai,[{role:'user',parts}],{responseMimeType:'application/json'},'Candidate comparison',GEMINI_MODELS,30000)).text;
@@ -4286,7 +4285,7 @@ ${prompt || 'شناسایی و مشخصات کامل قطعه صنعتی'}
       observation:raw,customerDetails:{length:body.length,width:body.width,pitch:body.pitch,application:body.application,features:body.features,measurements:body.measurements},describeImage:context.describe,
       vision:async (parts,schema)=>{
         if(getPartRecognitionWorkerUrl()) {
-          try{return (await workerVision([{role:'user',parts}],{publishImage,responseSchema:schema})).text;}catch(error){if(!direct)throw error;}
+          try{return (await workerVision([{role:'user',parts}],{responseSchema:schema})).text;}catch(error){if(!direct)throw error;}
         }
         if(!direct)throw new Error('No vision provider');
         return (await generateWithModelCascade(direct,[{role:'user',parts}],{responseMimeType:'application/json',responseSchema:schema},'Full catalogue image scan',GEMINI_MODELS,45000)).text;
@@ -4968,7 +4967,6 @@ ${stageInstruction}
             normalizedImage.buffer,
             candidatePool,
             String(parsedResult?.detectedPartType || parsedResult?.visualShape || 'قطعه صنعتی'),
-            createVisionImagePublisher(IMAGE_AI_DIR,visionImagePublicOrigin(req))
           );
 
           const vMatched = canonicalizeCatalogMatchList(verifiedResult.matched || []);
