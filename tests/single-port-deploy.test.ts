@@ -36,6 +36,21 @@ test("promotion retains same database and storage settings and reverses failures
   assert.match(one, /SANATPISH_SINGLE_PORT_RELEASE_OK/);
 });
 
+test("live preflight retries transient empty HTTP replies without restarting the active container", () => {
+  assert.match(one, /wait_for_live_health\(\)/);
+  assert.match(one, /for attempt in \$\(seq 1 8\)/);
+  assert.match(one, /ACTIVE_HTTP_HEALTH/);
+  assert.match(one, /ACTIVE_HTTPS_HEALTH/);
+});
+
+test("AvalAI private config must be effective in canary before production promotion", () => {
+  const gate = one.indexOf("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
+  const promotion = one.indexOf("===== PROMOTE ON SAME FIXED PORT");
+  assert.ok(gate >= 0 && promotion > gate);
+  assert.match(one.slice(gate - 900, promotion), /AVALAI_API_KEY_NOT_EFFECTIVE/);
+  assert.match(one.slice(gate - 900, promotion), /PRIVATE_FORZA_CONFIG_MOUNT_OK/);
+});
+
 test("private FORZA provider credentials are mounted read-only into each release", () => {
   assert.ok(one.includes('if [[ -f "$APP/.env.forza-voice" ]]'));
   assert.ok(one.includes('-v "$APP/.env.forza-voice:/app/.env.forza-voice:ro"'));
