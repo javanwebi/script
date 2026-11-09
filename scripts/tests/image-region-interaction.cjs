@@ -2,10 +2,14 @@
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const os=require('node:os');
+const {execFileSync}=require('node:child_process');
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 (async()=>{
- const root=process.cwd();const fixture=await fs.mkdtemp(path.join(root,'region-smoke-'));
+ const root=process.cwd();
+ // Match npm predev/prebuild: generate ignored WebP imports from tracked source PNGs.
+ execFileSync(process.execPath,['scripts/optimize-images.mjs'],{cwd:root,stdio:'inherit'});
+ const fixture=await fs.mkdtemp(path.join(root,'region-smoke-'));
  let server,browser;
  try{
   const {createServer}=await import('vite');
@@ -19,8 +23,7 @@ const {chromium}=require('playwright');
   await fs.writeFile(entryPath,entry(source));
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
-  await fs.writeFile(path.join(fixture,'images.ts'),"export const IMAGES={authIndustrialHero:'',refineryDuskWide:'',products:{bearingNsk:'',bearing:''}};");
-  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')},{find:/.*\/assets\/images$/,replacement:path.join(fixture,'images.ts')}]},server:{host:'127.0.0.1',port:0}});await server.listen();
+  server=await createServer({root,logLevel:'error',resolve:{alias:[{find:/.*\/context\/AuthContext$/,replacement:path.join(fixture,'auth.ts')},{find:/.*\/context\/CartContext$/,replacement:path.join(fixture,'cart.ts')}]},server:{host:'127.0.0.1',port:0}});await server.listen();
   browser=await chromium.launch({headless:true});
   for(const mobile of [false,true]){
    if(mobile)await fs.writeFile(entryPath,entry(portraitSource));
