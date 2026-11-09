@@ -71,24 +71,47 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // Visual scene & humanoid character states
   const callClosedRef = useRef(false);
   const stopAcknowledgementRef=useRef<ForzaStopAcknowledgement|null>(null);
-  const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'>('pocket-farsi-v2');
+  const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('pocket-farsi-v2');
+  const voiceInfoPromiseRef=useRef<Promise<void>>(Promise.resolve());
   const [activeVoiceLabel,setActiveVoiceLabel]=useState('در حال بررسی موتور صوتی');
   useEffect(()=>{
     let mounted=true;
-    void fetch('/api/ai/forza-voice-info',{cache:'no-store'})
-      .then(r=>r.ok?r.json():null)
-      .then(data=>{
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),2500);
+    const task=(async()=>{
+      try{
+        const response=await fetch('/api/ai/forza-voice-info',{cache:'no-store',signal:controller.signal});
+        if(!response.ok)throw new Error('voice_info_http_'+response.status);
+        const data=await response.json();
         if(!mounted)return;
         if(data?.voice==='piper-nima-gyro-medium'&&data?.incrementalSpeech===true){
           voiceModeRef.current='piper-nima-gyro-medium';
           setActiveVoiceLabel('نیما (Piper فارسی)');
+        }else if(data?.voice==='piper-amir-medium'){
+          voiceModeRef.current='piper-amir-medium';
+          setActiveVoiceLabel('امیر (Piper فارسی)');
         }else{
           voiceModeRef.current='pocket-farsi-v2';
           setActiveVoiceLabel(data?.voice==='pocket-farsi-v2'
             ?'Pocket TTS فارسی v2':'موتور فعلی سرور');
         }
-      }).catch(()=>{if(mounted)setActiveVoiceLabel('موتور فعلی سرور');});
-    return()=>{mounted=false};
+      }catch{
+        if(mounted)setActiveVoiceLabel('موتور فعلی سرور');
+      }finally{
+        window.clearTimeout(timeout);
+      }
+    })();
+    voiceInfoPromiseRef.current=task;
+    return()=>{mounted=false;controller.abort();window.clearTimeout(timeout);};
+  },[]);
+  const ensureVoiceMode=useCallback(async()=>{
+    let timer:number|undefined;
+    await Promise.race([
+      voiceInfoPromiseRef.current,
+      new Promise<void>(resolve=>{timer=window.setTimeout(resolve,2200);}),
+    ]);
+    if(timer!==undefined)window.clearTimeout(timer);
+    return voiceModeRef.current;
   },[]);
   useEffect(() => { callClosedRef.current = false; return () => { callClosedRef.current = true; }; }, []);
   const avatarRef = useRef<ParticleAvatarRef | null>(null);
@@ -772,17 +795,29 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // contract, whose CPU synthesis can legitimately exceed a minute.
     const timeoutSignal=voiceModeRef.current==='piper-nima-gyro-medium'
       ? AbortSignal.timeout(35000) : AbortSignal.timeout(420000);
+    const requestTurnId=turnId||('call-'+callIdRef.current+'-tts-'+Math.round(performance.now()));
     const response=await fetch('/api/ai/forza-speech',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text,turnId}),
+      body:JSON.stringify({text,turnId:requestTurnId}),
       signal:signal
         ? AbortSignal.any([signal,timeoutSignal])
         : timeoutSignal,
     });
     if(!response.ok)throw new Error('pocket_http_'+response.status);
-    if(response.headers.get('X-Forza-Voice')!==voiceModeRef.current)
-      throw new Error('forza_original_pocket_voice_required');
+    // The private voice health check is authoritative. Recover gracefully if
+    // the first request races voice-info instead of discarding a valid WAV.
+    const returnedVoice=response.headers.get('X-Forza-Voice');
+    if(returnedVoice==='piper-nima-gyro-medium'){
+      voiceModeRef.current='piper-nima-gyro-medium';
+      setActiveVoiceLabel('نیما (Piper فارسی)');
+    }else if(returnedVoice==='piper-amir-medium'){
+      voiceModeRef.current='piper-amir-medium';
+      setActiveVoiceLabel('امیر (Piper فارسی)');
+    }else if(returnedVoice==='pocket-farsi-v2'){
+      voiceModeRef.current='pocket-farsi-v2';
+      setActiveVoiceLabel('Pocket TTS فارسی v2');
+    }else throw new Error('forza_unknown_voice_identity');
     if(!(response.headers.get('Content-Type')||'').includes('audio/wav'))
       throw new Error('forza_pocket_full_answer_not_wav');
     const wavHeadersAt=performance.now();
@@ -809,7 +844,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ' bytes='+audio.byteLength);
     }
     return audio;
-  },[]);
+  },[setActiveVoiceLabel]);
 
   useEffect(()=>{
     if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
@@ -827,10 +862,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     answer:string,
     player:ForzaContinuousWav,
     signal?:AbortSignal,
+    turnId?:string,
   ):Promise<void>=>{
     // One HTTP POST, one RIFF/WAVE, one AudioBufferSource: no waiting
     // for a second generated packet mid-sentence, including punctuation.
-    const audio=await requestPocketAudio(answer,signal);
+    const audio=await requestPocketAudio(answer,signal,turnId);
     if(signal?.aborted || callClosedRef.current)return;
     await player.enqueueWav(audio);
     console.info('[FORZA_LATENCY] phase=whole-pocket-playback-finished '+
@@ -851,7 +887,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
-      await playPocketFullAnswer(phrase,player,controller.signal);
+      await playPocketFullAnswer(phrase,player,controller.signal,
+        'call-'+callIdRef.current+'-replay-'+Math.round(performance.now()));
       if(!callClosedRef.current&&!controller.signal.aborted)setVoiceOutputError(null);
     }catch(error:any){
       if(!callClosedRef.current&&!controller.signal.aborted)setVoiceOutputError(
@@ -890,7 +927,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // No model download or inference is needed at the 100% particle event.
       const url = '/forza-greeting-bootstrap.wav';
       await playDataUrl(url);
-      console.info('[FORZA greeting] Pocket Farsi v2 prerecorded welcome finished');
+      console.info('[FORZA greeting] selected server voice welcome finished voice='+voiceModeRef.current);
       return;
     }
 
