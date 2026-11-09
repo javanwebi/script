@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Search, RefreshCw, FileImage, FileText, Phone, Building2, CalendarClock, Save, Download, Loader2, ClipboardList } from 'lucide-react';
+import { Search, RefreshCw, FileImage, FileText, Phone, CalendarClock, Save, Download, Loader2, ClipboardList } from 'lucide-react';
 
 type RequestStatus = 'new' | 'reviewing' | 'quoted' | 'accepted' | 'rejected' | 'completed';
 type RequestRow = {
@@ -48,21 +48,20 @@ export const CustomPartRequestsPanel: React.FC = () => {
       if (signal?.aborted) return;
       const nextRows = Array.isArray(data.rows) ? data.rows as RequestRow[] : [];
       setRows(nextRows);
-      const nextSelected = nextRows.find(row => row.id === selectedId) || nextRows[0] || null;
-      setSelected(nextSelected);
-      setSelectedId(nextSelected?.id || '');
+      setSelected(previous => nextRows.find(row => row.id === previous?.id) || nextRows[0] || null);
+      setSelectedId(previous => nextRows.some(row => row.id === previous) ? previous : (nextRows[0]?.id || ''));
     } catch (e) {
       if (!signal?.aborted) setError(e instanceof Error ? e.message : 'دریافت درخواست‌ها ناموفق بود.');
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [query, filterStatus, revision, selectedId]);
+  }, [query, filterStatus, revision]);
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => void load(controller.signal), query ? 250 : 0);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [load, query]);
+  }, [load]);
 
   useEffect(() => {
     if (!selected) { setNote(''); setQuoteAmount(''); setQuoteCurrency('IRT'); return; }
@@ -151,6 +150,7 @@ export const CustomPartRequestsPanel: React.FC = () => {
               <div><span className="text-slate-500">ابعاد</span><div className="mt-1 text-slate-800">{selected.dimensions || '—'}</div></div>
               <div><span className="text-slate-500">آلیاژ / شرایط کاری</span><div className="mt-1 text-slate-800">{selected.alloy_condition || '—'}</div></div>
               {selected.email && <div className="sm:col-span-2"><span className="text-slate-500">ایمیل</span><div className="mt-1 text-slate-800">{selected.email}</div></div>}
+              {selected.quote_amount !== null && <div className="sm:col-span-2"><span className="text-slate-500">برآورد ثبت‌شده</span><div className="mt-1 font-black text-[#E56B1E]">{moneyText(selected.quote_amount, selected.quote_currency)}</div></div>}
               {selected.notes && <div className="sm:col-span-2"><span className="text-slate-500">توضیحات مشتری</span><p className="mt-1 whitespace-pre-wrap leading-6 text-slate-800">{selected.notes}</p></div>}
             </div>
             {selected.has_attachment && <div className="space-y-2 border-y border-slate-100 py-3">
