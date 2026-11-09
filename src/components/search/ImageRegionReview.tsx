@@ -34,7 +34,7 @@ export function ImageRegionReview({
           <span className="sp-region-review__brand-icon"><ScanSearch size={22} aria-hidden="true" /></span>
           <div>
             <span className="sp-region-review__eyebrow">FORZA VISION · AUTO CROP</span>
-            <h2>{preparing ? 'در حال پیدا کردن قطعه در تصویر' : detected ? 'قطعه برای شما پیدا شد' : 'ناحیه قطعه را مشخص کنید'}</h2>
+            <h2>{preparing ? 'در حال پیدا کردن قطعه در تصویر' : detected ? (status === 'fallback' ? 'ناحیه قطعه انتخاب شد' : 'قطعه برای شما پیدا شد') : 'ناحیه قطعه را مشخص کنید'}</h2>
             <p>{preparing ? 'تصویر را بررسی می‌کنیم تا برش مناسبی برای جست‌وجو آماده شود.' : 'کادر نارنجی محدوده‌ای است که پس از تأیید برای تحلیل ارسال می‌شود.'}</p>
           </div>
         </div>
