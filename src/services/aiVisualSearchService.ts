@@ -272,15 +272,21 @@ export const aiVisualSearchService = {
       ? { ...analysisFields, imageUrl }
       : analysisFields;
 
-    const response = await fetch(apiUrl('/api/ai/analyze-part'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    let response: Response | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      response = await fetch(apiUrl('/api/ai/analyze-part'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify(payload),
+      });
+      if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
+      await new Promise(resolve => setTimeout(resolve, 650));
+    }
 
-    if (!response.ok) {
+    if (!response?.ok) {
       const failure = await response.json().catch(() => null);
       const error = new Error(failure?.error?.message || `خطای ارتباط با سرور هوش مصنوعی: کد ${response.status}`) as Error & { status?: number; code?: string };
       error.status = response.status;
