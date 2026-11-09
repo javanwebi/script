@@ -161,60 +161,37 @@ function dataUrlToBlob(value: string, fallbackMime = 'image/jpeg'): Blob {
   return new Blob([decodeURIComponent(payload)], { type: mimeType });
 }
 
-async function uploadResponseData(response: Response): Promise<{ imageUrl: string; fileName: string }> {
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.imageUrl) {
-    throw new Error(data?.error?.message || `بارگذاری تصویر ناموفق بود (کد ${response.status}).`);
-  }
-  return { imageUrl: String(data.imageUrl), fileName: String(data.fileName || '') };
-}
-
 export const aiVisualSearchService = {
+  // Compatibility helper: convert to an in-memory data URL only.
+  // Original customer images are stored in the browser vault, never a server image endpoint.
   async uploadCustomerImage(source: string | Blob): Promise<{ imageUrl: string; fileName: string }> {
-    assertBackendConfigured();
-
-    // Preset catalogue photos are same-origin persistent-storage paths, not data URLs.
-    // Fetch their bytes in the browser and upload them through the normal authenticated image endpoint.
+    if (typeof source === 'string' && /^https?:\\/\\//i.test(source.trim())) {
+      return { imageUrl: source.trim(), fileName: '' };
+    }
     if (typeof source === 'string' && source.startsWith('/storage/products/')) {
-      const imageResponse = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
-      if (!imageResponse.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
-      source = await imageResponse.blob();
+      const response = await fetch(source, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('دریافت تصویر نمونه از کاتالوگ انجام نشد.');
+      source = await response.blob();
     }
-
-    if (typeof source === 'string' && /^https?:\/\//i.test(source.trim())) {
-      const response = await fetch(apiUrl('/api/ai/customer-images/import'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: source.trim() }),
-      });
-      return uploadResponseData(response);
-    }
-
-    let blob: Blob;
-    if (typeof source === 'string') {
-      blob = source.startsWith('blob:')
-        ? await fetch(source).then(response => response.blob())
-        : dataUrlToBlob(source);
-    } else {
-      blob = source;
-    }
-
+    const blob = typeof source === 'string'
+      ? (source.startsWith('blob:') ? await fetch(source).then(response => response.blob()) : dataUrlToBlob(source))
+      : source;
     const mimeType = (blob.type || 'image/jpeg').split(';')[0].toLowerCase();
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mimeType)) {
       throw new Error('فقط تصاویر JPEG، PNG یا WEBP پشتیبانی می‌شوند.');
     }
-
-    const response = await fetch(apiUrl('/api/ai/customer-images'), {
-      method: 'POST',
-      headers: { 'Content-Type': mimeType },
-      body: blob,
+    const imageUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.onerror = () => reject(new Error('خواندن تصویر ناموفق بود.'));
+      reader.readAsDataURL(blob);
     });
-    return uploadResponseData(response);
+    return { imageUrl, fileName: '' };
   },
 
-  async detectImageRegions(imageUrl: string): Promise<ImageRegionDetectionResult> {
+  async detectImageRegions(imageBase64: string, mimeType = 'image/jpeg'): Promise<ImageRegionDetectionResult> {
     assertBackendConfigured();
-    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.length > 2048) {
+    if (!imageBase64 || typeof imageBase64 !== 'string' || imageBase64.length > 16 * 1024 * 1024) {
       throw new Error('نشانی تصویر برای تشخیص ناحیه معتبر نیست.');
     }
 
@@ -226,7 +203,7 @@ export const aiVisualSearchService = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
-          body: JSON.stringify({ imageUrl }),
+          body: JSON.stringify({ imageBase64, mimeType }),
         });
         data = await response.json().catch(() => null);
         if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
@@ -262,15 +239,13 @@ export const aiVisualSearchService = {
   async analyzePartWithAi(request: AiPartAnalysisRequest, onProgress?: (progress:ImageScanProgress)=>void): Promise<AiPartAnalysisResult> {
     assertBackendConfigured();
 
-    let imageUrl = request.imageUrl;
-    if (!imageUrl && request.imageBase64) {
-      imageUrl = (await this.uploadCustomerImage(request.imageBase64)).imageUrl;
-    }
-
-    const { imageBase64: _imageBase64, mimeType: _mimeType, ...analysisFields } = request;
-    const payload = imageUrl
-      ? { ...analysisFields, imageUrl }
-      : analysisFields;
+    const { imageBase64, mimeType, imageUrl, ...analysisFields } = request;
+    // Image pixels are sent only with the active analysis request; no upload endpoint or persistent URL.
+    const payload = {
+      ...analysisFields,
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(imageBase64 ? { imageBase64, mimeType: mimeType || 'image/jpeg' } : {}),
+    };
 
     let response: Response | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
