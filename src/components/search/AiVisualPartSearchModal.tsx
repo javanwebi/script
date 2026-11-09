@@ -1117,6 +1117,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onRetryAnalysis={() => { setErrorMessage(''); void handleAnalyze('quick', fullImageSelected ? null : queryRegion); }}
                   onChangeImage={() => fileInputRef.current?.click()}
                 />
+              )}
               {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -1148,8 +1149,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               </div>
               )}
 
-              {!selectedImage && !isUsingCamera && (
               {/* 3 FEATURE HIGHLIGHT BADGES */}
+              {!selectedImage && !isUsingCamera && (
               <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
                 <div className="flex flex-col items-center justify-center">
                   <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
@@ -1173,8 +1174,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               )}
             </div>
 
-            {!selectedImage && !isUsingCamera && (
             {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
+            {!selectedImage && !isUsingCamera && (
             <div className="pt-3 border-t border-slate-200/80 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600">
                 <span>نمونه تصاویر قابل قبول</span>
