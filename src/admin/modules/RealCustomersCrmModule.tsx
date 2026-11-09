@@ -428,6 +428,89 @@ export const RealCustomersCrmModule: React.FC = () => {
             {detail.orders.length?detail.orders.map(o=><div key={o.id} className="flex flex-wrap justify-between gap-2 py-3 text-xs"><div><b className="text-slate-800">{o.id}</b><p className="mt-1 text-slate-500">{date(o.created_at)} · {o.status}</p></div><b>{orderMoney(o)}</b></div>)
               :<p className="py-6 text-center text-sm text-slate-500">سفارشی در دیتابیس ثبت نشده است.</p>}
           </div>}
+          {detailTab==='purchases' && <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Metric label="خرید در آخرین ماه ثبت‌شده" value={detail.monthlyPurchases[0]?money(detail.monthlyPurchases[0].total):'بدون سابقه'} Icon={ShoppingBag}/>
+              <Metric label="خرید در آخرین سال ثبت‌شده" value={detail.yearlyPurchases[0]?money(detail.yearlyPurchases[0].total):'بدون سابقه'} Icon={CalendarClock}/>
+            </div>
+            <div className={card+' p-4'}>
+              <h4 className="mb-3 text-sm font-black text-slate-800">روند خرید ماهانه</h4>
+              {detail.monthlyPurchases.length ? detail.monthlyPurchases.map(item=><div key={item.period} className="flex justify-between gap-3 border-b border-slate-100 py-2.5 text-xs last:border-0">
+                <span>{item.period} · {nf(item.order_count)} سفارش</span><b>{money(item.total)}</b>
+              </div>) : <p className="py-5 text-center text-xs text-slate-500">خرید معتبری در ماه‌های ثبت‌شده وجود ندارد.</p>}
+            </div>
+            <div className={card+' p-4'}>
+              <h4 className="mb-3 text-sm font-black text-slate-800">روند خرید سالانه</h4>
+              {detail.yearlyPurchases.length ? detail.yearlyPurchases.map(item=><div key={item.period} className="flex justify-between gap-3 border-b border-slate-100 py-2.5 text-xs last:border-0">
+                <span>{item.period} · {nf(item.order_count)} سفارش</span><b>{money(item.total)}</b>
+              </div>) : <p className="py-5 text-center text-xs text-slate-500">خرید معتبری در سال‌های ثبت‌شده وجود ندارد.</p>}
+            </div>
+            <div className={card+' p-4'}>
+              <h4 className="mb-3 text-sm font-black text-slate-800">محصولات پرتکرار مشتری</h4>
+              {detail.topProducts.length ? detail.topProducts.map(item=><div key={item.product_code} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-3 text-xs last:border-0">
+                <div><b>{item.product_name}</b><p className="mt-1 text-slate-500" dir="ltr">{item.product_code} · {nf(item.order_count)} سفارش</p></div>
+                <div className="text-left"><b>{nf(item.quantity)} عدد</b><p className="mt-1 text-slate-500">{money(item.revenue)}</p></div>
+              </div>) : <p className="py-5 text-center text-xs text-slate-500">هنوز اقلام سفارش قابل تحلیل ثبت نشده‌اند.</p>}
+            </div>
+          </>}
+          {detailTab==='images' && <div className={card+' space-y-3 p-4'}>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+              فایل اصلی و برش تصویر فقط در حافظه محلی دستگاه مشتری نگهداری می‌شوند. این پرونده فقط اطلاعات شناسایی و کدهای محصول را نشان می‌دهد و امکان مشاهده یا دانلود تصویر را ندارد.
+            </div>
+            {detail.imageEvents.length ? detail.imageEvents.map(item=><div key={item.id} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div><b className="text-sm text-slate-800">{item.detected_part_type||'قطعه شناسایی‌نشده'}</b>
+                  <p className="mt-1 text-[11px] text-slate-500">{item.original_name||'تصویر مشتری'} · {date(item.created_at)}</p></div>
+                <span className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{item.recognition_status}</span>
+              </div>
+              {item.recognized_summary && <p className="mt-2 text-xs leading-6 text-slate-600">{item.recognized_summary}</p>}
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                {item.selected_product_code && <span className="rounded-lg bg-emerald-50 px-2 py-1 font-bold text-emerald-700">انتخاب: {item.selected_product_code}</span>}
+                {(item.matched_product_codes||[]).map(code=><span key={'m-'+code} dir="ltr" className="rounded-lg bg-orange-50 px-2 py-1 text-orange-700">تطبیق {code}</span>)}
+                {(item.similar_product_codes||[]).map(code=><span key={'s-'+code} dir="ltr" className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600">مشابه {code}</span>)}
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">اثر انگشت: {item.image_sha256.slice(0,16)}… · حجم: {nf(item.file_size)} بایت</p>
+            </div>) : <p className="py-6 text-center text-sm text-slate-500">تصویر شناسایی ثبت‌شده‌ای برای این مشتری وجود ندارد.</p>}
+          </div>}
+          {detailTab==='consultations' && <div className="space-y-3">
+            {detail.consultations.length ? detail.consultations.map(session=><div key={session.id} className={card+' space-y-3 p-4'}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div><b className="text-sm text-slate-800">{session.title||'مشاوره فنی FORZA'}</b>
+                  <p className="mt-1 text-[11px] text-slate-500">شروع: {date(session.started_at)} · آخرین فعالیت: {date(session.last_message_at)}</p></div>
+                <span className="rounded-lg bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700">{nf(session.message_count)} پیام</span>
+              </div>
+              {session.summary && <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-700"><b className="mb-1 block">خلاصه آخرین پاسخ FORZA</b>{session.summary}</div>}
+              {(session.product_codes||[]).length>0 && <div className="flex flex-wrap gap-1.5">{session.product_codes.map(code=><span key={code} dir="ltr" className="rounded-lg bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700">{code}</span>)}</div>}
+              <details className="rounded-xl border border-slate-200 p-3">
+                <summary className="cursor-pointer text-xs font-bold text-slate-600">نمایش متن مکالمه</summary>
+                <div className="mt-3 space-y-2">{(session.messages||[]).slice(-20).map(message=><div key={message.id} className={'rounded-xl p-2.5 text-xs leading-6 '+(message.role==='assistant'?'bg-orange-50 text-slate-700':'bg-slate-50 text-slate-700')}>
+                  <b className="mb-1 block text-[10px]">{message.role==='assistant'?'FORZA':'مشتری'}</b>{message.text}
+                </div>)}</div>
+              </details>
+            </div>) : <div className={card+' py-8 text-center text-sm text-slate-500'}>هنوز جلسه مشاوره ثبت‌شده‌ای وجود ندارد.</div>}
+            {detail.productInterests.length>0 && <div className={card+' p-4'}>
+              <h4 className="mb-3 text-sm font-black text-slate-800">علاقه‌مندی‌های ثبت‌شده از مشاوره</h4>
+              <div className="flex flex-wrap gap-2">{detail.productInterests.map(item=><span key={item.product_code} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs">{item.product_code} · {nf(item.interaction_count)} بار</span>)}</div>
+            </div>}
+          </div>}
+          {detailTab==='followups' && <>
+            <div className={card+' space-y-3 p-4'}>
+              <h4 className="text-sm font-black text-slate-800">ثبت پیگیری جدید</h4>
+              <input className={field} value={followupTitle} onChange={event=>setFollowupTitle(event.target.value)} placeholder="عنوان پیگیری؛ مثلاً تماس درباره استعلام بلبرینگ"/>
+              <textarea className="min-h-20 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-[#E56B1E]" value={followupNotes} onChange={event=>setFollowupNotes(event.target.value)} placeholder="یادداشت کارشناس و اقدام موردنیاز..."/>
+              <label className="block text-xs text-slate-500">زمان پیگیری<input type="datetime-local" className={field+' mt-1'} value={followupDueAt} onChange={event=>setFollowupDueAt(event.target.value)}/></label>
+              <button type="button" disabled={followupSaving||followupTitle.trim().length<2} onClick={()=>void createFollowup()} className="rounded-xl bg-[#E56B1E] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{followupSaving?'در حال ثبت...':'ثبت پیگیری مشتری'}</button>
+            </div>
+            <div className={card+' divide-y divide-slate-100 p-4'}>
+              <h4 className="mb-2 text-sm font-black text-slate-800">سوابق پیگیری</h4>
+              {detail.followups.length ? detail.followups.map(item=><div key={item.id} className="py-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2"><b>{item.title}</b><span className="rounded-lg bg-slate-100 px-2 py-1">{item.status}</span></div>
+                {item.notes && <p className="mt-2 leading-6 text-slate-600">{item.notes}</p>}
+                <div className="mt-2 flex flex-wrap justify-between gap-2 text-[10px] text-slate-500"><span>موعد: {item.due_at?new Date(item.due_at).toLocaleString('fa-IR'):'تعیین نشده'}</span><span>مسئول: {item.assigned_staff_name||'تخصیص نیافته'}</span></div>
+                {item.status!=='completed' && item.status!=='cancelled' && <button type="button" onClick={async()=>{try{await api('/api/admin/crm/followups/'+encodeURIComponent(item.id),{method:'PATCH',body:JSON.stringify({status:'completed'})});await openDetail(detail.customer.id);setDetailTab('followups');}catch(error){setError(error instanceof Error?error.message:'به‌روزرسانی پیگیری ناموفق بود.');}}} className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-700">علامت‌گذاری به‌عنوان انجام‌شده</button>}
+              </div>) : <p className="py-5 text-center text-xs text-slate-500">پیگیری‌ای ثبت نشده است.</p>}
+            </div>
+          </>}
           {detailTab==='finance' && <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Metric label="اعتبار مصرف‌شده" value={money(detail.customer.credit_used)} Icon={Wallet}/>
