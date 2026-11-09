@@ -4,7 +4,7 @@
 
 Customer 360 connects the registered customer's product-identification events, FORZA text consultations, selected catalogue SKUs, real orders, purchase analytics and staff follow-ups to one CRM customer profile.
 
-The original customer image is not a server business record. It is stored as a Blob in the browser's origin-private IndexedDB database, scoped to the signed-in customer. The app exposes no delete or export control for these records. The browser's persistent-storage API is requested on save to reduce automatic eviction.
+The original customer image is not a server business record. It is stored as a Blob in the browser's origin-private IndexedDB database, scoped to the signed-in customer. The app exposes no delete or export control for these records. No device-storage permission is requested. IndexedDB writes automatically; browser storage can still be evicted or cleared by the device owner.
 
 ## Image lifecycle
 
@@ -18,7 +18,7 @@ The original customer image is not a server business record. It is stored as a B
 
 ### Non-negotiable browser limitation
 
-A website cannot make data on a device undeletable by the device owner. The app intentionally has no image-delete UI or delete API, and requests persistent browser storage, but the customer can still clear browser/site data, reset the browser, uninstall a PWA, or erase the device. IndexedDB is also scoped to one browser profile and does not automatically synchronize to a different device. Do not describe this as guaranteed permanent storage.
+A website cannot make data on a device undeletable by the device owner. The app intentionally has no image-delete UI or delete API and does not request a storage permission. The customer can still clear browser/site data, reset the browser, uninstall a PWA, or erase the device. IndexedDB is also scoped to one browser profile and does not automatically synchronize to a different device. Do not describe this as guaranteed permanent storage.
 
 ### AI processing and provider boundary
 
