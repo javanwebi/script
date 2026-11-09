@@ -27,6 +27,7 @@ import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechTe
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
 import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
+import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 
 interface AiForzaCallExperienceProps {
@@ -598,14 +599,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const ensureCtx = useCallback(() => {
     if(callClosedRef.current)return null;
-    if (!ctxRef.current) {
-      const AC = window.AudioContext || (window as any).webkitAudioContext;
-      if (AC) {
-        ctxRef.current = new AC();
-      }
-    }
+    if (!ctxRef.current) ctxRef.current=getForzaAudioContext();
     if (ctxRef.current && ctxRef.current.state === 'suspended') {
-      void ctxRef.current.resume();
+      void ctxRef.current.resume().catch(()=>{});
     }
     return ctxRef.current;
   }, []);
