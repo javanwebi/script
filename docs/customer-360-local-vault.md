@@ -10,7 +10,7 @@ The original customer image is not a server business record. It is stored as a B
 
 1. The customer selects or captures an image.
 2. The browser saves the original Blob in the sanatpish-customer-device-vault database before analysis.
-3. The customer must be authenticated before the recognition request is run, so the resulting metadata can be attached to a real customer account.
+3. Recognition is not blocked for guests. When a customer is signed in, the device record is associated with that account and metadata is attached to the CRM profile; a guest can still run recognition, but no customer CRM history is created until the customer signs in and repeats or continues a tracked action.
 4. Only the active analysis request sends a data URL to /api/ai/analyze-part. The server decodes and processes the image in memory. The customer-image persistence function does not write to the image directory, Storage, GitHub, or a database column.
 5. The server returns product and recognition metadata. The browser keeps the original Blob locally.
 6. The CRM stores the device record ID, SHA-256, MIME type, size, filename, timestamp, recognition status, product codes and sanitized result. It does not store image bytes, base64, a permanent image URL, or a server file path.
