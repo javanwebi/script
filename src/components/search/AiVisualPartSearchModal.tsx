@@ -418,7 +418,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
   };
   const selectCameraGalleryImage = (file: File) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 12 * 1024 * 1024) {
+    const fileMime = (file.type || '').toLowerCase();
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((fileMime ? !['image/jpeg','image/jpg','image/png','image/webp'].includes(fileMime) : !supportedExtension) || file.size > 12 * 1024 * 1024) {
       setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۲ مگابایت انتخاب کنید.");
       return;
     }
@@ -433,7 +435,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setAnalysisResult(null);
       setMeasurements({});
       setSelectedImage(reader.result);
-      setMimeType(file.type);
+      setMimeType(file.type || (file.name.toLowerCase().endsWith('.png') ? 'image/png' : file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg'));
       setErrorMessage("");
       setCameraReview(true);
       stopCamera();
