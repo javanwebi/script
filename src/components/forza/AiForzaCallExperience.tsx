@@ -14,7 +14,7 @@ import {
   Square,
 } from 'lucide-react';
 import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
-import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64 } from '../../utils/forzaSpeechPipeline';
+import { extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
@@ -1165,11 +1165,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               const sttData:any=await sttResponse.json().catch(()=>null);
               const serverTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
               if(sttResponse.ok&&sttData?.success&&serverTranscript){
-                const browserHasTechnicalCode=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i.test(q);
-                const serverHasTechnicalCode=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i.test(serverTranscript);
-                const serverIsSuspiciouslyShort=q.length>=10&&serverTranscript.length<q.length*0.5;
-                payload.query=browserHasTechnicalCode&&!serverHasTechnicalCode||serverIsSuspiciouslyShort
-                  ?q:serverTranscript;
+                payload.query=chooseForzaFinalTranscript(q,serverTranscript);
                 console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
                   Math.round(performance.now()-sttStartedAt)+' source='+
                   (payload.query===q?'browser_guarded':'server_final')+
