@@ -106,7 +106,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
   assert.match(modal, /عکس‌برداری مجدد/);
   assert.match(modal, /setCameraReview\(true\)/);
   assert.match(modal, /onConfirm=\{confirmRegionAndAnalyze\}/);
-  assert.match(modal, /void uploadAndPrepareImage\(selectedImage\)/);
+  assert.match(modal, /void uploadAndPrepareImage\(selectedImage, localImageId \|\| undefined\)/);
   assert.match(styles, /height: 100dvh/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
 });
@@ -121,7 +121,7 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
   assert.ok(upload > stopAndReturn, "non-review camera capture must enter the shared crop preparation flow");
-  assert.match(confirm, /uploadAndPrepareImage\(selectedImage\)/, "camera confirmation must prepare the image and wait for crop approval");
+  assert.match(confirm, /uploadAndPrepareImage\(selectedImage, localImageId \|\| undefined\)/, "camera confirmation must reuse the device-local record and wait for crop approval");
   assert.doesNotMatch(confirm, /handleAnalyze/, "camera confirmation must not bypass crop approval");
 });
 
