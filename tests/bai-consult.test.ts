@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BaiConsultError, completeXkiroConsult, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
+import { BaiConsultError, completeXkiroConsult, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, providerStreamTimeouts, streamAvalaiConsult, streamBaiConsult, streamXkiroConsult } from '../server/ai/baiConsult';
 
 function fakeStream(parts: string[], status = 200, contentType = 'text/event-stream') {
   const chunks = parts.map(p => new TextEncoder().encode(p));
@@ -12,6 +12,59 @@ function fakeStream(parts: string[], status = 200, contentType = 'text/event-str
   });
   return new Response(stream, { status, headers: { 'Content-Type': contentType } });
 }
+
+test('AvalAI is opt-in, requires its own key, and defaults to the economical GLM Flash model', () => {
+  assert.equal(configuredAvalaiModel({}, false), null);
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai' }, false), null);
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, false), 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'avalai', AVALAI_API_KEY: 'example', AVALAI_MODEL_DESK: 'qwen3.8-flash' }, false), 'qwen3.8-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_VOICE_PROVIDER: 'avalai', AVALAI_API_KEY: 'example' }, true), 'glm-5.3-flash');
+  assert.equal(configuredAvalaiModel({ FORZA_DESK_PROVIDER: 'xkiro', AVALAI_API_KEY: 'example' }, false), null);
+});
+
+test('AvalAI streams SSE through the shared FORZA contract and uses low reasoning only for GLM Flash', async () => {
+  const chunks: string[] = [];
+  let requestBody: any;
+  const fetchImpl = (async (url: string | URL | Request, options?: RequestInit) => {
+    assert.equal(String(url), 'https://api.avalai.ir/v1/chat/completions');
+    assert.equal((options?.headers as Record<string, string>)?.Authorization, 'Bearer secret-placeholder');
+    requestBody = JSON.parse(String(options?.body));
+    return fakeStream([
+      'data: {"choices":[{"delta":{"content":"پاسخ فنی "}}]}\\n\\n'.replaceAll('\\\\n','\\n'),
+      'data: {"choices":[{"delta":{"content":"آماده است."}}]}\\n\\n'.replaceAll('\\\\n','\\n'),
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\\n\\n'.replaceAll('\\\\n','\\n'),
+    ]);
+  }) as typeof fetch;
+  const result = await streamAvalaiConsult({
+    apiKey: 'secret-placeholder',
+    model: 'glm-5.3-flash',
+    query: 'برای بلبرینگ 6203 چه مشخصاتی مهم است؟',
+    voice: true,
+    fetchImpl,
+    onDelta: chunk => chunks.push(chunk),
+  });
+  assert.deepEqual(chunks, ['پاسخ فنی ', 'آماده است.']);
+  assert.equal(result.text, 'پاسخ فنی آماده است.');
+  assert.equal(requestBody.stream, true);
+  assert.equal(requestBody.model, 'glm-5.3-flash');
+  assert.equal(requestBody.reasoning_effort, 'low');
+  assert.equal(requestBody.max_tokens, 256);
+  assert.equal(requestBody.messages[0].role, 'system');
+});
+
+test('AvalAI Qwen Flash route does not receive GLM-specific reasoning parameters', async () => {
+  let requestBody: any;
+  await streamAvalaiConsult({
+    apiKey: 'secret-placeholder', model: 'qwen3.8-flash', query: 'سلام',
+    fetchImpl: (async (_url: string | URL | Request, options?: RequestInit) => {
+      requestBody = JSON.parse(String(options?.body));
+      return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"}}]}\\n\\n'.replaceAll('\\\\n','\\n'), 'data: [DONE]\\n\\n'.replaceAll('\\\\n','\\n')]);
+    }) as typeof fetch,
+    onDelta: () => {},
+  });
+  assert.equal(requestBody.model, 'qwen3.8-flash');
+  assert.equal(Object.hasOwn(requestBody, 'reasoning_effort'), false);
+});
 
 test('B.AI is opt-in and cannot run without a key', () => {
   assert.equal(configuredBaiModel({}, false), null);
@@ -142,6 +195,8 @@ test('provider error code is preserved without logging provider response bodies'
 });
 
 test('xKiro first-token budget accommodates observed live VPS latency without changing B.AI', () => {
+  assert.deepEqual(providerStreamTimeouts('avalai', true), { firstTokenMs: 8000, totalMs: 30000 });
+  assert.deepEqual(providerStreamTimeouts('avalai', false), { firstTokenMs: 12000, totalMs: 45000 });
   assert.deepEqual(providerStreamTimeouts('bai', true), { firstTokenMs: 10000, totalMs: 30000 });
   assert.deepEqual(providerStreamTimeouts('bai', false), { firstTokenMs: 15000, totalMs: 45000 });
   assert.deepEqual(providerStreamTimeouts('xkiro', true), { firstTokenMs: 4500, totalMs: 9000 });
