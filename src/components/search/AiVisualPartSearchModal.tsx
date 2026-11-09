@@ -1,7 +1,7 @@
 import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
-import type {ImageRegion} from '../../services/localQueryImage';
+import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { useState, useRef } from "react";
@@ -103,6 +103,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Form states
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [queryRegion,setQueryRegion]=useState<ImageRegion>();
+  const [candidateRegions,setCandidateRegions]=useState<ImageRegion[]>([]);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
   const autoAnalyzedImageRef=useRef<string|null>(null);
@@ -116,7 +117,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
+  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
@@ -485,6 +486,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
 
     if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
+    const requestRegion=localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined;
     analysisBusyRef.current=true;
     const sequence=++analysisSequenceRef.current;
     setErrorMessage("");
@@ -537,8 +539,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         features: features.trim() || undefined,
         stage,
         observationOnly:false,
-        region:localRegionEnabled?(regionOverride===null?undefined:regionOverride || queryRegion):undefined,
-        includeNearest:localRegionEnabled,
+        region:requestRegion,
+        includeNearest:false,
         measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
       }, progress => {
         if(sequence!==analysisSequenceRef.current)return;
@@ -548,7 +550,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       });
 
       if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled)setQueryRegion(result.queryRegion || (regionOverride===null?undefined:regionOverride || queryRegion));
+      if(localRegionEnabled){
+        setQueryRegion(result.queryRegion || requestRegion);
+        if(!requestRegion)setCandidateRegions(result.queryRegions || []);
+      }
       if (activeImageEventId) {
         const matched = result.matchedProducts || [];
         const similar = result.similarCandidates || [];
@@ -653,6 +658,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       }
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
+      <div className="sanat-visual-search-shell" dir="rtl">
       {cameraFlowActive ? (
         <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
           data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
@@ -783,7 +789,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </footer>
         </section>
       ) : currentStep === 1 ? (
-        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
+        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
           {/* Absolute Close Button for Step 1 */}
           <button
             type="button"
@@ -798,7 +804,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </button>
 
           {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
-          <div data-testid="identification-image-panel" className="lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
+          <div data-testid="identification-image-panel" className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
             {/* Industrial Background Texture */}
             <div
               className="absolute inset-0 z-0 opacity-25 bg-cover bg-center pointer-events-none filter contrast-125"
@@ -809,8 +815,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F19]/85 via-[#0B0F19]/90 to-[#0B0F19] z-0" />
 
             {/* Content Container */}
-            <div className="relative z-10 grid grid-cols-3 items-center gap-3 lg:flex lg:flex-col lg:items-stretch lg:justify-between h-full lg:space-y-4">
-              <div className="col-span-2 col-start-2 row-start-1">
+            <div className="sanat-visual-search-hero__content relative z-10 grid grid-cols-3 items-center gap-3 lg:flex lg:flex-col lg:items-stretch lg:justify-between h-full lg:space-y-4">
+              <div className="sanat-visual-search-hero__copy col-span-2 col-start-2 row-start-1">
                 {/* Header Tag */}
                 <div className="flex items-center gap-2 text-[#E06518] text-[11px] lg:text-xs font-mono font-extrabold tracking-widest uppercase">
                   <Sparkles className="w-3.5 h-3.5 text-[#E06518]" />
@@ -831,7 +837,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               </div>
 
               {/* Central Targeted Bearing / Industrial Part Image */}
-              <div className="col-start-1 row-start-1 lg:my-5 relative flex items-center justify-center">
+              <div className="sanat-visual-search-hero__image col-start-1 row-start-1 lg:my-5 relative flex items-center justify-center">
                 <div className="relative p-2 lg:p-4 rounded-2xl bg-gradient-to-b from-slate-800/70 to-slate-900/90 border border-slate-700/80 shadow-2xl group max-w-[220px]">
                   {/* Futuristic Glowing Orange Framing Brackets */}
                   <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-[#E06518] rounded-tr-lg shadow-[0_0_8px_#E06518]" />
@@ -933,9 +939,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </div>
 
           {/* FORM / UPLOAD PANEL (Desktop = Right in RTL, Mobile = Bottom) */}
-          <div className="lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
+          <div className="sanat-visual-search-form lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
             {/* STEPPER HEADER */}
-            <div className="pt-2 pb-4 border-b border-slate-200/80">
+            <div className="sanat-visual-stepper pt-2 pb-4 border-b border-slate-200/80">
               <div className="flex items-center justify-between max-w-sm mx-auto relative">
                 {/* Step 1 Item */}
                 <div className="flex flex-col items-center gap-1.5 relative z-10">
@@ -975,7 +981,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
             {/* STEP CONTENT BODY */}
             <div className="my-4 space-y-4">
-              <div className="text-right space-y-1">
+              <div className="sanat-visual-search-heading text-right space-y-1">
                 <h3 className="text-xl lg:text-2xl font-black text-[#2B313A]">
                   {isUsingCamera ? "قطعه را در کادر دوربین قرار دهید" : "قطعه صنعتی خود را شناسایی کنید"}
                 </h3>
@@ -1020,7 +1026,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onDragLeave={() => setIsDragOver(false)}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 lg:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                  className={`sanat-visual-upload-dropzone border-2 border-dashed rounded-2xl p-6 lg:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                     isDragOver
                       ? "border-[#E06518] bg-orange-50/70 scale-[1.01]"
                       : "border-[#CBD8E6] bg-[#F4F7FC] hover:bg-slate-100/80 hover:border-slate-300"
@@ -1078,7 +1084,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               ) : (
                 /* Selected Image Preview Box */
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 my-2">
+                <div className="sanat-visual-image-preview bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4 my-2">
                   <div className="w-full sm:w-36 h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative shrink-0">
                     <img
                       src={selectedImage || undefined}
@@ -1142,7 +1148,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
+              {localRegionEnabled && selectedImage && !isUsingCamera && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
 
               {/* MAIN ACTION BUTTONS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1701,7 +1707,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
-                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} onChange={searchRegion} />}
+                {localRegionEnabled && selectedImage && <ImageRegionSelector src={selectedImage} value={queryRegion} candidateRegions={candidateRegions} onChange={searchRegion} />}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -1936,7 +1942,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
-                {!!analysisResult.nearestCatalogSuggestions?.length && <LocalModelResults items={analysisResult.nearestCatalogSuggestions} onClose={onClose} />}
                 {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
                 {!!visiblePhotoMatches.length && (
                   <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
@@ -2298,16 +2303,15 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             درخواست بررسی تخصصی قطعه 🔧
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            با مشخصات فعلی، قطعهٔ کاملاً منطبق در کاتالوگ آماده
-                            سرور یافت نشد. کارگاه تخصصی صنعت پیش توانایی طراحی،
-                            ساخت یا تأمین سفارشی{" "}
-                            <strong>دقیقاً همین قطعه</strong> را با بالاترین
-                            کیفیت متریال دارد.
+                            در کاتالوگ، محصولی با شباهت تصویری کافی پیدا نشد.
+                            این به معنی ناممکن بودن تأمین نیست؛ کارشناسان صنعت پیش
+                            پس از بررسی ابعاد، جنس و شرایط کارکرد، امکان تأمین یا
+                            ساخت سفارشی را اعلام می‌کنند.
                           </p>
                           <p className="text-[11px] text-slate-500 leading-relaxed">
-                            کافیست همین عکس را برای کارشناسان ما ارسال کنید تا
-                            شناسایی ابعادی، استعلام قیمت و زمان ساخت فوری اعلام
-                            شود.
+                            همین عکس را برای کارشناسان ما ارسال کنید تا امکان
+                            شناسایی ابعادی، استعلام قیمت و زمان تأمین یا ساخت
+                            بررسی شود.
                           </p>
                         </div>
                       </div>
@@ -2372,6 +2376,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </AnimatePresence>
         </div>
       )}
+      </div>
     </Modal>
   );
 };
