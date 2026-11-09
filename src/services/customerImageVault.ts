@@ -14,7 +14,7 @@ export type CustomerImageVaultMetadata = Omit<CustomerImageVaultRecord, 'blob'>;
 const DB_NAME = 'sanatpish-customer-device-vault';
 const DB_VERSION = 1;
 const STORE_NAME = 'customer-images';
-const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 let databasePromise: Promise<IDBDatabase> | null = null;
@@ -85,7 +85,7 @@ export async function saveCustomerDeviceImage(
 ): Promise<CustomerImageVaultMetadata> {
   const mimeType = (blob.type || '').split(';')[0].toLowerCase();
   if (!ALLOWED_MIME.has(mimeType)) throw new Error('فقط تصاویر JPEG، PNG و WebP قابل ذخیره هستند.');
-  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر باید کمتر از ۱۲ مگابایت باشد.');
+  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('حجم تصویر باید کمتر از ۱۰ مگابایت باشد.');
 
   await requestCustomerVaultPersistence();
   const record: CustomerImageVaultRecord = {
