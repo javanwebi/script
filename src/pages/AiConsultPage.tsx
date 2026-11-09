@@ -615,10 +615,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     void saveCustomerConsultation({
       sessionId,
       title,
-      messages: sessionMessages.map(message => ({
+      messages: sessionMessages.slice(-32).map(message => ({
         id: message.id,
         role: message.sender === 'ai' ? 'assistant' : 'user',
-        text: message.text,
+        text: message.text.slice(0, 1800),
       })),
       productCodes: selectedConsultProducts.map(product => product.code),
       products: selectedConsultProducts.map(product => ({ code: product.code, name: product.name })),
