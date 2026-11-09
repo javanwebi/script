@@ -2867,7 +2867,7 @@ async function resolveCustomerImageBufferAndInfo(
   input: string,
   _req: express.Request
 ): Promise<{ imageUrl: string; fileName: string; buffer: Buffer }> {
-  cleanCustomerImageMemoryCache();
+
   const trimmed = String(input || '').trim();
   if (!trimmed) {
     throw new Error('آدرس یا لینک تصویر ارائه نشده است.');
