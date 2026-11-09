@@ -107,44 +107,24 @@ create policy customer_image_identifications_owner_select on public.customer_ima
 drop policy if exists customer_image_identifications_owner_insert on public.customer_image_identifications;
 create policy customer_image_identifications_owner_insert on public.customer_image_identifications
   for insert to authenticated with check (user_id = (select auth.uid()));
-drop policy if exists customer_image_identifications_owner_update on public.customer_image_identifications;
-create policy customer_image_identifications_owner_update on public.customer_image_identifications
-  for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
-  with check (user_id = (select auth.uid()) or public.is_admin_user());
-
 drop policy if exists customer_ai_consultations_owner_select on public.customer_ai_consultations;
 create policy customer_ai_consultations_owner_select on public.customer_ai_consultations
   for select to authenticated using (user_id = (select auth.uid()) or public.is_admin_user());
 drop policy if exists customer_ai_consultations_owner_insert on public.customer_ai_consultations;
 create policy customer_ai_consultations_owner_insert on public.customer_ai_consultations
   for insert to authenticated with check (user_id = (select auth.uid()));
-drop policy if exists customer_ai_consultations_owner_update on public.customer_ai_consultations;
-create policy customer_ai_consultations_owner_update on public.customer_ai_consultations
-  for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
-  with check (user_id = (select auth.uid()) or public.is_admin_user());
-
 drop policy if exists customer_product_interests_owner_select on public.customer_product_interests;
 create policy customer_product_interests_owner_select on public.customer_product_interests
   for select to authenticated using (user_id = (select auth.uid()) or public.is_admin_user());
 drop policy if exists customer_product_interests_owner_insert on public.customer_product_interests;
 create policy customer_product_interests_owner_insert on public.customer_product_interests
   for insert to authenticated with check (user_id = (select auth.uid()));
-drop policy if exists customer_product_interests_owner_update on public.customer_product_interests;
-create policy customer_product_interests_owner_update on public.customer_product_interests
-  for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
-  with check (user_id = (select auth.uid()) or public.is_admin_user());
-
 drop policy if exists customer_product_consultation_items_owner_select on public.customer_product_consultation_items;
 create policy customer_product_consultation_items_owner_select on public.customer_product_consultation_items
   for select to authenticated using (user_id = (select auth.uid()) or public.is_admin_user());
 drop policy if exists customer_product_consultation_items_owner_insert on public.customer_product_consultation_items;
 create policy customer_product_consultation_items_owner_insert on public.customer_product_consultation_items
   for insert to authenticated with check (user_id = (select auth.uid()));
-drop policy if exists customer_product_consultation_items_owner_update on public.customer_product_consultation_items;
-create policy customer_product_consultation_items_owner_update on public.customer_product_consultation_items
-  for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
-  with check (user_id = (select auth.uid()) or public.is_admin_user());
-
 drop policy if exists customer_followups_staff_select on public.customer_followups;
 create policy customer_followups_staff_select on public.customer_followups
   for select to authenticated using (public.is_admin_user());
@@ -155,10 +135,10 @@ drop policy if exists customer_followups_staff_update on public.customer_followu
 create policy customer_followups_staff_update on public.customer_followups
   for update to authenticated using (public.is_admin_user()) with check (public.is_admin_user());
 
-grant select, insert, update on public.customer_image_identifications to authenticated;
-grant select, insert, update on public.customer_ai_consultations to authenticated;
-grant select, insert, update on public.customer_product_interests to authenticated;
-grant select, insert, update on public.customer_product_consultation_items to authenticated;
+grant select, insert on public.customer_image_identifications to authenticated;
+grant select, insert on public.customer_ai_consultations to authenticated;
+grant select, insert on public.customer_product_interests to authenticated;
+grant select, insert on public.customer_product_consultation_items to authenticated;
 grant select, insert, update on public.customer_followups to authenticated;
 grant all on public.customer_image_identifications to service_role;
 grant all on public.customer_ai_consultations to service_role;
