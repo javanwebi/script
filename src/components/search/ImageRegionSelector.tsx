@@ -96,7 +96,7 @@ export function ImageRegionSelector({
    </div>
    <aside className="sanat-region-picker__side">
     <div className="sanat-region-picker__side-title">پیش‌نمایش برش واقعی</div>
-    {selected?<div className="sanat-region-picker__crop" style={cropStyle}/ >:
+    {selected?<div className="sanat-region-picker__crop" style={cropStyle}/>:
      <div className="sanat-region-picker__empty">پس از لمس قطعه، برش اختصاصی آن اینجا نمایش داده می‌شود.</div>}
     <p>{selected?'همین برش پس از تأیید برای تحلیل و جست‌وجوی کاتالوگ استفاده می‌شود.':'برای انتخاب قطعه دیگر، روی همان قطعه در تصویر ضربه بزنید.'}</p>
     <button type="button" onClick={()=>onFullImageSearch?onFullImageSearch():onChange(undefined)} disabled={selectionBusy}>جست‌وجوی کل تصویر</button>
