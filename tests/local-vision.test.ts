@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {localVisionResult,embedLocalImages,LOCAL_VISION_MODEL} from '../src/services/localVision';
+import {localVisionResult,embedLocalImages,selectLocalRegion,LOCAL_VISION_MODEL} from '../src/services/localVision';
 import type {Product} from '../src/types';
 
 const products=[{code:'family',name:'خانواده واقعی',active:true,variants:[{code:'sku',name:'کالای واقعی',active:true,technicalSpecs:[{key:'سایز',value:'20'}]},{code:'other-size',active:true},{code:'inactive',active:false}]}] as Product[];
@@ -177,4 +177,30 @@ test('automatic crop scores come from the best real catalogue-bound photo, never
  const bound={...hit([{familyCode:'family',verified:false}],0.91),viewScores:[0.72,0.88]};
  assert.deepEqual(bestBoundQueryViewScores([unbound,bound],products),[0.72,0.88]);
  assert.deepEqual(bestBoundQueryViewScores([unbound],products),[]);
+});
+
+
+test('tap segmentation sends the normalized point to the private worker and rejects empty background taps',async()=>{
+ let rejectSelection=false,requests=0;
+ const region={x:0.12,y:0.18,width:0.24,height:0.38};
+ const server=http.createServer(async(req,res)=>{
+  requests++;
+  assert.equal(req.url,'/select-region');
+  assert.equal(req.headers.authorization,'Bearer private-local-token');
+  let raw='';for await(const chunk of req)raw+=chunk;
+  const body=JSON.parse(raw);
+  assert.equal(body.image,Buffer.from('customer-photo').toString('base64'));
+  assert.deepEqual(body.point,{x:0.72,y:0.41});
+  res.setHeader('content-type','application/json');
+  if(rejectSelection){res.statusCode=422;res.end(JSON.stringify({model:LOCAL_VISION_MODEL,pipeline:'local-lens-v2',error:'region_not_found'}));return;}
+  res.end(JSON.stringify({model:LOCAL_VISION_MODEL,pipeline:'local-lens-v2',region}));
+ });
+ await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const env={LOCAL_VISION_URL:`http://127.0.0.1:${(server.address() as any).port}`,LOCAL_VISION_TOKEN:'private-local-token'};
+  assert.deepEqual(await selectLocalRegion(Buffer.from('customer-photo'),{x:0.72,y:0.41},env),region);
+  rejectSelection=true;
+  await assert.rejects(()=>selectLocalRegion(Buffer.from('customer-photo'),{x:0.72,y:0.41},env),(error:any)=>error.code==='REGION_NOT_FOUND'&&error.status===422);
+  assert.equal(requests,2);
+ }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
