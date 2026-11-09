@@ -518,12 +518,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Navigation handlers
-  const goToStep2 = () => {
-    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
-    setErrorMessage("");
-    setCurrentStep(2);
-  };
-
   const goToStep3 = () => {
     const issue=analysisResult?.requiredMeasurements && measurementError(analysisResult.requiredMeasurements,measurements);
     if(issue){setErrorMessage(issue);return;}
@@ -616,6 +610,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
+  };
+
+  const goToStep2 = () => {
+    if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
+    setErrorMessage("");
+    setCurrentStep(2);
   };
 
   // Region edits in the results view intentionally re-run the search; edits in the
