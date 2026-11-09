@@ -114,9 +114,18 @@ def select_region(image, point):
     or consumes almost the whole frame, so a background tap cannot replace the
     last known-good crop.
     """
-    h, w = image.shape[:2]
-    if min(h, w) < 24 or not isinstance(point, dict):
+    original_h, original_w = image.shape[:2]
+    if min(original_h, original_w) < 24 or not isinstance(point, dict):
         return None
+    # Bound CPU cost on large phone photos; normalized coordinates remain stable.
+    scale = min(1.0, 384.0 / max(original_h, original_w))
+    if scale < 1.0:
+        image = cv2.resize(
+            image,
+            (max(24, round(original_w * scale)), max(24, round(original_h * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+    h, w = image.shape[:2]
     try:
         nx, ny = float(point['x']), float(point['y'])
     except (KeyError, TypeError, ValueError):
@@ -139,7 +148,7 @@ def select_region(image, point):
     try:
         cv2.grabCut(
             image, mask, None, background_model, foreground_model,
-            5, cv2.GC_INIT_WITH_MASK,
+            4, cv2.GC_INIT_WITH_MASK,
         )
     except cv2.error:
         return None
