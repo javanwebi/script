@@ -205,6 +205,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const isProcessingTurnRef = useRef<boolean>(false);
   const silenceTimerRef = useRef<number | null>(null);
   const activeTranscriptRef = useRef<string>('');
+  const pendingTranscriptRef = useRef<string>('');
   const lastTranscriptChangedAtRef = useRef<number>(0);
   const webSpeechFailedRef = useRef<boolean>(false);
   const recognitionResultCountRef=useRef(0);
@@ -473,11 +474,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
+              pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
               lastTranscriptChangedAtRef.current=0;
-              hasSpeechSoundRef.current=false;
               vadRef.current.reset();
-              void handleUserFinishedSpeaking(candidate);
+              const recorder=mediaRecorderRef.current;
+              if(recorder?.state==='recording'){
+                // Stop once at the acoustic boundary so the server receives
+                // exactly this utterance, not a 45-second rolling recording.
+                recorder.stop();
+              }else{
+                pendingTranscriptRef.current='';
+                hasSpeechSoundRef.current=false;
+                void handleUserFinishedSpeaking(candidate);
+              }
             }else if(mediaRecorderRef.current?.state==='recording'){
               // Preserve the server STT fallback when browser STT is unavailable.
               mediaRecorderRef.current.stop();
@@ -1118,54 +1128,61 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
 
         if (audioBlob) {
-          // Avoid a guaranteed futile 15-second transcription attempt when
-          // Chrome STT failed and the optional server provider is disabled.
-          // If provider discovery was unavailable, retain existing fallback.
           if(serverSttConfiguredRef.current===false){
-            console.warn('[FORZA_STT] source=server fallback_not_configured=1');
-            throw new Error('تشخیص گفتار سروری فعال نیست و مرورگر نتوانست صحبت شما را به متن تبدیل کند. فعلاً از «تایپ پیام متنی» استفاده کنید.');
-          }
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-          });
-          reader.readAsDataURL(audioBlob);
-          const audioBase64 = extractForzaAudioBase64(await base64Promise);
-          // Transcribe speech first so the customer's exact words appear
-          // immediately, before waiting on AI generation and spoken output.
-          const sttStartedAt=performance.now();
-          const sttAbort=new AbortController();
-          const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید؛ لطفاً سؤال را تایپ کنید.')),15000);
-          let sttResponse:Response;
-          let sttData:any;
-          try {
-            sttResponse = await fetch('/api/ai/forza-live', {
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({
-                audioBase64,
-                audioMimeType:audioMime || audioBlob.type || 'audio/webm',
-                transcribeOnly:true,
-              }),
-              signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
+            console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
+            if(!q)throw new Error('تشخیص گفتار سروری آماده نیست و مرورگر هم متنی تشخیص نداد. لطفاً سؤال را تایپ کنید.');
+          }else{
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
             });
-            sttData = await sttResponse.json().catch(()=>null);
-          } finally {
-            window.clearTimeout(sttTimer);
+            reader.readAsDataURL(audioBlob);
+            const audioBase64 = extractForzaAudioBase64(await base64Promise);
+            const sttStartedAt=performance.now();
+            const sttAbort=new AbortController();
+            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),10_500);
+            try {
+              const sttResponse = await fetch('/api/ai/forza-live', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                  audioBase64,
+                  audioMimeType:audioMime || audioBlob.type || 'audio/webm',
+                  transcribeOnly:true,
+                }),
+                signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
+              });
+              const sttData:any=await sttResponse.json().catch(()=>null);
+              const serverTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
+              if(sttResponse.ok&&sttData?.success&&serverTranscript){
+                const browserHasTechnicalCode=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i.test(q);
+                const serverHasTechnicalCode=/\b\d{3,6}(?:\s*(?:ZZ|2RS|RS|C3|C4))?\b/i.test(serverTranscript);
+                const serverIsSuspiciouslyShort=q.length>=10&&serverTranscript.length<q.length*0.5;
+                payload.query=browserHasTechnicalCode&&!serverHasTechnicalCode||serverIsSuspiciouslyShort
+                  ?q:serverTranscript;
+                console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
+                  Math.round(performance.now()-sttStartedAt)+' source='+
+                  (payload.query===q?'browser_guarded':'server_final')+
+                  ' transcript_chars='+serverTranscript.length);
+                setUserText(payload.query);
+                setMicrophoneError(null);
+              }else{
+                console.warn('[FORZA_STT] server_final_unavailable status='+sttResponse.status+
+                  ' code='+String(sttData?.errorCode||'unknown').slice(0,48)+
+                  ' browser_fallback='+(q?'1':'0'));
+                if(!q)throw new Error(sttData?.error||'تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
+              }
+            }catch(sttError:any){
+              if(pocketAbort.signal.aborted)throw sttError;
+              console.warn('[FORZA_STT] server_final_error code='+
+                String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
+                ' browser_fallback='+(q?'1':'0'));
+              if(!q)throw new Error('تشخیص گفتار سرور موقتاً در دسترس نیست؛ لطفاً دوباره صحبت کنید یا پیام را تایپ کنید.');
+            }finally{
+              window.clearTimeout(sttTimer);
+            }
           }
-          if(!sttResponse.ok || !sttData?.success || !String(sttData.userTranscript||'').trim()){
-            console.warn('[FORZA_STT] source=server failure status='+sttResponse.status+
-              ' code='+String(sttData?.errorCode||'unknown').slice(0,60)+
-              ' duration_ms='+Math.round(performance.now()-sttStartedAt));
-            throw new Error(sttData?.error||'سرویس تشخیص گفتار پاسخ نداد؛ لطفاً سؤال را تایپ کنید.');
-          }
-          console.info('[FORZA_STT] turn='+generation+' source=server duration_ms='+
-            Math.round(performance.now()-sttStartedAt)+' transcript_chars='+
-            String(sttData.userTranscript).trim().length);
-          payload.query = String(sttData.userTranscript).trim();
-          setUserText(payload.query);
-          setMicrophoneError(null);
         }
 
         // Render every incoming SSE delta immediately; the selected Nima
@@ -1523,11 +1540,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
 
-          // 1. If Web Speech API already transcribed text, prefer text
-          const currentTranscript = activeTranscriptRef.current?.trim();
-          if (currentTranscript && currentTranscript.length > 0) {
-            activeTranscriptRef.current = '';
-            void handleUserFinishedSpeaking(currentTranscript);
+          // Preserve the live browser interim, but also send this exact
+          // utterance to the server Diba recognizer for a final transcript.
+          const currentTranscript=(pendingTranscriptRef.current||activeTranscriptRef.current||'').trim();
+          pendingTranscriptRef.current='';
+          if (currentTranscript) {
+            activeTranscriptRef.current='';
+            const finalMime=mr.mimeType||mimeType||'audio/webm';
+            const audioBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
+            if(audioBlob&&audioBlob.size>1200){
+              void handleUserFinishedSpeaking(currentTranscript,audioBlob,finalMime);
+            }else{
+              hasSpeechSoundRef.current=false;
+              void handleUserFinishedSpeaking(currentTranscript);
+            }
             return;
           }
 
@@ -1647,11 +1673,18 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
               ' endToSttFinalMs='+(detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
+            pendingTranscriptRef.current=candidate;
             activeTranscriptRef.current='';
             lastTranscriptChangedAtRef.current=0;
-            hasSpeechSoundRef.current=false;
             setIsUserSpeaking(false);
-            void handleUserFinishedSpeaking(candidate);
+            const recorder=mediaRecorderRef.current;
+            if(recorder?.state==='recording'){
+              recorder.stop();
+            }else{
+              pendingTranscriptRef.current='';
+              hasSpeechSoundRef.current=false;
+              void handleUserFinishedSpeaking(candidate);
+            }
           };
           silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(40,
             forzaTurnRemainingWaitMs(currentSpeech,recognized.hasInterim,
