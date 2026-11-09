@@ -70,20 +70,20 @@ function respond(res: Response, error: unknown) {
   });
 }
 
-async function resolveCustomerUserId(key: string): Promise<string> {
+async function resolveCustomerTarget(key: string): Promise<{ userId: string | null; crmCustomerId: string | null }> {
   if (key.startsWith('profile:')) {
     const id = key.slice(8);
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw fail(400, 'شناسه مشتری نامعتبر است.');
     const row = (await database().query('select id from public.user_profiles where id=$1', [id])).rows[0];
     if (!row) throw fail(404, 'مشتری پیدا نشد.');
-    return row.id;
+    return { userId: row.id, crmCustomerId: null };
   }
   if (key.startsWith('crm:')) {
     const id = key.slice(4);
     if (!id || id.length > 160) throw fail(400, 'شناسه مشتری نامعتبر است.');
-    const row = (await database().query('select auth_user_id from public.crm_customers where id=$1', [id])).rows[0];
-    if (!row?.auth_user_id) throw fail(409, 'این مخاطب هنوز حساب کاربری متصل ندارد؛ سوابق دیجیتال برای حساب ثبت‌شده قابل نمایش است.');
-    return row.auth_user_id;
+    const row = (await database().query('select id from public.crm_customers where id=$1', [id])).rows[0];
+    if (!row) throw fail(404, 'مشتری پیدا نشد.');
+    return { userId: null, crmCustomerId: row.id };
   }
   throw fail(400, 'شناسه مشتری معتبر نیست.');
 }
@@ -259,15 +259,17 @@ export function registerCustomerIntelligenceApi(app: Express) {
     try {
       if (!customer360Enabled()) return res.json({ success: true, enabled: false, rows: [] });
       await staffIdentity(req, res, 'view');
-      const userId = await resolveCustomerUserId(req.params.key);
+      const target = await resolveCustomerTarget(req.params.key);
       const result = await database().query(
-        `select f.id,f.user_id,f.assigned_staff_id,f.created_by,f.title,f.notes,f.status,
+        `select f.id,f.user_id,f.crm_customer_id,f.assigned_staff_id,f.created_by,f.title,f.notes,f.status,
           f.due_at,f.completed_at,f.created_at,f.updated_at,
           coalesce(u.full_name,u.username,'') as assigned_staff_name
          from public.customer_followups f
          left join public.user_profiles u on u.id=f.assigned_staff_id
-         where f.user_id=$1 order by f.due_at asc nulls last,f.created_at desc limit 100`,
-        [userId]
+         where ($1::uuid is not null and f.user_id=$1::uuid)
+            or ($2::text is not null and f.crm_customer_id=$2::text)
+         order by f.due_at asc nulls last,f.created_at desc limit 100`,
+        [target.userId,target.crmCustomerId]
       );
       return res.json({ success: true, rows: result.rows });
     } catch (error) { return respond(res, error); }
@@ -276,17 +278,17 @@ export function registerCustomerIntelligenceApi(app: Express) {
   app.post('/api/admin/crm/customers/:key/followups', async (req, res) => {
     try {
       const identity = await staffIdentity(req, res, 'edit');
-      const userId = await resolveCustomerUserId(req.params.key);
+      const target = await resolveCustomerTarget(req.params.key);
       const title = cleanText(req.body?.title, 180);
       const notes = cleanText(req.body?.notes, 2000);
       const dueAt = req.body?.dueAt ? new Date(req.body.dueAt) : null;
       if (title.length < 2) throw fail(400, 'عنوان پیگیری باید حداقل دو نویسه باشد.');
       if (dueAt && !Number.isFinite(dueAt.getTime())) throw fail(400, 'زمان پیگیری معتبر نیست.');
-      const assignedStaffId = cleanText(req.body?.assignedStaffId, 64);
+      const staffUserId = cleanText(identity.user?.authUserId || identity.user?.id, 64) || null;
       const result = await database().query(
-        `insert into public.customer_followups(user_id,assigned_staff_id,created_by,title,notes,due_at)
-         values($1,$2,$3,$4,$5,$6) returning id`,
-        [userId,assignedStaffId || null,identity.user?.authUserId || null,title,notes,dueAt]
+        `insert into public.customer_followups(user_id,crm_customer_id,assigned_staff_id,created_by,title,notes,due_at)
+         values($1,$2,$3,$3,$4,$5,$6) returning id`,
+        [target.userId,target.crmCustomerId,staffUserId,title,notes,dueAt]
       );
       return res.status(201).json({ success: true, id: result.rows[0].id });
     } catch (error) { return respond(res, error); }
