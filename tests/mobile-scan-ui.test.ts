@@ -117,7 +117,10 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   const upload = capture.indexOf("uploadSelectedImage(dataUrl)");
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
-  assert.ok(upload > stopAndReturn, "legacy inline camera upload must remain after the review-only return");
+  assert.ok(upload > stopAndReturn, "local device-vault persistence must happen after the review-only return");
+  const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Resolve a match image"));
+  assert.match(confirm, /uploadSelectedImage\(selectedImage, "camera-capture\.jpg"\)/);
+  assert.match(confirm, /handleAnalyze\("quick", undefined, imageId\)/);
 });
 
 test("full-screen identification hides storefront dock and floating actions across capture, review and results", () => {
