@@ -87,12 +87,21 @@ const {chromium}=require('playwright');
   await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
   assert.equal(queries.length,1);assert.equal(selections.length,1);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-selected-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
   assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,1);
+  // Results-screen taps segment the newly touched object and automatically re-run retrieval.
+  const resultFrame=await page.locator('.sanat-region-picker__frame').boundingBox();
+  await page.mouse.click(resultFrame.x+resultFrame.width*0.25,resultFrame.y+resultFrame.height*0.5);
+  await page.getByTestId('vision-analyzing-screen').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
+  assert.equal(selections.length,2);assert.equal(queries.length,2);
+  assert.ok(Math.abs(selections[1].point.x-0.25)<0.01);
+  assert.equal(queries[1].detectionId,'test-selected-detection-id');
+  assert.ok(Math.abs(queries[1].region.x-0.65)<0.01);
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,1);
+  assert.equal(queries.length,3);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,1);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
-  await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
+  await page.close();console.log('UPLOAD_DETECT_TAP_REQUERY_CONFIRM_CROP_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
 
  }finally{await browser?.close();await server?.close();await fs.rm(fixture,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
