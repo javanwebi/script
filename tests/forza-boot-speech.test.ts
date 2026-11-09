@@ -13,7 +13,7 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA renders live words but requests only one original Pocket WAV per complete reply',()=>{
+test('FORZA streams live words and preserves the selected voice TTS fallback',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/reply=callPlainText\.push\(fullText\)/);
   assert.match(frontend,/setAiText\(reply\)/);
