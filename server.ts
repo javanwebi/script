@@ -5762,7 +5762,6 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
     // The private worker's /health identity wins over inherited/stale app env.
     // The selected voice is warmed and cached in RAM while particles form.
     const activeVoice=await resolveForzaVoiceEngine();
-    const isPiper=activeVoice!=='pocket-farsi-v2';
     const audio=await (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('X-Forza-Voice',activeVoice);
