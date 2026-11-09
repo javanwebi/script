@@ -165,7 +165,11 @@ export function registerCustomerIntelligenceApi(app: Express) {
       const sessionId = cleanText(req.body?.sessionId, 120);
       const title = cleanText(req.body?.title, 180) || 'گفتگوی فنی';
       const summary = cleanText(req.body?.summary, 2500);
-      const productCodes = codeList(req.body?.productCodes);
+      const products = Array.isArray(req.body?.products) ? req.body.products.slice(0, 40).map((item: any) => ({
+        code: cleanText(item?.code, 110),
+        name: cleanText(item?.name, 180),
+      })).filter((item: any) => item.code && /^[\\p{L}\\p{N}_.:-]{1,110}$/u.test(item.code)) : [];
+      const productCodes = codeList(req.body?.productCodes || products.map((item: any) => item.code));
       const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-100).map((item: any) => ({
         id: cleanText(item?.id, 120),
         role: item?.role === 'assistant' || item?.role === 'model' ? 'assistant' : 'user',
@@ -185,14 +189,16 @@ export function registerCustomerIntelligenceApi(app: Express) {
         [userId,sessionId,title,summary,JSON.stringify(messages),JSON.stringify(productCodes),count]
       );
       for (const code of productCodes) {
+        const selectedProduct = products.find((item: any) => item.code === code);
         await database().query(
           `insert into public.customer_product_interests
             (user_id,product_code,product_name,interaction_count,last_seen_at,last_consultation_id)
-           values($1,$2,$2,1,now(),$3)
+           values($1,$2,$3,1,now(),$4)
            on conflict(user_id,product_code) do update set
+            product_name=case when excluded.product_name='' then public.customer_product_interests.product_name else excluded.product_name end,
             interaction_count=public.customer_product_interests.interaction_count+1,
             last_seen_at=now(),last_consultation_id=excluded.last_consultation_id`,
-          [userId,code,sessionId]
+          [userId,code,selectedProduct?.name || code,sessionId]
         );
       }
       return res.json({ success: true, messageCount: count, productCount: productCodes.length });
