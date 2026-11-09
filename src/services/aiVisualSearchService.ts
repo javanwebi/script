@@ -279,6 +279,7 @@ export const aiVisualSearchService = {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         cache:'no-store',
+        signal:AbortSignal.timeout(20000),
         body:JSON.stringify({imageUrl,point,detectionId}),
       });
       data=await response.json().catch(()=>null);
