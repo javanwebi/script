@@ -4856,8 +4856,10 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       if(typeof body.detectionId==='string')localVisionDetectionCache.delete(body.detectionId);
       return res.json(responsePayload);
     }catch(error){
-      const errorId=crypto.randomUUID();
       const detail=error instanceof Error?error.message:String(error);
+      const code=(error as {code?:string})?.code;
+      if(code==='VISION_BUSY')return res.status(429).json({error:{code:'VISION_BUSY',message:'موتور تحلیل در حال پردازش تصویر دیگری است؛ چند لحظه بعد دوباره تلاش کنید.'}});
+      const errorId=crypto.randomUUID();
       console.warn('[Local vision request]',{errorId,name:error instanceof Error?error.name:'unknown',message:detail.slice(0,180)});
       return res.status(503).json({error:{code:'VISION_UNAVAILABLE',message:'تحلیل تصویر موقتاً کامل نشد. تصویر شما محفوظ است؛ دوباره تلاش کنید.'},errorId});
     }finally{localVisionQueries--;}
