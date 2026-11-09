@@ -5766,7 +5766,7 @@ app.get('/forza-greeting-bootstrap.wav',async(_req,res)=>{
     const audio=await (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting());
     res.setHeader('Content-Type','audio/wav');
     res.setHeader('X-Forza-Voice',activeVoice);
-    res.setHeader('Cache-Control',isPiper?'no-store':'public, max-age=3600');
+    res.setHeader('Cache-Control',internalForzaVoiceUrl?'no-store':'public, max-age=3600');
     res.send(audio);
   } catch(error:any) {
     console.warn('[FORZA greeting] unavailable',String(error?.message||'voice_error').slice(0,120));
