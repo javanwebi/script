@@ -159,7 +159,7 @@ export function IndustryTools({ industry: i }: { industry: Industry }) {
               <ArrowUpLeft size={16} />
             </Link>
             <Link
-              to={`/ai-consult?industry=${i.slug}&stage=${encodeURIComponent(i.steps[selected])}`}
+              to={`/ai-consult?industry=${i.slug}&stage=${encodeURIComponent(i.steps[selected])}&q=${encodeURIComponent(`برای انتخاب قطعه در صنعت ${i.title}، بخش ${i.steps[selected]} مشاوره می‌خواهم. ابتدا مهم‌ترین سؤال فنی را بپرس و سپس بر اساس پاسخ من راهنمایی کن.`)}`}
               className="editorial-text-link"
             >
               <ScanLine size={17} /> بررسی این بخش با FORZA{" "}
