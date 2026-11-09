@@ -8,7 +8,7 @@ create table if not exists public.customer_image_identifications (
   device_image_id text not null,
   image_sha256 text not null,
   mime_type text not null check (mime_type in ('image/jpeg','image/png','image/webp')),
-  file_size bigint not null check (file_size > 0 and file_size <= 12582912),
+  file_size bigint not null check (file_size > 0 and file_size <= 10485760),
   original_name text not null default '',
   recognition_status text not null default 'submitted'
     check (recognition_status in ('submitted','processing','completed','failed','unmatched')),
@@ -60,6 +60,20 @@ create table if not exists public.customer_product_interests (
 create index if not exists customer_product_interests_user_recent_idx
   on public.customer_product_interests(user_id, last_seen_at desc);
 
+create table if not exists public.customer_product_consultation_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  consultation_id text not null,
+  product_code text not null,
+  product_name text not null default '',
+  created_at timestamptz not null default now(),
+  unique(user_id, consultation_id, product_code),
+  foreign key (user_id, consultation_id)
+    references public.customer_ai_consultations(user_id, id) on delete cascade
+);
+create index if not exists customer_product_consultation_items_user_idx
+  on public.customer_product_consultation_items(user_id, created_at desc);
+
 create table if not exists public.customer_followups (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -80,6 +94,7 @@ create index if not exists customer_followups_user_due_idx
 alter table public.customer_image_identifications enable row level security;
 alter table public.customer_ai_consultations enable row level security;
 alter table public.customer_product_interests enable row level security;
+alter table public.customer_product_consultation_items enable row level security;
 alter table public.customer_followups enable row level security;
 
 drop policy if exists customer_image_identifications_owner_select on public.customer_image_identifications;
@@ -115,6 +130,17 @@ create policy customer_product_interests_owner_update on public.customer_product
   for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
   with check (user_id = (select auth.uid()) or public.is_admin_user());
 
+drop policy if exists customer_product_consultation_items_owner_select on public.customer_product_consultation_items;
+create policy customer_product_consultation_items_owner_select on public.customer_product_consultation_items
+  for select to authenticated using (user_id = (select auth.uid()) or public.is_admin_user());
+drop policy if exists customer_product_consultation_items_owner_insert on public.customer_product_consultation_items;
+create policy customer_product_consultation_items_owner_insert on public.customer_product_consultation_items
+  for insert to authenticated with check (user_id = (select auth.uid()));
+drop policy if exists customer_product_consultation_items_owner_update on public.customer_product_consultation_items;
+create policy customer_product_consultation_items_owner_update on public.customer_product_consultation_items
+  for update to authenticated using (user_id = (select auth.uid()) or public.is_admin_user())
+  with check (user_id = (select auth.uid()) or public.is_admin_user());
+
 drop policy if exists customer_followups_staff_select on public.customer_followups;
 create policy customer_followups_staff_select on public.customer_followups
   for select to authenticated using (public.is_admin_user());
@@ -128,14 +154,18 @@ create policy customer_followups_staff_update on public.customer_followups
 grant select, insert, update on public.customer_image_identifications to authenticated;
 grant select, insert, update on public.customer_ai_consultations to authenticated;
 grant select, insert, update on public.customer_product_interests to authenticated;
+grant select, insert, update on public.customer_product_consultation_items to authenticated;
 grant select, insert, update on public.customer_followups to authenticated;
 grant all on public.customer_image_identifications to service_role;
 grant all on public.customer_ai_consultations to service_role;
 grant all on public.customer_product_interests to service_role;
+grant all on public.customer_product_consultation_items to service_role;
 grant all on public.customer_followups to service_role;
 
 comment on table public.customer_image_identifications is
   'Image metadata and recognition result only. Original customer image bytes remain in the customer device browser vault.';
+comment on table public.customer_product_consultation_items is
+  'Distinct product selections per customer consultation session; used to count consultation interest without incrementing on every chat turn.';
 comment on column public.customer_image_identifications.device_image_id is
   'Opaque IndexedDB/OPFS record ID from the customer device; never a server file path.';
 comment on column public.customer_image_identifications.recognition_result is
