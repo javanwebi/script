@@ -13,7 +13,7 @@ const setup=(replies:any[])=>{
  const client={models:{async generateContent(input:any){calls.push(input);return replies[index++];}}};
  return {calls,client};
 };
-const userImage='https://example.org/imageai/vision-abc.jpg';
+const userImage='device-local://temporary-processing';
 const origin='https://example.org';
 const testPixels=async()=>{
  const jpeg=await sharp({create:{width:20,height:20,channels:3,
@@ -50,5 +50,6 @@ test('unverified code is never promoted to SKU despite model claim',async()=>{
 });
 test('agent refuses insecure customer or catalog origins',async()=>{
  const {client}=setup([]);
- await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:'http://example.org/image.jpg',catalogImageOrigin:origin,images:photos,products}),/HTTPS/);
+ await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:'http://example.org/image.jpg',catalogImageOrigin:origin,images:photos,products}),/Invalid customer image source/);
+  await assert.rejects(()=>runReadOnlyVisionCatalogAgent({client,model:'test',customerImageUrl:userImage,catalogImageOrigin:'http://example.org',images:photos,products}),/public HTTPS/);
 });
