@@ -488,7 +488,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     }
     if (!currentUser) {
       setErrorMessage("برای ثبت تاریخچه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.");
-      openAuthModal("/ai-forza", "login");
+      openAuthModal(window.location.pathname + window.location.search, "login");
       return;
     }
 
@@ -517,15 +517,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (!activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(localImageId);
           if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
-          const event = await createCustomerImageIdentification({
-            deviceImageId: metadata.id,
-            sha256: metadata.sha256,
-            mimeType: metadata.mimeType,
-            sizeBytes: metadata.sizeBytes,
-            originalName: metadata.originalName,
-          });
-          activeImageEventId = event.id;
-          setImageEventId(event.id);
+          try {
+            const event = await createCustomerImageIdentification({
+              deviceImageId: metadata.id,
+              sha256: metadata.sha256,
+              mimeType: metadata.mimeType,
+              sizeBytes: metadata.sizeBytes,
+              originalName: metadata.originalName,
+            });
+            activeImageEventId = event.id;
+            setImageEventId(event.id);
+          } catch (trackingError) {
+            // CRM metadata sync must never block the actual recognition request.
+            console.warn('[Customer image history] metadata sync unavailable', trackingError);
+          }
         }
       }
 
@@ -555,7 +560,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (activeImageEventId) {
         const matched = result.matchedProducts || [];
         const similar = result.similarCandidates || [];
-        await completeCustomerImageIdentification(activeImageEventId, {
+        void completeCustomerImageIdentification(activeImageEventId, {
           status: matched.length || similar.length ? "completed" : "unmatched",
           detectedPartType: result.summary?.detectedPartType,
           summary: result.summary?.whatYouSee || result.summary?.visualAnalysis,
@@ -563,7 +568,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           matchedProductCodes: matched.map(item => item.code),
           similarProductCodes: similar.map(item => item.code),
           confidence: result.summary?.confidence,
-        });
+        }).catch(error => console.warn('[Customer image history] result sync unavailable', error));
       }
       setAnalysisResult(result);
       setLastStage(result.stage || stage);
@@ -2235,7 +2240,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                       onClick={() => {
                                         if (imageEventId) {
                                           void selectCustomerImageProduct(imageEventId, match.code).catch(error =>
-                                            setErrorMessage(error instanceof Error ? error.message : "ثبت انتخاب محصول انجام نشد.")
+                                            console.warn('[Customer image history] selected product sync unavailable', error)
                                           );
                                         }
                                         onClose();
