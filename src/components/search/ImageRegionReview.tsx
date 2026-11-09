@@ -82,7 +82,7 @@ export function ImageRegionReview({
           {status === 'fallback' && (
             <div className="sp-region-review__notice" role="status">
               <AlertCircle size={17} aria-hidden="true" />
-              <div><strong>تشخیص خودکار کامل نشد؛ کار متوقف نشده است.</strong><span>{message || 'می‌توانید ناحیه را دستی انتخاب کنید یا تصویر کامل را برای تحلیل بفرستید.'}</span></div>
+              <div><strong>{busy ? 'ذخیره تصویر کامل نشد؛ دوباره تلاش کنید.' : 'تشخیص خودکار کامل نشد؛ کار متوقف نشده است.'}</strong><span>{message || (busy ? 'تصویر را دوباره بارگذاری کنید؛ تا ذخیره موفق، تحلیل شروع نمی‌شود.' : 'می‌توانید ناحیه را دستی انتخاب کنید یا تصویر کامل را برای تحلیل بفرستید.')}</span></div>
               <button type="button" onClick={onRetryPreparation}>تلاش مجدد</button>
             </div>
           )}
