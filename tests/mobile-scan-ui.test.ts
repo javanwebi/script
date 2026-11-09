@@ -120,7 +120,7 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   const upload = capture.indexOf("uploadAndPrepareImage(dataUrl)");
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
-  assert.ok(upload > stopAndReturn, "non-review camera capture must enter the shared crop preparation flow");
+  assert.equal(upload, -1, "camera capture must not send the image before customer confirmation");
   assert.match(confirm, /uploadAndPrepareImage\(selectedImage\)/, "camera confirmation must prepare the image and wait for crop approval");
   assert.doesNotMatch(confirm, /handleAnalyze/, "camera confirmation must not bypass crop approval");
 });

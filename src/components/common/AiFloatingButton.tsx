@@ -58,6 +58,10 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
 
   const handleLauncherClick = () => navigate("/ai-consult");
 
+  const openMobileSupport = (event: React.MouseEvent<HTMLButtonElement>) => {
+    window.dispatchEvent(new CustomEvent("open-mobile-support", { detail: { opener: event.currentTarget } }));
+  };
+
   useEffect(() => {
     if (!sheetOpen) return;
     const overflow = document.body.style.overflow;
@@ -126,6 +130,10 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   return (
     <>
     <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
+      <button type="button" className="store-help-launcher" onClick={openMobileSupport}
+        aria-label="راهنمای خرید و پشتیبانی" aria-haspopup="dialog">
+        <LifeBuoy size={21} strokeWidth={1.9}/>
+      </button>
       {showAssistant && (
         <button
           type="button"
