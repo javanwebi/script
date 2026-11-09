@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { RealCrmTickets } from './RealCrmTickets';
+import { CustomPartRequestsPanel } from './CustomPartRequestsPanel';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
 import { CustomerAccountAccessModal } from './CustomerAccountAccessModal';
 import { emptyCustomerAccess, type NewCustomerAccessDraft } from './CustomerNewAccessFields';
@@ -69,7 +70,7 @@ function Metric({label,value,Icon}:{label:string;value:string;Icon:React.Element
 
 export const RealCustomersCrmModule: React.FC = () => {
   const [kind,setKind] = useState<'retail'|'high_volume'>('retail');
-  const [section,setSection] = useState<'customers'|'tickets'|'images'>('customers');
+  const [section,setSection] = useState<'customers'|'tickets'|'images'|'manufacturing'>('customers');
   const [q,setQ] = useState('');
   const [page,setPage] = useState(1);
   const [revision,setRevision] = useState(0);
@@ -267,8 +268,9 @@ export const RealCustomersCrmModule: React.FC = () => {
       <button type="button" onClick={()=>setSection('customers')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='customers'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>مشتریان خرید تکی و بالا</button>
       <button type="button" onClick={()=>setSection('tickets')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='tickets'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>تیکت‌های پشتیبانی</button>
       <button type="button" onClick={()=>setSection('images')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='images'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>تاریخچه تصاویر شناسایی</button>
+      <button type="button" onClick={()=>setSection('manufacturing')} className={'rounded-xl px-4 py-2.5 text-sm font-bold '+(section==='manufacturing'?'bg-[#55565A] text-white':'border border-slate-200 bg-white text-slate-700')}>درخواست‌های ساخت</button>
     </nav>
-    {section === 'tickets' ? <RealCrmTickets/> : section === 'images' ? <>
+    {section === 'manufacturing' ? <CustomPartRequestsPanel/> : section === 'tickets' ? <RealCrmTickets/> : section === 'images' ? <>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       <div className={card+' space-y-3 p-4'}>
         <div className="flex flex-wrap items-center justify-between gap-3">
