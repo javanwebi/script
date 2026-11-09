@@ -55,9 +55,11 @@ import { adminService } from "../services/adminService";
 
 export const ProductDetailPage: React.FC = () => {
   const location = useLocation();
+  const [consultPromptDismissed,setConsultPromptDismissed]=useState(false);
   const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
   const [searchParams] = useSearchParams();
+  useEffect(()=>setConsultPromptDismissed(false),[code]);
   const isPreviewMode =
     searchParams.get("preview") === "1" || !!adminService.getCurrentAdmin();
 
@@ -450,6 +452,11 @@ export const ProductDetailPage: React.FC = () => {
       className="product-detail-page space-y-6 lg:space-y-8 pb-24 lg:pb-12 text-right"
       dir="rtl"
     >
+      {!consultPromptDismissed && <aside className="flex flex-wrap items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+        <p className="flex-1 text-sm">درباره {product.name} بیشتر بدانید؛ فورزا برای انتخاب مناسب راهنمایی‌تان کند؟</p>
+        <Link className="store-btn-primary" to={'/ai-consult?q='+encodeURIComponent('برای محصول '+product.name+' کد '+product.code+' مشاوره می‌خواهم؛ کاربردها و معیارهای انتخاب را بگو و نیاز من را بپرس.')}>بله، مشاوره بده</Link>
+        <button type="button" onClick={()=>setConsultPromptDismissed(true)} aria-label="بستن پیشنهاد مشاوره">×</button>
+      </aside>}
       {canViewCommercial && (
         <Link
           className="portal-product-back store-btn-secondary"

@@ -1,3 +1,4 @@
+import {visionPublicOrigin} from './src/utils/visionPublicOrigin';
 import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
 import {adminReportsApi} from './server/db/adminReports';
@@ -318,7 +319,7 @@ function getPublicAppBaseUrl(req: express.Request): string {
 }
 
 function visionImagePublicOrigin(req:express.Request):string {
-  return (process.env.VISION_IMAGE_PUBLIC_ORIGIN || getPublicAppBaseUrl(req)).trim().replace(/\/+$/,'');
+  return visionPublicOrigin(String(req.get('host')||''),process.env.VISION_IMAGE_PUBLIC_ORIGIN||'',getPublicAppBaseUrl(req));
 }
 function customerImagePublicUrl(req: express.Request, fileName: string): string {
   return `${visionImagePublicOrigin(req)}/imageai/${encodeURIComponent(fileName)}`;

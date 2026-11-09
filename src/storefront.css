@@ -4217,3 +4217,22 @@ select {
   .account-dialog {width: calc(100vw - 10px);height: min(84dvh, 740px);}
   .account-access-form {padding-inline: 13px;}
 }
+
+/* Keep forms light and accessible above the mobile keyboard. */
+@media(max-width:767px){
+ .account-dialog{margin-top:max(12px,env(safe-area-inset-top));max-height:calc(100dvh - 24px);height:auto;}
+ .account-access-story{display:block;min-height:155px;height:155px;padding:18px;flex-shrink:0;}
+ .account-access-story>img{display:block;object-fit:cover;}
+ .account-access-form{overflow:visible;touch-action:pan-y;padding:20px 16px;}
+ .account-access{overflow-y:auto;overscroll-behavior:contain;}
+ .workspace-catalog{margin:0;max-width:none;}
+ .workspace-catalog>p,.workspace-catalog small{font-size:10px;}
+ .workspace-catalog input{min-height:44px;font-size:16px;}
+}
+
+@media(max-width:767px){
+ .account-dialog{inset: max(12px,env(safe-area-inset-top)) 0 auto;margin:0 auto;height:min(92dvh,820px);}
+ .account-access-story h2{display:block;font-size:20px;}
+ .account-access-story>div{display:block;position:relative;z-index:1;}
+ .account-access-story .account-symbol{display:none;}
+}

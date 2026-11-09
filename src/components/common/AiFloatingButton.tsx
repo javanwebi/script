@@ -56,13 +56,7 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
     navigate("/ai-consult");
   };
 
-  const handleLauncherClick = () => {
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      setSheetOpen(true);
-    } else {
-      navigate("/ai-consult");
-    }
-  };
+  const handleLauncherClick = () => navigate("/ai-consult");
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -132,18 +126,6 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   return (
     <>
     <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
-      <button
-        type="button"
-        className="store-help-launcher"
-        onClick={(event) => window.dispatchEvent(
-          new CustomEvent("open-mobile-support", { detail: { opener: event.currentTarget } }),
-        )}
-        title="راهنمای خرید و پشتیبانی"
-        aria-label="باز کردن راهنمای خرید و پشتیبانی"
-        aria-haspopup="dialog"
-      >
-        <LifeBuoy size={23} strokeWidth={1.9} />
-      </button>
       {showAssistant && (
         <button
           type="button"

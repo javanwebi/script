@@ -374,7 +374,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       try {
         renderer = new THREE.WebGLRenderer({
           antialias: false,
-          preserveDrawingBuffer: true,
+          preserveDrawingBuffer: false,
           powerPreference: 'high-performance',
           depth: false,
           stencil: false,
@@ -471,7 +471,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         if (!props.current.paused) {
           t += dt;
           shared.uTime.value = t;
-          shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 4);
+          shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 1.4);
           // Notify only after the actual particle formation reaches 100%.
           if (!formationReported && shared.uProgress.value >= 1) {
             formationReported = true;
