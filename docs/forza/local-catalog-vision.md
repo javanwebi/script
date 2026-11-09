@@ -411,15 +411,15 @@ searching a partial catalogue.
 ## Automatic object proposals and strict no-match behavior
 
 Gallery uploads start quick retrieval after upload completes; camera capture
-keeps its explicit confirmation. The query worker now returns the full-frame view
-plus up to three independent crop proposals. The interface overlays those
-proposals on the original photo and shows the currently selected crop. A tap
-inside a proposal selects that object and re-runs the same uploaded image. A tap
-outside every proposal preserves the current system selection; it never creates
-an arbitrary square around empty background. Dragging remains available as an
-explicit manual rectangle. Selection changes debounce for 300 ms, and stale
-requests cannot replace results after another photo is selected or the modal
-closes. Automatic proposals remain heuristic crop candidates. Tap selection uses
+keeps its explicit confirmation. The query worker returns the full-frame view plus
+up to three independent crop proposals. The interface overlays those proposals
+and the current crop on the original photo. A tap anywhere on the photo sends the
+normalized point to click-seeded GrabCut; a valid connected object crop replaces
+the current selection and its embedding is recomputed before retrieval. A
+background/uncertain tap is rejected and preserves the previous selection.
+Customers cannot draw or resize rectangles. Selection changes debounce for 300 ms
+in the results view, and stale requests cannot replace results after another
+photo is selected or the modal closes. Automatic proposals remain heuristic crop candidates. Tap selection uses
 click-seeded GrabCut, not a semantic industrial detector or a pixel-perfect
 segmentation model; low contrast, occlusion, and similarly colored backgrounds
 can still cause a rejection or an imperfect crop.
