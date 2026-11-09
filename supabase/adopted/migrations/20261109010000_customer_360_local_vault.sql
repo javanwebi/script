@@ -76,7 +76,8 @@ create index if not exists customer_product_consultation_items_user_idx
 
 create table if not exists public.customer_followups (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  crm_customer_id text references public.crm_customers(id) on delete cascade,
   assigned_staff_id uuid references auth.users(id) on delete set null,
   created_by uuid references auth.users(id) on delete set null,
   title text not null,
@@ -86,10 +87,13 @@ create table if not exists public.customer_followups (
   due_at timestamptz,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check ((user_id is not null) <> (crm_customer_id is not null))
 );
 create index if not exists customer_followups_user_due_idx
-  on public.customer_followups(user_id, due_at asc nulls last);
+  on public.customer_followups(user_id, due_at asc nulls last) where user_id is not null;
+create index if not exists customer_followups_crm_due_idx
+  on public.customer_followups(crm_customer_id, due_at asc nulls last) where crm_customer_id is not null;
 
 alter table public.customer_image_identifications enable row level security;
 alter table public.customer_ai_consultations enable row level security;
