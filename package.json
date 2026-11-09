@@ -16,7 +16,7 @@
     "cap:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "apk:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
-    "test:portal": "node --import tsx --test tests/portal*.test.ts tests/staff-access.test.ts tests/staff-schema-sync.test.ts tests/admin-settings-hydration.test.ts tests/customer-360-local-vault.test.ts",
+    "test:portal": "node --import tsx --test tests/portal*.test.ts tests/staff-access.test.ts tests/staff-schema-sync.test.ts tests/admin-settings-hydration.test.ts tests/customer-360-local-vault.test.ts tests/custom-part-requests.test.ts tests/forza-customer-pricing.test.ts tests/forza-stt-provider.test.ts tests/forza-voice-activity.test.ts tests/industry-pages-unique-layouts.test.ts",
     "db:plan": "node --import tsx scripts/database/migrate.ts plan",
     "db:migrate": "node --import tsx scripts/database/migrate.ts apply",
     "db:import": "node --import tsx scripts/database/migrate.ts import",
