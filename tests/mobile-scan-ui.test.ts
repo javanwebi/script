@@ -24,7 +24,8 @@ test("camera flow captures only a real frame and releases media tracks", () => {
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
-  assert.match(modal, /uploadSelectedImage\(dataUrl\)/);
+  assert.match(modal, /uploadAndPrepareImage\(dataUrl\)/);
+  assert.doesNotMatch(modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera")), /handleAnalyze/);
 });
 
 test("mobile/tablet dock and branded scanner preserve RTL and desktop header", () => {
