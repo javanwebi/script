@@ -25,6 +25,13 @@ export class BaiConsultError extends Error {
   }
 }
 
+export function configuredAvalaiModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
+  const provider = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  if (provider !== 'avalai' || !env.AVALAI_API_KEY?.trim()) return null;
+  const model = String((voice ? env.AVALAI_MODEL_VOICE : env.AVALAI_MODEL_DESK) || 'glm-5.3-flash').trim();
+  return model && model.length <= 100 ? model : null;
+}
+
 export function configuredBaiModel(env: NodeJS.ProcessEnv, voice: boolean): string | null {
   const provider = String(voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER || '').trim().toLowerCase();
   if (provider !== 'bai' || !env.BAI_API_KEY?.trim()) return null;
@@ -48,12 +55,14 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
  * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
  * at most one same-model, free-tier completion verification.
  */
-export function providerStreamTimeouts(provider: 'xkiro' | 'bai', voice: boolean) {
+export function providerStreamTimeouts(provider: 'xkiro' | 'bai' | 'avalai', voice: boolean) {
   return {
     // xKiro's free Qwen gateway can leave the SSE socket open after its last
-    // content delta. Keep the stream attempt bounded; a verified non-stream
-    // completion is used once by the free-pool wrapper when this happens.
-    firstTokenMs: provider === 'xkiro' ? 4500 : (voice ? 10000 : 15000),
+    // content delta. Keep the stream attempt bounded; AvalAI gets its own
+    // measured-in-production budget after the first live VPS probe.
+    firstTokenMs: provider === 'xkiro' ? 4500 : provider === 'avalai'
+      ? (voice ? 8000 : 12000)
+      : (voice ? 10000 : 15000),
     totalMs: provider === 'xkiro' ? 9000 : (voice ? 30000 : 45000),
   };
 }
@@ -84,7 +93,8 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   } = options;
   const started = Date.now();
   const isXkiro = endpoint === 'https://api.xkiro.com/v1/chat/completions';
-  const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : 'bai', voice);
+  const isAvalai = endpoint === 'https://api.avalai.ir/v1/chat/completions';
+  const budgets = providerStreamTimeouts(isXkiro ? 'xkiro' : isAvalai ? 'avalai' : 'bai', voice);
   const controller = new AbortController();
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -174,9 +184,14 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
       body: JSON.stringify({
         model,
         stream: true,
-        // Confirmed effective for xKiro's Qwen 3.5 Flash: avoid long reasoning
-        // before speaking. Do not send provider-specific options to B.AI.
-        ...(isXkiro && model === 'qwen/qwen3.5-flash:free' ? { reasoning_effort: 'none' } : {}),
+        // Keep the free xKiro voice route non-reasoning for low latency.
+        // GLM-5.3-Flash supports reasoning_effort=low; use it to reduce
+        // deliberation before FORZA can speak. Do not send this to other models.
+        ...(isXkiro && model === 'qwen/qwen3.5-flash:free'
+          ? { reasoning_effort: 'none' }
+          : isAvalai && model === 'glm-5.3-flash'
+            ? { reasoning_effort: 'low' }
+            : {}),
         max_tokens: voice ? 256 : 768,
         messages: [
           { role: 'system', content: systemMessage + String(catalogContext).slice(0, 5000) },
@@ -348,6 +363,10 @@ export async function completeXkiroConsult(
   }finally{
     clearTimeout(timer);
   }
+}
+
+export function streamAvalaiConsult(options: BaiConsultOptions) {
+  return streamOpenAiCompatible(options, 'https://api.avalai.ir/v1/chat/completions');
 }
 
 export function streamBaiConsult(options: BaiConsultOptions) {
