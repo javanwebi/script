@@ -4743,12 +4743,12 @@ app.post('/api/ai/detect-regions', async (req,res)=>{
 
 app.post('/api/ai/analyze-part', async (req, res) => {
   if(localVisionEnabled && (req.body?.imageUrl || req.body?.imageBase64)){
-    if(localVisionQueries>=1)return res.status(429).json({error:{message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
+    if(localVisionQueries>=1)return res.status(429).json({error:{code:'VISION_BUSY',message:'جست‌وجوی تصویری مشغول است؛ چند ثانیه بعد دوباره تلاش کنید.'}});
     localVisionQueries++;
     try{
-      if(!databaseEnabled())return res.status(503).json({error:{message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
+      if(!databaseEnabled())return res.status(503).json({error:{code:'CATALOG_UNAVAILABLE',message:'کاتالوگ پایگاه داده در دسترس نیست.'}});
       const body={...req.body};
-      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
+      if(body.region!==undefined && !validImageRegion(body.region))return res.status(400).json({error:{code:'INVALID_REGION',message:'محدودهٔ انتخابی تصویر معتبر نیست.'}});
       if(!body.imageUrl){const saved=await saveBase64CustomerImageForWorker(req,body.imageBase64,body.mimeType);body.imageUrl=saved.imageUrl;}
       const uploaded=await resolveCustomerImageBufferAndInfo(String(body.imageUrl),req);
       refreshRecognitionCatalog();
@@ -4759,7 +4759,7 @@ app.post('/api/ai/analyze-part', async (req, res) => {
       const coverage=catalogVisualIndex.coverage(images);
       if(!images.length || !coverage.ready){
         warmCatalogVisualIndex(images,publish);
-        return res.status(503).json({error:{message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
+        return res.status(503).json({error:{code:'INDEX_NOT_READY',message:`نمایه تصاویر در حال آماده‌سازی است (${coverage.indexed} از ${coverage.total}). کمی بعد دوباره تلاش کنید.`},retrieval:coverage});
       }
       const started=Date.now();
       const queryImage=await prepareLocalQuery(uploaded.buffer,body.region);
