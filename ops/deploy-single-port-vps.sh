@@ -73,9 +73,11 @@ fi
 # The live app can briefly reset a connection while Node finishes an in-flight
 # request. Retry the preflight without changing or restarting the current app.
 wait_for_live_health() {
-  local url="$1" label="$2" insecure="${3:-0}" attempt body
+  local url="$1" label="$2" resolve_domain="${3:-}" attempt body
   local -a args=(--noproxy '*' -fsS --connect-timeout 3 --max-time 12)
-  [[ "$insecure" == 1 ]] && args+=(-k)
+  if [[ -n "$resolve_domain" ]]; then
+    args+=(-k --resolve "$resolve_domain:443:127.0.0.1")
+  fi
   for attempt in $(seq 1 8); do
     if body="$(curl "${args[@]}" "$url" 2>/dev/null)" &&
        grep -q '"database":"ok"' <<<"$body"; then
@@ -85,11 +87,14 @@ wait_for_live_health() {
     sleep 2
   done
   echo "${label}=FAILED url=${url}" >&2
-  curl --noproxy '*' -skv --connect-timeout 3 --max-time 8 "$url" 2>&1 | tail -25 >&2 || true
+  curl --noproxy '*' -skv --connect-timeout 3 --max-time 8 \
+    ${resolve_domain:+--resolve "$resolve_domain:443:127.0.0.1"} "$url" 2>&1 | tail -25 >&2 || true
   return 1
 }
 wait_for_live_health "http://127.0.0.1:$ACTIVE/api/health" ACTIVE_HTTP_HEALTH
-wait_for_live_health "https://127.0.0.1/api/health" ACTIVE_HTTPS_HEALTH 1
+# HTTPS must use the canonical hostname for both Host and TLS SNI. A request
+# to https://127.0.0.1 selects the wrong/default virtual host on this Nginx.
+wait_for_live_health "https://sanatpish.com/api/health" ACTIVE_HTTPS_HEALTH sanatpish.com
 OLD=''
 for c in $(docker ps --format '{{.Names}}'); do
  if docker port "$c" 3000/tcp 2>/dev/null | grep -Fxq "127.0.0.1:$ACTIVE"; then OLD="$c"; break; fi
@@ -501,30 +506,36 @@ systemctl reload nginx
 
 echo '===== VERIFY PUBLIC HTTPS ====='
 python3 - "$NEXT" <<'PY'
-import sys,ssl,time,json,urllib.request
-ctx=ssl._create_unverified_context()
+import sys,ssl,time,json,subprocess
 port=sys.argv[1]
-def get(url):
- with urllib.request.urlopen(url,timeout=25,context=ctx) as r:return r.read()
-expected=get(f'http://127.0.0.1:{port}/')
+domain='sanatpish.com'
+def get(path):
+ cmd=['curl','--noproxy','*','-kfsS','--connect-timeout','3','--max-time','25',
+      '--resolve',f'{domain}:443:127.0.0.1',f'https://{domain}{path}']
+ return subprocess.run(cmd,check=True,stdout=subprocess.PIPE).stdout
+expected=subprocess.run(['curl','--noproxy','*','-fsS','--max-time','25',
+                         f'http://127.0.0.1:{port}/'],
+                        check=True,stdout=subprocess.PIPE).stdout
 for i in range(10):
  try:
-  if get('https://127.0.0.1/')==expected:break
+  if get('/')==expected:break
  except Exception:pass
  time.sleep(2)
 else:raise AssertionError('HTTPS_BUILD_MISMATCH')
-health=json.loads(get('https://127.0.0.1/api/health'))
+health=json.loads(get('/api/health'))
 assert health.get('status')=='ok' and health.get('database')=='ok'
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
-with urllib.request.urlopen('https://127.0.0.1/api/ai/forza-stt-info',timeout=15,context=ctx) as stt_response:
- content_type=stt_response.headers.get('content-type','').lower()
- assert 'application/json' in content_type, ('FORZA_STT_PUBLIC_API_RETURNED_HTML',content_type)
- stt_info=json.loads(stt_response.read())
+stt_raw=get('/api/ai/forza-stt-info')
+# The endpoint must return JSON, not the SPA index.html.
+try:
+ stt_info=json.loads(stt_raw)
+except Exception as exc:
+ raise AssertionError('FORZA_STT_PUBLIC_API_RETURNED_NON_JSON') from exc
 assert isinstance(stt_info.get('serverSttConfigured'),bool), ('FORZA_STT_PUBLIC_BAD_CONTRACT',stt_info)
 assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
 print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
-print('PUBLIC_HTTPS_AND_DATABASE_OK')
+print('PUBLIC_HTTPS_AND_DATABASE_OK domain='+domain+' sni=correct')
 PY
 echo '===== VERIFY DOMAIN AND IP ROUTE TO SAME RELEASE ====='
 python3 - "$CONF1" "$CONF2" "$CONF_DOMAIN" "$NEXT" <<'PY'
