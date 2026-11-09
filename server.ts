@@ -5341,7 +5341,7 @@ async function consultantCustomerPricingContext(req:express.Request,query:string
     .map((item:any)=>String(item?.text||'').slice(0,240)).join(' ')
   : '';
  const searchText=(String(query||'')+' '+historyText).trim();
- if(!/(قیمت|نرخ|چند|هزینه|مبلغ|تخفیف|قیمت‌نامه)/.test(searchText))return '';
+ if(!/(قیمت|نرخ|هزینه|مبلغ|تخفیف|قیمت‌نامه|چنده|چقدر|چند\\s*(تومان|ریال|دلار|یورو))/.test(searchText))return '';
  if(!databaseEnabled()||!adoptedSchema())return '\\nقیمت اختصاصی از پایگاه داده در دسترس نیست؛ قیمت یا تخفیف را حدس نزن و برای استعلام راهنمایی کن.\\n';
  try{
   const identity=await getPortalIdentity(req);
@@ -7160,8 +7160,16 @@ app.post('/api/ai/transcribe', async (req, res) => {
     const sttSelection=selectForzaSttProvider(process.env);
     const cleanAudioData = extractForzaAudioBase64(audioBase64);
     if(sttSelection.provider==='diba'){
-      const text=await transcribeForzaDibaAudio(cleanAudioData,{timeoutMs:10_000});
-      return res.json({success:true,text,provider:'diba-vosk'});
+      const abort=new AbortController();
+      const onClose=()=>abort.abort();
+      res.once('close',onClose);
+      try{
+        const text=await transcribeForzaDibaAudio(cleanAudioData,{signal:abort.signal,timeoutMs:10_000});
+        return res.json({success:true,text,provider:'diba-vosk'});
+      }catch(error){
+        if(abort.signal.aborted)return;
+        throw error;
+      }finally{res.off('close',onClose);}
     }
     const apiKey=sttSelection.provider==='gemini'?sttSelection.key:undefined;
     if (!apiKey) {
@@ -7261,16 +7269,20 @@ app.post('/api/ai/forza-live', async (req, res) => {
     // Local Diba/Vosk is the default server recognizer. It is independent from
     // AvalAI/XKIRO and keeps the model warm in a bounded CPU worker pool.
     if(!userQuery&&audioBase64&&sttSelection.provider==='diba'){
+      const abort=new AbortController();
+      const onClose=()=>abort.abort();
+      res.once('close',onClose);
       try{
-        const transcript=await transcribeForzaDibaAudio(audioBase64,{timeoutMs:10_000});
+        const transcript=await transcribeForzaDibaAudio(audioBase64,{signal:abort.signal,timeoutMs:10_000});
         userQuery=normalizePersianTranscript(transcript).slice(0,2500);
         console.info('[AI FORZA STT] provider=diba transcript_chars='+userQuery.length);
       }catch(sttErr:any){
+        if(abort.signal.aborted)return;
         sttProviderError=true;
         sttProviderStatus=503;
         console.warn('[AI FORZA STT] provider=diba failure code='+
           String(sttErr?.message||'stt_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48));
-      }
+      }finally{res.off('close',onClose);}
     }
 
     // 1. Direct Voice Audio Comprehension (if user spoke and audio was captured)
