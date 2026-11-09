@@ -506,7 +506,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setApplication("");
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
-    setRegionDetectionSequenceRef.current++;
+    regionDetectionSequenceRef.current++;
     setRegionDetectionState('uploading');
     setRegionDetectionMessage('');
     setRegionDetectionId(null);
