@@ -176,6 +176,7 @@ export function registerAdminCustomersApi(app: Express) {
       const customer = await loadOne(key.source + ':' + key.id);
       const userId = customer.user_id || null;
       const crmId = customer.crm_id || null;
+      const intelligenceEnabled = process.env.CUSTOMER_360_LOCAL_VAULT_ENABLED === 'true';
       const purchaseOwner = "((o.user_id=$1::uuid and $1::uuid is not null) or (o.crm_customer_id=$2::text and $2::text is not null))";
       const [orders, finance, tickets, imageEvents, consultations, productInterests, monthlyPurchases, yearlyPurchases, topProducts, followups] = await Promise.all([
         database().query(
@@ -187,13 +188,13 @@ export function registerAdminCustomersApi(app: Express) {
         userId
           ? database().query("select id,subject,status,created_at,updated_at from public.support_tickets where user_id=$1 order by created_at desc limit 30",[userId])
           : Promise.resolve({rows:[]}),
-        userId
+        userId && intelligenceEnabled
           ? database().query("select id,device_image_id,image_sha256,mime_type,file_size,original_name,recognition_status,detected_part_type,recognized_summary,selected_product_code,matched_product_codes,similar_product_codes,recognition_result,created_at from public.customer_image_identifications where user_id=$1 order by created_at desc limit 100",[userId])
           : Promise.resolve({rows:[]}),
-        userId
+        userId && intelligenceEnabled
           ? database().query("select id,title,summary,status,messages,product_codes,message_count,started_at,last_message_at from public.customer_ai_consultations where user_id=$1 order by last_message_at desc limit 50",[userId])
           : Promise.resolve({rows:[]}),
-        userId
+        userId && intelligenceEnabled
           ? database().query("select product_code,product_name,interaction_count,first_seen_at,last_seen_at,last_consultation_id from public.customer_product_interests where user_id=$1 order by interaction_count desc,last_seen_at desc limit 30",[userId])
           : Promise.resolve({rows:[]}),
         database().query(
@@ -205,12 +206,12 @@ export function registerAdminCustomersApi(app: Express) {
         database().query(
           "select oi.product_code, max(oi.product_name) as product_name, sum(oi.quantity)::numeric as quantity, coalesce(sum(oi.total_price / case when o.currency='IRR' then 10 else 1 end),0)::numeric as revenue, count(distinct o.id)::int as order_count from public.order_items oi join public.orders o on o.id=oi.order_id where (" + completed + ") and " + purchaseOwner + " group by oi.product_code order by quantity desc,revenue desc limit 15",
           [userId,crmId]),
-        userId
+        userId && intelligenceEnabled
           ? database().query("select f.id,f.title,f.notes,f.status,f.due_at,f.completed_at,f.created_at,f.assigned_staff_id,coalesce(u.full_name,u.username,'') as assigned_staff_name from public.customer_followups f left join public.user_profiles u on u.id=f.assigned_staff_id where f.user_id=$1 order by f.due_at asc nulls last,f.created_at desc limit 100",[userId])
           : Promise.resolve({rows:[]})
       ]);
       res.json({
-        success: true, customer, orders: orders.rows, finance: finance.rows, tickets: tickets.rows,
+        success: true, customer, intelligenceEnabled, orders: orders.rows, finance: finance.rows, tickets: tickets.rows,
         imageEvents: imageEvents.rows, consultations: consultations.rows, productInterests: productInterests.rows,
         monthlyPurchases: monthlyPurchases.rows, yearlyPurchases: yearlyPurchases.rows,
         topProducts: topProducts.rows, followups: followups.rows
