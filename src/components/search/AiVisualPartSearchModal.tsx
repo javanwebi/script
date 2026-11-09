@@ -109,6 +109,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [regionDetectionId,setRegionDetectionId]=useState<string|null>(null);
   const [fullImageSelected,setFullImageSelected]=useState(false);
   const regionDetectionSequenceRef=useRef(0);
+  const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
   const regionTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -265,13 +266,16 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const uploadAndPrepareImage = async (source: string | Blob) => {
+    const sequence = ++imagePreparationSequenceRef.current;
     setErrorMessage('');
     setRegionDetectionMessage('');
     setRegionDetectionState('uploading');
     try {
       const imageUrl = await uploadSelectedImage(source);
+      if (sequence !== imagePreparationSequenceRef.current) return;
       await detectUploadedImageRegions(imageUrl);
     } catch (error: any) {
+      if (sequence !== imagePreparationSequenceRef.current) return;
       setRegionDetectionState('fallback');
       setFullImageSelected(true);
       setRegionDetectionMessage(friendlyVisionError(error));
@@ -299,7 +303,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // The full catalogue analysis is deliberately deferred until customer confirmation.
   const handleFile = (file: File) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!allowed.includes((file.type || '').toLowerCase()) || file.size > 12 * 1024 * 1024) {
+    const fileMime = (file.type || '').toLowerCase();
+    const supportedExtension = /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if ((fileMime ? !allowed.includes(fileMime) : !supportedExtension) || file.size > 12 * 1024 * 1024) {
       setErrorMessage('لطفاً تصویر JPG، PNG یا WebP با حجم کمتر از ۱۲ مگابایت انتخاب کنید.');
       return;
     }
@@ -423,6 +429,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       setErrorMessage("لطفاً تصویر JPG، PNG یا WebP کوچک‌تر از ۱۲ مگابایت انتخاب کنید.");
       return;
     }
+    imagePreparationSequenceRef.current++;
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string") return;
@@ -455,6 +462,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        imagePreparationSequenceRef.current++;
         if (selectedImage?.startsWith("blob:"))
           URL.revokeObjectURL(selectedImage);
         setAnalysisResult(null);setMeasurements({});
@@ -487,6 +495,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Reset all
   const resetForm = () => {
     stopCamera();
+    imagePreparationSequenceRef.current++;
     imageUploadSequenceRef.current += 1;
     setIsUploadingImage(false);
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
@@ -613,6 +622,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   const retakeCameraPhoto = () => {
+    imagePreparationSequenceRef.current++;
     regionDetectionSequenceRef.current++;
     if (selectedImage?.startsWith("blob:")) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
