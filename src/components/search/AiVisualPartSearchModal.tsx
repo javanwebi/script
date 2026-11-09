@@ -566,83 +566,75 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   };
 
   // Submit to AI (two-stage: quick = image only, refined = image + dims + application)
-  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?:ImageRegion|null) => {
-    if(analysisBusyRef.current)return;
-    if (!selectedImage && !length && !width) {
-      setErrorMessage(
-        "لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید.",
-      );
-      return;
+  const handleAnalyze = async (stage: AiAnalysisStage = "refined", regionOverride?: ImageRegion | null, localImageIdOverride?: string) => {
+    if (analysisBusyRef.current) return;
+    if (!selectedImage && !length && !width) { setErrorMessage("لطفاً حداقل تصویر قطعه یا ابعاد (طول و عرض) را مشخص فرمایید."); return; }
+    if (stage === "quick" && !selectedImage) { setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید."); return; }
+    if (isUploadingImage && !localImageIdOverride) { setErrorMessage("لطفاً صبر کنید تا ذخیره تصویر روی دستگاه کامل شود."); return; }
+    const effectiveLocalImageId = localImageIdOverride || localImageId;
+    if (stage === "refined" && analysisResult?.requiredMeasurements) {
+      const issue = measurementError(analysisResult.requiredMeasurements, measurements);
+      if (issue) { setErrorMessage(issue); setCurrentStep(2); return; }
     }
-    if (stage === "quick" && !selectedImage) {
-      setErrorMessage("برای شناسایی فوری، ابتدا تصویر قطعه را بارگذاری کنید.");
-      return;
-    }
-
-    if (isUploadingImage) {
-      setErrorMessage("لطفاً صبر کنید تا بارگذاری تصویر روی سرور کامل شود.");
-      return;
-    }
-
-    if(stage==="refined" && analysisResult?.requiredMeasurements){const issue=measurementError(analysisResult.requiredMeasurements,measurements);if(issue){setErrorMessage(issue);setCurrentStep(2);return;}}
-    const requestRegion=regionOverride===null?undefined:regionOverride || queryRegion;
-    const requestFullImage=regionOverride===null || (!requestRegion && fullImageSelected);
-    analysisBusyRef.current=true;
-    const sequence=++analysisSequenceRef.current;
-    setErrorMessage("");
-    setPendingStage(stage);
-    setAnalysisProgress(0);
-    setAnalysisPhaseIndex(0);
-    setScanCounts(null);
-    setCurrentStep("analyzing");
-
+    const requestRegion = localRegionEnabled ? (regionOverride === null ? undefined : regionOverride || queryRegion) : undefined;
+    const requestFullImage = regionOverride === null || (!requestRegion && fullImageSelected);
+    analysisBusyRef.current = true;
+    const sequence = ++analysisSequenceRef.current;
+    setErrorMessage(""); setPendingStage(stage); setAnalysisProgress(0); setAnalysisPhaseIndex(0); setScanCounts(null); setCurrentStep("analyzing");
+    let activeImageEventId: string | null = imageEventId;
     try {
-      const result = await aiVisualSearchService.analyzePartWithAi({
-        imageUrl: uploadedImageUrl || undefined,
-        imageBase64: uploadedImageUrl ? undefined : selectedImage || undefined,
-        mimeType: mimeType,
-        length: length ? parseFloat(length) : undefined,
-        width: width ? parseFloat(width) : undefined,
-        pitch: pitch ? parseFloat(pitch) : undefined,
-        application: application.trim() || undefined,
-        features: features.trim() || undefined,
-        stage,
-        observationOnly:false,
-        region:requestRegion,
-        detectionId:regionDetectionId || undefined,
-        fullImage:requestFullImage,
-        includeNearest:false,
-        measurements:stage==="refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
-      }, progress => {
-        if(sequence!==analysisSequenceRef.current)return;
-        setScanCounts(progress);
-        setAnalysisProgress(progress.total ? Math.floor(progress.compared*100/progress.total) : 0);
-        setAnalysisPhaseIndex(progress.stage==='verifying' ? 4 : progress.stage==='scanning' ? 3 : progress.stage==='preparing' ? 0 : 1);
-      });
-
-      if(sequence!==analysisSequenceRef.current)return;
-      if(localRegionEnabled || result.localVisionMetrics){
-        setLocalRegionEnabled(true);
-        setQueryRegion(result.queryRegion || requestRegion);
-        if(!requestRegion)setCandidateRegions(result.queryRegions || []);
-        setFullImageSelected(requestFullImage);
-        setRegionDetectionState('ready');
+      let imageBase64: string | undefined;
+      if (selectedImage) {
+        if (!effectiveLocalImageId) throw new Error("تصویر در حافظه داخلی دستگاه ثبت نشده است؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        const localRecord = await getCustomerDeviceImage(effectiveLocalImageId);
+        if (!localRecord) throw new Error("تصویر محلی پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.");
+        if (currentUser) await adoptCustomerDeviceImage(effectiveLocalImageId, currentUser.id);
+        imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
+        if (currentUser && !activeImageEventId) {
+          const metadata = await getCustomerDeviceImageMetadata(effectiveLocalImageId);
+          if (!metadata) throw new Error("اطلاعات تصویر محلی پیدا نشد.");
+          try {
+            const event = await createCustomerImageIdentification({ deviceImageId: metadata.id, sha256: metadata.sha256, mimeType: metadata.mimeType, sizeBytes: metadata.sizeBytes, originalName: metadata.originalName });
+            activeImageEventId = event.id; setImageEventId(event.id);
+          } catch (trackingError) { console.warn("[Customer image history] metadata sync unavailable", trackingError); }
+        }
       }
-      if(result.customerImageUrl)setUploadedImageUrl(result.customerImageUrl);
-      setAnalysisResult(result);
-      if (!result.observationOnly && selectedImage) onAnalysisResult?.(result, selectedImage);
-      setLastStage(result.stage || stage);
-      setCurrentStep(result.observationOnly ? 2 : "results");
-    } catch (err: any) {
-      if(sequence!==analysisSequenceRef.current)return;
-      console.error(err);
-      setErrorMessage(friendlyVisionError(err));
-      setCurrentStep(stage === "quick" ? 1 : 3);
-    }finally{if(sequence===analysisSequenceRef.current)analysisBusyRef.current=false;}
+      const result = await aiVisualSearchService.analyzePartWithAi({
+        imageBase64, mimeType,
+        length: length ? parseFloat(length) : undefined, width: width ? parseFloat(width) : undefined, pitch: pitch ? parseFloat(pitch) : undefined,
+        application: application.trim() || undefined, features: features.trim() || undefined,
+        stage, observationOnly: false, region: requestRegion, detectionId: regionDetectionId || undefined, fullImage: requestFullImage, includeNearest: false,
+        measurements: stage === "refined" && analysisResult?.requiredMeasurements ? measurements : undefined,
+      }, progress => {
+        if (sequence !== analysisSequenceRef.current) return;
+        setScanCounts(progress); setAnalysisProgress(progress.total ? Math.floor(progress.compared * 100 / progress.total) : 0);
+        setAnalysisPhaseIndex(progress.stage === "verifying" ? 4 : progress.stage === "scanning" ? 3 : progress.stage === "preparing" ? 0 : 1);
+      });
+      if (sequence !== analysisSequenceRef.current) return;
+      if (localRegionEnabled || result.localVisionMetrics) {
+        setLocalRegionEnabled(true); setQueryRegion(result.queryRegion || requestRegion);
+        if (!requestRegion) setCandidateRegions(result.queryRegions || []);
+        setFullImageSelected(requestFullImage); setRegionDetectionState("ready");
+      }
+      if (activeImageEventId) {
+        const matched = result.matchedProducts || [], similar = result.similarCandidates || [];
+        void completeCustomerImageIdentification(activeImageEventId, {
+          status: matched.length || similar.length ? "completed" : "unmatched", detectedPartType: result.summary?.detectedPartType,
+          summary: result.summary?.whatYouSee || result.summary?.visualAnalysis, technicalAdvice: result.technicalAdvice,
+          matchedProductCodes: matched.map(item => item.code), similarProductCodes: similar.map(item => item.code), confidence: result.summary?.confidence,
+        }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
+      }
+      setAnalysisResult(result); setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
+    } catch (error: any) {
+      if (sequence !== analysisSequenceRef.current) return;
+      console.error(error);
+      if (activeImageEventId) void completeCustomerImageIdentification(activeImageEventId, { status: "failed" }).catch(() => undefined);
+      setErrorMessage(friendlyVisionError(error)); setCurrentStep(stage === "quick" ? 1 : 3);
+    } finally { if (sequence === analysisSequenceRef.current) analysisBusyRef.current = false; }
   };
 
   const confirmRegionAndAnalyze = () => {
-    if (!uploadedImageUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
+    if (!temporaryImageDataUrl || isUploadingImage || regionDetectionState === 'uploading' || regionDetectionState === 'detecting') return;
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
