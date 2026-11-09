@@ -6,19 +6,19 @@ const serverSource = await readFile(new URL('../server.ts', import.meta.url), 'u
 
 function sourceSection(startMarker: string, endMarker: string) {
   const start = serverSource.indexOf(startMarker);
-  assert.notEqual(start, -1, `missing source marker: ${startMarker}`);
+  assert.notEqual(start, -1, \`missing source marker: \${startMarker}\`);
   const end = serverSource.indexOf(endMarker, start);
-  assert.notEqual(end, -1, `missing source end marker: ${endMarker}`);
+  assert.notEqual(end, -1, \`missing source end marker: \${endMarker}\`);
   return serverSource.slice(start, end);
 }
 
 test('customer image uploads are processed in bounded process memory only', () => {
   const ingest = sourceSection(
     'async function prepareCustomerImageInMemory(',
-    '\\nconst GITHUB_BACKUP_REPO'
+    '\nconst GITHUB_BACKUP_REPO'
   );
-  assert.match(ingest, /cacheCustomerImageBuffer\\(fileName, optimized, 'image\\/jpeg'\\)/);
-  assert.doesNotMatch(ingest, /fs\\.promises\\.writeFile|writeFileSync|createWriteStream|copyFile|renameSync/);
+  assert.match(ingest, /cacheCustomerImageBuffer\(fileName, optimized, 'image\/jpeg'\)/);
+  assert.doesNotMatch(ingest, /fs\.promises\.writeFile|writeFileSync|createWriteStream|copyFile|renameSync/);
   assert.doesNotMatch(ingest, /syncCustomerImageToGitHub|GITHUB_BACKUP/);
 
   const cache = sourceSection(
@@ -28,18 +28,18 @@ test('customer image uploads are processed in bounded process memory only', () =
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_TTL_MS/);
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES/);
   assert.match(cache, /CUSTOMER_IMAGE_MEMORY_MAX_BYTES/);
-  assert.match(cache, /while \\(customerImageMemoryCache\\.size/);
+  assert.match(cache, /while \(customerImageMemoryCache\.size/);
 
   const imageRoute = sourceSection(
     "app.get(['/imageai/:fileName', '/imagemoshtari/:fileName']",
     '// Fallback to disk folder'
   );
   assert.match(imageRoute, /private, no-store, max-age=0/);
-  assert.match(imageRoute, /Date\\.now\\(\\) - cached\\.createdAt/);
-  assert.match(imageRoute, /return res\\.status\\(404\\)\\.end\\(\\)/);
+  assert.match(imageRoute, /Date\.now\(\) - cached\.createdAt/);
+  assert.match(imageRoute, /return res\.status\(404\)\.end\(\)/);
 
   const uploadRoute = sourceSection(
-    "app.post(\\n  '/api/ai/customer-images'",
+    "app.post(\n  '/api/ai/customer-images'",
     '// Preset catalogue photos'
   );
   assert.match(uploadRoute, /prepareCustomerImageInMemory/);
