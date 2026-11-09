@@ -202,7 +202,7 @@ test('a held complete phrase is released after 180ms even while SSE continues',(
     const released=planner.push(nextText);
     assert.equal(released.length,1,'the older complete phrase is released without waiting for SSE done');
     const rest=[...planner.push(nextText),...planner.complete(nextText)];
-    const all=[...early,...released,...rest].join(' ').replace(/\\s+/g,' ').trim();
+    const all=[...early,...released,...rest].join(' ').trim();
     assert.equal(all,nextText.trim(),'all Persian words must remain in order and appear exactly once');
   }finally{
     Date.now=originalNow;
