@@ -604,6 +604,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         text: message.text,
       })),
       productCodes: selectedConsultProducts.map(product => product.code),
+      products: selectedConsultProducts.map(product => ({ code: product.code, name: product.name })),
       summary,
     }).catch(error => console.warn('[FORZA CRM session sync]', error instanceof Error ? error.message : 'unavailable'));
   };
