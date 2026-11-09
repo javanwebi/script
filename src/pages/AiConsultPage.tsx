@@ -2003,7 +2003,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       {/* Camera / Visual Part Switch */}
                       <button
                         type="button"
-                        onClick={() => navigate('/identify-part?from=workspace')
+                        onClick={() => navigate('/identify-part?from=workspace')}
                         className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="شناسایی قطعه با دوربین"
                       >
