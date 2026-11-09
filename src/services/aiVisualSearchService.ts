@@ -221,14 +221,18 @@ export const aiVisualSearchService = {
     let response: Response | undefined;
     let data: any = null;
     for (let attempt = 0; attempt < 2; attempt++) {
-      response = await fetch(apiUrl('/api/ai/detect-regions'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ imageUrl }),
-      });
-      data = await response.json().catch(() => null);
-      if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
+      try {
+        response = await fetch(apiUrl('/api/ai/detect-regions'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ imageUrl }),
+        });
+        data = await response.json().catch(() => null);
+        if (response.ok || (response.status !== 429 && response.status !== 503) || attempt === 1) break;
+      } catch (error) {
+        if (attempt === 1) throw error;
+      }
       await new Promise(resolve => setTimeout(resolve, 650));
     }
 
