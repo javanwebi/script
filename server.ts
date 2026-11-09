@@ -480,25 +480,48 @@ app.use('/api/auth', (_req, res) => res.status(410).json({ success: false, messa
 interface CachedCustomerImage {
   buffer: Buffer;
   mimeType: string;
-  dataUrl: string;
   createdAt: number;
 }
 const customerImageMemoryCache = new Map<string, CachedCustomerImage>();
+const CUSTOMER_IMAGE_MEMORY_TTL_MS = 30 * 60 * 1000;
+const CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES = 32;
+const CUSTOMER_IMAGE_MEMORY_MAX_BYTES = 96 * 1024 * 1024;
 
-function cleanCustomerImageMemoryCache() {
-  const cutoff = Date.now() - 30 * 60 * 1000;
+function cleanCustomerImageMemoryCache(now = Date.now()) {
   for (const [key, val] of customerImageMemoryCache.entries()) {
-    if (val.createdAt < cutoff) customerImageMemoryCache.delete(key);
+    if (now - val.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) customerImageMemoryCache.delete(key);
+  }
+  let totalBytes = 0;
+  for (const value of customerImageMemoryCache.values()) totalBytes += value.buffer.length;
+  while (customerImageMemoryCache.size > CUSTOMER_IMAGE_MEMORY_MAX_ENTRIES || totalBytes > CUSTOMER_IMAGE_MEMORY_MAX_BYTES) {
+    const oldest = customerImageMemoryCache.entries().next().value as [string, CachedCustomerImage] | undefined;
+    if (!oldest) break;
+    totalBytes -= oldest[1].buffer.length;
+    customerImageMemoryCache.delete(oldest[0]);
   }
 }
 
-// Serve customer images directly from memory cache (no disk folder needed)
+function cacheCustomerImageBuffer(fileName: string, buffer: Buffer, mimeType = 'image/jpeg') {
+  customerImageMemoryCache.delete(fileName);
+  customerImageMemoryCache.set(fileName, { buffer, mimeType, createdAt: Date.now() });
+  cleanCustomerImageMemoryCache();
+}
+
+// New customer uploads are served only from this bounded, short-lived memory cache.
+// The disk-backed static fallback below exists solely for legacy files created by older releases.
 app.get(['/imageai/:fileName', '/imagemoshtari/:fileName'], (req, res, next) => {
   const fileName = path.basename(req.params.fileName || '');
   const cached = customerImageMemoryCache.get(fileName);
   if (cached) {
+    if (Date.now() - cached.createdAt >= CUSTOMER_IMAGE_MEMORY_TTL_MS) {
+      customerImageMemoryCache.delete(fileName);
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+      return res.status(404).end();
+    }
     res.setHeader('Content-Type', cached.mimeType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -2760,10 +2783,10 @@ async function readResponseBufferLimited(response: Response, maxBytes: number): 
   return Buffer.concat(chunks, total);
 }
 
-async function persistCustomerImage(
+async function prepareCustomerImageInMemory(
   input: Buffer,
   declaredMime: string | undefined
-): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number; dataUrl: string; buffer: Buffer }> {
+): Promise<{ fileName: string; mimeType: 'image/jpeg'; sizeBytes: number }> {
   if (!Buffer.isBuffer(input) || input.length === 0) {
     throw new Error('فایل تصویر خالی یا نامعتبر است.');
   }
@@ -2796,23 +2819,10 @@ async function persistCustomerImage(
     .toBuffer();
 
   const fileName = `vision-${crypto.randomUUID()}.jpg`;
-  await fs.promises.writeFile(path.join(IMAGE_AI_DIR,fileName),optimized,{mode:0o600});
-  const base64 = optimized.toString('base64');
-  const dataUrl = `data:image/jpeg;base64,${base64}`;
-
-  customerImageMemoryCache.set(fileName, {
-    buffer: optimized,
-    mimeType: 'image/jpeg',
-    dataUrl,
-    createdAt: Date.now(),
-  });
-  cleanCustomerImageMemoryCache();
-
-  // Also sync to GitHub in background if configured, providing an external mirror link
-  // Customer images stay in temporary media storage; do not mirror them to a Git repository.
-  void cleanVisionImageLinks(IMAGE_AI_DIR);
-
-  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length, dataUrl, buffer: input };
+  // Customer image bytes remain in process memory only: never write them to disk,
+  // persistent object storage, the database, logs, or GitHub backups.
+  cacheCustomerImageBuffer(fileName, optimized, 'image/jpeg');
+  return { fileName, mimeType: 'image/jpeg', sizeBytes: optimized.length };
 }
 
 const GITHUB_BACKUP_REPO = process.env.GITHUB_BACKUP_REPO || 'javanwebi/atlastrai';
@@ -2878,7 +2888,7 @@ app.post(
       if (!Buffer.isBuffer(req.body)) {
         return res.status(415).json({ error: { message: 'فقط فایل JPEG، PNG یا WEBP ارسال کنید.' } });
       }
-      const saved = await persistCustomerImage(req.body, req.get('content-type'));
+      const saved = await prepareCustomerImageInMemory(req.body, req.get('content-type'));
       return res.status(201).json({
         imageUrl: customerImagePublicUrl(req,saved.fileName),
         fileName: saved.fileName,
@@ -2918,7 +2928,7 @@ app.post('/api/ai/customer-images/import', async (req, res) => {
       return res.status(502).json({ error: { message: 'دانلود تصویر نمونه ناموفق بود.' } });
     }
     const image = await readResponseBufferLimited(response, CUSTOMER_IMAGE_MAX_BYTES);
-    const saved = await persistCustomerImage(image, response.headers.get('content-type') || undefined);
+    const saved = await prepareCustomerImageInMemory(image, response.headers.get('content-type') || undefined);
     return res.status(201).json({
       imageUrl: customerImagePublicUrl(req,saved.fileName),
       fileName: saved.fileName,
@@ -2952,12 +2962,7 @@ async function resolveCustomerImageBufferAndInfo(
       const rawBase64 = trimmed.slice(base64Index + 8);
       const buffer = Buffer.from(rawBase64, 'base64');
       const fileName = `${crypto.randomUUID()}.jpg`;
-      customerImageMemoryCache.set(fileName, {
-        buffer,
-        mimeType: 'image/jpeg',
-        dataUrl: trimmed,
-        createdAt: Date.now(),
-      });
+      cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
       return {
         imageUrl: trimmed,
         fileName,
@@ -2971,12 +2976,7 @@ async function resolveCustomerImageBufferAndInfo(
     const buffer = Buffer.from(trimmed, 'base64');
     const fileName = `${crypto.randomUUID()}.jpg`;
     const dataUrl = `data:image/jpeg;base64,${trimmed}`;
-    customerImageMemoryCache.set(fileName, {
-      buffer,
-      mimeType: 'image/jpeg',
-      dataUrl,
-      createdAt: Date.now(),
-    });
+    cacheCustomerImageBuffer(fileName, buffer, 'image/jpeg');
     return {
       imageUrl: dataUrl,
       fileName,
@@ -3020,12 +3020,7 @@ async function resolveCustomerImageBufferAndInfo(
               .toBuffer();
           } catch {}
           const dataUrl = `data:image/jpeg;base64,${previewBuf.toString('base64')}`;
-          customerImageMemoryCache.set(fileName, {
-            buffer: rawBuffer,
-            mimeType: fetchResp.headers.get('content-type') || 'image/jpeg',
-            dataUrl,
-            createdAt: Date.now(),
-          });
+          cacheCustomerImageBuffer(fileName, rawBuffer, fetchResp.headers.get('content-type') || 'image/jpeg');
           return {
             imageUrl: url.toString(),
             fileName,
@@ -4644,7 +4639,7 @@ async function saveBase64CustomerImageForWorker(
     throw error;
   }
 
-  const saved = await persistCustomerImage(buffer, declaredMime);
+  const saved = await prepareCustomerImageInMemory(buffer, declaredMime);
   return {
     imageUrl: customerImagePublicUrl(req,saved.fileName),
     fileName: saved.fileName,
