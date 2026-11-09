@@ -198,3 +198,18 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   assert.match(css, /object-fit: cover/);
   assert.match(css, /safe-area-inset-bottom/);
 });
+
+
+test("customer identification saves the original image only in the device vault and sends bytes per request", () => {
+  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
+  const service = source("src/services/aiVisualSearchService.ts");
+  const vault = source("src/services/customerImageVault.ts");
+  assert.match(modal, /saveCustomerDeviceImage/);
+  assert.match(modal, /getCustomerDeviceImage\\(imageId\\)/);
+  assert.match(modal, /customerImageBlobToDataUrl/);
+  assert.match(modal, /createCustomerImageIdentification/);
+  assert.match(service, /body: JSON.stringify\\(\\{ imageBase64, mimeType \\}\\)/);
+  assert.match(service, /imageBase64, mimeType: mimeType \\|\\| 'image\\/jpeg'/);
+  assert.match(vault, /indexedDB.open/);
+  assert.doesNotMatch(modal, /uploadCustomerImage\\(/);
+});
