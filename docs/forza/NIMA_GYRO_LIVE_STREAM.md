@@ -267,3 +267,21 @@ and AudioContext underruns on the actual VPS are the acceptance criteria.
 The LLM still delivers its text over SSE; a streaming clause policy can only
 speak a complete phrase once enough text has arrived. VITS itself produces
 audio per TTS request and these are buffered/scheduled for contiguous playback.
+
+
+## Bounded Nima phrase holdback for live playback (2026-11-10)
+
+The browser still reserves one complete middle phrase so the final one or two
+words can be coalesced when the SSE stream finishes. That reservation is now
+strictly bounded: once the held phrase is 180 ms old, the next incoming SSE
+delta releases it immediately, even if the provider is still streaming. The
+existing idle flush is also 180 ms. Only the incomplete trailing word/code
+remains held; a complete phrase no longer waits for another full phrase or
+for the authoritative SSE `done` event.
+
+This lets the second Nima request enter the existing bounded worker queue while
+the previous WAV is playing. The single AudioContext scheduler, Nima voice,
+worker limits, cancellation semantics, and in-memory-only audio handling are
+unchanged. It reduces avoidable client-side phrase holdback; a genuine upstream
+LLM stall or slow CPU synthesis can still produce an underrun and must be
+measured on the live browser.
