@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 
-test('full-answer Pocket needs no stream fallback or zero-frame retry',()=>{
+test('Pocket compatibility fallback needs no stream fallback or zero-frame retry',()=>{
   assert.doesNotMatch(ui,/allowFallback:true|zero-frame-recover|ForzaLiveSpeechQueue/);
   assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
+  assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal,/);
   assert.match(ui,/await player\.enqueueWav\(audio\)/);
   assert.match(ui,/X-Forza-Voice/);
   assert.match(ui,/pocket-farsi-v2/);
@@ -16,7 +16,7 @@ test('full-answer Pocket needs no stream fallback or zero-frame retry',()=>{
   assert.doesNotMatch(ui,/new SpeechSynthesisUtterance|speechSynthesis\.speak/);
 });
 
-test('one complete answer only is spoken; no partial packet can be replayed',()=>{
+test('incomplete text streams never replay unverified trailing speech',()=>{
   assert.match(ui,/await consumeForzaTextStream/);
   assert.match(ui,/if \(reply\) \{/);
   assert.match(ui,/Text stream incomplete; refusing unverified trailing speech/);
@@ -30,7 +30,8 @@ test('15-second text idle deadline was fixed separately from full WAV TTS',()=>{
 });
 
 test('unbroken full-answer TTS preserves original voice and avoids quantization',()=>{
-  assert.match(ui,/forza_original_pocket_voice_required/);
+  assert.match(ui,/const useNima=voiceModeRef.current==='piper-nima-gyro-medium'/);
+  assert.match(ui,/await activeNimaBuffer\.finish\(\)/);
   assert.match(backend,/forzaUnbrokenSpokenText\(phrase\)/);
   assert.doesNotMatch(ui,/FORZA_ONNX_INT4|FORZA_ONNX_INT8/);
 });
