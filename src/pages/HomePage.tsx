@@ -3,6 +3,7 @@ import {HomeAiIntroduction,HomeIndustryShowcase,HomeMembership} from '../compone
 import {HomeKnowledge} from './DiscoveryPages';
 import {
   HomeAssist,
+  HomeAboutSection,
   IndustrialServices,
   WhySanatPish,
 } from "../components/storefront/HomeOverview";
@@ -759,6 +760,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
       <HomeCategoryStrip />
+      <HomeAboutSection />
       <OurClientsSection />
       <div id="home-utility-products" className="home-sequence-products"><HighUtilityProductsSection /></div>
       <HomeIndustryShowcase />
