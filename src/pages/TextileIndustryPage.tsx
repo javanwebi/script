@@ -3,9 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpLeft,
-  BadgeCheck,
   Boxes,
-  Check,
   Clock3,
   Factory,
   Gauge,
@@ -20,7 +18,6 @@ import {
   ShieldCheck,
   Sparkles,
   Thermometer,
-  Truck,
   Waves,
   Zap,
 } from "lucide-react";
