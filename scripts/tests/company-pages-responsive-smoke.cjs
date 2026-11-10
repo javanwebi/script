@@ -9,6 +9,7 @@ const pages = [
   { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
+  { path: "/industries/textile", selector: ".textile-page .textile-hero", heading: /نساجی/ },
   { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
   { path: "/knowledge", selector: ".knowledge-intro", heading: /شناخت بهتر قطعه/ },
   { path: "/contact", selector: "#contact-workspace-main", heading: /تماس با/ },
@@ -72,6 +73,21 @@ const pages = [
         await page.goto(base + item.path, { waitUntil: "domcontentloaded" });
         await page.locator(item.selector).waitFor({ timeout: 20000 });
         const heading = (await page.locator("h1").first().innerText()).replace(/\s+/g, " ").trim();
+        if (item.path === "/industries/textile") {
+          const textileHeroImage = page.locator(".textile-hero-image");
+          await textileHeroImage.waitFor({ state: "attached" });
+          const heroImageLoaded = await textileHeroImage.evaluate(image =>
+            image.complete && image.naturalWidth > 0
+          );
+          assert.ok(heroImageLoaded, "Textile hero industrial image did not load");
+          const stages = page.locator(".textile-stage-list button");
+          assert.equal(await stages.count(), 5, "Textile page must expose all five production stages");
+          await stages.nth(1).click();
+          assert.equal(await stages.nth(1).getAttribute("aria-pressed"), "true",
+            "Textile production stage selection did not update");
+          assert.equal((await page.locator("#textile-stage-panel h3").innerText()).trim(), "بافندگی",
+            "Textile stage details did not update after selection");
+        }
         assert.match(heading, item.heading, `incorrect heading on ${item.path}: ${heading}`);
         const bounds = await page.evaluate(() => ({
           viewport: document.documentElement.clientWidth,
