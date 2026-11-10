@@ -119,6 +119,13 @@ interface Props {
 }
 
 type WizardStep = 1 | 2 | 3 | "analyzing" | "results";
+type ManufacturingRequestDraft = {
+  file: File;
+  partName: string;
+  partType: string;
+  dimensions: string;
+  notes: string;
+};
 
 interface AnalysisPhase {
   title: string;
@@ -173,6 +180,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen]);
   React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
+  React.useEffect(() => {
+    if (!isOpen) {
+      setCustomRequestOpen(false);
+      setCustomRequestDraft(null);
+    }
+  }, [isOpen]);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   // Request-scoped data URL only; original Blob remains in the device vault.
@@ -228,6 +241,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Analysis result & error
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
+  const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
+  const [customRequestOpen, setCustomRequestOpen] = useState(false);
+  const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
