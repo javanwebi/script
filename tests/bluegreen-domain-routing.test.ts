@@ -79,7 +79,7 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
   assert.doesNotMatch(nginxHotfix, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
   assert.match(nginxHotfix, /NGINX_API_ROUTE_ROLLBACK_OK/);
-  assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
+  assert.match(nginxHotfix, /NGINX_API_PROBE_UNEXPECTED/);
   assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(nginxHotfix, /proxy_request_buffering off/);
   assert.match(nginxHotfix, /for host in sanatpish\.com www\.sanatpish\.com/);
