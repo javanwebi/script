@@ -16,6 +16,7 @@ import { SanatPishLogo } from "../common/BrandIdentity";
 import { RegisterPayload } from "../../types";
 import { portalRequest, hydratePortal } from "../../services/portalRepository";
 import { PhoneLogin } from "./PhoneLogin";
+import { resolvePostLoginDestination } from "../../utils/accountRedirect";
 export function AccountAccess({
   initial = "login",
   onDone,
@@ -55,22 +56,7 @@ export function AccountAccess({
       try {
         sessionStorage.removeItem("sanat_access_destination");
       } catch {}
-      // Explicit returnTo from the login/register page takes precedence.
-      // Modal entry points (cart, checkout and SKU details) are also preserved.
-      // Never navigate to a user-supplied external URL or an admin route.
-      const safeLocal = (value: string) =>
-        value.startsWith("/") && !value.startsWith("//") &&
-        !value.includes("\\") && !/[\r\n]/.test(value);
-      const requested = (returnTo && safeLocal(returnTo)) ? returnTo : destination;
-      const productRoute = /^\/(?:account|consumer-dashboard)\/product\/([^/?#]+)(?:\?.*)?$/.exec(requested);
-      const next = productRoute
-        ? root + "/product/" + productRoute[1]
-        : safeLocal(requested) && /^(?:\/cart(?:[/?#]|$)|\/checkout(?:[/?#]|$))/.test(requested)
-          ? requested
-          : returnTo && safeLocal(returnTo) && !/^\/admin(?:[/?#]|$)/.test(returnTo)
-            ? returnTo
-            : root;
-      navigate(next);
+      navigate(resolvePostLoginDestination(root, returnTo, destination));
     } else navigate("/onboarding");
   };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
