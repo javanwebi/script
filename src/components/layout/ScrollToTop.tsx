@@ -25,10 +25,18 @@ function readScrollStore(): Record<string, SavedScrollEntry> {
   }
 }
 
-function writeScrollStore(store: Record<string, SavedScrollEntry>): void {
+// Updating memory is synchronous so back navigation never waits for storage.
+// Persist in a single deferred write instead of serializing/sorting sessionStorage
+// for every scroll tick AND both pointerdown/click on low-end phones.
+let scrollStoreFlushTimer: ReturnType<typeof setTimeout> | null = null;
+function flushScrollStore(): void {
   if (typeof window === 'undefined') return;
+  if (scrollStoreFlushTimer !== null) {
+    clearTimeout(scrollStoreFlushTimer);
+    scrollStoreFlushTimer = null;
+  }
   try {
-    // Keep most recent 80 entries to avoid storage bloat
+    const store = readScrollStore();
     const entries = Object.entries(store).sort(
       (a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0)
     );
@@ -36,8 +44,14 @@ function writeScrollStore(store: Record<string, SavedScrollEntry>): void {
     cachedScrollStore = trimmed;
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
   } catch {
-    // Ignore storage quota errors
+    // Storage blocked/full: in-memory back-navigation continues to work.
   }
+}
+function writeScrollStore(store: Record<string, SavedScrollEntry>): void {
+  cachedScrollStore = store;
+  if (typeof window === 'undefined') return;
+  if (scrollStoreFlushTimer !== null) clearTimeout(scrollStoreFlushTimer);
+  scrollStoreFlushTimer = window.setTimeout(flushScrollStore, 550);
 }
 
 export function saveScrollEntry(
@@ -158,11 +172,22 @@ export const ScrollToTop = () => {
     viewportTop?: number;
   }>({});
 
-  // Disable browser automatic scroll restoration so it doesn't conflict with React Suspense
+  // Disable browser automatic scroll restoration so it doesn't conflict with React Suspense.
+  // Also flush pending scroll positions on tab departure rather than on every tap.
   useEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') flushScrollStore();
+    };
+    window.addEventListener('pagehide', flushScrollStore);
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    return () => {
+      window.removeEventListener('pagehide', flushScrollStore);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      flushScrollStore();
+    };
   }, []);
 
   // Track scroll position & interactive clicks on the active page before route transitions
@@ -218,7 +243,13 @@ export const ScrollToTop = () => {
       capture: true,
       passive: true,
     });
-    document.addEventListener('click', handlePointerOrClick, {
+    // A mouse/touch click already saved its position on pointerdown. Preserve
+    // keyboard-activated links (click.detail === 0) without writing twice.
+    const handleKeyboardClick = (event: Event) => {
+      if (event instanceof MouseEvent && event.detail > 0) return;
+      handlePointerOrClick(event);
+    };
+    document.addEventListener('click', handleKeyboardClick, {
       capture: true,
       passive: true,
     });
@@ -230,7 +261,7 @@ export const ScrollToTop = () => {
       document.removeEventListener('pointerdown', handlePointerOrClick, {
         capture: true,
       });
-      document.removeEventListener('click', handlePointerOrClick, {
+      document.removeEventListener('click', handleKeyboardClick, {
         capture: true,
       });
     };
