@@ -876,7 +876,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
             { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
           ].map((step, index) => {
-            const activeIndex = currentStep === 'results' ? 3 : currentStep === 'analyzing' ? 2 : selectedImage ? 1 : 0;
+            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
             return (
               <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
                 <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
