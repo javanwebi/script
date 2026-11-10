@@ -1,4 +1,5 @@
 import {LocalModelResults} from './LocalModelResults';
+import {CatalogResultImage} from './CatalogResultImage';
 import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
@@ -54,7 +55,6 @@ import {
   INDUSTRIAL_PRESET_SAMPLES,
   IndustrialPresetSample,
 } from "../../services/aiVisualSearchService";
-import { getProductImageUrl } from "../../assets/imagesproducts";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
@@ -837,19 +837,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     void uploadAndPrepareImage(selectedImage);
   };
 
-  // Resolve a match image that may be a bare catalog filename (e.g. "e(001).png")
-  const resolveMatchImage = (match: any, catalogItem: any): string => {
-    const raw: string =
-      (catalogItem?.images && catalogItem.images[0]) ||
-      catalogItem?.image ||
-      match?.image ||
-      "";
-    if (raw && /^e\(\d+\)\.png$/i.test(raw.trim())) {
-      return getProductImageUrl(raw.trim());
-    }
-    return raw;
-  };
-
   // Calculate inquiry price for user
   const getItemPrice = (
     _catalogItem?: any,
@@ -875,12 +862,30 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         currentStep === 1
           ? "2xl"
           : currentStep === "analyzing" || currentStep === "results"
-            ? "xl"
+            ? "2xl"
             : "lg"
       }
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell" dir="rtl">
+      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
+        <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
+          {[
+            { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
+            { label: 'ناحیه قطعه', detail: 'برش انتخابی' },
+            { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
+            { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
+          ].map((step, index) => {
+            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
+            return (
+              <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
+                <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
+                <span><strong>{step.label}</strong><small>{step.detail}</small></span>
+              </div>
+            );
+          })}
+        </nav>
+      )}
       {cameraFlowActive ? (
         <section className="sanat-camera-experience sanat-camera-reference" dir="rtl"
           data-testid="full-screen-camera-experience" aria-label="دوربین تمام صفحه شناسایی قطعه">
@@ -1261,7 +1266,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     عکس قطعه را اینجا رها کنید یا برای انتخاب کلیک کنید
                   </span>
                   <span className="text-[11px] text-slate-400 mt-1 font-mono">
-                    حداکثر حجم ۱۲ مگابایت | JPG • PNG • WEBP
+                    حداکثر حجم ۱۰ مگابایت | JPG • PNG • WEBP
                   </span>
                 </div>
               ) : isUsingCamera ? (
@@ -1881,7 +1886,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-5"
+                className="space-y-5 sp-vision-result-panel"
               >
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
@@ -1891,6 +1896,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
+                <div className="sp-vision-result-intro">
+                  <div>
+                    <span>FORZA VISION · CATALOGUE EVIDENCE</span>
+                    <h3>نتایج بررسی تصویری قطعه</h3>
+                    <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
+                  </div>
+                  <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                </div>
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -2132,7 +2145,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <div className="grid grid-cols-2 gap-3">
                       {visiblePhotoMatches.map(photo=>(
                         <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                          <img src={photo.image} alt={photo.label} className="w-full h-36 object-contain" loading="lazy" />
+                          <CatalogResultImage sources={[photo.image]} alt={photo.label} className="sp-vision-photo-evidence" />
                           <p className="text-xs font-bold text-slate-700">{photo.label}</p>
                           <p className="text-xs text-orange-700">{photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
                           {!!photo.familyNames?.length && <p className="text-xs text-slate-600">خانواده: {photo.familyNames.join("، ")}</p>}
@@ -2222,7 +2235,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <div className="sp-vision-match-grid">
                           {allDisplayProducts.map((match, idx) => {
                             const catalogItem = (match.catalogProduct ||
                               match) as any;
@@ -2233,25 +2246,20 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             return (
                               <div
                                 key={match.code + idx}
-                                className={`bg-white border rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3 ${
+                                className={`sp-vision-match-card bg-white border rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-3 ${
                                   isExact
                                     ? "border-emerald-500 ring-2 ring-emerald-200/80 shadow-sm"
                                     : "border-blue-300 ring-1 ring-blue-100 hover:border-blue-400"
                                 }`}
                               >
                                 <div className="space-y-2.5">
-                                  <div className="flex items-start gap-3">
-                                    {resolveMatchImage(match, catalogItem) && (
-                                      <img
-                                        src={resolveMatchImage(
-                                          match,
-                                          catalogItem,
-                                        )}
-                                        alt={match.name}
-                                        referrerPolicy="no-referrer"
-                                        className="w-16 h-16 object-contain rounded-xl border border-slate-200 bg-slate-50 p-1 shrink-0"
-                                      />
-                                    )}
+                                  <div className="sp-vision-match-layout">
+                                    <CatalogResultImage
+                                      sources={[match.image, ...(Array.isArray(catalogItem?.images) ? catalogItem.images : []), catalogItem?.image]}
+                                      alt={match.name}
+                                      className="sp-vision-match-photo"
+                                      eager={idx === 0}
+                                    />
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-start justify-between gap-1.5 flex-wrap">
                                         <span className="px-2 py-0.5 rounded-lg bg-orange-100 text-[#E06518] font-mono text-xs font-bold">
@@ -2287,7 +2295,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                           <span>
                                             {isExact
                                               ? "کد منطبق بر اساس شواهد"
-                                              : "محصول مشابه در کاتالوگ اطلس"}
+                                              : "گزینه مشابه در کاتالوگ صنعت پیش"}
                                           </span>
                                         </span>
                                       </div>

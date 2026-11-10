@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import type {CatalogModelSuggestion} from '../../services/aiVisualSearchService';
 import {toPersianDigits} from '../../utils/formatters';
+import { CatalogResultImage } from './CatalogResultImage';
 
 export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[];onClose:()=>void}){
  const [expanded,setExpanded]=useState(false);
@@ -28,9 +29,13 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
         <span className="sanat-visual-result-card__score">شباهت تصویری {toPersianDigits(item.visualScore)} از ۱۰۰</span>:
         <span className="sanat-visual-result-card__kind">{item.matchBasis==='explore'?'برای بررسی؛ تأیید نشده':item.matchBasis==='read_code'?'پیشنهاد بر اساس کد خوانده‌شده':'مدل هم‌خانواده'}</span>}
       </div>
-      <div className="sanat-visual-result-card__image">
-       {item.image?<img src={item.image} alt={item.name} loading="lazy"/>:<span>عکس اختصاصی ثبت نشده</span>}
-      </div>
+      <CatalogResultImage
+       sources={[item.image]}
+       alt={item.name}
+       familyReference={item.imageScope === 'family'}
+       className="sanat-visual-result-card__image"
+       eager={index === 0}
+      />
       <div className="sanat-visual-result-card__body">
        <h5>{item.name}</h5>
        <p className="sanat-visual-result-card__family">{item.familyName}{item.model?' · مدل '+item.model:''}{item.size?' · سایز '+item.size:''}</p>
