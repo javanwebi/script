@@ -186,9 +186,9 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const css = source("src/components/search/industrial-scan.css");
   assert.match(modal, /sanat-camera-reference/);
-  assert.match(modal, /gallery/);
+  assert.match(modal, /cameraGalleryRef/);
   assert.match(modal, /switchCamera/);
   assert.match(modal, /toggleTorch/);
-  assert.match(modal, /sanat-camera-reference__shutter/);
-  assert.match(css, /scan-line/);
+  assert.match(modal, /sanat-camera-experience__instruction/);
+  assert.match(css, /sanat-camera-experience__scan-line/);
 });
