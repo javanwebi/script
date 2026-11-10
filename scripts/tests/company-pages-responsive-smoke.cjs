@@ -7,10 +7,10 @@ const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
   { path: "/about", selector: ".company-page--about", heading: /بازار جامع قطعات صنعتی ایران/ },
-  { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
-  { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
-  { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
-  { path: "/knowledge", selector: ".knowledge-intro", heading: /شناخت بهتر قطعه/ },
+  { path: "/services", selector: ".company-page--services .sp-art-hero--services", heading: /از شناخت قطعه تا/ },
+  { path: "/industries", selector: ".company-page--industries .sp-industry-bento", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
+  { path: "/brands", selector: ".company-page--brands .sp-brand-directory", heading: /برند را بشناسید/ },
+  { path: "/knowledge", selector: ".company-page--knowledge .sp-knowledge-hero", heading: /شناخت بهتر قطعه/ },
   { path: "/contact", selector: "#contact-workspace-main", heading: /تماس با/ },
 ];
 
@@ -18,7 +18,7 @@ const pages = [
   mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 768, 1440]) {
+    for (const width of [360, 390, 768, 1280, 1440]) {
       const page = await browser.newPage({
         viewport: { width, height: width < 768 ? 844 : 960 },
         reducedMotion: "reduce",

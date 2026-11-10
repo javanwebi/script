@@ -1,13 +1,14 @@
 import {RouteIntentPreload} from './components/layout/RouteIntentPreload';
 import {MobileSwipeHint} from './components/layout/MobileSwipeHint';
 import { PartIdentificationProvider, PartIdentificationPage } from './components/search/PartIdentificationProvider';
+import { IndustryPage } from "./pages/DiscoveryPages";
 import {
-  IndustryPage,
+  AboutPage,
+  ServicesPage,
   IndustriesPage,
   BrandsPage,
   KnowledgePage,
-  AboutPage,
-} from "./pages/DiscoveryPages";
+} from "./pages/CompanyPagesExperience";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -77,7 +78,7 @@ const TileCeramicIndustryPage = lazy(() =>
 );
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
 const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
-const ServicesPage = lazy(() => import("./pages/ServicesPage").then(m => ({default:m.ServicesPage})));
+
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,

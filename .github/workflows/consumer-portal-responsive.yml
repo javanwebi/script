@@ -15,6 +15,13 @@ on:
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
+      - 'src/pages/CompanyPagesExperience.tsx'
+      - 'src/pages/ContactUsPage.tsx'
+      - 'src/App.tsx'
+      - 'src/main.tsx'
+      - 'src/company-pages-art-direction.css'
+      - 'scripts/tests/company-pages-responsive-smoke.cjs'
+      - 'tests/company-pages-art-direction.test.ts'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
   pull_request:
@@ -32,6 +39,13 @@ on:
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
+      - 'src/pages/CompanyPagesExperience.tsx'
+      - 'src/pages/ContactUsPage.tsx'
+      - 'src/App.tsx'
+      - 'src/main.tsx'
+      - 'src/company-pages-art-direction.css'
+      - 'scripts/tests/company-pages-responsive-smoke.cjs'
+      - 'tests/company-pages-art-direction.test.ts'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
   workflow_dispatch:
@@ -54,6 +68,8 @@ jobs:
         run: node --import tsx --test tests/official-brand-logo-placement.test.ts
       - name: Company pages and customer price visibility regression tests
         run: node --import tsx --test tests/phase9-about-vision-design.test.tsx tests/customer-pricing-visibility.test.ts
+      - name: Company pages art direction and live data integrity
+        run: node --import tsx --test tests/company-pages-art-direction.test.ts
       - name: Reference parity source tests
         run: node --import tsx --test tests/consumer-reference-parity-v3.test.ts
       - name: Retail catalog correctness and render performance
