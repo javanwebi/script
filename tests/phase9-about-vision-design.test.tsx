@@ -24,6 +24,9 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(discovery,/sp-about-approved/);
   assert.match(discovery,/sp-about-hero/);
   assert.match(discovery,/src=\{A\.partsWarehouseVault\}/);
+  assert.match(discovery,/sp-about-hero-note/);
+  assert.match(discovery,/INDUSTRIAL PARTS MARKETPLACE/);
+  assert.match(discovery,/SANAT PISH \/ 01/);
   assert.match(discovery,/image: A\.whySanatExpressDelivery/);
   assert.match(discovery,/image: A\.reverseEngineeringLab/);
   assert.match(discovery,/بازار تخصصی/);
