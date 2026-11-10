@@ -93,10 +93,11 @@ export function HomeAboutSection() {
           alt="محیط صنعتی و زنجیره تأمین قطعات"
           loading="lazy"
           decoding="async"
+          fetchPriority="low"
         />
         <div className="home-about-preview__shade" />
         <div className="home-about-preview__atlas">
-          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" />
+          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" loading="lazy" decoding="async" fetchPriority="low" />
           <span>با پشتوانه بازرگانی تسمه اطلس</span>
         </div>
         <div className="home-about-preview__visual-caption">
