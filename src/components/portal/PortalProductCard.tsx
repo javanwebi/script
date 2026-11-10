@@ -72,7 +72,7 @@ export const PortalProductCard: React.FC<PortalProductCardProps> = ({
             {price > 0
               ? `${formatPrice(price)} تومان`
               : product.variants?.length
-                ? canViewPrices ? "انتخاب کد و استعلام" : "ورود برای مشاهده قیمت"
+                ? canViewPrices ? "انتخاب کد و استعلام" : "دسترسی قیمت فعال نیست"
                 : canViewPrices ? "استعلام قیمت" : "دسترسی قیمت فعال نیست"}
           </span>
           <Link to={href} aria-label={`مشاهده ${product.name}`}>
