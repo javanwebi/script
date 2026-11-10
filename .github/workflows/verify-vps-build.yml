@@ -5,8 +5,12 @@ on:
     paths:
       - "src/components/storefront/HomeOverview.tsx"
       - "src/pages/HomePage.tsx"
+      - "src/pages/DiscoveryPages.tsx"
+      - "src/pages/TileCeramicIndustryPage.tsx"
       - "src/catalogue-premium.css"
+      - "src/industry-pages-premium.css"
       - "src/index.css"
+      - "scripts/capture-industry-pages.mjs"
       - "tests/industry-pages-unique-layouts.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
@@ -18,6 +22,7 @@ on:
       - "api/sms.ts"
       - "tests/supabase-sms-hook.test.ts"
       - "tests/mobile-scan-ui.test.ts"
+      - "scripts/capture-industry-pages.mjs"
       - "vite.config.ts"
       - "package.json"
       - "package-lock.json"
