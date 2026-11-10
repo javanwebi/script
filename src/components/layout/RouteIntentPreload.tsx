@@ -4,7 +4,7 @@ import { useEffect } from 'react';
  * Warm only on deliberate navigation intent; idle storefront browsing does not
  * eagerly download AI, product detail, cart or category chunks.
  */
-const warmForza = () => Promise.all([
+const warmForza=()=>Promise.all([
   import('../../pages/AiForzaPage'),
   import('../forza/AiForzaCallExperience'),
   import('../forza/ParticleAvatar'),
