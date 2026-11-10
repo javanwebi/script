@@ -31,6 +31,25 @@ try {
         timezoneId: 'Asia/Tehran',
       });
       const page = await context.newPage();
+      // The screenshot runner serves the built frontend without Express/PostgreSQL.
+      // Return an empty, healthy bootstrap only for visual capture so the production
+      // "database unavailable" banner does not contaminate design screenshots.
+      // No production data or customer records are read or modified.
+      await page.route('**/api/runtime*', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            database: true,
+            userId: null,
+            values: {},
+            versions: {},
+            products: [],
+            productsIncluded: true,
+          }),
+        });
+      });
       await page.goto(new URL(target.path, baseURL).toString(), {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
