@@ -82,6 +82,16 @@
   align-self: center;
   padding-block: clamp(40px, 5vw, 76px);
 }
+.industry-page .industry-hero > .editorial-wrap {
+  direction: ltr;
+}
+.industry-page .industry-hero > .editorial-wrap > * {
+  direction: rtl;
+  text-align: right;
+  width: min(100%, 590px);
+  margin-right: auto;
+  margin-left: 0;
+}
 .industry-page .industry-hero .editorial-crumb {
   max-width: 570px;
   margin-bottom: clamp(24px, 3vw, 42px);
@@ -542,7 +552,12 @@
       #f4f7f8 98%);
   }
   .industry-page .industry-hero > .editorial-wrap {
+    direction: rtl;
     padding: 222px 16px 26px;
+  }
+  .industry-page .industry-hero > .editorial-wrap > * {
+    width: 100%;
+    margin-inline: 0;
   }
   .industry-page .industry-hero .editorial-crumb {
     margin-bottom: 15px;
