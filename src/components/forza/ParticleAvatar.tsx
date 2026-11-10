@@ -464,6 +464,10 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let lastFpsTime = performance.now();
 
       const loop = () => {
+        if (document.hidden) {
+          raf = 0;
+          return;
+        }
         const now = performance.now();
         const dt = Math.min((now - last) / 1000, 0.05);
         last = now;
@@ -528,7 +532,20 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
         raf = requestAnimationFrame(loop);
       };
-      loop();
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (raf) cancelAnimationFrame(raf);
+          raf = 0;
+          return;
+        }
+        if (!raf) {
+          last = performance.now();
+          lastFpsTime = last;
+          raf = requestAnimationFrame(loop);
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      if (!document.hidden) loop();
 
       api.current = {
         reform: () => {
@@ -562,7 +579,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       };
 
       return () => {
-        cancelAnimationFrame(raf);
+        if (raf) cancelAnimationFrame(raf);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('resize', resize);
         glowPts.geometry.dispose();
         sharpPts.geometry.dispose();
