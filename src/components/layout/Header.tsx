@@ -61,7 +61,7 @@ type NavMenuType = 'products' | 'industries' | 'brands' | 'services' | 'about' |
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, logout, openAuthModal } = useAuth();
+  const { currentUser, authLoading, logout, openAuthModal } = useAuth();
   const { itemCount } = useCart();
   const { wishlist } = useWishlist();
 
@@ -623,7 +623,7 @@ export const Header: React.FC = () => {
 
             {/* آیکون سبد خرید (نمایش در دسکتاپ؛ در موبایل در نوار پایین صفحه قرار دارد) */}
             <Link
-              to="/cart"
+              to={currentUser || authLoading ? "/cart" : "/login?returnTo=%2Fcart"}
               className="hidden md:flex relative w-10.5 h-10.5 rounded-xl border border-[#B5BDC6] bg-white hover:border-[#E06518] hover:bg-orange-50/40 text-[#4A4E54] hover:text-[#E06518] items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95 group"
               title="سبد خرید"
               aria-label="سبد خرید"
