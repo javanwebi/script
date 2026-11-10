@@ -91,7 +91,7 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(runtime,/FROM node:22-bookworm/);
   assert.match(runtime,/COPY --from=python-runtime \/usr\/local\/ \/usr\/local\//);
   assert.match(runtime,/COPY --from=ffmpeg-runtime \/ffmpeg \/usr\/local\/bin\/ffmpeg/);
-  assert.doesNotMatch(runtime,/^RUN[^\n]*apt-get|\\sapt-get\\s/m);
+  assert.doesNotMatch(runtime,/(?:RUN|&&|;)\s*apt-get\b/);
   assert.match(runtime,/node --version/);
   assert.match(runtime,/FORZA_STT_PYTHON=\/opt\/forza-pocket\/bin\/python/);
   assert.match(deploy,/"\$STT_IMAGE" node --import tsx server\.ts/);
