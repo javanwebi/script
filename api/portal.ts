@@ -241,27 +241,14 @@ async function session(
 function portal(user: Row) {
   return user.approvedB2B === true ? "high_volume" : "consumer";
 }
-function canPurchase(db: Database, user: Row) {
-  if (user.onboardingCompleted !== true) return false;
-  const p = portal(user);
-  const base = db.values.atlas_portal_layout_configs_v1?.[p];
-  const override = db.values.atlas_portal_customer_overrides_v1?.find(
-    (r: Row) => r.portal === p && r.customerId === user.id,
-  );
-  const permissions = { ...base?.permissions, ...override?.permissions };
-  if (permissions.allowQuickSkuOrder === false) return false;
-  const menus = override?.menus || base?.menus;
-  return (
-    !menus ||
-    menus.some(
-      (m: Row) =>
-        m.enabled &&
-        ["purchase_list", "quick_buy", "orders", "orders_pricelist"].includes(
-          m.id,
-        ) &&
-        !override?.disabledMenuIds?.includes(m.id),
-    )
-  );
+/**
+ * Reading a customer's resolved prices is an account-level commercial
+ * permission. It must not depend on quick-order permissions or visible menus:
+ * a customer may be allowed to see prices while every purchase action remains
+ * inquiry-only.
+ */
+export function canReadCustomerCommerce(user?: Row): boolean {
+  return Boolean(user && user.mustChangePassword !== true && user.canViewPrices === true);
 }
 function scopedState(db: Database, user: Row) {
   const result: Record<string, any> = { [CUSTOMER_KEY]: [safeUser(user)] };
@@ -1046,13 +1033,12 @@ export async function getPortalIdentity(req: IncomingMessage):Promise<{admin:boo
       atlas_portal_layout_configs_v1:layouts,
       atlas_portal_customer_overrides_v1:overrides,
     }};
-    return {...identity,canReadCommerce:canPurchase(scoped,identity.user)};
+    return {...identity,canReadCommerce:canReadCustomerCommerce(identity.user)};
   }
   const db = await readDb();
   const identity = await session(req, db);
   return {
     ...identity,
-    canReadCommerce:
-      identity.admin || (!!identity.user && canPurchase(db, identity.user)),
+    canReadCommerce: identity.admin || canReadCustomerCommerce(identity.user),
   };
 }
