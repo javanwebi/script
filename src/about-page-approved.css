@@ -1076,3 +1076,24 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Reference-aligned history: visible years make the Atlas-to-Sanat Pish journey scannable. */
+.sp-about-timeline::before {
+  background: linear-gradient(90deg, var(--sp-about-orange) 0%, #c9d0d4 100%);
+}
+.sp-about-timeline-year {
+  color: #26343e;
+  font-size: clamp(14px, 1.2vw, 17px);
+  font-weight: 950;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.sp-about-timeline-item:last-child .sp-about-timeline-year {
+  color: var(--sp-about-orange);
+}
+@media (max-width: 760px) {
+  .sp-about-timeline-year {
+    font-size: 13px;
+  }
+}
