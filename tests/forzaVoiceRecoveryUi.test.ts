@@ -95,10 +95,10 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
 
 
 test('FORZA route paints its shell while the voice controller and particle scene load independently',()=>{
-  assert.match(forzaPage,/lazy\\(\\(\\) =>/);
-  assert.match(forzaPage,/import\\('\\.\\.\\/components\\/forza\\/AiForzaCallExperience'\\)/);
+  assert.match(forzaPage,/lazy\(\(\) =>/);
+  assert.match(forzaPage,/import\('\.\.\/components\/forza\/AiForzaCallExperience'\)/);
   assert.match(forzaPage,/<Suspense fallback=/);
-  assert.match(routePreload,/import\\('\\.\\.\\/forza\\/AiForzaCallExperience'\\)/);
+  assert.match(routePreload,/import\('\.\.\/forza\/AiForzaCallExperience'\)/);
 });
 
 test('FORZA opens its voice controller without putting Three.js in the first call bundle',()=>{
@@ -129,12 +129,12 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 
 
 test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\\(audioBlob\\) && serverSttConfiguredRef\\.current === true/);
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);
   assert.match(ui,/transcribeOnly:true/);
-  assert.match(ui,/fetch\\('\\/api\\/ai\\/forza-live'/);
-  assert.match(ui,/info\\.serverSttProvider==='diba'/);
-  assert.match(ui,/info\\.serverSttReady===true/);
+  assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
+  assert.match(ui,/info\.serverSttProvider==='diba'/);
+  assert.match(ui,/info\.serverSttReady===true/);
   assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
-  assert.match(ui,/serverSttConfiguredRef=useRef\\(false\\)/);
-  assert.match(ui,/تشخیص گفتار: \\{serverSttLabel\\}/);
+  assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
+  assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
 });
