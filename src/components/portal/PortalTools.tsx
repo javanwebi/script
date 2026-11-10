@@ -1,5 +1,4 @@
 import { useAuth } from "../../context/AuthContext";
-import { pricingCreditService } from "../../services/pricingCreditService";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -26,6 +25,8 @@ import { ProductImage } from "../product/ProductImage";
 import { ParcelArt } from "./ConsumerReferenceArt";
 import { resolvePurchaseLines } from "../../utils/purchaseList";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
+import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
+import { memberPath } from "../storefront/MemberAccess";
 export function PortalTools({
   tab,
   labels,
@@ -67,26 +68,17 @@ export function PortalTools({
     () => tab === "purchase_list" ? resolvePurchaseLines(text, catalog) : [],
     [text, catalog, tab],
   );
-  const list = useMemo(() => currentUser
-    ? pricingCreditService.getPriceListForCustomer(currentUser)
-    : undefined, [currentUser, catalogTick]);
+  // /api/runtime has already resolved this exact SKU against the signed-in
+  // customer's active price list. Never apply another browser-side discount.
   const rows = parsedRows.map((row) => {
     if (!row.product || row.error) return row;
-    const price = list
-      ? pricingCreditService.getSkuPriceForList(
-          row.code,
-          row.product.prices.retail,
-          list,
-        )
-      : currentUser?.approvedB2B
-        ? 0
-        : row.product.prices.retail;
+    const price = getCurrentCustomerSkuPrice(row.product, currentUser, true);
     return {
       ...row,
       product: {
         ...row.product,
         prices: { base: price, retail: price, wholesale: price, dealer: price },
-        inquiryOnly: list ? price <= 0 : row.product.inquiryOnly || price <= 0,
+        inquiryOnly: row.product.inquiryOnly || price <= 0,
       },
     };
   });
@@ -122,23 +114,30 @@ export function PortalTools({
         {visibleSaved.length ? (
           <div className="consumer-saved-reference-grid">
             {visibleSaved.map((p) => {
-              const price = list ? pricingCreditService.getSkuPriceForList(p.code,p.prices?.retail || 0,list) : p.prices?.retail || 0;
-              const directOrder = !p.variants?.length && !p.inquiryOnly && price > 0;
+              const price = !p.variants?.length
+                ? getCurrentCustomerSkuPrice(p, currentUser, true)
+                : 0;
+              const directOrder = hasCustomerPriceAccess(currentUser) && !p.variants?.length && !p.inquiryOnly && price > 0;
+              const detailPath = memberPath(currentUser, p.code);
               return (
                 <article className="consumer-saved-reference-card" key={p.code}>
                   <button type="button" className="consumer-saved-bookmark" aria-label={`حذف ${p.name} از نشان‌شده‌ها`} onClick={() => {
                     [p.code,...(p.variants || []).map((v) => v.code)].filter((code) => wishlist.includes(code)).forEach(toggleWishlist);
                   }}><Bookmark size={17} fill="currentColor" /></button>
-                  <Link to={`/product/${encodeURIComponent(p.code)}`} className="consumer-saved-reference-image"><ProductImage src={p.images?.[0]} alt={p.name} thumbnail loading="lazy" decoding="async" /></Link>
+                  <Link to={detailPath} className="consumer-saved-reference-image"><ProductImage src={p.images?.[0]} alt={p.name} thumbnail loading="lazy" decoding="async" /></Link>
                   <div className="consumer-saved-reference-copy">
                     <span className="consumer-sku" dir="ltr">{p.code}</span>
-                    <h3><Link to={`/product/${encodeURIComponent(p.code)}`}>{p.name}</Link></h3>
+                    <h3><Link to={detailPath}>{p.name}</Link></h3>
                     <small>{p.categoryName || "قطعه صنعتی"}</small>
-                    <strong>{directOrder ? `${formatPrice(price)} تومان` : "انتخاب کد / استعلام قیمت"}</strong>
+                    <strong>{directOrder
+                      ? `${formatPrice(price)} تومان`
+                      : !hasCustomerPriceAccess(currentUser)
+                        ? "دسترسی قیمت فعال نیست"
+                        : p.variants?.length ? "انتخاب کد / استعلام قیمت" : "استعلام قیمت"}</strong>
                   </div>
                   <div className="consumer-saved-reference-actions">
-                    <Link to={`/product/${encodeURIComponent(p.code)}`}><Eye size={15} /> مشاهده محصول</Link>
-                    {directOrder ? <button type="button" onClick={() => {addToCart(p,1);setMessage(`${p.name} به سبد خرید افزوده شد.`);}}><ShoppingCart size={15}/> افزودن به سبد</button> : <Link className="consumer-saved-add" to={`/product/${encodeURIComponent(p.code)}`}><ShoppingCart size={15}/> انتخاب کالا</Link>}
+                    <Link to={detailPath}><Eye size={15} /> مشاهده محصول</Link>
+                    {directOrder ? <button type="button" onClick={() => {addToCart(p,1);setMessage(`${p.name} به سبد خرید افزوده شد.`);}}><ShoppingCart size={15}/> افزودن به سبد</button> : <Link className="consumer-saved-add" to={detailPath}><ShoppingCart size={15}/> انتخاب کالا</Link>}
                   </div>
                 </article>
               );
@@ -265,7 +264,7 @@ export function PortalTools({
                       <td>{toPersianDigits(r.quantity || 0)}</td>
                       <td>{r.error ? <span className="consumer-bulk-status is-inquiry">{r.error}</span> :
                         ready ? <span className="consumer-bulk-status is-ready"><CheckCircle2 size={13}/> معتبر</span> :
-                        <Link className="consumer-bulk-status is-inquiry" to={`/product/${encodeURIComponent(r.code)}`}>نیاز به استعلام</Link>}</td>
+                        <Link className="consumer-bulk-status is-inquiry" to={memberPath(currentUser, r.code)}>نیاز به استعلام</Link>}</td>
                       <td><input type="checkbox" aria-label={`افزودن ردیف ${i + 1} به سبد`}
                         disabled={!ready} checked={ready && selectedRows[i] !== false}
                         onChange={(e) => setSelectedRows((prev) => ({...prev,[i]:e.target.checked}))} /></td>
