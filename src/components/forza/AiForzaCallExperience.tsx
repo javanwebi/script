@@ -1009,7 +1009,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // A user gesture permits browser audio, but it never skips the greeting.
   const unlockAudio = useCallback(() => {
+    if(callClosedRef.current)return;
     ensureCtx();
+    setAutoplayBlocked(false);
+    // A late autoplay flag must not demote an already completed welcome and
+    // disable typed turns forever when the user clicks the stage again.
+    if(greetingFinishedRef.current){
+      setGreetingPhase('complete');
+      return;
+    }
     setVoiceOutputError(null);
     setGreetingPhase('preparing');
     const url=pendingAudioUrl;
@@ -1017,6 +1025,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setPendingAudioUrl(null);
       void playDataUrl(url)
         .then(()=>{
+          if(callClosedRef.current)return;
           if(!greetingFinishedRef.current) {
             greetingFinishedRef.current=true;
             setGreetingPhase('complete');
@@ -1026,6 +1035,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           startListening();
         })
         .catch((error:any)=>{
+          if(callClosedRef.current)return;
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
           setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
           setVoiceOutputError('پخش صدای خوشامدگویی انجام نشد؛ لطفاً مجدداً تلاش کنید.');
@@ -1034,12 +1044,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setAutoplayBlocked(false);
       if(!greetingFinishedRef.current) {
         void speakText(GREETING_TEXT).then(()=>{
+          if(callClosedRef.current)return;
           greetingFinishedRef.current=true;
           setGreetingPhase('complete');
           setStatus('listening');
           setTurn('user');
           startListening();
         }).catch((error:any)=>{
+          if(callClosedRef.current)return;
           console.warn('[FORZA] User-initiated greeting failed',error?.message||'audio_error');
           setGreetingPhase('needs-permission');setAutoplayBlocked(true);setStatus('idle');
           setVoiceOutputError('پخش صدای خوشامدگویی انجام نشد؛ لطفاً مجدداً تلاش کنید.');
@@ -1115,7 +1127,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       // Resolve the private voice identity before selecting incremental Nima
       // playback; a cold health lookup must not make the first turn choose Pocket.
-      await ensureVoiceMode();
       stopAcknowledgementRef.current?.cancel();
       // Chrome keeps final results from older turns while recognition stays
       // open to hear interruptions. Mark them consumed instead of stopping
@@ -1164,6 +1175,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
       let terminalIdleTimer:number|null=null;
       try {
+        // Own the turn before awaiting health: hangup or a newer question must
+        // invalidate preparation as well as the later STT/LLM/TTS requests.
+        await ensureVoiceMode();
+        if(callClosedRef.current || pocketAbort.signal.aborted ||
+           activeTurnRef.current?.generation!==generation)return;
         const payload: any = {
           history: historyRef.current.slice(-8),
           // First deliver the exact AI words; synthesize audio as a second step.
@@ -2072,7 +2088,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // One live transcript surface: customer speech is replaced by the first AI chunk,
   // and the next customer utterance takes over the same card.
-  const showCustomerTranscript = Boolean(userText.trim()) && (turn === 'user' || !displayedAi);
+  // Returning to listening is not a new utterance. Keep the completed answer
+  // visible until the customer actually speaks or starts another typed turn.
+  const showCustomerTranscript = Boolean(userText.trim()) && (isUserSpeaking || !displayedAi);
   const showAssistantTranscript = !showCustomerTranscript && Boolean(displayedAi);
 
   return (

@@ -155,11 +155,22 @@ test('the retained DINOv2 profile supports a full frame plus three independent r
  assert.equal(localVisionProfile({}).maxViews,4);
 });
 
-test('high-scoring unbound photos are not exposed as catalogue products',()=>{
+test('high-scoring unbound catalogue photos remain visible without inventing products',()=>{
  const result=localVisionResult([hit([],0.98)],products,coverage,'/customer');
- assert.deepEqual(result.catalogImageMatches,[]);
+ assert.equal(result.catalogImageMatches?.length,1);
+ assert.equal(result.catalogImageMatches?.[0].score,98);
+ assert.deepEqual(result.catalogImageMatches?.[0].bindings,[]);
  assert.deepEqual(result.similarCandidates,[]);
  assert.deepEqual(result.modelSuggestions,[]);
+});
+
+test('photo results sort raw visual similarity before bonuses, including uncoded images',()=>{
+ const result=localVisionResult([
+  {...hit([{familyCode:'family',code:'sku',verified:false}],0.99),visualScore:0.81,row:{...hit([{familyCode:'family',code:'sku',verified:false}]).row,id:'coded'}},
+  {...hit([],0.95),row:{...hit([]).row,id:'uncoded'}},
+  {...hit([],0.2),row:{...hit([]).row,id:'weak'}},
+ ],products,coverage,'/customer');
+ assert.deepEqual(result.catalogImageMatches?.map(photo=>[photo.imageId,photo.score]),[['uncoded',95],['coded',81]]);
 });
 
 test('automatic crop defaults to the highest-scoring detected object, not the uncropped full frame',async()=>{

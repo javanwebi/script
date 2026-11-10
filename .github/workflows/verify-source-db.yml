@@ -22,6 +22,8 @@ jobs:
         run: npm install --no-save --package-lock=false --legacy-peer-deps --no-audit --no-fund @mintplex-labs/piper-tts-web@1.0.5 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0 vosk-browser@0.0.8
       - name: Check TypeScript
         run: npm run lint
+      - name: FORZA cancellation, deadlines and uncoded visual ranking
+        run: node --import tsx --test tests/forza-review-regressions.test.ts tests/forzaCallTeardown.test.ts tests/local-vision.test.ts tests/local-model-suggestions.test.ts
       - name: Validate CRM and image API response contracts
         run: node --import tsx --test tests/admin-api-response-contract.test.ts
       - name: B.AI and xKiro FORZA stream and fallback regressions
