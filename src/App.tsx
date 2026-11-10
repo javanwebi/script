@@ -4,6 +4,7 @@ import { PartIdentificationProvider, PartIdentificationPage } from './components
 import { IndustryPage } from "./pages/DiscoveryPages";
 import {
   AboutPage,
+  ServicesPage,
   IndustriesPage,
   BrandsPage,
   KnowledgePage,
@@ -77,7 +78,7 @@ const TileCeramicIndustryPage = lazy(() =>
 );
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
 const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
-const ServicesPage = lazy(() => import("./pages/ServicesPage").then(m => ({default:m.ServicesPage})));
+
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,
