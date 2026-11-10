@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
 import { consumeForzaTextStream } from '../utils/forzaStreamClient';
+import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
 import { renderEngineeringMarkdown } from '../utils/engineeringMarkdown';
 import { CognivoGeometricLogo } from '../components/common/AiFloatingButton';
@@ -69,6 +70,7 @@ import {
   createCustomerImageIdentification,
   completeCustomerImageIdentification,
   saveCustomerConsultation,
+  selectCustomerImageProduct,
 } from '../services/customerIntelligenceService';
 const AiVisualPartSearchModal = lazy(() => import('../components/search/AiVisualPartSearchModal').then(m=>({default:m.AiVisualPartSearchModal})));
 
@@ -251,6 +253,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const streamAbortControllerRef = useRef<AbortController | null>(null);
 
+  // A conversation is its own request boundary. Responses from a previously
+  // selected/deleted conversation must never update the visible chat or CRM.
+  const cancelActiveConsultation = () => {
+    streamAbortControllerRef.current?.abort();
+    streamAbortControllerRef.current = null;
+    setLoading(false);
+  };
+  useEffect(() => () => {
+    streamAbortControllerRef.current?.abort();
+    streamAbortControllerRef.current = null;
+  }, []);
+
   // Belt Length Calculator State
   const [calcC, setCalcC] = useState<string>('500');
   const [calcD, setCalcD] = useState<string>('200');
@@ -352,7 +366,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     } catch {}
   };
 
-  const createNewSession = (autoFocus = true) => {
+  const createNewSession = (autoFocus = true, baseSessions: ChatSession[] = sessions) => {
+    cancelActiveConsultation();
     const newId = 'session-' + Date.now();
     const newSession: ChatSession = {
       id: newId,
@@ -360,7 +375,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       timestamp: Date.now(),
       messages: [],
     };
-    const updated = [newSession, ...sessions.filter(s => s.messages.length > 0)];
+    const updated = [newSession, ...baseSessions.filter(s => s.messages.length > 0)];
     saveSessionsToStorage(updated);
     setActiveSessionId(newId);
     try {
@@ -378,6 +393,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const switchSession = (sessionId: string) => {
     const target = sessions.find(s => s.id === sessionId);
     if (target) {
+      cancelActiveConsultation();
       setActiveSessionId(target.id);
       try {
         durableStorage.setItem(ACTIVE_SESSION_KEY, target.id);
@@ -397,16 +413,18 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       if (updated.length > 0) {
         switchSession(updated[0].id);
       } else {
-        createNewSession(false);
+        createNewSession(false, updated);
       }
     }
   };
 
   const clearAllHistory = () => {
+    cancelActiveConsultation();
     durableStorage.removeItem(STORAGE_KEY);
     durableStorage.removeItem(ACTIVE_SESSION_KEY);
     setSessions([]);
-    createNewSession(false);
+    createNewSession(false, []);
+    setSelectedConsultProducts([]);
     setShowSettingsModal(false);
   };
 
@@ -540,11 +558,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       setAnalysisError('لطفاً صبر کنید تا تصویر در حافظه داخلی دستگاه ذخیره شود.');
       return;
     }
-    if (!currentUser) {
-      setAnalysisError('برای ثبت سابقه شناسایی در پرونده مشتری، ابتدا وارد حساب خود شوید.');
-      openAuthModal('/ai-consult', 'login');
-      return;
-    }
+    // Guests may identify a part. Only authenticated customers create CRM history.
     setIsAnalyzing(true);
     setAnalysisError(null);
     setAnalysisResult(null);
@@ -567,10 +581,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         if (!capturedImageId) throw new Error('تصویر هنوز در حافظه داخلی دستگاه ذخیره نشده است؛ دوباره انتخاب کنید.');
         const localRecord = await getCustomerDeviceImage(capturedImageId);
         if (!localRecord) throw new Error('تصویر محلی پیدا نشد؛ دوباره انتخاب کنید.');
-        await adoptCustomerDeviceImage(capturedImageId, currentUser.id);
+        if (currentUser) await adoptCustomerDeviceImage(capturedImageId, currentUser.id);
         requestMimeType = localRecord.mimeType;
         imageBase64 = await customerImageBlobToDataUrl(localRecord.blob);
-        if (!activeImageEventId) {
+        if (currentUser && !activeImageEventId) {
           const metadata = await getCustomerDeviceImageMetadata(capturedImageId);
           if (!metadata) throw new Error('اطلاعات تصویر محلی پیدا نشد.');
           try {
@@ -626,16 +640,40 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
   const transferAnalysisToChat = (item?: MatchedPartItem) => {
     setActiveWorkspaceTab('chat');
-    const targetItem = item || analysisResult?.matchedProducts?.[0];
-    if (targetItem) {
-      handleSend(
-        `در خصوص قطعه شناسایی‌شده «${targetItem.name}» با کد فنی ${targetItem.code} (${targetItem.brand}): لطفاً موجودی انبار مرکزی اطلس، قیمت دقیق و شرایط صدور پیش‌فاکتور رسمی را اعلام فرمایید.`
-      );
-    } else if (analysisResult?.summary) {
-      handleSend(
-        `هوش مصنوعی فورزا قطعه را به عنوان «${analysisResult.summary.detectedPartType}» با پروفیل «${analysisResult.summary.detectedProfile}» شناسایی کرده است. لطفاً توصیه‌های فنی و مدل‌های موجود در کاتالوگ را بررسی کنید.`
-      );
+    const targetItem = item || analysisResult?.matchedProducts?.[0] || analysisResult?.similarCandidates?.[0];
+    const candidateIsSimilar = Boolean(targetItem && (
+      analysisResult?.similarCandidates?.some(candidate => candidate.code === targetItem.code) ||
+      targetItem.visualVerdict === 'very_similar'
+    ));
+    const prompt = buildVisionConsultationPrompt(
+      targetItem ? {
+        code: targetItem.code,
+        name: targetItem.name,
+        brand: targetItem.brand,
+        size: targetItem.specs?.find(spec => /اندازه|ابعاد|size/i.test(spec.key))?.value,
+        isSimilar: candidateIsSimilar,
+      } : undefined,
+      analysisResult?.summary,
+    );
+    if (!prompt) return;
+    if (!targetItem) {
+      void handleSend(prompt);
+      return;
     }
+    const product: ConsultationProduct = {
+      code: targetItem.code,
+      name: targetItem.name,
+      image: targetItem.catalogProduct?.images?.[0],
+      link: '/product/' + encodeURIComponent(targetItem.code),
+    };
+    addProductToConsultation(product);
+    // This is a customer-selected candidate, not proof of an exact match.
+    // Persist only the selected code in CRM; never persist the customer's photo.
+    if (imageEventId && currentUser) {
+      void selectCustomerImageProduct(imageEventId, targetItem.code)
+        .catch(() => console.warn('[Customer image history] candidate selection unavailable'));
+    }
+    void handleSend(prompt, product);
   };
 
   const persistConsultationForCrm = (
@@ -757,6 +795,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       finalAiText = await consumeForzaTextStream(
         res,
         (_chunk, accumulatedText) => {
+          if (abortCtrl.signal.aborted || streamAbortControllerRef.current !== abortCtrl) return;
           streamedText = accumulatedText;
           setMessages(prev =>
             prev.map(m => (m.id === aiMessageId ? { ...m, text: accumulatedText } : m))
@@ -767,6 +806,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           streamedSuggestedAction = completed.suggestedAction;
         },
       );
+      if (abortCtrl.signal.aborted || streamAbortControllerRef.current !== abortCtrl) return;
       streamedText = finalAiText;
       setMessages(prev =>
         prev.map(m =>
