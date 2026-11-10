@@ -581,8 +581,67 @@ for filename,source in zip(files,contents):
  matches=pattern.findall(source)
  assert matches,("NO_APP_UPSTREAM",filename)
  assert len({m[1] for m in matches})==1,("MIXED_APP_UPSTREAMS",filename)
-for filename,source in zip(files,contents):
- Path(filename).write_text(pattern.sub(lambda m:m.group(1)+target+m.group(3),source))
+updated=[]
+for index,(filename,source) in enumerate(zip(files,contents)):
+ source=pattern.sub(lambda m:m.group(1)+target+m.group(3),source)
+ # CONF1 is the deliberately read-only IP preview. Keep its root and methods
+ # unchanged. The two customer-facing HTTPS/domain vhosts get a scoped API
+ # location so write requests never fall through to the read-only SPA location.
+ if index in (1,2):
+  marker="# SANATPISH_API_WRITE_ROUTE_V1"
+  root_pattern=re.compile(r'(?m)^([ \t]*)location\s+/\s*\{')
+  api_pattern=re.compile(r'(?m)^[ \t]*location\s+(?:\^~\s+)?/api/\s*\{')
+  if marker in source:
+   assert source.count(marker)==1,("DUPLICATE_API_WRITE_ROUTE",filename)
+   route_start=source.index(marker)
+   root_matches=list(root_pattern.finditer(source))
+   assert len(root_matches)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(root_matches))
+   assert route_start < root_matches[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
+   route=source[route_start:root_matches[0].start()]
+   assert "location ^~ /api/ {" in route,("API_LOCATION_MISSING",filename)
+   assert "limit_except GET HEAD POST PUT PATCH DELETE OPTIONS" in route,("API_METHOD_ALLOWLIST_MISSING",filename)
+   assert f"proxy_pass http://127.0.0.1:{target};" in route,("API_ROUTE_UPSTREAM_MISMATCH",filename)
+  else:
+   assert not api_pattern.search(source),("UNMANAGED_API_PREFIX_LOCATION",filename)
+   roots=list(root_pattern.finditer(source))
+   assert len(roots)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(roots))
+   indent=roots[0].group(1)
+   block="\n".join((
+    f"{indent}{marker}",
+    f"{indent}location ^~ /api/ {{",
+    f"{indent}    limit_except GET HEAD POST PUT PATCH DELETE OPTIONS {{",
+    f"{indent}        deny all;",
+    f"{indent}    }}",
+    "",
+    f"{indent}    proxy_pass http://127.0.0.1:{target};",
+    f"{indent}    proxy_http_version 1.1;",
+    f"{indent}    proxy_set_header Host $host;",
+    f"{indent}    proxy_set_header X-Real-IP $remote_addr;",
+    f"{indent}    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+    f"{indent}    proxy_set_header X-Forwarded-Proto $scheme;",
+    f"{indent}    proxy_set_header Upgrade $http_upgrade;",
+    f"{indent}    proxy_set_header Connection $connection_upgrade;",
+    "",
+    f"{indent}    proxy_connect_timeout 15s;",
+    f"{indent}    proxy_read_timeout 300s;",
+    f"{indent}    proxy_send_timeout 300s;",
+    f"{indent}    proxy_buffering off;",
+    f"{indent}    proxy_request_buffering off;",
+    f"{indent}}}",
+   ))
+   source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
+   assert source.index(marker)<list(root_pattern.finditer(source))[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
+  root=list(root_pattern.finditer(source))
+  assert len(root)==1,("ROOT_LOCATION_CHANGED",filename)
+  assert re.search(r'limit_except\s+GET\s*\{',source[root[0].start():root[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+  assert source.count(marker)==1
+  print("SCOPED_API_WRITE_ROUTE_READY",filename,"upstream="+target)
+ else:
+  assert marker not in source,("IP_PREVIEW_MUST_REMAIN_READ_ONLY",filename)
+  print("READ_ONLY_IP_PREVIEW_PRESERVED",filename)
+ updated.append((filename,source))
+for filename,source in updated:
+ Path(filename).write_text(source)
  print("SINGLE_PORT_NGINX_UPDATED",filename,target)
 PY
 nginx -t
@@ -612,25 +671,26 @@ assert health.get('status')=='ok' and health.get('database')=='ok'
 # silently blocking CRM/catalogue writes with an HTML 403. Probe protected
 # POST routes through the actual local HTTPS vhost before marking release good.
 # No session cookie is sent; these handlers must reject anonymously with JSON.
-def post_json(path):
+def post_json(path,host):
  cmd=['curl','--noproxy','*','-ksS','--connect-timeout','3','--max-time','15',
-      '--resolve',f'{domain}:443:127.0.0.1',
+      '--resolve',f'{host}:443:127.0.0.1',
       '-H','Accept: application/json','-H','Content-Type: application/json',
       '-X','POST','--data','{}','-w','\\n__META__%{http_code}|%{content_type}',
-      f'https://{domain}{path}']
+      f'https://{host}{path}']
  result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  raw=result.stdout
  if b'\n__META__' not in raw:
-  raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+path)
+  raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+host+path)
  body,meta=raw.rsplit(b'\n__META__',1)
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
- assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',path,status,content_type)
- assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',path,status,content_type)
+ assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',host,path,status,content_type)
+ assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',host,path,status,content_type)
  payload=json.loads(body)
- assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',path)
- print('PUBLIC_POST_API_JSON_GUARD_OK',path,'HTTP',status)
-for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
- post_json(path)
+ assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',host,path)
+ print('PUBLIC_POST_API_JSON_GUARD_OK',host,path,'HTTP',status)
+for host in (domain,'www.'+domain):
+ for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
+  post_json(path,host)
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
 stt_raw=get('/api/ai/forza-stt-info')
