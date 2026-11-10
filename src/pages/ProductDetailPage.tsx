@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
-import { pricingCreditService } from "../services/pricingCreditService";
+import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
 
 export const ProductDetailPage: React.FC = () => {
@@ -70,14 +70,18 @@ export const ProductDetailPage: React.FC = () => {
         currentUser.id,
       ).permissions.allowQuickSkuOrder !== false
     : false;
+  const isCustomerPortalRoute =
+    location.pathname.startsWith("/account/") ||
+    location.pathname.startsWith("/consumer-dashboard/");
   const canViewCommercial =
-    buyingAllowed &&
-    !!currentUser &&
-    (location.pathname.startsWith("/account/") ||
-      location.pathname.startsWith("/consumer-dashboard/"));
+    !!currentUser && currentUser.canViewPrices === true && isCustomerPortalRoute;
   const continueInPanel = () =>
     currentUser
-      ? navigate(memberPath(currentUser, selectedVariantCode || code))
+      ? navigate(
+          currentUser.canViewPrices === true
+            ? memberPath(currentUser, selectedVariantCode || code)
+            : "/contact",
+        )
       : openAuthModal(
           memberPath(currentUser, selectedVariantCode || code),
           "register",
@@ -272,20 +276,13 @@ export const ProductDetailPage: React.FC = () => {
     visibleVariants[0];
   const selectedTechnicalReview = selectedVariant?.technicalReview ?? lazyReviews[selectedVariantCode];
 
-  // SKU-owned pricing & stock resolution
+  // The authenticated runtime already resolves the exact price for this
+  // customer and selected SKU. Do not apply the price-list discount again.
   const baseUnitPrice = selectedVariant
     ? (selectedVariant.price ?? selectedVariant.prices?.retail ?? 0)
     : (product.prices?.retail ?? 0);
-
-  const customerPriceList = currentUser
-    ? pricingCreditService.getPriceListForCustomer(currentUser)
-    : undefined;
-  const skuPrice = (sku: string, base: number) =>
-    customerPriceList
-      ? pricingCreditService.getSkuPriceForList(sku, base, customerPriceList)
-      : currentUser?.approvedB2B
-        ? 0
-        : base;
+  const skuPrice = (_sku: string, base: number) =>
+    getCurrentCustomerSkuPrice({ price: base }, currentUser, canViewCommercial);
   const activeUnitPrice = skuPrice(
     selectedVariant?.code || product.code,
     baseUnitPrice,
@@ -375,7 +372,7 @@ export const ProductDetailPage: React.FC = () => {
       continueInPanel();
       return;
     }
-    if (isSelectedInquiryOnly || activeUnitPrice <= 0) {
+    if (!buyingAllowed || isSelectedInquiryOnly || activeUnitPrice <= 0) {
       setIsInquiryModalOpen(true);
       return;
     }
@@ -1047,7 +1044,7 @@ export const ProductDetailPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      disabled={isSelectedStockKnown && activeStockCount <= 0}
+                      disabled={buyingAllowed && isSelectedStockKnown && activeStockCount <= 0}
                       className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98 ${
                         isSelectedStockKnown && activeStockCount <= 0
                           ? "bg-slate-200 text-slate-500 cursor-not-allowed"
