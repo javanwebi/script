@@ -100,3 +100,24 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(canary,/assert\.equal\(stt\.serverSttProvider, "diba"\)/);
   assert.match(canary,/assert\.equal\(stt\.serverSttReady, true\)/);
 });
+
+
+test('Diba Docker build tolerates PyPI cffi network timeouts with cached, trusted HTTPS fallback indices',()=>{
+  const runtime=readFileSync(new URL('../ops/Dockerfile.forza-stt-runtime',import.meta.url),'utf8');
+  const deploy=readFileSync(new URL('../ops/deploy-single-port-vps.sh',import.meta.url),'utf8');
+  // The primary install from the log timed out on cffi. All fallback indices
+  // must retain the exact vosk version and must not skip runtime verification.
+  assert.match(runtime,/RUN --mount=type=cache,target=\/root\/\.cache\/pip/);
+  assert.match(runtime,/https:\/\/pypi\.org\/simple/);
+  assert.match(runtime,/https:\/\/mirrors\.aliyun\.com\/pypi\/simple/);
+  assert.match(runtime,/https:\/\/pypi\.tuna\.tsinghua\.edu\.cn\/simple/);
+  assert.match(runtime,/--timeout 18 --retries 2 --index-url "\$index" vosk==0\.3\.45/);
+  assert.match(runtime,/FORZA_DIBA_PIP_ALL_HTTPS_INDEXES_FAILED/);
+  assert.match(runtime,/\[ "\$installed" != 1 \]/);
+  assert.match(runtime,/\/opt\/forza-pocket\/bin\/python -c 'import vosk'/);
+  assert.match(deploy,/STT_DOCKERFILE_HASH=.*sha256sum/);
+  assert.match(deploy,/FORZA_STT_RUNTIME_CACHE_HIT=YES/);
+  assert.match(deploy,/docker build --progress=plain --network=host/);
+  assert.match(deploy,/test -d \/opt\/diba-stt\/model\/am/);
+  assert.doesNotMatch(runtime,/--trusted-host|http:\/\/[^ ]+\/simple|--no-deps/);
+});
