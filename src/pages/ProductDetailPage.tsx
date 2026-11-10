@@ -276,16 +276,12 @@ export const ProductDetailPage: React.FC = () => {
     visibleVariants[0];
   const selectedTechnicalReview = selectedVariant?.technicalReview ?? lazyReviews[selectedVariantCode];
 
-  // The authenticated runtime already resolves the exact price for this
-  // customer and selected SKU. Do not apply the price-list discount again.
-  const baseUnitPrice = selectedVariant
-    ? (selectedVariant.price ?? selectedVariant.prices?.retail ?? 0)
-    : (product.prices?.retail ?? 0);
-  const skuPrice = (_sku: string, base: number) =>
-    getCurrentCustomerSkuPrice({ price: base }, currentUser, canViewCommercial);
-  const activeUnitPrice = skuPrice(
-    selectedVariant?.code || product.code,
-    baseUnitPrice,
+  // Prices are already resolved by the authenticated runtime for this customer
+  // and selected SKU. Never apply a second client-side price-list discount.
+  const activeUnitPrice = getCurrentCustomerSkuPrice(
+    selectedVariant ?? product,
+    currentUser,
+    canViewCommercial,
   );
 
   const isSelectedInquiryOnly = selectedVariant
@@ -819,7 +815,7 @@ export const ProductDetailPage: React.FC = () => {
                     {visibleVariants.map((v) => {
                       const isSel = v.code === selectedVariant?.code;
                       const vPrice = canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0;
                       const vInq =
                         v.inquiryOnly !== undefined
@@ -880,7 +876,7 @@ export const ProductDetailPage: React.FC = () => {
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0,
                       prices: undefined,
                     }))}
@@ -952,7 +948,7 @@ export const ProductDetailPage: React.FC = () => {
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0,
                       prices: undefined,
                     }))}
@@ -1062,9 +1058,11 @@ export const ProductDetailPage: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <ShoppingCart className="w-4 h-4" />
+                          {buyingAllowed ? <ShoppingCart className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
                           <span>
-                            افزودن کد {requestedProduct.code} به سبد خرید
+                            {buyingAllowed
+                              ? `افزودن کد ${requestedProduct.code} به سبد خرید`
+                              : `ثبت استعلام برای کد ${requestedProduct.code}`}
                           </span>
                         </>
                       )}
@@ -1517,8 +1515,8 @@ export const ProductDetailPage: React.FC = () => {
               disabled={isSelectedStockKnown && activeStockCount <= 0}
               className="h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>{added ? "افزوده شد" : "افزودن به سبد"}</span>
+              {buyingAllowed ? <ShoppingCart className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
+              <span>{added ? "افزوده شد" : buyingAllowed ? "افزودن به سبد" : "ثبت استعلام"}</span>
             </button>
           ) : (
             <button
