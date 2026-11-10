@@ -49,6 +49,20 @@ const pages = [
         assert.ok(await page.locator(`.company-page--about a[href="${href}"]`).count() > 0,
           `About page is missing its ${href} navigation link`);
       }
+      assert.equal(await page.locator(".sp-about-capability").count(), 4,
+        "approved About page must show its four visual capabilities");
+      assert.equal(await page.locator(".sp-about-destination").count(), 5,
+        "approved About page must link to its five next destinations");
+      const aboutBounds = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      assert.ok(aboutBounds.page <= aboutBounds.viewport + 3,
+        `horizontal overflow on About at ${width}px: ${JSON.stringify(aboutBounds)}`);
+      const heroImageLoaded = await page.locator(".sp-about-hero-visual img").evaluate(
+        image => image.complete && image.naturalWidth > 0
+      );
+      assert.ok(heroImageLoaded, "About hero industrial image did not load");
       await page.screenshot({ path: `${out}/company-pages-${width}-about.png`, fullPage: true });
 
       for (const item of pages.slice(1)) {
