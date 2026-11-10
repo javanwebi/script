@@ -60,7 +60,7 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/const manualReplayAbortRef=useRef<AbortController\|null>\(null\)/);
   assert.match(ui,/manualReplayAbortRef\.current\?\.abort\(new Error\('forza_manual_replay_stopped'\)\)/);
   assert.match(ui,/isManualReplayPendingRef\.current=true;\s*startListening\(true\)/);
-  assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal\)/);
+  assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal,/);
   assert.match(ui,/if\(isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current\)/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
