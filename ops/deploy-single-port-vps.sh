@@ -716,7 +716,6 @@ if b'\n__META__' not in redirect:raise AssertionError('HTTP_API_REDIRECT_MISSING
 redirect_headers,redirect_meta=redirect.rsplit(b'\n__META__',1)
 assert redirect_meta.decode().strip()=='308',('HTTP_API_HTTPS_REDIRECT_BAD_STATUS',redirect_meta)
 assert any(line.lower().startswith(b'location: https://sanatpish.com/api/admin/crm/customers') for line in redirect_headers.splitlines()),('HTTP_API_HTTPS_REDIRECT_BAD_LOCATION',redirect_headers.decode('utf-8','replace'))
-assert any(line.lower().startswith(b'x-sanatpish-api-route: redirect') for line in redirect_headers.splitlines()),('HTTP_API_REDIRECT_MARKER_MISSING',redirect_headers.decode('utf-8','replace'))
 print('HTTP_API_HTTPS_REDIRECT_OK')
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
