@@ -116,7 +116,8 @@ for filename in files:
    f"{indent}}}",
   ))
   source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
-  roots=list(root_pattern.finditer(source))\n  assert len(roots)==1 and source.index(marker)<roots[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1 and source.index(marker)<roots[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
  root=list(root_pattern.finditer(source))
  assert len(root)==1,("ROOT_LOCATION_CHANGED",filename)
  assert re.search(r'limit_except\s+GET\s*\{',source[root[0].start():root[0].start()+700]),("SPA_READ_ONLY_GUARD_NOT_PRESERVED",filename)
