@@ -1696,8 +1696,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           // RMS alone cannot distinguish the loudspeaker from a person.
           // Require actual STT words and reject likely self-echo.
-          // Recognized words are speech evidence even when the Web Audio
-          // analyser is suspended or its independent VAD threshold is missed.
+          // Recent near-field VAD evidence was checked above. Keep the short
+          // timestamp grace because final STT can arrive after VAD resets.
           if(likelySpeakerEcho(currentSpeech)){
             // Retire finalized echo so it cannot contaminate the next user
             // utterance after playback finishes. Keep interim slots revisable.
@@ -1859,6 +1859,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       streamRef.current=stream;
       micContextWarningRef.current=false;
       vadRef.current.reset();
+      lastMicActivityRef.current=0;
       for (const track of stream.getAudioTracks()) {
         track.onended=()=>setMicrophoneError('ارتباط میکروفون قطع شد. پس از وصل‌کردن میکروفون، صفحه را بازخوانی کنید.');
       }
