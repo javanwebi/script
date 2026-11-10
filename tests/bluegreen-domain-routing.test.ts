@@ -44,6 +44,10 @@ test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSO
 test("customer-facing Nginx vhosts route API writes before the read-only SPA fallback", () => {
   assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(singlePort, /location \^~ \/api\//);
+  assert.match(singlePort, /proxy_intercept_errors off/);
+  assert.match(singlePort, /proxy_pass_header X-Powered-By/);
+  assert.match(singlePort, /satisfy any/);
+  assert.match(singlePort, /auth_request off/);
   assert.match(singlePort, /return 308 https:\/\/\$host\$request_uri/);
   assert.match(singlePort, /API_ROUTE_METHODS_DELEGATED_TO_EXPRESS/);
   assert.doesNotMatch(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
@@ -60,10 +64,16 @@ test("customer-facing Nginx vhosts route API writes before the read-only SPA fal
 });
 test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
   assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V2/);
+  assert.match(nginxHotfix, /proxy_intercept_errors off/);
+  assert.match(nginxHotfix, /proxy_pass_header X-Powered-By/);
+  assert.match(nginxHotfix, /satisfy any/);
+  assert.match(nginxHotfix, /auth_request off/);
   assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
   assert.match(nginxHotfix, /CUSTOMER_API_HTTP_REDIRECT_READY/);
   assert.match(nginxHotfix, /DIRECT_EXPRESS_JSON_AUTH_GUARD_OK/);
   assert.match(nginxHotfix, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(nginxHotfix, /\/api\/admin\/crm\/customers/);
+  assert.match(nginxHotfix, /\/api\/catalog\/sku-transfer/);
   assert.match(nginxHotfix, /X-Powered-By/);
   assert.match(nginxHotfix, /NGINX_EXPRESS_HEADER_OR_JSON_MISSING/);
   assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
