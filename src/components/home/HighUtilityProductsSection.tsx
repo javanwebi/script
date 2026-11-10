@@ -68,12 +68,20 @@ export const HighUtilityProductsSection: React.FC = () => {
   const [expandedActionsCode, setExpandedActionsCode] = useState<string | null>(null);
 
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showSwipeHint,setShowSwipeHint] = useState(()=>{
+    try { return window.sessionStorage.getItem('sanat_home_products_swipe_seen') !== '1'; }
+    catch { return true; }
+  });
 
   const checkScroll = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const scrolled = Math.abs(el.scrollLeft) > 10;
     setCanScrollRight(scrolled);
+    if (showSwipeHint && el.scrollWidth > el.clientWidth + 20 && scrolled) {
+      setShowSwipeHint(false);
+      try { window.sessionStorage.setItem('sanat_home_products_swipe_seen', '1'); } catch {}
+    }
   };
 
   const handleScrollLeft = () => {
@@ -138,6 +146,13 @@ export const HighUtilityProductsSection: React.FC = () => {
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
         </Link>
       </div>
+
+      {showSwipeHint && (
+        <div className="home-mobile-swipe-hint" aria-hidden="true">
+          <span>برای دیدن محصولات بیشتر، به چپ بکشید</span>
+          <ChevronLeft size={14} />
+        </div>
+      )}
 
       {/* Carousel Container */}
       <div className="relative group/carousel">
