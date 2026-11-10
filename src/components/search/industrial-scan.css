@@ -1074,3 +1074,326 @@
     width: 100%;
   }
 }
+
+/* Phase 9 — evidence-first vision UX. Scope to the existing scanner so
+   product, category and admin cards retain their original design. */
+.sanat-visual-search-shell .sp-vision-journey {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 7px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e1e6ed;
+  background: linear-gradient(110deg,#fff,#f6f8fa 60%,#fff4ed);
+}
+.sanat-visual-search-shell .sp-vision-journey__step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #7d8793;
+}
+.sanat-visual-search-shell .sp-vision-journey__step.is-current {
+  border-color: #efb790;
+  background: #fff1e7;
+  color: #8e3b0c;
+  box-shadow: 0 3px 12px rgba(224,101,24,.09);
+}
+.sanat-visual-search-shell .sp-vision-journey__step.is-complete {
+  color: #34624a;
+}
+.sanat-visual-search-shell .sp-vision-journey__number {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  border: 1px solid #dfe4ea;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: 800 12px/1 inherit;
+}
+.sanat-visual-search-shell .is-current .sp-vision-journey__number {
+  background: #e06518;
+  border-color: #e06518;
+  color: white;
+}
+.sanat-visual-search-shell .is-complete .sp-vision-journey__number {
+  background: #e7f6ee;
+  border-color: #c0e6d1;
+}
+.sanat-visual-search-shell .sp-vision-journey__step strong {
+  display: block;
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 850;
+  white-space: normal;
+}
+.sanat-visual-search-shell .sp-vision-journey__step small {
+  display: block;
+  margin-top: 1px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: #87919b;
+}
+.sp-vision-result-panel { min-width: 0; }
+.sp-vision-result-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #e7eaf0;
+  border-radius: 18px;
+  background: linear-gradient(115deg,#fff 40%,#fff6ef);
+}
+.sp-vision-result-intro > div > span {
+  display: block;
+  color: #c35c1d;
+  direction: ltr;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.sp-vision-result-intro h3 {
+  margin-top: 5px;
+  color: #222d39;
+  font-size: clamp(17px,2vw,23px);
+  font-weight: 900;
+}
+.sp-vision-result-intro p {
+  margin-top: 5px;
+  color: #627081;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.sp-vision-result-intro__status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 11px;
+  border: 1px solid #efcf9c;
+  border-radius: 10px;
+  background: #fff9ed;
+  color: #926017;
+  font-size: 11px;
+  font-weight: 800;
+}
+.sanat-visual-search-shell .sp-vision-match-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  align-items: stretch;
+  gap: 15px;
+}
+.sanat-visual-search-shell .sp-vision-match-card {
+  min-width: 0;
+  padding: 15px;
+  border-radius: 20px;
+}
+.sanat-visual-search-shell .sp-vision-match-layout {
+  display: grid;
+  grid-template-columns: minmax(165px,.95fr) minmax(0,1.05fr);
+  gap: 13px;
+  align-items: start;
+  min-width: 0;
+}
+.sp-catalog-photo {
+  position: relative;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #e3e8ef;
+  border-radius: 15px;
+  background: radial-gradient(ellipse at 50% 32%,#fff 0%,#f4f6f9 74%);
+}
+.sp-catalog-photo__open,
+.sp-catalog-photo__empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+.sp-catalog-photo__open {
+  cursor: zoom-in;
+  outline-offset: -3px;
+}
+.sp-catalog-photo__open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  object-fit: contain;
+  object-position: center;
+  transition: transform .22s ease;
+}
+.sp-catalog-photo__open:hover img {
+  transform: scale(1.075);
+}
+.sp-catalog-photo__open:focus-visible {
+  outline: 3px solid #e06518;
+  border-radius: inherit;
+}
+.sp-catalog-photo__zoom {
+  position: absolute;
+  bottom: 9px;
+  left: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(28,37,49,.87);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+}
+.sp-catalog-photo__family {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  padding: 5px 7px;
+  border: 1px solid #ead4a8;
+  border-radius: 7px;
+  background: rgba(255,251,237,.94);
+  color: #8c6319;
+  font-size: 10px;
+  font-weight: 750;
+  pointer-events: none;
+}
+.sp-catalog-photo__missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 24ch;
+  padding: 16px;
+  color: #697889;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.sanat-visual-search-shell .sp-vision-match-photo {
+  width: 100%;
+  height: 218px;
+}
+.sanat-visual-search-shell .sp-vision-photo-evidence {
+  width: 100%;
+  height: 204px;
+}
+.sanat-visual-result-card__image.sp-catalog-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 210px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+}
+.sanat-visual-result-card__image.sp-catalog-photo .sp-catalog-photo__open img {
+  padding: 10px;
+}
+.sp-catalog-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  background: rgba(13,20,30,.89);
+  backdrop-filter: blur(5px);
+}
+.sp-catalog-lightbox__dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%,860px);
+  max-height: 95dvh;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 32px 90px rgba(0,0,0,.35);
+}
+.sp-catalog-lightbox__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 17px;
+  border-bottom: 1px solid #e4e8ed;
+  color: #283441;
+  font-size: 13px;
+  font-weight: 800;
+}
+.sp-catalog-lightbox__toolbar button {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 11px;
+  background: #f1f3f6;
+  cursor: pointer;
+}
+.sp-catalog-lightbox__dialog > img {
+  width: 100%;
+  max-height: 69dvh;
+  min-height: 120px;
+  padding: 16px;
+  object-fit: contain;
+  background: #f9fafb;
+}
+.sp-catalog-lightbox__dialog > p {
+  padding: 10px 15px 14px;
+  color: #657184;
+  font-size: 12px;
+  line-height: 1.9;
+  text-align: right;
+}
+@media (max-width: 760px) {
+  .sanat-visual-search-shell .sp-vision-journey {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scroll-snap-type: x mandatory;
+  }
+  .sanat-visual-search-shell .sp-vision-journey__step {
+    flex: 0 0 122px;
+    padding: 7px;
+    scroll-snap-align: start;
+  }
+  .sanat-visual-search-shell .sp-vision-journey__step strong { font-size: 10px; }
+  .sanat-visual-search-shell .sp-vision-journey__step small { font-size: 9px; }
+  .sanat-visual-search-shell .sp-vision-match-grid { grid-template-columns: minmax(0,1fr); gap: 13px; }
+  .sanat-visual-search-shell .sp-vision-match-layout { grid-template-columns: minmax(0,1fr); gap: 13px; }
+  .sanat-visual-search-shell .sp-vision-match-photo { height: clamp(210px,56vw,310px); }
+  .sanat-visual-search-shell .sp-vision-match-card { padding: 12px; }
+  .sanat-visual-result-card__image.sp-catalog-photo {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    height: clamp(195px,56vw,290px);
+    aspect-ratio: auto;
+  }
+  .sanat-visual-result-card__image-note { display: block; }
+  .sanat-visual-result-card__body { grid-column: 1 / -1; grid-row: auto; }
+  .sp-vision-result-intro { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-catalog-photo__open img,
+  .sanat-visual-result-card { transition: none; }
+  .sp-catalog-photo__open:hover img { transform: none; }
+}
