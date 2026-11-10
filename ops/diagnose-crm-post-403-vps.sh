@@ -29,9 +29,9 @@ echo "===== RELEASE AND APP ====="
 if git -C /opt/sanatpish rev-parse --short HEAD 2>/dev/null; then :; else echo REPO_HEAD_UNAVAILABLE; fi
 docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}' | grep -E 'NAMES|sanatpish' || true
 
-probe DIRECT_APP "http://127.0.0.1:\${PORT}/api/admin/crm/customers"
-probe LOCAL_NGINX --resolve "\${DOMAIN}:443:127.0.0.1" "https://\${DOMAIN}/api/admin/crm/customers"
-probe PUBLIC_DNS "https://\${DOMAIN}/api/admin/crm/customers"
+probe DIRECT_APP "http://127.0.0.1:$PORT/api/admin/crm/customers"
+probe LOCAL_NGINX --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/admin/crm/customers"
+probe PUBLIC_DNS "https://$DOMAIN/api/admin/crm/customers"
 
 echo
 echo "===== NGINX POST/METHOD RULE CONTEXT ====="
@@ -40,6 +40,6 @@ nginx -T 2>&1 | grep -n -B10 -A14 -E 'limit_except|location[[:space:]]+(/api|/)|
 echo
 echo "===== DATABASE HEALTH (READ ONLY) ====="
 curl --noproxy '*' -ksS --max-time 10 \
-  --resolve "\${DOMAIN}:443:127.0.0.1" "https://\${DOMAIN}/api/health" || true
+  --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/health" || true
 echo
 echo "DIAGNOSTIC_COMPLETE"
