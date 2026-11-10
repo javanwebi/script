@@ -79,6 +79,68 @@ export function HomeAssist({
  * - Bottom Full-Width Dark Glassmorphic Bar: 4 stats (+5,000 مشتری فعال, +24 صنعت تحت پوشش, +864 تصویر واقعی محصول, +10,000 کد کالای صنعتی) + "درباره صنعت پیش بیشتر بدانید" CTA button
  * - Dedicated responsive mobile layout
  */
+export function HomeAboutSection() {
+  const highlights = [
+    { Icon: ShieldCheck, title: "پشتوانه اطلس", text: "تجربه بازرگانی و شناخت قطعات صنعتی" },
+    { Icon: Layers, title: "کاتالوگ تخصصی", text: "جستجو با نام، برند و کد فنی" },
+    { Icon: Cpu, title: "ابزارهای هوشمند", text: "شناسایی تصویری و راهنمایی FORZA" },
+  ];
+  return (
+    <section className="home-about-preview" aria-labelledby="home-about-preview-title" dir="rtl">
+      <div className="home-about-preview__visual">
+        <img
+          src={STORE_ASSETS.whySanatDirectFactory}
+          alt="محیط صنعتی و زنجیره تأمین قطعات"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="home-about-preview__shade" />
+        <div className="home-about-preview__atlas">
+          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" />
+          <span>با پشتوانه بازرگانی تسمه اطلس</span>
+        </div>
+        <div className="home-about-preview__visual-caption">
+          <span>صنعت پیش</span>
+          <strong>بازار تخصصی قطعات صنعتی</strong>
+        </div>
+      </div>
+      <div className="home-about-preview__copy">
+        <span className="home-about-preview__eyebrow">درباره صنعت پیش</span>
+        <h2 id="home-about-preview-title">
+          از تجربه اطلس تا
+          <em> بازار جامع قطعات صنعتی</em>
+        </h2>
+        <p>
+          صنعت پیش با پشتوانه بازرگانی تسمه اطلس شکل گرفته است تا مسیر پراکنده
+          تأمین قطعات را به تجربه‌ای تخصصی و آنلاین تبدیل کند. هدف ما گردآوری
+          قطعات و برندهای صنعتی در یک بستر واحد است؛ جایی برای جستجو، بررسی
+          مشخصات، مقایسه، دریافت مشاوره، استعلام و خرید.
+        </p>
+        <p>
+          این بازار برای نیازهای واقعی کارخانه‌ها و فعالان صنعت طراحی می‌شود؛
+          نه یک فروشگاه عمومی، بلکه مقصدی تخصصی برای قطعات و تجهیزات صنعتی.
+        </p>
+        <div className="home-about-preview__highlights">
+          {highlights.map(({ Icon, title, text }) => (
+            <div key={title}>
+              <span><Icon size={21} strokeWidth={1.8} /></span>
+              <div><strong>{title}</strong><small>{text}</small></div>
+            </div>
+          ))}
+        </div>
+        <div className="home-about-preview__actions">
+          <Link to="/about" className="home-about-preview__primary">
+            آشنایی با صنعت پیش <ArrowLeft size={18} />
+          </Link>
+          <Link to="/products" className="home-about-preview__secondary">
+            مشاهده کاتالوگ محصولات
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' }) {
   const [introVideoOpen, setIntroVideoOpen] = useState(false);
 
