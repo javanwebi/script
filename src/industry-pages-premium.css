@@ -137,7 +137,11 @@
   line-height: 2.25;
 }
 .industry-page .industry-hero .editorial-actions {
-  max-width: 570px;
+  max-width: 640px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 24px;
 }
