@@ -10,7 +10,7 @@ test('original customer images and crops are retained in the device IndexedDB va
   assert.match(vault, /indexedDB\.open\(DB_NAME, DB_VERSION\)/);
   assert.match(vault, /createObjectStore\(STORE_NAME, \{ keyPath: 'id' \}\)/);
   assert.match(vault, /blob: Blob/);
-  assert.match(vault, /store\.put\(record\)/);
+  assert.match(vault, /tx\.objectStore\(STORE_NAME\)\.put\(record\)/);
   assert.match(vault, /getCustomerDeviceImageMetadata/);
   assert.match(vault, /return \{[\s\S]*sha256: record\.sha256[\s\S]*createdAt: record\.createdAt[\s\S]*\};/);
   assert.doesNotMatch(vault, /fetch\(['"]\/api\/ai\/customer-images/);
