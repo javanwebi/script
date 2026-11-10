@@ -18,7 +18,7 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(overview,/با پشتوانه بازرگانی تسمه اطلس/);
   assert.match(overview,/to="\/about"/);
   assert.match(discovery,/export function AboutPage/);
-  assert.match(discovery,/از سال ۱۳۶۶/);
+  assert.match(discovery,/با پشتوانه بازرگانی تسمه اطلس/);
   assert.match(discovery,/to: "\/services"/);
   assert.match(discovery,/to: "\/industries"/);
   assert.match(discovery,/to: "\/brands"/);
