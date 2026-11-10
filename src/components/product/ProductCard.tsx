@@ -20,7 +20,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const selected = isInWishlist(product.code);
   const canViewPrices =
     hasCustomerPriceAccess(currentUser) &&
-    (location.pathname.startsWith("/account/") ||
+    (location.pathname === "/account" ||
+      location.pathname.startsWith("/account/") ||
+      location.pathname === "/consumer-dashboard" ||
       location.pathname.startsWith("/consumer-dashboard/"));
   const hasVariants = Boolean(product.variants?.length);
   const price = !hasVariants
