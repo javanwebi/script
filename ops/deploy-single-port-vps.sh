@@ -584,65 +584,75 @@ for filename,source in zip(files,contents):
 updated=[]
 for index,(filename,source) in enumerate(zip(files,contents)):
  source=pattern.sub(lambda m:m.group(1)+target+m.group(3),source)
- # CONF1 is the deliberately read-only IP preview. Keep its root and methods
- # unchanged. The two customer-facing HTTPS/domain vhosts get a scoped API
- # location so write requests never fall through to the read-only SPA location.
+ # CONF1 is deliberately read-only. Customer HTTPS proxies /api to Express;
+ # plain HTTP redirects /api to HTTPS instead of proxying customer data.
  if index in (1,2):
-  marker="# SANATPISH_API_WRITE_ROUTE_V1"
+  marker="# SANATPISH_API_WRITE_ROUTE_V2"
+  old_markers=("# SANATPISH_API_WRITE_ROUTE_V1",marker)
   root_pattern=re.compile(r'(?m)^([ \t]*)location\s+/\s*\{')
   api_pattern=re.compile(r'(?m)^[ \t]*location\s+(?:\^~\s+)?/api/\s*\{')
-  if marker in source:
-   assert source.count(marker)==1,("DUPLICATE_API_WRITE_ROUTE",filename)
-   route_start=source.index(marker)
-   root_matches=list(root_pattern.finditer(source))
-   assert len(root_matches)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(root_matches))
-   assert route_start < root_matches[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
-   route=source[route_start:root_matches[0].start()]
-   assert "location ^~ /api/ {" in route,("API_LOCATION_MISSING",filename)
-   assert "limit_except GET HEAD POST PUT PATCH DELETE OPTIONS" in route,("API_METHOD_ALLOWLIST_MISSING",filename)
-   assert f"proxy_pass http://127.0.0.1:{target};" in route,("API_ROUTE_UPSTREAM_MISMATCH",filename)
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(roots))
+  found=[m for m in old_markers if m in source]
+  if found:
+   assert len(found)==1 and source.count(found[0])==1,("DUPLICATE_API_ROUTE_MARKERS",filename,found)
+   route_start=source.index(found[0])
+   assert route_start<roots[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
+   source=source[:route_start]+source[roots[0].start():]
   else:
    assert not api_pattern.search(source),("UNMANAGED_API_PREFIX_LOCATION",filename)
-   roots=list(root_pattern.finditer(source))
-   assert len(roots)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(roots))
-   indent=roots[0].group(1)
-   block="\n".join((
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1,("ROOT_LOCATION_CHANGED",filename,len(roots))
+  indent=roots[0].group(1)
+  if index==1:
+   lines=(
     f"{indent}{marker}",
     f"{indent}location ^~ /api/ {{",
-    f"{indent}    limit_except GET HEAD POST PUT PATCH DELETE OPTIONS {{",
-    f"{indent}        deny all;",
-    f"{indent}    }}",
-    "",
     f"{indent}    proxy_pass http://127.0.0.1:{target};",
     f"{indent}    proxy_http_version 1.1;",
     f"{indent}    proxy_set_header Host $host;",
     f"{indent}    proxy_set_header X-Real-IP $remote_addr;",
     f"{indent}    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
-    f"{indent}    proxy_set_header X-Forwarded-Proto $scheme;",
+    f"{indent}    proxy_set_header X-Forwarded-Proto https;",
     f"{indent}    proxy_set_header Upgrade $http_upgrade;",
     f"{indent}    proxy_set_header Connection $connection_upgrade;",
-    "",
     f"{indent}    proxy_connect_timeout 15s;",
     f"{indent}    proxy_read_timeout 300s;",
     f"{indent}    proxy_send_timeout 300s;",
     f"{indent}    proxy_buffering off;",
     f"{indent}    proxy_request_buffering off;",
     f"{indent}}}",
-   ))
-   source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
-   assert source.index(marker)<list(root_pattern.finditer(source))[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
-  root=list(root_pattern.finditer(source))
-  assert len(root)==1,("ROOT_LOCATION_CHANGED",filename)
-  assert re.search(r'limit_except\s+GET\s*\{',source[root[0].start():root[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+   )
+   label="CUSTOMER_HTTPS_API_PROXY_ROUTE_READY"
+  else:
+   lines=(
+    f"{indent}{marker}",
+    f"{indent}location ^~ /api/ {{",
+    f"{indent}    return 308 https://$host$request_uri;",
+    f"{indent}}}",
+   )
+   label="CUSTOMER_HTTP_API_HTTPS_REDIRECT_READY"
+  block="\n".join(lines)
+  source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1 and source.index(marker)<roots[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
+  assert re.search(r'limit_except\s+GET\s*\{',source[roots[0].start():roots[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+  route=source[source.index(marker):roots[0].start()]
+  assert "limit_except" not in route,("API_METHODS_MUST_REACH_EXPRESS",filename)
+  if index==1:
+   assert f"proxy_pass http://127.0.0.1:{target};" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
+  else:
+   assert "return 308 https://$host$request_uri;" in route and "proxy_pass" not in route,("HTTP_API_REDIRECT_INVALID",filename)
   assert source.count(marker)==1
-  print("SCOPED_API_WRITE_ROUTE_READY",filename,"upstream="+target)
+  print(label,filename,"upstream="+target if index==1 else "https_redirect")
  else:
-  assert marker not in source,("IP_PREVIEW_MUST_REMAIN_READ_ONLY",filename)
+  assert "SANATPISH_API_WRITE_ROUTE_V1" not in source and "SANATPISH_API_WRITE_ROUTE_V2" not in source,("IP_PREVIEW_MUST_REMAIN_READ_ONLY",filename)
   print("READ_ONLY_IP_PREVIEW_PRESERVED",filename)
  updated.append((filename,source))
 for filename,source in updated:
  Path(filename).write_text(source)
  print("SINGLE_PORT_NGINX_UPDATED",filename,target)
+print("API_ROUTE_METHODS_DELEGATED_TO_EXPRESS")
 PY
 nginx -t
 systemctl reload nginx
@@ -673,24 +683,40 @@ assert health.get('status')=='ok' and health.get('database')=='ok'
 # No session cookie is sent; these handlers must reject anonymously with JSON.
 def post_json(path,host):
  cmd=['curl','--noproxy','*','-ksS','--connect-timeout','3','--max-time','15',
-      '--resolve',f'{host}:443:127.0.0.1',
+      '--resolve',f'{host}:443:127.0.0.1','-D','-',
       '-H','Accept: application/json','-H','Content-Type: application/json',
-      '-X','POST','--data','{}','-w','\\n__META__%{http_code}|%{content_type}',
+      '-X','POST','--data','{}','-w','\n__META__%{http_code}|%{content_type}',
       f'https://{host}{path}']
  result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  raw=result.stdout
  if b'\n__META__' not in raw:
   raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+host+path)
- body,meta=raw.rsplit(b'\n__META__',1)
+ response,meta=raw.rsplit(b'\n__META__',1)
+ if b'\r\n\r\n' not in response:
+  raise AssertionError('PUBLIC_POST_API_MISSING_RESPONSE_HEADERS '+host+path)
+ headers,body=response.split(b'\r\n\r\n',1)
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
  assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',host,path,status,content_type)
  assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',host,path,status,content_type)
+ assert any(line.lower().startswith(b'x-powered-by: express') for line in headers.splitlines()), ('PUBLIC_POST_API_EXPRESS_HEADER_MISSING',host,path,headers.decode('utf-8','replace'))
  payload=json.loads(body)
  assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',host,path)
+ print('PUBLIC_POST_API_EXPRESS_HEADER_OK',host,path)
  print('PUBLIC_POST_API_JSON_GUARD_OK',host,path,'HTTP',status)
 for host in (domain,'www.'+domain):
  for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
   post_json(path,host)
+# Plain HTTP writes must redirect to the same HTTPS URL rather than reach the app.
+redirect_cmd=['curl','--noproxy','*','-sS','--connect-timeout','3','--max-time','15',
+              '--resolve',f'{domain}:80:127.0.0.1','-D','-','-o','/dev/null',
+              '-H','Content-Type: application/json','-X','POST','--data','{}',
+              '-w','\n__META__%{http_code}',f'http://{domain}/api/admin/crm/customers']
+redirect=subprocess.run(redirect_cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
+if b'\n__META__' not in redirect:raise AssertionError('HTTP_API_REDIRECT_MISSING_METADATA')
+redirect_headers,redirect_meta=redirect.rsplit(b'\n__META__',1)
+assert redirect_meta.decode().strip()=='308',('HTTP_API_HTTPS_REDIRECT_BAD_STATUS',redirect_meta)
+assert any(line.lower().startswith(b'location: https://sanatpish.com/api/admin/crm/customers') for line in redirect_headers.splitlines()),('HTTP_API_HTTPS_REDIRECT_BAD_LOCATION',redirect_headers.decode('utf-8','replace'))
+print('HTTP_API_HTTPS_REDIRECT_OK')
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
 stt_raw=get('/api/ai/forza-stt-info')

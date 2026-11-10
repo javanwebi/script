@@ -32,6 +32,9 @@ test("domain routing shares rollback, backups and post-switch build/data verific
 test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSON", () => {
   assert.match(singlePort, /PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS/);
   assert.match(singlePort, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(singlePort, /PUBLIC_POST_API_EXPRESS_HEADER_OK/);
+  assert.match(singlePort, /x-powered-by: express/);
+  assert.match(singlePort, /HTTP_API_HTTPS_REDIRECT_OK/);
   assert.match(singlePort, /\/api\/admin\/crm\/customers/);
   assert.match(singlePort, /\/api\/catalog\/sku-transfer/);
   assert.match(singlePort, /application\/json/);
@@ -39,28 +42,37 @@ test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSO
 });
 
 test("customer-facing Nginx vhosts route API writes before the read-only SPA fallback", () => {
-  assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(singlePort, /location \^~ \/api\//);
-  assert.match(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
-  assert.match(singlePort, /SCOPED_API_WRITE_ROUTE_READY/);
+  assert.match(singlePort, /return 308 https:\/\/\$host\$request_uri/);
+  assert.match(singlePort, /API_ROUTE_METHODS_DELEGATED_TO_EXPRESS/);
+  assert.doesNotMatch(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
+  assert.match(singlePort, /CUSTOMER_HTTPS_API_PROXY_ROUTE_READY/);
+  assert.match(singlePort, /CUSTOMER_HTTP_API_HTTPS_REDIRECT_READY/);
   assert.match(singlePort, /READ_ONLY_SPA_GUARD_NOT_PRESERVED/);
   assert.match(singlePort, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(singlePort, /if index in \(1,2\)/);
   assert.match(singlePort, /for host in \(domain,'www\.'\+domain\):/);
   const routeSwitch = singlePort.indexOf("===== ONE FIXED PORT FOR ALL PUBLIC WEBSITE VHOSTS =====");
-  const routeReady = singlePort.indexOf("SCOPED_API_WRITE_ROUTE_READY", routeSwitch);
+  const routeReady = singlePort.indexOf("CUSTOMER_HTTPS_API_PROXY_ROUTE_READY", routeSwitch);
   const nginxReload = singlePort.indexOf("systemctl reload nginx", routeSwitch);
   assert.ok(routeSwitch >= 0 && routeReady > routeSwitch && nginxReload > routeReady);
 });
-
 test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
-  assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
+  assert.match(nginxHotfix, /CUSTOMER_API_HTTP_REDIRECT_READY/);
+  assert.match(nginxHotfix, /DIRECT_EXPRESS_JSON_AUTH_GUARD_OK/);
+  assert.match(nginxHotfix, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(nginxHotfix, /X-Powered-By/);
+  assert.match(nginxHotfix, /NGINX_EXPRESS_HEADER_OR_JSON_MISSING/);
+  assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
+  assert.doesNotMatch(nginxHotfix, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
   assert.match(nginxHotfix, /NGINX_API_ROUTE_ROLLBACK_OK/);
   assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
   assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(nginxHotfix, /proxy_request_buffering off/);
-  assert.match(nginxHotfix, /for host in \(domain,"www\."\+domain\):/);
+  assert.match(nginxHotfix, /for host in sanatpish\.com www\.sanatpish\.com/);
   assert.doesNotMatch(nginxHotfix, /docker (?:stop|rm|restart)|DROP TABLE|TRUNCATE TABLE/i);
 });
 
