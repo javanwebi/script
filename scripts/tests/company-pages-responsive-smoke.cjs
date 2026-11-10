@@ -51,6 +51,9 @@ const pages = [
       }
       assert.equal(await page.locator(".sp-about-capability").count(), 4,
         "approved About page must show its four visual capabilities");
+      const timelineYears = await page.locator(".sp-about-timeline-year").allTextContents();
+      assert.deepEqual(timelineYears.map(value => value.trim()), ["۱۳۸۴", "۱۳۹۰", "۱۴۰۱", "امروز"],
+        "approved About page must show the four Atlas-to-Sanat Pish milestones");
       assert.equal(await page.locator(".sp-about-destination").count(), 5,
         "approved About page must link to its five next destinations");
       const aboutBounds = await page.evaluate(() => ({

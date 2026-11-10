@@ -970,8 +970,8 @@ export function AboutPage() {
 
   const capabilities = [
     {
-      title: "تأمین قطعات صنعتی",
-      text: "دسترسی به طیف متنوعی از قطعات و تجهیزات موردنیاز صنایع.",
+      title: "تأمین قطعات",
+      text: "دسترسی به قطعات و تجهیزات موردنیاز خطوط تولید در یک بازار تخصصی.",
       image: A.partsWarehouseVault,
       Icon: Package,
     },
@@ -988,24 +988,24 @@ export function AboutPage() {
       Icon: ScanLine,
     },
     {
-      title: "مهندسی و ساخت",
-      text: "بررسی امکان بازطراحی و ساخت قطعات خاص و کمیاب.",
-      image: A.reverseEngineeringLab,
-      Icon: Wrench,
+      title: "پشتیبانی صنایع",
+      text: "همراهی در تأمین نیاز خطوط تولید و پیگیری مسیر سفارش.",
+      image: A.industries.cement,
+      Icon: Factory,
     },
   ];
 
   const milestones = [
-    { title: "تجربه بازرگانی اطلس", text: "شناخت بازار و نیازهای واقعی تأمین قطعات صنعتی" },
-    { title: "شناخت نیاز صنایع", text: "تمرکز بر قطعات، برندها و مشخصات فنی موردنیاز خطوط تولید" },
-    { title: "توسعه بستر دیجیتال", text: "ایجاد مسیر آنلاین برای جستجو، بررسی و پیگیری تأمین" },
-    { title: "صنعت پیش امروز", text: "بازار تخصصی قطعات صنعتی؛ پیش به صنعت" },
+    { year: "۱۳۸۴", title: "آغاز فعالیت بازرگانی تسمه اطلس", text: "شناخت بازار و تأمین نیازهای واقعی قطعات صنعتی" },
+    { year: "۱۳۹۰", title: "گسترش سبد محصولات", text: "توسعه پوشش محصولات و همراهی با صنایع بیشتر" },
+    { year: "۱۴۰۱", title: "توسعه زیرساخت‌های دیجیتال", text: "آماده‌سازی بستر آنلاین برای جستجو و پیگیری تأمین" },
+    { year: "امروز", title: "صنعت پیش", text: "بازار آنلاین تخصصی قطعات صنعتی؛ پیش به صنعت" },
   ];
 
   const highlights = [
     { title: "برندهای متنوع", value: "از برند تا محصول", text: "شناخت برندها و محصولات صنعتی", Icon: Tag },
     { title: "دسته‌بندی تخصصی", value: "جستجوی هدفمند", text: "دسترسی ساختاریافته به قطعات", Icon: Layers },
-    { title: "قیمت‌گذاری مشتری", value: "قیمت‌های به‌روز", text: "نمایش قیمت بر اساس حساب مشتری", Icon: Zap },
+    { title: "پاسخگویی سریع", value: "پیگیری متمرکز", text: "همراهی در مسیر استعلام و سفارش", Icon: Clock },
     { title: "پشتیبانی صنعتی", value: "همراه مسیر تأمین", text: "پیگیری نیاز و دریافت مشاوره", Icon: Factory },
   ];
 
@@ -1110,8 +1110,9 @@ export function AboutPage() {
           </div>
           <div className="sp-about-timeline" aria-label="مسیر شکل‌گیری صنعت پیش">
             {milestones.map((item, index) => (
-              <div className="sp-about-timeline-item" key={item.title}>
+              <div className="sp-about-timeline-item" key={item.year}>
                 <span className="sp-about-timeline-node">{String(index + 1).padStart(2, "0")}</span>
+                <span className="sp-about-timeline-year">{item.year}</span>
                 <strong>{item.title}</strong>
                 <small>{item.text}</small>
               </div>
