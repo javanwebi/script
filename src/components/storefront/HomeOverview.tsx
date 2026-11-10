@@ -706,71 +706,74 @@ export function IndustrialServices() {
  * Dedicated homepage introduction for Sanat Pish.
  * Keeps the company story separate from the existing "Why Sanat Pish" section.
  */
+const HOME_ABOUT_CAPABILITIES = [
+  {
+    title: "تأمین قطعات صنعتی",
+    description: "تسمه، پولی، یاتاقان و تجهیزات موردنیاز خطوط تولید.",
+    Icon: Package,
+  },
+  {
+    title: "ساخت و مهندسی معکوس",
+    description: "بررسی نمونه و همراهی در طراحی و ساخت قطعات خاص و کمیاب.",
+    Icon: Settings,
+  },
+  {
+    title: "مشاوره فنی و انتخاب",
+    description: "توجه به ابعاد، جنس، کاربرد و شرایط واقعی کار.",
+    Icon: Layers,
+  },
+  {
+    title: "پشتیبانی و پیگیری سفارش",
+    description: "همراهی در مسیر استعلام، ثبت سفارش و پیگیری مراحل.",
+    Icon: Headphones,
+  },
+] as const;
+
+const HOME_ABOUT_WORKFLOW = [
+  {
+    number: "01",
+    title: "شناخت نیاز",
+    description: "دریافت اطلاعات و شناخت مسئله خط تولید",
+  },
+  {
+    number: "02",
+    title: "بررسی فنی",
+    description: "بررسی ابعاد، جنس، کاربرد و مشخصات قطعه",
+  },
+  {
+    number: "03",
+    title: "تأمین یا ساخت",
+    description: "انتخاب مسیر مناسب برای تهیه قطعه",
+  },
+  {
+    number: "04",
+    title: "پیگیری سفارش",
+    description: "همراهی تا مرحله تحویل و پاسخ‌گویی",
+  },
+] as const;
+
 export function HomeAboutSection() {
-  const capabilities = [
-    {
-      title: "تأمین قطعات صنعتی",
-      description: "تسمه، پولی، یاتاقان و تجهیزات موردنیاز خطوط تولید.",
-      Icon: Package,
-    },
-    {
-      title: "ساخت و مهندسی معکوس",
-      description: "بررسی نمونه و همراهی در طراحی و ساخت قطعات خاص و کمیاب.",
-      Icon: Settings,
-    },
-    {
-      title: "مشاوره فنی و انتخاب",
-      description: "توجه به ابعاد، جنس، کاربرد و شرایط واقعی کار.",
-      Icon: Layers,
-    },
-    {
-      title: "پشتیبانی و پیگیری سفارش",
-      description: "همراهی در مسیر استعلام، ثبت سفارش و پیگیری مراحل.",
-      Icon: Headphones,
-    },
-  ];
-
-  const workflow = [
-    {
-      number: "01",
-      title: "شناخت نیاز",
-      description: "دریافت اطلاعات و شناخت مسئله خط تولید",
-    },
-    {
-      number: "02",
-      title: "بررسی فنی",
-      description: "بررسی ابعاد، جنس، کاربرد و مشخصات قطعه",
-    },
-    {
-      number: "03",
-      title: "تأمین یا ساخت",
-      description: "انتخاب مسیر مناسب برای تهیه قطعه",
-    },
-    {
-      number: "04",
-      title: "پیگیری سفارش",
-      description: "همراهی تا مرحله تحویل و پاسخ‌گویی",
-    },
-  ];
-
   return (
     <section
       id="home-about-sanat-pish"
       aria-labelledby="home-about-sanat-pish-title"
       dir="rtl"
-      className="relative isolate overflow-hidden bg-[#F5F6F7] py-12 sm:py-16 lg:py-20"
+      className="relative isolate overflow-hidden bg-[#F6F7F8] py-12 sm:py-16 lg:py-20"
     >
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_1px_1px,rgba(85,86,90,0.12)_1px,transparent_0)] [background-size:22px_22px]" />
-        <div className="absolute -right-36 top-8 h-80 w-80 rounded-full bg-[#E06518]/10 blur-3xl" />
-        <div className="absolute -left-32 bottom-0 h-72 w-72 rounded-full bg-slate-400/10 blur-3xl" />
+        <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(to_right,rgba(85,86,90,.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(85,86,90,.035)_1px,transparent_1px)] [background-size:42px_42px]" />
+        <div className="absolute right-0 top-0 h-full w-[3px] bg-[#E06518]/65" />
       </div>
 
       <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
-          {/* Industrial image composition */}
+          {/* Authentic factory and engineering imagery */}
           <div className="relative order-1 min-w-0 pb-7 sm:pb-9 lg:pb-10">
-            <div className="group relative aspect-[1.16/1] overflow-hidden rounded-[26px] border border-white bg-slate-200 shadow-[0_24px_70px_rgba(31,41,55,.16)] sm:aspect-[1.3/1] sm:rounded-[32px] lg:aspect-[1.12/1]">
+            <div
+              aria-hidden="true"
+              className="absolute -bottom-1 -left-2 right-3 top-3 rounded-[20px] border border-[#E06518]/35 sm:-left-3 sm:right-5"
+            />
+            <div className="group relative aspect-[1.16/1] overflow-hidden rounded-[18px] border border-slate-200 bg-slate-200 shadow-[0_18px_48px_rgba(31,41,55,.14)] sm:aspect-[1.3/1] sm:rounded-[22px] lg:aspect-[1.12/1]">
               <img
                 fetchPriority="low"
                 decoding="async"
@@ -780,7 +783,7 @@ export function HomeAboutSection() {
                 className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.035]"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#171B21]/80 via-[#171B21]/5 to-[#171B21]/5" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#171B21]/80 via-[#171B21]/5 to-transparent" />
               <span
                 dir="ltr"
                 className="absolute bottom-14 left-4 select-none text-[clamp(4.5rem,10vw,8.5rem)] font-black leading-none tracking-[-0.08em] text-white/15 sm:bottom-16 sm:left-7"
@@ -796,13 +799,13 @@ export function HomeAboutSection() {
                     پیش به صنعت؛ همراه خطوط تولید
                   </strong>
                 </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/15 text-white backdrop-blur-md sm:h-12 sm:w-12">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-[#2B313A]/65 text-white backdrop-blur-sm sm:h-12 sm:w-12">
                   <Factory size={23} strokeWidth={1.7} />
                 </span>
               </div>
             </div>
 
-            <div className="absolute -bottom-1 left-3 z-20 w-[48%] max-w-[250px] overflow-hidden rounded-2xl border-[5px] border-[#F5F6F7] bg-white shadow-[0_16px_38px_rgba(31,41,55,.2)] sm:left-7 sm:rounded-3xl sm:border-[6px]">
+            <div className="absolute -bottom-1 left-3 z-20 w-[48%] max-w-[250px] overflow-hidden rounded-[14px] border-[5px] border-[#F6F7F8] bg-white shadow-[0_12px_28px_rgba(31,41,55,.18)] sm:left-7 sm:rounded-[16px]">
               <div className="group relative aspect-[1.22/1] overflow-hidden">
                 <img
                   fetchPriority="low"
@@ -813,38 +816,36 @@ export function HomeAboutSection() {
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#151A20]/75 via-transparent to-transparent" />
-                <span className="absolute bottom-2 right-2.5 text-[9px] font-black text-white sm:bottom-3 sm:right-3 sm:text-xs">
-                  ساخت و مهندسی قطعات
-                </span>
+                <div className="absolute inset-x-0 bottom-0 bg-[#2B313A]/90 px-2.5 py-2 text-right text-[9px] font-black text-white sm:px-3 sm:text-[11px]">
+                  ساخت و مهندسی معکوس
+                </div>
               </div>
             </div>
 
             <div className="absolute -top-3 right-3 z-20 sm:right-7">
-              <div className="flex items-center gap-2.5 rounded-2xl border border-white/90 bg-white/95 px-3 py-2.5 shadow-[0_12px_30px_rgba(31,41,55,.12)] backdrop-blur-md sm:gap-3 sm:px-4">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#E06518] sm:h-11 sm:w-11">
-                  <Building2 size={22} strokeWidth={1.8} />
-                </span>
+              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(31,41,55,.12)] sm:gap-3 sm:px-4">
+                <span className="h-9 w-1 rounded-full bg-[#E06518] sm:h-11" />
                 <span className="text-right">
                   <span className="block text-[9px] font-semibold text-slate-500 sm:text-[10px]">
-                    ریشه فعالیت
+                    پیشینه فعالیت
                   </span>
                   <strong className="block text-lg font-black leading-tight text-[#2B313A] sm:text-xl">
                     ۱۳۶۶
                   </strong>
                 </span>
+                <Building2 size={21} className="text-[#E06518]" strokeWidth={1.8} />
               </div>
             </div>
           </div>
 
-          {/* Company story and capabilities */}
+          {/* Company story and practical capabilities */}
           <div className="order-2 min-w-0 text-right">
-            <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/85 px-3 py-1.5 shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-[#E06518] shadow-[0_0_0_4px_rgba(224,101,24,.10)]" />
+            <div className="flex items-center gap-3">
+              <span className="h-[2px] w-8 bg-[#E06518]" />
               <span className="text-[11px] font-black text-[#E06518] sm:text-xs">
                 درباره صنعت پیش
               </span>
-              <span dir="ltr" className="border-r border-slate-200 pr-2 text-[9px] font-bold tracking-[0.18em] text-slate-400">
+              <span dir="ltr" className="border-r border-slate-300 pr-3 text-[9px] font-bold tracking-[0.18em] text-slate-400">
                 ABOUT US
               </span>
             </div>
@@ -854,20 +855,19 @@ export function HomeAboutSection() {
               className="mt-4 text-[clamp(1.8rem,3.6vw,2.8rem)] font-black leading-[1.55] tracking-tight text-[#252A30]"
             >
               از تجربه‌ای ریشه‌دار تا راهکارهای مهندسی برای
-              <span className="relative mr-2 inline-block text-[#E06518]">
+              <span className="mr-2 inline-block text-[#E06518]">
                 صنعت ایران
-                <span className="absolute -bottom-1 right-0 h-[5px] w-2/3 rounded-full bg-[#E06518]/20" />
               </span>
             </h2>
 
-            <div className="mt-4 h-1 w-16 rounded-full bg-gradient-to-l from-[#E06518] to-[#F6B17E]" />
+            <div className="mt-4 h-1 w-16 rounded-full bg-[#E06518]" />
 
             <div className="mt-5 space-y-3.5 text-[13px] leading-[2.15] text-slate-600 sm:text-sm sm:leading-[2.2]">
               <p>
-                ریشه فعالیت صنعت پیش به بازرگانی تسمه اطلس و آغاز این مسیر در سال ۱۳۶۶ بازمی‌گردد. این پیشینه امروز در قالب مجموعه‌ای متمرکز بر تأمین تخصصی قطعات و تجهیزات خطوط تولید، ساخت قطعات سفارشی و ارائه راهکارهای مهندسی ادامه پیدا کرده است.
+                ریشه فعالیت صنعت پیش به بازرگانی تسمه اطلس بازمی‌گردد؛ مسیری که از سال ۱۳۶۶ آغاز شده است. این پیشینه امروز در قالب مجموعه‌ای متمرکز بر تأمین تخصصی قطعات و تجهیزات خطوط تولید، ساخت قطعات سفارشی و ارائه راهکارهای مهندسی ادامه پیدا کرده است.
               </p>
               <p>
-                نیاز هر خط تولید با خط دیگر متفاوت است. در انتخاب قطعه، نام و کد کالا تنها بخشی از اطلاعات‌اند؛ ابعاد، جنس، کاربرد و شرایط واقعی کار نیز باید در کنار هم بررسی شوند. هدف ما ساده‌تر کردن مسیر دسترسی صنعتگران به قطعه مناسب است؛ از شناخت نیاز و بررسی مشخصات تا پیشنهاد مسیر تأمین یا ساخت و پیگیری سفارش.
+                نیاز هر خط تولید با خط دیگر متفاوت است. در فرایند انتخاب قطعه، نام و کد کالا تنها بخشی از اطلاعات‌اند؛ ابعاد، جنس، کاربرد و شرایط واقعی کار نیز باید در کنار هم بررسی شوند. هدف ما ساده‌تر کردن مسیر دسترسی صنعتگران به قطعه مناسب است؛ از شناخت نیاز و بررسی مشخصات تا پیشنهاد مسیر تأمین یا ساخت و پیگیری سفارش.
               </p>
               <p>
                 در کنار کاتالوگ تخصصی محصولات، جست‌وجوی تصویری و مشاوره هوشمند FORZA نیز برای آسان‌تر شدن فرایند پیدا کردن قطعه و ارتباط با کارشناسان صنعت پیش در دسترس قرار گرفته‌اند.
@@ -875,12 +875,12 @@ export function HomeAboutSection() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {capabilities.map(({ title, description, Icon }) => (
+              {HOME_ABOUT_CAPABILITIES.map(({ title, description, Icon }) => (
                 <div
                   key={title}
-                  className="group flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_5px_18px_rgba(31,41,55,.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#E06518]/40 hover:shadow-[0_12px_28px_rgba(31,41,55,.09)] sm:p-3.5"
+                  className="flex min-w-0 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_14px_rgba(31,41,55,.035)] transition-colors hover:border-[#E06518]/45 sm:p-3.5"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-orange-100 bg-gradient-to-br from-white to-orange-50 text-[#E06518] transition-colors group-hover:bg-[#E06518] group-hover:text-white">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-orange-100 bg-[#FFF3EA] text-[#E06518]">
                     <Icon size={20} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0">
@@ -898,14 +898,14 @@ export function HomeAboutSection() {
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link
                 to="/about"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#E96C1B] to-[#D65B13] px-5 py-3 text-xs font-black text-white shadow-[0_8px_22px_rgba(224,101,24,.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(224,101,24,.28)]"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-black text-white transition-colors hover:bg-[#C95210] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E06518]"
               >
                 <span>آشنایی بیشتر با صنعت پیش</span>
                 <ArrowLeft size={17} />
               </Link>
               <Link
                 to="/industries"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white/80 px-5 py-3 text-xs font-bold text-[#42474D] transition-all hover:border-[#E06518]/60 hover:bg-orange-50/60 hover:text-[#C95210]"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-xs font-bold text-[#42474D] transition-colors hover:border-[#E06518]/60 hover:bg-orange-50/60 hover:text-[#C95210] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E06518]"
               >
                 مشاهده صنایع تحت پوشش
                 <ArrowLeft size={16} className="text-[#E06518]" />
@@ -914,8 +914,8 @@ export function HomeAboutSection() {
           </div>
         </div>
 
-        {/* A clear, visual path from customer need to delivery */}
-        <div className="mt-14 overflow-hidden rounded-[24px] border border-white/10 bg-[#2B313A] p-5 shadow-[0_24px_60px_rgba(31,41,55,.14)] sm:mt-16 sm:rounded-[30px] sm:p-7 lg:p-8">
+        {/* A concise visual path from customer need to delivery */}
+        <div className="mt-14 border-y border-[#434B55] bg-[#2B313A] px-5 py-6 sm:mt-16 sm:px-7 sm:py-8 lg:px-9">
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
             <div>
               <span dir="ltr" className="text-[9px] font-bold tracking-[0.24em] text-[#FF9B59] sm:text-[10px]">
@@ -930,17 +930,17 @@ export function HomeAboutSection() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-            {workflow.map((step, index) => (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-6 lg:grid-cols-4">
+            {HOME_ABOUT_WORKFLOW.map((step, index) => (
               <div
                 key={step.number}
-                className="relative min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3.5 transition-colors hover:border-[#E06518]/55 hover:bg-white/[0.075] sm:p-4"
+                className="min-w-0 border-r-2 border-r-[#E06518] py-1 pr-3 sm:pr-4 lg:border-b-0"
               >
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between">
                   <span dir="ltr" className="font-mono text-xs font-black tracking-wider text-[#FF9B59]">
                     {step.number}
                   </span>
-                  {index < workflow.length - 1 ? (
+                  {index < HOME_ABOUT_WORKFLOW.length - 1 ? (
                     <ArrowLeft size={15} className="text-white/35" />
                   ) : (
                     <CheckCircle2 size={16} className="text-[#FF9B59]" />
