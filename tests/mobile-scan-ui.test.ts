@@ -118,7 +118,7 @@ test("dock camera opens a full-screen live preview, local review, retake, and ex
 test("captured camera image is not uploaded until the customer confirms it", () => {
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
-  const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Resolve a match image"));
+  const confirm = modal.slice(modal.indexOf("const confirmCameraPhoto"), modal.indexOf("// Calculate inquiry price for user"));
   const reviewBranch = capture.indexOf("if (cameraFlowActive)");
   const stopAndReturn = capture.indexOf("return;", reviewBranch);
   const upload = capture.indexOf("uploadAndPrepareImage(dataUrl)");
