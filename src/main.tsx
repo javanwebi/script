@@ -6,6 +6,7 @@ import {installDatabaseProducts} from './data/mockGenerator';
 import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
 import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
 import './index.css';
+import './company-pages.css';
 
 function showBackendUnavailable(){
   // Keep the application shell visible, but do not serve stale bundled products
