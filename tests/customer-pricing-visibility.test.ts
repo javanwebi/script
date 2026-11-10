@@ -38,6 +38,7 @@ test("customer portal price surfaces use server prices and never reapply browser
   const consumer = read("src/pages/ConsumerDashboardPage.tsx");
   const productDetail = read("src/pages/ProductDetailPage.tsx");
   const publicCard = read("src/components/product/ProductCard.tsx");
+  const cart = read("src/context/CartContext.tsx");
 
   assert.match(portalTools, /getCurrentCustomerSkuPrice/);
   assert.doesNotMatch(portalTools, /getSkuPriceForList/);
@@ -49,4 +50,8 @@ test("customer portal price surfaces use server prices and never reapply browser
   assert.match(consumer, /getCurrentCustomerSkuPrice/);
   assert.match(productDetail, /currentUser\.canViewPrices === true/);
   assert.match(publicCard, /location\.pathname\.startsWith\("\/consumer-dashboard\/"\)/);
+  assert.match(cart, /subscribeCatalogChanges/);
+  assert.match(cart, /resolvePurchaseLines/);
+  assert.match(cart, /currentUser\?\.canViewPrices === true/);
+  assert.match(cart, /refreshCommercialSnapshot/);
 });
