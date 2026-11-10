@@ -66,3 +66,26 @@ test('industry recommendations can match technical taxonomy and specifications',
   const ranked = rankIndustryProducts([product], textile, 6);
   assert.equal(ranked[0]?.code, 'FAM-TEXTILE');
 });
+
+test('textile has a dedicated full-page experience backed by the live catalogue', () => {
+  const textile = readFileSync(new URL('../src/pages/TextileIndustryPage.tsx', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/textile-industry.css', import.meta.url), 'utf8');
+  assert.match(page, /const TextileIndustryPage = React\.lazy/);
+  assert.match(page, /if \(slug === "textile"\)/);
+  assert.match(textile, /rankIndustryProducts\(getAllProducts\(\), industry, 6\)/);
+  assert.match(textile, /subscribeCatalogChanges/);
+  assert.match(textile, /<ProductCard/);
+  assert.match(textile, /<MemberAccess/);
+  assert.match(textile, /A\.industries\.textile/);
+  assert.match(textile, /A\.forzaAiRobotHalo/);
+  assert.match(textile, /aria-pressed=\{selected\}/);
+  assert.match(textile, /textile-production/);
+  assert.match(textile, /textile-why-grid/);
+  assert.match(textile, /textile-forza-banner/);
+  assert.match(textile, /textile-criteria-grid/);
+  assert.doesNotMatch(textile, /FAM-TEXTILE|SKU-TEXTILE|قیمت قطعی/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(css, /@media \(max-width: 380px\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /grid-template-columns: repeat\(6, minmax\(0,1fr\)\)/);
+});
