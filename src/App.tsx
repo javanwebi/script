@@ -77,6 +77,7 @@ const TileCeramicIndustryPage = lazy(() =>
 );
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
 const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
+const ServicesPage = lazy(() => import("./pages/ServicesPage").then(m => ({default:m.ServicesPage})));
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,
@@ -132,6 +133,8 @@ export default function App() {
 
                     {/* Company Profile, About Us, History, Licenses & Awards */}
                     <Route path="/about" element={<AboutPage />} />
+                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/capabilities" element={<Navigate to="/services" replace />} />
                     <Route path="/about-us" element={<AboutPage />} />
                     <Route path="/history" element={<AboutPage />} />
                     <Route path="/licenses" element={<AboutPage />} />

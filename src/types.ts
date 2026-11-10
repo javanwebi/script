@@ -144,6 +144,8 @@ export interface Customer {
   clubTier: ClubTier;
   clubPoints: number;
   approvedB2B: boolean;
+  canViewPrices?: boolean; // اجازه نمایش قیمت‌های محاسبه‌شده برای حساب فعلی
+  canViewStock?: boolean; // اجازه نمایش موجودی برای حساب فعلی
   assignedPriceListId?: string;
   assignedPriceListCode?: string; // 'A' | 'B' | 'C' | 'D'
   assignedGradeId?: string;

@@ -39,6 +39,7 @@ import { getManagedCatalogProducts, getProductByCode, subscribeCatalogChanges } 
 import { searchConsumerProducts, resolveCurrentRetailReorder } from "../utils/consumerCatalogView";
 
 import { toPersianDigits } from "../utils/formatters";
+import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { ProductImage } from "../components/product/ProductImage";
 import {
   portalContentService,
@@ -258,7 +259,7 @@ export const ConsumerDashboardPage: React.FC = () => {
       !enabledMenus.some((m) => m.id === "quick_buy")
     )
       return;
-    navigate(`/product/${encodeURIComponent(product.code)}`);
+    navigate(`/consumer-dashboard/product/${encodeURIComponent(product.code)}`);
     return;
   };
 
@@ -279,16 +280,12 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const handleDownloadMyPriceListExcel = () => {
     if (!resolvedConfig.permissions.allowExcelPriceListDownload) return;
-    const lists = pricingCreditService.getPriceLists();
-    const retailPl = lists.find((p) => p.code === "RETAIL" || p.isRetailCash);
-    if (!retailPl) {
-      showToast("لیست قیمت هنوز منتشر نشده است.");
+    if (user?.canViewPrices !== true) {
+      showToast("دسترسی مشاهده قیمت برای این حساب فعال نیست؛ با پشتیبانی تماس بگیرید.");
       return;
     }
-    if (retailPl) {
-      pricingCreditService.exportPriceListToExcel(retailPl.id);
-    }
-    showToast("فایل «اکسل لیست قیمت من» (.xlsx) با موفقیت دانلود شد.");
+    pricingCreditService.downloadCurrentCustomerPriceListExcel("xlsx");
+    showToast("فایل «اکسل قیمت‌های به‌روز حساب شما» (.xlsx) با موفقیت آماده شد.");
   };
 
   const handleBannerAction = (banner: PortalBannerItem) => {
@@ -609,7 +606,9 @@ export const ConsumerDashboardPage: React.FC = () => {
                       // A family with many SKUs must not advertise the first SKU's price
                       // as though it were the customer's chosen technical variant.
                       const needsSkuSelection = Boolean(prod.variants?.length);
-                      const unitPrice = prod.prices?.retail || 0;
+                      const unitPrice = !needsSkuSelection
+                        ? getCurrentCustomerSkuPrice(prod, user, true)
+                        : 0;
                       return (
                         <div
                           key={prod.code}
@@ -632,7 +631,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 {prod.code}
                               </span>
                               <Link
-                                to={`/product/${encodeURIComponent(prod.code)}`}
+                                to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}
                                 className="block font-black text-xs text-slate-800 hover:text-[#E06518] line-clamp-2 mt-0.5"
                               >
                                 {prod.name}
@@ -646,9 +645,11 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 {portalLabel("قیمت واحد:")}
                               </span>
                               <span className="font-mono font-black text-xs text-emerald-700">
-                                {!needsSkuSelection && !prod.inquiryOnly && unitPrice > 0
-                                  ? `${formatPrice(unitPrice)} تومان`
-                                  : portalLabel("انتخاب کد و استعلام قیمت")}
+                                {user?.canViewPrices !== true
+                                  ? portalLabel("دسترسی مشاهده قیمت فعال نیست")
+                                  : !needsSkuSelection && !prod.inquiryOnly && unitPrice > 0
+                                    ? `${formatPrice(unitPrice)} تومان`
+                                    : portalLabel("انتخاب کد و استعلام قیمت")}
                               </span>
                             </div>
                             <button
@@ -876,24 +877,28 @@ export const ConsumerDashboardPage: React.FC = () => {
                 <div className="consumer-quickbuy-grid">
                   {catalogProducts.slice(0, visibleProductCount).map((prod) => {
                     const firstVar = (prod.variants || [])[0];
-                    const unitPrice = (firstVar && (firstVar.price || firstVar.prices?.retail)) || prod.prices?.retail || 0;
                     const needsSelection = Boolean(prod.variants?.length);
+                    const unitPrice = !needsSelection
+                      ? getCurrentCustomerSkuPrice(prod, user, true)
+                      : 0;
                     return (
                       <article key={prod.code} className="consumer-quickbuy-card">
                         <Link className="consumer-quickbuy-media"
-                          to={`/product/${encodeURIComponent(prod.code)}`}
+                          to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}
                           aria-label={`مشاهده ${prod.name}`}>
                           <ProductImage src={prod.images?.[0]} alt={prod.name}
                             loading="lazy" decoding="async" thumbnail />
                         </Link>
                         <div className="consumer-quickbuy-card-copy">
                           <span className="consumer-sku" dir="ltr">{firstVar?.code || prod.code}</span>
-                          <h3><Link to={`/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
+                          <h3><Link to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
                           <p>{prod.categoryName || "قطعه صنعتی"}</p>
                           <div className="consumer-quickbuy-price">
-                            <span>{!needsSelection && !prod.inquiryOnly && unitPrice > 0
-                              ? `${formatPrice(unitPrice)} تومان`
-                              : "انتخاب کد و استعلام قیمت"}</span>
+                            <span>{user?.canViewPrices !== true
+                              ? "دسترسی مشاهده قیمت فعال نیست"
+                              : !needsSelection && !prod.inquiryOnly && unitPrice > 0
+                                ? `${formatPrice(unitPrice)} تومان`
+                                : "انتخاب کد و استعلام قیمت"}</span>
                           </div>
                         </div>
                         <button type="button" className="consumer-product-cta"

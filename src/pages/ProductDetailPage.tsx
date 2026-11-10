@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
-import { pricingCreditService } from "../services/pricingCreditService";
+import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
 
 export const ProductDetailPage: React.FC = () => {
@@ -70,14 +70,18 @@ export const ProductDetailPage: React.FC = () => {
         currentUser.id,
       ).permissions.allowQuickSkuOrder !== false
     : false;
+  const isCustomerPortalRoute =
+    location.pathname.startsWith("/account/") ||
+    location.pathname.startsWith("/consumer-dashboard/");
   const canViewCommercial =
-    buyingAllowed &&
-    !!currentUser &&
-    (location.pathname.startsWith("/account/") ||
-      location.pathname.startsWith("/consumer-dashboard/"));
+    !!currentUser && currentUser.canViewPrices === true && isCustomerPortalRoute;
   const continueInPanel = () =>
     currentUser
-      ? navigate(memberPath(currentUser, selectedVariantCode || code))
+      ? navigate(
+          currentUser.canViewPrices === true
+            ? memberPath(currentUser, selectedVariantCode || code)
+            : "/contact",
+        )
       : openAuthModal(
           memberPath(currentUser, selectedVariantCode || code),
           "register",
@@ -272,23 +276,12 @@ export const ProductDetailPage: React.FC = () => {
     visibleVariants[0];
   const selectedTechnicalReview = selectedVariant?.technicalReview ?? lazyReviews[selectedVariantCode];
 
-  // SKU-owned pricing & stock resolution
-  const baseUnitPrice = selectedVariant
-    ? (selectedVariant.price ?? selectedVariant.prices?.retail ?? 0)
-    : (product.prices?.retail ?? 0);
-
-  const customerPriceList = currentUser
-    ? pricingCreditService.getPriceListForCustomer(currentUser)
-    : undefined;
-  const skuPrice = (sku: string, base: number) =>
-    customerPriceList
-      ? pricingCreditService.getSkuPriceForList(sku, base, customerPriceList)
-      : currentUser?.approvedB2B
-        ? 0
-        : base;
-  const activeUnitPrice = skuPrice(
-    selectedVariant?.code || product.code,
-    baseUnitPrice,
+  // Prices are already resolved by the authenticated runtime for this customer
+  // and selected SKU. Never apply a second client-side price-list discount.
+  const activeUnitPrice = getCurrentCustomerSkuPrice(
+    selectedVariant ?? product,
+    currentUser,
+    canViewCommercial,
   );
 
   const isSelectedInquiryOnly = selectedVariant
@@ -375,7 +368,7 @@ export const ProductDetailPage: React.FC = () => {
       continueInPanel();
       return;
     }
-    if (isSelectedInquiryOnly || activeUnitPrice <= 0) {
+    if (!buyingAllowed || isSelectedInquiryOnly || activeUnitPrice <= 0) {
       setIsInquiryModalOpen(true);
       return;
     }
@@ -822,7 +815,7 @@ export const ProductDetailPage: React.FC = () => {
                     {visibleVariants.map((v) => {
                       const isSel = v.code === selectedVariant?.code;
                       const vPrice = canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0;
                       const vInq =
                         v.inquiryOnly !== undefined
@@ -883,7 +876,7 @@ export const ProductDetailPage: React.FC = () => {
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0,
                       prices: undefined,
                     }))}
@@ -955,7 +948,7 @@ export const ProductDetailPage: React.FC = () => {
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
-                        ? skuPrice(v.code, v.price ?? v.prices?.retail ?? 0)
+                        ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
                         : 0,
                       prices: undefined,
                     }))}
@@ -1047,7 +1040,7 @@ export const ProductDetailPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      disabled={isSelectedStockKnown && activeStockCount <= 0}
+                      disabled={buyingAllowed && isSelectedStockKnown && activeStockCount <= 0}
                       className={`h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98 ${
                         isSelectedStockKnown && activeStockCount <= 0
                           ? "bg-slate-200 text-slate-500 cursor-not-allowed"
@@ -1065,9 +1058,11 @@ export const ProductDetailPage: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <ShoppingCart className="w-4 h-4" />
+                          {buyingAllowed ? <ShoppingCart className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
                           <span>
-                            افزودن کد {requestedProduct.code} به سبد خرید
+                            {buyingAllowed
+                              ? `افزودن کد ${requestedProduct.code} به سبد خرید`
+                              : `ثبت استعلام برای کد ${requestedProduct.code}`}
                           </span>
                         </>
                       )}
@@ -1517,11 +1512,11 @@ export const ProductDetailPage: React.FC = () => {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={isSelectedStockKnown && activeStockCount <= 0}
+              disabled={buyingAllowed && isSelectedStockKnown && activeStockCount <= 0}
               className="h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>{added ? "افزوده شد" : "افزودن به سبد"}</span>
+              {buyingAllowed ? <ShoppingCart className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
+              <span>{added ? "افزوده شد" : buyingAllowed ? "افزودن به سبد" : "ثبت استعلام"}</span>
             </button>
           ) : (
             <button
