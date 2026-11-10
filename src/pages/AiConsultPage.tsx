@@ -2004,8 +2004,10 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 {selectedConsultProducts.length > 0 && (
                   <div className="mx-auto mb-2 flex max-w-4xl flex-wrap gap-1.5">
                     {selectedConsultProducts.map(product => (
-                      <span key={product.code} className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]">
-                        <span dir="ltr">{product.code}</span>
+                      <span key={product.code} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]" title={product.name}>
+                        {product.image && <img src={product.image} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded-md bg-white object-contain" />}
+                        <span className="min-w-0 truncate">{product.name}</span>
+                        <span dir="ltr" className="shrink-0">{product.code}</span>
                         <button type="button" aria-label={`حذف ${product.code} از فهرست مشاوره`}
                           onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}>×</button>
                       </span>
