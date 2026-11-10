@@ -718,6 +718,62 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setErrorMessage('');
   };
 
+  // The original stays in the customer's local vault during identification.
+  // It is read and attached to the manufacturing request only after an explicit click.
+  const openCustomManufacturingRequest = async () => {
+    if (isPreparingCustomRequest) return;
+    if (!selectedImage) {
+      setErrorMessage('تصویر قطعه برای ثبت درخواست ساخت پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
+      return;
+    }
+    setIsPreparingCustomRequest(true);
+    setErrorMessage('');
+    try {
+      let imageBlob: Blob | null = null;
+      let originalName = 'forza-part-image';
+      if (localImageId) {
+        const localRecord = await getCustomerDeviceImage(localImageId);
+        if (localRecord) {
+          imageBlob = localRecord.blob;
+          originalName = localRecord.originalName || originalName;
+        }
+      }
+      if (!imageBlob) {
+        const response = await fetch(temporaryImageDataUrl || selectedImage);
+        if (!response.ok) throw new Error('خواندن تصویر ذخیره‌شده روی دستگاه ممکن نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
+        imageBlob = await response.blob();
+      }
+      const file = await createManufacturingImageFile(imageBlob, originalName);
+      const summary = analysisResult?.summary;
+      const detectedName = [summary?.partFamilyFarsi, summary?.detectedPartType]
+        .map(value => String(value || '').trim())
+        .find(value => value.length > 1 && !/جست‌وجوی تصویری کاتالوگ|قطعه نامشخص|نامشخص/i.test(value));
+      const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
+      const regionNote = queryRegion
+        ? 'ناحیه انتخاب‌شده در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
+          ', width=' + queryRegion.width.toFixed(4) + ', height=' + queryRegion.height.toFixed(4) + ' (مختصات نسبی تصویر).'
+        : 'درخواست بر اساس تصویر کامل ارسالی ثبت شده است.';
+      const notes = [
+        'درخواست ساخت و مهندسی معکوس از مسیر شناسایی تصویری FORZA ثبت شده است.',
+        'خلاصه بررسی تصویر: ' + visualSummary,
+        analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
+        regionNote,
+      ].filter(Boolean).join('\n').slice(0, 2800);
+      setCustomRequestDraft({
+        file,
+        partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
+        partType: 'سایر قطعات مکانیکی خاص',
+        dimensions: '',
+        notes,
+      });
+      setCustomRequestOpen(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'آماده‌سازی تصویر برای درخواست ساخت ناموفق بود.');
+    } finally {
+      setIsPreparingCustomRequest(false);
+    }
+  };
+
   const retakeCameraPhoto = () => {
     imagePreparationSequenceRef.current++;
     regionDetectionSequenceRef.current++;
