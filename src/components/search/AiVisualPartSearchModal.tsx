@@ -3,6 +3,7 @@ import {apiUrl} from '../../config/apiConfig';
 import {ImageRegionSelector} from './ImageRegionSelector';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
+import { buildVisionConsultationPrompt } from '../../utils/visionConsultationPrompt';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
 import React, { lazy, Suspense, useState, useRef } from "react";
@@ -2410,8 +2411,23 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                                             console.warn('[Customer image history] selected product sync unavailable', error)
                                           );
                                         }
+                                        const isSimilar = Boolean(
+                                          analysisResult?.similarCandidates?.some(candidate => candidate.code === match.code) ||
+                                          match.visualVerdict === 'very_similar'
+                                        );
+                                        const q = buildVisionConsultationPrompt({
+                                          code: match.code,
+                                          name: match.name || match.code,
+                                          brand: match.brand,
+                                          isSimilar,
+                                        }, analysisResult?.summary);
+                                        const params = new URLSearchParams({
+                                          productCode: match.code,
+                                          productName: match.name || match.code,
+                                          ...(q ? { q } : {}),
+                                        });
                                         onClose();
-                                        navigate('/ai-consult?productCode=' + encodeURIComponent(match.code) + '&productName=' + encodeURIComponent(match.name || match.code));
+                                        navigate('/ai-consult?' + params.toString());
                                       }}
                                       className="h-9 px-3 bg-orange-50 hover:bg-orange-100 text-[#A64B14] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer border border-orange-200"
                                     >
