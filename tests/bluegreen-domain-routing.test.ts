@@ -54,8 +54,15 @@ test("customer-facing Nginx vhosts route API writes before the read-only SPA fal
 });
 
 test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
-  assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
+  assert.match(nginxHotfix, /CUSTOMER_API_HTTP_REDIRECT_READY/);
+  assert.match(nginxHotfix, /X-Sanatpish-API-Route express always/);
+  assert.match(nginxHotfix, /X-Sanatpish-API-Route redirect always/);
+  assert.match(nginxHotfix, /DIRECT_EXPRESS_JSON_AUTH_GUARD_OK/);
+  assert.match(nginxHotfix, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
+  assert.doesNotMatch(nginxHotfix, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
   assert.match(nginxHotfix, /NGINX_API_ROUTE_ROLLBACK_OK/);
   assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
   assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
