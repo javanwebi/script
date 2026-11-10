@@ -3,7 +3,7 @@ import { IndustryNavigation } from "../storefront/IndustryTools";
 import {AboutNavigation} from '../../pages/DiscoveryPages';
 import { ProductImage } from '../product/ProductImage';
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
   ShoppingCart,
@@ -61,6 +61,8 @@ type NavMenuType = 'products' | 'industries' | 'brands' | 'services' | 'about' |
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isTextileReferencePage = location.pathname.startsWith('/industries/textile');
   const { currentUser, authLoading, logout, openAuthModal } = useAuth();
   const { itemCount } = useCart();
   const { wishlist } = useWishlist();
@@ -728,7 +730,18 @@ export const Header: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           
           {/* Main Menus from Right to Left (matching image.png) */}
-          <nav className="flex items-center gap-0.5 xl:gap-1 text-[11px] xl:text-xs font-medium text-white" dir="rtl">
+          <nav className={`flex items-center gap-0.5 xl:gap-1 text-[11px] xl:text-xs font-medium text-white ${isTextileReferencePage ? "textile-reference-nav" : ""}`} dir="rtl">
+            {isTextileReferencePage ? (
+              <>
+                <Link to="/" className="textile-reference-nav-link">صفحه اصلی</Link>
+                <Link to="/services" className="textile-reference-nav-link">مهندسی</Link>
+                <Link to="/industries" aria-current="page" className="textile-reference-nav-link is-active">صنایع</Link>
+                <Link to="/capabilities" className="textile-reference-nav-link">توانمندی‌ها</Link>
+                <Link to="/about" className="textile-reference-nav-link">درباره ما</Link>
+                <Link to="/knowledge" className="textile-reference-nav-link">بلاگ و مقالات</Link>
+                <Link to="/contact" className="textile-reference-nav-link">تماس با ما</Link>
+              </>
+            ) : (
             
             {/* 1. همه محصولات (Orange LayoutGrid icon + Down Chevron) */}
             <div
@@ -941,6 +954,7 @@ export const Header: React.FC = () => {
               <span>دانشنامه</span>
             </Link>
 
+            )}
           </nav>
 
           {/* Left: Hotline Support Badge with Pulse */}
