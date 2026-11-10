@@ -590,7 +590,7 @@ for index,(filename,source) in enumerate(zip(files,contents)):
  if index in (1,2):
   marker="# SANATPISH_API_WRITE_ROUTE_V1"
   root_pattern=re.compile(r'(?m)^([ \t]*)location\s+/\s*\{')
-  api_pattern=re.compile(r'(?m)^[ \t]*location\s+\^~\s+/api/\s*\{')
+  api_pattern=re.compile(r'(?m)^[ \t]*location\s+(?:\^~\s+)?/api/\s*\{')
   if marker in source:
    assert source.count(marker)==1,("DUPLICATE_API_WRITE_ROUTE",filename)
    route_start=source.index(marker)
