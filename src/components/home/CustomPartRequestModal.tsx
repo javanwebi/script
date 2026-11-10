@@ -184,7 +184,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
+    <div className="fixed inset-0 z-[140] overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Top Metallic Orange Accent Bar */}
