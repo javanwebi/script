@@ -172,6 +172,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     () => subscribeCatalogChanges(() => setCatalogPriceVersion((version) => version + 1)),
     [],
   );
+  // Saved for later
+  const [savedForLater, setSavedForLater] = useState<Product[]>(() => {
+    try {
+      const saved = durableStorage.getItem(SAVED_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   useEffect(() => {
     const catalog = getManagedCatalogProducts().filter((product) => product.active !== false);
     const refreshCommercialSnapshot = (stored: Product): Product => {
@@ -200,16 +210,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     })));
     setSavedForLater((previous) => previous.map(refreshCommercialSnapshot));
   }, [currentUser?.id, currentUser?.canViewPrices, catalogPriceVersion]);
-
-  // Saved for later
-  const [savedForLater, setSavedForLater] = useState<Product[]>(() => {
-    try {
-      const saved = durableStorage.getItem(SAVED_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
 
   // Inquiries
   const [allInquiries, setInquiries] = useState<InquiryItem[]>(() => {
