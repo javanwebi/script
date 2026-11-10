@@ -118,8 +118,8 @@ test('approved About page concept is implemented as real responsive UI and only 
   assert.match(about,/دسترسی به قیمت‌های فعال پس از ورود/);
   assert.doesNotMatch(about,/\+۵۰۰ برند|\+۱۵۰ دسته|کمتر از ۲۴ ساعت|بیش از ۳۰,۰۰۰/);
 
-  assert.match(about,/about-hero-gear\.webp/);
-  assert.match(about,/about-atlas-story\.webp/);
+  assert.match(about,/STORE_ASSETS\.partsWarehouseVault/);
+  assert.match(about,/STORE_ASSETS\.engineerWhyAtlas/);
   assert.match(about,/about-worker-cta\.webp/);
   assert.match(css,/max-width: 760px/);
   assert.match(css,/max-width: 390px/);
