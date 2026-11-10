@@ -6,19 +6,32 @@ import {getCatalogDisplayImageCandidates, CatalogResultImage} from '../src/compo
 
 const read = (file: string) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('homepage returns to the existing sequence without an added About block', () => {
+test('homepage About preview and company navigation lead to the dedicated company pages', () => {
   const home = read('src/pages/HomePage.tsx');
   const overview = read('src/components/storefront/HomeOverview.tsx');
-  const about = read('src/pages/AboutUsPage.tsx');
-  assert.doesNotMatch(home,/HomeAboutSection/);
-  assert.doesNotMatch(overview,/export function HomeAboutSection/);
+  const discovery = read('src/pages/DiscoveryPages.tsx');
+  const app = read('src/App.tsx');
+  const legacyAbout = read('src/pages/AboutUsPage.tsx');
+  assert.match(home,/HomeAboutSection/);
   assert.match(home,/<WhySanatPish \/>/);
-  assert.match(about,/<WhySanatPish variant="about" \/>/);
+  assert.match(overview,/export function HomeAboutSection/);
+  assert.match(overview,/با پشتوانه بازرگانی تسمه اطلس/);
+  assert.match(overview,/to="\/about"/);
+  assert.match(discovery,/export function AboutPage/);
+  assert.match(discovery,/از سال ۱۳۶۶/);
+  assert.match(discovery,/to: "\/services"/);
+  assert.match(discovery,/to: "\/industries"/);
+  assert.match(discovery,/to: "\/brands"/);
+  assert.match(discovery,/to: "\/knowledge"/);
+  assert.match(discovery,/to: "\/contact"/);
+  assert.match(discovery,/export function AboutNavigation/);
+  assert.match(app,/path="\/about" element={<AboutPage \/>}/);
+  assert.match(app,/path="\/services" element={<ServicesPage \/>}/);
+  assert.match(legacyAbout,/<WhySanatPish variant="about" \/>/);
   assert.match(overview,/variant === 'about' \? 'about-why-sanat-pish'/);
   assert.match(overview,/levitatingOrbitalEngine/);
   assert.match(overview,/rightPillars\.map/);
   assert.match(overview,/leftPillars\.map/);
-  assert.match(about,/درباره صنعت پیش/);
 });
 
 test('catalogue preview promotes only verified thumbnails to the real full-size original', () => {
