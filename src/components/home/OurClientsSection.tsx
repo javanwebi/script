@@ -91,11 +91,11 @@ export const OurClientsSection: React.FC = () => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPaused(false);
       }}
     >
-      <div className="max-w-4xl mx-auto px-4 text-center space-y-1.5">
-        <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 text-left space-y-1.5">
+        <h2 className="text-left text-lg sm:text-xl font-black text-slate-900 tracking-tight">
           مشتری‌های ما
         </h2>
-        <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+        <p className="text-left text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
           همراه مجموعه‌های صنعتی در تأمین قطعات خطوط تولید
         </p>
       </div>
