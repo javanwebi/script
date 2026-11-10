@@ -85,3 +85,25 @@ test('premium catalogue styling is loaded and scoped to product browsing routes'
   assert.match(premium, /:has\(> \.catalogue-page\)/);
   assert.match(premium, /:has\(> \.product-detail-page\)/);
 });
+
+test('premium industry pages keep split desktop hero and mobile-first station layouts', () => {
+  const entry = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  const premium = readFileSync(new URL('../src/industry-pages-premium.css', import.meta.url), 'utf8');
+  assert.match(entry, /@import "\.\/industry-pages-premium\.css";/);
+  for (const selector of [
+    '.industry-page .industry-hero',
+    '.industry-page .industry-hero > img',
+    '.industry-page .industry-fastbar',
+    '.industry-page .industry-selector',
+    '.industry-page .industry-stations button[aria-pressed="true"]',
+    '.industry-page .industry-part-links > a',
+    '.industry-page .editorial-products',
+    '.industry-directory > a',
+  ]) {
+    assert.ok(premium.includes(selector), `missing industry design selector: ${selector}`);
+  }
+  assert.match(premium, /inset: 0 0 0 auto/);
+  assert.match(premium, /@media \(max-width: 760px\)/);
+  assert.match(premium, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(premium, /@media \(prefers-reduced-motion: reduce\)/);
+});
