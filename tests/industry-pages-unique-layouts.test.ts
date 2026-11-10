@@ -26,6 +26,7 @@ test('ceramic retains its dedicated page instead of falling back to the generic 
   assert.match(ceramic, /ceramic-hero-visual/);
   assert.match(ceramic, /ceramic-hero-image/);
   assert.match(ceramic, /ceramic-hero-content/);
+  assert.equal((ceramic.match(/aria-pressed=\{isSelected\}/g) || []).length, 3);
   assert.match(ceramic, /rankIndustryProducts/);
   assert.match(ceramic, /<ProductCard/);
   assert.doesNotMatch(ceramic, /FAM-35245|FAM-80274|FAM-41680|FAM-BELT-TIM/);
