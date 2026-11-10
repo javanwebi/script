@@ -1,4 +1,5 @@
 import React, {useEffect,useMemo,useState} from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info} from 'lucide-react';
 import type {Product, Category} from '../../types';
 import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
@@ -36,7 +37,11 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     const controller=new AbortController();
     setLoading(true);setLoadError('');
     fetch('/api/admin/catalog-image-audits',{credentials:'same-origin',cache:'no-store',signal:controller.signal})
-      .then(async res=>{const data=await res.json();if(!res.ok||!data.success||!Array.isArray(data.rows))throw Error(data.message||'اطلاعات تصاویر در دسترس نیست.');return data.rows as DbImageAuditRow[];})
+      .then(async res=>{
+        const data=await requireAdminApiJson<{rows?:DbImageAuditRow[]}>(res,'دریافت تصاویر کاتالوگ');
+        if(!Array.isArray(data.rows))throw Error('فهرست تصاویر در پاسخ سرور وجود ندارد.');
+        return data.rows;
+      })
       .then(rows=>{setRecords(rows);setLoading(false);})
       .catch(error=>{if(!controller.signal.aborted){setLoadError(error.message||'ارتباط با دیتابیس برقرار نشد.');setLoading(false);}});
     return ()=>controller.abort();
@@ -191,8 +196,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         if(source==='upload'){
           if(!selectedUpload)throw new Error('تصویر انتخاب نشده است.');
           const response=await fetch('/api/catalog/category-images/upload',{method:'POST',credentials:'same-origin',headers:{'Content-Type':selectedUpload.type},body:selectedUpload});
-          const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.url)throw new Error(payload.message||'آپلود تصویر ذخیره نشد.');
+          const payload=await requireAdminApiJson<{url?:string}>(response,'آپلود تصویر کد مستقیم');
+          if(!payload.url)throw new Error('آپلود تصویر: آدرس فایل در پاسخ سرور وجود ندارد.');
           imageUrl=payload.url;
         }
         await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
@@ -206,6 +211,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       setSavingUpload(true);setSourceError('');
       try{
         let assignedUrl=url,assignedFile=file,persistedId:string|undefined;
+        let imageConnected=false;
         if(source==='upload'){
           if(!selectedUpload)throw new Error('ابتدا فایل تصویر را انتخاب کنید.');
           // Upload into the destination family first; the transfer endpoint then
@@ -217,9 +223,17 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           targetFamilyCode:familyCode,skuCode:sku,imageUrl:assignedUrl,
           fileName:assignedFile,title:title||undefined,persistedId
         });
+        imageConnected=true;
         await saveSelectedPath(familyCode);
         closeSelection();
-      }catch(error:any){setSourceError(error.message||'انتقال کد کالا و اتصال تصویر ذخیره نشد.');}
+      }catch(error:any){
+        setSourceError((imageConnected
+          ? 'اتصال تصویر به کد کالا ذخیره شد، اما دسته‌بندی خانواده تکمیل نشد. از ثبت تکراری خودداری کنید. '
+          : persistedId
+            ? 'آپلود تصویر ذخیره شد، اما اتصال به کد کالا تأیید نشد؛ قبل از تکرار وضعیت تصویر را بررسی کنید. '
+            : 'اتصال تصویر به کد کالا انجام نشد. ') +
+          (error instanceof Error ? error.message : 'خطای ارتباط با سرور'));
+      }
       finally{setSavingUpload(false);}
       return;
     }
