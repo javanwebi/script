@@ -65,6 +65,17 @@ test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", 
   assert.doesNotMatch(verify, /https:\/\/127\.0\.0\.1/);
 });
 
+test("read-only SPA guard validation scans the complete root block without weakening the guard", () => {
+  assert.match(one, /def nginx_block_at\\(/);
+  assert.match(one, /def nginx_depth_before\\(/);
+  assert.match(one, /def require_read_only_spa_guard\\(/);
+  assert.match(one, /set\\(methods\\) not in \\(\\{\\"GET\\"\\},\\{\\"GET\\",\\"HEAD\\"\\}\\)/);
+  assert.match(one, /deny\\s\+all/);
+  assert.match(one, /root_block=nginx_block_at\\(source,roots\\[0\\]\\.end\\(\\)-1\\)/);
+  assert.match(one, /READ_ONLY_SPA_GUARD_OK/);
+  assert.doesNotMatch(one, /roots\\[0\\]\\.start\\(\\)\\+700/);
+});
+
 test("AvalAI private config must be effective in canary before production promotion", () => {
   const gate = one.indexOf("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
   const promotion = one.indexOf("===== PROMOTE ON SAME FIXED PORT");
