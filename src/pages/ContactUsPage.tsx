@@ -247,7 +247,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
 
   return (
     <div
-      className="home-refined w-full bg-[#fafafb] text-[#55565A] font-sans pb-10 overflow-x-hidden"
+      className="home-refined contact-page w-full bg-[#fafafb] text-[#55565A] font-sans pb-10 overflow-x-hidden"
       dir="rtl"
     >
       {/* ===================================================================== */}
@@ -255,7 +255,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       {/* ===================================================================== */}
       <section
         aria-label="تماس با صنعت پیش"
-        className="relative w-full overflow-hidden bg-white lg:bg-[#2B313A] text-[#55565A] lg:text-white border-b border-[#e5e7eb] lg:border-slate-800"
+        className="contact-page__hero relative w-full overflow-hidden bg-white lg:bg-[#2B313A] text-[#55565A] lg:text-white border-b border-[#e5e7eb] lg:border-slate-800"
       >
         {/* DESKTOP ARCHITECTURAL BACKGROUND (lg+) */}
         <div className="hidden lg:block absolute inset-0 z-0">
