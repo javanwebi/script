@@ -11,6 +11,8 @@ const pages = [
   { slug: 'textile', path: '/industries/textile', selector: '.industry-hero' },
   { slug: 'packaging', path: '/industries/packaging', selector: '.industry-hero' },
   { slug: 'food', path: '/industries/food', selector: '.industry-hero' },
+  { slug: 'machinery', path: '/industries/machinery', selector: '.industry-hero' },
+  { slug: 'rubber', path: '/industries/rubber', selector: '.industry-hero' },
 ];
 
 const viewports = [
