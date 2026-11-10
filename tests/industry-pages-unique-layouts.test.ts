@@ -66,3 +66,22 @@ test('industry recommendations can match technical taxonomy and specifications',
   const ranked = rankIndustryProducts([product], textile, 6);
   assert.equal(ranked[0]?.code, 'FAM-TEXTILE');
 });
+
+test('premium catalogue styling is loaded and scoped to product browsing routes', () => {
+  const entry = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  const premium = readFileSync(new URL('../src/catalogue-premium.css', import.meta.url), 'utf8');
+  assert.match(entry, /@import "\.\/catalogue-premium\.css";/);
+  for (const selector of [
+    '.catalogue-page .catalogue-intro',
+    '.catalogue-page .store-product-grid',
+    '.catalogue-page .store-product-card',
+    '.product-detail-page .product-detail-layout',
+    '.product-detail-page .product-detail-specs',
+  ]) {
+    assert.ok(premium.includes(selector), `missing premium selector: ${selector}`);
+  }
+  assert.match(premium, /@media \(max-width: 600px\)/);
+  assert.match(premium, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(premium, /:has\(> \.catalogue-page\)/);
+  assert.match(premium, /:has\(> \.product-detail-page\)/);
+});
