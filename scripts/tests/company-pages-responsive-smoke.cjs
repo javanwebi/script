@@ -6,7 +6,7 @@ const out = process.env.SCREENSHOT_DIR || "/tmp";
 const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
-  { path: "/about", selector: ".company-page--about", heading: /بازار جامع قطعات صنعتی ایران/ },
+  { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
   { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
@@ -18,7 +18,7 @@ const pages = [
   mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 768, 1440]) {
+    for (const width of [360, 390, 768, 1280, 1440]) {
       const page = await browser.newPage({
         viewport: { width, height: width < 768 ? 844 : 960 },
         reducedMotion: "reduce",
@@ -41,7 +41,7 @@ const pages = [
       const aboutLink = page.locator('.home-about-preview a[href="/about"]').first();
       await aboutLink.waitFor({ state: "visible" });
       await aboutLink.click();
-      await page.locator(".company-page--about").waitFor({ timeout: 15000 });
+      await page.locator(".company-page--about .sp-about-hero").waitFor({ timeout: 15000 });
       await page.getByRole("heading", { level: 1 }).first().waitFor();
 
       const requiredAboutLinks = ["/services", "/industries", "/brands", "/knowledge", "/contact"];
