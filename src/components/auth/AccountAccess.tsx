@@ -16,6 +16,7 @@ import { SanatPishLogo } from "../common/BrandIdentity";
 import { RegisterPayload } from "../../types";
 import { portalRequest, hydratePortal } from "../../services/portalRepository";
 import { PhoneLogin } from "./PhoneLogin";
+import { resolvePostLoginDestination } from "../../utils/accountRedirect";
 export function AccountAccess({
   initial = "login",
   onDone,
@@ -55,7 +56,7 @@ export function AccountAccess({
       try {
         sessionStorage.removeItem("sanat_access_destination");
       } catch {}
-      navigate(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : destination.startsWith(root + "/product/") ? destination : root);
+      navigate(resolvePostLoginDestination(root, returnTo, destination));
     } else navigate("/onboarding");
   };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -214,9 +215,9 @@ export function AccountAccess({
             <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
           </span>
           <h2>
-            از انتخاب هوشمند
+            {mode === "register" ? "از اولین استعلام" : "خوش آمدید به صنعت پیش"}
             <br />
-            تا خرید مطمئن.
+            {mode === "register" ? "تا تأمین مطمئن قطعات" : "از جست‌وجو تا خرید مطمئن"}
           </h2>
           <ul>
             {[

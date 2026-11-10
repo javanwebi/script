@@ -4650,3 +4650,111 @@ select {
 }
 .industry-visual-module--textile .industry-visual-copy h2 { color: #30363d; }
 .industry-visual-module--textile .industry-visual-step { border-color: #e8e0d6; }
+
+
+/* Phase 6: a single lightweight scroll surface for mobile sign-in/register.
+   Keep the distinct login/register hero assets and all existing form flows. */
+@media (max-width: 767px) {
+  .account-dialog {
+    position: fixed;
+    inset: max(10px, env(safe-area-inset-top)) 0 auto;
+    width: calc(100vw - 16px);
+    max-width: 640px;
+    height: min(91dvh, 820px);
+    max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 24px;
+    contain: layout paint;
+  }
+  .account-dialog::backdrop {
+    background: rgba(33, 39, 48, 0.63);
+    backdrop-filter: none;
+  }
+  .account-dialog .account-access {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .account-dialog .account-access-story {
+    position: relative;
+    order: 1;
+    display: flex;
+    align-items: flex-end;
+    flex: 0 0 auto;
+    min-height: 135px;
+    height: clamp(135px, 22dvh, 172px);
+    padding: 14px 18px;
+    overflow: hidden;
+    border-radius: 24px 24px 0 0;
+  }
+  .account-dialog .account-access-story > img {
+    display: block;
+    object-position: center 40%;
+    filter: saturate(0.82);
+  }
+  .account-dialog .account-access-story::after {
+    background: linear-gradient(0deg, rgba(18,24,34,.87) 0%, rgba(28,35,44,.23) 88%);
+  }
+  .account-dialog .account-access-story > div {
+    display: block;
+    width: calc(100% - 34px);
+    position: relative;
+    z-index: 1;
+  }
+  .account-dialog .account-access-story h2 {
+    display: block;
+    margin: 4px 0 0;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+  .account-dialog .account-access-story ul,
+  .account-dialog .account-access-story a,
+  .account-dialog .account-access-story .account-symbol {
+    display: none;
+  }
+  .account-dialog .account-access-story .inline-flex {
+    width: 99px;
+    height: 34px;
+    padding: 4px 8px;
+  }
+  .account-dialog .account-access-form {
+    order: 2;
+    display: block;
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+    padding: 16px 18px calc(24px + env(safe-area-inset-bottom));
+    touch-action: pan-y;
+  }
+  .account-dialog .account-form-heading h1 {
+    font-size: 21px;
+  }
+  .account-dialog .account-fields input,
+  .account-dialog .account-fields select {
+    min-height: 46px;
+    font-size: 16px;
+  }
+  .account-dialog .account-close {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 12;
+  }
+  main .account-access {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  main .account-access-form {
+    overflow: visible;
+  }
+}

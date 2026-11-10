@@ -24,7 +24,7 @@ interface MobileBottomBarProps {
   onOpenSearch?: () => void;
 }
 export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
-  const { currentUser, openAuthModal } = useAuth();
+  const { currentUser, authLoading, openAuthModal } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
   const openIdentification = usePartIdentificationAction();
@@ -77,7 +77,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = () => {
           <span>دسته‌ها</span>
         </button>
         <Link
-          to="/cart"
+          to={currentUser || authLoading ? "/cart" : "/login?returnTo=%2Fcart"}
           aria-current={active("/cart") || active("/checkout") ? "page" : undefined}
         >
           <span className="store-cart-count">
