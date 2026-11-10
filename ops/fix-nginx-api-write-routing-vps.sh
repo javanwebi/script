@@ -85,6 +85,7 @@ for filename in files:
   root=list(root_pattern.finditer(source))
   assert len(root)==1 and source.index(marker)<root[0].start(),("API_ROUTE_PLACEMENT_INVALID",filename)
   route=source[source.index(marker):root[0].start()]
+  assert "location ^~ /api/ {" in route,("API_LOCATION_MISSING",filename)
   assert "limit_except GET HEAD POST PUT PATCH DELETE OPTIONS" in route,("API_METHOD_ALLOWLIST_MISSING",filename)
   assert f"proxy_pass http://127.0.0.1:{target};" in route,("API_UPSTREAM_MISMATCH",filename)
  else:
