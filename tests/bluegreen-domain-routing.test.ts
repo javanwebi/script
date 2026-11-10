@@ -39,20 +39,24 @@ test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSO
 });
 
 test("customer-facing Nginx vhosts route API writes before the read-only SPA fallback", () => {
-  assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(singlePort, /location \^~ \/api\//);
-  assert.match(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
-  assert.match(singlePort, /SCOPED_API_WRITE_ROUTE_READY/);
+  assert.match(singlePort, /X-Sanatpish-API-Route express always/);
+  assert.match(singlePort, /X-Sanatpish-API-Route redirect always/);
+  assert.match(singlePort, /return 308 https:\/\/\$host\$request_uri/);
+  assert.match(singlePort, /API_ROUTE_METHODS_DELEGATED_TO_EXPRESS/);
+  assert.doesNotMatch(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
+  assert.match(singlePort, /CUSTOMER_HTTPS_API_PROXY_ROUTE_READY/);
+  assert.match(singlePort, /CUSTOMER_HTTP_API_HTTPS_REDIRECT_READY/);
   assert.match(singlePort, /READ_ONLY_SPA_GUARD_NOT_PRESERVED/);
   assert.match(singlePort, /READ_ONLY_IP_PREVIEW_PRESERVED/);
-  assert.match(singlePort, /if index in \(1,2\)/);
-  assert.match(singlePort, /for host in \(domain,'www\.'\+domain\):/);
+  assert.match(singlePort, /if index in \\(1,2\\)/);
+  assert.match(singlePort, /for host in \\(domain,'www\\.'\\+domain\\):/);
   const routeSwitch = singlePort.indexOf("===== ONE FIXED PORT FOR ALL PUBLIC WEBSITE VHOSTS =====");
-  const routeReady = singlePort.indexOf("SCOPED_API_WRITE_ROUTE_READY", routeSwitch);
+  const routeReady = singlePort.indexOf("CUSTOMER_HTTPS_API_PROXY_ROUTE_READY", routeSwitch);
   const nginxReload = singlePort.indexOf("systemctl reload nginx", routeSwitch);
   assert.ok(routeSwitch >= 0 && routeReady > routeSwitch && nginxReload > routeReady);
 });
-
 test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
   assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
