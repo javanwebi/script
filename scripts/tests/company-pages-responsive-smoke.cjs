@@ -18,7 +18,7 @@ const pages = [
   mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 768, 1440]) {
+    for (const width of [360, 390, 768, 1280, 1440]) {
       const page = await browser.newPage({
         viewport: { width, height: width < 768 ? 844 : 960 },
         reducedMotion: "reduce",
