@@ -214,16 +214,14 @@ export function TextileIndustryPage() {
             <span className="textile-visual-caption"><Factory size={15} /> مسیر تأمین قطعات خط نساجی</span>
           </div>
           <div className="textile-production-content">
-            <div className="textile-stage-list" role="tablist" aria-label="مراحل خط تولید نساجی">
+            <div className="textile-stage-list" role="group" aria-label="مراحل خط تولید نساجی">
               {stages.map((stage, index) => {
                 const Icon = stage.icon;
                 const selected = selectedStage === index;
                 return (
                   <button
                     type="button"
-                    role="tab"
-                    id={`textile-stage-tab-${index}`}
-                    aria-selected={selected}
+                    aria-pressed={selected}
                     aria-controls="textile-stage-panel"
                     key={stage.number}
                     onClick={() => setSelectedStage(index)}
@@ -239,8 +237,7 @@ export function TextileIndustryPage() {
             <div
               className="textile-stage-detail"
               id="textile-stage-panel"
-              role="tabpanel"
-              aria-labelledby={`textile-stage-tab-${selectedStage}`}
+              role="region"
               aria-live="polite"
             >
               <span className="textile-stage-index">ایستگاه {activeStage.number}</span>
