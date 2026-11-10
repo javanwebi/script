@@ -58,7 +58,7 @@ export const INDUSTRIES = [
     slug: "packaging",
     title: "بسته‌بندی و کارتن‌سازی",
     eyebrow: "هماهنگ با ریتم خط",
-    image: A.industries.robotArm,
+    image: A.industries.food,
     description:
       "انتقال، هدایت و جابه‌جایی محصول در خطوط بسته‌بندی به حرکت هماهنگ نیاز دارد. قطعه را بر اساس سرعت، نوع محصول و مشخصات دستگاه انتخاب کنید.",
     steps: [
