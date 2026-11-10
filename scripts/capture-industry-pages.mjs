@@ -33,6 +33,7 @@ try {
         timezoneId: 'Asia/Tehran',
       });
       const page = await context.newPage();
+      page.on('pageerror', (error) => console.log('PAGE_ERROR', target.slug, error.message));
       // The screenshot runner serves the built frontend without Express/PostgreSQL.
       // Return an empty, healthy bootstrap only for visual capture so the production
       // "database unavailable" banner does not contaminate design screenshots.
@@ -56,11 +57,18 @@ try {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
       });
-      await page.locator(target.selector).first().waitFor({ state: 'visible', timeout: 30000 });
+      await page.locator('body').waitFor({ state: 'visible', timeout: 10000 });
+      let expectedSectionVisible = false;
+      try {
+        await page.locator(target.selector).first().waitFor({ state: 'visible', timeout: 10000 });
+        expectedSectionVisible = true;
+      } catch {
+        console.warn('EXPECTED_SECTION_NOT_FOUND', target.slug, target.path, await page.title());
+      }
       await page.evaluate(async () => {
         if (document.fonts?.ready) await document.fonts.ready;
       });
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(expectedSectionVisible ? 900 : 1800);
       const file = `${output}/${target.slug}-${device.name}.png`;
       await page.screenshot({
         path: file,
