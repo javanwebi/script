@@ -1,3 +1,4 @@
+import '../catalog-refinement.css';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, Layers, Package, Search } from 'lucide-react';
@@ -20,7 +21,16 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const selection = searchParams.get('sub') || '';
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [search, setSearch] = useState('');
+  const search = searchParams.get('q') || '';
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const pageSize = 24;
+  const requestedPage = Math.max(1, Math.floor(Number(searchParams.get('page')) || 1));
+  const setSearch = (value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) params.set('q', value); else params.delete('q');
+    params.delete('page');
+    setSearchParams(params, { replace: true });
+  };
   const [catalogRevision, refreshProducts] = useState(0);
 
   useEffect(() => subscribeCatalogChanges(() => refreshProducts(n => n + 1)), []);
@@ -54,13 +64,24 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     const params = new URLSearchParams(searchParams);
     if (name) params.set('sub', name);
     else params.delete('sub');
+    params.delete('page');
     setSearchParams(params);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(families.length / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const visibleFamilies = families.slice((page - 1) * pageSize, page * pageSize);
+  const changePage = (next: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', String(next));
+    setSearchParams(params);
+    document.getElementById('catalog-results')?.scrollIntoView({ block: 'start' });
   };
 
   const groupCount = (name: string) => (data?.families || []).filter(f => f.submenu === name || f.leaf === name).length;
 
-  return <main className="mx-auto w-full max-w-[1600px] px-4 py-6 text-right sm:px-6 lg:px-8" dir="rtl">
-    <nav className="mb-5 flex items-center gap-2 text-xs text-slate-500">
+  return <main className="catalog-refinement mx-auto w-full max-w-[1600px] px-4 py-6 text-right sm:px-6 lg:px-8" dir="rtl">
+    <nav aria-label="مسیر صفحه" className="mb-5 flex-wrap flex items-center gap-2 text-xs text-slate-500">
       <Link to="/">خانه</Link><ChevronLeft size={13}/><Link to="/categories">دسته‌بندی‌ها</Link>
       {data?.category && <><ChevronLeft size={13}/><span className="text-slate-800">{data.category.name}</span></>}
     </nav>
@@ -71,7 +92,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       <button className="mt-4 rounded-lg bg-[#E56B1E] px-4 py-2 text-sm text-white" onClick={() => window.location.reload()}>تلاش دوباره</button>
     </div>}
     {status === 'ready' && data?.category && <>
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-[#303337] p-6 text-white">
+      <header className="catalog-refinement-hero mb-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-[#303337] p-6 text-white">
         <div><span className="text-xs text-orange-300">کاتالوگ صنعت پیش</span>
           <h1 className="mt-2 text-2xl font-black">{data.category.name}</h1>
           <p className="mt-3 text-sm text-slate-200">{data.category.description}</p>
@@ -82,8 +103,16 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       <div className="mb-5">
         <DirectSkuProducts categorySlug={slug} selectedSub={selection||'all'}/>
       </div>
+      <nav aria-label="ابزارهای انتخاب قطعه" className="catalog-discovery-links">
+        <Link to="/categories">همه دسته‌بندی‌ها <ChevronLeft size={16}/></Link>
+        <Link to="/identify-part">شناسایی قطعه با عکس <ChevronLeft size={16}/></Link>
+        <Link to="/ai-consult">راهنمای انتخاب قطعه <ChevronLeft size={16}/></Link>
+      </nav>
+      <button type="button" aria-expanded={filtersOpen} aria-controls="catalog-category-filters" onClick={() => setFiltersOpen(!filtersOpen)} className="catalog-filter-toggle lg:hidden">
+        <Layers size={18}/> {selection || 'انتخاب زیرگروه'} <span>{filtersOpen ? 'بستن' : 'نمایش'}</span>
+      </button>
       <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className="self-start rounded-xl border border-slate-200 bg-white p-4">
+        <aside id="catalog-category-filters" className={`${filtersOpen ? 'block' : 'hidden'} lg:block self-start rounded-xl border border-slate-200 bg-white p-4`}>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800"><Layers size={17}/> زیرمنوها و مشخصات</h2>
           <button onClick={() => selectNode('')} className={`mb-2 w-full rounded-lg px-3 py-2 text-right text-sm ${!selection ? 'bg-orange-50 font-bold text-[#CF5C15]' : 'hover:bg-slate-50'}`}>تمام خانواده‌ها</button>
           {(data.category.children || []).map(node => <section key={node.name} className="mb-3 border-t border-slate-100 pt-3">
@@ -94,15 +123,15 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               className={`block w-full rounded-lg py-2 pr-5 text-right text-xs ${selection===leaf.name ? 'bg-orange-50 font-bold text-[#CF5C15]' : 'text-slate-500 hover:text-[#CF5C15]'}`}>{leaf.name}</button>)}
           </section>)}
         </aside>
-        <section className="min-w-0">
+        <section id="catalog-results" className="min-w-0 scroll-mt-32">
           <label className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-            <Search size={17} className="text-slate-400"/><input value={search} onChange={e => setSearch(e.target.value)}
+            <Search size={17} className="text-slate-400"/><input aria-label="جست‌وجوی خانواده یا کد کالا" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="جست‌وجوی خانواده یا کد کالا" className="w-full bg-transparent text-sm outline-none"/>
           </label>
-          <p className="mb-3 text-sm font-bold text-slate-700">{families.length} خانواده مطابق فیلتر</p>
+          <p role="status" className="mb-3 text-sm font-bold text-slate-700">{families.length} خانواده مطابق فیلتر</p>
           {families.length === 0 && <p className="rounded-xl bg-white p-8 text-sm text-slate-500">برای این زیرمنو هنوز خانواده‌ای با تطبیق تأییدشده ثبت نشده است.</p>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {families.map(family => {
+            {visibleFamilies.map(family => {
               const product = products.get(family.code);
               return product ? <ProductCard key={family.code} product={product}/> :
                 <article key={family.code} className="rounded-xl border border-slate-200 bg-white p-5">
@@ -114,6 +143,11 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                 </article>;
             })}
           </div>
+          {totalPages > 1 && <nav aria-label="صفحه‌بندی خانواده‌ها" className="catalog-pagination">
+            <button disabled={page === 1} onClick={() => changePage(page - 1)}>صفحه قبل</button>
+            <span>صفحه {page.toLocaleString('fa-IR')} از {totalPages.toLocaleString('fa-IR')}</span>
+            <button disabled={page === totalPages} onClick={() => changePage(page + 1)}>صفحه بعد</button>
+          </nav>}
         </section>
       </div>
     </>}
