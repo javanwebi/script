@@ -1,5 +1,11 @@
 import {durableStorage,databaseStorageEnabled} from "../services/durableStorage";
-import { getProductByCode } from "../data/mockGenerator";
+import {
+  getProductByCode,
+  getManagedCatalogProducts,
+  subscribeCatalogChanges,
+} from "../data/mockGenerator";
+import { resolvePurchaseLines } from "../utils/purchaseList";
+import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { portalRequest, hydratePortal } from "../services/portalRepository";
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import {
@@ -157,6 +163,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       return [];
     }
   });
+
+  // Keep stored cart prices bound to the current authenticated customer's
+  // runtime catalogue. A previous session's price must never survive logout
+  // or be reused by a different customer on the same browser.
+  const [catalogPriceVersion, setCatalogPriceVersion] = useState(0);
+  useEffect(
+    () => subscribeCatalogChanges(() => setCatalogPriceVersion((version) => version + 1)),
+    [],
+  );
+  useEffect(() => {
+    const catalog = getManagedCatalogProducts().filter((product) => product.active !== false);
+    const refreshCommercialSnapshot = (stored: Product): Product => {
+      const resolved = resolvePurchaseLines(stored.code, catalog)[0]?.product;
+      const exactSku = Boolean(resolved && !resolved.variants?.length);
+      const canViewPrices = currentUser?.canViewPrices === true;
+      const price = resolved && exactSku && canViewPrices
+        ? getCurrentCustomerSkuPrice(resolved, currentUser, true)
+        : 0;
+      const source = resolved || stored;
+      return {
+        ...source,
+        prices: {
+          ...source.prices,
+          base: price,
+          retail: price,
+          wholesale: price,
+          dealer: price,
+        },
+        inquiryOnly: source.inquiryOnly || !exactSku || price <= 0,
+      };
+    };
+    setCart((previous) => previous.map((item) => ({
+      ...item,
+      product: refreshCommercialSnapshot(item.product),
+    })));
+    setSavedForLater((previous) => previous.map(refreshCommercialSnapshot));
+  }, [currentUser?.id, currentUser?.canViewPrices, catalogPriceVersion]);
 
   // Saved for later
   const [savedForLater, setSavedForLater] = useState<Product[]>(() => {
