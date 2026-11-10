@@ -49,6 +49,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isEditorial=["/industries","/brands","/knowledge","/about"].some(p=>location.pathname.startsWith(p));
   const isHomePage = location.pathname === '/';
   const isCategoryPage = location.pathname.startsWith('/category/');
+  const isTextileReferencePage = location.pathname.startsWith('/industries/textile');
 
   const handleOpenMobileMenu = () => {
     window.dispatchEvent(new CustomEvent('open-mobile-menu'));
@@ -59,7 +60,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   return (
-    <div className={`storefront min-h-screen flex flex-col ${showStorefrontDock ? "has-mobile-dock" : "no-mobile-dock"}`}>
+    <div className={`storefront min-h-screen flex flex-col ${showStorefrontDock ? "has-mobile-dock" : "no-mobile-dock"} ${isTextileReferencePage ? "textile-reference-layout" : ""}`}>
       <Header />
       <main className={`flex-1 w-full ${showStorefrontDock ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
         {children}
