@@ -81,29 +81,29 @@ const stages = [
 ];
 
 const benefits = [
-  { icon: Headset, title: "مشاوره تخصصی رایگان", detail: "انتخاب دقیق‌تر قطعه" },
-  { icon: Boxes, title: "موجودی و تأمین", detail: "بررسی خانواده‌های کاتالوگ" },
-  { icon: ShieldCheck, title: "تأمین صنعتی مطمئن", detail: "برندها و مشخصات قابل بررسی" },
-  { icon: Factory, title: "پوشش خط تولید", detail: "از ریسندگی تا تکمیل پارچه" },
+  { icon: Factory, title: "پوشش کامل تولید", detail: "از ریسندگی تا تکمیل پارچه" },
+  { icon: ShieldCheck, title: "تضمین کیفیت صنعتی", detail: "مطابق استانداردهای جهانی" },
+  { icon: Boxes, title: "تأمین سریع و مطمئن", detail: "قطعات اورجینال و جایگزین" },
+  { icon: Headset, title: "مشاوره تخصصی مهندسی", detail: "انتخاب، جایگزینی و بهینه‌سازی" },
 ];
 
 const reasons = [
-  { icon: Settings2, title: "دسترسی به برندهای معتبر", detail: "بررسی گزینه‌های متناسب با نیاز فنی خط تولید" },
-  { icon: Headset, title: "مشاوره تخصصی", detail: "کمک به انتخاب قطعه با توجه به محل نصب و شرایط کار" },
-  { icon: Ruler, title: "مهندسی و تطبیق قطعه", detail: "بررسی ابعاد، پروفیل و مشخصات فنی جایگزین" },
-  { icon: Zap, title: "تأمین و پیگیری", detail: "پیگیری درخواست قطعه از مسیر پنل مشتریان" },
-  { icon: Clock3, title: "همراهی در تداوم تولید", detail: "تمرکز بر انتخاب درست و کاهش ریسک توقف خط" },
+  { icon: Settings2, title: "دسترسی به چندین برند معتبر", detail: "تنوع گسترده قطعات از برندهای مطرح جهانی" },
+  { icon: Headset, title: "مشاوره تخصصی و مهندسی", detail: "انتخاب دقیق قطعه متناسب با نوع خط تولید" },
+  { icon: Ruler, title: "مهندسی معکوس قطعات کمیاب", detail: "طراحی و ساخت قطعات خاص و خارج از تولید (Obsolete)" },
+  { icon: Zap, title: "تأمین سریع و مطمئن", detail: "کاهش زمان انتظار و جلوگیری از توقف تولید" },
+  { icon: Clock3, title: "پشتیبانی از تداوم تولید", detail: "همراهی فنی برای عملکرد پایدار خطوط نساجی" },
 ];
 
 const criteria = [
-  { icon: Gauge, title: "سرعت عملکرد", detail: "دور یا متر بر دقیقه" },
-  { icon: Waves, title: "رطوبت محیط", detail: "شرایط شست‌وشو و RH" },
+  { icon: Gauge, title: "سرعت عملکرد", detail: "دور / متر بر دقیقه" },
+  { icon: Waves, title: "رطوبت محیط", detail: "رطوبت نسبی (RH)" },
   { icon: Thermometer, title: "دمای کاری", detail: "دمای واقعی محل نصب" },
+  { icon: PackageCheck, title: "میزان بار", detail: "شعاعی، محوری و ترکیبی" },
   { icon: Ruler, title: "ابعاد شفت", detail: "قطر، طول و نوع اتصال" },
-  { icon: MoveHorizontal, title: "نوع حرکت", detail: "دورانی، خطی یا انتقالی" },
+  { icon: ShieldCheck, title: "شرایط محیطی", detail: "گردوغبار و مواد شیمیایی" },
   { icon: Factory, title: "مرحله تولید", detail: "ریسندگی تا بسته‌بندی" },
-  { icon: ShieldCheck, title: "شرایط محیط", detail: "گردوغبار و مواد شیمیایی" },
-  { icon: Layers3, title: "سازگاری مواد", detail: "جنس قطعه و سطح تماس" },
+  { icon: Layers3, title: "سازگاری مواد", detail: "الیاف، فلز و مواد پلیمری" },
 ];
 
 function TextileSectionTitle({
@@ -201,13 +201,13 @@ export function TextileIndustryPage() {
         <TextileSectionTitle
           eyebrow="راهنمای خط تولید"
           title="مراحل خط تولید نساجی"
-          detail="ایستگاه را انتخاب کنید تا قطعات و نکات فنی مرتبط با همان بخش را ببینید."
+          detail="انتخاب هوشمند قطعات متناسب با هر مرحله از فرآیند تولید پارچه."
         />
         <div className="textile-production-panel">
           <div className="textile-production-visual">
             <img
-              src={A.categories.textile}
-              alt="تجهیزات و ماشین‌آلات مورد استفاده در تولید نساجی"
+              src={A.industries.textile}
+              alt="ماشین‌آلات خط تولید و تجهیزات صنعت نساجی"
               loading="lazy"
               decoding="async"
             />
@@ -261,7 +261,7 @@ export function TextileIndustryPage() {
         <TextileSectionTitle
           eyebrow="انتخاب از کاتالوگ صنعت پیش"
           title="قطعات صنعتی پیشنهادی برای خطوط نساجی"
-          detail="پیشنهادها بر اساس ارتباط نام، دسته‌بندی و مشخصات فنی با کاربرد نساجی مرتب شده‌اند."
+          detail="مجموعه‌ای از قطعات کلیدی و پرکاربرد برای عملکرد پایدار و بهینه تجهیزات نساجی."
           action={<Link className="textile-section-link" to="/products?q=نساجی">مشاهده همه قطعات <ArrowLeft size={16} /></Link>}
         />
         {products.length > 0 ? (
@@ -278,7 +278,7 @@ export function TextileIndustryPage() {
             <Link to="/products?q=نساجی">جستجو در کاتالوگ <ArrowLeft size={16} /></Link>
           </div>
         )}
-        <MemberAccess />
+        <MemberAccess compact />
       </section>
 
       <section className="textile-why-section">
@@ -286,7 +286,7 @@ export function TextileIndustryPage() {
           <TextileSectionTitle
             eyebrow="همراه صنعت شما"
             title="چرا صنعت پیش برای کارخانه‌های نساجی؟"
-            detail="از شناخت نیاز خط تا بررسی گزینه‌های تأمین، مسیر انتخاب قطعه را یکپارچه دنبال کنید."
+            detail="پشتوانه بازرگانی اطلس، دانش فنی و شبکه تأمین صنعت پیش در کنار کارخانه‌های نساجی."
           />
           <div className="textile-why-grid">
             {reasons.map(({ icon: Icon, title, detail }, index) => (
@@ -332,7 +332,7 @@ export function TextileIndustryPage() {
         <TextileSectionTitle
           eyebrow="راهنمای فنی انتخاب"
           title="راهنمای انتخاب قطعه مناسب در صنعت نساجی"
-          detail="پیش از انتخاب یا استعلام، این معیارها را با مشخصات واقعی دستگاه و محل نصب تطبیق دهید."
+          detail="پیش از انتخاب قطعه، این معیارهای کلیدی را با شرایط واقعی خط تولید خود تطبیق دهید."
         />
         <div className="textile-criteria-grid">
           {criteria.map(({ icon: Icon, title, detail }) => (
