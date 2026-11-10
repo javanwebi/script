@@ -131,6 +131,13 @@ for index,filename in enumerate((https,http)):
         lines=(
             f"{indent}{marker}",
             f"{indent}location ^~ /api/ {{",
+            f"{indent}    # Nginx must not turn Express JSON 401/403 responses into HTML error pages.",
+            f"{indent}    proxy_intercept_errors off;",
+            f"{indent}    proxy_pass_header X-Powered-By;",
+            f"{indent}    satisfy any;",
+            f"{indent}    allow all;",
+            f"{indent}    auth_basic off;",
+            f"{indent}    auth_request off;",
             f"{indent}    proxy_pass http://127.0.0.1:{target};",
             f"{indent}    proxy_http_version 1.1;",
             f"{indent}    proxy_set_header Host $host;",
@@ -178,7 +185,7 @@ PY
 
 nginx -t
 systemctl reload nginx
-echo "===== VERIFY THE LOADED ROUTE AND BOTH PUBLIC HTTPS HOSTS ====="
+echo "===== VERIFY THE LOADED ROUTE, EXPRESS JSON PASS-THROUGH AND BOTH PUBLIC HTTPS HOSTS ====="
 nginx -T 2>&1 | grep -F "SANATPISH_API_WRITE_ROUTE_V2" >/dev/null
 for host in sanatpish.com www.sanatpish.com; do
   BODY="$(mktemp /tmp/sanatpish-public-crm.XXXXXX)"
