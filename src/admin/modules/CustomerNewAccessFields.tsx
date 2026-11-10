@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import {
   Check, CheckCircle2, ChevronDown, Copy, Eye, EyeOff, KeyRound, LoaderCircle,
   LockKeyhole, MessageSquarePlus, MessageSquareText, Pencil, RefreshCw, Save,
@@ -68,8 +69,7 @@ export function CustomerNewAccessFields({value,onChange,canManage,smsConfigured,
     setLoading(true);
     fetch('/api/admin/crm/credentials/templates',{credentials:'same-origin',cache:'no-store',signal:ctrl.signal})
       .then(async response=>{
-        const json=await response.json();
-        if(!response.ok||!json.success)throw new Error(json.message||'قالب‌ها دریافت نشدند.');
+        const json=await requireAdminApiJson<{templates:SmsTemplate[]}>(response,'دریافت قالب پیامک');
         if(!ctrl.signal.aborted)setStored(Array.isArray(json.templates)?json.templates:[]);
       })
       .catch(error=>{if(!ctrl.signal.aborted)setTemplateError(error instanceof Error?error.message:'خطا در دریافت قالب‌ها');})
@@ -92,8 +92,7 @@ export function CustomerNewAccessFields({value,onChange,canManage,smsConfigured,
         method:updating?'PUT':'POST',credentials:'same-origin',
         headers:{'Content-Type':'application/json'},body:JSON.stringify({title,text})
       });
-      const json=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
-      if(!response.ok||!json.success)throw new Error(json.message||'ذخیره قالب ممکن نشد.');
+      const json=await requireAdminApiJson<{template:SmsTemplate}>(response,'ذخیره قالب پیامک');
       const item=json.template as SmsTemplate;
       setStored(previous=>[item,...previous.filter(old=>old.id!==item.id)]);
       setSelected(item.id);change({messageTemplate:item.text,sendSms:false});
