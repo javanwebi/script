@@ -868,7 +868,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell" dir="rtl">
-      {!cameraFlowActive && (
+      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
             { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
@@ -1888,14 +1888,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-5 sp-vision-result-panel"
               >
-                <div className="sp-vision-result-intro">
-                  <div>
-                    <span>FORZA VISION · CATALOGUE EVIDENCE</span>
-                    <h3>نتایج بررسی تصویری قطعه</h3>
-                    <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
-                  </div>
-                  <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
-                </div>
                 {localRegionEnabled && selectedImage && <ImageRegionSelector
                   src={selectedImage}
                   value={queryRegion}
@@ -1904,6 +1896,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
+                <div className="sp-vision-result-intro">
+                  <div>
+                    <span>FORZA VISION · CATALOGUE EVIDENCE</span>
+                    <h3>نتایج بررسی تصویری قطعه</h3>
+                    <p>تصاویر را بزرگ کنید، تفاوت‌ها را بررسی کنید و پیش از سفارش، کد و ابعاد را تأیید کنید.</p>
+                  </div>
+                  <span className="sp-vision-result-intro__status"><ShieldCheck size={16} /> نیازمند تأیید فنی</span>
+                </div>
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
