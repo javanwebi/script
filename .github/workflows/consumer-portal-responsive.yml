@@ -15,6 +15,11 @@ on:
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
+      - 'src/pages/DiscoveryPages.tsx'
+      - 'src/about-page-approved.css'
+      - 'src/main.tsx'
+      - 'tests/phase9-about-vision-design.test.tsx'
+      - 'scripts/tests/company-pages-responsive-smoke.cjs'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
   pull_request:
@@ -32,6 +37,11 @@ on:
       - 'tests/consumer-dashboard-performance.test.ts'
       - 'src/utils/consumerCatalogView.ts'
       - 'src/pages/ConsumerDashboardPage.tsx'
+      - 'src/pages/DiscoveryPages.tsx'
+      - 'src/about-page-approved.css'
+      - 'src/main.tsx'
+      - 'tests/phase9-about-vision-design.test.tsx'
+      - 'scripts/tests/company-pages-responsive-smoke.cjs'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
   workflow_dispatch:
