@@ -124,6 +124,7 @@ type ManufacturingRequestDraft = {
   partName: string;
   partType: string;
   dimensions: string;
+  alloyCondition: string;
   notes: string;
 };
 
@@ -756,6 +757,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         .map(value => String(value || '').trim())
         .find(value => value.length > 1 && !/جست‌وجوی تصویری کاتالوگ|قطعه نامشخص|نامشخص/i.test(value));
       const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
+      const observedDimensions = (summary?.observedSpecifications || [])
+        .filter(spec => String(spec.value || '').trim())
+        .map(spec => String(spec.name || 'مشخصه') + ': ' + String(spec.value).trim())
+        .join('، ')
+        .slice(0, 480);
+      const unknownParameters = (summary?.unknownParameters || []).filter(Boolean);
       const regionNote = queryRegion
         ? 'ناحیه انتخاب‌شده در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
           ', width=' + queryRegion.width.toFixed(4) + ', height=' + queryRegion.height.toFixed(4) + ' (مختصات نسبی تصویر).'
@@ -764,6 +771,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         'درخواست ساخت و مهندسی معکوس از مسیر شناسایی تصویری FORZA ثبت شده است.',
         'خلاصه بررسی تصویر: ' + visualSummary,
         analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
+        unknownParameters.length ? 'پارامترهای نیازمند اندازه‌گیری یا تأیید: ' + unknownParameters.join('، ') : '',
         regionNote,
       ].filter(Boolean).join('\n').slice(0, 2800);
       if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
@@ -771,7 +779,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         file,
         partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
         partType: 'سایر قطعات مکانیکی خاص',
-        dimensions: '',
+        dimensions: observedDimensions,
+        alloyCondition: String(summary?.material || ''),
         notes,
       });
       setCustomRequestOpen(true);
@@ -2560,7 +2569,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           initialPartName={customRequestDraft.partName}
           initialPartType={customRequestDraft.partType}
           initialDimensions={customRequestDraft.dimensions}
-          initialAlloyCondition=""
+          initialAlloyCondition={customRequestDraft.alloyCondition}
           initialQuantity="1"
           initialNotes={customRequestDraft.notes}
           initialFile={customRequestDraft.file}
