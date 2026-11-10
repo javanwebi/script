@@ -1109,6 +1109,10 @@ export function AboutPage() {
               <ArrowLeft size={17} />
             </a>
           </div>
+          <div className="sp-about-hero-note">
+            <span>یک مسیر تخصصی برای نیازهای صنعت</span>
+            <strong>قطعات · برندها · مشخصات فنی · استعلام و خرید</strong>
+          </div>
         </div>
         <div className="sp-about-hero-visual">
           <img
@@ -1117,6 +1121,11 @@ export function AboutPage() {
             fetchPriority="high"
           />
           <div className="sp-about-hero-image-shade" />
+          <div className="sp-about-hero-image-label">
+            <span>INDUSTRIAL PARTS MARKETPLACE</span>
+            <strong>تخصص در قطعات، تمرکز بر صنعت</strong>
+          </div>
+          <div className="sp-about-hero-image-index">SANAT PISH / 01</div>
         </div>
         <div className="sp-about-hero-slash" aria-hidden="true" />
       </section>
