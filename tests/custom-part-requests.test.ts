@@ -32,6 +32,6 @@ test('admin can review, update status and download attachments only through guar
 test('the request modal sends a real request instead of displaying a fake tracking code', () => {
   assert.match(modal, /fetch\('\/api\/custom-part-requests'/);
   assert.doesNotMatch(modal, /Generate a realistic Iranian engineering tracking code/);
-  assert.match(deploy, /20261110010000_custom_part_requests\\.sql/);
+  assert.match(deploy, /20261110010000_custom_part_requests\.sql/);
   assert.match(deploy, /CUSTOMER_360_LOCAL_VAULT_ENABLED=true/);
 });
