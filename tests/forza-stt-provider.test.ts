@@ -86,7 +86,14 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(deploy,/docker image inspect "\$STT_IMAGE"/);
   assert.match(deploy,/command -v ffmpeg/);
   assert.match(deploy,/test -d \/opt\/diba-stt\/model\/am/);
-  assert.match(runtime,/timeout --signal=TERM --kill-after=5s 105s apt-get/);
+  assert.match(runtime,/FROM python:3\.11-bookworm AS python-runtime/);
+  assert.match(runtime,/FROM mwader\/static-ffmpeg:8\.1\.2 AS ffmpeg-runtime/);
+  assert.match(runtime,/FROM node:22-bookworm/);
+  assert.match(runtime,/COPY --from=python-runtime \/usr\/local\/ \/usr\/local\//);
+  assert.match(runtime,/COPY --from=ffmpeg-runtime \/ffmpeg \/usr\/local\/bin\/ffmpeg/);
+  assert.doesNotMatch(runtime,/(?:RUN|&&|;)\s*apt-get\b/);
+  assert.match(runtime,/node --version/);
+  assert.match(runtime,/FORZA_STT_PYTHON=\/opt\/forza-pocket\/bin\/python/);
   assert.match(deploy,/"\$STT_IMAGE" node --import tsx server\.ts/);
   assert.doesNotMatch(deploy,/node:22-bookworm node --import tsx server\.ts/);
   assert.match(deploy,/FORZA_STT_PROVIDER=diba/);

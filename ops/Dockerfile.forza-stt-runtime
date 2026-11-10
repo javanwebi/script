@@ -1,54 +1,42 @@
+# Build-time Debian APT downloads repeatedly time out on the Hostino VPS.
+# Keep the production Node 22 Bookworm runtime, but import an official,
+# prebuilt CPython interpreter and a pinned self-contained FFmpeg binary.
+# No apt-get/apt update is executed during this image build.
+FROM python:3.11-bookworm AS python-runtime
+FROM mwader/static-ffmpeg:8.1.2 AS ffmpeg-runtime
 FROM node:22-bookworm
 
-# The production website runs from node:22-bookworm directly, not the
-# repository's full Railway Dockerfile. Keep this runtime small and install
-# only the private server-side Persian STT dependencies.
-#
-# Some VPS Docker networks cannot reach Debian's HTTP mirrors on port 80.
-# Force the official Debian mirrors to HTTPS before apt update so a blocked
-# HTTP route cannot stall or abort the complete production deployment.
-# Bound APT's own retries so an unresponsive CDN cannot block an otherwise
-# healthy website deployment. The deploy script retries via host networking
-# only when the initial isolated bridge-network build fails.
+# Official Python's /usr/local does not contain node/npm; Docker COPY merges
+# its Python interpreter and standard library into the Node image.
+COPY --from=python-runtime /usr/local/ /usr/local/
+# Standalone FFmpeg/FFprobe need no Debian package downloads or shared libs.
+COPY --from=ffmpeg-runtime /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-runtime /ffprobe /usr/local/bin/ffprobe
+
+# Production runs the website with node --import tsx, and the same container
+# starts an isolated Python/Vosk worker that decodes audio via FFmpeg.
 RUN set -eux; \
-    for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
-      if [ -f "$source" ]; then \
-        sed -i 's#http://deb.debian.org/#https://deb.debian.org/#g' "$source"; \
-      fi; \
-    done; \
-    timeout --signal=TERM --kill-after=5s 105s apt-get \
-      -o Acquire::ForceIPv4=true \
-      -o Acquire::Retries=0 \
-      -o Acquire::http::Timeout=20 \
-      -o Acquire::https::Timeout=20 \
-      -o Acquire::http::Pipeline-Depth=0 \
-      -o APT::Update::Error-Mode=any \
-      update; \
-    timeout --signal=TERM --kill-after=5s 300s apt-get \
-      -o Acquire::ForceIPv4=true \
-      -o Acquire::Retries=1 \
-      -o Acquire::http::Timeout=20 \
-      -o Acquire::https::Timeout=20 \
-      install -y --no-install-recommends \
-      ca-certificates curl ffmpeg libgomp1 python3 python3-venv; \
-    rm -rf /var/lib/apt/lists/*
+    node --version; \
+    python3 --version; \
+    ffmpeg -version >/dev/null; \
+    python3 -m venv /opt/forza-pocket; \
+    /opt/forza-pocket/bin/pip install --no-cache-dir --disable-pip-version-check vosk==0.3.45; \
+    /opt/forza-pocket/bin/python -c 'import vosk'
 
-RUN python3 -m venv /opt/forza-pocket \
- && /opt/forza-pocket/bin/pip install --no-cache-dir --upgrade pip \
- && /opt/forza-pocket/bin/pip install --no-cache-dir vosk==0.3.45
-
-# Pin the exact Diba Persian small-model revision; model weights remain inside
-# this private runtime image and never reach the browser.
-RUN mkdir -p /opt/diba-stt \
- && curl -fL --retry 3 --connect-timeout 30 \
-    https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
-    -o /tmp/diba-stt-fa-small.tar.gz \
- && tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt \
- && MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)" \
- && test -n "$MODEL_ROOT" \
- && ln -s "$MODEL_ROOT" /opt/diba-stt/model \
- && test -d /opt/diba-stt/model/conf \
- && rm -f /tmp/diba-stt-fa-small.tar.gz
+# Pinned Diba Persian small model; downloaded only into the private image,
+# not browser assets or persistent customer storage. Audio stays in pipes.
+RUN set -eux; \
+    mkdir -p /opt/diba-stt; \
+    curl -fL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 180 \
+      https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
+      -o /tmp/diba-stt-fa-small.tar.gz; \
+    tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt; \
+    MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)"; \
+    test -n "$MODEL_ROOT"; \
+    ln -s "$MODEL_ROOT" /opt/diba-stt/model; \
+    test -d /opt/diba-stt/model/am; \
+    test -d /opt/diba-stt/model/conf; \
+    rm -f /tmp/diba-stt-fa-small.tar.gz
 
 ENV FORZA_STT_PROVIDER=diba \
     FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model \
