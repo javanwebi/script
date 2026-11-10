@@ -26,6 +26,11 @@ import {
   Headphones,
   Wrench,
   Package,
+  ShoppingCart,
+  ShieldCheck,
+  Users,
+  Zap,
+  Tag,
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { getManagedBrands } from "../data/brands";
@@ -919,11 +924,12 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
 }
 export function AboutPage() {
   useEffect(() => title("درباره صنعت پیش"), []);
+
   const pathways = [
     {
       to: "/services",
-      title: "توانمندی‌ها و خدمات",
-      text: "از تأمین قطعات و مشاوره فنی تا شناسایی تصویری و بررسی ساخت قطعات خاص.",
+      title: "خدمات و توانمندی‌ها",
+      text: "از تأمین قطعات و مشاوره فنی تا شناسایی تصویری و مهندسی معکوس.",
       image: A.whySanatCadEngineering,
       Icon: Wrench,
       action: "مشاهده خدمات",
@@ -931,166 +937,277 @@ export function AboutPage() {
     {
       to: "/industries",
       title: "صنایع تحت پوشش",
-      text: "مسیرهای اختصاصی برای شناخت نیازهای خطوط تولید در صنایع مختلف.",
+      text: "مسیرهای تخصصی برای شناخت نیاز خطوط تولید در صنایع مختلف.",
       image: A.industries.bgPlant,
       Icon: Factory,
       action: "انتخاب صنعت",
     },
     {
       to: "/brands",
-      title: "برندها و محصولات",
-      text: "شناخت برندهای ثبت‌شده در کاتالوگ و رفتن به محصولات مرتبط.",
+      title: "برندهای صنعتی",
+      text: "آشنایی با برندهای ثبت‌شده و دسترسی به محصولات مرتبط.",
       image: A.brandsFullbleedBg,
-      Icon: Boxes,
-      action: "بررسی برندها",
-    },
-    {
-      to: "/products",
-      title: "کاتالوگ قطعات",
-      text: "جستجو بر اساس نام، برند، خانواده محصول و کد فنی.",
-      image: A.partsWarehouseVault,
-      Icon: Package,
-      action: "ورود به کاتالوگ",
+      Icon: Tag,
+      action: "مشاهده برندها",
     },
     {
       to: "/knowledge",
-      title: "دانشنامه کاربردی",
-      text: "راهنماهای انتخاب، نگهداری و آماده‌سازی اطلاعات فنی قطعات.",
+      title: "دانشنامه تخصصی",
+      text: "راهنماها و محتوای فنی برای شناخت و انتخاب آگاهانه قطعات.",
       image: A.aiSearchMobile,
       Icon: BookOpen,
-      action: "مطالعه راهنماها",
+      action: "مطالعه دانشنامه",
     },
     {
       to: "/contact",
-      title: "تماس و هماهنگی مراجعه",
-      text: "راه‌های ارتباط با کارشناسان و هماهنگی پیش از مراجعه حضوری.",
-      image: A.engineerWhyAtlas,
+      title: "ارتباط با کارشناسان",
+      text: "برای پیگیری نیازهای صنعتی و هماهنگی مشاوره با ما در ارتباط باشید.",
+      image: A.ctaConsultBanner,
       Icon: Headphones,
-      action: "ارتباط با مجموعه",
+      action: "تماس با ما",
     },
   ];
 
+  const capabilities = [
+    {
+      title: "تأمین قطعات صنعتی",
+      text: "دسترسی به طیف متنوعی از قطعات و تجهیزات موردنیاز صنایع.",
+      image: A.partsWarehouseVault,
+      Icon: Package,
+    },
+    {
+      title: "مشاوره تخصصی",
+      text: "راهنمایی برای بررسی مشخصات و انتخاب متناسب با کاربرد قطعه.",
+      image: A.engineerWhyAtlas,
+      Icon: Headphones,
+    },
+    {
+      title: "شناسایی هوشمند قطعه",
+      text: "کمک به یافتن قطعات مشابه از طریق تصویر و اطلاعات فنی.",
+      image: A.whySanatQc,
+      Icon: ScanLine,
+    },
+    {
+      title: "مهندسی و ساخت",
+      text: "بررسی امکان بازطراحی و ساخت قطعات خاص و کمیاب.",
+      image: A.reverseEngineeringLab,
+      Icon: Wrench,
+    },
+  ];
+
+  const milestones = [
+    { title: "تجربه بازرگانی اطلس", text: "شناخت بازار و نیازهای واقعی تأمین قطعات صنعتی" },
+    { title: "شناخت نیاز صنایع", text: "تمرکز بر قطعات، برندها و مشخصات فنی موردنیاز خطوط تولید" },
+    { title: "توسعه بستر دیجیتال", text: "ایجاد مسیر آنلاین برای جستجو، بررسی و پیگیری تأمین" },
+    { title: "صنعت پیش امروز", text: "بازار تخصصی قطعات صنعتی؛ پیش به صنعت" },
+  ];
+
+  const highlights = [
+    { title: "برندهای متنوع", value: "از برند تا محصول", text: "شناخت برندها و محصولات صنعتی", Icon: Tag },
+    { title: "دسته‌بندی تخصصی", value: "جستجوی هدفمند", text: "دسترسی ساختاریافته به قطعات", Icon: Layers },
+    { title: "قیمت‌گذاری مشتری", value: "قیمت‌های به‌روز", text: "نمایش قیمت بر اساس حساب مشتری", Icon: Zap },
+    { title: "پشتیبانی صنعتی", value: "همراه مسیر تأمین", text: "پیگیری نیاز و دریافت مشاوره", Icon: Factory },
+  ];
+
   return (
-    <main className="company-page company-page--about" dir="rtl">
-      <section className="company-hero company-hero--about">
-        <div className="company-hero-copy">
-          <div className="company-brand-pair">
-            <img src={A.atlasLogo} alt="لوگوی اطلس" />
-            <span>با پشتوانه بازرگانی تسمه اطلس</span>
+    <main className="company-page company-page--about sp-about-approved" dir="rtl" data-testid="approved-about-page">
+      <section className="sp-about-hero" aria-labelledby="sp-about-title">
+        <div className="sp-about-hero-copy">
+          <div className="sp-about-breadcrumb">
+            <Link to="/">صفحه اصلی</Link>
+            <ChevronLeft size={13} aria-hidden="true" />
+            <span>درباره ما</span>
           </div>
-          <span className="company-kicker">درباره صنعت پیش</span>
-          <h1>
-            از تجربه اطلس تا
-            <em> بازار جامع قطعات صنعتی ایران</em>
+          <span className="sp-about-eyebrow">درباره صنعت پیش</span>
+          <h1 id="sp-about-title">
+            بازار تخصصی
+            <br />
+            قطعات صنعتی
+            <em>با پشتوانه اطلس</em>
           </h1>
           <p>
-            صنعت پیش با پشتوانه بازرگانی تسمه اطلس شکل گرفته است تا مسیر
-            تأمین قطعات صنعتی را ساده‌تر، شفاف‌تر و تخصصی‌تر کند.
+            صنعت پیش، یک بازار آنلاین جامع برای تأمین، جستجو و خرید انواع قطعات و
+            تجهیزات صنعتی است؛ با تکیه بر تجربه و اعتبار بازرگانی تسمه اطلس.
           </p>
-          <p>
-            چشم‌انداز ما گردآوری قطعات و برندهای صنعتی در یک بازار آنلاین
-            تخصصی است؛ بستری برای جستجو با نام و کد فنی، بررسی مشخصات، مقایسه،
-            دریافت مشاوره، استعلام و خرید؛ متمرکز بر نیاز کارخانه‌ها و فعالان
-            صنعت، نه کالاهای عمومی.
-          </p>
-          <div className="company-hero-actions">
-            <Link to="/products" className="company-button company-button--primary">
-              ورود به کاتالوگ قطعات <ArrowLeft size={18} />
+          <div className="sp-about-hero-actions">
+            <Link to="/products" className="sp-about-btn sp-about-btn--primary">
+              <ShoppingCart size={17} />
+              ورود به بازار قطعات
             </Link>
-            <Link to="/contact" className="company-button company-button--secondary">
-              تماس با صنعت پیش <Phone size={17} />
-            </Link>
+            <a href="#sp-about-story" className="sp-about-btn sp-about-btn--outline">
+              آشنایی با ما
+              <ArrowLeft size={17} />
+            </a>
+          </div>
+          <div className="sp-about-hero-note">
+            <span>یک مسیر تخصصی برای نیازهای صنعت</span>
+            <strong>قطعات · برندها · مشخصات فنی · استعلام و خرید</strong>
           </div>
         </div>
-        <div className="company-hero-visual">
-          <img src={A.whySanatDirectFactory} alt="فضای صنعتی و زنجیره تأمین قطعات" fetchPriority="high" />
-          <div className="company-hero-visual-shade" />
-          <div className="company-hero-visual-caption">
-            <span>صنعت پیش</span>
-            <strong>پیش به صنعت</strong>
-            <small>بازار تخصصی قطعات و تجهیزات صنعتی</small>
+        <div className="sp-about-hero-visual">
+          <img
+            src={A.heroPulley}
+            alt="نمای نزدیک قطعه مکانیکی صنعتی در محیط کارخانه"
+            fetchPriority="high"
+          />
+          <div className="sp-about-hero-image-shade" />
+          <div className="sp-about-hero-image-label">
+            <span>INDUSTRIAL PARTS MARKETPLACE</span>
+            <strong>تخصص در قطعات، تمرکز بر صنعت</strong>
           </div>
-          <div className="company-hero-visual-logo">
-            <img src={A.atlasLogo} alt="اطلس" />
+          <div className="sp-about-hero-image-index">SANAT PISH / 01</div>
+        </div>
+        <div className="sp-about-hero-slash" aria-hidden="true" />
+      </section>
+
+      <section className="sp-about-story" id="sp-about-story">
+        <div className="sp-about-story-visual">
+          <img
+            src={A.whySanatDirectFactory}
+            alt="محیط صنعتی و فعالیت در زنجیره تأمین قطعات"
+            loading="lazy"
+          />
+          <div className="sp-about-story-image-frame" aria-hidden="true" />
+          <div className="sp-about-atlas-mark">
+            <img src={A.atlasLogo} alt="نشان بازرگانی تسمه اطلس" />
             <span>پشتوانه تجربه صنعتی</span>
           </div>
+          <div className="sp-about-story-image-caption">
+            <span>داستان ما</span>
+            <strong>تجربه اطلس؛ افق تازه صنعت پیش</strong>
+          </div>
         </div>
-      </section>
-
-      <section className="company-story">
-        <div className="company-story-copy">
-          <span className="company-kicker">ریشه و مسیر شکل‌گیری</span>
-          <h2>تجربه اطلس، پایه‌ای برای یک تجربه آنلاین تخصصی</h2>
+        <div className="sp-about-story-copy">
+          <span className="sp-about-eyebrow sp-about-eyebrow--light">داستان ما</span>
+          <h2>با پشتوانه بازرگانی تسمه <em>اطلس</em></h2>
           <p>
-            در بازار قطعات صنعتی، پیدا کردن کالا فقط با دانستن نام آن تمام
-            نمی‌شود. کد فنی، برند، ابعاد، شرایط کار و سازگاری با دستگاه در
-            انتخاب درست نقش دارند. صنعت پیش می‌خواهد این اطلاعات و مسیرهای
-            تأمین را در یک نقطه قابل جستجو و پیگیری کنار هم قرار دهد.
+            صنعت پیش با پشتوانه بازرگانی تسمه اطلس و تجربه این مجموعه شکل گرفته است؛
+            مجموعه‌ای که شناخت بازار قطعات صنعتی و نیاز کسب‌وکارها را به یک
+            بستر آنلاین تخصصی پیوند می‌دهد.
           </p>
           <p>
-            این پلتفرم با تکیه بر تجربه اطلس و با توسعه تدریجی کاتالوگ، ابزارهای
-            جستجو و خدمات دیجیتال ساخته می‌شود تا ارتباط میان نیاز صنعت و
-            تأمین‌کنندگان قطعات، روشن‌تر و سریع‌تر شود.
+            هدف ما گردآوری قطعات و برندهای صنعتی در یک بازار تخصصی است؛ جایی که
+            فعالان صنعت بتوانند قطعه موردنیاز خود را با نام، برند یا کد فنی
+            جستجو کنند، مشخصات را بررسی کنند و مسیر استعلام و خرید را ساده‌تر
+            پیش ببرند.
           </p>
-        </div>
-        <div className="company-story-visual">
-          <img src={A.heroPulley} alt="نمونه‌ای از قطعات مکانیکی و انتقال قدرت" loading="lazy" />
-          <div>
-            <strong>بازار آنلاین، فقط برای صنعت</strong>
-            <span>قطعات · برندها · مشخصات فنی · استعلام و خرید</span>
+          <div className="sp-about-proof-grid">
+            <div>
+              <ShieldCheck size={24} />
+              <strong>تجربه و اعتبار اطلس</strong>
+              <span>پشتوانه‌ای برای فعالیت در بازار قطعات صنعتی</span>
+            </div>
+            <div>
+              <Layers size={24} />
+              <strong>تبدیل تجربه به پلتفرم</strong>
+              <span>یک بازار آنلاین تخصصی و قابل توسعه</span>
+            </div>
+            <div>
+              <Users size={24} />
+              <strong>تمرکز بر نیاز صنعت</strong>
+              <span>پاسخ به نیاز واقعی کارخانه‌ها و کسب‌وکارها</span>
+            </div>
+          </div>
+          <div className="sp-about-timeline" aria-label="مسیر شکل‌گیری صنعت پیش">
+            {milestones.map((item, index) => (
+              <div className="sp-about-timeline-item" key={item.title}>
+                <span className="sp-about-timeline-node">{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item.title}</strong>
+                <small>{item.text}</small>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="company-vision-banner">
-        <img src={A.refineryDuskWide} alt="" loading="lazy" />
-        <div>
-          <span>چشم‌انداز صنعت پیش</span>
-          <h2>برای هر نیاز صنعتی، یک مسیر روشن از جستجو تا تأمین</h2>
-          <p>
-            هدف، ساخت مرجعی تخصصی است که قطعات و برندهای صنعتی را به کاتالوگی
-            منسجم و تجربه‌ای یکپارچه برای انتخاب، استعلام و خرید آنلاین پیوند
-            دهد.
-          </p>
-          <Link to="/products">شروع جستجو در کاتالوگ <ArrowLeft size={17} /></Link>
-        </div>
-      </section>
-
-      <section className="company-pathways" id="capabilities">
-        <div className="company-section-heading">
-          <span className="company-kicker">مسیرهای مرتبط با صنعت پیش</span>
-          <h2>از اینجا وارد بخش موردنیاز خود شوید</h2>
-          <p>هر بخش صفحه مستقل و اطلاعات مرتبط با خودش را دارد؛ از خدمات تا صنایع، برندها و راه‌های ارتباط.</p>
-        </div>
-        <div className="company-pathway-grid">
-          {pathways.map(({ to, title: cardTitle, text, image, Icon, action }) => (
-            <Link to={to} className="company-pathway-card" key={to}>
-              <div className="company-pathway-media">
+      <section className="sp-about-capabilities">
+        <img className="sp-about-capabilities-bg" src={A.refineryDuskWide} alt="" loading="lazy" />
+        <div className="sp-about-capabilities-overlay" />
+        <div className="sp-about-section-inner">
+          <div className="sp-about-centered-heading">
+            <span className="sp-about-eyebrow">توانمندی‌ها و ارزش‌های ما</span>
+            <h2>آنچه <em>صنعت پیش</em> را متمایز می‌کند</h2>
+            <p>از پیدا کردن قطعه تا انتخاب، مشاوره و پیگیری مسیر تأمین</p>
+          </div>
+          <div className="sp-about-capability-grid">
+            {capabilities.map(({ title: itemTitle, text, image, Icon }, index) => (
+              <article className="sp-about-capability" key={itemTitle}>
                 <img src={image} alt="" loading="lazy" />
-                <span><Icon size={23} strokeWidth={1.8} /></span>
-              </div>
-              <div className="company-pathway-copy">
-                <h3>{cardTitle}</h3>
-                <p>{text}</p>
-                <b>{action} <ArrowUpLeft size={17} /></b>
-              </div>
-            </Link>
-          ))}
+                <div className="sp-about-capability-shade" />
+                <span className="sp-about-capability-icon"><Icon size={24} strokeWidth={1.8} /></span>
+                <div className="sp-about-capability-copy">
+                  <h3>{itemTitle}</h3>
+                  <p>{text}</p>
+                </div>
+                <span className="sp-about-capability-index">۰{index + 1}</span>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="company-price-callout">
-        <div>
-          <span className="company-kicker">دسترسی مشتریان</span>
-          <h2>قیمت به‌روز هر کد، در حساب مشتری</h2>
-          <p>
-            قیمت کالا پس از ورود به حساب و بر اساس دسترسی و لیست قیمت فعال همان
-            مشتری نمایش داده می‌شود. برای خانواده‌های چندکددار، ابتدا باید کد
-            فنی موردنظر انتخاب شود؛ کالاهای بدون قیمت فعال نیز از مسیر استعلام
-            پیگیری می‌شوند.
-          </p>
+      <section className="sp-about-highlights">
+        <div className="sp-about-section-inner">
+          <div className="sp-about-highlights-heading">
+            <span className="sp-about-eyebrow sp-about-eyebrow--light">صنعت پیش در یک نگاه</span>
+          </div>
+          <div className="sp-about-highlights-grid">
+            {highlights.map(({ title: itemTitle, value, text, Icon }) => (
+              <div className="sp-about-highlight" key={itemTitle}>
+                <Icon size={27} strokeWidth={1.8} />
+                <strong>{itemTitle}</strong>
+                <b>{value}</b>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <MemberAccess compact />
+      </section>
+
+      <section className="sp-about-destinations">
+        <div className="sp-about-section-inner">
+          <div className="sp-about-destinations-heading">
+            <div>
+              <span className="sp-about-eyebrow sp-about-eyebrow--light">مسیرهای بیشتر در صنعت پیش</span>
+              <h2>بخش‌های دیگر را کشف کنید</h2>
+            </div>
+            <p>برای آشنایی بیشتر با صنعت پیش، وارد بخش تخصصی موردنیاز خود شوید.</p>
+          </div>
+          <div className="sp-about-destination-grid">
+            {pathways.map(({ to, title: itemTitle, text, image, Icon, action }) => (
+              <Link to={to} className="sp-about-destination" key={to}>
+                <img src={image} alt="" loading="lazy" />
+                <span className="sp-about-destination-shade" />
+                <span className="sp-about-destination-icon"><Icon size={21} /></span>
+                <span className="sp-about-destination-copy">
+                  <strong>{itemTitle}</strong>
+                  <small>{text}</small>
+                  <b>{action}<ArrowUpLeft size={16} /></b>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sp-about-cta">
+        <img src={A.ctaConsultBanner} alt="" loading="lazy" />
+        <div className="sp-about-cta-shade" />
+        <div className="sp-about-cta-copy">
+          <span className="sp-about-eyebrow">همراه مطمئن نیازهای صنعتی</span>
+          <h2>همین امروز، نیاز صنعتی خود را در <em>صنعت پیش</em> تأمین کنید</h2>
+          <p>دسترسی به برندها و قطعات صنعتی، اطلاعات فنی و پشتیبانی تخصصی در یک مسیر آنلاین.</p>
+          <div className="sp-about-hero-actions">
+            <Link to="/products" className="sp-about-btn sp-about-btn--primary">
+              <ShoppingCart size={17} />
+              ورود به بازار قطعات
+            </Link>
+            <Link to="/contact" className="sp-about-btn sp-about-btn--outline">
+              <Headphones size={17} />
+              دریافت مشاوره
+            </Link>
+          </div>
+        </div>
       </section>
     </main>
   );

@@ -6,7 +6,7 @@ const out = process.env.SCREENSHOT_DIR || "/tmp";
 const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
-  { path: "/about", selector: ".company-page--about", heading: /بازار جامع قطعات صنعتی ایران/ },
+  { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
   { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
@@ -18,7 +18,7 @@ const pages = [
   mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 768, 1440]) {
+    for (const width of [360, 390, 768, 1280, 1440]) {
       const page = await browser.newPage({
         viewport: { width, height: width < 768 ? 844 : 960 },
         reducedMotion: "reduce",
@@ -41,7 +41,7 @@ const pages = [
       const aboutLink = page.locator('.home-about-preview a[href="/about"]').first();
       await aboutLink.waitFor({ state: "visible" });
       await aboutLink.click();
-      await page.locator(".company-page--about").waitFor({ timeout: 15000 });
+      await page.locator(".company-page--about .sp-about-hero").waitFor({ timeout: 15000 });
       await page.getByRole("heading", { level: 1 }).first().waitFor();
 
       const requiredAboutLinks = ["/services", "/industries", "/brands", "/knowledge", "/contact"];
@@ -49,6 +49,20 @@ const pages = [
         assert.ok(await page.locator(`.company-page--about a[href="${href}"]`).count() > 0,
           `About page is missing its ${href} navigation link`);
       }
+      assert.equal(await page.locator(".sp-about-capability").count(), 4,
+        "approved About page must show its four visual capabilities");
+      assert.equal(await page.locator(".sp-about-destination").count(), 5,
+        "approved About page must link to its five next destinations");
+      const aboutBounds = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      assert.ok(aboutBounds.page <= aboutBounds.viewport + 3,
+        `horizontal overflow on About at ${width}px: ${JSON.stringify(aboutBounds)}`);
+      const heroImageLoaded = await page.locator(".sp-about-hero-visual img").evaluate(
+        image => image.complete && image.naturalWidth > 0
+      );
+      assert.ok(heroImageLoaded, "About hero industrial image did not load");
       await page.screenshot({ path: `${out}/company-pages-${width}-about.png`, fullPage: true });
 
       for (const item of pages.slice(1)) {

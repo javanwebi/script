@@ -11,7 +11,12 @@ import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const identificationOpen = useIdentificationOverlayOpen();
-  const showStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
+  // Preserve the shared route-eligibility check for full-screen identification.
+  const routeAllowsStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
+  // The approved About page uses a full editorial composition; keep the fixed
+  // storefront dock and floating assistant from covering its mobile hero/content.
+  const isAboutEditorialPage = ["/about", "/about-us", "/history", "/licenses", "/awards"].includes(location.pathname);
+  const showStorefrontDock = routeAllowsStorefrontDock && !isAboutEditorialPage;
 
   // Full-screen dedicated AI experiences (AI FORZA Voice & Cognivo AI Workspace)
   const isDedicatedAiWorkspace =
