@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
+const styles=readFileSync(new URL('../src/components/forza/style.css',import.meta.url),'utf8');
+const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
 
 test('new FORZA turns retain the mic instead of stopping live WebSpeech before AI playback',()=>{
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
@@ -88,4 +90,31 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
   assert.match(stop,/recognitionConsumedCountRef\.current=recognitionCheckpointRef\.current.count/);
   assert.match(stop,/localSttFinalRef\.current=''/);
   assert.match(stop,/return;/);
+});
+
+
+test('FORZA opens its voice controller without putting Three.js in the first call bundle',()=>{
+  assert.match(ui,/const ParticleAvatar = lazy\(async \(\) =>/);
+  assert.match(ui,/await import\('\.\/ParticleAvatar'\)/);
+  assert.match(ui,/<Suspense fallback=\{<div className="forza-avatar-fallback"/);
+  assert.match(routePreload,/import\('\.\.\/forza\/ParticleAvatar'\)/);
+  assert.match(routePreload,/const warmForza=\(\)=>Promise\.all/);
+});
+
+test('mobile call uses one live message card and removes floating bottom action groups',()=>{
+  assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
+  assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
+  assert.match(ui,/forza-message-card--customer/);
+  assert.match(ui,/forza-message-card--assistant/);
+  assert.doesNotMatch(ui,/QUICK_TOPICS|Restore button when HUD hidden/);
+  assert.match(styles,/\.forza-status-dock/);
+  assert.match(styles,/\.forza-message-card/);
+  assert.match(styles,/bottom: calc\(8px \+ env\(safe-area-inset-bottom\)\)/);
+});
+
+test('particle engine stops its render loop while the tab is hidden and resumes without a time jump',()=>{
+  assert.match(avatar,/document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);
+  assert.match(avatar,/if \(document\.hidden\)/);
+  assert.match(avatar,/last = performance\.now\(\)/);
+  assert.match(avatar,/document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
 });
