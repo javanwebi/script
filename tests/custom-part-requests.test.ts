@@ -46,6 +46,12 @@ test('a no-match vision result opens a prefilled manufacturing request only afte
   assert.match(vision, /createManufacturingImageFile\(imageBlob, originalName\)/);
   assert.match(vision, /onClick=\{\(\) => void openCustomManufacturingRequest\(\)\}/);
   assert.match(vision, /initialFile=\{customRequestDraft\.file\}/);
+  assert.match(vision, /observedDimensions/);
+  assert.match(vision, /unknownParameters/);
+  assert.match(vision, /initialAlloyCondition=\{customRequestDraft\.alloyCondition\}/);
+  assert.match(vision, /MAX_MANUFACTURING_IMAGE_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(vision, /canvas\.toBlob/);
+  assert.match(modal, /initialQuantity\?: string/);
   assert.match(vision, /تصویر اصلی تا زمان ارسال نهایی فرم فقط روی دستگاه شما می‌ماند/);
   assert.match(vision, /customRequestOpen && customRequestDraft/);
 });
@@ -55,7 +61,7 @@ test('the build request carries image, part details and quantity into the existi
   assert.match(modal, /initialFile\?: File \| null/);
   assert.match(modal, /setSelectedFile\(initialFile \|\| null\)/);
   assert.match(modal, /attachmentBase64/);
-  assert.match(modal, /contactName, phoneNumber, companyName, partName, partType, dimensions/);
+  assert.match(modal, /contactName, phoneNumber, companyName, partName, partType, dimensions/);\n  assert.match(modal, /alloyCondition, quantity, notes/);
   assert.match(crm, /section === 'manufacturing'/);
   assert.match(crm, /<CustomPartRequestsPanel\/>/);
   assert.match(adminRequests, /img src=\{attachmentUrl\}/);
