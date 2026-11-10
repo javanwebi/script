@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import { KeyRound, Send, Copy, Eye, EyeOff, RefreshCw, LockKeyhole, ShieldCheck, X, Loader2 } from 'lucide-react';
 
 export type CrmAccessCustomer = {
@@ -16,8 +17,7 @@ const generatePassword=()=>{
 const input='h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#E56B1E] focus:ring-2 focus:ring-orange-100';
 async function getJSON(url:string,init?:RequestInit){
  const response=await fetch(url,{...init,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...(init?.headers||{})}});
- const result=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
- if(!response.ok||!result.success)throw new Error(result.message||'درخواست ناموفق بود.');
+ const result=await requireAdminApiJson<Response>(response,'مدیریت حساب CRM');
  return result;
 }
 export const CustomerAccountAccessModal:React.FC<{
