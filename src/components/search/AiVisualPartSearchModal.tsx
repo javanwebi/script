@@ -76,7 +76,7 @@ async function createManufacturingImageFile(blob: Blob, originalName: string): P
     throw new Error('تصویر قطعه برای پیوست درخواست ساخت معتبر نیست.');
   }
   const safeBase = (originalName || 'forza-part-image')
-    .split(/[\\/]/).pop()!.replace(/\\.[^.]+$/, '').slice(0, 100) || 'forza-part-image';
+    .split(/[\\/]/).pop()!.replace(/[.][^.]+$/, '').slice(0, 100) || 'forza-part-image';
   const mime = blob.type.split(';')[0].toLowerCase();
   const extension = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
   if (blob.size <= MAX_MANUFACTURING_IMAGE_BYTES && ['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
