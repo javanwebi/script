@@ -61,7 +61,8 @@ test('the build request carries image, part details and quantity into the existi
   assert.match(modal, /initialFile\?: File \| null/);
   assert.match(modal, /setSelectedFile\(initialFile \|\| null\)/);
   assert.match(modal, /attachmentBase64/);
-  assert.match(modal, /contactName, phoneNumber, companyName, partName, partType, dimensions/);\n  assert.match(modal, /alloyCondition, quantity, notes/);
+  assert.match(modal, /contactName, phoneNumber, companyName, partName, partType, dimensions/);
+  assert.match(modal, /alloyCondition, quantity, notes/);
   assert.match(crm, /section === 'manufacturing'/);
   assert.match(crm, /<CustomPartRequestsPanel\/>/);
   assert.match(adminRequests, /img src=\{attachmentUrl\}/);
