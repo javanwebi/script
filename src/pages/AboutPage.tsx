@@ -6,6 +6,7 @@ import {
   ShoppingCart, UsersRound, Wrench,
 } from "lucide-react";
 import { STORE_ASSETS } from "../assets/images";
+import atlasStory from "../assets/images/about/about-atlas-story.webp";
 import workerCta from "../assets/images/about/about-worker-cta.webp";
 
 const capabilities = [
@@ -75,7 +76,7 @@ export function AboutPage() {
 
       <section className="sp-about-story" id="sp-about-story" aria-labelledby="sp-about-story-title">
         <div className="sp-about-story__visual">
-          <img src={STORE_ASSETS.engineerWhyAtlas} alt="کارشناس فنی در محیط صنعتی؛ نمادی از پشتوانه تخصصی اطلس" loading="lazy" decoding="async" />
+          <img src={atlasStory} alt="نمای ساختمان بازرگانی تسمه اطلس" loading="lazy" decoding="async" />
           <div className="sp-about-story__photo-label"><span>ریشه ما</span><strong>بازرگانی تسمه اطلس</strong></div>
         </div>
         <div className="sp-about-story__content">
