@@ -18,17 +18,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const location = useLocation();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const selected = isInWishlist(product.code);
-  const canViewPrices =
-    hasCustomerPriceAccess(currentUser) &&
-    (location.pathname === "/account" ||
-      location.pathname.startsWith("/account/") ||
-      location.pathname === "/consumer-dashboard" ||
-      location.pathname.startsWith("/consumer-dashboard/"));
+  const hasPricePermission = hasCustomerPriceAccess(currentUser);
+  const isCustomerPortalRoute =
+    location.pathname === "/account" ||
+    location.pathname.startsWith("/account/") ||
+    location.pathname === "/consumer-dashboard" ||
+    location.pathname.startsWith("/consumer-dashboard/");
+  const canViewPrices = hasPricePermission && isCustomerPortalRoute;
   const hasVariants = Boolean(product.variants?.length);
   const price = !hasVariants
     ? getCurrentCustomerSkuPrice(product, currentUser, canViewPrices)
     : 0;
-  const href = canViewPrices
+  const href = hasPricePermission
     ? memberPath(currentUser, product.code)
     : `/product/${encodeURIComponent(product.code)}`;
 
@@ -36,9 +37,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? canViewPrices ? "انتخاب کد فنی برای مشاهده قیمت" : "قیمت پس از ورود به پنل"
     : canViewPrices
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
-      : currentUser
+      : currentUser && !hasPricePermission
         ? "دسترسی قیمت برای این حساب فعال نیست"
-        : "ورود برای مشاهده قیمت";
+        : "ورود به پنل برای مشاهده قیمت";
 
   return (
     <article className="store-product-card">
