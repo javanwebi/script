@@ -1,7 +1,11 @@
 import {useEffect} from 'react';
+const warmForza=()=>Promise.all([
+ import('../../pages/AiForzaPage'),
+ import('../forza/ParticleAvatar'),
+]);
 const loaders:Record<string,()=>Promise<unknown>>={
- '/ai-forza':()=>import('../../pages/AiForzaPage'),
- '/face-to-face':()=>import('../../pages/AiForzaPage'),
+ '/ai-forza':warmForza,
+ '/face-to-face':warmForza,
  '/ai-consult':()=>import('../../pages/AiConsultPage'),
  '/identify-part':()=>import('../search/AiVisualPartSearchModal'),
  '/products':()=>import('../../pages/ProductsPage'),
