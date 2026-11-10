@@ -119,7 +119,7 @@ test('approved About page concept is implemented as real responsive UI and only 
   assert.doesNotMatch(about,/\+۵۰۰ برند|\+۱۵۰ دسته|کمتر از ۲۴ ساعت|بیش از ۳۰,۰۰۰/);
 
   assert.match(about,/STORE_ASSETS\.partsWarehouseVault/);
-  assert.match(about,/STORE_ASSETS\.engineerWhyAtlas/);
+  assert.match(about,/about-atlas-story\.webp/);
   assert.match(about,/about-worker-cta\.webp/);
   assert.match(css,/max-width: 760px/);
   assert.match(css,/max-width: 390px/);
