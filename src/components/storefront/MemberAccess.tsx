@@ -18,26 +18,33 @@ export function MemberAccess({
 }) {
   const { currentUser, openAuthModal } = useAuth();
   const navigate = useNavigate();
+  const canViewPrices = currentUser?.canViewPrices === true;
+  const destination = currentUser
+    ? canViewPrices ? memberPath(currentUser, code) : "/contact"
+    : memberPath(null, code);
   return (
     <div className={`member-access ${compact ? "member-access-compact" : ""}`}>
       <LockKeyhole size={21} />
       <div>
-        <strong>قیمت، موجودی و استعلام در پنل شما</strong>
+        <strong>قیمت و شرایط تجاری در حساب مشتری</strong>
         {!compact && (
           <p>
-            حساب خود را بسازید و خرید، استعلام و پیگیری سفارش‌ها را در یک جا
-            انجام دهید.
+            قیمت‌های به‌روز پس از ورود و بر اساس دسترسی حساب شما نمایش داده می‌شوند.
+            برای کدهای بدون قیمت فعال، امکان ثبت استعلام وجود دارد.
           </p>
+        )}
+        {currentUser && !canViewPrices && (
+          <p>دسترسی مشاهده قیمت برای این حساب فعال نیست. برای بررسی و فعال‌سازی با پشتیبانی تماس بگیرید.</p>
         )}
         <button
           className="store-btn-primary"
           onClick={() =>
-            currentUser
-              ? navigate(memberPath(currentUser, code))
-              : openAuthModal(memberPath(currentUser, code), "register")
+            !currentUser
+              ? openAuthModal(destination, "register")
+              : navigate(destination)
           }
         >
-          {currentUser ? "ادامه در پنل من" : "ثبت‌نام / ورود و مشاهده در پنل"}
+          {!currentUser ? "ثبت‌نام / ورود و مشاهده قیمت" : canViewPrices ? "ورود به پنل مشتری" : "درخواست فعال‌سازی قیمت"}
           <ArrowUpLeft size={17} />
         </button>
       </div>
