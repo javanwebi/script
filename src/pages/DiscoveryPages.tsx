@@ -26,6 +26,11 @@ import {
   Headphones,
   Wrench,
   Package,
+  ShoppingCart,
+  ShieldCheck,
+  Users,
+  Zap,
+  Tag,
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { getManagedBrands } from "../data/brands";
