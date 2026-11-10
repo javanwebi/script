@@ -7,6 +7,7 @@ const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.met
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/components/forza/style.css',import.meta.url),'utf8');
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
+const forzaPage=readFileSync(new URL('../src/pages/AiForzaPage.tsx',import.meta.url),'utf8');
 
 test('new FORZA turns retain the mic instead of stopping live WebSpeech before AI playback',()=>{
   const from=ui.indexOf('const handleUserFinishedSpeaking = useCallback(');
@@ -92,6 +93,13 @@ test('a pure stop consumes cumulative Chrome finals instead of replaying the sam
   assert.match(stop,/return;/);
 });
 
+
+test('FORZA route paints its shell while the voice controller and particle scene load independently',()=>{
+  assert.match(forzaPage,/lazy\\(\\(\\) =>/);
+  assert.match(forzaPage,/import\\('\\.\\.\\/components\\/forza\\/AiForzaCallExperience'\\)/);
+  assert.match(forzaPage,/<Suspense fallback=/);
+  assert.match(routePreload,/import\\('\\.\\.\\/forza\\/AiForzaCallExperience'\\)/);
+});
 
 test('FORZA opens its voice controller without putting Three.js in the first call bundle',()=>{
   assert.match(ui,/const ParticleAvatar = lazy\(async \(\) =>/);
