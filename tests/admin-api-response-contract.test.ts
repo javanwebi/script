@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {AdminApiError, adminApiNetworkMessage, requireAdminApiJson} from '../src/utils/adminApiResponse';
 
 function reply(content: string, status: number, contentType = 'application/json') {
-  return new Response(content, {status, headers:{'content-type':contentType}});
+  return new Response(status === 204 ? null : content, {status, headers:{'content-type':contentType}});
 }
 
 test('CRM mutation accepts real JSON 201 response', async () => {
