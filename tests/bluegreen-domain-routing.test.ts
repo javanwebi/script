@@ -32,7 +32,8 @@ test("domain routing shares rollback, backups and post-switch build/data verific
 test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSON", () => {
   assert.match(singlePort, /PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS/);
   assert.match(singlePort, /PUBLIC_POST_API_JSON_GUARD_OK/);
-  assert.match(singlePort, /PUBLIC_POST_API_ROUTE_MARKER_OK/);
+  assert.match(singlePort, /PUBLIC_POST_API_EXPRESS_HEADER_OK/);
+  assert.match(singlePort, /x-powered-by: express/);
   assert.match(singlePort, /HTTP_API_HTTPS_REDIRECT_OK/);
   assert.match(singlePort, /\/api\/admin\/crm\/customers/);
   assert.match(singlePort, /\/api\/catalog\/sku-transfer/);
@@ -43,8 +44,6 @@ test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSO
 test("customer-facing Nginx vhosts route API writes before the read-only SPA fallback", () => {
   assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(singlePort, /location \^~ \/api\//);
-  assert.match(singlePort, /X-Sanatpish-API-Route express always/);
-  assert.match(singlePort, /X-Sanatpish-API-Route redirect always/);
   assert.match(singlePort, /return 308 https:\/\/\$host\$request_uri/);
   assert.match(singlePort, /API_ROUTE_METHODS_DELEGATED_TO_EXPRESS/);
   assert.doesNotMatch(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
@@ -63,10 +62,10 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V2/);
   assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
   assert.match(nginxHotfix, /CUSTOMER_API_HTTP_REDIRECT_READY/);
-  assert.match(nginxHotfix, /X-Sanatpish-API-Route express always/);
-  assert.match(nginxHotfix, /X-Sanatpish-API-Route redirect always/);
   assert.match(nginxHotfix, /DIRECT_EXPRESS_JSON_AUTH_GUARD_OK/);
   assert.match(nginxHotfix, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(nginxHotfix, /X-Powered-By:[[:space:]]*Express/);
+  assert.match(nginxHotfix, /NGINX_EXPRESS_HEADER_OR_JSON_MISSING/);
   assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
   assert.doesNotMatch(nginxHotfix, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
   assert.match(nginxHotfix, /NGINX_API_ROUTE_ROLLBACK_OK/);
