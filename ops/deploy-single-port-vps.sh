@@ -685,24 +685,41 @@ assert health.get('status')=='ok' and health.get('database')=='ok'
 # No session cookie is sent; these handlers must reject anonymously with JSON.
 def post_json(path,host):
  cmd=['curl','--noproxy','*','-ksS','--connect-timeout','3','--max-time','15',
-      '--resolve',f'{host}:443:127.0.0.1',
+      '--resolve',f'{host}:443:127.0.0.1','-D','-',
       '-H','Accept: application/json','-H','Content-Type: application/json',
-      '-X','POST','--data','{}','-w','\\n__META__%{http_code}|%{content_type}',
+      '-X','POST','--data','{}','-w','\n__META__%{http_code}|%{content_type}',
       f'https://{host}{path}']
  result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  raw=result.stdout
  if b'\n__META__' not in raw:
   raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+host+path)
- body,meta=raw.rsplit(b'\n__META__',1)
+ response,meta=raw.rsplit(b'\n__META__',1)
+ if b'\r\n\r\n' not in response:
+  raise AssertionError('PUBLIC_POST_API_MISSING_RESPONSE_HEADERS '+host+path)
+ headers,body=response.split(b'\r\n\r\n',1)
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
  assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',host,path,status,content_type)
  assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',host,path,status,content_type)
+ assert any(line.lower().startswith(b'x-sanatpish-api-route: express') for line in headers.splitlines()), ('PUBLIC_POST_API_ROUTE_MARKER_MISSING',host,path,headers.decode('utf-8','replace'))
  payload=json.loads(body)
  assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',host,path)
+ print('PUBLIC_POST_API_ROUTE_MARKER_OK',host,path)
  print('PUBLIC_POST_API_JSON_GUARD_OK',host,path,'HTTP',status)
 for host in (domain,'www.'+domain):
  for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
   post_json(path,host)
+# Plain HTTP writes must redirect to the same HTTPS URL rather than reach the app.
+redirect_cmd=['curl','--noproxy','*','-sS','--connect-timeout','3','--max-time','15',
+              '--resolve',f'{domain}:80:127.0.0.1','-D','-','-o','/dev/null',
+              '-H','Content-Type: application/json','-X','POST','--data','{}',
+              '-w','\n__META__%{http_code}',f'http://{domain}/api/admin/crm/customers']
+redirect=subprocess.run(redirect_cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
+if b'\n__META__' not in redirect:raise AssertionError('HTTP_API_REDIRECT_MISSING_METADATA')
+redirect_headers,redirect_meta=redirect.rsplit(b'\n__META__',1)
+assert redirect_meta.decode().strip()=='308',('HTTP_API_HTTPS_REDIRECT_BAD_STATUS',redirect_meta)
+assert any(line.lower().startswith(b'location: https://sanatpish.com/api/admin/crm/customers') for line in redirect_headers.splitlines()),('HTTP_API_HTTPS_REDIRECT_BAD_LOCATION',redirect_headers.decode('utf-8','replace'))
+assert any(line.lower().startswith(b'x-sanatpish-api-route: redirect') for line in redirect_headers.splitlines()),('HTTP_API_REDIRECT_MARKER_MISSING',redirect_headers.decode('utf-8','replace'))
+print('HTTP_API_HTTPS_REDIRECT_OK')
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
 stt_raw=get('/api/ai/forza-stt-info')
