@@ -21,9 +21,9 @@ export const PortalProductCard: React.FC<PortalProductCardProps> = ({
   const price = product.variants?.length
     ? 0
     : getCurrentCustomerSkuPrice(product, currentUser, canViewPrices);
-  const href = canViewPrices
+  const href = currentUser
     ? memberPath(currentUser, product.code)
-    : currentUser ? "/contact" : `/product/${encodeURIComponent(product.code)}`;
+    : `/product/${encodeURIComponent(product.code)}`;
   return (
     <article className="store-product-card">
       <div className="store-product-media">
