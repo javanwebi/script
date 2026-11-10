@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { getManagedBrands } from "../data/brands";
+import { getManagedCategories } from "../data/categories";
 import type { Brand } from "../types";
 import { databaseStorageEnabled } from "../services/durableStorage";
 import { STORE_ASSETS as A } from "../assets/images";
@@ -925,6 +926,55 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
 export function AboutPage() {
   useEffect(() => title("درباره صنعت پیش"), []);
 
+  const [catalogStats, setCatalogStats] = useState({
+    ready: databaseStorageEnabled(),
+    brands: 0,
+    categories: 0,
+    families: 0,
+    industries: INDUSTRIES.length,
+  });
+
+  useEffect(() => {
+    const refreshStats = () => {
+      if (!databaseStorageEnabled()) {
+        setCatalogStats({
+          ready: false,
+          brands: 0,
+          categories: 0,
+          families: 0,
+          industries: INDUSTRIES.length,
+        });
+        return;
+      }
+
+      const activeFamilies = getAllProducts().filter((product) => product.active !== false);
+      setCatalogStats({
+        ready: true,
+        brands: getManagedBrands().filter((brand) => brand.active !== false).length,
+        categories: getManagedCategories().filter((category) => category.active !== false).length,
+        families: activeFamilies.length,
+        industries: INDUSTRIES.length,
+      });
+    };
+
+    refreshStats();
+    const unsubscribeCatalog = subscribeCatalogChanges(refreshStats);
+    const events = [
+      "sanat-durable-hydrated",
+      "atlas-brands-updated",
+      "atlas-categories-updated",
+      "atlas-catalog-updated",
+    ];
+    events.forEach((eventName) => window.addEventListener(eventName, refreshStats));
+
+    return () => {
+      unsubscribeCatalog();
+      events.forEach((eventName) => window.removeEventListener(eventName, refreshStats));
+    };
+  }, []);
+
+  const formatCount = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
+
   const pathways = [
     {
       to: "/services",
@@ -989,7 +1039,7 @@ export function AboutPage() {
     },
     {
       title: "پشتیبانی صنایع",
-      text: "همراهی در تأمین نیاز خطوط تولید و پیگیری مسیر سفارش.",
+      text: "همراهی در تأمین نیاز خطوط تولید، پاسخگویی سریع و پیگیری مسیر سفارش.",
       image: A.industries.cement,
       Icon: Factory,
     },
@@ -1003,10 +1053,30 @@ export function AboutPage() {
   ];
 
   const highlights = [
-    { title: "برندهای متنوع", value: "از برند تا محصول", text: "شناخت برندها و محصولات صنعتی", Icon: Tag },
-    { title: "دسته‌بندی تخصصی", value: "جستجوی هدفمند", text: "دسترسی ساختاریافته به قطعات", Icon: Layers },
-    { title: "پاسخگویی سریع", value: "پیگیری متمرکز", text: "همراهی در مسیر استعلام و سفارش", Icon: Clock },
-    { title: "پشتیبانی صنعتی", value: "همراه مسیر تأمین", text: "پیگیری نیاز و دریافت مشاوره", Icon: Factory },
+    {
+      title: "برندهای صنعتی",
+      value: catalogStats.ready ? `${formatCount(catalogStats.brands)} برند` : "—",
+      text: catalogStats.ready ? "برندهای فعال ثبت‌شده در سامانه" : "پس از دریافت داده‌های معتبر سامانه",
+      Icon: Tag,
+    },
+    {
+      title: "دسته‌بندی تخصصی",
+      value: catalogStats.ready ? `${formatCount(catalogStats.categories)} دسته` : "—",
+      text: catalogStats.ready ? "دسته‌بندی‌های فعال کاتالوگ" : "پس از دریافت داده‌های معتبر سامانه",
+      Icon: Layers,
+    },
+    {
+      title: "خانواده قطعات",
+      value: catalogStats.ready ? `${formatCount(catalogStats.families)} خانواده` : "—",
+      text: catalogStats.ready ? "خانواده‌های فعال ثبت‌شده در کاتالوگ" : "پس از دریافت داده‌های معتبر سامانه",
+      Icon: Boxes,
+    },
+    {
+      title: "صنایع تحت پوشش",
+      value: `${formatCount(catalogStats.industries)} صنعت`,
+      text: "مسیرهای تخصصی معرفی‌شده در صنعت پیش",
+      Icon: Factory,
+    },
   ];
 
   return (
@@ -1039,10 +1109,6 @@ export function AboutPage() {
               <ArrowLeft size={17} />
             </a>
           </div>
-          <div className="sp-about-hero-note">
-            <span>یک مسیر تخصصی برای نیازهای صنعت</span>
-            <strong>قطعات · برندها · مشخصات فنی · استعلام و خرید</strong>
-          </div>
         </div>
         <div className="sp-about-hero-visual">
           <img
@@ -1051,11 +1117,6 @@ export function AboutPage() {
             fetchPriority="high"
           />
           <div className="sp-about-hero-image-shade" />
-          <div className="sp-about-hero-image-label">
-            <span>INDUSTRIAL PARTS MARKETPLACE</span>
-            <strong>تخصص در قطعات، تمرکز بر صنعت</strong>
-          </div>
-          <div className="sp-about-hero-image-index">SANAT PISH / 01</div>
         </div>
         <div className="sp-about-hero-slash" aria-hidden="true" />
       </section>
@@ -1063,8 +1124,8 @@ export function AboutPage() {
       <section className="sp-about-story" id="sp-about-story">
         <div className="sp-about-story-visual">
           <img
-            src={A.whySanatDirectFactory}
-            alt="محیط صنعتی و فعالیت در زنجیره تأمین قطعات"
+            src={A.industries.manufacturing}
+            alt="نمایی از مجموعه و فضای صنعتی تولید"
             loading="lazy"
           />
           <div className="sp-about-story-image-frame" aria-hidden="true" />
@@ -1108,16 +1169,16 @@ export function AboutPage() {
               <span>پاسخ به نیاز واقعی کارخانه‌ها و کسب‌وکارها</span>
             </div>
           </div>
-          <div className="sp-about-timeline" aria-label="مسیر شکل‌گیری صنعت پیش">
-            {milestones.map((item, index) => (
-              <div className="sp-about-timeline-item" key={item.year}>
-                <span className="sp-about-timeline-node">{String(index + 1).padStart(2, "0")}</span>
-                <span className="sp-about-timeline-year">{item.year}</span>
-                <strong>{item.title}</strong>
-                <small>{item.text}</small>
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="sp-about-timeline" aria-label="مسیر شکل‌گیری صنعت پیش">
+          {milestones.map((item, index) => (
+            <div className="sp-about-timeline-item" key={item.year}>
+              <span className="sp-about-timeline-node">{String(index + 1).padStart(2, "0")}</span>
+              <span className="sp-about-timeline-year">{item.year}</span>
+              <strong>{item.title}</strong>
+              <small>{item.text}</small>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1150,9 +1211,10 @@ export function AboutPage() {
       <section className="sp-about-highlights">
         <div className="sp-about-section-inner">
           <div className="sp-about-highlights-heading">
-            <span className="sp-about-eyebrow sp-about-eyebrow--light">صنعت پیش در یک نگاه</span>
+            <span className="sp-about-eyebrow sp-about-eyebrow--light">شناخت ظرفیت‌های مجموعه</span>
+            <h2>صنعت پیش در یک نگاه</h2>
           </div>
-          <div className="sp-about-highlights-grid">
+          <div className="sp-about-highlights-grid" aria-live="polite">
             {highlights.map(({ title: itemTitle, value, text, Icon }) => (
               <div className="sp-about-highlight" key={itemTitle}>
                 <Icon size={27} strokeWidth={1.8} />
