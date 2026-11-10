@@ -280,7 +280,7 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const handleDownloadMyPriceListExcel = () => {
     if (!resolvedConfig.permissions.allowExcelPriceListDownload) return;
-    if (currentUser?.canViewPrices !== true) {
+    if (user?.canViewPrices !== true) {
       showToast("دسترسی مشاهده قیمت برای این حساب فعال نیست؛ با پشتیبانی تماس بگیرید.");
       return;
     }
@@ -607,7 +607,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                       // as though it were the customer's chosen technical variant.
                       const needsSkuSelection = Boolean(prod.variants?.length);
                       const unitPrice = !needsSkuSelection
-                        ? getCurrentCustomerSkuPrice(prod, currentUser, true)
+                        ? getCurrentCustomerSkuPrice(prod, user, true)
                         : 0;
                       return (
                         <div
@@ -645,7 +645,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                                 {portalLabel("قیمت واحد:")}
                               </span>
                               <span className="font-mono font-black text-xs text-emerald-700">
-                                {currentUser?.canViewPrices !== true
+                                {user?.canViewPrices !== true
                                   ? portalLabel("دسترسی مشاهده قیمت فعال نیست")
                                   : !needsSkuSelection && !prod.inquiryOnly && unitPrice > 0
                                     ? `${formatPrice(unitPrice)} تومان`
@@ -879,7 +879,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     const firstVar = (prod.variants || [])[0];
                     const needsSelection = Boolean(prod.variants?.length);
                     const unitPrice = !needsSelection
-                      ? getCurrentCustomerSkuPrice(prod, currentUser, true)
+                      ? getCurrentCustomerSkuPrice(prod, user, true)
                       : 0;
                     return (
                       <article key={prod.code} className="consumer-quickbuy-card">
@@ -894,7 +894,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                           <h3><Link to={`/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
                           <p>{prod.categoryName || "قطعه صنعتی"}</p>
                           <div className="consumer-quickbuy-price">
-                            <span>{currentUser?.canViewPrices !== true
+                            <span>{user?.canViewPrices !== true
                               ? "دسترسی مشاهده قیمت فعال نیست"
                               : !needsSelection && !prod.inquiryOnly && unitPrice > 0
                                 ? `${formatPrice(unitPrice)} تومان`
