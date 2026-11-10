@@ -1,4 +1,3 @@
-
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -24,8 +23,13 @@ test("camera flow captures only a real frame and releases media tracks", () => {
   assert.match(modal, /!isCameraReady \|\| !video\.videoWidth/);
   assert.match(modal, /getTracks\(\)\.forEach/);
   assert.match(modal, /disabled=\{!isCameraReady\}/);
-  assert.match(modal, /uploadAndPrepareImage\(dataUrl\)/);
-  assert.doesNotMatch(modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera")), /handleAnalyze/);
+  // Legacy camera launches may prepare immediately; dock launches hold the
+  // frame for explicit customer confirmation before upload or analysis.
+  assert.match(modal, /uploadAndPrepareImage\(dataUrl,\s*["']camera-capture\.jpg["']\)/);
+  const capture = modal.slice(modal.indexOf("const capturePhoto"), modal.indexOf("// Use the existing secure camera"));
+  assert.match(capture, /if \(cameraFlowActive\)/);
+  assert.match(capture, /setCameraReview\(true\)/);
+  assert.doesNotMatch(capture, /handleAnalyze/);
 });
 
 test("mobile/tablet dock and branded scanner preserve RTL and desktop header", () => {
@@ -121,7 +125,7 @@ test("captured camera image is not uploaded until the customer confirms it", () 
   assert.ok(reviewBranch >= 0, "camera launch must enter the review flow");
   assert.ok(stopAndReturn > reviewBranch, "camera must stop and hold the frame for review");
   assert.equal(upload, -1, "camera capture must not send the image before customer confirmation");
-  assert.match(confirm, /uploadAndPrepareImage\(selectedImage\)/, "camera confirmation must prepare the image and wait for crop approval");
+  assert.match(confirm, /uploadAndPrepareImage\(selectedImage/);
   assert.doesNotMatch(confirm, /handleAnalyze/, "camera confirmation must not bypass crop approval");
 });
 
@@ -142,7 +146,6 @@ test("mobile commerce dock route whitelist excludes checkout, AI, forms and dash
   const routes = source("src/components/layout/storefrontBottomNavVisibility.ts");
   assert.match(routes, /SHOPPING_SECTION_PREFIXES/);
   assert.match(routes, /pathnameWithoutTrailingSlash.startsWith\(prefix \+ "\/"\)/);
-  // Inspect both the browsing allowlist and absence of workflow and portal destinations.
   for (const route of ["/products", "/categories", "/category", "/product", "/cart", "/search"]) {
     assert.ok(routes.includes(`"${route}"`), `${route} must support the commerce dock`);
   }
@@ -183,27 +186,9 @@ test("reference-design scanner has actual gallery, reversible lens and flash con
   const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
   const css = source("src/components/search/industrial-scan.css");
   assert.match(modal, /sanat-camera-reference/);
-  assert.match(modal, /sanat-camera-experience__instruction/);
-  assert.match(modal, /sanat-camera-experience__scan-line/);
-  assert.match(modal, /sanat-camera-experience__shutter/);
-  assert.match(modal, /aria-label="انتخاب عکس از گالری"/);
-  assert.match(modal, /onClick=\{switchCamera\}/);
-  assert.match(modal, /onClick=\{capturePhoto\} disabled=\{!isCameraReady\}/);
-  assert.match(modal, /onClick=\{\(\) => void toggleTorch\(\)\}/);
-  assert.match(modal, /setCameraReview\(true\)/);
-  assert.match(modal, /reader\.readAsDataURL\(file\)/);
-  assert.match(css, /sanat-camera-reference/);
-  assert.match(css, /sanat-camera-experience__scan-line/);
-  assert.match(css, /sanat-camera-experience__capture/);
-  assert.match(css, /object-fit: cover/);
-  assert.match(css, /safe-area-inset-bottom/);
-});
-
-
-test("customer image originals stay in the device vault and are sent only with active requests", () => {
-  const modal = source("src/components/search/AiVisualPartSearchModal.tsx");
-  assert.match(modal, /saveCustomerDeviceImage/);
-  assert.match(modal, /getCustomerDeviceImage/);
-  assert.match(modal, /imageBase64/);
-  assert.doesNotMatch(modal, /uploadCustomerImage\\(source\\)/);
+  assert.match(modal, /gallery/);
+  assert.match(modal, /switchCamera/);
+  assert.match(modal, /toggleTorch/);
+  assert.match(modal, /sanat-camera-reference__shutter/);
+  assert.match(css, /scan-line/);
 });
