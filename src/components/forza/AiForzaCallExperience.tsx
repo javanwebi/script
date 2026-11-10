@@ -227,8 +227,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return shouldIgnoreForzaSpeakerEcho(
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
-  const serverSttConfiguredRef=useRef<boolean|null>(null);
-  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی سرویس گفتار سرور...');
+  const serverSttConfiguredRef=useRef(false);
+  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1177,7 +1177,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Browser speech is a low-latency live preview only. When the
         // server Diba recognizer is enabled, its final transcript is verified
         // on every recorded turn before the AI receives the query.
-        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current !== false;
+        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
@@ -1232,7 +1232,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         } else if (audioBlob && q) {
           console.info('[FORZA_STT] turn='+generation+
-            ' source=browser-final server_verify=skipped chars='+q.length);
+            ' source=browser-final diba_verify=skipped chars='+q.length);
+        } else if (audioBlob && !q) {
+          throw new Error('متن گفتار دریافت نشد و موتور دایبا هم آماده نیست. لطفاً دوباره نزدیک میکروفون صحبت کنید یا پیام را تایپ کنید.');
         }
 
         // Render every incoming SSE delta immediately; the selected Nima
@@ -1912,13 +1914,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       .then(async response=>response.ok?await response.json():null)
       .then((info:{serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean}|null)=>{
         if(controller.signal.aborted||typeof info?.serverSttConfigured!=='boolean')return;
-        serverSttConfiguredRef.current=info.serverSttConfigured;
-        setServerSttLabel(info.serverSttConfigured
-          ? (info.serverSttProvider==='diba'&&info.serverSttReady ? 'سرور دایبا آماده' : 'تشخیص گفتار سرور')
-          : 'سرور آماده نیست؛ متن مرورگر فقط پیش‌نمایش است');
+        // The project explicitly avoids Gemini speech recognition. Only a
+        // ready local Diba/Vosk worker may trigger a server-audio round trip.
+        const dibaReady=info.serverSttProvider==='diba'&&
+          info.serverSttConfigured===true&&info.serverSttReady===true;
+        serverSttConfiguredRef.current=dibaReady;
+        setServerSttLabel(dibaReady
+          ? 'دایبا سرور آماده است'
+          : info.serverSttProvider==='diba'
+            ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
+            : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
       })
       .catch(()=>{
-        if(!controller.signal.aborted)setServerSttLabel('وضعیت سرور نامشخص؛ متن مرورگر فقط پیش‌نمایش است');
+        if(!controller.signal.aborted){serverSttConfiguredRef.current=false;setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');}
       });
     return ()=>controller.abort();
   },[]);
