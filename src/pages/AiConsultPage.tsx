@@ -1825,7 +1825,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* TAB 2: ENGINEERING CHAT WORKSPACE                                 */
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
-              <div className="shrink-0 z-20 bg-white border-b border-slate-200 px-3 py-2 max-h-[32dvh] overflow-y-auto">
+              <div className="relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2">
                 <WorkspaceCatalog onSelect={startCatalogFamilyConsultation} onAddToConsultation={startCatalogConsultation} />
               </div>
               {/* Message Feed Area */}
