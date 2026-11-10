@@ -1,5 +1,5 @@
 import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
-import { memberPath } from "./MemberAccess";
+import { memberPath } from "../storefront/MemberAccess";
 import { useAuth } from "../../context/AuthContext";
 import React from "react";
 import { Link } from "react-router-dom";
