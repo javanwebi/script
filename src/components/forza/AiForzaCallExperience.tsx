@@ -228,6 +228,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
   const serverSttConfiguredRef=useRef<boolean|null>(null);
+  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی سرویس گفتار سرور...');
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1173,11 +1174,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Chrome's finalized Persian transcript is already available in the
-        // common path. Do not serialize every turn behind a second full-audio
-        // decode; Diba is the server fallback when browser text is absent or
-        // still provisional.
-        const needsServerFinal = !q || speechInterimRef.current;
+        // Browser speech is a low-latency live preview only. When the
+        // server Diba recognizer is enabled, its final transcript is verified
+        // on every recorded turn before the AI receives the query.
+        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current !== false;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
@@ -1910,11 +1910,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const controller=new AbortController();
     void fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'})
       .then(async response=>response.ok?await response.json():null)
-      .then((info:{serverSttConfigured?:boolean}|null)=>{
-        if(!controller.signal.aborted&&typeof info?.serverSttConfigured==='boolean')
-          serverSttConfiguredRef.current=info.serverSttConfigured;
+      .then((info:{serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean}|null)=>{
+        if(controller.signal.aborted||typeof info?.serverSttConfigured!=='boolean')return;
+        serverSttConfiguredRef.current=info.serverSttConfigured;
+        setServerSttLabel(info.serverSttConfigured
+          ? (info.serverSttProvider==='diba'&&info.serverSttReady ? 'سرور دایبا آماده' : 'تشخیص گفتار سرور')
+          : 'سرور آماده نیست؛ متن مرورگر فقط پیش‌نمایش است');
       })
-      .catch(()=>{});
+      .catch(()=>{
+        if(!controller.signal.aborted)setServerSttLabel('وضعیت سرور نامشخص؛ متن مرورگر فقط پیش‌نمایش است');
+      });
     return ()=>controller.abort();
   },[]);
 
@@ -2278,7 +2283,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         {!clean && (
           <div role="status" dir="rtl" className="forza-voice-meta pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: مرورگر / سرویس فعلی سرور
+            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: {serverSttLabel}
           </div>
         )}
         {microphoneError && (
