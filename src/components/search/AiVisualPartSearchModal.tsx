@@ -169,6 +169,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
+  const customRequestSequenceRef=useRef(0);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
     if(!isOpen)return;
@@ -182,8 +183,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   React.useEffect(() => {
     if (!isOpen) {
+      customRequestSequenceRef.current++;
       setCustomRequestOpen(false);
       setCustomRequestDraft(null);
+      setIsPreparingCustomRequest(false);
     }
   }, [isOpen]);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
@@ -722,6 +725,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // It is read and attached to the manufacturing request only after an explicit click.
   const openCustomManufacturingRequest = async () => {
     if (isPreparingCustomRequest) return;
+    const requestSequence = ++customRequestSequenceRef.current;
     if (!selectedImage) {
       setErrorMessage('تصویر قطعه برای ثبت درخواست ساخت پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
       return;
@@ -733,6 +737,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       let originalName = 'forza-part-image';
       if (localImageId) {
         const localRecord = await getCustomerDeviceImage(localImageId);
+        if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
         if (localRecord) {
           imageBlob = localRecord.blob;
           originalName = localRecord.originalName || originalName;
@@ -743,7 +748,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         if (!response.ok) throw new Error('خواندن تصویر ذخیره‌شده روی دستگاه ممکن نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
         imageBlob = await response.blob();
       }
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
       const file = await createManufacturingImageFile(imageBlob, originalName);
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
       const summary = analysisResult?.summary;
       const detectedName = [summary?.partFamilyFarsi, summary?.detectedPartType]
         .map(value => String(value || '').trim())
@@ -759,6 +766,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
         regionNote,
       ].filter(Boolean).join('\n').slice(0, 2800);
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
       setCustomRequestDraft({
         file,
         partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
@@ -770,7 +778,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'آماده‌سازی تصویر برای درخواست ساخت ناموفق بود.');
     } finally {
-      setIsPreparingCustomRequest(false);
+      if (requestSequence === customRequestSequenceRef.current) setIsPreparingCustomRequest(false);
     }
   };
 
