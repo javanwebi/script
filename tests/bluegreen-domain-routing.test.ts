@@ -32,6 +32,8 @@ test("domain routing shares rollback, backups and post-switch build/data verific
 test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSON", () => {
   assert.match(singlePort, /PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS/);
   assert.match(singlePort, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(singlePort, /PUBLIC_POST_API_ROUTE_MARKER_OK/);
+  assert.match(singlePort, /HTTP_API_HTTPS_REDIRECT_OK/);
   assert.match(singlePort, /\/api\/admin\/crm\/customers/);
   assert.match(singlePort, /\/api\/catalog\/sku-transfer/);
   assert.match(singlePort, /application\/json/);
