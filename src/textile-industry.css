@@ -1653,3 +1653,88 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Fine alignment for the live catalogue cards and customer-price access strip. */
+.textile-visual-caption {
+  display: none;
+}
+.textile-product-grid .store-product-media > a {
+  min-height: 100%;
+}
+.textile-product-grid .store-product-media > button {
+  width: 25px;
+  height: 25px;
+  top: 7px;
+  right: 7px;
+  border-radius: 7px;
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 2px 8px rgba(12,28,40,.1);
+}
+.textile-product-grid .store-product-bottom > span {
+  display: none;
+}
+.textile-product-grid .store-product-bottom > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #d65f13;
+  font-size: 9px;
+  font-weight: 850;
+}
+.textile-products-section > .member-access {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 7px 11px;
+  border: 1px solid #e6d9ce;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #fff, #fff8f2);
+  box-shadow: none;
+}
+.textile-products-section > .member-access > svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: #df681b;
+}
+.textile-products-section > .member-access > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.textile-products-section > .member-access strong {
+  color: #4c5962;
+  font-size: 9px;
+}
+.textile-products-section > .member-access p {
+  display: none;
+}
+.textile-products-section > .member-access button {
+  min-height: 27px;
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 8px;
+}
+@media (max-width: 760px) {
+  .textile-products-section > .member-access {
+    align-items: flex-start;
+    padding: 8px;
+  }
+  .textile-products-section > .member-access > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .textile-products-section > .member-access strong {
+    font-size: 8px;
+  }
+  .textile-products-section > .member-access button {
+    min-height: 30px;
+    font-size: 8px;
+  }
+}
