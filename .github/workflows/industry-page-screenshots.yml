@@ -1,0 +1,55 @@
+name: Capture Sanat Pish industry page screenshots
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/pages/DiscoveryPages.tsx"
+      - "src/pages/TileCeramicIndustryPage.tsx"
+      - "src/industry-pages-premium.css"
+      - "src/catalogue-premium.css"
+      - "src/index.css"
+      - "scripts/capture-industry-pages.mjs"
+      - ".github/workflows/industry-page-screenshots.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install screenshot browser
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Build production frontend
+        run: npm run build
+      - name: Start static preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/sanatpish-preview.log 2>&1 &
+          echo $! > /tmp/sanatpish-preview.pid
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "PREVIEW_READY"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/sanatpish-preview.log
+          exit 1
+      - name: Capture desktop and mobile industry pages
+        run: node scripts/capture-industry-pages.mjs
+      - name: Upload screenshot evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanatpish-industry-page-screenshots
+          path: artifacts/industry-pages/*.png
+          if-no-files-found: error
+          retention-days: 14
