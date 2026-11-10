@@ -11,7 +11,8 @@ import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const identificationOpen = useIdentificationOverlayOpen();
-  const showStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
+  const isAboutConceptRoute = ["/about", "/about-us", "/history", "/licenses", "/awards"].includes(location.pathname);
+  const showStorefrontDock = !isAboutConceptRoute && !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
 
   // Full-screen dedicated AI experiences (AI FORZA Voice & Cognivo AI Workspace)
   const isDedicatedAiWorkspace =
@@ -47,7 +48,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }
 
   const isEditorial=["/industries","/brands","/knowledge","/about","/about-us","/history","/licenses","/awards"].some(p=>location.pathname.startsWith(p));
-  const isAboutConcept=["/about","/about-us","/history","/licenses","/awards"].includes(location.pathname);
+  const isAboutConcept = isAboutConceptRoute;
   const isHomePage = location.pathname === '/';
   const isCategoryPage = location.pathname.startsWith('/category/');
 
