@@ -665,8 +665,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     if (!textToSend) return;
     // Product detail can initiate a turn before the selected-product effect renders.
     const turnSelectedProducts: ConsultationProduct[] = [...selectedConsultProducts];
-    const routeProductCode = entryParams.get('productCode')?.trim();
-    const routeProductName = entryParams.get('productName')?.trim();
+    const isInitialProductTurn = Boolean(queryText && queryText === entryParams.get('q')?.slice(0, 1500));
+    const routeProductCode = isInitialProductTurn ? entryParams.get('productCode')?.trim() : undefined;
+    const routeProductName = isInitialProductTurn ? entryParams.get('productName')?.trim() : undefined;
     if (routeProductCode && !turnSelectedProducts.some(item => item.code === routeProductCode)) {
       turnSelectedProducts.push({code: routeProductCode, name: routeProductName || routeProductCode});
     }
