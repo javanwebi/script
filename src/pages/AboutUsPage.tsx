@@ -24,6 +24,7 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../assets/images';
+import { WhySanatPish } from '../components/storefront/HomeOverview';
 
 interface AboutUsPageProps {
   defaultTab?: 'intro' | 'history' | 'licenses' | 'awards';
@@ -302,88 +303,21 @@ export const AboutUsPage: React.FC<AboutUsPageProps> = ({ defaultTab = 'intro' }
         {activeTab === 'intro' && (
           <div className="space-y-12 animate-in fade-in duration-300">
             
-            {/* Split Story Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 space-y-5 text-right">
-                <div className="space-y-2">
-                  <span className="text-xs font-black text-[#E06518] uppercase tracking-wide">
-                    درباره ما | صنعت پیش (پیش به صنعت | بازرگانی تسمه اطلس از سال ۱۳۶۶)
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-black text-[#2B313A] leading-snug">
-                    تولید، ساخت و تأمین مهندسی قطعات برای خطوط تولید پیوسته کشور
-                  </h2>
-                </div>
+            {/* Visual identity follows the provided six-card industrial layout.
+                The original homepage remains unchanged; this is the About page. */}
+            <WhySanatPish variant="about" />
 
-                <p className="text-sm text-slate-600 leading-relaxed font-normal text-justify">
-                  مجموعه «صنعت پیش» (برآمده از پیشینه درخشان بازرگانی تسمه اطلس از سال ۱۳۶۶)، با بیش از ۳۷ سال فعالیت پیوسته در قلب قطب صنعتی کشور، هم تولیدکننده و سازنده تخصصی قطعات خطوط تولید است و هم بزرگ‌ترین مرجع بازرگانی و واردات مستقیم برندهای معتبر بین‌المللی نظیر FORZA و SWR.
-                </p>
-
-                <p className="text-sm text-slate-600 leading-relaxed font-normal text-justify">
-                  امروز با اتکا به کارگاه‌های ساخت، بیش از ۳۰ هزار قلم کالا دپوی آماده در انبار مرکزی، شرایط پرداختی منعطف و تسهیلات خرید برای کارخانجات، و ارسال کاملاً رایگان به سراسر کشور، مفتخریم که در صنایع کاشی و سرامیک، سیمان، فولاد و معادن، صنایع غذایی، دارویی، بسته‌بندی و پتروشیمی همراه قدرتمند صنعتگران ایران زمین هستیم.
-                </p>
-
-                {/* 3 Value Pillars */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
-                    <ShieldCheck className="w-5 h-5 text-[#E06518]" />
-                    <div className="text-xs font-black text-[#2B313A]">تضمین ۱۰۰٪ آلیاژ</div>
-                    <div className="text-[11px] text-slate-500">برگه آنالیز متریال و آزمون کوارتر</div>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
-                    <Factory className="w-5 h-5 text-emerald-600" />
-                    <div className="text-xs font-black text-[#2B313A]">نمایندگی مستقیم</div>
-                    <div className="text-[11px] text-slate-500">حذف زنجیره واسطه‌ها و قیمت دست‌اول</div>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
-                    <Clock className="w-5 h-5 text-cyan-600" />
-                    <div className="text-xs font-black text-[#2B313A]">پاسخگویی ۲۴/۷</div>
-                    <div className="text-[11px] text-slate-500">تیم پشتیبانی اورژانسی خطوط شبانه‌روزی</div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Link
-                    to="/contact"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#55565A] hover:bg-[#E06518] text-white text-xs sm:text-sm font-black transition-colors shadow-xs"
-                  >
-                    <span>درخواست بازدید کارشناس یا استعلام رسمی</span>
-                    <ArrowLeft className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="lg:col-span-5 space-y-4">
-                <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-lg relative aspect-[4/3] bg-slate-900 group">
-                  <img
-                    src={STORE_ASSETS.whySanatCadEngineering}
-                    alt="مشاوره فنی صنعت‌پیش"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-4 right-4 left-4 text-white text-right space-y-1">
-                    <span className="text-[11px] font-bold text-orange-400">آزمایشگاه و دپارتمان تطبیق مهندسی</span>
-                    <h3 className="text-sm font-black">پایش میکرونی قطعات پیش از تحویل به کارخانجات</h3>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Warehouse className="w-8 h-8 text-[#E06518]" />
-                    <div className="text-right">
-                      <div className="text-xs font-black text-[#2B313A]">انبار استراتژیک میبد و یزد</div>
-                      <div className="text-[11px] text-slate-500">توزیع اختصاصی به شهرک‌های صنعتی کاشی</div>
-                    </div>
-                  </div>
-                  <Link
-                    to="/contact?tab=factory"
-                    className="text-xs font-bold text-[#E06518] hover:underline"
-                  >
-                    مسیریابی
-                  </Link>
-                </div>
-              </div>
+            <div className="mx-auto max-w-4xl space-y-3 px-1 text-right">
+              <span className="text-xs font-black text-[#E06518]">درباره صنعت پیش | پیش به صنعت</span>
+              <h2 className="text-xl font-black leading-8 text-[#2B313A] sm:text-2xl">
+                از شناسایی نیاز تا تأمین یا بررسی ساخت قطعه
+              </h2>
+              <p className="text-sm leading-8 text-slate-600">
+                صنعت پیش مسیر انتخاب و تأمین قطعات صنعتی را با کاتالوگ محصولات،
+                مشاوره فنی، شناسایی تصویری FORZA و بررسی درخواست‌های ساخت سفارشی
+                در یک مجموعه در دسترس قرار می‌دهد. انتخاب نهایی هر قطعه با
+                بررسی کد، ابعاد و شرایط عملکرد دستگاه انجام می‌شود.
+              </p>
             </div>
 
             {/* Core Mission and Vision Cards */}
