@@ -1022,7 +1022,7 @@ export function AboutPage() {
     {
       title: "تأمین قطعات",
       text: "دسترسی به قطعات و تجهیزات موردنیاز خطوط تولید در یک بازار تخصصی.",
-      image: A.partsWarehouseVault,
+      image: A.whySanatExpressDelivery,
       Icon: Package,
     },
     {
@@ -1034,13 +1034,13 @@ export function AboutPage() {
     {
       title: "شناسایی هوشمند قطعه",
       text: "کمک به یافتن قطعات مشابه از طریق تصویر و اطلاعات فنی.",
-      image: A.whySanatQc,
+      image: A.reverseEngineeringLab,
       Icon: ScanLine,
     },
     {
       title: "پشتیبانی صنایع",
       text: "همراهی در تأمین نیاز خطوط تولید، پاسخگویی سریع و پیگیری مسیر سفارش.",
-      image: A.industries.cement,
+      image: A.industries.bgPlant,
       Icon: Factory,
     },
   ];
@@ -1112,8 +1112,8 @@ export function AboutPage() {
         </div>
         <div className="sp-about-hero-visual">
           <img
-            src={A.heroPulley}
-            alt="نمای نزدیک قطعه مکانیکی صنعتی در محیط کارخانه"
+            src={A.partsWarehouseVault}
+            alt="نمای نزدیک مجموعه چرخ‌دنده‌های صنعتی در محیط کارخانه"
             fetchPriority="high"
           />
           <div className="sp-about-hero-image-shade" />
@@ -1124,8 +1124,8 @@ export function AboutPage() {
       <section className="sp-about-story" id="sp-about-story">
         <div className="sp-about-story-visual">
           <img
-            src={A.industries.manufacturing}
-            alt="نمایی از مجموعه و فضای صنعتی تولید"
+            src={A.industries.cement}
+            alt="نمایی از مجموعه صنعتی و تأسیسات تولید"
             loading="lazy"
           />
           <div className="sp-about-story-image-frame" aria-hidden="true" />
