@@ -2156,7 +2156,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       <button
         type="button"
         onClick={endCall}
-        className="absolute top-5 left-6 z-40 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/80 hover:bg-red-900 border border-red-500/60 hover:border-red-400 text-white shadow-xl shadow-black/60 backdrop-blur-md transition-all active:scale-95 group cursor-pointer"
+        className="forza-exit-call-button absolute top-5 left-6 z-40 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/80 hover:bg-red-900 border border-red-500/60 hover:border-red-400 text-white shadow-xl shadow-black/60 backdrop-blur-md transition-all active:scale-95 group cursor-pointer"
         aria-label="پایان مکالمه و خروج"
         title="پایان مکالمه هوشمند FORZA"
         dir="rtl"
