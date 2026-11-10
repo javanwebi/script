@@ -116,7 +116,6 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
-  const regionTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
     if(!isOpen)return;
@@ -126,8 +125,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       .catch(()=>{if(!controller.signal.aborted)setLocalRegionEnabled(false);});
     return ()=>controller.abort();
   },[isOpen]);
-  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;if(regionTimerRef.current)clearTimeout(regionTimerRef.current);},[selectedImage]);
-  React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}return()=>{if(regionTimerRef.current)clearTimeout(regionTimerRef.current);};},[isOpen]);
+  React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
+  React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   // Request-scoped data URL only; original Blob remains in the device vault.
@@ -649,13 +648,12 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setCurrentStep(2);
   };
 
-  // Region edits in the results view intentionally re-run the search; edits in the
-  // review step only update the crop and wait for the explicit confirmation button.
+  // Selecting another crop never starts an expensive search implicitly.
+  // The customer reviews the crop and explicitly presses "search this part".
   const searchRegion=(region:ImageRegion|undefined)=>{
     setQueryRegion(region);
     setFullImageSelected(!region);
-    if(regionTimerRef.current)clearTimeout(regionTimerRef.current);
-    regionTimerRef.current=setTimeout(()=>{void handleAnalyze("quick",region || null);},300);
+    setErrorMessage('');
   };
 
   const retakeCameraPhoto = () => {
@@ -1738,6 +1736,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   value={queryRegion}
                   candidateRegions={candidateRegions}
                   onChange={searchRegion}
+                  onSearch={() => { if(queryRegion)void handleAnalyze('quick', queryRegion); }}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
                 {/* Fallback / AI-error notices */}

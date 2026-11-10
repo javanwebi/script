@@ -34,7 +34,7 @@ export function ImageRegionReview({
           <span className="sp-region-review__brand-icon"><ScanSearch size={22} aria-hidden="true" /></span>
           <div>
             <span className="sp-region-review__eyebrow">FORZA VISION · AUTO CROP</span>
-            <h2>{preparing ? 'در حال پیدا کردن قطعه در تصویر' : detected ? (status === 'fallback' ? 'ناحیه قطعه انتخاب شد' : 'قطعه برای شما پیدا شد') : 'ناحیه قطعه را مشخص کنید'}</h2>
+            <h2>{preparing ? 'در حال پیدا کردن قطعه در تصویر' : detected ? (status === 'fallback' ? 'ناحیه قطعه انتخاب شد' : 'برش قطعه آماده است') : 'ناحیه قطعه را مشخص کنید'}</h2>
             <p>{preparing ? 'تصویر را بررسی می‌کنیم تا برش مناسبی برای جست‌وجو آماده شود.' : 'کادر نارنجی محدوده‌ای است که پس از تأیید برای تحلیل ارسال می‌شود.'}</p>
           </div>
         </div>
@@ -67,8 +67,8 @@ export function ImageRegionReview({
           <div className="sp-region-review__instruction">
             <div className="sp-region-review__instruction-icon"><Target size={18} /></div>
             <div>
-              <strong>{detected ? 'بهترین ناحیه به‌صورت پیش‌فرض انتخاب شده است' : 'قطعه را با کشیدن کادر مشخص کنید'}</strong>
-              <span>{candidateRegions.length > 1 ? 'برای انتخاب قطعه دیگر، روی کادر پیشنهادی آن بزنید.' : 'می‌توانید کادر را روی قطعه بکشید یا تصویر کامل را انتخاب کنید.'}</span>
+              <strong>{detected ? 'برش انتخاب‌شده برای تحلیل آماده است' : 'قطعه را لمس کنید یا دور آن کادر بکشید'}</strong>
+              <span>{candidateRegions.length > 1 ? 'برای انتخاب قطعه دیگر، روی همان قطعه یا کادر پیشنهادی آن بزنید؛ برش جدید پیش‌نمایش می‌شود.' : 'روی قطعه بزنید تا برش اولیه ساخته شود؛ برای تنظیم دقیق‌تر کادر بکشید.'}</span>
             </div>
           </div>
 

@@ -1048,3 +1048,29 @@
   }
   .sanat-visual-image-preview { padding: 10px; gap: 10px; }
 }
+
+
+/* Explicit crop search action: selection is preview-only until the customer confirms. */
+.sanat-region-picker__side .sanat-region-picker__search {
+  border-color: #d95f17;
+  color: #fff;
+  background: linear-gradient(120deg,#ef812f,#d95f17);
+  box-shadow: 0 6px 16px rgba(217,95,23,.18);
+}
+.sanat-region-picker__side .sanat-region-picker__search:hover:not(:disabled) {
+  background: linear-gradient(120deg,#f18d43,#c95110);
+}
+.sanat-region-picker__side .sanat-region-picker__search:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.sanat-region-picker__side .sanat-region-picker__full-image {
+  background: #fff;
+}
+@media (max-width:680px) {
+  .sanat-region-picker__side .sanat-region-picker__search,
+  .sanat-region-picker__side .sanat-region-picker__full-image {
+    min-height: 42px;
+    width: 100%;
+  }
+}

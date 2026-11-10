@@ -19,7 +19,7 @@ const {chromium}=require('playwright');
   const source='data:image/svg+xml;base64,'+Buffer.from(svg).toString('base64');
   const portraitSource='data:image/svg+xml;base64,'+Buffer.from(portraitSvg).toString('base64');
   const entryPath=path.join(fixture,'entry.tsx');
-  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();return <ImageRegionSelector src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
+  const entry=(imageSource)=>`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ImageRegionSelector} from '/src/components/search/ImageRegionSelector.tsx';import '/src/index.css';import '/src/components/search/industrial-scan.css';function App(){const [region,setRegion]=useState();window.__searchCount=window.__searchCount||0;return <ImageRegionSelector src={${JSON.stringify(imageSource)}} value={region} candidateRegions={[{x:0.53,y:0.36,width:0.14,height:0.28},{x:0.15,y:0.3,width:0.14,height:0.28}]} onChange={r=>{window.lastRegion=r || null;setRegion(r)}} onSearch={()=>{window.__searchCount++}}/>}createRoot(document.getElementById('root')).render(<App/>);`;
   await fs.writeFile(entryPath,entry(source));
   await fs.writeFile(path.join(fixture,'auth.ts'),"export const useAuth=()=>({currentUser:null,openAuthModal:()=>{},activeRole:'guest',priceLayer:'retail'});");
   await fs.writeFile(path.join(fixture,'cart.ts'),"export const useCart=()=>({addItem:()=>{}});");
@@ -37,11 +37,22 @@ const {chromium}=require('playwright');
    await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.x==='number'&&typeof r.width==='number';});await page.getByText('پیش‌نمایش برش').waitFor();
    await page.screenshot({path:path.join(os.tmpdir(),`sanat-region-${mobile?'touch':'desktop'}.png`)});
    let r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.x+r.width/2-0.6)<0.01);assert.ok(Math.abs(r.y+r.height/2-0.5)<0.01);
-   if(mobile){await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);assert.deepEqual(await page.evaluate(()=>window.lastRegion),r);}
+   if(mobile){
+    const previous={...r};
+    await page.touchscreen.tap(box.x+box.width*0.45,box.y+box.height*0.9);
+    await page.waitForFunction(()=>{const r=window.lastRegion;return !!r&&typeof r.width==='number';});
+    r=await page.evaluate(()=>window.lastRegion);
+    assert.notDeepEqual(r,previous);
+    assert.ok(0.45>=r.x&&0.45<=r.x+r.width&&0.9>=r.y&&0.9<=r.y+r.height);
+    await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
+    assert.equal(await page.evaluate(()=>window.__searchCount),1);
+   }
    if(!mobile){
     const dragBox=await frame.boundingBox();await page.mouse.move(dragBox.x+dragBox.width*0.12,dragBox.y+dragBox.height*0.2);await page.mouse.down();await page.mouse.move(dragBox.x+dragBox.width*0.32,dragBox.y+dragBox.height*0.7,{steps:8});await page.mouse.up();
     r=await page.evaluate(()=>window.lastRegion);assert.ok(Math.abs(r.width-0.2)<0.01,JSON.stringify(r));assert.ok(Math.abs(r.height-0.5)<0.01,JSON.stringify(r));
     await page.getByRole('group').press('ArrowRight');assert.ok((await page.evaluate(()=>window.lastRegion)).x>r.x);
+    await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
+    assert.equal(await page.evaluate(()=>window.__searchCount),1);
    }
    await page.getByRole('button',{name:'جست‌وجوی کل تصویر'}).click();assert.equal(await page.evaluate(()=>window.lastRegion),null);
    assert.deepEqual(errors,[]);await context.close();console.log(mobile?'TOUCH_SELECTION_OK':'POINTER_DRAG_KEYBOARD_OK');
@@ -78,10 +89,17 @@ const {chromium}=require('playwright');
   await page.getByText('نتیجه تطبیق قطعه توسط هوش مصنوعی').waitFor();
   assert.equal(queries.length,1);assert.ok(queries[0].imageBase64?.startsWith('data:image/'));assert.equal(queries[0].imageBase64,detections[0].imageBase64);assert.ok(queries[0].region);assert.ok(Math.abs(queries[0].region.x-0.65)<0.01);assert.equal(queries[0].detectionId,'test-detection-id');assert.equal(queries[0].fullImage,false);assert.equal(queries[0].includeNearest,false);
   assert.equal(await page.getByText('محصول نامرتبط نباید نمایش داده شود').count(),0);assert.equal(uploads,0);
+  const resultFrame=page.locator('.sanat-region-picker__frame').last();const resultBounds=await resultFrame.boundingBox();
+  await page.mouse.click(resultBounds.x+resultBounds.width*0.25,resultBounds.y+resultBounds.height*0.75);
+  await page.waitForTimeout(80);assert.equal(queries.length,1);
+  await page.getByRole('button',{name:'جست‌وجوی این قطعه'}).click();
+  await page.getByTestId('vision-analyzing-screen').waitFor();
+  await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
+  assert.equal(queries.length,2);assert.equal(queries[1].imageBase64,detections[0].imageBase64);assert.ok(queries[1].region);assert.ok(0.25>=queries[1].region.x&&0.25<=queries[1].region.x+queries[1].region.width);assert.ok(0.75>=queries[1].region.y&&0.75<=queries[1].region.y+queries[1].region.height);assert.equal(queries[1].fullImage,false);
   await page.getByRole('button',{name:'جست‌وجوی کل تصویر',exact:true}).click();
   await page.getByTestId('vision-analyzing-screen').waitFor();
   await page.getByTestId('vision-analyzing-screen').waitFor({state:'detached'});
-  assert.equal(queries.length,2);assert.equal(queries[1].imageBase64,detections[0].imageBase64);assert.equal(queries[1].region,undefined);assert.equal(queries[1].fullImage,true);assert.equal(uploads,0);
+  assert.equal(queries.length,3);assert.equal(queries[2].imageBase64,detections[0].imageBase64);assert.equal(queries[2].region,undefined);assert.equal(queries[2].fullImage,true);assert.equal(uploads,0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(120);assert.equal(await page.locator('.sanat-visual-search-shell').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);assert.deepEqual(errors,[]);
   await page.close();console.log('UPLOAD_DETECT_CONFIRM_CROP_ANALYSIS_FULL_IMAGE_FALLBACK_AND_MOBILE_LAYOUT_OK');
 
