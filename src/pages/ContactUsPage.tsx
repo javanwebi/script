@@ -186,7 +186,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = 'تماس با صنعت پیش | آدرس فروشگاه، تلفن و ارتباط مستقیم';
+    document.title = 'تماس و هماهنگی مراجعه | صنعت پیش';
     const tabParam = searchParams.get('tab');
     if (tabParam === 'factory') {
       setSelectedBranchId('meybod_warehouse');
