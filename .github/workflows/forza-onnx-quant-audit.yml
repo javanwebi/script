@@ -73,7 +73,8 @@ jobs:
           assert "audio_cache" not in s
           s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
           assert "voiceCacheRef" not in s
-          assert "await playPocketFullAnswer(forzaSpokenPlainText(reply),continuousPlayer,pocketAbort.signal)" in s
+          assert "activeNimaBuffer.add(phrase)" in s
+          assert "playPocketFullAnswer" in s  # legacy Pocket fallback remains available
           assert "await player.enqueueWav(audio)" in s
           assert "readForzaWavFrames" not in s
           assert "ForzaLiveSpeechQueue" not in s
