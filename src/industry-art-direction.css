@@ -484,6 +484,137 @@
   background: linear-gradient(270deg, rgba(36,44,48,0) 0%, rgba(36,44,48,.2) 39%, rgba(36,44,48,.9) 58%, #242c30 78%);
 }
 
+/* The live station picker becomes an industrial control surface. */
+.industry-page .industry-fastbar {
+  border: 0;
+  border-bottom: 2px solid #e06518;
+  border-radius: 0 0 3px 3px;
+  box-shadow: 0 15px 34px rgba(19,34,45,.1);
+}
+.industry-page .industry-selector {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px 20px 3px 20px;
+  background: #1b2d39 !important;
+  box-shadow: 0 24px 56px rgba(19,34,45,.15);
+}
+.industry-page .industry-selector::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .12;
+  background-image: linear-gradient(rgba(190,213,226,.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190,213,226,.16) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.industry-page .industry-selector > * {
+  position: relative;
+  z-index: 1;
+}
+.industry-page .industry-selector-intro .store-eyebrow {
+  color: #ffad78;
+}
+.industry-page .industry-selector-intro h2 {
+  color: #fff;
+  font-size: clamp(23px, 2.2vw, 31px);
+}
+.industry-page .industry-selector-intro p {
+  color: #c4d0d8;
+}
+.industry-page .industry-selector-intro .technical-symbol {
+  color: #ff9854;
+}
+.industry-page .industry-stations {
+  align-content: center;
+}
+.industry-page .industry-stations button {
+  min-height: 68px;
+  padding: 12px;
+  color: #e7eef2;
+  border: 1px solid rgba(255,255,255,.17);
+  border-radius: 2px 11px 2px 11px;
+  background: rgba(255,255,255,.055);
+  transition: background .2s ease, border-color .2s ease, transform .2s ease;
+}
+.industry-page .industry-stations button b {
+  color: #ff9a5d;
+  font-size: 12px;
+}
+.industry-page .industry-stations button:hover {
+  border-color: rgba(255,154,93,.65);
+  background: rgba(255,255,255,.1);
+  transform: translateY(-2px);
+}
+.industry-page .industry-stations button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #e06518;
+  background: #e06518;
+  box-shadow: 0 10px 24px rgba(224,101,24,.2);
+}
+.industry-page .industry-stations button[aria-pressed="true"] b {
+  color: #fff;
+}
+.industry-page .industry-selection {
+  align-self: stretch;
+  justify-content: center;
+  border: 0;
+  border-right: 4px solid #e06518;
+  border-radius: 0;
+  background: #f5f7f8;
+  box-shadow: none;
+}
+.industry-page .industry-selection .store-eyebrow {
+  color: #b9571b;
+}
+.industry-page .industry-selection h3 {
+  color: #20313d;
+  font-size: 18px;
+  font-weight: 950;
+}
+.industry-page .industry-selection p {
+  color: #5b6973;
+  line-height: 2;
+}
+.industry-page .industry-selection a {
+  color: #b9571b;
+  font-weight: 850;
+}
+
+/* Product imagery in ceramic's seven-stage explorer stays tactile and legible. */
+.ceramic-hero-visual {
+  position: relative;
+  overflow: hidden;
+}
+.ceramic-hero-content .ceramic-hero-primary {
+  color: #fff;
+}
+#ceramic-production-line {
+  background: #fff;
+}
+#ceramic-production-line [class*="grid-cols-7"] > div > button {
+  min-height: 62px;
+  border: 1px solid #dbe3e8;
+  border-radius: 2px 10px 2px 10px;
+  background: #f4f6f7;
+  color: #394a56;
+}
+#ceramic-production-line [class*="grid-cols-7"] > div > button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #e06518;
+  background: #263b49;
+  box-shadow: inset 0 -3px #e06518;
+}
+#ceramic-production-line [class*="grid-cols-7"] > div > button:focus-visible {
+  outline: 3px solid #e06518;
+  outline-offset: 3px;
+}
+#ceramic-production-line .ceramic-recommendations .store-product-card {
+  border-color: #dce3e8;
+  box-shadow: 0 12px 28px rgba(20,35,46,.07);
+}
+
 /* A page-specific editorial showcase, not another row of generic cards. */
 .industry-page .industry-showcase {
   display: grid;
