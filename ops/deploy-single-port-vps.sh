@@ -110,7 +110,7 @@ echo "STABLE_APP_PORT=$NEXT"
 
 STAMP="$(date +%Y%m%d-%H%M%S)-$BASHPID"
 STAGE="/opt/sanatpish-unified-stage-$STAMP"
-STT_IMAGE="sanatpish-forza-stt-runtime:${EXPECTED:0:12}"
+STT_IMAGE=''
 STT_CONTEXT=''
 NAME="sanatpish-unified-live-$STAMP"
 CANARY_NAME="sanatpish-unified-canary-$STAMP"
@@ -208,13 +208,39 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
 
-echo '===== BUILD PINNED DIBA STT RUNTIME IMAGE ====='
-STT_CONTEXT="$(mktemp -d /tmp/sanatpish-forza-stt-context.XXXXXXXX)"
-cp "$STAGE/ops/Dockerfile.forza-stt-runtime" "$STT_CONTEXT/Dockerfile"
-docker build -t "$STT_IMAGE" "$STT_CONTEXT"
-rm -rf -- "$STT_CONTEXT"
-STT_CONTEXT=''
-docker run --rm --pull=never "$STT_IMAGE" sh -ec '/opt/forza-pocket/bin/python -c "import vosk" && test -d /opt/diba-stt/model/am && test -d /opt/diba-stt/model/conf'
+echo '===== VERIFY / BUILD PINNED DIBA STT RUNTIME IMAGE ====='
+# The STT toolchain is independent from the storefront source revision.
+# Reuse an existing verified runtime when the Dockerfile and locally pinned
+# base image are unchanged, rather than reinstalling Debian packages for
+# every layout/content update to the site.
+STT_DOCKERFILE_HASH="$(sha256sum "$STAGE/ops/Dockerfile.forza-stt-runtime" | cut -d' ' -f1)"
+STT_BASE_IMAGE_ID="$(docker image inspect node:22-bookworm --format '{{.Id}}')"
+STT_RUNTIME_KEY="$(printf '%s %s\n' "$STT_DOCKERFILE_HASH" "$STT_BASE_IMAGE_ID" | sha256sum | cut -c1-12)"
+STT_IMAGE="sanatpish-forza-stt-runtime:$STT_RUNTIME_KEY"
+echo "FORZA_STT_RUNTIME_IMAGE=$STT_IMAGE"
+if docker image inspect "$STT_IMAGE" >/dev/null 2>&1; then
+  echo 'FORZA_STT_RUNTIME_CACHE_HIT=YES'
+else
+  echo 'FORZA_STT_RUNTIME_CACHE_HIT=NO'
+  STT_CONTEXT="$(mktemp -d /tmp/sanatpish-forza-stt-context.XXXXXXXX)"
+  cp "$STAGE/ops/Dockerfile.forza-stt-runtime" "$STT_CONTEXT/Dockerfile"
+  # If bridge networking fails during APT downloads, retry the same pinned
+  # source using host networking. Each APT update is time-bounded inside
+  # the Dockerfile; the active website is untouched during either build.
+  if ! docker build --progress=plain -t "$STT_IMAGE" "$STT_CONTEXT"; then
+    echo 'WARN_DIBA_BRIDGE_BUILD_FAILED_RETRY_WITH_HOST_NETWORK'
+    docker build --progress=plain --network=host -t "$STT_IMAGE" "$STT_CONTEXT"
+  fi
+  rm -rf -- "$STT_CONTEXT"
+  STT_CONTEXT=''
+fi
+# Never trust a cached name alone; verify the model directory and Vosk.
+docker run --rm --pull=never "$STT_IMAGE" sh -ec '
+  command -v ffmpeg >/dev/null
+  /opt/forza-pocket/bin/python -c "import vosk"
+  test -d /opt/diba-stt/model/am
+  test -d /opt/diba-stt/model/conf
+'
 echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
 
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
