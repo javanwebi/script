@@ -594,7 +594,6 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   if marker in source:
    assert source.count(marker)==1,("DUPLICATE_API_WRITE_ROUTE",filename)
    route_start=source.index(marker)
-   route_end=source.find("\n"+source[route_start:route_start+len(marker)].splitlines()[0],route_start+len(marker))
    root_matches=list(root_pattern.finditer(source))
    assert len(root_matches)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(root_matches))
    assert route_start < root_matches[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
@@ -671,25 +670,26 @@ assert health.get('status')=='ok' and health.get('database')=='ok'
 # silently blocking CRM/catalogue writes with an HTML 403. Probe protected
 # POST routes through the actual local HTTPS vhost before marking release good.
 # No session cookie is sent; these handlers must reject anonymously with JSON.
-def post_json(path):
+def post_json(path,host):
  cmd=['curl','--noproxy','*','-ksS','--connect-timeout','3','--max-time','15',
-      '--resolve',f'{domain}:443:127.0.0.1',
+      '--resolve',f'{host}:443:127.0.0.1',
       '-H','Accept: application/json','-H','Content-Type: application/json',
       '-X','POST','--data','{}','-w','\\n__META__%{http_code}|%{content_type}',
-      f'https://{domain}{path}']
+      f'https://{host}{path}']
  result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  raw=result.stdout
  if b'\n__META__' not in raw:
-  raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+path)
+  raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+host+path)
  body,meta=raw.rsplit(b'\n__META__',1)
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
- assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',path,status,content_type)
- assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',path,status,content_type)
+ assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',host,path,status,content_type)
+ assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',host,path,status,content_type)
  payload=json.loads(body)
- assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',path)
- print('PUBLIC_POST_API_JSON_GUARD_OK',path,'HTTP',status)
-for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
- post_json(path)
+ assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',host,path)
+ print('PUBLIC_POST_API_JSON_GUARD_OK',host,path,'HTTP',status)
+for host in (domain,'www.'+domain):
+ for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
+  post_json(path,host)
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
 stt_raw=get('/api/ai/forza-stt-info')
