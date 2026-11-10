@@ -72,6 +72,10 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /CUSTOMER_API_HTTP_REDIRECT_READY/);
   assert.match(nginxHotfix, /DIRECT_EXPRESS_JSON_AUTH_GUARD_OK/);
   assert.match(nginxHotfix, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(nginxHotfix, /\/api\/admin\/crm\/customers/);
+  assert.match(nginxHotfix, /\/api\/catalog\/sku-transfer/);
+  assert.match(nginxHotfix, /proxy_intercept_errors off/);
+  assert.match(nginxHotfix, /auth_request off/);
   assert.match(nginxHotfix, /X-Powered-By/);
   assert.match(nginxHotfix, /NGINX_EXPRESS_HEADER_OR_JSON_MISSING/);
   assert.match(nginxHotfix, /HTTP_API_HTTPS_REDIRECT_OK/);
