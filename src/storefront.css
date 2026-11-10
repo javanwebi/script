@@ -4236,3 +4236,37 @@ select {
  .account-access-story>div{display:block;position:relative;z-index:1;}
  .account-access-story .account-symbol{display:none;}
 }
+
+
+/* Industry browsing: readable factory context and touch-sized station controls. */
+.industry-page .industry-hero { min-height: clamp(460px, 48vw, 650px); }
+.industry-page .industry-hero h1 { line-height: 1.5; max-width: 18ch; }
+.industry-page .industry-hero p { line-height: 2; }
+.industry-page .industry-process > button {
+  min-height: 64px; padding: 12px; border-inline-start: 2px solid #e0651838;
+  display: flex; align-items: center; gap: 12px;
+}
+.industry-page .industry-process > button:hover { background: #fff5ed; }
+.industry-page .industry-process > button:focus-visible,
+.industry-page .industry-part-links > a:focus-visible {
+  outline: 3px solid #e06518; outline-offset: 4px;
+}
+.industry-textile .industry-hero > img { object-position: 35% center; }
+.industry-packaging .industry-hero > img { object-position: 40% center; }
+.industry-food .industry-hero > img { object-position: 30% center; }
+.industry-machinery .industry-hero > img { object-position: 45% center; }
+.industry-rubber .industry-hero > img { object-position: 35% center; }
+@media (max-width: 767px) {
+  .industry-page .industry-hero { min-height: 570px; align-items: flex-end; }
+  .industry-page .industry-hero > img { object-position: center top; }
+  .industry-page .industry-hero-shade {
+    background: linear-gradient(0deg, #20252bf5 0%, #20252bdd 44%, #20252b14 100%);
+  }
+  .industry-page .industry-hero > .editorial-wrap { padding-block: 24px; }
+  .industry-page .industry-hero h1 { font-size: clamp(29px, 8vw, 40px); }
+  .industry-page .editorial-actions > a { min-height: 48px; justify-content: center; }
+  .industry-page .industry-process { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .industry-page .industry-process > strong { grid-column: 1 / -1; padding-bottom: 8px; }
+  .industry-page .industry-secondary { backdrop-filter: none; }
+  .industry-page .industry-part-links { grid-template-columns: 1fr; }
+}

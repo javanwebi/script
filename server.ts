@@ -7313,6 +7313,8 @@ app.post('/api/ai/forza-live', async (req, res) => {
           });
           const response = await result.json().catch(() => null) as any;
           if (!result.ok) {
+            sttProviderError = true;
+            sttProviderStatus = result.status;
             console.warn('[AI FORZA] Worker STT failure:', result.status, response?.error?.type || 'unknown');
           } else {
             userQuery = String(response?.text || '').trim().slice(0, 2500);
@@ -7321,6 +7323,7 @@ app.post('/api/ai/forza-live', async (req, res) => {
           clearTimeout(timeout);
         }
       } catch (error: any) {
+        sttProviderError = true;
         console.warn('[AI FORZA] Worker STT connection failed:', error?.name || 'network_error');
       }
     }
