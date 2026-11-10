@@ -18,6 +18,16 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(overview,/با پشتوانه بازرگانی تسمه اطلس/);
   assert.match(overview,/to="\/about"/);
   assert.match(discovery,/export function AboutPage/);
+  assert.match(discovery,/sp-about-approved/);
+  assert.match(discovery,/sp-about-hero/);
+  assert.match(discovery,/بازار تخصصی/);
+  assert.match(discovery,/قیمت‌های به‌روز/);
+  const aboutCss = read('src/about-page-approved.css');
+  const main = read('src/main.tsx');
+  assert.match(main,/about-page-approved\.css/);
+  assert.match(aboutCss,/max-width: 760px/);
+  assert.match(aboutCss,/prefers-reduced-motion/);
+  assert.match(aboutCss,/focus-visible/);
   assert.match(discovery,/با پشتوانه بازرگانی تسمه اطلس/);
   assert.match(discovery,/to: "\/services"/);
   assert.match(discovery,/to: "\/industries"/);
