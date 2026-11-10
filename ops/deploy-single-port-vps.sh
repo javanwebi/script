@@ -186,6 +186,9 @@ if test "$FREE_KB" -lt 4194304; then
 fi
 mkdir -m 700 "$STAGE"
 git -C "$APP" archive "$EXPECTED" | tar -xf - -C "$STAGE"
+test -s "$STAGE/ops/prune-deploy-releases.sh"
+bash -n "$STAGE/ops/prune-deploy-releases.sh"
+echo "RELEASE_RETENTION_HELPER_SYNTAX_OK"
 # Preserve the owner-managed mobile image directory that is intentionally untracked.
 # Git archive omits it; copy it into the isolated release stage without touching APP.
 if [[ -d "$APP/src/assets/IMAGESITE/mobile" ]]; then
