@@ -49,7 +49,7 @@ import {
   PortalAnnouncementItem,
   ClubTierMilestoneConfig,
 } from "../services/portalContentService";
-import { getManagedCatalogProducts } from "../data/mockGenerator";
+import { getManagedCatalogProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { CATEGORIES } from "../data/categories";
 import { Customer } from "../types";
 import { toPersianDigits } from "../utils/formatters";
@@ -111,7 +111,11 @@ export const AccountPage: React.FC = () => {
     window.addEventListener("atlas-pricing-updated", refreshData);
     window.addEventListener("atlas-catalog-updated", refreshData);
     window.addEventListener("atlas-portal-content-updated", refreshData);
+    const unsubscribeCatalog = subscribeCatalogChanges(refreshData);
+    const unsubscribePricing = pricingCreditService.subscribe(refreshData);
     return () => {
+      unsubscribeCatalog();
+      unsubscribePricing();
       window.removeEventListener("atlas-pricing-updated", refreshData);
       window.removeEventListener("atlas-catalog-updated", refreshData);
       window.removeEventListener("atlas-portal-content-updated", refreshData);
