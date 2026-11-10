@@ -33,13 +33,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? memberPath(currentUser, product.code)
     : `/product/${encodeURIComponent(product.code)}`;
 
+  const unavailablePriceLabel = !currentUser
+    ? "ورود به پنل برای مشاهده قیمت"
+    : !hasPricePermission
+      ? "دسترسی قیمت برای این حساب فعال نیست"
+      : "ورود به پنل برای مشاهده قیمت";
   const priceLabel = hasVariants
-    ? canViewPrices ? "انتخاب کد فنی برای مشاهده قیمت" : "قیمت پس از ورود به پنل"
+    ? canViewPrices ? "انتخاب کد فنی برای مشاهده قیمت" : unavailablePriceLabel
     : canViewPrices
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
-      : currentUser && !hasPricePermission
-        ? "دسترسی قیمت برای این حساب فعال نیست"
-        : "ورود به پنل برای مشاهده قیمت";
+      : unavailablePriceLabel;
 
   return (
     <article className="store-product-card">
