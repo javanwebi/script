@@ -152,7 +152,7 @@ from pathlib import Path
 import re,sys
 lines=Path(sys.argv[1]).read_text(errors="replace").splitlines()
 domain=sys.argv[2]
-current=""; blocks=[]; inside=False; depth=0; buf=[]
+current=""; blocks=[]; inside=False; depth=0; buf=[]; ports=set()
 def clean(s):
     return s.split("#",1)[0]
 for line in lines:
@@ -173,7 +173,6 @@ for line in lines:
             if (domain in names or "www."+domain in names) and any(re.search(r"(?<!\d)443(?!\d)",x) for x in listens):
                 ports.update(re.findall(r"127\.0\.0\.1:(30\d{2})",text))
             inside=False
-ports=set()
 for p in sorted(ports): print(p)
 PY
 )"
