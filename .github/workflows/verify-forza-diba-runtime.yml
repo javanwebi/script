@@ -1,0 +1,27 @@
+name: Verify FORZA Diba private STT runtime image
+on:
+  pull_request:
+    paths:
+      - "ops/Dockerfile.forza-stt-runtime"
+      - "scripts/forza_diba_stt_worker.py"
+      - ".github/workflows/verify-forza-diba-runtime.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned private Diba runtime
+        run: docker build --pull --tag sanatpish-forza-stt-runtime:test --file ops/Dockerfile.forza-stt-runtime .
+      - name: Verify FFmpeg, Vosk and the pinned Persian model
+        run: |
+          docker run --rm sanatpish-forza-stt-runtime:test sh -ec '
+            command -v ffmpeg
+            /opt/forza-pocket/bin/python -c "import vosk; print(\"VOSK_IMPORT_OK\")"
+            test -d /opt/diba-stt/model/am
+            test -d /opt/diba-stt/model/conf
+            echo DIBA_RUNTIME_READY
+          '
