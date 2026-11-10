@@ -94,11 +94,11 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.doesNotMatch(runtime,/(?:RUN|&&|;)\s*apt-get\b/);
   assert.match(runtime,/pip --isolated install/);
   assert.match(runtime,/--timeout 12 --retries 1 --prefer-binary/);
-  assert.match(runtime,/mirrors\\.aliyun\\.com\\/pypi\\/simple/);
-  assert.match(runtime,/pypi\\.tuna\\.tsinghua\\.edu\\.cn\\/simple/);
-  assert.match(runtime,/mirrors\\.ustc\\.edu\\.cn\\/pypi\\/simple/);
-  assert.match(runtime,/pypi\\.org\\/simple/);
-  assert.match(runtime,/test "\\$installed" -eq 1/);
+  assert.ok(runtime.includes('https://mirrors.aliyun.com/pypi/simple'));
+  assert.ok(runtime.includes('https://pypi.tuna.tsinghua.edu.cn/simple'));
+  assert.ok(runtime.includes('https://mirrors.ustc.edu.cn/pypi/simple'));
+  assert.ok(runtime.includes('https://pypi.org/simple'));
+  assert.ok(runtime.includes('test "$installed" -eq 1'));
   assert.match(runtime,/import vosk, cffi/);
   assert.match(runtime,/node --version/);
   assert.match(runtime,/FORZA_STT_PYTHON=\/opt\/forza-pocket\/bin\/python/);
