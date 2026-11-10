@@ -1,6 +1,7 @@
 import { ProductImageAudit } from './ProductImageAudit';
 import { enrichTechnicalVariant } from '../../data/productTechnicalData';
 import React, { useState, useMemo, useEffect } from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -171,8 +172,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       const response = await fetch('/api/catalog/category-images/upload', {
         method:'POST', credentials:'same-origin', headers:{'Content-Type':file.type}, body:file,
       });
-      const result = await response.json().catch(() => ({ success:false, message:'پاسخ سرور قابل خواندن نیست.' }));
-      if (!response.ok || !result.success || !result.url) throw new Error(result.message || 'آپلود تصویر انجام نشد.');
+      const result = await requireAdminApiJson<{url?:string}>(response,'آپلود تصویر دسته‌بندی');
+      if (!result.url) throw new Error('آپلود تصویر دسته‌بندی: آدرس تصویر ذخیره‌شده در پاسخ موجود نیست.');
       setEditingCategory(prev => prev ? { ...prev, image: result.url } : prev);
     } catch (error) {
       setCategorySaveError(error instanceof Error ? error.message : 'آپلود تصویر با خطا مواجه شد.');
@@ -622,8 +623,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(20000)
       });
-      const data=await response.json().catch(()=>({success:false,message:'پاسخ پایگاه داده معتبر نیست.'}));
-      if(!response.ok||!data.success)throw new Error(data.message||'ذخیره خانواده در دیتابیس انجام نشد.');
+      await requireAdminApiJson(response,'ذخیره خانواده محصول');
       let categoryWarning='';
       if(draftMenuCategory && draftMenuSubmenu){
         try {
@@ -1089,8 +1089,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
           });
-          const data=await response.json().catch(()=>({}));
-          if(!response.ok||!data.success)throw Error(data.message||'کد کالا مستقیماً ثبت نشد.');
+          await requireAdminApiJson(response,'ثبت کد کالا بدون خانواده');
           setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
@@ -1098,10 +1097,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           if(forbid('sku_move'))return;
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-            signal:AbortSignal.timeout(20000),body:JSON.stringify(input)
+            signal:AbortSignal.timeout(60000),body:JSON.stringify(input)
           });
-          const result=await response.json().catch(()=>({success:false,message:'پاسخ سرور قابل خواندن نیست.'}));
-          if(!response.ok||!result.success)throw new Error(result.message||'انتقال کد کالا انجام نشد.');
+          await requireAdminApiJson(response,'انتقال کد کالا و اتصال تصویر');
           await syncCatalogFromServer();
           refreshProducts();
           setSaveFeedback(`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} منتقل شد و تصویر آن ثبت شد.`);
