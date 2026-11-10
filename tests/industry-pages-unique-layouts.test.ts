@@ -116,3 +116,12 @@ test('ceramic production explorer no longer forces a desktop-width canvas on pho
   assert.match(premium, /flex: 0 0 112px/);
   assert.match(premium, /\.ceramic-recommendations/);
 });
+
+test('industrial hero copy is isolated into a left desktop column', () => {
+  const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
+  const premium = readFileSync(new URL('../src/industry-pages-premium.css', import.meta.url), 'utf8');
+  assert.match(page, /className="industry-hero-copy"/);
+  assert.match(premium, /\.industry-page \.industry-hero \.industry-hero-copy\s*\{[\s\S]*?grid-column: 1/);
+  assert.match(premium, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(premium, /grid-template-columns: minmax\(0, 1fr\)/);
+});
