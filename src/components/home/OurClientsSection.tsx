@@ -91,7 +91,8 @@ export const OurClientsSection: React.FC = () => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPaused(false);
       }}
     >
-      <div dir="rtl" className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10">\n        <div className="lg:w-[240px] shrink-0 text-right space-y-1.5">
+      <div dir="rtl" className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10">
+        <div className="lg:w-[240px] shrink-0 text-right space-y-1.5">
         <h2 className="text-right text-lg sm:text-xl font-black text-slate-900 tracking-tight">
           مشتری‌های ما
         </h2>
@@ -155,6 +156,8 @@ export const OurClientsSection: React.FC = () => {
           لوگوی فعالی برای نمایش ثبت نشده است؛ می‌توان آن را از بخش «مشتریان ما» در پنل مدیریت فعال کرد.
         </div>
       )}
-          </div>\n    </div>\n    </section>
+          </div>
+    </div>
+    </section>
   );
 };

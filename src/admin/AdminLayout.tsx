@@ -25,7 +25,8 @@ import {
   CheckCircle,
   Sparkles,
   Building2,
-  Megaphone,\n  Wrench,
+  Megaphone,
+  Wrench,
 } from 'lucide-react';
 import { adminService, AdminUser } from '../services/adminService';
 import { SanatPishLogo } from '../components/common/BrandIdentity';
@@ -47,7 +48,8 @@ const ContentStudioModule = React.lazy(() => import('./modules/ContentStudioModu
 const AnnouncementsAdminModule = React.lazy(() => import('./modules/AnnouncementsAdminModule').then(module => ({ default: module.AnnouncementsAdminModule })));
 const SettingsSystemModule = React.lazy(() => import('./modules/SettingsSystemModule').then(module => ({ default: module.SettingsSystemModule })));
 const AdminStaffUsersModule = React.lazy(() => import('./modules/AdminStaffUsersModule').then(module => ({ default: module.AdminStaffUsersModule })));
-const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));\nconst CustomPartRequestsModule = React.lazy(() => import('./modules/CustomPartRequestsPanel').then(module => ({ default: module.CustomPartRequestsPanel })));
+const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));
+const CustomPartRequestsModule = React.lazy(() => import('./modules/CustomPartRequestsPanel').then(module => ({ default: module.CustomPartRequestsPanel })));
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();

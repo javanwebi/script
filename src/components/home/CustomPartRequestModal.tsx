@@ -142,7 +142,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
         requireAttachment && privacyConsent
           ? 'رضایت صریح مشتری برای ذخیره تصویر پیوست در پرونده خصوصی همین درخواست ساخت ثبت شد.'
           : '',
-      ].filter(Boolean).join('\\n\\n');
+      ].filter(Boolean).join('\n\n');
       const response = await fetch('/api/custom-part-requests', {
         method: 'POST',
         credentials: 'same-origin',

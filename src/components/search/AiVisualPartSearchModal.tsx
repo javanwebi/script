@@ -1,6 +1,7 @@
 import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
-import {ImageRegionSelector} from './ImageRegionSelector';\nimport { CustomPartRequestModal } from '../home/CustomPartRequestModal';
+import {ImageRegionSelector} from './ImageRegionSelector';
+import { CustomPartRequestModal } from '../home/CustomPartRequestModal';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
@@ -2391,7 +2392,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                           `خلاصه تشخیص: ${analysisResult.summary?.whatYouSee || analysisResult.summary?.visualAnalysis || 'تطابق قطعی در کاتالوگ پیدا نشد.'}`,
                           `توصیه فنی: ${analysisResult.technicalAdvice || 'نیازمند بررسی کارشناس'}`,
                           `ناحیه تصویر: ${queryRegion ? JSON.stringify(queryRegion) : 'برش خودکار موتور شناسایی'}`,
-                        ].join('\\n').slice(0, 2400)}
+                        ].join('\n').slice(0, 2400)}
                         requireAttachment
                       />
                     );
