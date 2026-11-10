@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -63,6 +64,85 @@ test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", 
   assert.match(verify, /get\('\/api\/health'\)/);
   assert.match(verify, /get\('\/api\/ai\/forza-stt-info'\)/);
   assert.doesNotMatch(verify, /https:\/\/127\.0\.0\.1/);
+});
+
+test("read-only SPA guard validation scans the complete root block without weakening the guard", () => {
+  assert.ok(one.includes("def nginx_block_at(text, opening_brace):"));
+  assert.ok(one.includes("def nginx_depth_before(text, stop):"));
+  assert.ok(one.includes("def require_read_only_spa_guard(root_block, filename):"));
+  assert.ok(one.includes('set(methods) not in ({"GET"},{"GET","HEAD"})'));
+  assert.ok(one.includes("deny[ \\t]+all"));
+  assert.ok(one.includes("root_block=nginx_block_at(source,roots[0].end()-1)"));
+  assert.ok(one.includes("READ_ONLY_SPA_GUARD_OK"));
+  assert.equal(one.includes("roots[0].start()+700"), false);
+});
+
+test("Nginx SPA guard parser handles long blocks, nested locations, comments and quoted braces", () => {
+  const helperStart = one.indexOf("def nginx_block_at(text, opening_brace):");
+  const helperEnd = one.indexOf("\ncontents=[Path(p).read_text() for p in files]", helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helper = one.slice(helperStart, helperEnd);
+  const fixture = `
+import re
+${helper}
+source = """location / {
+    root /srv/www;
+    add_header X-Quoted "brace { } #";
+    # fake { } limit_except POST { deny all; }
+${Array.from({ length: 110 }, (_, index) => `    add_header X-Padding-${index} value;`).join("\n")}
+    location /nested/ {
+        limit_except POST {
+            deny all;
+        }
+    }
+    limit_except GET {
+        deny all;
+    }
+    try_files $uri $uri/ /index.html;
+}"""
+root = re.search(r"(?m)^location\\s+/\\s*\\{", source)
+assert root
+block = nginx_block_at(source, root.end() - 1)
+methods, _ = require_read_only_spa_guard(block, "fixture")
+assert methods == ["GET"]
+assert source.index("limit_except GET") > 700
+
+nested_only = """location / {
+    location /nested/ {
+        limit_except GET {
+            deny all;
+        }
+    }
+}"""
+nested_root = re.search(r"(?m)^location\\s+/\\s*\\{", nested_only)
+try:
+    require_read_only_spa_guard(
+        nginx_block_at(nested_only, nested_root.end() - 1), "nested-only"
+    )
+except AssertionError as error:
+    assert error.args[0][0] == "READ_ONLY_SPA_GUARD_NOT_PRESERVED"
+else:
+    raise AssertionError("nested-only guard must not protect the SPA root")
+
+missing_deny = """location / {
+    limit_except GET {
+        allow all;
+    }
+}"""
+missing_root = re.search(r"(?m)^location\\s+/\\s*\\{", missing_deny)
+try:
+    require_read_only_spa_guard(
+        nginx_block_at(missing_deny, missing_root.end() - 1), "missing-deny"
+    )
+except AssertionError as error:
+    assert error.args[0][0] == "READ_ONLY_SPA_GUARD_NOT_PRESERVED"
+else:
+    raise AssertionError("guard without deny all must be rejected")
+print("NGINX_SPA_GUARD_PARSER_FIXTURES_OK")
+`;
+  const result = spawnSync("python3", ["-c", fixture], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /NGINX_SPA_GUARD_PARSER_FIXTURES_OK/);
 });
 
 test("AvalAI private config must be effective in canary before production promotion", () => {
