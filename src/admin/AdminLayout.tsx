@@ -25,7 +25,7 @@ import {
   CheckCircle,
   Sparkles,
   Building2,
-  Megaphone,
+  Megaphone,\n  Wrench,
 } from 'lucide-react';
 import { adminService, AdminUser } from '../services/adminService';
 import { SanatPishLogo } from '../components/common/BrandIdentity';
@@ -47,7 +47,7 @@ const ContentStudioModule = React.lazy(() => import('./modules/ContentStudioModu
 const AnnouncementsAdminModule = React.lazy(() => import('./modules/AnnouncementsAdminModule').then(module => ({ default: module.AnnouncementsAdminModule })));
 const SettingsSystemModule = React.lazy(() => import('./modules/SettingsSystemModule').then(module => ({ default: module.SettingsSystemModule })));
 const AdminStaffUsersModule = React.lazy(() => import('./modules/AdminStaffUsersModule').then(module => ({ default: module.AdminStaffUsersModule })));
-const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));
+const ClientsAdminModule = React.lazy(() => import('./modules/ClientsAdminModule').then(module => ({ default: module.ClientsAdminModule })));\nconst CustomPartRequestsModule = React.lazy(() => import('./modules/CustomPartRequestsPanel').then(module => ({ default: module.CustomPartRequestsPanel })));
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -115,6 +115,7 @@ export const AdminLayout: React.FC = () => {
     else if (path.includes('/admin/products')) setActiveTab('products');
     else if (path.includes('/admin/bulk-import')) setActiveTab('bulk_import');
     else if (path.includes('/admin/inquiries')) setActiveTab('inquiries');
+    else if (path.includes('/admin/custom-part-requests')) setActiveTab('custom_requests');
     else if (path.includes('/admin/orders')) setActiveTab('orders');
     else if (path.includes('/admin/crm') || path.includes('/admin/customers')) setActiveTab('crm');
     else if (path.includes('/admin/announcements')) setActiveTab('announcements');
@@ -180,7 +181,8 @@ export const AdminLayout: React.FC = () => {
   useEffect(()=>{
     if(currentUser?.role!=='staff')return;
     const visible=Object.entries(currentUser.permissions||{}).filter(([,actions])=>actions.includes('view')).map(([section])=>section);
-    if(!visible.includes(activeTab))setActiveTab(visible[0]||'no_access');
+    const activePermission = activeTab === 'custom_requests' ? 'crm' : activeTab;
+    if(!(currentUser.permissions?.[activePermission]||[]).includes('view'))setActiveTab(visible[0]||'no_access');
   },[currentUser,activeTab]);
 
   if (checking) return <div role="status" className="p-16 text-center">در حال بررسی دسترسی مدیریت…</div>;
@@ -197,8 +199,10 @@ export const AdminLayout: React.FC = () => {
     return <AdminLogin onLoginSuccess={user => setCurrentUser(user)} />;
   }
 
-  const canView=(section:string)=>currentUser.role==='super_admin'
-    || (currentUser.permissions?.[section]||[]).includes('view');
+  const canView=(section:string)=>{
+    const permissionSection = section === 'custom_requests' ? 'crm' : section;
+    return currentUser.role === 'super_admin' || (currentUser.permissions?.[permissionSection]||[]).includes('view');
+  };
 
   // Real-time notification counters
   const pendingInquiries = adminService.getInquiries().filter(i => i.status === 'pending');
@@ -279,6 +283,12 @@ export const AdminLayout: React.FC = () => {
       badgeColor: 'bg-amber-500 text-white',
     },
     {
+      id: 'custom_requests',
+      label: 'درخواست‌های ساخت سفارشی',
+      icon: Wrench,
+      badge: null,
+    },
+    {
       id: 'orders',
       label: 'سفارش‌ها و لجستیک',
       icon: ShoppingBag,
@@ -308,12 +318,13 @@ export const AdminLayout: React.FC = () => {
   // Grouping and navigation are UI only. Never substitute menu visibility for server-side permissions.
   const groups=[
     {title:'نمای کلی',ids:['dashboard']},
-    {title:'فروش و مشتریان',ids:['orders','inquiries','crm','customer_grading','agencies']},
+    {title:'فروش و مشتریان',ids:['orders','inquiries','custom_requests','crm','customer_grading','agencies']},
     {title:'کالا و محتوا',ids:['products','bulk_import','content_studio','announcements','clients']},
     {title:'سامانه',ids:['settings','staff_users']},
   ];
   const descriptions:Record<string,string>={
     dashboard:'نمای کلی و آمار فروش',orders:'سفارش‌ها، ارسال و بارنامه',inquiries:'پیگیری استعلام و پیش‌فاکتور',
+    custom_requests:'درخواست ساخت، تصویر قطعه و پیگیری مهندسی معکوس',
     crm:'ارتباط با مشتری و پشتیبانی',customer_grading:'سطوح خرید و قیمت‌گذاری',agencies:'مدیریت شبکه نمایندگی',
     products:'کاتالوگ و مشخصات کالا',bulk_import:'ورود اطلاعات از اکسل',content_studio:'محتوای صفحات و پنل‌ها',
     announcements:'اطلاعیه‌های سایت و کاربران',clients:'لوگوی مشتریان',settings:'تنظیمات و امنیت',staff_users:'ساخت کاربران واقعی و مدیریت مجوزها',reports:'رتبه‌بندی فروش'
@@ -330,7 +341,9 @@ export const AdminLayout: React.FC = () => {
       if(location.pathname!=='/admin/settings')navigate('/admin/settings');
     }else if(id==='staff_users'){
       if(location.pathname!=='/admin/staff-users')navigate('/admin/staff-users');
-    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings') || location.pathname.startsWith('/admin/staff-users')){
+    }else if(id==='custom_requests'){
+      if(location.pathname!=='/admin/custom-part-requests')navigate('/admin/custom-part-requests');
+    }else if(location.pathname.startsWith('/admin/reports/') || location.pathname.startsWith('/admin/settings') || location.pathname.startsWith('/admin/staff-users') || location.pathname.startsWith('/admin/custom-part-requests')){
       navigate('/admin',{state:{adminModule:id}});
     }
   };
@@ -376,6 +389,8 @@ export const AdminLayout: React.FC = () => {
         return <BulkImportModule />;
       case 'inquiries':
         return <PricingInquiriesModule />;
+      case 'custom_requests':
+        return <CustomPartRequestsModule />;
       case 'orders':
         return <OrdersModule />;
       case 'crm':

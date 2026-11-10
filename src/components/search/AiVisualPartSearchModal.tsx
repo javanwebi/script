@@ -1,6 +1,6 @@
 import {LocalModelResults} from './LocalModelResults';
 import {apiUrl} from '../../config/apiConfig';
-import {ImageRegionSelector} from './ImageRegionSelector';
+import {ImageRegionSelector} from './ImageRegionSelector';\nimport { CustomPartRequestModal } from '../home/CustomPartRequestModal';
 import {ImageRegionReview, type RegionPreparationState} from './ImageRegionReview';
 import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
@@ -183,6 +183,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Analysis result & error
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
+  const [showBuildRequest, setShowBuildRequest] = useState(false);
+  const [buildRequestImage, setBuildRequestImage] = useState<Blob | null>(null);
+  const [isPreparingBuildRequest, setIsPreparingBuildRequest] = useState(false);
+  const [buildRequestError, setBuildRequestError] = useState('');
+
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
@@ -540,6 +545,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setApplication("");
     setFeatures("");
     setAnalysisResult(null);setMeasurements({});
+    setShowBuildRequest(false);setBuildRequestImage(null);setIsPreparingBuildRequest(false);setBuildRequestError('');
     regionDetectionSequenceRef.current++;
     setRegionDetectionState('uploading');
     setRegionDetectionMessage('');
@@ -625,7 +631,8 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
         }).catch(error => console.warn("[Customer image history] result sync unavailable", error));
       }
       setAnalysisResult(result);
-      if (!result.observationOnly && (result.matchedProducts?.length || result.similarCandidates?.length)) {
+      {
+        // FORZA also receives a no-match result so it can explain the outcome without inventing a SKU.
         const conversationImage = temporaryImageDataUrl || selectedImage;
         if (conversationImage) onAnalysisResult?.(result, conversationImage);
       } setLastStage(result.stage || stage); setCurrentStep(result.observationOnly ? 2 : "results");
@@ -642,6 +649,47 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setErrorMessage('');
     void handleAnalyze('quick', fullImageSelected ? null : queryRegion);
   };
+  const prepareBuildRequest = async () => {
+    if (isPreparingBuildRequest) return;
+    setBuildRequestError('');
+    setIsPreparingBuildRequest(true);
+    try {
+      let imageBlob: Blob | null = null;
+      if (localImageId) {
+        const localRecord = await getCustomerDeviceImage(localImageId);
+        imageBlob = localRecord?.blob || null;
+      }
+      if (!imageBlob) {
+        const source = temporaryImageDataUrl || selectedImage;
+        if (!source) throw new Error('تصویر قطعه در دسترس نیست؛ لطفاً تصویر را دوباره انتخاب کنید.');
+        const response = await fetch(source);
+        if (!response.ok) throw new Error('خواندن تصویر قطعه ناموفق بود.');
+        imageBlob = await response.blob();
+      }
+      if (imageBlob.size > 8 * 1024 * 1024) {
+        if (typeof createImageBitmap !== 'function') throw new Error('حجم تصویر بیش از ۸ مگابایت است؛ لطفاً تصویر کوچک‌تری انتخاب کنید.');
+        const bitmap = await createImageBitmap(imageBlob);
+        const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) { bitmap.close(); throw new Error('آماده‌سازی تصویر برای ارسال ناموفق بود.'); }
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const compressed = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+        bitmap.close();
+        if (!compressed || compressed.size > 8 * 1024 * 1024) throw new Error('حجم تصویر پس از فشرده‌سازی هنوز زیاد است؛ لطفاً تصویر کوچک‌تری انتخاب کنید.');
+        imageBlob = compressed;
+      }
+      setBuildRequestImage(imageBlob);
+      setShowBuildRequest(true);
+    } catch (error) {
+      setBuildRequestError(error instanceof Error ? error.message : 'آماده‌سازی تصویر ناموفق بود.');
+    } finally {
+      setIsPreparingBuildRequest(false);
+    }
+  };
+
 
   const goToStep2 = () => {
     if(selectedImage && !analysisResult?.requiredMeasurements){confirmRegionAndAnalyze();return;}
@@ -1740,6 +1788,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onChange={searchRegion}
                   onFullImageSearch={() => { setQueryRegion(undefined); setFullImageSelected(true); void handleAnalyze('quick', null); }}
                 />}
+                {localRegionEnabled && selectedImage && (
+                  <p className="rounded-xl border border-orange-100 bg-orange-50/70 px-3 py-2 text-[11px] leading-6 text-slate-700">
+                    اگر موتور قطعه دیگری را انتخاب کرده، روی قطعه دلخواه در همین تصویر لمس کنید؛ محدوده جدید هوشمندانه برش می‌خورد و جست‌وجو روی همان ناحیه انجام می‌شود. اگر انتخاب نکنید، برش خودکار سیستم حفظ می‌شود.
+                  </p>
+                )}
                 {/* Fallback / AI-error notices */}
                 {!analysisResult.isAiGenerated &&
                   analysisResult.fallbackNotice && (
@@ -2323,48 +2376,49 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     );
                   }
 
+                  if (showBuildRequest && buildRequestImage) {
+                    return (
+                      <CustomPartRequestModal
+                        isOpen
+                        onClose={() => { setShowBuildRequest(false); setBuildRequestImage(null); }}
+                        presentation="embedded"
+                        initialImage={buildRequestImage}
+                        initialImageName="forza-part-image.jpg"
+                        initialPartName={analysisResult.summary?.detectedPartType || 'قطعه صنعتی نامشخص'}
+                        initialPartType="سایر قطعات مکانیکی خاص"
+                        initialNotes={[
+                          'این درخواست از مسیر شناسایی تصویری FORZA ثبت شده است.',
+                          `خلاصه تشخیص: ${analysisResult.summary?.whatYouSee || analysisResult.summary?.visualAnalysis || 'تطابق قطعی در کاتالوگ پیدا نشد.'}`,
+                          `توصیه فنی: ${analysisResult.technicalAdvice || 'نیازمند بررسی کارشناس'}`,
+                          `ناحیه تصویر: ${queryRegion ? JSON.stringify(queryRegion) : 'برش خودکار موتور شناسایی'}`,
+                        ].join('\\n').slice(0, 2400)}
+                        requireAttachment
+                      />
+                    );
+                  }
+
                   return (
-                    /* ─── Custom Order Panel (no matching items at all) ─── */
-                    <div className="p-5 rounded-2xl border-2 border-dashed border-amber-300 bg-gradient-to-l from-amber-50 via-orange-50 to-amber-50 space-y-4">
+                    <div className="rounded-2xl border border-amber-200 bg-white p-5 space-y-4">
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-[#E06518] text-white flex items-center justify-center shrink-0 shadow-md">
                           <Wrench className="w-6 h-6" />
                         </div>
-                        <div className="space-y-1.5 flex-1">
-                          <div className="font-black text-base text-[#55565A]">
-                            درخواست بررسی تخصصی قطعه 🔧
-                          </div>
-                          <p className="text-xs text-slate-600 leading-relaxed">
-                            در کاتالوگ، محصولی با شباهت تصویری کافی پیدا نشد.
-                            این به معنی ناممکن بودن تأمین نیست؛ کارشناسان صنعت پیش
-                            پس از بررسی ابعاد، جنس و شرایط کارکرد، امکان تأمین یا
-                            ساخت سفارشی را اعلام می‌کنند.
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="font-black text-base text-[#55565A]">تطابق قابل‌اعتماد در کاتالوگ پیدا نشد</div>
+                          <p className="text-xs text-slate-600 leading-6">
+                            برای جلوگیری از نمایش قطعه نامرتبط، هیچ محصولی پیشنهاد نمی‌شود. اگر تصویر مربوط به یک قطعه صنعتی است، می‌توانید درخواست بررسی و ساخت سفارشی ثبت کنید.
                           </p>
-                          <p className="text-[11px] text-slate-500 leading-relaxed">
-                            همین عکس را برای کارشناسان ما ارسال کنید تا امکان
-                            شناسایی ابعادی، استعلام قیمت و زمان تأمین یا ساخت
-                            بررسی شود.
+                          <p className="text-[11px] text-slate-500 leading-6">
+                            تصویر اصلی فقط پس از تأیید رضایت شما همراه نام، شماره تماس و تعداد برای کارشناسان ارسال می‌شود و در پرونده خصوصی درخواست ساخت نمایش داده خواهد شد.
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <a
-                          href="tel:03535254703"
-                          className="flex-1 h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Phone className="w-4 h-4" />
-                          <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
-                        </a>
-                        <a
-                          href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>ارسال عکس در واتس‌اپ</span>
-                        </a>
-                      </div>
+                      {buildRequestError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{buildRequestError}</p>}
+                      <button type="button" disabled={isPreparingBuildRequest} onClick={() => void prepareBuildRequest()}
+                        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#E06518] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#c95513] disabled:opacity-60">
+                        {isPreparingBuildRequest ? <Loader2 className="h-4 w-4 animate-spin"/> : <Wrench className="h-4 w-4"/>}
+                        {isPreparingBuildRequest ? 'در حال آماده‌سازی تصویر…' : 'ثبت درخواست ساخت همین قطعه'}
+                      </button>
                     </div>
                   );
                 })()}

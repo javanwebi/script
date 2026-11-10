@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Wrench,
   Upload,
@@ -20,11 +20,18 @@ import { useAuth } from '../../context/AuthContext';
 interface CustomPartRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
+  presentation?: 'modal' | 'embedded';
+  initialImage?: Blob | null;
+  initialImageName?: string;
+  initialPartName?: string;
+  initialPartType?: string;
+  initialNotes?: string;
+  requireAttachment?: boolean;
 }
 
 export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
-  isOpen,
-  onClose,
+  isOpen, onClose, presentation = 'modal', initialImage = null, initialImageName,
+  initialPartName, initialPartType, initialNotes, requireAttachment = false,
 }) => {
   const { currentUser } = useAuth();
 
@@ -42,6 +49,31 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const embedded = presentation === 'embedded';
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPartName(initialPartName || '');
+    setPartType(initialPartType || (requireAttachment ? 'سایر قطعات مکانیکی خاص' : 'پولی و بوش تاپیر'));
+    setNotes(initialNotes || '');
+    setPrivacyConsent(!requireAttachment);
+    setErrorMessage('');
+    setSelectedFile(null);
+    setFileName(null);
+    setFilePreview(null);
+    if (!initialImage) return;
+    const file = initialImage instanceof File
+      ? initialImage
+      : new File([initialImage], initialImageName || 'forza-part-image.jpg', { type: initialImage.type || 'image/jpeg' });
+    setSelectedFile(file);
+    setFileName(file.name);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => setFilePreview(typeof reader.result === 'string' ? reader.result : null);
+      reader.readAsDataURL(file);
+    }
+  }, [isOpen, initialImage, initialImageName, initialPartName, initialPartType, initialNotes, requireAttachment]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
@@ -78,7 +110,18 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!partName.trim() || !phoneNumber.trim()) return;
+    if (!partName.trim() || !contactName.trim() || !phoneNumber.trim() || !quantity.trim()) {
+      setErrorMessage('لطفاً نام قطعه، نام و نام خانوادگی، شماره تماس و تعداد را وارد کنید.');
+      return;
+    }
+    if (requireAttachment && !selectedFile) {
+      setErrorMessage('برای درخواست ساخت از مسیر شناسایی تصویر، پیوست تصویر قطعه الزامی است.');
+      return;
+    }
+    if (requireAttachment && !privacyConsent) {
+      setErrorMessage('برای ارسال تصویر به پرونده درخواست ساخت، رضایت خود را تأیید کنید.');
+      return;
+    }
     setErrorMessage('');
     setIsSubmitting(true);
     try {
@@ -94,13 +137,19 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
         if (comma < 0) throw new Error('محتوای فایل معتبر نیست.');
         attachmentBase64 = dataUrl.slice(comma + 1);
       }
+      const notesWithConsent = [
+        notes.trim(),
+        requireAttachment && privacyConsent
+          ? 'رضایت صریح مشتری برای ذخیره تصویر پیوست در پرونده خصوصی همین درخواست ساخت ثبت شد.'
+          : '',
+      ].filter(Boolean).join('\\n\\n');
       const response = await fetch('/api/custom-part-requests', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contactName, phoneNumber, companyName, partName, partType, dimensions,
-          alloyCondition, quantity, notes,
+          alloyCondition, quantity, notes: notesWithConsent,
           attachmentName: selectedFile?.name || '',
           attachmentMime: selectedFile?.type || '',
           attachmentBase64,
@@ -128,6 +177,11 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
 
   const resetForm = () => {
     setPartName('');
+    setPartType('پولی و بوش تاپیر');
+    setContactName(currentUser?.name || '');
+    setPhoneNumber(currentUser?.phone || '');
+    setCompanyName(currentUser?.companyName || '');
+    setPrivacyConsent(false);
     setDimensions('');
     setAlloyCondition('');
     setQuantity('1');
@@ -141,8 +195,8 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className={embedded ? 'w-full' : 'fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4'} dir="rtl">
+      <div className={`relative w-full ${embedded ? 'max-w-none' : 'max-w-2xl'} bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
         
         {/* Top Metallic Orange Accent Bar */}
         <div className="h-1.5 bg-gradient-to-r from-[#C95210] via-[#E06518] to-orange-400" />
@@ -174,7 +228,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="p-5 sm:p-7 max-h-[80vh] overflow-y-auto">
+        <div className={`p-5 sm:p-7 ${embedded ? 'max-h-none overflow-visible' : 'max-h-[80vh] overflow-y-auto'}`}>
           {trackingCode ? (
             /* SUCCESS STATE */
             <div className="text-center py-6 space-y-5 animate-in fade-in">
@@ -294,7 +348,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
               {/* Row 3: Upload Blueprint or Photo */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                  <span>فایل نقشه، مدل سه‌بعدی یا عکس قطعه فرسوده (اختیاری)</span>
+                  <span>{requireAttachment ? 'تصویر قطعه شناسایی‌شده (الزامی)' : 'فایل نقشه، مدل سه‌بعدی یا عکس قطعه فرسوده (اختیاری)'}</span>
                   <span className="text-[11px] text-slate-400 font-normal">CAD, PDF, JPG, PNG, WebP · حداکثر ۸ مگابایت</span>
                 </label>
                 
@@ -303,6 +357,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
                     type="file"
                     onChange={handleFileChange}
                     accept=".pdf,.dwg,.dxf,.step,.stp,.jpg,.jpeg,.png,.webp"
+                    required={requireAttachment}
                     className="hidden"
                   />
                   <Upload className="w-6 h-6 text-slate-400 group-hover:text-[#E06518] group-hover:-translate-y-0.5 transition-all" />
@@ -331,10 +386,22 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
                 </label>
               </div>
 
-              <p className="text-[11px] leading-6 text-slate-500">با ارسال فرم، فایل انتخابی به‌صورت خصوصی همراه درخواست ساخت ذخیره می‌شود و فقط کارشناسان مجاز مدیریت به آن دسترسی دارند.</p>
+              {requireAttachment ? (
+                <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-6 text-amber-950">
+                  <input type="checkbox" checked={privacyConsent} onChange={event => setPrivacyConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[#E06518]" required />
+                  <span>موافقم تصویر همین قطعه برای بررسی مهندسی و پیگیری درخواست ساخت، به‌صورت خصوصی همراه درخواست برای کارشناسان صنعت پیش ارسال و ذخیره شود. تصویر برای نمایش عمومی استفاده نمی‌شود.</span>
+                </label>
+              ) : (
+                <p className="text-[11px] leading-6 text-slate-500">با ارسال فرم، فایل انتخابی به‌صورت خصوصی همراه درخواست ساخت ذخیره می‌شود و فقط کارشناسان مجاز مدیریت به آن دسترسی دارند.</p>
+              )}
 
-              {/* Row 4: Quantity & Company Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Row 4: Customer, quantity and company details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700">نام و نام خانوادگی *</label>
+                  <input type="text" required autoComplete="name" value={contactName} onChange={event => setContactName(event.target.value)} placeholder="نام شما"
+                    className="w-full h-11 px-3.5 rounded-xl bg-[#F8F9FA] border border-slate-200 focus:border-[#E06518] focus:bg-white text-xs text-slate-800 outline-none transition-all" />
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">تعداد / تیراژ ساخت</label>
                   <input
@@ -392,7 +459,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (requireAttachment && (!selectedFile || !privacyConsent))}
                   className="w-full h-12 rounded-xl bg-gradient-to-r from-[#C95210] to-[#E06518] hover:from-[#C2410C] hover:to-[#C95210] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 transition-all cursor-pointer hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                 >
                   {isSubmitting ? (
