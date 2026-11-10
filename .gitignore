@@ -33,3 +33,6 @@ storage/
 .local-vision-enabled
 __pycache__/
 *.pyc
+
+# Runtime release stages and deployment metadata stay on the VPS only.
+/.deploy/
