@@ -529,8 +529,8 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
             </div>
           </div>
         </div>
-      </div>
         )}
+      </div>
 
       {/* ================================================================= */}
       {/* SHORT INTRO VIDEO / OVERVIEW MODAL                                */}
