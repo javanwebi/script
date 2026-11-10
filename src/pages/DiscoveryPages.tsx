@@ -28,6 +28,7 @@ import { STORE_ASSETS as A } from "../assets/images";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { ProductCard } from "../components/product/ProductCard";
 import { MemberAccess } from "../components/storefront/MemberAccess";
+import { rankIndustryProducts } from "../utils/industryCatalog";
 const title = (text: string) => {
   document.title = `${text} | صنعت پیش`;
 };
@@ -195,9 +196,7 @@ export function IndustryPage() {
   useEffect(() => title(`قطعات صنعت ${industry.title}`), [industry]);
   const products = useMemo(
     () =>
-      getAllProducts()
-        .filter((p) => industry.terms.some((t) => p.name.includes(t)))
-        .slice(0, 4),
+      rankIndustryProducts(getAllProducts(), industry, 6),
     [industry, tick],
   );
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
@@ -293,11 +292,21 @@ export function IndustryPage() {
           eyebrow="از کاتالوگ واقعی سایت"
           title="خانواده‌های مرتبط برای بررسی اولیه"
         />
-        <div className="editorial-products">
-          {products.map((p) => (
-            <ProductCard key={p.code} product={p} />
-          ))}
-        </div>
+        {products.length > 0 ? (
+          <div className="editorial-products">
+            {products.map((p) => (
+              <ProductCard key={p.code} product={p} />
+            ))}
+          </div>
+        ) : (
+          <div className="industry-catalog-empty" role="status">
+            <strong>فعلاً محصول تأییدشده‌ای برای نمایش این بخش پیدا نشد.</strong>
+            <p>برای جلوگیری از پیشنهاد کالای نامرتبط، فقط خانواده‌های واقعی و فعال کاتالوگ نمایش داده می‌شوند.</p>
+            <Link to={`/products?q=${encodeURIComponent(industry.terms.join(" "))}`} className="store-btn-secondary">
+              جستجو در کاتالوگ کامل
+            </Link>
+          </div>
+        )}
         <MemberAccess />
       </section>
       <section className="editorial-wrap" id="industry-related">

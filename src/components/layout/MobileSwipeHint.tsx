@@ -15,7 +15,7 @@ export function MobileSwipeHint(){
     seen.add(el);
     const child=el.firstElementChild as HTMLElement|null;
     if(!child)return;
-    const animation=child.animate([{transform:'translateX(0)'},{transform:'translateX(12px)'},{transform:'translateX(0)'}],{duration:850,easing:'ease-in-out'});
+    const animation=child.animate([{transform:'translateX(0)'},{transform:'translateX(-16px)'},{transform:'translateX(0)'}],{duration:850,easing:'ease-in-out'});
     const stop=()=>animation.cancel();
     el.addEventListener('pointerdown',stop,{once:true,passive:true});
     const cleanup=()=>{animation.cancel();el.removeEventListener('pointerdown',stop);clearTimeout(timer);cleanups.delete(cleanup);};
@@ -23,7 +23,7 @@ export function MobileSwipeHint(){
     cleanups.add(cleanup);
    }
   },{threshold:0.65});
-  const observe=()=>document.querySelectorAll('.home-refined [class*="overflow-x-auto"]').forEach(el=>{if(!seen.has(el))observer.observe(el);});
+  const observe=()=>document.querySelectorAll('.home-refined [class*="overflow-x-auto"], .home-refined .home-category-track, .home-refined .home-supply-deck').forEach(el=>{if(!seen.has(el))observer.observe(el);});
   observe();
   const mutation=new MutationObserver(observe);
   const root=document.querySelector('.home-refined');

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import {
@@ -15,10 +15,8 @@ import {
   ClipboardList,
   ChevronLeft,
   CheckCircle2,
-  Heart,
   Info,
   X,
-  FileText,
   Factory,
   Layers,
   Award,
@@ -29,7 +27,10 @@ import {
 import { STORE_ASSETS } from '../assets/images';
 import { getProductImageUrl } from '../assets/imagesproducts';
 import { PartIdentificationLink } from '../components/search/PartIdentificationProvider';
-import { useWishlist } from '../context/WishlistContext';
+import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
+import { INDUSTRIES } from '../data/siteContent';
+import { ProductCard } from '../components/product/ProductCard';
+import { rankIndustryProducts } from '../utils/industryCatalog';
 
 interface StageSubPart {
   id: string;
@@ -65,20 +66,8 @@ interface ProblemItem {
   recommendedQuery: string;
 }
 
-interface RecommendedProductItem {
-  code: string;
-  name: string;
-  subtitle: string;
-  spec: string;
-  image: string;
-  fallbackImage: string;
-  query: string;
-}
-
 export const TileCeramicIndustryPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isInWishlist, toggleWishlist } = useWishlist();
-
   // Interactive Stage State (Persisted in sessionStorage so Back button keeps selected stage)
   const [activeStageId, setActiveStageId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -112,17 +101,18 @@ export const TileCeramicIndustryPage: React.FC = () => {
   const [machineProblemQuery, setMachineProblemQuery] = useState<string>('');
 
   // Modals State
-  const [rfqModalOpen, setRfqModalOpen] = useState<boolean>(false);
-  const [rfqItemName, setRfqItemName] = useState<string>('');
-  const [rfqCustomerName, setRfqCustomerName] = useState<string>('');
-  const [rfqPhone, setRfqPhone] = useState<string>('');
-  const [rfqFactory, setRfqFactory] = useState<string>('');
-  const [rfqNote, setRfqNote] = useState<string>('');
-  const [rfqSubmitted, setRfqSubmitted] = useState<boolean>(false);
-
   const [selectedProblem, setSelectedProblem] = useState<ProblemItem | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState<boolean>(false);
   const [stageInfoModalOpen, setStageInfoModalOpen] = useState<boolean>(false);
+
+  // Subscribe to the authoritative catalogue; recommendations update after hydration/admin edits.
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(revision => revision + 1)), []);
+  const ceramicIndustry = INDUSTRIES.find(industry => industry.slug === 'ceramic');
+  const recommendedProducts = useMemo(
+    () => ceramicIndustry ? rankIndustryProducts(getAllProducts(), ceramicIndustry, 6) : [],
+    [catalogRevision, ceramicIndustry],
+  );
 
   // ---------------------------------------------------------------------------
   // 7 STAGES OF TILE & CERAMIC PRODUCTION LINE (01 to 07, Right to Left)
@@ -530,66 +520,6 @@ export const TileCeramicIndustryPage: React.FC = () => {
   ];
 
   // ---------------------------------------------------------------------------
-  // 6 RECOMMENDED PRODUCTS FOR TILE & CERAMIC INDUSTRY
-  // ---------------------------------------------------------------------------
-  const recommendedProducts: RecommendedProductItem[] = [
-    {
-      code: 'FAM-35245',
-      name: 'چرخ صنعتی',
-      subtitle: 'تحمل بار بالا و طول عمر زیاد',
-      spec: 'قطر: 50 - 200 mm',
-      image: getProductImageUrl('e(378).png'),
-      fallbackImage: STORE_ASSETS.products.ceramicRoller,
-      query: 'چرخ با روکش پلی یورتان',
-    },
-    {
-      code: 'FAM-80274',
-      name: 'لاستیک ضربه‌گیر',
-      subtitle: 'مقاوم به سایش و ضربه',
-      spec: 'سفارشی‌سازی ابعاد',
-      image: getProductImageUrl('e(817).png'),
-      fallbackImage: STORE_ASSETS.products.ceramicParts,
-      query: 'ضربه‌گیر صنعتی',
-    },
-    {
-      code: 'FAM-41680',
-      name: 'پولی آلومینیومی',
-      subtitle: 'دقت بالا و وزن سبک',
-      spec: 'قطر: 50 - 500 mm',
-      image: STORE_ASSETS.products.aluPulley,
-      fallbackImage: getProductImageUrl('e(165).png'),
-      query: 'پولی',
-    },
-    {
-      code: 'FAM-BELT-TIM',
-      name: 'تسمه تایم صنعتی',
-      subtitle: 'مقاوم در دماهای بالا',
-      spec: 'گام: 200 mm - حرارت',
-      image: STORE_ASSETS.products.forzaBelt,
-      fallbackImage: STORE_ASSETS.categories.belts,
-      query: 'تسمه تایمینگ',
-    },
-    {
-      code: 'FAM-40932',
-      name: 'رولیک نقاله',
-      subtitle: 'مناسب خطوط انتقال کاشی',
-      spec: 'قطر: 20 - 120 mm',
-      image: STORE_ASSETS.products.ceramicRoller,
-      fallbackImage: getProductImageUrl('e(168).png'),
-      query: 'رولر',
-    },
-    {
-      code: 'FAM-52858',
-      name: 'تسمه نوار نقاله PVC',
-      subtitle: 'مقاوم به سایش و مواد شیمیایی',
-      spec: 'عرض: 50 - 1000 mm',
-      image: STORE_ASSETS.products.pvcBelt,
-      fallbackImage: getProductImageUrl('e(859).png'),
-      query: 'نوار نقاله',
-    },
-  ];
-
-  // ---------------------------------------------------------------------------
   // HANDLERS
   // ---------------------------------------------------------------------------
   const handleTechSpecSearch = (e: React.FormEvent) => {
@@ -604,25 +534,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
     navigate(`/ai-consult?industry=ceramic&q=${encodeURIComponent(q)}`);
   };
 
-  const openRfqModal = (itemTitle: string) => {
-    setRfqItemName(itemTitle);
-    setRfqSubmitted(false);
-    setRfqModalOpen(true);
-  };
 
-  const handleRfqSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rfqPhone.trim()) return;
-    setRfqSubmitted(true);
-    setTimeout(() => {
-      setRfqModalOpen(false);
-      setRfqSubmitted(false);
-      setRfqCustomerName('');
-      setRfqPhone('');
-      setRfqFactory('');
-      setRfqNote('');
-    }, 2800);
-  };
 
   return (
     <div className="w-full min-h-screen bg-[#F5F6F8] text-[#2D3036] font-sans pb-16" dir="rtl">
@@ -1371,211 +1283,23 @@ export const TileCeramicIndustryPage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {recommendedProducts.map((item) => {
-              const wished = isInWishlist(item.code);
-              return (
-                <div
-                  key={item.code}
-                  className="bg-white rounded-2xl border border-slate-200/90 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between relative group"
-                >
-                  {/* Wishlist Heart Icon (Top Left) */}
-                  <button
-                    type="button"
-                    onClick={() => toggleWishlist(item.code)}
-                    aria-label={`افزودن ${item.name} به علاقه‌مندی‌ها`}
-                    className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-slate-50 hover:bg-orange-50 flex items-center justify-center text-slate-400 hover:text-[#E06518] transition-colors cursor-pointer"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        wished ? 'fill-[#E06518] text-[#E06518]' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Product Studio Image */}
-                  <div>
-                    <Link
-                      to={`/products?q=${encodeURIComponent(item.query)}`}
-                      className="w-full h-32 sm:h-36 flex items-center justify-center p-2 mb-3 overflow-hidden"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = item.fallbackImage;
-                        }}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
-                        referrerPolicy="no-referrer"
-                      />
-                    </Link>
-
-                    {/* Title & Subtitle */}
-                    <div className="text-center space-y-1 mb-3">
-                      <Link
-                        to={`/products?q=${encodeURIComponent(item.query)}`}
-                        className="block text-sm font-black text-[#23262B] hover:text-[#E06518] transition-colors"
-                      >
-                        {item.name}
-                      </Link>
-                      <p className="text-[11px] text-slate-500 line-clamp-1">
-                        {item.subtitle}
-                      </p>
-                      <div className="pt-1 flex items-center justify-center gap-1 text-[11px] text-slate-600 font-medium">
-                        <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{item.spec}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price Inquiry Button */}
-                  <button
-                    type="button"
-                    onClick={() => openRfqModal(`${item.name} (${item.spec})`)}
-                    className="w-full h-9 rounded-xl border border-[#E06518]/75 text-[#E06518] hover:bg-[#E06518] hover:text-white text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    استعلام قیمت
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          {recommendedProducts.length > 0 ? (
+            <div className="editorial-products ceramic-recommendations">
+              {recommendedProducts.map(product => (
+                <ProductCard key={product.code} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="industry-catalog-empty" role="status">
+              <strong>در حال بررسی کاتالوگ واقعی قطعات مرتبط با خطوط کاشی و سرامیک هستیم.</strong>
+              <p>برای جلوگیری از نمایش کد یا محصول ساختگی، فقط خانواده‌های فعال و ثبت‌شده در کاتالوگ پیشنهاد می‌شوند.</p>
+              <Link to="/products?q=تسمه%20چرخ%20رولر%20یاتاقان" className="ceramic-hero-secondary">
+                جستجو در کاتالوگ کامل
+              </Link>
+            </div>
+          )}
         </section>
       </div>
-
-      {/* ========================================================================= */}
-      {/* MODAL 1: QUICK PRICE INQUIRY (استعلام قیمت)                               */}
-      {/* ========================================================================= */}
-      {rfqModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setRfqModalOpen(false)}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 text-right space-y-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#E06518] flex items-center justify-center">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-[#23262B]">استعلام قیمت و موجودی</h3>
-                  <p className="text-[11px] text-slate-500">واحد مهندسی فروش صنعت پیش</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRfqModalOpen(false)}
-                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {rfqSubmitted ? (
-              <div className="py-8 text-center space-y-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h4 className="text-base font-black text-slate-800">
-                  درخواست استعلام با موفقیت ثبت شد
-                </h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  کارشناسان فروش صنعت پیش در اسرع وقت پیش‌فاکتور و مشخصات فنی{' '}
-                  <span className="font-bold text-slate-800">{rfqItemName}</span> را برای شما ارسال می‌کنند.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleRfqSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    قطعه مورد نظر
-                  </label>
-                  <input
-                    type="text"
-                    value={rfqItemName}
-                    onChange={(e) => setRfqItemName(e.target.value)}
-                    className="w-full h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-bold text-slate-800 focus:border-[#E06518] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      نام و نام خانوادگی
-                    </label>
-                    <input
-                      type="text"
-                      value={rfqCustomerName}
-                      onChange={(e) => setRfqCustomerName(e.target.value)}
-                      placeholder="مثال: مهندس رضایی"
-                      className="w-full h-10 rounded-xl bg-white border border-slate-200 px-3 text-xs text-slate-800 focus:border-[#E06518] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      شماره موبایل *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={rfqPhone}
-                      onChange={(e) => setRfqPhone(e.target.value)}
-                      placeholder="0912..."
-                      dir="ltr"
-                      className="w-full h-10 rounded-xl bg-white border border-slate-200 px-3 text-xs text-right text-slate-800 focus:border-[#E06518] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    نام کارخانه / شرکت
-                  </label>
-                  <input
-                    type="text"
-                    value={rfqFactory}
-                    onChange={(e) => setRfqFactory(e.target.value)}
-                    placeholder="مثال: کاشی میبد / کاشی مرجان"
-                    className="w-full h-10 rounded-xl bg-white border border-slate-200 px-3 text-xs text-slate-800 focus:border-[#E06518] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    توضیحات ابعاد یا تعداد مورد نیاز
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={rfqNote}
-                    onChange={(e) => setRfqNote(e.target.value)}
-                    placeholder="سایز، کد فنی یا شرایط کاری قطعه را بنویسید..."
-                    className="w-full rounded-xl bg-white border border-slate-200 p-3 text-xs text-slate-800 focus:border-[#E06518] focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="submit"
-                    className="flex-1 h-11 rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-xs sm:text-sm cursor-pointer transition-colors"
-                  >
-                    ثبت درخواست استعلام
-                  </button>
-                  <Link
-                    to={`/products?q=${encodeURIComponent(rfqItemName.split('(')[0].trim())}`}
-                    className="h-11 px-4 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center"
-                  >
-                    مشاهده در کاتالوگ
-                  </Link>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODAL 2: TROUBLESHOOTING PROBLEM SOLUTION MODAL                           */}
