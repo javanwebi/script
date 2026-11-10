@@ -1023,16 +1023,8 @@ export async function getPortalIdentity(req: IncomingMessage):Promise<{admin:boo
       return {...identity,canReadCommerce:identity.admin || canStaff(identity,'products','prices')};
     if(identity.user.mustChangePassword===true)
       return {...identity,canReadCommerce:false};
-    // Only the permission documents are required to authorize catalogue reads.
-    // Do not materialize all CRM customers, orders or admin configuration here.
-    const [layouts,overrides] = await Promise.all([
-      readDocument(postgresDatabase(),'atlas_portal_layout_configs_v1','global'),
-      readDocument(postgresDatabase(),'atlas_portal_customer_overrides_v1','global'),
-    ]);
-    const scoped:Database = {revision:0,users:[],values:{
-      atlas_portal_layout_configs_v1:layouts,
-      atlas_portal_customer_overrides_v1:overrides,
-    }};
+    // Price visibility is resolved from the signed-in profile permission.
+    // Quick-order menus are deliberately checked by purchase endpoints instead.
     return {...identity,canReadCommerce:canReadCustomerCommerce(identity.user)};
   }
   const db = await readDb();
