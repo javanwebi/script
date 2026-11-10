@@ -136,12 +136,13 @@ test('industrial directory and industry showcases use image-led, page-specific c
   const premium = readFileSync(new URL('../src/industry-art-direction.css', import.meta.url), 'utf8');
   const entry = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
   assert.match(entry, /@import "\.\/industry-art-direction\.css";/);
-  assert.match(page, /directory-intro-visual/);
-  assert.match(page, /directory-intro-stats/);
+  assert.match(page, /company-page--industries/);
+  assert.match(page, /company-hero-visual/);
+  assert.match(page, /company-industry-grid/);
   assert.match(page, /industry-showcase-main-art/);
   assert.match(page, /industry-part-link/);
   for (const selector of [
-    '.industry-directory-page .industry-directory-card',
+    '.company-page--industries .company-industry-card',
     '.industry-showcase-art',
     '.industry-showcase-flow',
     '.industry-part-links > a.industry-part-link > img',
