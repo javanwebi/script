@@ -620,9 +620,9 @@ def post_json(path):
       f'https://{domain}{path}']
  result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  raw=result.stdout
- if b'\\n__META__' not in raw:
+ if b'\n__META__' not in raw:
   raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+path)
- body,meta=raw.rsplit(b'\\n__META__',1)
+ body,meta=raw.rsplit(b'\n__META__',1)
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
  assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',path,status,content_type)
  assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',path,status,content_type)
