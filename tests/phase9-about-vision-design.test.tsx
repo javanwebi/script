@@ -83,3 +83,47 @@ test('both recognition result paths share full-resolution zoomable photography a
   assert.match(css,/\.sp-vision-match-grid/);
   assert.match(css,/max-width: 760px/);
 });
+
+test('approved About page concept is implemented as real responsive UI and only replaces About routes', () => {
+  const about = read('src/pages/AboutPage.tsx');
+  const css = read('src/pages/about-page-approved.css');
+  const app = read('src/App.tsx');
+  const layout = read('src/components/layout/Layout.tsx');
+  const main = read('src/main.tsx');
+
+  assert.match(app,/const AboutPage = lazy\(\(\) => import\("\.\/pages\/AboutPage"\)/);
+  assert.match(app,/path="\/about" element={<AboutPage \/>}/);
+  assert.match(app,/path="\/services" element={<ServicesPage \/>}/);
+  assert.match(layout,/storefront-about-concept/);
+  assert.match(layout,/isAboutConceptRoute = \["\/about", "\/about-us", "\/history", "\/licenses", "\/awards"\]/);
+  assert.match(main,/about-page-approved\.css/);
+
+  for (const section of [
+    'sp-about-hero',
+    'sp-about-story',
+    'sp-about-timeline',
+    'sp-about-capabilities',
+    'sp-about-facts',
+    'sp-about-destinations',
+    'sp-about-cta',
+  ]) assert.ok(about.includes(section), 'missing About section: ' + section);
+
+  for (const href of ['/products','/contact','/services','/industries','/brands','/knowledge']) {
+    assert.ok(about.includes('to: "' + href + '"') || about.includes('to="' + href + '"'),
+      'About navigation missing: ' + href);
+  }
+
+  assert.match(about,/با پشتوانه اطلس/);
+  assert.match(about,/با پشتوانه بازرگانی تسمه اطلس/);
+  assert.match(about,/دسترسی به قیمت‌های فعال پس از ورود/);
+  assert.doesNotMatch(about,/\+۵۰۰ برند|\+۱۵۰ دسته|کمتر از ۲۴ ساعت|بیش از ۳۰,۰۰۰/);
+
+  assert.match(about,/STORE_ASSETS\.partsWarehouseVault/);
+  assert.match(about,/about-atlas-story\.webp/);
+  assert.match(about,/about-worker-cta\.webp/);
+  assert.match(css,/max-width: 760px/);
+  assert.match(css,/max-width: 390px/);
+  assert.match(css,/prefers-reduced-motion/);
+  assert.match(css,/focus-visible/);
+  assert.doesNotMatch(css,/refinery-dusk-background\.webp/);
+});

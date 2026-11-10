@@ -6,7 +6,6 @@ import {
   IndustriesPage,
   BrandsPage,
   KnowledgePage,
-  AboutPage,
 } from "./pages/DiscoveryPages";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -78,6 +77,7 @@ const TileCeramicIndustryPage = lazy(() =>
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
 const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
 const ServicesPage = lazy(() => import("./pages/ServicesPage").then(m => ({default:m.ServicesPage})));
+const AboutPage = lazy(() => import("./pages/AboutPage").then(m => ({ default: m.AboutPage })));
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,
