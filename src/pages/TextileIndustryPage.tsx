@@ -278,7 +278,7 @@ export function TextileIndustryPage() {
             <Link to="/products?q=نساجی">جستجو در کاتالوگ <ArrowLeft size={16} /></Link>
           </div>
         )}
-        <MemberAccess />
+        <MemberAccess compact />
       </section>
 
       <section className="textile-why-section">
