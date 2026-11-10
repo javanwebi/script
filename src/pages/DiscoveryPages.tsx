@@ -228,6 +228,7 @@ export function IndustryPage() {
       rankIndustryProducts(getAllProducts(), industry, 6),
     [industry, tick],
   );
+  const partArtwork = INDUSTRY_PART_ARTWORK[industry.slug] || [];
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
     return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
   }
@@ -240,6 +241,19 @@ export function IndustryPage() {
           fetchPriority="high"
         />
         <div className="industry-hero-shade" />
+        <div className="industry-hero-media-index" aria-label="خلاصه مسیر این صنعت">
+          <span className="industry-hero-media-index-label">راهنمای تخصصی صنعت</span>
+          <div>
+            <strong>{industry.steps.length.toLocaleString("fa-IR")}</strong>
+            <small>ایستگاه خط تولید</small>
+          </div>
+          <i aria-hidden="true" />
+          <div>
+            <strong>{industry.parts.length.toLocaleString("fa-IR")}</strong>
+            <small>گروه قطعات مرتبط</small>
+          </div>
+          <p>{industry.parts.slice(0, 2).join("  /  ")}</p>
+        </div>
         <div className="editorial-wrap">
           <div className="industry-hero-copy">
             <nav className="editorial-crumb">
@@ -280,9 +294,10 @@ export function IndustryPage() {
           {industry.parts.map((p, i) => (
             <Link
               key={p}
+              className="industry-part-link"
               to={`/products?q=${encodeURIComponent(industry.terms[i])}`}
             >
-              <Layers size={22} />
+              <img src={partArtwork[i] || A.categories.transmission} alt="" loading="lazy" />
               <span>
                 {p}
                 <small>مشاهده خانواده‌ها و مشخصات</small>
@@ -363,25 +378,57 @@ export function IndustryPage() {
 export function IndustriesPage() {
   useEffect(() => title("صنایع تحت پوشش"), []);
   return (
-    <div className="editorial editorial-wrap">
+    <div className="editorial editorial-wrap industry-directory-page">
       <section className="directory-intro">
-        <span className="store-eyebrow">از صنعت شما شروع کنیم</span>
-        <h1>
-          هر خط تولید،
-          <br />
-          مسیر انتخاب خودش را دارد.
-        </h1>
-        <p>
-          کاربردها، گروه قطعات و اطلاعات لازم برای بررسی فنی هر صنعت را ببینید.
-        </p>
+        <div className="directory-intro-copy">
+          <span className="store-eyebrow">راهنمای تخصصی صنایع</span>
+          <h1>
+            هر خط تولید،
+            <br />
+            زبان فنی خودش را دارد.
+          </h1>
+          <p>
+            از شناخت فرایند تولید تا انتخاب گروه قطعه و بررسی مشخصات؛ مسیر هر صنعت را جداگانه و کاربردی دنبال کنید.
+          </p>
+          <div className="directory-intro-stats">
+            <div>
+              <strong>{INDUSTRIES.length.toLocaleString("fa-IR")}</strong>
+              <span>حوزه صنعتی</span>
+            </div>
+            <i aria-hidden="true" />
+            <div>
+              <strong>{INDUSTRIES.reduce((total, item) => total + item.steps.length, 0).toLocaleString("fa-IR")}</strong>
+              <span>ایستگاه راهنمای تولید</span>
+            </div>
+          </div>
+          <Link to="/products" className="directory-intro-link">
+            ورود به کاتالوگ قطعات <ArrowLeft size={18} />
+          </Link>
+        </div>
+        <div className="directory-intro-visual">
+          <img src={A.refineryDuskWide} alt="نمای صنعتی از زیرساخت و خطوط تولید" fetchPriority="high" />
+          <div className="directory-intro-visual-caption">
+            <span>صنعت پیش</span>
+            <strong>از کاربرد تا قطعه</strong>
+          </div>
+        </div>
       </section>
       <div className="industry-directory">
         {INDUSTRIES.map((i) => (
-          <Link to={`/industries/${i.slug}`} key={i.slug}>
-            <img src={i.image} alt={`صنعت ${i.title}`} loading="lazy" />
-            <div>
+          <Link
+            to={`/industries/${i.slug}`}
+            key={i.slug}
+            className={`industry-directory-card industry-directory-card--${i.slug}`}
+          >
+            <img src={i.image} alt={`خط تولید صنعت ${i.title}`} loading="lazy" />
+            <div className="industry-directory-overlay">
               <span>{i.eyebrow}</span>
               <h2>{i.title}</h2>
+              <p>{i.description}</p>
+              <div className="industry-directory-meta">
+                <small>{i.steps.length.toLocaleString("fa-IR")} ایستگاه تولید</small>
+                <small>{i.parts.length.toLocaleString("fa-IR")} گروه قطعه</small>
+              </div>
               <ArrowUpLeft size={22} />
             </div>
           </Link>
