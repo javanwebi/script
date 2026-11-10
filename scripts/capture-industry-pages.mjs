@@ -67,12 +67,17 @@ try {
       }
       await page.evaluate(async () => {
         if (document.fonts?.ready) await document.fonts.ready;
+        const images = Array.from(document.images);
+        images.forEach((img) => { img.loading = 'eager'; });
+        await Promise.all(images.map((img) => img.decode().catch(() => undefined)));
       });
       await page.waitForTimeout(expectedSectionVisible ? 900 : 1800);
       const file = `${output}/${target.slug}-${device.name}.png`;
       await page.screenshot({
         path: file,
-        fullPage: true,
+        // A phone screenshot should show the real viewport, including the fixed
+        // bottom navigation in its correct position. Desktop captures the full page.
+        fullPage: !device.isMobile,
         animations: 'disabled',
         caret: 'hide',
       });
