@@ -5,6 +5,10 @@ on:
     paths:
       - "src/components/storefront/HomeOverview.tsx"
       - "src/pages/HomePage.tsx"
+      - "src/pages/DiscoveryPages.tsx"
+      - "src/pages/TextileIndustryPage.tsx"
+      - "src/textile-industry.css"
+      - "tests/industry-pages-unique-layouts.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main]
@@ -36,6 +40,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript
         run: npm run lint
+      - name: Industry page regression suite
+        run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
