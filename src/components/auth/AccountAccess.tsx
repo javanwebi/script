@@ -55,7 +55,22 @@ export function AccountAccess({
       try {
         sessionStorage.removeItem("sanat_access_destination");
       } catch {}
-      navigate(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : destination.startsWith(root + "/product/") ? destination : root);
+      // Explicit returnTo from the login/register page takes precedence.
+      // Modal entry points (cart, checkout and SKU details) are also preserved.
+      // Never navigate to a user-supplied external URL or an admin route.
+      const safeLocal = (value: string) =>
+        value.startsWith("/") && !value.startsWith("//") &&
+        !value.includes("\\") && !/[\r\n]/.test(value);
+      const requested = (returnTo && safeLocal(returnTo)) ? returnTo : destination;
+      const productRoute = /^\/(?:account|consumer-dashboard)\/product\/([^/?#]+)(?:\?.*)?$/.exec(requested);
+      const next = productRoute
+        ? root + "/product/" + productRoute[1]
+        : safeLocal(requested) && /^(?:\/cart(?:[/?#]|$)|\/checkout(?:[/?#]|$))/.test(requested)
+          ? requested
+          : returnTo && safeLocal(returnTo) && !/^\/admin(?:[/?#]|$)/.test(returnTo)
+            ? returnTo
+            : root;
+      navigate(next);
     } else navigate("/onboarding");
   };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -214,9 +229,9 @@ export function AccountAccess({
             <SanatPishLogo className="w-full h-full object-contain" alt="لوگوی صنعت پیش" />
           </span>
           <h2>
-            از انتخاب هوشمند
+            {mode === "register" ? "از اولین استعلام" : "خوش آمدید به صنعت پیش"}
             <br />
-            تا خرید مطمئن.
+            {mode === "register" ? "تا تأمین مطمئن قطعات" : "از جست‌وجو تا خرید مطمئن"}
           </h2>
           <ul>
             {[
