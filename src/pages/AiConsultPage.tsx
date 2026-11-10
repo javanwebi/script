@@ -285,6 +285,30 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     setActiveWorkspaceTab('chat');
   }, [entryParams]);
 
+  // Read the catalog's real reference image and SKU size when a product detail
+  // page opens the desk. Images are display references, never proof of SKU identity.
+  useEffect(() => {
+    const code = entryParams.get('productCode')?.trim();
+    if (!code) return;
+    const controller = new AbortController();
+    void fetch(apiUrl('/api/ai/catalog-search?q=' + encodeURIComponent(code)), {
+      signal: controller.signal,
+      credentials: 'same-origin',
+    }).then(response => response.ok ? response.json() : null).then(payload => {
+      if (controller.signal.aborted || !Array.isArray(payload?.results)) return;
+      const family = payload.results.find((item: WorkspaceCatalogResult) =>
+        item.code === code || item.variants?.some(variant => variant.code === code)
+      ) as WorkspaceCatalogResult | undefined;
+      if (!family) return;
+      const variant = family.variants?.find(item => item.code === code);
+      const image = typeof family.images?.[0] === 'string' ? family.images[0] : undefined;
+      setSelectedConsultProducts(current => current.map(item => item.code === code
+        ? { ...item, size: variant?.size || item.size, image, link: family.link }
+        : item));
+    }).catch(() => { /* Search results remain optional during a catalog outage. */ });
+    return () => controller.abort();
+  }, [entryParams]);
+
   // Load Sessions from LocalStorage
   useEffect(() => {
     const loadSessionsFromStorage = () => {
