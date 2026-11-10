@@ -253,7 +253,7 @@ export function canReadCustomerCommerce(user?: Row): boolean {
 
 /** Authenticated customers may request a quote even when quick ordering is disabled. */
 export function canSubmitCustomerInquiry(user?: Row): boolean {
-  return Boolean(user && user.mustChangePassword !== true);
+  return Boolean(user && user.mustChangePassword !== true && user.onboardingCompleted === true);
 }
 function scopedState(db: Database, user: Row) {
   const result: Record<string, any> = { [CUSTOMER_KEY]: [safeUser(user)] };
