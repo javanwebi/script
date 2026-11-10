@@ -23,6 +23,9 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(discovery,/export function AboutPage/);
   assert.match(discovery,/sp-about-approved/);
   assert.match(discovery,/sp-about-hero/);
+  assert.match(discovery,/src=\{A\.partsWarehouseVault\}/);
+  assert.match(discovery,/image: A\.whySanatExpressDelivery/);
+  assert.match(discovery,/image: A\.reverseEngineeringLab/);
   assert.match(discovery,/بازار تخصصی/);
   assert.match(discovery,/year: "۱۳۸۴"/);
   assert.match(discovery,/year: "۱۳۹۰"/);
