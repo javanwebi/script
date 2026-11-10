@@ -17,7 +17,7 @@ on:
       - "tests/industry-pages-unique-layouts.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
-    branches: [main]
+    branches: [main, design/industrial-premium-pages]
     paths:
       - "src/**"
       - "server.ts"
