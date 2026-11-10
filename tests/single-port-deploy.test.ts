@@ -66,14 +66,14 @@ test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", 
 });
 
 test("read-only SPA guard validation scans the complete root block without weakening the guard", () => {
-  assert.match(one, /def nginx_block_at\\(/);
-  assert.match(one, /def nginx_depth_before\\(/);
-  assert.match(one, /def require_read_only_spa_guard\\(/);
-  assert.match(one, /set\\(methods\\) not in \\(\\{\\"GET\\"\\},\\{\\"GET\\",\\"HEAD\\"\\}\\)/);
-  assert.match(one, /deny\\s\+all/);
-  assert.match(one, /root_block=nginx_block_at\\(source,roots\\[0\\]\\.end\\(\\)-1\\)/);
-  assert.match(one, /READ_ONLY_SPA_GUARD_OK/);
-  assert.doesNotMatch(one, /roots\\[0\\]\\.start\\(\\)\\+700/);
+  assert.ok(one.includes("def nginx_block_at(text, opening_brace):"));
+  assert.ok(one.includes("def nginx_depth_before(text, stop):"));
+  assert.ok(one.includes("def require_read_only_spa_guard(root_block, filename):"));
+  assert.ok(one.includes('set(methods) not in ({"GET"},{"GET","HEAD"})'));
+  assert.ok(one.includes("deny[ \\t]+all"));
+  assert.ok(one.includes("root_block=nginx_block_at(source,roots[0].end()-1)"));
+  assert.ok(one.includes("READ_ONLY_SPA_GUARD_OK"));
+  assert.equal(one.includes("roots[0].start()+700"), false);
 });
 
 test("AvalAI private config must be effective in canary before production promotion", () => {
