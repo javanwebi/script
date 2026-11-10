@@ -453,11 +453,11 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
             {/* Rightmost on Desktop / Bottom on Mobile: Solid Orange CTA Button */}
             <div className="order-2 lg:order-1 shrink-0">
               <Link
-                to={variant === 'about' ? '/contact' : '/about'}
+                to="/about"
                 className="w-full lg:w-auto h-9 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-xl bg-[#E06518] hover:bg-[#C95210] text-white font-bold text-[11px] sm:text-sm flex items-center justify-center gap-2 sm:gap-2.5 shadow-md shadow-orange-500/25 transition-all active:scale-95 whitespace-nowrap"
               >
                 <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                <span>{variant === 'about' ? 'ارتباط با تیم صنعت پیش' : 'درباره صنعت پیش بیشتر بدانید'}</span>
+                <span>درباره صنعت پیش بیشتر بدانید</span>
               </Link>
             </div>
 
