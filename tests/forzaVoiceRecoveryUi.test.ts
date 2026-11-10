@@ -118,3 +118,12 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
   assert.match(avatar,/last = performance\.now\(\)/);
   assert.match(avatar,/document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
 });
+
+
+test('server Diba STT verifies every captured speech turn before the model receives it',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current !== false/);
+  assert.match(ui,/transcribeOnly:true/);
+  assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
+  assert.match(ui,/setServerSttLabel\(info\.serverSttConfigured/);
+  assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
+});
