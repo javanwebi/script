@@ -1,6 +1,7 @@
 import {useEffect} from 'react';
 const warmForza=()=>Promise.all([
  import('../../pages/AiForzaPage'),
+ import('../forza/AiForzaCallExperience'),
  import('../forza/ParticleAvatar'),
 ]);
 const loaders:Record<string,()=>Promise<unknown>>={
