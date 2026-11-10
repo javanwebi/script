@@ -823,6 +823,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   ): ReturnType<typeof pricingCreditService.calculateInquiryPrice> => null;
 
   return (
+    <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
       fullScreen={fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
@@ -2539,5 +2540,25 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       )}
       </div>
     </Modal>
+    {customRequestOpen && customRequestDraft && (
+      <Suspense fallback={
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/65 p-4" role="status">
+          <div className="rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-700">در حال آماده‌سازی فرم درخواست ساخت...</div>
+        </div>
+      }>
+        <LazyCustomPartRequestModal
+          isOpen={customRequestOpen}
+          onClose={() => setCustomRequestOpen(false)}
+          initialPartName={customRequestDraft.partName}
+          initialPartType={customRequestDraft.partType}
+          initialDimensions={customRequestDraft.dimensions}
+          initialAlloyCondition=""
+          initialQuantity="1"
+          initialNotes={customRequestDraft.notes}
+          initialFile={customRequestDraft.file}
+        />
+      </Suspense>
+    )}
+    </>
   );
 };
