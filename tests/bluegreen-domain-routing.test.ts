@@ -50,8 +50,8 @@ test("customer-facing Nginx vhosts route API writes before the read-only SPA fal
   assert.match(singlePort, /CUSTOMER_HTTP_API_HTTPS_REDIRECT_READY/);
   assert.match(singlePort, /READ_ONLY_SPA_GUARD_NOT_PRESERVED/);
   assert.match(singlePort, /READ_ONLY_IP_PREVIEW_PRESERVED/);
-  assert.match(singlePort, /if index in \\(1,2\\)/);
-  assert.match(singlePort, /for host in \\(domain,'www\\.'\\+domain\\):/);
+  assert.match(singlePort, /if index in \(1,2\)/);
+  assert.match(singlePort, /for host in \(domain,'www\.'\+domain\):/);
   const routeSwitch = singlePort.indexOf("===== ONE FIXED PORT FOR ALL PUBLIC WEBSITE VHOSTS =====");
   const routeReady = singlePort.indexOf("CUSTOMER_HTTPS_API_PROXY_ROUTE_READY", routeSwitch);
   const nginxReload = singlePort.indexOf("systemctl reload nginx", routeSwitch);
@@ -71,7 +71,7 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
   assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(nginxHotfix, /proxy_request_buffering off/);
-  assert.match(nginxHotfix, /for host in \(domain,"www\."\+domain\):/);
+  assert.match(nginxHotfix, /for host in sanatpish\.com www\.sanatpish\.com/);
   assert.doesNotMatch(nginxHotfix, /docker (?:stop|rm|restart)|DROP TABLE|TRUNCATE TABLE/i);
 });
 
