@@ -301,6 +301,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
+        if(!vadRef.current.heardSpeech &&
+           (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
+          console.info('[FORZA_STT] source=diba rejected=below_near_field_vad');
+          return;
+        }
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
           if(!vadRef.current.heardSpeech)return;
           if(likelySpeakerEcho(transcript)){
@@ -436,7 +441,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(samples);
         const rms=rootMeanSquareFromTimeDomain(samples);
-        const current=vadRef.current.sample(rms,Date.now());
+        const micNow=Date.now();
+        const current=vadRef.current.sample(rms,micNow);
+        // Keep the last near-field VAD timestamp briefly so delayed final STT
+        // events survive endpoint reset, while distant/background speech is rejected.
+        if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
         setAudioLevel(current.level);
         if(current.speechStarted){
           hasSpeechSoundRef.current=true;
@@ -1674,6 +1683,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ' interim='+Number(recognized.hasInterim));
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
+        if(!vadRef.current.heardSpeech &&
+           (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
+          console.info('[FORZA_STT] source=browser rejected=below_near_field_vad');
+          return;
+        }
         recognitionRetryRef.current=0;
         recognitionFailedRef.current=false;
         webSpeechFailedRef.current=false;
@@ -1835,7 +1849,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // suspend it until a user gesture and otherwise block mic acquisition.
       const ctx=ensureCtx();
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
-        echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1,
+        echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
       }});
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
         stream.getTracks().forEach(track=>track.stop());
