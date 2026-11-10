@@ -725,8 +725,16 @@
   background: #fff;
   box-shadow: 0 2px 12px rgba(20,35,47,.07);
 }
-.storefront-about-concept > header > div:nth-child(2) {
+.storefront-about-concept > header > div:nth-child(n+2) {
   background: #fff !important;
+  border-color: #e1e5e7 !important;
+  color: #273640 !important;
+}
+.storefront-about-concept > header > div:nth-child(n+2) [class*="text-white"],
+.storefront-about-concept > header > div:nth-child(n+2) [class*="text-slate-"] {
+  color: #34434e !important;
+}
+.storefront-about-concept > header > div:nth-child(n+2) [class*="border-slate-"] {
   border-color: #e1e5e7 !important;
 }
 .storefront-about-concept > header [class*="bg-[#DEE2E5]"] {
