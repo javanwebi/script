@@ -6,6 +6,7 @@ import test from "node:test";
 const script = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-main-bluegreen-vps.sh"), "utf8");
 const singlePort = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-single-port-vps.sh"), "utf8");
 const nginxHotfix = fs.readFileSync(path.resolve(process.cwd(), "ops/fix-nginx-api-write-routing-vps.sh"), "utf8");
+const activeVhostDiagnostic = fs.readFileSync(path.resolve(process.cwd(), "ops/diagnose-nginx-active-domain-vhost-vps.sh"), "utf8");
 
 test("all three vhosts participate in the safe blue/green switch", () => {
   assert.match(script, /CONF_DOMAIN="\$\(readlink -f \/etc\/nginx\/sites-enabled\/sanatpish-domain-20261103\.conf\)"/);
@@ -61,4 +62,14 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /proxy_request_buffering off/);
   assert.match(nginxHotfix, /for host in \(domain,"www\."\+domain\):/);
   assert.doesNotMatch(nginxHotfix, /docker (?:stop|rm|restart)|DROP TABLE|TRUNCATE TABLE/i);
+});
+
+test("active HTTPS vhost diagnostic inspects the loaded Nginx configuration without changing it", () => {
+  assert.match(activeVhostDiagnostic, /nginx -T/);
+  assert.match(activeVhostDiagnostic, /EXACT_DOMAIN_SERVER_BLOCKS/);
+  assert.match(activeVhostDiagnostic, /ACTIVE_HTTPS_APP_PORTS/);
+  assert.match(activeVhostDiagnostic, /PUBLIC_HOST=/);
+  assert.match(activeVhostDiagnostic, /DIRECT_APP_PORT=/);
+  assert.match(activeVhostDiagnostic, /NGINX_ACTIVE_VHOST_DIAGNOSTIC_COMPLETE/);
+  assert.doesNotMatch(activeVhostDiagnostic, /systemctl reload nginx|systemctl restart nginx|Path\([^)]*\)\.write_text|cp -p .*\/etc\/nginx/i);
 });
