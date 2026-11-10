@@ -6,7 +6,7 @@ import {findImageRegionAtPoint,tapImageRegion} from '../../utils/imageRegionInte
 function sameRegion(a?:ImageRegion,b?:ImageRegion){
  return !!a&&!!b&&Math.abs(a.x-b.x)<0.002&&Math.abs(a.y-b.y)<0.002&&Math.abs(a.width-b.width)<0.002&&Math.abs(a.height-b.height)<0.002;
 }
-function toPersianNumber(value:number){return String(value).replace(/\\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);}
+function toPersianNumber(value:number){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);}
 
 type ImagePoint={x:number;y:number};
 interface Props {
