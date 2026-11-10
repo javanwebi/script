@@ -3,6 +3,7 @@
 @import "./engineering.css";
 @import "./homepage-refinement.css";
 @import "./reference-menu.css";
+@import "./catalogue-premium.css";
 
 @font-face {font-family: "Vazirmatn";src: url("./assets/fonts/Vazirmatn-variable.woff2") format("woff2");font-weight: 100 900;font-style: normal;font-display: swap;}
 
