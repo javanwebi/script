@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Heart, ArrowUpLeft, Layers } from "lucide-react";
 import type { Product } from "../../types";
 import { ProductImage } from "./ProductImage";
@@ -15,9 +15,13 @@ export interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { currentUser } = useAuth();
+  const location = useLocation();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const selected = isInWishlist(product.code);
-  const canViewPrices = hasCustomerPriceAccess(currentUser);
+  const canViewPrices =
+    hasCustomerPriceAccess(currentUser) &&
+    (location.pathname.startsWith("/account/") ||
+      location.pathname.startsWith("/consumer-dashboard/"));
   const hasVariants = Boolean(product.variants?.length);
   const price = !hasVariants
     ? getCurrentCustomerSkuPrice(product, currentUser, canViewPrices)
