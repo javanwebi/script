@@ -608,6 +608,29 @@ for i in range(10):
 else:raise AssertionError('HTTPS_BUILD_MISMATCH')
 health=json.loads(get('/api/health'))
 assert health.get('status')=='ok' and health.get('database')=='ok'
+# A GET-only Nginx location can serve the homepage and health endpoint while
+# silently blocking CRM/catalogue writes with an HTML 403. Probe protected
+# POST routes through the actual local HTTPS vhost before marking release good.
+# No session cookie is sent; these handlers must reject anonymously with JSON.
+def post_json(path):
+ cmd=['curl','--noproxy','*','-ksS','--connect-timeout','3','--max-time','15',
+      '--resolve',f'{domain}:443:127.0.0.1',
+      '-H','Accept: application/json','-H','Content-Type: application/json',
+      '-X','POST','--data','{}','-w','\\n__META__%{http_code}|%{content_type}',
+      f'https://{domain}{path}']
+ result=subprocess.run(cmd,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+ raw=result.stdout
+ if b'\n__META__' not in raw:
+  raise AssertionError('PUBLIC_POST_API_MISSING_HTTP_METADATA '+path)
+ body,meta=raw.rsplit(b'\n__META__',1)
+ status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
+ assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',path,status,content_type)
+ assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',path,status,content_type)
+ payload=json.loads(body)
+ assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',path)
+ print('PUBLIC_POST_API_JSON_GUARD_OK',path,'HTTP',status)
+for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
+ post_json(path)
 # SPA fallback returns index.html with HTTP 200 for unknown API routes.
 # Treat that as a deployment failure; Nginx rollback stays armed.
 stt_raw=get('/api/ai/forza-stt-info')
