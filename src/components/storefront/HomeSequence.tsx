@@ -38,6 +38,16 @@ const groupNumber = (id:string) => Number(/^excel-v2-([0-9]+)$/.exec(id)?.[1] ||
 export function HomeCategoryStrip() {
   const [groups,setGroups]=React.useState<ApprovedMenuGroup[]>(()=>displayedGroups([...APPROVED_MENU_GROUPS]));
   const [categories,setCategories]=React.useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
+  const [showSwipeHint,setShowSwipeHint]=React.useState(()=>{
+    try { return window.sessionStorage.getItem("sanat_home_categories_swipe_seen") !== "1"; }
+    catch { return true; }
+  });
+  const handleCategoryScroll=(event:React.UIEvent<HTMLDivElement>)=>{
+    const element=event.currentTarget;
+    if(!showSwipeHint || element.scrollWidth<=element.clientWidth+20 || Math.abs(element.scrollLeft)<=8)return;
+    setShowSwipeHint(false);
+    try { window.sessionStorage.setItem("sanat_home_categories_swipe_seen","1"); } catch {}
+  };
   React.useEffect(()=>{
     let alive=true;
     // Reuse fast prefetch for any assigned category artwork, without altering group titles.
@@ -65,7 +75,7 @@ export function HomeCategoryStrip() {
   const categoryBySlug=React.useMemo(()=>new Map(categories.map(category=>[category.slug,category])),[categories]);
   return (
     <section id="home-categories" className="home-category-strip" aria-label="گروه‌های اصلی دسته‌بندی محصولات">
-      <div className="home-category-track">
+      <div className="home-category-track" onScroll={handleCategoryScroll}>
         <Link className="home-category-all" to="/categories">
           <Layers size={24}/>
           <strong>دسته‌بندی<br/>محصولات</strong>
@@ -91,6 +101,12 @@ export function HomeCategoryStrip() {
           );
         })}
       </div>
+      {showSwipeHint && (
+        <div className="home-mobile-swipe-hint" aria-hidden="true">
+          <span>برای دیدن دسته‌های بیشتر، به چپ بکشید</span>
+          <ArrowLeft size={14} />
+        </div>
+      )}
     </section>
   );
 }
