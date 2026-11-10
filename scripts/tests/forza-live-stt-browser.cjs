@@ -26,8 +26,9 @@ function wav(){
     // Keep the mic VAD above the near-field threshold so mocked WebSpeech
     // partials model a real nearby speaker rather than a silent fake device.
     const analyser=window.AnalyserNode?.prototype;
-    if(analyser?.getFloatTimeDomainData){
-      analyser.getFloatTimeDomainData=function(samples){samples.fill(0.02);};
+    if(analyser?.getByteTimeDomainData){
+      // Uint8 PCM is centered at 128; 132 yields a stable near-field RMS.
+      analyser.getByteTimeDomainData=function(samples){samples.fill(132);};
     }
     class FakePersianRecognition{
       start(){window.__forzaRecognitionStarts=(window.__forzaRecognitionStarts||0)+1;window.__forzaMockRecognition=this;this.onstart?.();}
