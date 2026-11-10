@@ -5,6 +5,7 @@ import test from "node:test";
 
 const script = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-main-bluegreen-vps.sh"), "utf8");
 const singlePort = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-single-port-vps.sh"), "utf8");
+const nginxHotfix = fs.readFileSync(path.resolve(process.cwd(), "ops/fix-nginx-api-write-routing-vps.sh"), "utf8");
 
 test("all three vhosts participate in the safe blue/green switch", () => {
   assert.match(script, /CONF_DOMAIN="\$\(readlink -f \/etc\/nginx\/sites-enabled\/sanatpish-domain-20261103\.conf\)"/);
@@ -34,4 +35,27 @@ test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSO
   assert.match(singlePort, /\/api\/catalog\/sku-transfer/);
   assert.match(singlePort, /application\/json/);
   assert.ok(singlePort.indexOf("PUBLIC_POST_API_JSON_GUARD_OK") < singlePort.indexOf("SUCCESS=1"));
+});
+
+test("customer-facing Nginx vhosts route API writes before the read-only SPA fallback", () => {
+  assert.match(singlePort, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(singlePort, /location \^~ \/api\//);
+  assert.match(singlePort, /limit_except GET HEAD POST PUT PATCH DELETE OPTIONS/);
+  assert.match(singlePort, /SCOPED_API_WRITE_ROUTE_READY/);
+  assert.match(singlePort, /READ_ONLY_SPA_GUARD_NOT_PRESERVED/);
+  assert.match(singlePort, /READ_ONLY_IP_PREVIEW_PRESERVED/);
+  assert.match(singlePort, /if index in \(1,2\)/);
+  assert.match(singlePort, /www\.'\+domain/);
+  assert.ok(singlePort.indexOf("SCOPED_API_WRITE_ROUTE_READY") < singlePort.indexOf("systemctl reload nginx"));
+});
+
+test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
+  assert.match(nginxHotfix, /SANATPISH_API_WRITE_ROUTE_V1/);
+  assert.match(nginxHotfix, /CUSTOMER_API_WRITE_ROUTE_READY/);
+  assert.match(nginxHotfix, /NGINX_API_ROUTE_ROLLBACK_OK/);
+  assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
+  assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
+  assert.match(nginxHotfix, /proxy_request_buffering off/);
+  assert.match(nginxHotfix, /www\.\+domain/);
+  assert.doesNotMatch(nginxHotfix, /docker (?:stop|rm|restart)|DROP TABLE|TRUNCATE TABLE/i);
 });
