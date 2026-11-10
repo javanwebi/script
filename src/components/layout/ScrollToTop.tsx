@@ -28,7 +28,7 @@ function readScrollStore(): Record<string, SavedScrollEntry> {
 // Updating memory is synchronous so back navigation never waits for storage.
 // Persist in a single deferred write instead of serializing/sorting sessionStorage
 // for every scroll tick AND both pointerdown/click on low-end phones.
-let scrollStoreFlushTimer: number | null = null;
+let scrollStoreFlushTimer: ReturnType<typeof setTimeout> | null = null;
 function flushScrollStore(): void {
   if (typeof window === 'undefined') return;
   if (scrollStoreFlushTimer !== null) {
