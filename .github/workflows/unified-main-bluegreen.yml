@@ -31,10 +31,11 @@ jobs:
           bash -n ops/deploy-main-bluegreen-vps.sh
           bash -n ops/deploy-single-port-vps.sh
           bash -n ops/fix-nginx-api-write-routing-vps.sh
+          bash -n ops/diagnose-nginx-active-domain-vhost-vps.sh
           python3 - <<'PY'
           import ast,re
           from pathlib import Path
-          for filename in ('ops/deploy-single-port-vps.sh','ops/fix-nginx-api-write-routing-vps.sh'):
+          for filename in ('ops/deploy-single-port-vps.sh','ops/fix-nginx-api-write-routing-vps.sh','ops/diagnose-nginx-active-domain-vhost-vps.sh'):
               source=Path(filename).read_text()
               blocks=re.findall(r"<<'PY'\s*\n(.*?)\nPY",source,re.S)
               assert blocks,('NO_PYTHON_HEREDOC',filename)
