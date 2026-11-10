@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Wrench,
   Upload,
@@ -20,11 +20,25 @@ import { useAuth } from '../../context/AuthContext';
 interface CustomPartRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialPartName?: string;
+  initialPartType?: string;
+  initialDimensions?: string;
+  initialAlloyCondition?: string;
+  initialQuantity?: string;
+  initialNotes?: string;
+  initialFile?: File | null;
 }
 
 export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
   isOpen,
   onClose,
+  initialPartName,
+  initialPartType,
+  initialDimensions,
+  initialAlloyCondition,
+  initialQuantity,
+  initialNotes,
+  initialFile,
 }) => {
   const { currentUser } = useAuth();
 
@@ -46,6 +60,35 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPartName(initialPartName || '');
+    setPartType(initialPartType || 'پولی و بوش تاپیر');
+    setDimensions(initialDimensions || '');
+    setAlloyCondition(initialAlloyCondition || '');
+    setQuantity(initialQuantity || '1');
+    setCompanyName(currentUser?.companyName || '');
+    setContactName(currentUser?.name || '');
+    setPhoneNumber(currentUser?.phone || '');
+    setNotes(initialNotes || '');
+    setSelectedFile(initialFile || null);
+    setFileName(initialFile?.name || null);
+    setErrorMessage('');
+    setTrackingCode(null);
+    setCopied(false);
+    setFilePreview(null);
+    if (!initialFile || !initialFile.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => setFilePreview(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => setFilePreview(null);
+    reader.readAsDataURL(initialFile);
+    return () => reader.abort();
+  }, [
+    isOpen, initialPartName, initialPartType, initialDimensions,
+    initialAlloyCondition, initialQuantity, initialNotes, initialFile,
+    currentUser?.companyName, currentUser?.name, currentUser?.phone,
+  ]);
 
   if (!isOpen) return null;
 
