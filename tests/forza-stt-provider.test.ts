@@ -92,6 +92,9 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(runtime,/COPY --from=python-runtime \/usr\/local\/ \/usr\/local\//);
   assert.match(runtime,/COPY --from=ffmpeg-runtime \/ffmpeg \/usr\/local\/bin\/ffmpeg/);
   assert.doesNotMatch(runtime,/(?:RUN|&&|;)\s*apt-get\b/);
+  assert.match(runtime,/RUN --mount=type=cache,target=\/root\/\.cache\/pip/);
+  assert.doesNotMatch(runtime,/--no-cache-dir/);
+  assert.match(runtime,/\/opt\/forza-pocket\/bin\/python -m pip --isolated check/);
   assert.match(runtime,/pip --isolated install/);
   assert.match(runtime,/--timeout 12 --retries 1 --prefer-binary/);
   assert.ok(runtime.includes('https://mirrors.aliyun.com/pypi/simple'));

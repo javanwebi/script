@@ -16,8 +16,11 @@ COPY --from=ffmpeg-runtime /ffprobe /usr/local/bin/ffprobe
 # Production runs the website with node --import tsx, and the same container
 # starts an isolated Python/Vosk worker that decodes audio via FFmpeg.
 # A restricted VPS can reach Docker Hub but time out against PyPI itself.
-# Try independent trusted HTTPS mirrors with bounded retry instead of mixing indexes.
-RUN set -eux; \
+# Try independent HTTPS mirrors with bounded retry instead of mixing indexes.
+# A BuildKit wheel cache survives subsequent image attempts, without storing
+# any customer microphone audio, session state or credentials.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eux; \
     node --version; \
     python3 --version; \
     ffmpeg -version >/dev/null; \
@@ -31,7 +34,7 @@ RUN set -eux; \
       echo "DIBA_PIP_INDEX_TRY=$index"; \
       if timeout --signal=TERM --kill-after=5s 105s \
         /opt/forza-pocket/bin/pip --isolated install \
-          --no-cache-dir --disable-pip-version-check \
+          --disable-pip-version-check \
           --timeout 12 --retries 1 --prefer-binary \
           --index-url "$index" vosk==0.3.45; then \
         installed=1; \
@@ -41,6 +44,7 @@ RUN set -eux; \
       echo "DIBA_PIP_INDEX_FAILED=$index"; \
     done; \
     test "$installed" -eq 1; \
+    /opt/forza-pocket/bin/python -m pip --isolated check; \
     /opt/forza-pocket/bin/python -c 'import vosk, cffi'
 
 # Pinned Diba Persian small model; downloaded only into the private image,
