@@ -430,7 +430,7 @@
 .sp-about-capabilities__backdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(14,29,41,.9), rgba(14,29,41,.68)), url("/images/about/refinery-dusk-background.webp") center/cover no-repeat;
+  background: linear-gradient(90deg, rgba(14,29,41,.9), rgba(14,29,41,.68)), url("../assets/images/mobile/refinery_dusk_wide_1790695808002.webp") center/cover no-repeat;
   opacity: .95;
 }
 .sp-about-section-heading {
