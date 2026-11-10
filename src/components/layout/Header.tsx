@@ -742,7 +742,7 @@ export const Header: React.FC = () => {
                 <Link to="/contact" className="textile-reference-nav-link">تماس با ما</Link>
               </>
             ) : (
-            
+              <>
             {/* 1. همه محصولات (Orange LayoutGrid icon + Down Chevron) */}
             <div
               className="relative"
@@ -954,6 +954,7 @@ export const Header: React.FC = () => {
               <span>دانشنامه</span>
             </Link>
 
+              </>
             )}
           </nav>
 
