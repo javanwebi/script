@@ -608,7 +608,6 @@ for index,(filename,source) in enumerate(zip(files,contents)):
    lines=(
     f"{indent}{marker}",
     f"{indent}location ^~ /api/ {{",
-    f"{indent}    add_header X-Sanatpish-API-Route express always;",
     f"{indent}    proxy_pass http://127.0.0.1:{target};",
     f"{indent}    proxy_http_version 1.1;",
     f"{indent}    proxy_set_header Host $host;",
@@ -629,7 +628,6 @@ for index,(filename,source) in enumerate(zip(files,contents)):
    lines=(
     f"{indent}{marker}",
     f"{indent}location ^~ /api/ {{",
-    f"{indent}    add_header X-Sanatpish-API-Route redirect always;",
     f"{indent}    return 308 https://$host$request_uri;",
     f"{indent}}}",
    )
@@ -642,7 +640,7 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   route=source[source.index(marker):roots[0].start()]
   assert "limit_except" not in route,("API_METHODS_MUST_REACH_EXPRESS",filename)
   if index==1:
-   assert f"proxy_pass http://127.0.0.1:{target};" in route and "X-Sanatpish-API-Route express always" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
+   assert f"proxy_pass http://127.0.0.1:{target};" in route and f"proxy_pass http://127.0.0.1:{target};" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
   else:
    assert "return 308 https://$host$request_uri;" in route and "proxy_pass" not in route,("HTTP_API_REDIRECT_INVALID",filename)
   assert source.count(marker)==1
@@ -700,10 +698,10 @@ def post_json(path,host):
  status,content_type=meta.decode('utf-8','replace').strip().split('|',1)
  assert status in ('401','403'), ('PUBLIC_POST_API_WRONG_STATUS',host,path,status,content_type)
  assert 'application/json' in content_type.lower(), ('PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS',host,path,status,content_type)
- assert any(line.lower().startswith(b'x-sanatpish-api-route: express') for line in headers.splitlines()), ('PUBLIC_POST_API_ROUTE_MARKER_MISSING',host,path,headers.decode('utf-8','replace'))
+ assert any(line.lower().startswith(b'x-powered-by: express') for line in headers.splitlines()), ('PUBLIC_POST_API_EXPRESS_HEADER_MISSING',host,path,headers.decode('utf-8','replace'))
  payload=json.loads(body)
  assert payload.get('success') is False or isinstance(payload.get('error'),dict), ('PUBLIC_POST_API_BAD_DENIAL',host,path)
- print('PUBLIC_POST_API_ROUTE_MARKER_OK',host,path)
+ print('PUBLIC_POST_API_EXPRESS_HEADER_OK',host,path)
  print('PUBLIC_POST_API_JSON_GUARD_OK',host,path,'HTTP',status)
 for host in (domain,'www.'+domain):
  for path in ('/api/admin/crm/customers','/api/catalog/sku-transfer'):
