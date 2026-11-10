@@ -52,6 +52,8 @@ jobs:
         run: npm run lint
       - name: Official website and FORZA logo placement tests
         run: node --import tsx --test tests/official-brand-logo-placement.test.ts
+      - name: Company pages and customer price visibility regression tests
+        run: node --import tsx --test tests/phase9-about-vision-design.test.tsx tests/customer-pricing-visibility.test.ts
       - name: Reference parity source tests
         run: node --import tsx --test tests/consumer-reference-parity-v3.test.ts
       - name: Retail catalog correctness and render performance
