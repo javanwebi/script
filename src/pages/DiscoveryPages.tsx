@@ -22,9 +22,7 @@ import {
   ChevronRight,
   Download,
   Boxes,
-  Cpu,
   Headphones,
-  ShieldCheck,
   Wrench,
   Package,
 } from "lucide-react";
