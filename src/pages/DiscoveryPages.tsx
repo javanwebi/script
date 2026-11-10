@@ -1010,7 +1010,7 @@ export function AboutPage() {
   ];
 
   return (
-    <main className="company-page sp-about-approved" dir="rtl" data-testid="approved-about-page">
+    <main className="company-page company-page--about sp-about-approved" dir="rtl" data-testid="approved-about-page">
       <section className="sp-about-hero" aria-labelledby="sp-about-title">
         <div className="sp-about-hero-copy">
           <div className="sp-about-breadcrumb">
