@@ -608,6 +608,13 @@ for index,(filename,source) in enumerate(zip(files,contents)):
    lines=(
     f"{indent}{marker}",
     f"{indent}location ^~ /api/ {{",
+    f"{indent}    # Preserve Express JSON 401/403 responses instead of Nginx HTML error pages.",
+    f"{indent}    proxy_intercept_errors off;",
+    f"{indent}    proxy_pass_header X-Powered-By;",
+    f"{indent}    satisfy any;",
+    f"{indent}    allow all;",
+    f"{indent}    auth_basic off;",
+    f"{indent}    auth_request off;",
     f"{indent}    proxy_pass http://127.0.0.1:{target};",
     f"{indent}    proxy_http_version 1.1;",
     f"{indent}    proxy_set_header Host $host;",
