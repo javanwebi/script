@@ -80,7 +80,13 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(runtime,/vosk==0\.3\.45/);
   assert.match(runtime,/Dibachain\/Diba-STT/);
   assert.match(runtime,/FORZA_STT_PROVIDER=diba/);
-  assert.match(deploy,/docker build -t "\$STT_IMAGE"/);
+  assert.match(deploy,/docker build --progress=plain -t "\$STT_IMAGE"/);
+  assert.match(deploy,/docker build --progress=plain --network=host -t "\$STT_IMAGE"/);
+  assert.match(deploy,/STT_RUNTIME_KEY=.*sha256sum/);
+  assert.match(deploy,/docker image inspect "\$STT_IMAGE"/);
+  assert.match(deploy,/command -v ffmpeg/);
+  assert.match(deploy,/test -d \/opt\/diba-stt\/model\/am/);
+  assert.match(runtime,/timeout --signal=TERM --kill-after=5s 105s apt-get/);
   assert.match(deploy,/"\$STT_IMAGE" node --import tsx server\.ts/);
   assert.doesNotMatch(deploy,/node:22-bookworm node --import tsx server\.ts/);
   assert.match(deploy,/FORZA_STT_PROVIDER=diba/);
