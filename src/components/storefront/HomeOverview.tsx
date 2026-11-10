@@ -436,6 +436,7 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
         {/* ================================================================= */}
         {/* 4. BOTTOM FULL-WIDTH DARK GLASSMORPHIC STATS & CTA BAR            */}
         {/* ================================================================= */}
+        {variant === 'home' && (
         <div className="mt-5 sm:mt-12 relative rounded-xl sm:rounded-3xl overflow-hidden bg-[#35383E]/95 backdrop-blur-xl border border-white/15 shadow-xl text-white">
           {/* Glowing Factory Line Perspective Image on the Left Side of Bar */}
           <div className="absolute inset-y-0 left-0 w-full sm:w-2/5 z-0 pointer-events-none opacity-25 sm:opacity-65">
@@ -529,6 +530,7 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
           </div>
         </div>
       </div>
+        )}
 
       {/* ================================================================= */}
       {/* SHORT INTRO VIDEO / OVERVIEW MODAL                                */}
