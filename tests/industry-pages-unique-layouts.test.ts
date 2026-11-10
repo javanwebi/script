@@ -121,7 +121,8 @@ test('industrial hero copy is isolated into a left desktop column', () => {
   const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
   const premium = readFileSync(new URL('../src/industry-pages-premium.css', import.meta.url), 'utf8');
   assert.match(page, /className="industry-hero-copy"/);
-  assert.match(premium, /\.industry-page \.industry-hero \.industry-hero-copy\s*\{[\s\S]*?grid-column: 1/);
-  assert.match(premium, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(premium, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(premium, /\.industry-page \.industry-hero \.industry-hero-copy\s*\{[\s\S]*?position: absolute/);
+  assert.match(premium, /left: clamp\(16px, 3vw, 42px\)/);
+  assert.match(premium, /width: min\(42%, 590px\)/);
+  assert.match(premium, /position: static/);
 });
