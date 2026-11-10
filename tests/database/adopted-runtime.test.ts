@@ -3,7 +3,7 @@ import {adoptedDatabase} from './adopted.fixture';
 import {readAdoptedProducts,saveAdoptedProducts,readAdoptedDocument,writeAdoptedDocument,persistAdoptedUsers,adoptedUsers} from '../../server/db/adopted';
 import {createAdoptedOrder,adoptedOrders} from '../../server/db/adoptedCheckout';
 import type {SqlClient} from '../../server/db/connection';
-import {getPortalIdentity,canReadCustomerCommerce} from '../../api/portal';
+import {getPortalIdentity,canReadCustomerCommerce,canSubmitCustomerInquiry} from '../../api/portal';
 import type {IncomingMessage} from 'node:http';
 const id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 test('customer price visibility is independent from quick-order permissions and portal menus',()=>{
@@ -12,6 +12,10 @@ test('customer price visibility is independent from quick-order permissions and 
  assert.equal(canReadCustomerCommerce({canViewPrices:false,allowQuickSkuOrder:true}),false);
  assert.equal(canReadCustomerCommerce({canViewPrices:true,mustChangePassword:true}),false);
  assert.equal(canReadCustomerCommerce(undefined),false);
+ assert.equal(canSubmitCustomerInquiry({canViewPrices:true,allowQuickSkuOrder:false}),true);
+ assert.equal(canSubmitCustomerInquiry({canViewPrices:false,allowQuickSkuOrder:false}),true);
+ assert.equal(canSubmitCustomerInquiry({mustChangePassword:true}),false);
+ assert.equal(canSubmitCustomerInquiry(undefined),false);
 });
 
 test('anonymous database identity does not load private portal documents or authorize commerce',async()=>{const previous=process.env.DATA_BACKEND;try{process.env.DATA_BACKEND='postgres';assert.deepEqual(await getPortalIdentity({headers:{cookie:'sp_guest=untrusted'}} as IncomingMessage),{admin:false,user:undefined,canReadCommerce:false});}finally{if(previous===undefined)delete process.env.DATA_BACKEND;else process.env.DATA_BACKEND=previous;}});
