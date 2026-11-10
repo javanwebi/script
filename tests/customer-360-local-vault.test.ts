@@ -71,12 +71,12 @@ test('FORZA consultation supports exact catalogue SKU selection and product-page
   const page = read('src/pages/AiConsultPage.tsx');
   const detail = read('src/pages/ProductDetailPage.tsx');
   for (const required of ['onAddToConsultation', 'variant.code']) assert.ok(catalog.includes(required));
-  for (const required of ['selectedConsultProducts', 'productCodes: selectedConsultProducts.map', 'saveCustomerConsultation']) {
+  for (const required of ['selectedConsultProducts', 'productCodes: turnSelectedProducts.map', 'saveCustomerConsultation']) {
     assert.ok(page.includes(required));
   }
   assert.ok(page.includes('sessionMessages.slice(-32)'));
   assert.ok(page.includes('text: message.text.slice(0, 1800)'));
-  assert.ok(detail.includes('ai-consult?productCode='));
+  assert.ok(detail.includes('productCode: selectedVariant?.code || product.code'));
 });
 
 test('CRM exposes image history, FORZA consultations, purchase analytics and CRM-only follow-ups', () => {

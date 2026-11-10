@@ -1,5 +1,5 @@
 import {durableStorage} from "../services/durableStorage";
-import {WorkspaceCatalog} from '../components/search/WorkspaceCatalog';
+import {WorkspaceCatalog, type ConsultationCatalogProduct, type WorkspaceCatalogResult} from '../components/search/WorkspaceCatalog';
 import {MemberAccess,memberPath} from '../components/storefront/MemberAccess';
 import {useAuth} from '../context/AuthContext';
 import React, { lazy, Suspense, useState, useRef, useEffect } from 'react';
@@ -90,7 +90,7 @@ interface ChatSession {
   messages: Message[];
 }
 
-type ConsultationProduct = { code: string; name: string; size?: string };
+type ConsultationProduct = ConsultationCatalogProduct;
 
 const STORAGE_KEY = 'forza_industrial_chat_sessions_v2';
 const ACTIVE_SESSION_KEY = 'forza_active_session_id_v2';
@@ -229,7 +229,6 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
   const [isSavingCapturedImage, setIsSavingCapturedImage] = useState(false);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   const [selectedConsultProducts, setSelectedConsultProducts] = useState<ConsultationProduct[]>([]);
-  const [showProductPicker, setShowProductPicker] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -284,6 +283,30 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     const product = { code, name: name || code };
     setSelectedConsultProducts(current => current.some(item => item.code === code) ? current : [...current, product].slice(0, 20));
     setActiveWorkspaceTab('chat');
+  }, [entryParams]);
+
+  // Read the catalog's real reference image and SKU size when a product detail
+  // page opens the desk. Images are display references, never proof of SKU identity.
+  useEffect(() => {
+    const code = entryParams.get('productCode')?.trim();
+    if (!code) return;
+    const controller = new AbortController();
+    void fetch(apiUrl('/api/ai/catalog-search?q=' + encodeURIComponent(code)), {
+      signal: controller.signal,
+      credentials: 'same-origin',
+    }).then(response => response.ok ? response.json() : null).then(payload => {
+      if (controller.signal.aborted || !Array.isArray(payload?.results)) return;
+      const family = payload.results.find((item: WorkspaceCatalogResult) =>
+        item.code === code || item.variants?.some(variant => variant.code === code)
+      ) as WorkspaceCatalogResult | undefined;
+      if (!family) return;
+      const variant = family.variants?.find(item => item.code === code);
+      const image = typeof family.images?.[0] === 'string' ? family.images[0] : undefined;
+      setSelectedConsultProducts(current => current.map(item => item.code === code
+        ? { ...item, size: variant?.size || item.size, image, link: family.link }
+        : item));
+    }).catch(() => { /* Search results remain optional during a catalog outage. */ });
+    return () => controller.abort();
   }, [entryParams]);
 
   // Load Sessions from LocalStorage
@@ -620,6 +643,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     title: string,
     sessionMessages: Message[],
     summary: string,
+    productsForTurn: ConsultationProduct[] = selectedConsultProducts,
   ) => {
     if (!currentUser || !sessionId || !sessionMessages.length) return;
     void saveCustomerConsultation({
@@ -630,15 +654,27 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         role: message.sender === 'ai' ? 'assistant' : 'user',
         text: message.text.slice(0, 1800),
       })),
-      productCodes: selectedConsultProducts.map(product => product.code),
-      products: selectedConsultProducts.map(product => ({ code: product.code, name: product.name })),
+      productCodes: productsForTurn.map(product => product.code),
+      products: productsForTurn.map(product => ({ code: product.code, name: product.name })),
       summary,
     }).catch((error: unknown) => console.warn('[FORZA CRM session sync]', error instanceof Error ? error.message : 'unavailable'));
   };
 
-  const handleSend = async (queryText?: string) => {
+  const handleSend = async (queryText?: string, productForTurn?: ConsultationProduct) => {
     const textToSend = (queryText || inputQuery).trim();
     if (!textToSend) return;
+    // Product detail can initiate a turn before the selected-product effect renders.
+    const turnSelectedProducts: ConsultationProduct[] = [...selectedConsultProducts];
+    const isInitialProductTurn = Boolean(queryText && queryText === entryParams.get('q')?.slice(0, 1500));
+    const routeProductCode = isInitialProductTurn ? entryParams.get('productCode')?.trim() : undefined;
+    const routeProductName = isInitialProductTurn ? entryParams.get('productName')?.trim() : undefined;
+    if (routeProductCode && !turnSelectedProducts.some(item => item.code === routeProductCode)) {
+      turnSelectedProducts.push({code: routeProductCode, name: routeProductName || routeProductCode});
+    }
+    if (productForTurn && !turnSelectedProducts.some(item => item.code === productForTurn.code)) {
+      turnSelectedProducts.push(productForTurn);
+    }
+    if (turnSelectedProducts.length > 20) turnSelectedProducts.splice(0, turnSelectedProducts.length - 20);
 
     if (streamAbortControllerRef.current) {
       streamAbortControllerRef.current.abort();
@@ -697,8 +733,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : '';
 
       const stageContext = entryParams.get("stage")?.slice(0, 150);
-      const productContext = selectedConsultProducts.length
-        ? `[محصولات انتخاب‌شده برای مشاوره: ${selectedConsultProducts.map(product => `${product.code} - ${product.name}${product.size ? ' (' + product.size + ')' : ''}`).join('؛ ')}] `
+      const productContext = turnSelectedProducts.length
+        ? `[محصولات انتخاب‌شده برای مشاوره: ${turnSelectedProducts.map(product => `${product.code} - ${product.name}${product.size ? ' (' + product.size + ')' : ''}`).join('؛ ')}] `
         : '';
       const queryWithContext = `${industryPrefix}${stageContext ? `[بخش خط تولید: ${stageContext}] ` : ""}${
         isDeeperResearchActive ? '[تحلیل عمیق و استاندارد فنی] ' : ''
@@ -714,7 +750,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           history: historyPayload,
           responseId: uniqueResponseId,
           includeAudio: false,
-          productCodes: selectedConsultProducts.map(product => product.code),
+          productCodes: turnSelectedProducts.map(product => product.code),
         }),
       });
 
@@ -762,7 +798,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : s
       );
       saveSessionsToStorage(updatedSessions);
-      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, finalAiText);
+      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, finalAiText, turnSelectedProducts);
     } catch (error) {
       // A superseded or explicitly cancelled request must not overwrite the
       // newer turn. In particular, never retry through /api/ai/consult here:
@@ -796,7 +832,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
           : s
       );
       saveSessionsToStorage(updatedSessions);
-      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, failureText);
+      persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, failureText, turnSelectedProducts);
     } finally {
       // Only the request that still owns the composer may clear its loading
       // state; an older aborted request must not stop a newer request's spinner.
@@ -819,6 +855,24 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     setShowShareToast(true);
     setTimeout(() => setShowShareToast(false), 2500);
   };
+
+  const startCatalogConsultation = (product: ConsultationProduct) => {
+    addProductToConsultation(product);
+    setActiveWorkspaceTab('chat');
+    void handleSend(
+      'برای قطعه «' + product.name + '» با کد ' + product.code +
+      (product.size ? ' و ابعاد ' + product.size : '') +
+      ' مشاوره فنی می‌خواهم. کاربردهای ثبت‌شده و نکات انتخاب را توضیح بده، سازگاری را قطعی فرض نکن و یک سؤال ضروری درباره دستگاه یا شرایط کار من بپرس.',
+      product,
+    );
+  };
+  const startCatalogFamilyConsultation = (family: WorkspaceCatalogResult) =>
+    startCatalogConsultation({
+      code: family.code,
+      name: family.name,
+      image: typeof family.images?.[0] === 'string' ? family.images[0] : undefined,
+      link: family.link,
+    });
 
   // Group and filter sessions
   const now = Date.now();
@@ -865,7 +919,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <span className="block text-[10px] text-[#777A7D] font-medium">
-                مشاور هوشمند خطوط تولید اطلس
+                مشاور هوشمند خطوط تولید صنعت پیش
               </span>
             </div>
           </div>
@@ -1772,10 +1826,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
             /* TAB 2: ENGINEERING CHAT WORKSPACE                                 */
             /* ================================================================= */
             <div className="flex-1 overflow-hidden flex flex-col justify-between relative">
-              <div className="shrink-0 z-20 bg-white border-b border-slate-200 px-3 py-2 max-h-[32dvh] overflow-y-auto">
-                <WorkspaceCatalog disabled={loading} onSelect={product=>void handleSend(
-                  'برای محصول '+product.name+' با کد '+product.code+' مشاوره می‌خواهم. کاربرد و نکات انتخاب را کوتاه توضیح بده و یک سؤال درباره نیاز من بپرس. مشخصات تأییدنشده یا قیمت حدسی نگو.'
-                )}/>
+              <div className="relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2">
+                <WorkspaceCatalog onSelect={startCatalogFamilyConsultation} onAddToConsultation={startCatalogConsultation} />
               </div>
               {/* Message Feed Area */}
               <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 max-w-4xl mx-auto w-full pb-4 md:pb-6">
@@ -1884,7 +1936,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                           {m.sender === 'ai' && (
                             <div className="flex items-center justify-between pt-2 border-t border-[#CBD2D8]/60 text-xs">
                               <div className="text-[10px] text-[#777A7D]">
-                                کاتالوگ بازرگانی اطلس
+                                کاتالوگ صنعت پیش
                               </div>
 
                               <div className="flex items-center gap-1.5 text-[#55565A]">
@@ -1948,21 +2000,15 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 )}
               </div>
 
-              {/* Product picker remains available while a consultation is in progress. */}
-              {showProductPicker && (
-                <div className="max-h-64 overflow-y-auto border-t border-[#CBD2D8] bg-[#F8FAFC] p-3">
-                  <div className="mx-auto max-w-4xl">
-                    <WorkspaceCatalog onAddToConsultation={addProductToConsultation} />
-                  </div>
-                </div>
-              )}
               {/* Bottom Sticky Composer Bar (Ergonomic with safe-area padding on mobile) */}
               <div className="p-2 sm:p-3 bg-[#FFFFFF] border-t border-[#CBD2D8] shrink-0 z-20 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 {selectedConsultProducts.length > 0 && (
                   <div className="mx-auto mb-2 flex max-w-4xl flex-wrap gap-1.5">
                     {selectedConsultProducts.map(product => (
-                      <span key={product.code} className="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]">
-                        <span dir="ltr">{product.code}</span>
+                      <span key={product.code} className="inline-flex max-w-[240px] items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#A64B14]" title={product.name}>
+                        {product.image && <img src={product.image} alt="" loading="lazy" decoding="async" className="h-7 w-7 shrink-0 rounded-md bg-white object-contain" />}
+                        <span className="min-w-0 truncate">{product.name}</span>
+                        <span dir="ltr" className="shrink-0">{product.code}</span>
                         <button type="button" aria-label={`حذف ${product.code} از فهرست مشاوره`}
                           onClick={() => setSelectedConsultProducts(current => current.filter(item => item.code !== product.code))}>×</button>
                       </span>
@@ -2005,8 +2051,8 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       {/* Add a product to the current technical consultation */}
                       <button
                         type="button"
-                        onClick={() => setShowProductPicker(value => !value)}
-                        className={`p-2 rounded-xl transition-colors cursor-pointer ${showProductPicker ? 'bg-orange-100 text-[#E06518]' : 'text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5]'}`}
+                        onClick={() => document.getElementById('forza-workspace-product-search')?.focus()}
+                        className="p-2 rounded-xl text-[#777A7D] hover:text-[#E06518] hover:bg-[#DEE2E5] transition-colors cursor-pointer"
                         title="افزودن محصول به مشاوره"
                       >
                         <Search className="w-4 h-4" />
