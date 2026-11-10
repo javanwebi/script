@@ -224,9 +224,10 @@ else
   echo 'FORZA_STT_RUNTIME_CACHE_HIT=NO'
   STT_CONTEXT="$(mktemp -d /tmp/sanatpish-forza-stt-context.XXXXXXXX)"
   cp "$STAGE/ops/Dockerfile.forza-stt-runtime" "$STT_CONTEXT/Dockerfile"
-  # If bridge networking fails during APT downloads, retry the same pinned
-  # source using host networking. Each APT update is time-bounded inside
-  # the Dockerfile; the active website is untouched during either build.
+  # The Diba installer first retries independent HTTPS Python package indices.
+  # BuildKit caches successful wheel downloads across Docker build attempts.
+  # If bridge networking fails too, retry once with host networking.
+  # Both builds run before any live-site promotion; Diba readiness is mandatory.
   if ! docker build --progress=plain -t "$STT_IMAGE" "$STT_CONTEXT"; then
     echo 'WARN_DIBA_BRIDGE_BUILD_FAILED_RETRY_WITH_HOST_NETWORK'
     docker build --progress=plain --network=host -t "$STT_IMAGE" "$STT_CONTEXT"
