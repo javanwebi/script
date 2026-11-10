@@ -38,11 +38,13 @@ test('reject an SSE final event that revised the already spoken prefix', () => {
   ), /forza_early_tts_final_prefix_changed/);
 });
 
-test('old progressive SSE clause experiment remains unused for full-answer Pocket',async()=>{
+test('Nima incremental speech is the active stream path; legacy progressive clause experiment stays unused',async()=>{
   const {readFile}=await import('node:fs/promises');
   const source=await readFile(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
-  assert.match(source,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
+  assert.match(source,/new ForzaIncrementalSpeechText\(\)/);
   assert.match(source,/new ForzaNimaBufferedSpeech\(/);
-  assert.doesNotMatch(source,/ForzaLiveSpeechQueue|earlyPlayback|earlyClause|VITE_FORZA_EARLY_TTS/);
+  assert.match(source,/activeNimaBuffer\.add\(phrase\)/);
+  assert.match(source,/playPocketFullAnswer/); // compatibility fallback only
   assert.match(source,/await consumeForzaTextStream/);
+  assert.doesNotMatch(source,/ForzaLiveSpeechQueue|earlyPlayback|earlyClause|VITE_FORZA_EARLY_TTS/);
 });
