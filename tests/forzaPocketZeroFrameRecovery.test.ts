@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 
-test('full-answer Pocket needs no stream fallback or zero-frame retry',()=>{
+test('selected Nima uses incremental phrases; Pocket compatibility fallback remains one complete WAV',()=>{
   assert.doesNotMatch(ui,/allowFallback:true|zero-frame-recover|ForzaLiveSpeechQueue/);
   assert.match(ui,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(ui,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
+  assert.match(ui,/await activeNimaBuffer\.finish\(\)/);\n  assert.match(ui,/if\(useNima\)/);\n  assert.match(ui,/playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort\.signal,/);
   assert.match(ui,/await player\.enqueueWav\(audio\)/);
   assert.match(ui,/X-Forza-Voice/);
   assert.match(ui,/pocket-farsi-v2/);
@@ -30,7 +30,7 @@ test('15-second text idle deadline was fixed separately from full WAV TTS',()=>{
 });
 
 test('unbroken full-answer TTS preserves original voice and avoids quantization',()=>{
-  assert.match(ui,/forza_original_pocket_voice_required/);
+  assert.match(ui,/const returnedVoice=response\.headers\.get\('X-Forza-Voice'\)/);\n  assert.match(ui,/returnedVoice==='piper-nima-gyro-medium'/);\n  assert.match(ui,/forza_unknown_voice_identity/);
   assert.match(backend,/forzaUnbrokenSpokenText\(phrase\)/);
   assert.doesNotMatch(ui,/FORZA_ONNX_INT4|FORZA_ONNX_INT8/);
 });
