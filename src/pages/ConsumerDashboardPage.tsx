@@ -891,7 +891,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                         </Link>
                         <div className="consumer-quickbuy-card-copy">
                           <span className="consumer-sku" dir="ltr">{firstVar?.code || prod.code}</span>
-                          <h3><Link to={`/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
+                          <h3><Link to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}>{prod.name}</Link></h3>
                           <p>{prod.categoryName || "قطعه صنعتی"}</p>
                           <div className="consumer-quickbuy-price">
                             <span>{user?.canViewPrices !== true
