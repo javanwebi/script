@@ -197,6 +197,21 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [temporaryImageDataUrl, setTemporaryImageDataUrl] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const imageUploadSequenceRef = useRef(0);
+  const latestImageUrlRef = useRef<string | null>(null);
+  React.useEffect(() => { latestImageUrlRef.current = selectedImage; }, [selectedImage]);
+  // Closing the image wizard invalidates all outstanding work, even when the
+  // component unmounts immediately (provider modal and dedicated page).
+  React.useEffect(() => () => {
+    analysisSequenceRef.current++;
+    imagePreparationSequenceRef.current++;
+    imageUploadSequenceRef.current++;
+    regionDetectionSequenceRef.current++;
+    customRequestSequenceRef.current++;
+    analysisBusyRef.current = false;
+    if (latestImageUrlRef.current?.startsWith('blob:')) {
+      URL.revokeObjectURL(latestImageUrlRef.current);
+    }
+  }, []);
   const [mimeType, setMimeType] = useState<string>("image/jpeg");
   const [length, setLength] = useState<string>("");
 
