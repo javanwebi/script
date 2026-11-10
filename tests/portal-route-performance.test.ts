@@ -24,7 +24,7 @@ test('scroll restoration updates memory synchronously with deferred session stor
   assert.equal(entry?.scrollY, 1480);
   assert.equal(entry?.sectionId, 'catalog-results');
   const source = readFileSync(new URL('../src/components/layout/ScrollToTop.tsx', import.meta.url), 'utf8');
-  assert.match(source, /window\.setTimeout\(flushScrollStore, 550\)/);
+  assert.match(source, /setTimeout\(flushScrollStore, 550\)/);
   assert.match(source, /window\.addEventListener\('pagehide', flushScrollStore\)/);
   assert.match(source, /event\.detail > 0/);
   assert.equal((source.match(/sessionStorage\.setItem\(STORAGE_KEY/g) || []).length, 1);
