@@ -10,6 +10,22 @@ After canary checks pass, the active site is stopped and its replacement binds t
 
 On a promotion failure, the new container is removed, the original container is restarted on 3008, and the backed-up Nginx virtual hosts are restored. After all checks pass, unused historical site containers are **stopped, never removed**. Databases, Supabase, and the private FORZA voice container are excluded from cleanup. The script refuses to stop an old application whose port remains referenced by an Nginx proxy.
 
+## Customer API writes and read-only storefront fallback
+
+The customer-facing HTTPS/domain virtual hosts must have a dedicated `location ^~ /api/` **before** the general `location /` SPA fallback. The API location forwards GET/HEAD/POST/PUT/PATCH/DELETE/OPTIONS to the active Node app and keeps Nginx buffering disabled for uploads and streaming. The general SPA fallback remains GET-only, and the IP preview vhost remains read-only. Exact `/api/portal`, `/api/runtime`, and the more-specific `/api/ai/` locations retain their existing precedence.
+
+The canonical single-port deployment installs and verifies this scoped API route on the customer-facing HTTPS/domain vhosts, then probes CRM-create and SKU-transfer POSTs on both `sanatpish.com` and `www.sanatpish.com`. The anonymous probes must be rejected by Express as JSON (401/403); an Nginx HTML 403 fails promotion and triggers rollback.
+
+For an Nginx-only repair without rebuilding or restarting the website/database, use the rollback-safe script after it is merged to main:
+
+```bash
+cd /opt/sanatpish
+git fetch origin main
+git show FETCH_HEAD:ops/fix-nginx-api-write-routing-vps.sh | sudo bash
+```
+
+The script backs up the two customer-facing vhosts, runs `nginx -t`, reloads Nginx, verifies both hostnames and API JSON responses, and restores the backups if verification fails. It deliberately does not change the read-only IP preview, app container, or PostgreSQL data.
+
 **Scope:** This is a single port for the **website app**. Supabase/PostgreSQL and the private Piper voice service still need their own internal/network ports and should not be collapsed into the website port.
 
 **One-time prerequisite:** The initial live IP/default vhosts must already point at the known-good 3008 website container (from the verified 2026-11-04 VPS output). If the live server moves to a different port, the script fails before any traffic change rather than stopping a mystery container.
