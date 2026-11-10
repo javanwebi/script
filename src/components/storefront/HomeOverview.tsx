@@ -217,8 +217,12 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
               {variant === 'about' ? 'درباره ' : 'چرا '}<span className="text-[#E06518]">صنعت پیش</span>{variant === 'about' ? '' : '؟'}
             </h2>
             <p className="text-[11px] sm:text-sm lg:text-[15px] text-slate-600 leading-relaxed font-medium">
-              شناخت توانمندی‌های صنعت پیش؛ تأمین قطعات، خدمات مهندسی و
-              <br className="hidden sm:inline" /> ابزارهای هوشمند برای انتخاب آگاهانه
+              {variant === 'about' ? (
+                <>شناخت توانمندی‌ها، تأمین قطعات و ابزارهای هوشمند برای انتخاب آگاهانه</>
+              ) : (
+                <>ترکیبی از تجربه صنعتی، تامین گسترده و هوش مصنوعی
+                  <br className="hidden sm:inline" /> برای حرکت بی‌وقفه خطوط تولید شما</>
+              )}
             </p>
           </div>
 
@@ -251,7 +255,7 @@ export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' 
                   معرفی کوتاه
                 </div>
                 <div className="text-[9px] sm:text-[11px] text-slate-500 font-medium mt-0.5">
-                  ویدیوی ۱ دقیقه‌ای
+                  {variant === 'about' ? 'معرفی تصویری مجموعه' : 'ویدیوی ۱ دقیقه‌ای'}
                 </div>
               </div>
               <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-[#E06518]/70 text-[#E06518] group-hover:bg-[#E06518] group-hover:text-white flex items-center justify-center transition-colors shrink-0">
