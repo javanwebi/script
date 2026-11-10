@@ -29,6 +29,7 @@ function wav(durationMs=180){
   await page.route('**/api/runtime',route=>route.fulfill({status:200,contentType:'application/json',
     body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',route=>route.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
+  await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({voice:'pocket-farsi-v2',incrementalSpeech:false,ready:true})}));
   await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({status:200,contentType:'audio/wav',body:wav()}));
   await page.route('**/api/ai/consult-stream',route=>{
     streamCalls.push(route.request().postDataJSON().query);
@@ -54,9 +55,12 @@ function wav(durationMs=180){
   });
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:30000});
+  await page.waitForTimeout(450); // let the short prerecorded greeting reach its ended event
   await page.getByTitle('تایپ پیام متنی').click();
   await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPA چیست؟');
+  const firstRequest=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream')&&request.postDataJSON()?.query==='تسمه SPA چیست؟',{timeout:12000});
   await page.getByTitle('ارسال به هوش مصنوعی').click();
+  await firstRequest;
   await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);

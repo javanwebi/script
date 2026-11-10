@@ -40,6 +40,8 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
@@ -49,31 +51,71 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setFilePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreview(null);
-      }
+    if (!file) return;
+    const extension = file.name.toLowerCase().split('.').pop() || '';
+    const allowed = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dwg', 'dxf', 'step', 'stp'];
+    if (!allowed.includes(extension)) {
+      setErrorMessage('فرمت فایل پشتیبانی نمی‌شود. JPG، PNG، WebP، PDF، DWG، DXF یا STEP انتخاب کنید.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setErrorMessage('حجم فایل باید حداکثر ۸ مگابایت باشد.');
+      e.target.value = '';
+      return;
+    }
+    setErrorMessage('');
+    setSelectedFile(file);
+    setFileName(file.name);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => setFilePreview(typeof reader.result === 'string' ? reader.result : null);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!partName.trim() || !phoneNumber.trim()) return;
-
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
-      // Generate a realistic Iranian engineering tracking code
-      const code = `SP-MFG-${Math.floor(100000 + Math.random() * 900000)}`;
-      setTrackingCode(code);
+    try {
+      let attachmentBase64 = '';
+      if (selectedFile) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('خواندن فایل ناموفق بود.'));
+          reader.onerror = () => reject(new Error('خواندن فایل ناموفق بود.'));
+          reader.readAsDataURL(selectedFile);
+        });
+        const comma = dataUrl.indexOf(',');
+        if (comma < 0) throw new Error('محتوای فایل معتبر نیست.');
+        attachmentBase64 = dataUrl.slice(comma + 1);
+      }
+      const response = await fetch('/api/custom-part-requests', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactName, phoneNumber, companyName, partName, partType, dimensions,
+          alloyCondition, quantity, notes,
+          attachmentName: selectedFile?.name || '',
+          attachmentMime: selectedFile?.type || '',
+          attachmentBase64,
+        }),
+      });
+      const data = await response.json().catch(() => ({ success: false, message: 'پاسخ سرور معتبر نیست.' }));
+      if (!response.ok || !data.success || !data.trackingCode) {
+        throw new Error(data.message || 'ثبت درخواست ساخت انجام نشد؛ دوباره تلاش کنید.');
+      }
+      setTrackingCode(data.trackingCode);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'ثبت درخواست ساخت ناموفق بود.');
+    } finally {
       setIsSubmitting(false);
-    }, 800);
+    }
   };
 
   const handleCopyCode = () => {
@@ -92,6 +134,8 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
     setNotes('');
     setFileName(null);
     setFilePreview(null);
+    setSelectedFile(null);
+    setErrorMessage('');
     setTrackingCode(null);
     onClose();
   };
@@ -143,7 +187,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
                   درخواست ساخت قطعه با موفقیت ثبت شد
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                  مهندسان متالوژی و کارگاه ساخت صنعت‌پیش نقشه و ابعاد قطعه <span className="font-bold text-[#E06518]">«{partName}»</span> را بررسی کرده و ظرف حداکثر ۲ ساعت کاری جهت برآورد هزینه و زمان تحویل با شما تماس خواهند گرفت.
+                  کارشناسان فنی صنعت‌پیش مشخصات و فایل قطعه <span className="font-bold text-[#E06518]">«{partName}»</span> را بررسی می‌کنند و برای هماهنگی، برآورد هزینه و زمان تحویل با شما تماس خواهند گرفت.
                 </p>
               </div>
 
@@ -184,7 +228,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
               <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200/80 flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed">
                 <ShieldCheck className="w-4 h-4 text-[#E06518] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-[#E06518] font-bold">تضمین ۱۰۰٪ انطباق آلیاژ و کارکرد:</strong> هر قطعه‌ای که نمونه آن در خط تولید فرسوده شده یا به دلیل تحریم نایاب است، با آزمون سختی‌سنجی و استاندارد متالوژی صنعتی ساخته می‌شود.
+                  <strong className="text-[#E06518] font-bold">بررسی مهندسی و انتخاب روش ساخت:</strong> نمونه فرسوده، نقشه یا مشخصات کاری بررسی می‌شود تا امکان ساخت، جنس مناسب و الزامات فنی مشخص شود.
                 </div>
               </div>
 
@@ -251,7 +295,7 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                   <span>فایل نقشه، مدل سه‌بعدی یا عکس قطعه فرسوده (اختیاری)</span>
-                  <span className="text-[11px] text-slate-400 font-normal">CAD, PDF, JPG, PNG</span>
+                  <span className="text-[11px] text-slate-400 font-normal">CAD, PDF, JPG, PNG, WebP · حداکثر ۸ مگابایت</span>
                 </label>
                 
                 <label className="border-2 border-dashed border-slate-300 hover:border-[#E06518] rounded-2xl p-4 bg-slate-50/50 hover:bg-orange-50/30 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer text-center group">
@@ -286,6 +330,8 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
                   )}
                 </label>
               </div>
+
+              <p className="text-[11px] leading-6 text-slate-500">با ارسال فرم، فایل انتخابی به‌صورت خصوصی همراه درخواست ساخت ذخیره می‌شود و فقط کارشناسان مجاز مدیریت به آن دسترسی دارند.</p>
 
               {/* Row 4: Quantity & Company Details */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -339,6 +385,8 @@ export const CustomPartRequestModal: React.FC<CustomPartRequestModalProps> = ({
                   className="w-full p-3 rounded-xl bg-[#F8F9FA] border border-slate-200 focus:border-[#E06518] focus:bg-white text-xs text-slate-800 outline-none transition-all placeholder:text-slate-400 resize-none"
                 />
               </div>
+
+              {errorMessage && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-6 text-red-700">{errorMessage}</div>}
 
               {/* Submit Button */}
               <div className="pt-2">

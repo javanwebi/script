@@ -21,6 +21,7 @@ function silentWav(){
  try{
   const page=await browser.newPage();
   const errors=[],synthRequests=[],sseRequests=[];
+const documentText=value=>String(value||'').replace(/\\s+/g,' ').slice(-1800);
   const fullAnswer='برای بررسی تسمه مورد نظر، ابتدا کد فنی آن را اعلام کنید. سپس می‌توانیم ابعاد، جنس و استاندارد تسمه را با اطلاعات کاتالوگ صنعت پیش مقایسه کنیم. در صورت نامشخص بودن کد، تصویر واضحی از قطعه بفرستید.';
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/forza-greeting-bootstrap.wav',route=>route.fulfill({status:200,contentType:'audio/wav',body:silentWav()}));
@@ -66,9 +67,26 @@ function silentWav(){
     },{timeout:12000});
     await page.getByTitle('ارسال به هوش مصنوعی').click();
     await requested;
-    await page.waitForFunction(()=>window.document.body.innerText.includes('در صورت نامشخص بودن کد')&&
-      window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
-      null,{timeout:16000});
+    try{
+      await page.waitForFunction(()=>window.document.body.innerText.includes('در صورت نامشخص بودن کد'),
+        null,{timeout:10000});
+    }catch(error){
+      console.error('[FORZA_SMOKE_DIAG] answer_not_visible',JSON.stringify({
+        body:documentText(await page.locator('body').innerText()),
+        sseRequests,synthRequests,errors
+      }));
+      throw error;
+    }
+    try{
+      await page.waitForFunction(()=>window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
+        null,{timeout:10000});
+    }catch(error){
+      console.error('[FORZA_SMOKE_DIAG] listening_not_restored',JSON.stringify({
+        body:documentText(await page.locator('body').innerText()),
+        sseRequests,synthRequests,errors
+      }));
+      throw error;
+    }
     // Ensure the next turn has actually been submitted.
     assert.equal(sseRequests.at(-1),prompt);
     const turnPhrases=synthRequests.slice(start);

@@ -254,3 +254,7 @@
   .sp-forza-contact__sheet {animation:none;}
   .sp-forza-contact__arrow {animation:none;opacity:1;color:#ffab64;transform:none;filter:none;}
 }
+
+@media (min-width: 1024px) {
+  .storefront .store-ai-quick-actions > .store-help-launcher { display: none; }
+}

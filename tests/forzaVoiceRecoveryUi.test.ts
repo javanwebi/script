@@ -60,7 +60,7 @@ test('manual replay keeps microphone monitoring alive and aborts in-flight TTS o
   assert.match(ui,/const manualReplayAbortRef=useRef<AbortController\|null>\(null\)/);
   assert.match(ui,/manualReplayAbortRef\.current\?\.abort\(new Error\('forza_manual_replay_stopped'\)\)/);
   assert.match(ui,/isManualReplayPendingRef\.current=true;\s*startListening\(true\)/);
-  assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal\)/);
+  assert.match(ui,/await playPocketFullAnswer\(phrase,player,controller\.signal,/);
   assert.match(ui,/if\(isProcessingTurnRef\.current\|\|isAiSpeakingRef\.current\|\|isManualReplayPendingRef\.current\)/);
   assert.match(ui,/if\(!\/aborted\|stopped\|interrupted\|cancelled\/i\.test\(code\)\)/);
 });
@@ -72,7 +72,12 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   const vad=ui.slice(beginning,end);
   assert.match(vad,/window\.setInterval\(check,55\)/);
   assert.match(vad,/window\.clearInterval\(micPoll\)/);
+  assert.match(vad,/lastMicActivityRef\.current=micNow/);
   assert.doesNotMatch(vad,/requestAnimationFrame|cancelAnimationFrame/);
+  assert.match(ui,/autoGainControl:false/);
+  assert.match(ui,/source=diba rejected=below_near_field_vad/);
+  assert.match(ui,/source=browser rejected=below_near_field_vad/);
+  assert.match(ui,/Date\.now\(\)-lastMicActivityRef\.current>3500/);
 });
 
 test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{

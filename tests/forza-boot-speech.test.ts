@@ -13,33 +13,39 @@ test('FORZA active session does not remount during catalog hydration',()=>{
     assert.equal(shouldRemountAfterCatalogHydration(path),false);
   assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
-test('FORZA renders live words but requests only one original Pocket WAV per complete reply',()=>{
+
+test('FORZA renders live SSE words and sends complete Nima word groups to the existing private voice',()=>{
   assert.match(frontend,/await consumeForzaTextStream/);
   assert.match(frontend,/reply=callPlainText\.push\(fullText\)/);
   assert.match(frontend,/setAiText\(reply\)/);
-  assert.match(frontend,/await playPocketFullAnswer\(forzaSpokenPlainText\(reply\),continuousPlayer,pocketAbort.signal\)/);
-  assert.match(frontend,/const response=await fetch\('\/api\/ai\/forza-speech'/);
-  assert.match(frontend,/body:JSON\.stringify\(\{text(?:,turnId)?\}\)/);
-  assert.match(frontend,/new Uint8Array\(await response\.arrayBuffer\(\)\)/);
+  assert.match(frontend,/new ForzaIncrementalSpeechText\(\)/);
+  assert.match(frontend,/new ForzaNimaBufferedSpeech\(/);
+  assert.match(frontend,/activeNimaBuffer\.add\(phrase\)/);
+  assert.match(frontend,/flushTerminalIdle/);
+  assert.match(frontend,/new ForzaContinuousWav\(/);
+  assert.match(frontend,/await requestPocketAudio\(/);
   assert.match(frontend,/await player\.enqueueWav\(audio\)/);
-  assert.match(frontend,/phase=whole-pocket-wav-ready/);
-  assert.match(frontend,/new ForzaContinuousWav/);
-  assert.doesNotMatch(frontend,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
+  assert.match(frontend,/phase=phrase_wav_ready/);
+  assert.match(frontend,/piper-nima-gyro-medium/);
+  assert.match(frontend,/playPocketFullAnswer/);
   assert.match(backend,/app\.post\('\/api\/ai\/forza-speech'/);
   assert.match(backend,/internalForzaVoiceUrl\+'\/speak'/);
   assert.match(backend,/forzaUnbrokenSpokenText\(phrase\)/);
   assert.match(pocketHttp,/MAX_TEXT_CHARS = 1000/);
   assert.match(pocketHttp,/self\.reply\(200, audio, "audio\/wav"\)/);
-  assert.doesNotMatch(frontend,/speechSynthesis\.speak|synth\.speak|new SpeechSynthesisUtterance/);
+  assert.doesNotMatch(frontend,/ForzaLiveSpeechQueue|liveSpeech\?\.receive|playPocketProgressive|readForzaWavFrames/);
+  assert.doesNotMatch(frontend,/speechSynthesis\.speak|new SpeechSynthesisUtterance/);
 });
 
-test('one full WAV is kept in memory and never cached or written to disk',()=>{
-  assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
+test('Nima is incremental while Pocket remains a safe one-WAV fallback; audio stays in memory',()=>{
+  assert.match(frontend,/voiceModeRef\.current==='piper-nima-gyro-medium'/);
+  assert.match(frontend,/voiceModeRef\.current==='piper-nima-gyro-medium'\s*\? AbortSignal\.timeout\(35000\) : AbortSignal\.timeout\(420000\)/);
+  assert.match(frontend,/AbortSignal\.any\(\[signal,timeoutSignal\]\)/);
+  assert.match(frontend,/pocketAbort\.abort\(\)/);
   assert.match(frontend,/await response\.arrayBuffer\(\)/);
   assert.match(frontend,/player\.enqueueWav\(audio\)/);
-  assert.match(frontend,/AbortSignal\.timeout\(420000\)/);
-  assert.match(frontend,/pocketAbort\.abort\(\)/);
-  assert.doesNotMatch(frontend,/URL\.createObjectURL\(blob\)|URL\.revokeObjectURL\(url\)/);
+  assert.match(frontend,/await playPocketFullAnswer\(/);
+  assert.doesNotMatch(frontend,/voiceCacheRef|voiceRequestsRef|lastPlayableVoiceRef/);
   assert.doesNotMatch(pocketHttp,/audio_cache|MAX_CACHED_RESPONSES|OrderedDict/);
   assert.match(backend,/Cache-Control','no-store'/);
   assert.match(pocketWorker,/def render\(engine, text\):/);
@@ -54,11 +60,15 @@ test('CPU 1 or 2 intra-op threads are opt-in, with FP32 as safe default',()=>{
   assert.match(dockerfile,/FORZA_ONNX_INT8/);
   assert.match(dockerfile,/flow_lm_step\.int8\.onnx/);
 });
-test('existing prerecorded greeting is preserved and there is no client TTS model download',()=>{
+
+test('original prerecorded welcome remains available and is not generated twice',()=>{
   assert.match(frontend,/\/forza-greeting-bootstrap\.wav/);
+  assert.match(frontend,/greetingStartedRef\.current/);
+  assert.match(frontend,/startWatchdog = window\.setTimeout\(/);
   assert.doesNotMatch(frontend,/pocket-tts-farsi-v2-onnx/);
 });
-test('Express forwards Pocket requests via authenticated private network and never runs in-process inference',()=>{
+
+test('Express forwards Pocket and Nima requests to the authenticated private Ubuntu voice',()=>{
   assert.match(backend,/FORZA_VOICE_INTERNAL_URL/);
   assert.match(backend,/X-Forza-Voice-Token/);
   assert.match(backend,/private_voice_not_configured/);

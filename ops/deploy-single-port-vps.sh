@@ -110,6 +110,8 @@ echo "STABLE_APP_PORT=$NEXT"
 
 STAMP="$(date +%Y%m%d-%H%M%S)-$BASHPID"
 STAGE="/opt/sanatpish-unified-stage-$STAMP"
+STT_IMAGE="sanatpish-forza-stt-runtime:${EXPECTED:0:12}"
+STT_CONTEXT=''
 NAME="sanatpish-unified-live-$STAMP"
 CANARY_NAME="sanatpish-unified-canary-$STAMP"
 BACKUP="/root/sanatpish-main-rollback-$STAMP"
@@ -152,6 +154,9 @@ cleanup(){
  fi
  if test -n "$CANARY_CID"; then
    docker rm -f "$CANARY_NAME" >/dev/null 2>&1 || true
+ fi
+ if test -n "$STT_CONTEXT" && [[ "$STT_CONTEXT" == /tmp/sanatpish-forza-stt-context.* ]]; then
+   rm -rf -- "$STT_CONTEXT"
  fi
  rm -f -- "$ENV_FILE" "$MULTILINE_ENV_FILE"
  exit "$status"
@@ -202,6 +207,16 @@ docker run --rm --pull=never --network "$NETWORK" --cpus=1.5 --memory=3g --memor
  -e npm_config_fetch_retry_maxtimeout=60000 \
  node:22-bookworm sh -ec 'npm ci --include=dev --no-audit --no-fund --loglevel=info && npm run lint && node --import tsx --test tests/mobile-scan-ui.test.ts tests/forza-mobile-contact-sheet.test.ts && npm run build' 2>&1 | tee "$BUILD_LOG"
 test -s "$STAGE/dist/index.html"
+
+echo '===== BUILD PINNED DIBA STT RUNTIME IMAGE ====='
+STT_CONTEXT="$(mktemp -d /tmp/sanatpish-forza-stt-context.XXXXXXXX)"
+cp "$STAGE/ops/Dockerfile.forza-stt-runtime" "$STT_CONTEXT/Dockerfile"
+docker build -t "$STT_IMAGE" "$STT_CONTEXT"
+rm -rf -- "$STT_CONTEXT"
+STT_CONTEXT=''
+docker run --rm --pull=never "$STT_IMAGE" sh -ec '/opt/forza-pocket/bin/python -c "import vosk" && test -d /opt/diba-stt/model/am && test -d /opt/diba-stt/model/conf'
+echo "FORZA_STT_RUNTIME_IMAGE_READY=$STT_IMAGE"
+
 grep -RlF 'full-screen-camera-experience' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'عکس‌برداری مجدد' "$STAGE/dist/assets" --include='*.js' >/dev/null
 grep -RlF 'تأیید و جستجوی قطعه' "$STAGE/dist/assets" --include='*.js' >/dev/null
@@ -271,6 +286,25 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
+echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
+for MIGRATION in \
+  "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
+  "$STAGE/supabase/adopted/migrations/20261110010000_custom_part_requests.sql"; do
+  test -s "$MIGRATION" || { echo "REQUIRED_MIGRATION_MISSING=$MIGRATION"; exit 1; }
+  docker exec -i "$OLD" node --import tsx --input-type=module -e '
+    import {readFileSync} from "node:fs";
+    import {database,closeDatabase} from "./server/db/connection.ts";
+    try {
+      const sql=readFileSync(0,"utf8");
+      await database().query(sql);
+      console.log("PRODUCTION_ADDITIVE_MIGRATION_APPLIED");
+    } catch(error) {
+      console.error("PRODUCTION_ADDITIVE_MIGRATION_FAILED",error.code||"",error.message);
+      process.exitCode=1;
+    } finally { await closeDatabase(); }
+  ' < "$MIGRATION"
+done
+
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
 echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
 mkdir -m 700 -p "$BACKUP"
@@ -431,8 +465,8 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
- "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
  if docker exec "$CANARY_NAME" node -e '
@@ -498,8 +532,8 @@ docker stop -t 12 "$OLD" >/dev/null
 CID="$(docker run -d --name "$NAME" --restart unless-stopped \
  --network "$NETWORK" --workdir /app --cpus=1.5 --memory=3g --memory-swap=3g \
  -p "127.0.0.1:$FIXED_PORT:3000" --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false \
- "${MOUNTS[@]}" node:22-bookworm node --import tsx server.ts)"
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 60); do
  if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:$FIXED_PORT/api/health" 2>/dev/null | grep -q '"database":"ok"'; then READY=1; break; fi
@@ -555,9 +589,10 @@ try:
  stt_info=json.loads(stt_raw)
 except Exception as exc:
  raise AssertionError('FORZA_STT_PUBLIC_API_RETURNED_NON_JSON') from exc
-assert isinstance(stt_info.get('serverSttConfigured'),bool), ('FORZA_STT_PUBLIC_BAD_CONTRACT',stt_info)
-assert stt_info.get('serverSttProvider') in ('none','gemini'), ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
-print('PUBLIC_FORZA_STT_API_JSON_OK provider='+stt_info['serverSttProvider'])
+assert stt_info.get('serverSttConfigured') is True, ('FORZA_STT_PUBLIC_NOT_CONFIGURED',stt_info)
+assert stt_info.get('serverSttProvider') == 'diba', ('FORZA_STT_PUBLIC_BAD_PROVIDER',stt_info)
+assert stt_info.get('serverSttReady') is True, ('FORZA_STT_PUBLIC_NOT_READY',stt_info)
+print('PUBLIC_FORZA_STT_DIBA_READY_OK')
 print('PUBLIC_HTTPS_AND_DATABASE_OK domain='+domain+' sni=correct')
 PY
 echo '===== VERIFY DOMAIN AND IP ROUTE TO SAME RELEASE ====='

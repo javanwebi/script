@@ -50,7 +50,7 @@ test('empty recording without server STT does not create an AI turn or erase val
  execute({current:true},{current:true},()=>warnings++,()=>{});assert.equal(warnings,1);
 });
 
-test('recognized interruption works without analyser VAD and finalized echo is retired', async()=>{
+test('recognized interruption uses recent near-field VAD evidence after analyser reset and retires finalized echo', async()=>{
  const {extractPersianSpeechSince,checkpointForzaRecognition}=await import('../src/utils/forzaSpeechPipeline');
  const body=source.split('      rec.onresult = (event: any) => {')[1]
    .split("        if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){")[0];
@@ -64,7 +64,7 @@ test('recognized interruption works without analyser VAD and finalized echo is r
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
-  isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),
+  isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(Date.now()),
   likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
  };
  const run=new Function(...Object.keys(scope),'event',body);

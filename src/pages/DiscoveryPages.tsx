@@ -108,6 +108,85 @@ export function MapCard({ compact = false }: { compact?: boolean }) {
     </div>
   );
 }
+type IndustryContent = (typeof INDUSTRIES)[number];
+
+function IndustryVisualModule({ industry }: { industry: IndustryContent }) {
+  const steps = industry.steps.slice(0, 4);
+  if (industry.slug === 'textile') {
+    return (
+      <section className="industry-visual-module industry-visual-module--textile editorial-wrap" aria-label="مسیر تولید نساجی">
+        <div className="industry-visual-copy">
+          <span className="industry-visual-eyebrow">کنترل حرکت در چهار مرحله</span>
+          <h2>از ریسندگی تا جمع‌کردن پارچه، حرکت باید هماهنگ بماند</h2>
+          <p>{industry.note}</p>
+          <div className="industry-material-tags">{industry.parts.map(part => <span key={part}>{part}</span>)}</div>
+        </div>
+        <div className="industry-visual-step-grid">
+          {steps.map((step, index) => <div className="industry-visual-step" key={step}><b>0{index + 1}</b><span>{step}</span></div>)}
+        </div>
+      </section>
+    );
+  }
+  if (industry.slug === 'packaging') {
+    return (
+      <section className="industry-visual-module industry-visual-module--packaging editorial-wrap" aria-label="ایستگاه‌های خط بسته‌بندی">
+        <div className="industry-visual-copy">
+          <span className="industry-visual-eyebrow">جریان پیوسته محصول</span>
+          <h2>هر ایستگاه به قطعه‌ای هماهنگ با سرعت خط نیاز دارد</h2>
+          <p>{industry.note}</p>
+        </div>
+        <div className="industry-packaging-flow">
+          {steps.map((step, index) => <div className="industry-packaging-step" key={step}><span className="industry-packaging-number">{index + 1}</span><div><b>{step}</b><small>{industry.parts[index % industry.parts.length]}</small></div></div>)}
+        </div>
+      </section>
+    );
+  }
+  if (industry.slug === 'food') {
+    return (
+      <section className="industry-visual-module industry-visual-module--food editorial-wrap" aria-label="مسیر کنترل قطعات صنایع غذایی">
+        <div className="industry-food-seal"><span>FOOD</span><b>کنترل پیش از نصب</b><small>جنس، تماس و شست‌وشو</small></div>
+        <div className="industry-visual-copy">
+          <span className="industry-visual-eyebrow">محیط تولید حساس</span>
+          <h2>سازگاری بهداشتی را برای کد دقیق قطعه تأیید کنید</h2>
+          <p>{industry.note}</p>
+          <div className="industry-food-points">{industry.checks.map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
+        </div>
+      </section>
+    );
+  }
+  if (industry.slug === 'machinery') {
+    return (
+      <section className="industry-visual-module industry-visual-module--machinery editorial-wrap" aria-label="فرایند مهندسی ماشین‌آلات">
+        <div className="industry-machinery-blueprint">
+          <span>ENGINEERING INPUT</span>
+          <div className="industry-blueprint-grid">{['نقشه','تلرانس','جنس','بار و سرعت'].map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
+          <small>اطلاعات پایه برای بررسی تأمین یا ساخت</small>
+        </div>
+        <div className="industry-visual-copy">
+          <span className="industry-visual-eyebrow">از نمونه تا مجموعه مکانیکی</span>
+          <h2>قطعه را در ارتباط با کل مجموعه بررسی کنید</h2>
+          <p>{industry.note}</p>
+          <div className="industry-machinery-steps">{steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div>
+        </div>
+      </section>
+    );
+  }
+  if (industry.slug === 'rubber') {
+    return (
+      <section className="industry-visual-module industry-visual-module--rubber editorial-wrap" aria-label="انتخاب قطعات لاستیک و پلاستیک">
+        <div className="industry-visual-copy">
+          <span className="industry-visual-eyebrow">انتخاب بر پایه شرایط واقعی کار</span>
+          <h2>جنس قطعه را با ماده، فشار و دمای خط تطبیق دهید</h2>
+          <p>{industry.note}</p>
+          <div className="industry-material-tags">{industry.parts.map(part => <span key={part}>{part}</span>)}</div>
+        </div>
+        <div className="industry-rubber-criteria">{industry.checks.map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
+      </section>
+    );
+  }
+  return null;
+}
+
 export function IndustryPage() {
   const { slug = "ceramic" } = useParams();
   const industry = INDUSTRIES.find((i) => i.slug === slug) || INDUSTRIES[0];
@@ -126,7 +205,7 @@ export function IndustryPage() {
   }
   return (
     <div className={`editorial industry-page industry-${industry.slug}`}>
-      <section className="industry-hero">
+      <section className={`industry-hero industry-hero--${industry.slug}`}>
         <img
           src={industry.image}
           alt={`خط تولید ${industry.title}`}
@@ -160,23 +239,7 @@ export function IndustryPage() {
         </div>
       </section>
       <IndustryTools key={industry.slug} industry={industry} />
-      <div className="industry-process editorial-wrap">
-        <strong>در امتداد خط تولید</strong>
-        {industry.steps.map((s, i) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("industry-parts");
-              scrollToSectionElement(el, { behavior: "smooth" });
-            }}
-            className="cursor-pointer hover:text-[#E06518] transition-colors text-right"
-          >
-            <b>۰{i + 1}</b>
-            {s}
-          </button>
-        ))}
-      </div>
+      <IndustryVisualModule industry={industry} />
       <section className="editorial-wrap editorial-split scroll-mt-24" id="industry-parts">
         <SectionHeading
           eyebrow="از کاربرد شروع کنید"
