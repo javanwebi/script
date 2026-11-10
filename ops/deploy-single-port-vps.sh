@@ -584,65 +584,77 @@ for filename,source in zip(files,contents):
 updated=[]
 for index,(filename,source) in enumerate(zip(files,contents)):
  source=pattern.sub(lambda m:m.group(1)+target+m.group(3),source)
- # CONF1 is the deliberately read-only IP preview. Keep its root and methods
- # unchanged. The two customer-facing HTTPS/domain vhosts get a scoped API
- # location so write requests never fall through to the read-only SPA location.
+ # CONF1 is deliberately read-only. Customer HTTPS proxies /api to Express;
+ # plain HTTP redirects /api to HTTPS instead of proxying customer data.
  if index in (1,2):
-  marker="# SANATPISH_API_WRITE_ROUTE_V1"
+  marker="# SANATPISH_API_WRITE_ROUTE_V2"
+  old_markers=("# SANATPISH_API_WRITE_ROUTE_V1",marker)
   root_pattern=re.compile(r'(?m)^([ \t]*)location\s+/\s*\{')
   api_pattern=re.compile(r'(?m)^[ \t]*location\s+(?:\^~\s+)?/api/\s*\{')
-  if marker in source:
-   assert source.count(marker)==1,("DUPLICATE_API_WRITE_ROUTE",filename)
-   route_start=source.index(marker)
-   root_matches=list(root_pattern.finditer(source))
-   assert len(root_matches)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(root_matches))
-   assert route_start < root_matches[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
-   route=source[route_start:root_matches[0].start()]
-   assert "location ^~ /api/ {" in route,("API_LOCATION_MISSING",filename)
-   assert "limit_except GET HEAD POST PUT PATCH DELETE OPTIONS" in route,("API_METHOD_ALLOWLIST_MISSING",filename)
-   assert f"proxy_pass http://127.0.0.1:{target};" in route,("API_ROUTE_UPSTREAM_MISMATCH",filename)
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(roots))
+  found=[m for m in old_markers if m in source]
+  if found:
+   assert len(found)==1 and source.count(found[0])==1,("DUPLICATE_API_ROUTE_MARKERS",filename,found)
+   route_start=source.index(found[0])
+   assert route_start<roots[0].start(),("API_ROUTE_AFTER_SPA_FALLBACK",filename)
+   source=source[:route_start]+source[roots[0].start():]
   else:
    assert not api_pattern.search(source),("UNMANAGED_API_PREFIX_LOCATION",filename)
-   roots=list(root_pattern.finditer(source))
-   assert len(roots)==1,("UNEXPECTED_ROOT_LOCATION_COUNT",filename,len(roots))
-   indent=roots[0].group(1)
-   block="\n".join((
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1,("ROOT_LOCATION_CHANGED",filename,len(roots))
+  indent=roots[0].group(1)
+  if index==1:
+   lines=(
     f"{indent}{marker}",
     f"{indent}location ^~ /api/ {{",
-    f"{indent}    limit_except GET HEAD POST PUT PATCH DELETE OPTIONS {{",
-    f"{indent}        deny all;",
-    f"{indent}    }}",
-    "",
+    f"{indent}    add_header X-Sanatpish-API-Route express always;",
     f"{indent}    proxy_pass http://127.0.0.1:{target};",
     f"{indent}    proxy_http_version 1.1;",
     f"{indent}    proxy_set_header Host $host;",
     f"{indent}    proxy_set_header X-Real-IP $remote_addr;",
     f"{indent}    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
-    f"{indent}    proxy_set_header X-Forwarded-Proto $scheme;",
+    f"{indent}    proxy_set_header X-Forwarded-Proto https;",
     f"{indent}    proxy_set_header Upgrade $http_upgrade;",
     f"{indent}    proxy_set_header Connection $connection_upgrade;",
-    "",
     f"{indent}    proxy_connect_timeout 15s;",
     f"{indent}    proxy_read_timeout 300s;",
     f"{indent}    proxy_send_timeout 300s;",
     f"{indent}    proxy_buffering off;",
     f"{indent}    proxy_request_buffering off;",
     f"{indent}}}",
-   ))
-   source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
-   assert source.index(marker)<list(root_pattern.finditer(source))[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
-  root=list(root_pattern.finditer(source))
-  assert len(root)==1,("ROOT_LOCATION_CHANGED",filename)
-  assert re.search(r'limit_except\s+GET\s*\{',source[root[0].start():root[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+   )
+   label="CUSTOMER_HTTPS_API_PROXY_ROUTE_READY"
+  else:
+   lines=(
+    f"{indent}{marker}",
+    f"{indent}location ^~ /api/ {{",
+    f"{indent}    add_header X-Sanatpish-API-Route redirect always;",
+    f"{indent}    return 308 https://$host$request_uri;",
+    f"{indent}}}",
+   )
+   label="CUSTOMER_HTTP_API_HTTPS_REDIRECT_READY"
+  block="\n".join(lines)
+  source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
+  roots=list(root_pattern.finditer(source))
+  assert len(roots)==1 and source.index(marker)<roots[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
+  assert re.search(r'limit_except\s+GET\s*\{',source[roots[0].start():roots[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+  route=source[source.index(marker):roots[0].start()]
+  assert "limit_except" not in route,("API_METHODS_MUST_REACH_EXPRESS",filename)
+  if index==1:
+   assert f"proxy_pass http://127.0.0.1:{target};" in route and "X-Sanatpish-API-Route express always" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
+  else:
+   assert "return 308 https://$host$request_uri;" in route and "proxy_pass" not in route,("HTTP_API_REDIRECT_INVALID",filename)
   assert source.count(marker)==1
-  print("SCOPED_API_WRITE_ROUTE_READY",filename,"upstream="+target)
+  print(label,filename,"upstream="+target if index==1 else "https_redirect")
  else:
-  assert marker not in source,("IP_PREVIEW_MUST_REMAIN_READ_ONLY",filename)
+  assert "SANATPISH_API_WRITE_ROUTE_V1" not in source and "SANATPISH_API_WRITE_ROUTE_V2" not in source,("IP_PREVIEW_MUST_REMAIN_READ_ONLY",filename)
   print("READ_ONLY_IP_PREVIEW_PRESERVED",filename)
  updated.append((filename,source))
 for filename,source in updated:
  Path(filename).write_text(source)
  print("SINGLE_PORT_NGINX_UPDATED",filename,target)
+print("API_ROUTE_METHODS_DELEGATED_TO_EXPRESS")
 PY
 nginx -t
 systemctl reload nginx
