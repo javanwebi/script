@@ -6,12 +6,10 @@ import {
   ShoppingCart, UsersRound, Wrench,
 } from "lucide-react";
 import { STORE_ASSETS } from "../assets/images";
-import heroGear from "../assets/images/about/about-hero-gear.webp";
-import atlasStory from "../assets/images/about/about-atlas-story.webp";
 import workerCta from "../assets/images/about/about-worker-cta.webp";
 
 const capabilities = [
-  { title: "تأمین قطعات", text: "دسترسی به کاتالوگ تخصصی قطعات و تجهیزات موردنیاز خطوط تولید", image: STORE_ASSETS.partsWarehouseVault, Icon: PackageCheck },
+  { title: "تأمین قطعات", text: "دسترسی به کاتالوگ تخصصی قطعات و تجهیزات موردنیاز خطوط تولید", image: STORE_ASSETS.heroSteelCoils, Icon: PackageCheck },
   { title: "مشاوره تخصصی", text: "راهنمایی برای شناخت مشخصات و انتخاب مناسب قطعه", image: STORE_ASSETS.engineerWhyAtlas, Icon: Headphones },
   { title: "شناسایی هوشمند قطعه", text: "کمک به جستجوی قطعه از روی تصویر و یافتن گزینه‌های مشابه", image: STORE_ASSETS.aiSearchMobile, Icon: ScanSearch },
   { title: "پشتیبانی صنایع", text: "تمرکز بر نیازهای فنی و تأمین قطعات برای محیط‌های صنعتی", image: STORE_ASSETS.refineryDuskWide, Icon: Factory },
@@ -48,7 +46,7 @@ export function AboutPage() {
     <main className="sp-about-page" dir="rtl">
       <section className="sp-about-hero" aria-labelledby="sp-about-title">
         <div className="sp-about-hero__visual">
-          <img src={heroGear} alt="چرخ‌دنده فولادی و تجهیزات یک سالن صنعتی" fetchPriority="high" decoding="async" />
+          <img src={STORE_ASSETS.partsWarehouseVault} alt="چرخ‌دنده‌های فولادی و مجموعه انتقال قدرت در محیط صنعتی" fetchPriority="high" decoding="async" />
           <div className="sp-about-hero__visual-shade" />
           <span className="sp-about-hero__visual-index">SANAT PISH / INDUSTRIAL MARKETPLACE</span>
           <div className="sp-about-hero__image-caption">
@@ -77,7 +75,7 @@ export function AboutPage() {
 
       <section className="sp-about-story" id="sp-about-story" aria-labelledby="sp-about-story-title">
         <div className="sp-about-story__visual">
-          <img src={atlasStory} alt="نمای ساختمان بازرگانی تسمه اطلس" loading="lazy" decoding="async" />
+          <img src={STORE_ASSETS.engineerWhyAtlas} alt="کارشناس فنی در محیط صنعتی؛ نمادی از پشتوانه تخصصی اطلس" loading="lazy" decoding="async" />
           <div className="sp-about-story__photo-label"><span>ریشه ما</span><strong>بازرگانی تسمه اطلس</strong></div>
         </div>
         <div className="sp-about-story__content">
