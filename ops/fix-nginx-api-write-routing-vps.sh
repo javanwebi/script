@@ -131,6 +131,13 @@ for index,filename in enumerate((https,http)):
         lines=(
             f"{indent}{marker}",
             f"{indent}location ^~ /api/ {{",
+            f"{indent}    # Preserve Express JSON auth errors; do not rewrite upstream 401/403 as HTML.",
+            f"{indent}    proxy_intercept_errors off;",
+            f"{indent}    proxy_pass_header X-Powered-By;",
+            f"{indent}    satisfy any;",
+            f"{indent}    allow all;",
+            f"{indent}    auth_basic off;",
+            f"{indent}    auth_request off;",
             f"{indent}    proxy_pass http://127.0.0.1:{target};",
             f"{indent}    proxy_http_version 1.1;",
             f"{indent}    proxy_set_header Host $host;",
@@ -181,34 +188,37 @@ systemctl reload nginx
 echo "===== VERIFY THE LOADED ROUTE AND BOTH PUBLIC HTTPS HOSTS ====="
 nginx -T 2>&1 | grep -F "SANATPISH_API_WRITE_ROUTE_V2" >/dev/null
 for host in sanatpish.com www.sanatpish.com; do
-  BODY="$(mktemp /tmp/sanatpish-public-crm.XXXXXX)"
-  HEADERS="$(mktemp /tmp/sanatpish-public-crm-headers.XXXXXX)"
-  META="$(curl --noproxy '*' -ksS --connect-timeout 3 --max-time 15 \
-    --resolve "$host:443:127.0.0.1" \
-    -D "$HEADERS" -H 'Accept: application/json' -H 'Content-Type: application/json' \
-    -X POST --data '{}' -o "$BODY" -w '%{http_code}|%{content_type}' \
-    "https://$host/api/admin/crm/customers")"
-  STATUS="$(printf '%s' "$META" | cut -d'|' -f1)"
-  TYPE="$(printf '%s' "$META" | cut -d'|' -f2-)"
-  if [[ "$STATUS" != 401 && "$STATUS" != 403 ]]; then
-    cat "$BODY"; rm -f "$BODY" "$HEADERS"
-    echo "NGINX_STILL_BLOCKS_API host=$host status=$STATUS type=$TYPE"
-    exit 1
-  fi
-  if [[ "$TYPE" != *application/json* ]] || ! grep -Eiq '^X-Powered-By:[[:space:]]*Express' "$HEADERS"; then
-    cat "$BODY"; echo "===== RESPONSE HEADERS ====="; cat "$HEADERS"
-    rm -f "$BODY" "$HEADERS"
-    echo "NGINX_EXPRESS_HEADER_OR_JSON_MISSING host=$host status=$STATUS type=$TYPE"
-    exit 1
-  fi
-  python3 - "$BODY" <<'PY'
+  for api_path in /api/admin/crm/customers /api/catalog/sku-transfer; do
+    BODY="$(mktemp /tmp/sanatpish-public-api.XXXXXX)"
+    HEADERS="$(mktemp /tmp/sanatpish-public-api-headers.XXXXXX)"
+    META="$(curl --noproxy '*' -ksS --connect-timeout 3 --max-time 15 \
+      --resolve "$host:443:127.0.0.1" \
+      -D "$HEADERS" -H 'Accept: application/json' -H 'Content-Type: application/json' \
+      -X POST --data '{}' -o "$BODY" -w '%{http_code}|%{content_type}' \
+      "https://$host$api_path")"
+    STATUS="$(printf '%s' "$META" | cut -d'|' -f1)"
+    TYPE="$(printf '%s' "$META" | cut -d'|' -f2-)"
+    if [[ "$STATUS" != 401 && "$STATUS" != 403 ]]; then
+      cat "$BODY"; rm -f "$BODY" "$HEADERS"
+      echo "NGINX_API_PROBE_UNEXPECTED host=$host path=$api_path status=$STATUS type=$TYPE"
+      exit 1
+    fi
+    if [[ "$TYPE" != *application/json* ]] || ! grep -Eiq '^X-Powered-By:[[:space:]]*Express' "$HEADERS"; then
+      cat "$BODY"; echo "===== RESPONSE HEADERS ====="; cat "$HEADERS"
+      rm -f "$BODY" "$HEADERS"
+      echo "NGINX_EXPRESS_HEADER_OR_JSON_MISSING host=$host path=$api_path status=$STATUS type=$TYPE"
+      exit 1
+    fi
+    python3 - "$BODY" <<'PY'
 import json,sys
 with open(sys.argv[1],encoding="utf-8") as f: json.load(f)
 PY
-  rm -f "$BODY" "$HEADERS"
+    rm -f "$BODY" "$HEADERS"
+    echo "PUBLIC_POST_API_JSON_GUARD_OK host=$host path=$api_path status=$STATUS"
+  done
   curl --noproxy '*' -kfsS --connect-timeout 3 --max-time 12 \
     --resolve "$host:443:127.0.0.1" "https://$host/api/health" | grep -q '"database":"ok"'
-  echo "PUBLIC_POST_API_JSON_GUARD_OK host=$host status=$STATUS"
+  echo "PUBLIC_API_DATABASE_HEALTH_OK host=$host"
 done
 
 echo "===== VERIFY PLAIN HTTP API REDIRECTS TO HTTPS ====="
