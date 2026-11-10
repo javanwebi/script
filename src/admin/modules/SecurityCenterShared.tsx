@@ -1,4 +1,5 @@
 import React from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 export type SecurityTab='overview'|'access'|'payments'|'messaging'|'shipping'|'website'|'integrations'|'activity'|'backups';
 export type Payment={provider:'mellat'|'saman'|'zarinpal';merchantId:string;terminalId:string;sandbox:boolean};
 export type Shipping={barbari:boolean;tipax:boolean;expressPost:boolean;dedicatedFleet:boolean};
@@ -20,8 +21,7 @@ export const secondary='inline-flex min-h-11 items-center justify-center gap-2 r
 export function faDate(iso?:string){if(!iso)return '—';const d=new Date(iso);return Number.isNaN(d.getTime())?'—':d.toLocaleString('fa-IR',{dateStyle:'medium',timeStyle:'short'});}
 export async function securityApi<T>(url:string,method='GET',body?:unknown):Promise<T>{
  const r=await fetch(url,{method,credentials:'same-origin',cache:'no-store',headers:body!==undefined?{'Content-Type':'application/json'}:{},body:body!==undefined?JSON.stringify(body):undefined});
- const data=await r.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست'}));
- if(!r.ok||!data.success)throw Error(data.message||'دریافت اطلاعات از سرور ممکن نشد');
+ const data=await requireAdminApiJson<T>(r,'مدیریت تنظیمات امنیتی');
  return data as T;
 }
 export const SectionTitle:React.FC<{title:string;subtitle:string;icon:React.ElementType}>=({title,subtitle,icon:Icon})=>
