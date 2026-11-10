@@ -212,28 +212,30 @@ export function IndustryPage() {
         />
         <div className="industry-hero-shade" />
         <div className="editorial-wrap">
-          <nav className="editorial-crumb">
-            <Link to="/">صنعت پیش</Link>
-            <span>/</span>
-            <Link to="/industries">صنایع</Link>
-          </nav>
-          <span className="industry-kicker">{industry.eyebrow}</span>
-          <h1>
-            همراه خط تولید
-            <br />
-            <em>{industry.title}</em>
-          </h1>
-          <p>{industry.description}</p>
-          <div className="editorial-actions">
-            <a className="store-btn-primary" href="#industry-parts">
-              کاوش قطعات این صنعت <ArrowLeft size={17} />
-            </a>
-            <Link
-              className="industry-secondary"
-              to={`/ai-consult?industry=${industry.slug}`}
-            >
-              مشاوره با FORZA <MessageSquare size={17} />
-            </Link>
+          <div className="industry-hero-copy">
+            <nav className="editorial-crumb">
+              <Link to="/">صنعت پیش</Link>
+              <span>/</span>
+              <Link to="/industries">صنایع</Link>
+            </nav>
+            <span className="industry-kicker">{industry.eyebrow}</span>
+            <h1>
+              همراه خط تولید
+              <br />
+              <em>{industry.title}</em>
+            </h1>
+            <p>{industry.description}</p>
+            <div className="editorial-actions">
+              <a className="store-btn-primary" href="#industry-parts">
+                کاوش قطعات این صنعت <ArrowLeft size={17} />
+              </a>
+              <Link
+                className="industry-secondary"
+                to={`/ai-consult?industry=${industry.slug}`}
+              >
+                مشاوره با FORZA <MessageSquare size={17} />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
