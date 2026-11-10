@@ -576,6 +576,74 @@ from pathlib import Path
 import re,sys
 *files,target=sys.argv[1:]
 pattern=re.compile(r'(proxy_pass\s+http://127\.0\.0\.1:)(30(?:0[0-9]|1[0-9]|20))(;)')
+
+def nginx_block_at(text, opening_brace):
+ depth=0
+ quote=None
+ escaped=False
+ comment=False
+ for pos in range(opening_brace,len(text)):
+  char=text[pos]
+  if comment:
+   if char=="\n": comment=False
+   continue
+  if quote:
+   if escaped: escaped=False
+   elif char=="\\": escaped=True
+   elif char==quote: quote=None
+   continue
+  if char in ("\"","'"):
+   quote=char
+  elif char=="#":
+   comment=True
+  elif char=="{":
+   depth+=1
+  elif char=="}":
+   depth-=1
+   if depth==0:
+    return text[opening_brace:pos+1]
+ raise AssertionError("UNBALANCED_NGINX_BLOCK")
+
+def nginx_depth_before(text, stop):
+ depth=0
+ quote=None
+ escaped=False
+ comment=False
+ for pos,char in enumerate(text[:stop]):
+  if comment:
+   if char=="\n": comment=False
+   continue
+  if quote:
+   if escaped: escaped=False
+   elif char=="\\": escaped=True
+   elif char==quote: quote=None
+   continue
+  if char in ("\"","'"):
+   quote=char
+  elif char=="#":
+   comment=True
+  elif char=="{":
+   depth+=1
+  elif char=="}":
+   depth-=1
+ return depth
+
+def require_read_only_spa_guard(root_block, filename):
+ guard_pattern=re.compile(r'(?m)^[ \t]*limit_except[ \t]+([^;{}]+)\{')
+ valid=[]
+ for match in guard_pattern.finditer(root_block):
+  if nginx_depth_before(root_block,match.start())!=1:
+   continue
+  methods=match.group(1).split()
+  if set(methods) not in ({"GET"},{"GET","HEAD"}):
+   continue
+  guard_block=nginx_block_at(root_block,match.end()-1)
+  if not re.search(r'(?m)^[ \t]*deny[ \t]+all[ \t]*;',guard_block):
+   continue
+  valid.append((methods,guard_block))
+ assert len(valid)==1,("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename,len(valid))
+ print("READ_ONLY_SPA_GUARD_OK",filename,"methods="+",".join(valid[0][0]))
+
 contents=[Path(p).read_text() for p in files]
 for filename,source in zip(files,contents):
  matches=pattern.findall(source)
@@ -643,7 +711,8 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
   roots=list(root_pattern.finditer(source))
   assert len(roots)==1 and source.index(marker)<roots[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
-  assert re.search(r'limit_except\s+GET\s*\{',source[roots[0].start():roots[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
+  root_block=nginx_block_at(source,roots[0].end()-1)
+  require_read_only_spa_guard(root_block,filename)
   route=source[source.index(marker):roots[0].start()]
   assert "limit_except" not in route,("API_METHODS_MUST_REACH_EXPRESS",filename)
   if index==1:
