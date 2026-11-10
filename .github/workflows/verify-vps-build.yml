@@ -1,5 +1,11 @@
 name: Verify VPS frontend build before deployment
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/components/storefront/HomeOverview.tsx"
+      - "src/pages/HomePage.tsx"
+      - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main]
     paths:
