@@ -272,7 +272,7 @@ export const Header: React.FC = () => {
                   setIsSearchDropdownOpen(true);
                   setIsAnnouncementsOpen(false);
                 }}
-                placeholder="جستجوی قطعه، کد فنی، تسمه، بلبرینگ..."
+                placeholder={isTextileReferencePage ? "جستجوی قطعه، کد کالا و مدل..." : "جستجوی قطعه، کد فنی، تسمه، بلبرینگ..."}
                 className="w-full h-9 sm:h-10.5 pl-16 sm:pl-20 pr-1 bg-transparent text-[#2B313A] text-[12px] sm:text-xs md:text-sm font-medium focus:outline-none placeholder:text-[#7B828A] placeholder:font-normal truncate"
               />
 
