@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   getCurrentCustomerSkuPrice,
   hasCustomerPriceAccess,
@@ -27,4 +28,25 @@ test("SKU inquiry-only and missing or invalid prices stay on the inquiry path", 
   assert.equal(getCurrentCustomerSkuPrice({ price: -10 }, customer, true), 0);
   assert.equal(getCurrentCustomerSkuPrice({ price: Number.NaN }, customer, true), 0);
   assert.equal(getCurrentCustomerSkuPrice({ prices: { retail: 73000 } }, customer, true), 73000);
+});
+
+test("customer portal price surfaces use server prices and never reapply browser price-list discounts", () => {
+  const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
+  const portalTools = read("src/components/portal/PortalTools.tsx");
+  const portalCard = read("src/components/portal/PortalProductCard.tsx");
+  const account = read("src/pages/AccountPage.tsx");
+  const consumer = read("src/pages/ConsumerDashboardPage.tsx");
+  const productDetail = read("src/pages/ProductDetailPage.tsx");
+  const publicCard = read("src/components/product/ProductCard.tsx");
+
+  assert.match(portalTools, /getCurrentCustomerSkuPrice/);
+  assert.doesNotMatch(portalTools, /getSkuPriceForList/);
+  assert.match(portalTools, /memberPath\(currentUser, p\.code\)/);
+  assert.match(portalCard, /getCurrentCustomerSkuPrice/);
+  assert.doesNotMatch(portalCard, /getSkuPriceForList/);
+  assert.match(account, /canViewCustomerPrices/);
+  assert.match(account, /sku\.basePrice/);
+  assert.match(consumer, /getCurrentCustomerSkuPrice/);
+  assert.match(productDetail, /currentUser\.canViewPrices === true/);
+  assert.match(publicCard, /location\.pathname\.startsWith\("\/consumer-dashboard\/"\)/);
 });
