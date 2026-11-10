@@ -7,13 +7,12 @@ import {
   MicOff,
   Send,
   MessageSquare,
-  Sparkles,
   Eye,
   Loader2,
   RotateCcw,
   Square,
 } from 'lucide-react';
-import { ParticleAvatar, ParticleAvatarRef } from './ParticleAvatar';
+import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
 import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
@@ -29,6 +28,13 @@ import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
 import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
+type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
+const ParticleAvatar = lazy(async () => {
+  const module = await import('./ParticleAvatar');
+  return {
+    default: module.ParticleAvatar as unknown as React.ComponentType<LazyParticleAvatarProps>,
+  };
+});
 
 interface AiForzaCallExperienceProps {
   onClose?: () => void;
@@ -38,13 +44,6 @@ type ForzaStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const GREETING_TEXT = FORZA_GREETING_TEXT;
 
-
-const QUICK_TOPICS = [
-  'محاسبه طول و گام تسمه تایمینگ PU',
-  'بررسی کد یاتاقان و لقی استاندارد C3',
-  'مشاوره استعلام قیمت قطعات انتقال قدرت',
-  'انتخاب پولی چدنی متناسب با شفت الکتروموتور',
-];
 
 interface Turn {
   role: 'user' | 'model';
@@ -228,7 +227,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return shouldIgnoreForzaSpeakerEcho(
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
-  const serverSttConfiguredRef=useRef<boolean|null>(null);
+  const serverSttConfiguredRef=useRef(false);
+  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1174,11 +1174,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Chrome's finalized Persian transcript is already available in the
-        // common path. Do not serialize every turn behind a second full-audio
-        // decode; Diba is the server fallback when browser text is absent or
-        // still provisional.
-        const needsServerFinal = !q || speechInterimRef.current;
+        // Browser speech is a low-latency live preview only. When the
+        // server Diba recognizer is enabled, its final transcript is verified
+        // on every recorded turn before the AI receives the query.
+        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
@@ -1233,7 +1232,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         } else if (audioBlob && q) {
           console.info('[FORZA_STT] turn='+generation+
-            ' source=browser-final server_verify=skipped chars='+q.length);
+            ' source=browser-final diba_verify=skipped chars='+q.length);
+        } else if (audioBlob && !q) {
+          throw new Error('متن گفتار دریافت نشد و موتور دایبا هم آماده نیست. لطفاً دوباره نزدیک میکروفون صحبت کنید یا پیام را تایپ کنید.');
         }
 
         // Render every incoming SSE delta immediately; the selected Nima
@@ -1911,11 +1912,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const controller=new AbortController();
     void fetch('/api/ai/forza-stt-info',{signal:controller.signal,cache:'no-store'})
       .then(async response=>response.ok?await response.json():null)
-      .then((info:{serverSttConfigured?:boolean}|null)=>{
-        if(!controller.signal.aborted&&typeof info?.serverSttConfigured==='boolean')
-          serverSttConfiguredRef.current=info.serverSttConfigured;
+      .then((info:{serverSttConfigured?:boolean;serverSttProvider?:string;serverSttReady?:boolean}|null)=>{
+        if(controller.signal.aborted||typeof info?.serverSttConfigured!=='boolean')return;
+        // The project explicitly avoids Gemini speech recognition. Only a
+        // ready local Diba/Vosk worker may trigger a server-audio round trip.
+        const dibaReady=info.serverSttProvider==='diba'&&
+          info.serverSttConfigured===true&&info.serverSttReady===true;
+        serverSttConfiguredRef.current=dibaReady;
+        setServerSttLabel(dibaReady
+          ? 'دایبا سرور آماده است'
+          : info.serverSttProvider==='diba'
+            ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
+            : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
       })
-      .catch(()=>{});
+      .catch(()=>{
+        if(!controller.signal.aborted){serverSttConfiguredRef.current=false;setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');}
+      });
     return ()=>controller.abort();
   },[]);
 
@@ -2058,6 +2070,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     return toFarsiDigits(`${m}:${r}`);
   };
 
+  // One live transcript surface: customer speech is replaced by the first AI chunk,
+  // and the next customer utterance takes over the same card.
+  const showCustomerTranscript = Boolean(userText.trim()) && (turn === 'user' || !displayedAi);
+  const showAssistantTranscript = !showCustomerTranscript && Boolean(displayedAi);
+
   return (
     <main
       ref={shell}
@@ -2072,18 +2089,23 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if ((e.target as HTMLElement).tagName === 'CANVAS') setClean(c => !c);
       }}
     >
-      {/* 1. Permanent Holographic Particle Mesh Avatar Engine */}
-      <ParticleAvatar
-        ref={avatarRef}
-        paused={paused}
-        mode={status === 'speaking' ? 'speak' : status === 'listening' ? 'listen' : 'auto'}
-        intensity={status === 'speaking' ? 1.4 : status === 'listening' ? 1.15 : 1}
-        audioLevel={audioLevel}
-        quality={quality}
-        background={true}
-        onStats={s => setStats(prev => ({ ...prev, ...s }))}
-        onFormed={() => setParticlesFormed(true)}
-      />
+      {/* The heavy WebGL engine is split from the voice controller; the page paints first. */}
+      <Suspense fallback={<div className="forza-avatar-fallback" aria-hidden="true" />}>
+        <ParticleAvatar
+          ref={avatarRef}
+          paused={paused}
+          mode={avatarMode}
+          intensity={avatarIntensity}
+          audioLevel={audioLevel}
+          quality={quality}
+          background={true}
+          backgroundSpeed={speed}
+          restartKey={revision}
+          onError={message => setErrorNotice(message)}
+          onStats={s => setStats(prev => ({ ...prev, ...s }))}
+          onFormed={() => setParticlesFormed(true)}
+        />
+      </Suspense>
 
       {/* Hidden HTML5 audio element for direct, crystal-clear Persian TTS streaming */}
       <audio ref={audioElRef} className="hidden" playsInline preload="auto" />
@@ -2147,7 +2169,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       <button
         type="button"
         onClick={endCall}
-        className="absolute top-5 left-6 z-40 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/80 hover:bg-red-900 border border-red-500/60 hover:border-red-400 text-white shadow-xl shadow-black/60 backdrop-blur-md transition-all active:scale-95 group cursor-pointer"
+        className="forza-exit-call-button absolute top-5 left-6 z-40 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/80 hover:bg-red-900 border border-red-500/60 hover:border-red-400 text-white shadow-xl shadow-black/60 backdrop-blur-md transition-all active:scale-95 group cursor-pointer"
         aria-label="پایان مکالمه و خروج"
         title="پایان مکالمه هوشمند FORZA"
         dir="rtl"
@@ -2157,32 +2179,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         </div>
         <span className="font-bold text-xs tracking-wide">خروج</span>
       </button>
-
-      {/* Quick Question Chips (Bottom-Left on Desktop / Mid on Mobile) */}
-      {!clean && (
-        <div
-          dir="rtl"
-          className="absolute bottom-24 sm:bottom-12 left-6 sm:left-8 z-30 max-w-sm hidden sm:flex flex-col gap-2 pointer-events-auto"
-        >
-          <div className="flex items-center gap-1.5 text-[11px] text-[#dee2e5]/70 font-semibold tracking-wide">
-            <Sparkles size={12} className="text-[#E06518]" />
-            <span>پرسش‌های پیشنهادی از هوش مصنوعی فورزا:</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_TOPICS.map((topic, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => submitUserText(topic)}
-                disabled={status === 'thinking'}
-                className="text-[11px] text-right px-3 py-1.5 rounded-lg bg-black/70 hover:bg-[#E06518]/25 border border-white/10 hover:border-[#E06518]/60 text-[#dee2e5] hover:text-white backdrop-blur-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                {topic}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Top Center Signal / HUD Toggle */}
       <button
@@ -2203,7 +2199,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         className="forza-conversation-panel absolute bottom-3 right-3 sm:bottom-20 sm:right-10 w-[calc(100%-1.5rem)] sm:w-[min(36vw,30rem)] max-h-[40dvh] sm:max-h-[55dvh] overflow-y-auto max-w-[34rem] z-30 flex flex-col gap-3 pointer-events-none"
       >
         {/* Turn Status Pill & Mic / Speaker Controls */}
-        <div className="self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
+        <div className="forza-status-dock self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
             {turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
@@ -2294,8 +2290,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         </div>
 
         {!clean && (
-          <div role="status" dir="rtl" className="pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
-            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: مرورگر / سرویس فعلی سرور
+          <div role="status" dir="rtl" className="forza-voice-meta pointer-events-none self-end text-[10px] text-[#dee2e5]/70">
+            صدای فورزا: {activeVoiceLabel} · تشخیص گفتار: {serverSttLabel}
           </div>
         )}
         {microphoneError && (
@@ -2335,7 +2331,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </div>
         )}
         <button type="button" onClick={() => { imageSearchGenerationRef.current++; micMutedBeforeImageSearchRef.current = micMutedRef.current; micMutedRef.current = true; setIsMicMuted(true); stopListening(); setShowImageSearch(true); }}
-          className="pointer-events-auto self-end flex items-center gap-3 rounded-2xl border border-orange-400/60 bg-gradient-to-l from-orange-950/95 to-slate-950/95 px-5 py-3 text-white shadow-xl backdrop-blur-xl"
+          className="forza-image-scan-button pointer-events-auto self-end flex items-center gap-3 rounded-2xl border border-orange-400/60 bg-gradient-to-l from-orange-950/95 to-slate-950/95 px-5 py-3 text-white shadow-xl backdrop-blur-xl"
           aria-label="شناسایی تصویر قطعه با فورزا">
           <Eye size={22} className="text-orange-400" />
           <span className="forza-persian-label">اسکن تصویر قطعه</span>
@@ -2377,22 +2373,26 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         )}
 
         {consultationImage && <img src={consultationImage} alt="قطعه مورد مشاوره" className="w-20 h-20 object-contain rounded-xl bg-white pointer-events-auto" />}
-        {/* User live speech transcript */}
-        {userText && (turn === 'user' || !displayedAi) && (
-          <div className="forza-persian-copy text-[13px] sm:text-[14px] bg-black/88 border border-white/15 text-[#f1f3f5] px-4 py-3 rounded-2xl backdrop-blur-xl shadow-xl animate-fadeInCard pointer-events-auto">
-            <span className="forza-persian-label text-white ml-2">شما:</span>
-            <span>{userText}</span>
-          </div>
-        )}
-
-        {/* AI voice response subtitle box matching screenshot */}
-        {displayedAi && (turn !== 'user' || !userText) && (
-          <div className="text-xs sm:text-sm bg-[#0b0908]/94 border border-[#e06518]/45 text-white p-4 sm:p-5 rounded-2xl backdrop-blur-xl shadow-2xl pointer-events-auto border-t-2 border-t-[#e06518] animate-fadeInCard">
-            <div className="forza-persian-label text-[12px] font-bold text-[#f47a29] mb-2 flex items-center justify-end gap-1.5" dir="rtl">
-              <span><bdi dir="ltr" className="forza-code">AI FORZA</bdi> :</span>
-              <Volume2 size={13} className="text-[#e06518]" />
-            </div>
-            <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{displayedAi}</p>
+        {(showCustomerTranscript || showAssistantTranscript) && (
+          <div
+            className={`forza-message-card pointer-events-auto animate-fadeInCard ${showCustomerTranscript ? 'forza-message-card--customer' : 'forza-message-card--assistant'}`}
+            aria-live="polite"
+            aria-atomic="false"
+          >
+            {showCustomerTranscript ? (
+              <>
+                <div className="forza-persian-label text-[12px] font-bold text-white mb-2">شما</div>
+                <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{userText}</p>
+              </>
+            ) : (
+              <>
+                <div className="forza-persian-label text-[12px] font-bold text-[#f47a29] mb-2 flex items-center justify-end gap-1.5" dir="rtl">
+                  <span><bdi dir="ltr" className="forza-code">AI FORZA</bdi> :</span>
+                  <Volume2 size={13} className="text-[#e06518]" />
+                </div>
+                <p className="forza-persian-copy text-[13px] sm:text-[15px] text-[#f1f3f5]">{displayedAi}</p>
+              </>
+            )}
           </div>
         )}
 
@@ -2405,18 +2405,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           <span />
         </div>
       </div>
-
-      {/* Restore button when HUD hidden */}
-      {clean && (
-        <button
-          className="absolute bottom-5 right-5 z-40 p-2.5 rounded-xl bg-[#0a0d14]/80 border border-[#dee2e5]/30 text-[#dee2e5] hover:text-white hover:bg-white/10 transition-all shadow-xl"
-          onClick={() => setClean(false)}
-          aria-label="نمایش کنترل‌ها"
-          title="نمایش مجدد کنترل‌ها"
-        >
-          <Eye size={18} />
-        </button>
-      )}
 
       {/* Error or Fullscreen Notification Toast */}
       {(errorNotice || fullscreenError) && (

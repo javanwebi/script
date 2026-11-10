@@ -518,3 +518,107 @@
  .forza-conversation-panel .backdrop-blur-xl,.forza-conversation-panel .backdrop-blur-md{backdrop-filter:none;}
  .forza-conversation-panel .forza-persian-copy{line-height:1.85;}
 }
+
+
+/* Fast call entry fallback and one-card live transcript. */
+.forza-avatar-fallback {
+  position: absolute;
+  inset: 0;
+  background: #080402;
+  pointer-events: none;
+}
+.forza-message-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(224, 101, 24, .42);
+  border-top: 2px solid #e06518;
+  border-radius: 18px;
+  background: rgba(11, 9, 8, .94);
+  color: #f1f3f5;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .34);
+  overflow-wrap: anywhere;
+}
+.forza-message-card--customer {
+  border-color: rgba(255,255,255,.18);
+  border-top-color: rgba(255,255,255,.55);
+  background: rgba(0,0,0,.88);
+}
+.forza-message-card--assistant {
+  border-top-color: #e06518;
+}
+.forza-message-card p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.forza-status-dock {
+  max-width: 100%;
+}
+.forza-image-scan-button {
+  max-width: 100%;
+}
+@media (max-width: 639px) {
+  .forza-stage .forza-exit-call-button {
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+  }
+  .forza-conversation-panel {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: 40dvh !important;
+    padding-bottom: 0 !important;
+    gap: 7px !important;
+  }
+  .forza-status-dock {
+    align-self: stretch !important;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+    border-radius: 16px !important;
+  }
+  .forza-status-dock > span:first-child {
+    flex: 1 1 100%;
+    font-size: 11px !important;
+    line-height: 1.65 !important;
+  }
+  .forza-voice-meta {
+    display: none !important;
+  }
+  .forza-message-card {
+    max-height: 20dvh;
+    overflow-y: auto;
+    padding: 11px 13px;
+    border-radius: 15px;
+    backdrop-filter: none;
+  }
+  .forza-message-card p {
+    font-size: 13px !important;
+    line-height: 1.85 !important;
+  }
+  .forza-image-scan-button {
+    align-self: stretch !important;
+    justify-content: center;
+    padding: 9px 12px !important;
+    border-radius: 14px !important;
+  }
+  .forza-stage .hud-top-left {
+    display: none;
+  }
+  .forza-stage .hud-top-right {
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+  }
+  .forza-stage .signal-toggle {
+    top: max(12px, env(safe-area-inset-top));
+  }
+  .forza-stage .scan {
+    animation-duration: 9s;
+    opacity: .45;
+  }
+}
