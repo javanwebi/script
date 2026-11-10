@@ -41,6 +41,8 @@ jobs:
         run: npm run lint
       - name: Premium catalogue responsive design regression
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Screenshot capture script syntax
+        run: node --check scripts/capture-industry-pages.mjs
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
