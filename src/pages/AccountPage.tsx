@@ -120,6 +120,7 @@ export const AccountPage: React.FC = () => {
 
   // مشتری فعلی بر اساس کاربر لاگین‌شده از CRM (بدون هیچ‌گونه سوئیچر دستی برای مشتری)
   const currentCustomer = currentUser!;
+  const canViewCustomerPrices = currentCustomer.canViewPrices === true;
 
   const activePriceList: PriceListDefinition = useMemo(() => {
     const pl = pricingCreditService.getPriceListForCustomer(currentCustomer);
@@ -302,7 +303,6 @@ export const AccountPage: React.FC = () => {
   }, [catalogSkus]);
 
   const filteredSkus = useMemo(() => {
-    if (activePriceList.id === "pl-default") return [];
     const byCat =
       selectedCategoryName === "all"
         ? catalogSkus
@@ -315,7 +315,7 @@ export const AccountPage: React.FC = () => {
         s.name.toLowerCase().includes(q) ||
         s.familyName.toLowerCase().includes(q),
     );
-  }, [catalogSkus, skuSearch, selectedCategoryName, activePriceList.id]);
+  }, [catalogSkus, skuSearch, selectedCategoryName]);
 
   useEffect(() => {
     setSkuPage(1);
@@ -335,13 +335,13 @@ export const AccountPage: React.FC = () => {
       !enabledMenus.some((m) => m.id === "orders_pricelist")
     )
       return;
-    if (activePriceList.id === "pl-default") return;
+    if (!canViewCustomerPrices) {
+      showToast("دسترسی مشاهده قیمت برای این حساب فعال نیست؛ با پشتیبانی تماس بگیرید.");
+      return;
+    }
     const qty = Math.max(1, orderQuantities[skuItem.code] || 5);
-    const myUnitPrice = pricingCreditService.getSkuPriceForList(
-      skuItem.code,
-      skuItem.basePrice,
-      activePriceList,
-    );
+    // basePrice is already resolved by /api/runtime for this signed-in customer.
+    const myUnitPrice = skuItem.basePrice;
     const catalog = getManagedCatalogProducts();
     const fam = catalog.find((p) => p.code === skuItem.familyCode);
     if (!fam) return;
@@ -373,11 +373,11 @@ export const AccountPage: React.FC = () => {
       !enabledMenus.some((m) => m.id === "orders_pricelist")
     )
       return;
-    if (activePriceList.id === "pl-default") {
-      showToast("لیست قیمت هنوز منتشر نشده است.");
+    if (!canViewCustomerPrices) {
+      showToast("دسترسی مشاهده قیمت برای این حساب فعال نیست؛ با پشتیبانی تماس بگیرید.");
       return;
     }
-    pricingCreditService.exportPriceListToExcel(activePriceList.id);
+    pricingCreditService.downloadCurrentCustomerPriceListExcel("xlsx");
     showToast(
       "فایل «اکسل لیست قیمت من» (.xlsx) شامل تمامی کدهای کالا با موفقیت دانلود شد.",
     );
@@ -796,7 +796,7 @@ export const AccountPage: React.FC = () => {
                         {portalLabel("واحد")}
                       </th>
                       <th className="py-3 px-4 font-bold">
-                        {portalLabel("قیمت واحد در لیست قیمت من")}
+                        {portalLabel("قیمت واحد فعلی حساب شما")}
                       </th>
                       <th className="py-3 px-4 font-bold">
                         {portalLabel("ثبت در سفارش")}
@@ -805,11 +805,7 @@ export const AccountPage: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {paginatedSkus.map((sku) => {
-                      const myPrice = pricingCreditService.getSkuPriceForList(
-                        sku.code,
-                        sku.basePrice,
-                        activePriceList,
-                      );
+                      const myPrice = canViewCustomerPrices ? sku.basePrice : 0;
                       const qty = orderQuantities[sku.code] ?? 5;
 
                       return (
@@ -822,7 +818,7 @@ export const AccountPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-4 font-bold text-slate-900">
                             <Link
-                              to={`/product/${encodeURIComponent(sku.familyCode)}`}
+                              to={`/account/product/${encodeURIComponent(sku.familyCode)}`}
                               className="hover:text-[#E06518]"
                             >
                               {sku.name}
@@ -837,7 +833,7 @@ export const AccountPage: React.FC = () => {
                           <td className="py-3 px-4 font-mono font-black text-emerald-700 text-sm">
                             {myPrice > 0
                               ? `${formatPrice(myPrice)} تومان`
-                              : "تماس جهت پیش‌فاکتور"}
+                              : canViewCustomerPrices ? "استعلام قیمت" : "دسترسی قیمت فعال نیست"}
                           </td>
                           <td className="py-3 px-4">
                             {resolvedConfig.permissions.allowQuickSkuOrder ? (
