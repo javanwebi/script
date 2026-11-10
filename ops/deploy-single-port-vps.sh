@@ -640,7 +640,7 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   route=source[source.index(marker):roots[0].start()]
   assert "limit_except" not in route,("API_METHODS_MUST_REACH_EXPRESS",filename)
   if index==1:
-   assert f"proxy_pass http://127.0.0.1:{target};" in route and f"proxy_pass http://127.0.0.1:{target};" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
+   assert f"proxy_pass http://127.0.0.1:{target};" in route,("HTTPS_API_PROXY_ROUTE_INVALID",filename)
   else:
    assert "return 308 https://$host$request_uri;" in route and "proxy_pass" not in route,("HTTP_API_REDIRECT_INVALID",filename)
   assert source.count(marker)==1
