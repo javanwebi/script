@@ -1266,7 +1266,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     عکس قطعه را اینجا رها کنید یا برای انتخاب کلیک کنید
                   </span>
                   <span className="text-[11px] text-slate-400 mt-1 font-mono">
-                    حداکثر حجم ۱۲ مگابایت | JPG • PNG • WEBP
+                    حداکثر حجم ۱۰ مگابایت | JPG • PNG • WEBP
                   </span>
                 </div>
               ) : isUsingCamera ? (
