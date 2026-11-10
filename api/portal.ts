@@ -250,6 +250,11 @@ function portal(user: Row) {
 export function canReadCustomerCommerce(user?: Row): boolean {
   return Boolean(user && user.mustChangePassword !== true && user.canViewPrices === true);
 }
+
+/** Authenticated customers may request a quote even when quick ordering is disabled. */
+export function canSubmitCustomerInquiry(user?: Row): boolean {
+  return Boolean(user && user.mustChangePassword !== true);
+}
 function scopedState(db: Database, user: Row) {
   const result: Record<string, any> = { [CUSTOMER_KEY]: [safeUser(user)] };
   const p = portal(user);
@@ -769,8 +774,8 @@ export default async function handler(
     }
     if (body.action === "inquiry") {
       if (!auth.user) fail(401, "برای استعلام وارد حساب شوید.");
-      if (!canPurchase(db, auth.user!))
-        fail(403, "این دسترسی برای حساب شما فعال نیست.");
+      if (!canSubmitCustomerInquiry(auth.user))
+        fail(403, "برای ثبت استعلام، دسترسی حساب شما باید فعال باشد.");
       const code = String(body.code || "").trim();
       const quantity = Number(body.quantity);
       const notes = String(body.notes || "").slice(0, 2000);
