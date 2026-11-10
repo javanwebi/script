@@ -12,9 +12,10 @@ test('customer price visibility is independent from quick-order permissions and 
  assert.equal(canReadCustomerCommerce({canViewPrices:false,allowQuickSkuOrder:true}),false);
  assert.equal(canReadCustomerCommerce({canViewPrices:true,mustChangePassword:true}),false);
  assert.equal(canReadCustomerCommerce(undefined),false);
- assert.equal(canSubmitCustomerInquiry({canViewPrices:true,allowQuickSkuOrder:false}),true);
- assert.equal(canSubmitCustomerInquiry({canViewPrices:false,allowQuickSkuOrder:false}),true);
- assert.equal(canSubmitCustomerInquiry({mustChangePassword:true}),false);
+ assert.equal(canSubmitCustomerInquiry({canViewPrices:true,allowQuickSkuOrder:false,onboardingCompleted:true}),true);
+ assert.equal(canSubmitCustomerInquiry({canViewPrices:false,allowQuickSkuOrder:false,onboardingCompleted:true}),true);
+ assert.equal(canSubmitCustomerInquiry({canViewPrices:true,onboardingCompleted:false}),false);
+ assert.equal(canSubmitCustomerInquiry({mustChangePassword:true,onboardingCompleted:true}),false);
  assert.equal(canSubmitCustomerInquiry(undefined),false);
 });
 
