@@ -166,7 +166,7 @@ for index,filename in enumerate((https,http)):
     route=source[source.index(marker):roots[0].start()]
     if "limit_except" in route:
         raise SystemExit(("API_METHODS_MUST_REACH_EXPRESS",filename))
-    if index==0 and (f"proxy_pass http://127.0.0.1:{target};" not in route or "proxy_pass http://127.0.0.1:{target};" not in route):
+    if index==0 and f"proxy_pass http://127.0.0.1:{target};" not in route:
         raise SystemExit(("HTTPS_API_PROXY_ROUTE_INVALID",filename))
     if index==1 and ("return 308 https://$host$request_uri;" not in route or "proxy_pass" in route):
         raise SystemExit(("HTTP_API_MUST_REDIRECT_TO_HTTPS",filename))
