@@ -5,7 +5,7 @@ import {ImageRegionReview, type RegionPreparationState} from './ImageRegionRevie
 import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
-import React, { useState, useRef } from "react";
+import React, { lazy, Suspense, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -63,6 +63,52 @@ import "./industrial-scan.css";
 import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
 import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
+
+const LazyCustomPartRequestModal = lazy(() =>
+  import('../home/CustomPartRequestModal').then(module => ({
+    default: module.CustomPartRequestModal,
+  })),
+);
+const MAX_MANUFACTURING_IMAGE_BYTES = 8 * 1024 * 1024;
+
+async function createManufacturingImageFile(blob: Blob, originalName: string): Promise<File> {
+  if (!blob.size || !blob.type.startsWith('image/')) {
+    throw new Error('تصویر قطعه برای پیوست درخواست ساخت معتبر نیست.');
+  }
+  const safeBase = (originalName || 'forza-part-image')
+    .split(/[\\/]/).pop()!.replace(/\\.[^.]+$/, '').slice(0, 100) || 'forza-part-image';
+  const mime = blob.type.split(';')[0].toLowerCase();
+  const extension = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
+  if (blob.size <= MAX_MANUFACTURING_IMAGE_BYTES && ['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+    return new File([blob], safeBase + extension, { type: mime, lastModified: Date.now() });
+  }
+
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const encode = async (maxDimension: number, quality: number): Promise<Blob> => {
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('آماده‌سازی تصویر برای پیوست انجام نشد.');
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return new Promise((resolve, reject) => canvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('فشرده‌سازی تصویر ناموفق بود.')),
+        'image/webp',
+        quality,
+      ));
+    };
+    let compressed = await encode(2400, 0.86);
+    if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) compressed = await encode(1800, 0.72);
+    if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) {
+      throw new Error('حجم تصویر برای ثبت درخواست ساخت زیاد است؛ لطفاً تصویر کم‌حجم‌تری انتخاب کنید.');
+    }
+    return new File([compressed], safeBase + '.webp', { type: 'image/webp', lastModified: Date.now() });
+  } finally {
+    bitmap.close();
+  }
+}
 
 interface Props {
   isOpen: boolean;
