@@ -1097,3 +1097,241 @@
     font-size: 13px;
   }
 }
+
+
+/* Reference-alignment pass: tighter editorial rhythm, full-width history and live-data proof points.
+   This page-scoped layer intentionally leaves the shared header and footer untouched. */
+.sp-about-hero {
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  min-height: clamp(360px, 31vw, 430px);
+}
+.sp-about-hero-copy,
+.sp-about-hero-visual {
+  min-height: clamp(360px, 31vw, 430px);
+}
+.sp-about-hero-copy {
+  padding-inline: clamp(26px, 4.2vw, 64px);
+}
+.sp-about-hero-visual > img {
+  object-position: 43% center;
+}
+.sp-about-hero-slash {
+  left: 47%;
+  width: 8.5%;
+  transform: skewX(-22deg);
+  background: linear-gradient(180deg, rgba(230,107,30,.16), rgba(230,107,30,.72), rgba(230,107,30,.2));
+}
+
+.sp-about-story {
+  grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+  column-gap: clamp(24px, 3.6vw, 54px);
+  row-gap: 24px;
+  padding-block: clamp(36px, 4.2vw, 58px);
+}
+.sp-about-story-visual,
+.sp-about-story-visual > img {
+  min-height: clamp(330px, 28vw, 390px);
+}
+.sp-about-story-visual {
+  clip-path: polygon(0 0, 100% 0, 83% 100%, 0 100%);
+}
+.sp-about-story-copy {
+  padding-block: 0;
+}
+.sp-about-story-copy h2 {
+  margin-top: 5px;
+  font-size: clamp(25px, 2.55vw, 36px);
+}
+.sp-about-proof-grid {
+  gap: 9px;
+  margin-top: 14px;
+}
+.sp-about-proof-grid > div {
+  min-height: 100px;
+  padding: 12px 11px;
+}
+.sp-about-timeline {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 0;
+  padding-top: 25px;
+  gap: clamp(12px, 2vw, 28px);
+}
+.sp-about-timeline::before {
+  top: 9px;
+  right: 2%;
+  left: 2%;
+}
+.sp-about-timeline-item {
+  gap: 5px;
+}
+.sp-about-timeline-item strong {
+  font-size: 11px;
+}
+.sp-about-timeline-item small {
+  font-size: 10px;
+}
+
+.sp-about-capabilities {
+  padding-block: clamp(38px, 4.4vw, 58px);
+}
+.sp-about-centered-heading {
+  margin-bottom: 22px;
+}
+.sp-about-capability-grid {
+  gap: 13px;
+}
+.sp-about-capability {
+  min-height: 205px;
+  border-radius: 15px;
+}
+.sp-about-capability-icon {
+  border: 0;
+  color: #ff762e;
+  background: transparent;
+}
+.sp-about-capability-index {
+  display: none;
+}
+
+.sp-about-highlights {
+  padding-block: 22px 26px;
+}
+.sp-about-highlights-heading {
+  margin-bottom: 14px;
+}
+.sp-about-highlights-heading h2 {
+  margin: 3px 0 0;
+  color: #1d2b35;
+  font-size: clamp(22px, 2.3vw, 31px);
+  font-weight: 950;
+}
+.sp-about-highlights-grid {
+  min-height: 126px;
+  border-radius: 12px;
+}
+.sp-about-highlight {
+  min-height: 126px;
+  gap: 7px;
+  padding: 14px 10px;
+}
+.sp-about-highlight b {
+  font-size: clamp(15px, 1.65vw, 21px);
+  line-height: 1.45;
+}
+
+.sp-about-destinations {
+  padding-block: clamp(34px, 4vw, 50px);
+  background: #fff;
+}
+.sp-about-destinations-heading {
+  margin-bottom: 18px;
+}
+.sp-about-destination-grid {
+  gap: 10px;
+}
+.sp-about-destination {
+  min-height: 190px;
+  border-radius: 12px;
+}
+.sp-about-cta {
+  min-height: 230px;
+  padding-block: 28px;
+}
+.sp-about-cta-copy {
+  width: min(100%, 650px);
+}
+
+@media (max-width: 1080px) {
+  .sp-about-hero,
+  .sp-about-hero-copy,
+  .sp-about-hero-visual {
+    min-height: 370px;
+  }
+  .sp-about-story {
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: 24px;
+    row-gap: 22px;
+  }
+  .sp-about-story-visual,
+  .sp-about-story-visual > img {
+    min-height: 350px;
+  }
+  .sp-about-capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sp-about-capability {
+    min-height: 200px;
+  }
+  .sp-about-destination-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .sp-about-hero {
+    min-height: 0;
+  }
+  .sp-about-hero-copy,
+  .sp-about-hero-visual {
+    min-height: 0;
+  }
+  .sp-about-hero-visual {
+    height: 250px;
+  }
+  .sp-about-story {
+    grid-template-columns: 1fr;
+    row-gap: 23px;
+    padding-block: 34px 38px;
+  }
+  .sp-about-story-visual,
+  .sp-about-story-visual > img {
+    min-height: 250px;
+    height: 250px;
+  }
+  .sp-about-story-visual {
+    clip-path: polygon(0 0, 100% 0, 91% 100%, 0 100%);
+  }
+  .sp-about-timeline {
+    grid-column: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 23px 12px;
+    padding-top: 0;
+  }
+  .sp-about-timeline::before {
+    display: none;
+  }
+  .sp-about-timeline-item {
+    min-height: 74px;
+  }
+  .sp-about-timeline-item strong {
+    font-size: 10px;
+  }
+  .sp-about-timeline-item small {
+    font-size: 9px;
+  }
+  .sp-about-capability {
+    min-height: 190px;
+  }
+  .sp-about-destination {
+    min-height: 185px;
+  }
+  .sp-about-cta {
+    min-height: 250px;
+  }
+}
+
+@media (max-width: 390px) {
+  .sp-about-hero-visual {
+    height: 225px;
+  }
+  .sp-about-proof-grid > div {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .sp-about-capability {
+    min-height: 178px;
+  }
+  .sp-about-destination {
+    min-height: 170px;
+  }
+}
