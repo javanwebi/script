@@ -209,9 +209,10 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     if(placement==='sku'){
       if(!selectedSkuChoice){setSourceError('ابتدا یک کد کالا از فهرست سراسری انتخاب کنید.');return;}
       setSavingUpload(true);setSourceError('');
+      let persistedId:string|undefined;
+      let imageConnected=false;
       try{
-        let assignedUrl=url,assignedFile=file,persistedId:string|undefined;
-        let imageConnected=false;
+        let assignedUrl=url,assignedFile=file;
         if(source==='upload'){
           if(!selectedUpload)throw new Error('ابتدا فایل تصویر را انتخاب کنید.');
           // Upload into the destination family first; the transfer endpoint then
