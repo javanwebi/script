@@ -1,3 +1,4 @@
+import {IndustryProductFinder} from '../components/storefront/IndustryProductFinder';
 import { IndustryTools } from "../components/storefront/IndustryTools";
 const TileCeramicIndustryPage = React.lazy(() => import("./TileCeramicIndustryPage").then(m => ({default:m.TileCeramicIndustryPage})));
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
@@ -225,18 +226,7 @@ export function IndustryPage() {
           </div>
         </div>
       </section>
-      <section className="editorial-wrap" id="industry-catalog">
-        <SectionHeading
-          eyebrow="از کاتالوگ واقعی سایت"
-          title="خانواده‌های مرتبط برای بررسی اولیه"
-        />
-        <div className="editorial-products">
-          {products.map((p) => (
-            <ProductCard key={p.code} product={p} />
-          ))}
-        </div>
-        <MemberAccess />
-      </section>
+      <div id="industry-catalog"><IndustryProductFinder key={industry.slug} industry={industry} /><MemberAccess /></div>
       <section className="editorial-wrap" id="industry-related">
         <SectionHeading
           eyebrow="صنعت پیش، برای صنعت شما"

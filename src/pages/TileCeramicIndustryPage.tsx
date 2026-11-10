@@ -1,3 +1,5 @@
+import {IndustryProductFinder} from '../components/storefront/IndustryProductFinder';
+import {INDUSTRIES} from '../data/siteContent';
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
@@ -532,66 +534,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
   // ---------------------------------------------------------------------------
   // 6 RECOMMENDED PRODUCTS FOR TILE & CERAMIC INDUSTRY
   // ---------------------------------------------------------------------------
-  const recommendedProducts: RecommendedProductItem[] = [
-    {
-      code: 'FAM-35245',
-      name: 'چرخ صنعتی',
-      subtitle: 'تحمل بار بالا و طول عمر زیاد',
-      spec: 'قطر: 50 - 200 mm',
-      image: getProductImageUrl('e(378).png'),
-      fallbackImage: STORE_ASSETS.products.ceramicRoller,
-      query: 'چرخ با روکش پلی یورتان',
-    },
-    {
-      code: 'FAM-80274',
-      name: 'لاستیک ضربه‌گیر',
-      subtitle: 'مقاوم به سایش و ضربه',
-      spec: 'سفارشی‌سازی ابعاد',
-      image: getProductImageUrl('e(817).png'),
-      fallbackImage: STORE_ASSETS.products.ceramicParts,
-      query: 'ضربه‌گیر صنعتی',
-    },
-    {
-      code: 'FAM-41680',
-      name: 'پولی آلومینیومی',
-      subtitle: 'دقت بالا و وزن سبک',
-      spec: 'قطر: 50 - 500 mm',
-      image: STORE_ASSETS.products.aluPulley,
-      fallbackImage: getProductImageUrl('e(165).png'),
-      query: 'پولی',
-    },
-    {
-      code: 'FAM-BELT-TIM',
-      name: 'تسمه تایم صنعتی',
-      subtitle: 'مقاوم در دماهای بالا',
-      spec: 'گام: 200 mm - حرارت',
-      image: STORE_ASSETS.products.forzaBelt,
-      fallbackImage: STORE_ASSETS.categories.belts,
-      query: 'تسمه تایمینگ',
-    },
-    {
-      code: 'FAM-40932',
-      name: 'رولیک نقاله',
-      subtitle: 'مناسب خطوط انتقال کاشی',
-      spec: 'قطر: 20 - 120 mm',
-      image: STORE_ASSETS.products.ceramicRoller,
-      fallbackImage: getProductImageUrl('e(168).png'),
-      query: 'رولر',
-    },
-    {
-      code: 'FAM-52858',
-      name: 'تسمه نوار نقاله PVC',
-      subtitle: 'مقاوم به سایش و مواد شیمیایی',
-      spec: 'عرض: 50 - 1000 mm',
-      image: STORE_ASSETS.products.pvcBelt,
-      fallbackImage: getProductImageUrl('e(859).png'),
-      query: 'نوار نقاله',
-    },
-  ];
 
-  // ---------------------------------------------------------------------------
-  // HANDLERS
-  // ---------------------------------------------------------------------------
   const handleTechSpecSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = techSpecQuery.trim() || 'تسمه';
@@ -1465,90 +1408,8 @@ export const TileCeramicIndustryPage: React.FC = () => {
         {/* ========================================================================= */}
         {/* 6. RECOMMENDED PRODUCTS (محصولات پیشنهادی برای صنعت کاشی و سرامیک)         */}
         {/* ========================================================================= */}
-        <section id="ceramic-recommended-products" className="space-y-4 scroll-mt-20">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-black text-[#23262B]">
-              محصولات پیشنهادی برای صنعت کاشی و سرامیک
-            </h2>
-            <Link
-              to="/products"
-              className="text-xs font-bold text-[#E06518] hover:text-[#C95210] flex items-center gap-1 transition-colors"
-            >
-              <span>مشاهده همه محصولات</span>
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {recommendedProducts.map((item) => {
-              const wished = isInWishlist(item.code);
-              return (
-                <div
-                  key={item.code}
-                  className="bg-white rounded-2xl border border-slate-200/90 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between relative group"
-                >
-                  {/* Wishlist Heart Icon (Top Left) */}
-                  <button
-                    type="button"
-                    onClick={() => toggleWishlist(item.code)}
-                    aria-label={`افزودن ${item.name} به علاقه‌مندی‌ها`}
-                    className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-slate-50 hover:bg-orange-50 flex items-center justify-center text-slate-400 hover:text-[#E06518] transition-colors cursor-pointer"
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        wished ? 'fill-[#E06518] text-[#E06518]' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Product Studio Image */}
-                  <div>
-                    <Link
-                      to={`/products?q=${encodeURIComponent(item.query)}`}
-                      className="w-full h-32 sm:h-36 flex items-center justify-center p-2 mb-3 overflow-hidden"
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = item.fallbackImage;
-                        }}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
-                        referrerPolicy="no-referrer"
-                      />
-                    </Link>
-
-                    {/* Title & Subtitle */}
-                    <div className="text-center space-y-1 mb-3">
-                      <Link
-                        to={`/products?q=${encodeURIComponent(item.query)}`}
-                        className="block text-sm font-black text-[#23262B] hover:text-[#E06518] transition-colors"
-                      >
-                        {item.name}
-                      </Link>
-                      <p className="text-[11px] text-slate-500 line-clamp-1">
-                        {item.subtitle}
-                      </p>
-                      <div className="pt-1 flex items-center justify-center gap-1 text-[11px] text-slate-600 font-medium">
-                        <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{item.spec}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price Inquiry Button */}
-                  <button
-                    type="button"
-                    onClick={() => openRfqModal(`${item.name} (${item.spec})`)}
-                    className="w-full h-9 rounded-xl border border-[#E06518]/75 text-[#E06518] hover:bg-[#E06518] hover:text-white text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    استعلام قیمت
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+        <section id="ceramic-recommended-products" className="scroll-mt-20">
+          <IndustryProductFinder industry={INDUSTRIES.find(i=>i.slug==='ceramic')!} />
         </section>
       </div>
 
