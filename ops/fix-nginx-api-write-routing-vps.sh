@@ -131,7 +131,6 @@ for index,filename in enumerate((https,http)):
         lines=(
             f"{indent}{marker}",
             f"{indent}location ^~ /api/ {{",
-            f"{indent}    add_header X-Sanatpish-API-Route express always;",
             f"{indent}    proxy_pass http://127.0.0.1:{target};",
             f"{indent}    proxy_http_version 1.1;",
             f"{indent}    proxy_set_header Host $host;",
@@ -152,7 +151,6 @@ for index,filename in enumerate((https,http)):
         lines=(
             f"{indent}{marker}",
             f"{indent}location ^~ /api/ {{",
-            f"{indent}    add_header X-Sanatpish-API-Route redirect always;",
             f"{indent}    return 308 https://$host$request_uri;",
             f"{indent}}}",
         )
@@ -168,7 +166,7 @@ for index,filename in enumerate((https,http)):
     route=source[source.index(marker):roots[0].start()]
     if "limit_except" in route:
         raise SystemExit(("API_METHODS_MUST_REACH_EXPRESS",filename))
-    if index==0 and (f"proxy_pass http://127.0.0.1:{target};" not in route or "X-Sanatpish-API-Route express always" not in route):
+    if index==0 and (f"proxy_pass http://127.0.0.1:{target};" not in route or "proxy_pass http://127.0.0.1:{target};" not in route):
         raise SystemExit(("HTTPS_API_PROXY_ROUTE_INVALID",filename))
     if index==1 and ("return 308 https://$host$request_uri;" not in route or "proxy_pass" in route):
         raise SystemExit(("HTTP_API_MUST_REDIRECT_TO_HTTPS",filename))
@@ -197,10 +195,10 @@ for host in sanatpish.com www.sanatpish.com; do
     echo "NGINX_STILL_BLOCKS_API host=$host status=$STATUS type=$TYPE"
     exit 1
   fi
-  if [[ "$TYPE" != *application/json* ]] || ! grep -Eiq '^X-Sanatpish-API-Route:[[:space:]]*express' "$HEADERS"; then
+  if [[ "$TYPE" != *application/json* ]] || ! grep -Eiq '^X-Powered-By:[[:space:]]*Express' "$HEADERS"; then
     cat "$BODY"; echo "===== RESPONSE HEADERS ====="; cat "$HEADERS"
     rm -f "$BODY" "$HEADERS"
-    echo "NGINX_API_ROUTE_MARKER_OR_JSON_MISSING host=$host status=$STATUS type=$TYPE"
+    echo "NGINX_EXPRESS_HEADER_OR_JSON_MISSING host=$host status=$STATUS type=$TYPE"
     exit 1
   fi
   python3 - "$BODY" <<'PY'
