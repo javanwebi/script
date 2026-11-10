@@ -51,7 +51,7 @@ function writeScrollStore(store: Record<string, SavedScrollEntry>): void {
   cachedScrollStore = store;
   if (typeof window === 'undefined') return;
   if (scrollStoreFlushTimer !== null) clearTimeout(scrollStoreFlushTimer);
-  scrollStoreFlushTimer = window.setTimeout(flushScrollStore, 550);
+  scrollStoreFlushTimer = setTimeout(flushScrollStore, 550);
 }
 
 export function saveScrollEntry(
