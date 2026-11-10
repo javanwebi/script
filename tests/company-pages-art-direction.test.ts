@@ -10,6 +10,8 @@ test("company routes use the new page-specific art direction without changing ro
   const pages = read("src/pages/CompanyPagesExperience.tsx");
 
   assert.match(app, /from "\.\/pages\/CompanyPagesExperience"/);
+  assert.match(app, /ServicesPage,/);
+  assert.doesNotMatch(app, /import\("\.\/pages\/ServicesPage"\)/);
   assert.match(app, /path="\/about" element={<AboutPage \/>}/);
   assert.match(app, /path="\/services" element={<ServicesPage \/>}/);
   assert.match(app, /path="\/industries" element={<IndustriesPage \/>}/);
