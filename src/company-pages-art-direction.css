@@ -614,7 +614,7 @@
 }
 .sp-service-copy a {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   gap: 8px;
   padding: 0 13px;
@@ -836,7 +836,7 @@
 }
 .sp-brand-filters button,
 .sp-knowledge-categories button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid #d7e0e5;
   color: #596873;
@@ -1328,7 +1328,7 @@
 }
 .contact-page #contact-workspace-main button,
 .contact-page #contact-workspace-main a {
-  min-height: 42px;
+  min-height: 44px;
 }
 .sp-art-page a:focus-visible,
 .sp-art-page button:focus-visible,
@@ -1596,7 +1596,7 @@
     line-height: 1.9;
   }
   .sp-service-copy a {
-    min-height: 36px;
+    min-height: 44px;
     font-size: 10px;
   }
   .sp-service-process {
