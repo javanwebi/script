@@ -45,8 +45,11 @@ test("customer-facing Nginx vhosts route API writes before the read-only SPA fal
   assert.match(singlePort, /READ_ONLY_SPA_GUARD_NOT_PRESERVED/);
   assert.match(singlePort, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(singlePort, /if index in \(1,2\)/);
-  assert.match(singlePort, /www\.'\+domain/);
-  assert.ok(singlePort.indexOf("SCOPED_API_WRITE_ROUTE_READY") < singlePort.indexOf("systemctl reload nginx"));
+  assert.match(singlePort, /for host in \(domain,'www\.'\+domain\):/);
+  const routeSwitch = singlePort.indexOf("===== ONE FIXED PORT FOR ALL PUBLIC WEBSITE VHOSTS =====");
+  const routeReady = singlePort.indexOf("SCOPED_API_WRITE_ROUTE_READY", routeSwitch);
+  const nginxReload = singlePort.indexOf("systemctl reload nginx", routeSwitch);
+  assert.ok(routeSwitch >= 0 && routeReady > routeSwitch && nginxReload > routeReady);
 });
 
 test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP preview read-only", () => {
@@ -56,6 +59,6 @@ test("standalone Nginx hotfix is rollback-safe, idempotent and leaves the IP pre
   assert.match(nginxHotfix, /NGINX_STILL_BLOCKS_API/);
   assert.match(nginxHotfix, /READ_ONLY_IP_PREVIEW_PRESERVED/);
   assert.match(nginxHotfix, /proxy_request_buffering off/);
-  assert.match(nginxHotfix, /www\.\+domain/);
+  assert.match(nginxHotfix, /for host in \(domain,"www\."\+domain\):/);
   assert.doesNotMatch(nginxHotfix, /docker (?:stop|rm|restart)|DROP TABLE|TRUNCATE TABLE/i);
 });
