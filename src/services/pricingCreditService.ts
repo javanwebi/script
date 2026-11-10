@@ -892,6 +892,60 @@ export const pricingCreditService = {
     return historyRecord;
   },
 
+  /**
+   * Customer-facing export: catalog prices have already been resolved by the
+   * authenticated /api/runtime request for this account. Do not reapply the
+   * selected price-list discount in the browser.
+   */
+  downloadCurrentCustomerPriceListExcel(
+    format: 'xlsx' | 'csv' = 'xlsx',
+    options?: { categoryName?: string; searchQuery?: string; onlyPriced?: boolean }
+  ): number {
+    const q = (options?.searchQuery || '').trim().toLowerCase();
+    const skus = this.getAllCatalogSkuItems().filter((sku) => {
+      if (options?.categoryName && options.categoryName !== 'all' && sku.categoryName !== options.categoryName) return false;
+      if (q && !`${sku.code} ${sku.name} ${sku.familyName} ${sku.size}`.toLowerCase().includes(q)) return false;
+      const price = Math.max(0, Number(sku.basePrice || 0));
+      if (options?.onlyPriced && price <= 0) return false;
+      return true;
+    });
+    const rows = skus.map((sku) => ({
+      'کد کالا': sku.code,
+      'نام محصول': sku.name,
+      'قیمت محصول': Math.max(0, Number(sku.basePrice || 0)),
+      'خانواده محصول': sku.familyName,
+      'دسته‌بندی': sku.categoryName,
+      'سایز / مشخصه': sku.size,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows, {
+      header: ['کد کالا', 'نام محصول', 'قیمت محصول', 'خانواده محصول', 'دسته‌بندی', 'سایز / مشخصه'],
+    });
+    worksheet['!cols'] = [
+      { wch: 16 },
+      { wch: 42 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 22 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'قیمت حساب');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    if (format === 'csv') {
+      const csvContent = '\uFEFF' + XLSX.utils.sheet_to_csv(worksheet);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CurrentCustomerPrices_${dateStamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      XLSX.writeFile(workbook, `CurrentCustomerPrices_${dateStamp}.xlsx`);
+    }
+    return rows.length;
+  },
+
   exportPriceListToExcel(priceListId: string, format: 'xlsx' | 'csv' = 'xlsx', options?: any): number {
     return this.downloadPriceListExcel(priceListId, format, options);
   },
