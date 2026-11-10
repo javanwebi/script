@@ -1,13 +1,13 @@
 import {RouteIntentPreload} from './components/layout/RouteIntentPreload';
 import {MobileSwipeHint} from './components/layout/MobileSwipeHint';
 import { PartIdentificationProvider, PartIdentificationPage } from './components/search/PartIdentificationProvider';
+import { IndustryPage } from "./pages/DiscoveryPages";
 import {
-  IndustryPage,
+  AboutPage,
   IndustriesPage,
   BrandsPage,
   KnowledgePage,
-  AboutPage,
-} from "./pages/DiscoveryPages";
+} from "./pages/CompanyPagesExperience";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
