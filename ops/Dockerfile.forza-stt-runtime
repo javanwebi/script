@@ -15,12 +15,35 @@ COPY --from=ffmpeg-runtime /ffprobe /usr/local/bin/ffprobe
 
 # Production runs the website with node --import tsx, and the same container
 # starts an isolated Python/Vosk worker that decodes audio via FFmpeg.
-RUN set -eux; \
+# Keep completed wheel downloads across build retries. Hostino's network has
+# intermittently timed out on PyPI's cffi dependency, including with host networking.
+# Try the official HTTPS index first, then two independent HTTPS mirrors. A failed
+# installation NEVER silently disables Diba: the image build remains fail-closed.
+# A cache mount only holds public Python wheels, never audio or customer data.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eu; \
     node --version; \
     python3 --version; \
     ffmpeg -version >/dev/null; \
     python3 -m venv /opt/forza-pocket; \
-    /opt/forza-pocket/bin/pip install --no-cache-dir --disable-pip-version-check vosk==0.3.45; \
+    installed=0; \
+    for index in \
+      https://pypi.org/simple \
+      https://mirrors.aliyun.com/pypi/simple \
+      https://pypi.tuna.tsinghua.edu.cn/simple; do \
+      echo "FORZA_DIBA_PIP_INDEX_ATTEMPT=$index"; \
+      if /opt/forza-pocket/bin/pip install --disable-pip-version-check \
+        --timeout 18 --retries 2 --index-url "$index" vosk==0.3.45; then \
+        echo "FORZA_DIBA_PIP_INSTALL_OK=$index"; \
+        installed=1; \
+        break; \
+      fi; \
+      echo "WARN_FORZA_DIBA_PIP_INDEX_UNAVAILABLE=$index" >&2; \
+    done; \
+    if [ "$installed" != 1 ]; then \
+      echo 'FORZA_DIBA_PIP_ALL_HTTPS_INDEXES_FAILED' >&2; \
+      exit 1; \
+    fi; \
     /opt/forza-pocket/bin/python -c 'import vosk'
 
 # Pinned Diba Persian small model; downloaded only into the private image,
