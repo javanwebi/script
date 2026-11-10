@@ -2458,29 +2458,41 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             ساخت سفارشی را اعلام می‌کنند.
                           </p>
                           <p className="text-[11px] text-slate-500 leading-relaxed">
-                            همین عکس را برای کارشناسان ما ارسال کنید تا امکان
-                            شناسایی ابعادی، استعلام قیمت و زمان تأمین یا ساخت
-                            بررسی شود.
+                            می‌توانید با همین تصویر، تعداد موردنیاز و اطلاعات تماس خود درخواست ساخت ثبت کنید.
+                            کارشناسان صنعت پیش امکان تأمین، مهندسی معکوس و زمان ساخت را بررسی می‌کنند.
+                          </p>
+                          <p className="text-[10px] text-slate-500 leading-relaxed">
+                            تصویر اصلی تا زمان ارسال نهایی فرم فقط روی دستگاه شما می‌ماند؛ با ارسال فرم، به‌صورت پیوست خصوصی درخواست ساخت برای کارشناسان مجاز CRM ثبت می‌شود.
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <a
-                          href="tel:03535254703"
-                          className="flex-1 h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          disabled={isPreparingCustomRequest || !selectedImage}
+                          onClick={() => void openCustomManufacturingRequest()}
+                          className="w-full min-h-12 rounded-xl bg-gradient-to-l from-[#E06518] to-[#C95210] px-4 py-3 text-white font-black text-xs shadow-lg shadow-orange-500/20 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60"
                         >
-                          <Phone className="w-4 h-4" />
-                          <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
-                        </a>
-                        <a
-                          href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>ارسال عکس در واتس‌اپ</span>
-                        </a>
+                          {isPreparingCustomRequest ? 'در حال آماده‌سازی تصویر...' : 'ثبت درخواست ساخت با همین تصویر'}
+                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <a
+                            href="tel:03535254703"
+                            className="h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Phone className="w-4 h-4" />
+                            <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
+                          </a>
+                          <a
+                            href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span>ارسال عکس در واتس‌اپ</span>
+                          </a>
+                        </div>
                       </div>
                     </div>
                   );
