@@ -98,7 +98,7 @@ export function WorkspaceCatalog({
   };
 
   return (
-    <section className="workspace-catalog relative isolate mx-auto w-full max-w-4xl" dir="rtl" aria-label="جست‌وجوی محصول برای مشاوره فورزا">
+    <section className="forza-product-finder relative isolate mx-auto w-full max-w-4xl" dir="rtl" aria-label="جست‌وجوی محصول برای مشاوره فورزا">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-right">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#E06518]">
@@ -122,7 +122,7 @@ export function WorkspaceCatalog({
           aria-expanded={expanded && query.trim().length > 0}
           aria-autocomplete="list"
           value={query}
-          onChange={event => { setQuery(event.target.value); setExpanded(true); }}
+          onChange={event => { setData(null); setError(""); setBusy(Boolean(event.target.value.trim())); setQuery(event.target.value); setExpanded(true); }}
           onFocus={() => setExpanded(true)}
           onKeyDown={event => { if (event.key === "Escape") setExpanded(false); }}
           placeholder="نام قطعه، کد SKU یا ابعاد را بنویسید…"
