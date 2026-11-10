@@ -1,4 +1,5 @@
-import { pricingCreditService } from "../../services/pricingCreditService";
+import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
+import { memberPath } from "./MemberAccess";
 import { useAuth } from "../../context/AuthContext";
 import React from "react";
 import { Link } from "react-router-dom";
@@ -16,19 +17,13 @@ export const PortalProductCard: React.FC<PortalProductCardProps> = ({
   const { currentUser } = useAuth();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const selected = isInWishlist(product.code);
-  const list = currentUser
-    ? pricingCreditService.getPriceListForCustomer(currentUser)
-    : undefined;
-  const price = list
-    ? pricingCreditService.getSkuPriceForList(
-        product.code,
-        product.prices?.retail || 0,
-        list,
-      )
-    : currentUser?.approvedB2B
-      ? 0
-      : product.prices?.retail || 0;
-  const href = `${currentUser?.approvedB2B ? "/account" : "/consumer-dashboard"}/product/${encodeURIComponent(product.code)}`;
+  const canViewPrices = hasCustomerPriceAccess(currentUser);
+  const price = product.variants?.length
+    ? 0
+    : getCurrentCustomerSkuPrice(product, currentUser, canViewPrices);
+  const href = canViewPrices
+    ? memberPath(currentUser, product.code)
+    : currentUser ? "/contact" : `/product/${encodeURIComponent(product.code)}`;
   return (
     <article className="store-product-card">
       <div className="store-product-media">
@@ -74,12 +69,14 @@ export const PortalProductCard: React.FC<PortalProductCardProps> = ({
         </p>
         <div className="store-product-bottom">
           <span>
-            {!product.variants?.length && !product.inquiryOnly && price > 0
-              ? formatPrice(price)
-              : "انتخاب کد و استعلام"}
+            {price > 0
+              ? `${formatPrice(price)} تومان`
+              : product.variants?.length
+                ? canViewPrices ? "انتخاب کد و استعلام" : "ورود برای مشاهده قیمت"
+                : canViewPrices ? "استعلام قیمت" : "دسترسی قیمت فعال نیست"}
           </span>
           <Link to={href} aria-label={`مشاهده ${product.name}`}>
-            <span>مشاهده محصول</span>
+            <span>{canViewPrices ? "مشاهده در پنل" : "مشاهده محصول"}</span>
             <ArrowUpLeft size={17} />
           </Link>
         </div>
