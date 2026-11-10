@@ -31,7 +31,14 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(discovery,/sp-about-timeline-year/);
   assert.match(discovery,/پشتیبانی صنایع/);
   assert.match(discovery,/پاسخگویی سریع/);
+  assert.match(discovery,/getManagedCategories\(\)/);
+  assert.match(discovery,/subscribeCatalogChanges\(refreshStats\)/);
+  assert.match(discovery,/catalogStats\.ready/);
+  assert.match(discovery,/aria-live="polite"/);
   const aboutCss = read('src/about-page-approved.css');
+  assert.match(aboutCss,/grid-column:\s*1\s*\/\s*-1/);
+  const storyMarkup = discovery.slice(discovery.indexOf('<section className="sp-about-story"'), discovery.indexOf('<section className="sp-about-capabilities">'));
+  assert.match(storyMarkup,/sp-about-story-copy[\s\S]*?<\/div>\s*<div className="sp-about-timeline"/);
   const main = read('src/main.tsx');
   assert.match(main,/about-page-approved\.css/);
   assert.match(aboutCss,/max-width: 760px/);
