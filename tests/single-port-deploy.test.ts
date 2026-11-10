@@ -79,7 +79,7 @@ test("read-only SPA guard validation scans the complete root block without weake
 
 test("Nginx SPA guard parser handles long blocks, nested locations, comments and quoted braces", () => {
   const helperStart = one.indexOf("def nginx_block_at(text, opening_brace):");
-  const helperEnd = one.indexOf("\\ncontents=[Path(p).read_text() for p in files]", helperStart);
+  const helperEnd = one.indexOf("\ncontents=[Path(p).read_text() for p in files]", helperStart);
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
   const helper = one.slice(helperStart, helperEnd);
   const fixture = `
@@ -89,7 +89,7 @@ source = """location / {
     root /srv/www;
     add_header X-Quoted "brace { } #";
     # fake { } limit_except POST { deny all; }
-${Array.from({ length: 110 }, (_, index) => `    add_header X-Padding-${index} value;`).join("\\n")}
+${Array.from({ length: 110 }, (_, index) => `    add_header X-Padding-${index} value;`).join("\n")}
     location /nested/ {
         limit_except POST {
             deny all;
