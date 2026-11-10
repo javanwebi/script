@@ -93,6 +93,7 @@ cleanup() {
       echo CRITICAL_NGINX_API_ROUTE_ROLLBACK_FAILED >&2
     fi
   fi
+  rm -f "$DUMP"
   exit "$status"
 }
 trap cleanup EXIT
