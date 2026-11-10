@@ -135,7 +135,9 @@ test('industrial directory and industry showcases use image-led, page-specific c
   const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
   const premium = readFileSync(new URL('../src/industry-art-direction.css', import.meta.url), 'utf8');
   const entry = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
   assert.match(entry, /@import "\.\/industry-art-direction\.css";/);
+  assert.match(main, /import '\.\/company-pages\.css';/);
   assert.match(page, /company-page--industries/);
   assert.match(page, /company-hero-visual/);
   assert.match(page, /company-industry-grid/);
