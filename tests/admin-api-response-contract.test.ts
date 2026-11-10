@@ -61,7 +61,7 @@ test('empty 2xx and malformed JSON never count as successful mutation', async ()
 
 test('ambiguous timeout warns against re-submitting a potentially completed write', () => {
   const message=adminApiNetworkMessage(new DOMException('timeout','TimeoutError'),'ثبت مشتری');
-  assert.match(message,/قبل از ارسال دوباره/);
+  assert.match(message,/پیش از ارسال دوباره/);
 });
 
 test('server and pre-promotion canary reject HTML or missing CRM/SKU mutation APIs', () => {
