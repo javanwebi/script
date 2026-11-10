@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 const script = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-main-bluegreen-vps.sh"), "utf8");
+const singlePort = fs.readFileSync(path.resolve(process.cwd(), "ops/deploy-single-port-vps.sh"), "utf8");
 
 test("all three vhosts participate in the safe blue/green switch", () => {
   assert.match(script, /CONF_DOMAIN="\$\(readlink -f \/etc\/nginx\/sites-enabled\/sanatpish-domain-20261103\.conf\)"/);
@@ -24,4 +25,13 @@ test("domain routing shares rollback, backups and post-switch build/data verific
   assert.match(script, /DOMAIN_BUILD_AND_DATABASE_OK/);
   assert.match(script, /SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK/);
   assert.ok(script.indexOf("DOMAIN_BUILD_AND_DATABASE_OK") < script.indexOf("SUCCESS=1"));
+});
+
+test("post-promotion HTTPS probe verifies CRM and SKU POSTs reach Express as JSON", () => {
+  assert.match(singlePort, /PUBLIC_POST_API_BLOCKED_BEFORE_EXPRESS/);
+  assert.match(singlePort, /PUBLIC_POST_API_JSON_GUARD_OK/);
+  assert.match(singlePort, /\/api\/admin\/crm\/customers/);
+  assert.match(singlePort, /\/api\/catalog\/sku-transfer/);
+  assert.match(singlePort, /application\/json/);
+  assert.ok(singlePort.indexOf("PUBLIC_POST_API_JSON_GUARD_OK") < singlePort.indexOf("SUCCESS=1"));
 });
