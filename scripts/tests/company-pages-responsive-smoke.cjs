@@ -49,6 +49,12 @@ const pages = [
         assert.ok(await page.locator(`.sp-about-page a[href="${href}"]`).count() > 0,
           `About page is missing its ${href} navigation link`);
       }
+      // Force lazy-loaded About photography to decode before full-page visual snapshots.
+      await page.evaluate(async () => {
+        const images = Array.from(document.images);
+        for (const image of images) image.loading = "eager";
+        await Promise.all(images.map(image => image.decode().catch(() => undefined)));
+      });
       await page.screenshot({ path: `${out}/company-pages-${width}-about.png`, fullPage: true });
 
       for (const item of pages.slice(1)) {
