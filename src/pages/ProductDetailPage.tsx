@@ -1512,7 +1512,7 @@ export const ProductDetailPage: React.FC = () => {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={isSelectedStockKnown && activeStockCount <= 0}
+              disabled={buyingAllowed && isSelectedStockKnown && activeStockCount <= 0}
               className="h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
             >
               {buyingAllowed ? <ShoppingCart className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
