@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { requireAdminApiJson } from '../utils/adminApiResponse';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../data/approvedMenuFallback';
 import type { EnhancedCategory } from '../data/categories';
 
@@ -34,11 +35,13 @@ export function useApprovedMenuTaxonomy() {
           fetch('/api/catalog/navigation-groups', {credentials:'same-origin',cache:'no-store'}),
           fetch('/api/catalog/menu-family-assignments', {credentials:'same-origin',cache:'no-store'})
         ]);
-        if (!cats.ok || !gps.ok || !links.ok) throw Error('دریافت اطلاعات دسته‌بندی از سرور ناموفق بود.');
-        const [catResult, groupResult, assignmentResult] = await Promise.all([cats.json(),gps.json(),links.json()]);
-        if (!catResult.success || !groupResult.success || !assignmentResult.success ||
-            !Array.isArray(catResult.categories) || !Array.isArray(groupResult.groups) ||
-            !Array.isArray(assignmentResult.assignments)) throw Error('پاسخ دسته‌بندی معتبر نیست.');
+        const [catResult, groupResult, assignmentResult] = await Promise.all([
+          requireAdminApiJson<{categories:EnhancedCategory[]}>(cats,'دریافت دسته‌های کاتالوگ'),
+          requireAdminApiJson<{groups:CatalogMenuGroup[]}>(gps,'دریافت گروه‌های کاتالوگ'),
+          requireAdminApiJson<{assignments:CatalogMenuAssignment[]}>(links,'دریافت اتصال خانواده‌ها'),
+        ]);
+        if (!Array.isArray(catResult.categories) || !Array.isArray(groupResult.groups) ||
+            !Array.isArray(assignmentResult.assignments)) throw Error('فهرست دسته‌بندی در پاسخ JSON موجود نیست.');
         const matchingCats = (catResult.categories as EnhancedCategory[]).filter(isApprovedCategory);
         const matchingGroups = (groupResult.groups as CatalogMenuGroup[]).filter(isApprovedGroup)
           .sort((a,b)=>a.sortOrder-b.sortOrder);
@@ -74,8 +77,7 @@ export async function saveApprovedFamilyAssignment(input: {
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify(input),
   });
-  const body=await res.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست'}));
-  if (!res.ok || !body.success) throw Error(body.message || 'ذخیره دسته‌بندی در Supabase ناموفق بود.');
+  const body=await requireAdminApiJson<{success:true}>(res,'اتصال خانواده به دسته‌بندی');
   window.dispatchEvent(new Event('catalog-family-menu-updated'));
   return body;
 }
