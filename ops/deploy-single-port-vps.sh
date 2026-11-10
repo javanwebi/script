@@ -643,6 +643,7 @@ def require_read_only_spa_guard(root_block, filename):
   valid.append((methods,guard_block))
  assert len(valid)==1,("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename,len(valid))
  print("READ_ONLY_SPA_GUARD_OK",filename,"methods="+",".join(valid[0][0]))
+ return valid[0]
 
 contents=[Path(p).read_text() for p in files]
 for filename,source in zip(files,contents):
