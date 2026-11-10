@@ -242,6 +242,7 @@
 
 /* Atlas story: split photography, three proof points and a process timeline. */
 .sp-about-story {
+  direction: ltr;
   display: grid;
   grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
   align-items: stretch;
@@ -250,6 +251,9 @@
   background:
     radial-gradient(circle at 90% 18%, rgba(230,107,30,.055), transparent 24%),
     linear-gradient(135deg, #fff 0%, #f4f4f1 100%);
+}
+.sp-about-story > * {
+  direction: rtl;
 }
 .sp-about-story-visual {
   position: relative;
