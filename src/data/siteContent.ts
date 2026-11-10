@@ -58,7 +58,7 @@ export const INDUSTRIES = [
     slug: "packaging",
     title: "بسته‌بندی و کارتن‌سازی",
     eyebrow: "هماهنگ با ریتم خط",
-    image: A.industries.food,
+    image: A.industries.foodBottles,
     description:
       "انتقال، هدایت و جابه‌جایی محصول در خطوط بسته‌بندی به حرکت هماهنگ نیاز دارد. قطعه را بر اساس سرعت، نوع محصول و مشخصات دستگاه انتخاب کنید.",
     steps: [
@@ -85,7 +85,7 @@ export const INDUSTRIES = [
     slug: "food",
     title: "غذایی و نوشیدنی",
     eyebrow: "انتخاب متناسب با محیط تولید",
-    image: A.industries.foodBottles,
+    image: A.industries.food,
     description:
       "شرایط شست‌وشو، رطوبت و تماس با محصول در انتخاب قطعات خطوط غذایی مؤثرند. تأیید سازگاری بهداشتی و شیمیایی نیازمند مشخصات و مدارک همان قطعه است.",
     steps: [
