@@ -1,4 +1,5 @@
 name: Verify VPS frontend build before deployment
+# Industry screenshots cover all six industrial routes in both desktop and mobile viewports.
 on:
   pull_request:
     branches: [main]
