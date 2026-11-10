@@ -76,7 +76,7 @@ import re,sys
 files=sys.argv[1:3]
 target=sys.argv[3]
 root_pattern=re.compile(r'(?m)^([ \t]*)location\s+/\s*\{')
-api_pattern=re.compile(r'(?m)^[ \t]*location\s+\^~\s+/api/\s*\{')
+api_pattern=re.compile(r'(?m)^[ \t]*location\s+(?:\^~\s+)?/api/\s*\{')
 marker="# SANATPISH_API_WRITE_ROUTE_V1"
 for filename in files:
  source=Path(filename).read_text()
