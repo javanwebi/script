@@ -95,7 +95,7 @@ test('approved About page concept is implemented as real responsive UI and only 
   assert.match(app,/path="\/about" element={<AboutPage \/>}/);
   assert.match(app,/path="\/services" element={<ServicesPage \/>}/);
   assert.match(layout,/storefront-about-concept/);
-  assert.match(layout,/\["\/about","\/about-us","\/history","\/licenses","\/awards"\]/);
+  assert.match(layout,/isAboutConceptRoute = \["\/about", "\/about-us", "\/history", "\/licenses", "\/awards"\]/);
   assert.match(main,/about-page-approved\.css/);
 
   for (const section of [
