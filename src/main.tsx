@@ -7,6 +7,7 @@ import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
 import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
 import './index.css';
 import './company-pages.css';
+import './pages/about-page-approved.css';
 
 function showBackendUnavailable(){
   // Keep the application shell visible, but do not serve stale bundled products
