@@ -109,7 +109,10 @@ NEXT="$FIXED_PORT"
 echo "STABLE_APP_PORT=$NEXT"
 
 STAMP="$(date +%Y%m%d-%H%M%S)-$BASHPID"
-STAGE="/opt/sanatpish-unified-stage-$STAMP"
+DEPLOY_ROOT="$APP/.deploy"
+RELEASE_ROOT="$DEPLOY_ROOT/releases"
+install -d -m 700 "$DEPLOY_ROOT" "$RELEASE_ROOT"
+STAGE="$RELEASE_ROOT/$STAMP"
 STT_IMAGE=''
 STT_CONTEXT=''
 NAME="sanatpish-unified-live-$STAMP"
@@ -148,9 +151,11 @@ cleanup(){
      fi
    fi
    echo DEPLOY_FAILED_PREVIOUS_SITE_PRESERVED
-   if [[ "$STAGE" == /opt/sanatpish-unified-stage-* ]]; then
-     rm -rf -- "$STAGE"
-   fi
+   case "$STAGE" in
+     "$RELEASE_ROOT"/*|/opt/sanatpish-unified-stage-*)
+       rm -rf --one-file-system -- "$STAGE"
+       ;;
+   esac
  fi
  if test -n "$CANARY_CID"; then
    docker rm -f "$CANARY_NAME" >/dev/null 2>&1 || true
@@ -870,6 +875,12 @@ ACTUAL_PORT="$(docker port "$NAME" 3000/tcp)"
 test "$ACTUAL_PORT" = "127.0.0.1:$FIXED_PORT"
 echo "SANATPISH_SINGLE_HOST_PORT_DEPLOY_OK port=$FIXED_PORT"
 SUCCESS=1
+echo '===== SAFE RELEASE RETENTION (CURRENT + PREVIOUS) ====='
+if bash "$STAGE/ops/prune-deploy-releases.sh" "$NAME" "$OLD" "$STAGE"; then
+  :
+else
+  echo 'WARN_RELEASE_RETENTION_HELPER_FAILED_SITE_REMAINS_LIVE'
+fi
 echo 'SANATPISH_MAIN_BLUEGREEN_DEPLOY_OK'
 echo 'SANATPISH_SINGLE_PORT_RELEASE_OK'
 echo "RELEASE_SHA=$EXPECTED"
