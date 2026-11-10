@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageOff, ZoomIn, X } from 'lucide-react';
 import { getProductImageUrl } from '../../assets/imagesproducts';
@@ -36,14 +36,25 @@ export function CatalogResultImage({ sources, alt, familyReference = false, clas
   const candidates = getCatalogDisplayImageCandidates(sources);
   const [sourceIndex, setSourceIndex] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const zoomButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const image = candidates[sourceIndex] || '';
   useEffect(() => {
     if (!zoomOpen) return;
+    closeButtonRef.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setZoomOpen(false);
+      if (event.key !== 'Escape') return;
+      // The outer scan modal also listens for Escape on window. Close only
+      // the image lightbox, without accidentally discarding the scan session.
+      event.preventDefault();
+      event.stopPropagation();
+      setZoomOpen(false);
     };
     document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      zoomButtonRef.current?.focus();
+    };
   }, [zoomOpen]);
 
   const photo = image ? (
@@ -68,6 +79,7 @@ export function CatalogResultImage({ sources, alt, familyReference = false, clas
       {image ? (
         <button
           type="button"
+          ref={zoomButtonRef}
           className="sp-catalog-photo__open"
           onClick={() => setZoomOpen(true)}
           aria-label={'بزرگ‌نمایی تصویر ' + alt}
@@ -91,7 +103,7 @@ export function CatalogResultImage({ sources, alt, familyReference = false, clas
           <div className="sp-catalog-lightbox__dialog" role="dialog" aria-modal="true" aria-label={'تصویر بزرگ ' + alt} onClick={event => event.stopPropagation()}>
             <div className="sp-catalog-lightbox__toolbar">
               <span>{alt}</span>
-              <button type="button" aria-label="بستن تصویر بزرگ" onClick={() => setZoomOpen(false)}>
+              <button type="button" ref={closeButtonRef} aria-label="بستن تصویر بزرگ" onClick={() => setZoomOpen(false)}>
                 <X size={22} aria-hidden="true" />
               </button>
             </div>
