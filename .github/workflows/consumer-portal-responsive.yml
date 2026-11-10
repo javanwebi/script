@@ -73,11 +73,15 @@ jobs:
           done
           cat /tmp/consumer-preview.log
           exit 1
+      - name: Verify company pages, About navigation and desktop/mobile overflow
+        run: node scripts/tests/company-pages-responsive-smoke.cjs
       - name: Verify responsive layout, RTL navigation and account drawer
         run: node scripts/tests/consumer-portal-responsive-smoke.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: consumer-portal-responsive-screenshots
-          path: /tmp/consumer-portal-*.png
+          path: |
+            /tmp/consumer-portal-*.png
+            /tmp/company-pages-*.png
           if-no-files-found: ignore
