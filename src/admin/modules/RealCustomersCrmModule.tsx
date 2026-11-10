@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { requireAdminApiJson, adminApiNetworkMessage } from '../../utils/adminApiResponse';
 import { RealCrmTickets } from './RealCrmTickets';
 import { CustomPartRequestsPanel } from './CustomPartRequestsPanel';
 import { RealCrmCommercialEditor } from './RealCrmCommercialEditor';
@@ -56,9 +57,7 @@ const card = 'rounded-2xl border border-[#ECEEF0] bg-white shadow-[0_4px_24px_rg
 const field = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-[#E56B1E] focus:ring-2 focus:ring-[#E56B1E]/10';
 async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials:'same-origin', cache:'no-store', headers: { 'Content-Type':'application/json', ...(init?.headers || {}) } });
-  const json = await response.json().catch(() => ({ success:false, message:'پاسخ سرور معتبر نیست.' }));
-  if (!response.ok || !json.success) throw new Error(json.message || 'درخواست به نتیجه نرسید.');
-  return json as T;
+  return requireAdminApiJson<T>(response, init?.method === 'POST' ? 'ثبت اطلاعات CRM' : 'درخواست CRM');
 }
 function Metric({label,value,Icon}:{label:string;value:string;Icon:React.ElementType}) {
   return <div className={card+' flex min-w-0 items-center gap-3 p-4'}>
@@ -120,8 +119,7 @@ export const RealCustomersCrmModule: React.FC = () => {
         setLoading(true);setError('');
         const params = new URLSearchParams({kind,q,page:String(page)});
         const response = await fetch('/api/admin/crm/customers?'+params.toString(),{credentials:'same-origin',cache:'no-store',signal:controller.signal});
-        const data = await response.json().catch(()=>({success:false,message:'پاسخ سرور نامعتبر است.'}));
-        if (!response.ok || !data.success) throw new Error(data.message || 'دریافت مشتریان ممکن نشد.');
+        const data = await requireAdminApiJson<{customers:Customer[];total:number;counts:Summary}>(response,'دریافت مشتریان');
         if (controller.signal.aborted) return;
         setRows(data.customers || []);setTotal(data.total || 0);
         setCounts(data.counts || {total:0,retail:0,high_volume:0});
@@ -142,8 +140,7 @@ export const RealCustomersCrmModule: React.FC = () => {
         const response=await fetch('/api/admin/crm/images?limit=250&q='+encodeURIComponent(imageQuery),{
           credentials:'same-origin',cache:'no-store',signal:controller.signal
         });
-        const data=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
-        if(!response.ok||!data.success)throw new Error(data.message||'دریافت تاریخچه تصاویر ممکن نشد.');
+        const data=await requireAdminApiJson<{rows:ImageEvent[];enabled?:boolean}>(response,'دریافت تاریخچه تصاویر');
         if(!controller.signal.aborted){setImageRows(data.rows||[]);setImageFeatureEnabled(data.enabled!==false);}
       }catch(error){
         if(!controller.signal.aborted)setError(error instanceof Error?error.message:'دریافت تصاویر ناموفق بود.');
@@ -222,7 +219,11 @@ export const RealCustomersCrmModule: React.FC = () => {
       }
       setForm(null);setEditing(null);setNewAccess(emptyCustomerAccess());refresh();
       if(updatedId && detail) await openDetail(updatedId);
-    } catch(e) {setError(e instanceof Error?e.message:'ثبت مشتری ممکن نشد.');}
+    } catch(e) {
+      // Unknown/HTML responses must not cause silent duplicate CRM records.
+      setError(adminApiNetworkMessage(e, editing ? 'ویرایش مشتری' : 'ثبت مشتری') +
+        (!editing ? ' اگر وضعیت ثبت نامشخص است، قبل از تلاش دوباره در فهرست مشتریان جست‌وجو کنید.' : ''));
+    }
     finally {setBusy(false);}
   };
   const approval = async (c:Customer) => {
