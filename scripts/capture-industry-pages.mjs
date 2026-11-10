@@ -6,7 +6,7 @@ const output = 'artifacts/industry-pages';
 await fs.mkdir(output, { recursive: true });
 
 const pages = [
-  { slug: 'industry-directory', path: '/industries', selector: '.industry-directory' },
+  { slug: 'industry-directory', path: '/industries', selector: '.company-industry-grid' },
   { slug: 'ceramic', path: '/industries/ceramic', selector: '.ceramic-hero' },
   { slug: 'textile', path: '/industries/textile', selector: '.industry-hero' },
   { slug: 'packaging', path: '/industries/packaging', selector: '.industry-hero' },
