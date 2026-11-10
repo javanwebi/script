@@ -4650,3 +4650,20 @@ select {
 }
 .industry-visual-module--textile .industry-visual-copy h2 { color: #30363d; }
 .industry-visual-module--textile .industry-visual-step { border-color: #e8e0d6; }
+
+
+/* Final mobile auth positioning override: show the dedicated mode image above the form. */
+@media (max-width: 639px) {
+  .account-dialog {
+    inset: max(8px, env(safe-area-inset-top)) 0 auto !important;
+    height: min(88dvh, 760px) !important;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top)) !important;
+  }
+  .account-access-form {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scroll-behavior: auto;
+  }
+  .account-access-story { min-height: 148px; }
+}

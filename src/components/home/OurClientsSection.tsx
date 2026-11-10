@@ -82,7 +82,7 @@ export const OurClientsSection: React.FC = () => {
     <section
       id="our-clients-section"
       className="w-full bg-white text-slate-900 pt-5 sm:pt-6 pb-4 sm:pb-5 select-none"
-      aria-label="مشتری‌های ما"
+      aria-label="مشتریان ما"
       dir="rtl"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -91,19 +91,19 @@ export const OurClientsSection: React.FC = () => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPaused(false);
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 text-left space-y-1.5">
-        <h2 className="text-left text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+      <div dir="rtl" className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10">\n        <div className="lg:w-[240px] shrink-0 text-right space-y-1.5">
+        <h2 className="text-right text-lg sm:text-xl font-black text-slate-900 tracking-tight">
           مشتری‌های ما
         </h2>
-        <p className="text-left text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+        <p className="text-right text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
           همراه مجموعه‌های صنعتی در تأمین قطعات خطوط تولید
         </p>
       </div>
 
-      <div className="w-full border-t border-slate-100 my-3 sm:my-4" />
+      <div className="min-w-0 flex-1">
 
       {clients.length > 0 ? (
-        <div className="relative max-w-7xl mx-auto px-7 sm:px-10">
+        <div className="relative w-full px-7 sm:px-10">
           {canSlide && (
             <>
               <button
@@ -151,10 +151,10 @@ export const OurClientsSection: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 text-center text-slate-500 text-xs py-5">
+        <div className="w-full px-4 text-center text-slate-500 text-xs py-5">
           لوگوی فعالی برای نمایش ثبت نشده است؛ می‌توان آن را از بخش «مشتریان ما» در پنل مدیریت فعال کرد.
         </div>
       )}
-    </section>
+          </div>\n    </div>\n    </section>
   );
 };

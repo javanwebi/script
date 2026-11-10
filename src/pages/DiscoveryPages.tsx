@@ -196,7 +196,7 @@ export function IndustryPage() {
   useEffect(() => title(`قطعات صنعت ${industry.title}`), [industry]);
   const products = useMemo(
     () =>
-      rankIndustryProducts(getAllProducts(), industry, 6),
+      rankIndustryProducts(getAllProducts(), industry, 8),
     [industry, tick],
   );
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {

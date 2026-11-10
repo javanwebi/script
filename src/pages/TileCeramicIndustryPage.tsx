@@ -110,7 +110,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
   useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(revision => revision + 1)), []);
   const ceramicIndustry = INDUSTRIES.find(industry => industry.slug === 'ceramic');
   const recommendedProducts = useMemo(
-    () => ceramicIndustry ? rankIndustryProducts(getAllProducts(), ceramicIndustry, 6) : [],
+    () => ceramicIndustry ? rankIndustryProducts(getAllProducts(), ceramicIndustry, 8) : [],
     [catalogRevision, ceramicIndustry],
   );
 
