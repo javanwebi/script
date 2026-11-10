@@ -5,16 +5,18 @@ import type { Product } from '../src/types';
 import { rankIndustryProducts } from '../src/utils/industryCatalog';
 
 const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
-const css = readFileSync(new URL('../src/storefront.css', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/industry-art-direction.css', import.meta.url), 'utf8');
 
 test('non-ceramic industries have distinct editorial compositions', () => {
   for (const slug of ['textile', 'packaging', 'food', 'machinery', 'rubber']) {
-    assert.ok(page.includes(`industry.slug === '${slug}'`), `missing ${slug} layout component`);
-    assert.ok(css.includes(`.industry-visual-module--${slug}`), `missing ${slug} visual system`);
-    assert.ok(css.includes(`.industry-${slug} .industry-hero`), `missing ${slug} hero treatment`);
+    assert.ok(page.includes(`${slug}: {`), `missing ${slug} page-specific visual brief`);
+    assert.ok(css.includes(`.industry-showcase--${slug}`), `missing ${slug} showcase treatment`);
+    assert.ok(css.includes(`.industry-page.industry-${slug} .industry-hero`), `missing ${slug} hero treatment`);
   }
   assert.match(page, /industry-hero--\$\{industry\.slug\}/);
-  assert.match(css, /@media \(max-width: 767px\)/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(css, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
+  assert.match(css, /industry-directory-card:nth-child\(1\)/);
 });
 
 test('ceramic retains its dedicated page instead of falling back to the generic industry template', () => {
@@ -117,12 +119,35 @@ test('ceramic production explorer no longer forces a desktop-width canvas on pho
   assert.match(premium, /\.ceramic-recommendations/);
 });
 
-test('industrial hero copy is isolated into a left desktop column', () => {
+test('industrial hero copy is isolated into a high-contrast editorial column', () => {
   const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
-  const premium = readFileSync(new URL('../src/industry-pages-premium.css', import.meta.url), 'utf8');
+  const premium = readFileSync(new URL('../src/industry-art-direction.css', import.meta.url), 'utf8');
   assert.match(page, /className="industry-hero-copy"/);
-  assert.match(premium, /\.industry-page \.industry-hero \.industry-hero-copy\s*\{[\s\S]*?position: absolute/);
-  assert.match(premium, /left: clamp\(16px, 3vw, 42px\)/);
-  assert.match(premium, /width: min\(46%, 640px\)/);
-  assert.match(premium, /position: static/);
+  assert.match(page, /industry-hero-media-index/);
+  assert.match(premium, /\.industry-page \.industry-hero \.industry-hero-copy\s*\{[\s\S]*?left: clamp\(24px, 6\.4vw, 96px\)/);
+  assert.match(premium, /width: min\(43%, 610px\)/);
+  assert.match(premium, /industry-page\.industry-food \.industry-hero/);
+  assert.match(premium, /industry-page\.industry-machinery \.industry-hero::before/);
+});
+
+test('industrial directory and industry showcases use image-led, page-specific compositions', () => {
+  const page = readFileSync(new URL('../src/pages/DiscoveryPages.tsx', import.meta.url), 'utf8');
+  const premium = readFileSync(new URL('../src/industry-art-direction.css', import.meta.url), 'utf8');
+  const entry = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  assert.match(entry, /@import "\.\/industry-art-direction\.css";/);
+  assert.match(page, /directory-intro-visual/);
+  assert.match(page, /directory-intro-stats/);
+  assert.match(page, /industry-showcase-main-art/);
+  assert.match(page, /industry-part-link/);
+  for (const selector of [
+    '.industry-directory-page .industry-directory-card',
+    '.industry-showcase-art',
+    '.industry-showcase-flow',
+    '.industry-part-links > a.industry-part-link > img',
+    '.industry-check-band',
+    '.industry-related > a::after',
+  ]) {
+    assert.ok(premium.includes(selector), `missing premium art-direction selector: ${selector}`);
+  }
+  assert.match(premium, /@media \(prefers-reduced-motion: reduce\)/);
 });
