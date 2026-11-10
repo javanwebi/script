@@ -65,7 +65,7 @@ test("knowledge base preserves source articles, filtering, article detail and te
   assert.match(pages, /ARTICLES\.find/);
   assert.match(pages, /sp-knowledge-toc/);
   assert.match(pages, /sp-knowledge-search/);
-  assert.match(pages, /مشخصات کاتالوگ سازنده و دستورالعمل دستگاه ملاک تأیید نهایی هستند/);
+  assert.match(pages, /مشخصات\\s+کاتالوگ سازنده و دستورالعمل دستگاه ملاک تأیید نهایی هستند/);
 });
 
 test("member pricing remains account-aware and no sample product price is introduced", () => {
