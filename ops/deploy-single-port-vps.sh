@@ -629,7 +629,7 @@ for index,(filename,source) in enumerate(zip(files,contents)):
     f"{indent}}}",
    ))
    source=source[:roots[0].start()]+block+"\n\n"+source[roots[0].start():]
-   assert source.index(marker)<source.index("location / {"),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
+   assert source.index(marker)<list(root_pattern.finditer(source))[0].start(),("API_ROUTE_NOT_BEFORE_SPA_FALLBACK",filename)
   root=list(root_pattern.finditer(source))
   assert len(root)==1,("ROOT_LOCATION_CHANGED",filename)
   assert re.search(r'limit_except\s+GET\s*\{',source[root[0].start():root[0].start()+700]),("READ_ONLY_SPA_GUARD_NOT_PRESERVED",filename)
