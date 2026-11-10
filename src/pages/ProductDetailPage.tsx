@@ -454,7 +454,11 @@ export const ProductDetailPage: React.FC = () => {
     >
       {!consultPromptDismissed && <aside className="flex flex-wrap items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4">
         <p className="flex-1 text-sm">درباره {product.name} بیشتر بدانید؛ فورزا برای انتخاب مناسب راهنمایی‌تان کند؟</p>
-        <Link className="store-btn-primary" to={'/ai-consult?q='+encodeURIComponent('برای محصول '+product.name+' کد '+product.code+' مشاوره می‌خواهم؛ کاربردها و معیارهای انتخاب را بگو و نیاز من را بپرس.')}>بله، مشاوره بده</Link>
+        <Link className="store-btn-primary" to={'/ai-consult?' + new URLSearchParams({
+          productCode: selectedVariant?.code || product.code,
+          productName: product.name,
+          q: 'برای قطعه ' + product.name + ' با کد ' + (selectedVariant?.code || product.code) + ' مشاوره می‌خواهم؛ درباره معیارهای انتخاب توضیح بده و یک سؤال فنی برای تطبیق با دستگاه من بپرس.',
+        }).toString()}>بله، مشاوره بده</Link>
         <button type="button" onClick={()=>setConsultPromptDismissed(true)} aria-label="بستن پیشنهاد مشاوره">×</button>
       </aside>}
       {canViewCommercial && (
