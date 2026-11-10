@@ -1,13 +1,23 @@
 name: Verify VPS frontend build before deployment
+# Industry screenshots cover all six industrial routes in both desktop and mobile viewports.
 on:
   pull_request:
     branches: [main]
     paths:
       - "src/components/storefront/HomeOverview.tsx"
       - "src/pages/HomePage.tsx"
+      - "src/pages/DiscoveryPages.tsx"
+      - "src/pages/TileCeramicIndustryPage.tsx"
+      - "src/components/storefront/IndustryTools.tsx"
+      - "src/catalogue-premium.css"
+      - "src/industry-pages-premium.css"
+      - "src/industry-art-direction.css"
+      - "src/index.css"
+      - "scripts/capture-industry-pages.mjs"
+      - "tests/industry-pages-unique-layouts.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
-    branches: [main]
+    branches: [main, design/industrial-premium-pages]
     paths:
       - "src/**"
       - "server.ts"
@@ -15,6 +25,7 @@ on:
       - "api/sms.ts"
       - "tests/supabase-sms-hook.test.ts"
       - "tests/mobile-scan-ui.test.ts"
+      - "scripts/capture-industry-pages.mjs"
       - "vite.config.ts"
       - "package.json"
       - "package-lock.json"
@@ -36,6 +47,10 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript
         run: npm run lint
+      - name: Premium catalogue responsive design regression
+        run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Screenshot capture script syntax
+        run: node --check scripts/capture-industry-pages.mjs
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
@@ -44,6 +59,36 @@ jobs:
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS
         run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
+      - name: Install screenshot browser
+        if: success()
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start static preview for screenshots
+        if: success()
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/sanatpish-preview.log 2>&1 &
+          echo $! > /tmp/sanatpish-preview.pid
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "PREVIEW_READY"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/sanatpish-preview.log
+          exit 1
+      - name: Capture desktop and mobile industry pages
+        if: success()
+        run: node scripts/capture-industry-pages.mjs
+      - name: Upload industry page screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanatpish-industry-page-screenshots
+          path: artifacts/industry-pages/*.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Print focused Vite failure
         if: failure()
         run: |
