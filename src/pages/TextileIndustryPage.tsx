@@ -206,8 +206,8 @@ export function TextileIndustryPage() {
         <div className="textile-production-panel">
           <div className="textile-production-visual">
             <img
-              src={A.categories.textile}
-              alt="تجهیزات و ماشین‌آلات مورد استفاده در تولید نساجی"
+              src={A.industries.textile}
+              alt="ماشین‌آلات خط تولید و تجهیزات صنعت نساجی"
               loading="lazy"
               decoding="async"
             />
