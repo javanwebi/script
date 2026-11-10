@@ -1,5 +1,6 @@
 import { IndustryTools } from "../components/storefront/IndustryTools";
 const TileCeramicIndustryPage = React.lazy(() => import("./TileCeramicIndustryPage").then(m => ({default:m.TileCeramicIndustryPage})));
+const TextileIndustryPage = React.lazy(() => import("./TextileIndustryPage").then(m => ({ default: m.TextileIndustryPage })));
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
 import yazdRegionMap from "../assets/images/yazd-region-osm.png";
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -207,6 +208,13 @@ export function IndustryPage() {
   );
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
     return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
+  }
+  if (slug === "textile") {
+    return (
+      <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه تخصصی نساجی…</div>}>
+        <TextileIndustryPage />
+      </React.Suspense>
+    );
   }
   return (
     <div className={`editorial industry-page industry-${industry.slug}`}>
