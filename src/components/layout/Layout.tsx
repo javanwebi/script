@@ -72,13 +72,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <Footer />
       {/* The mobile dock and floating actions are limited to storefront routes.
           Never keep them mounted behind the camera or product-identification overlay. */}
-      {showStorefrontDockOnPage && (
+      {showStorefrontDock && (
         <>
-          <MobileBottomBar
-            onOpenMobileMenu={handleOpenMobileMenu}
-            onOpenSearch={handleOpenSearch}
-          />
-          <AiFloatingButton showAssistant={!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/product/")} />
+          {!isAboutEditorialPage && (
+            <>
+              <MobileBottomBar
+                onOpenMobileMenu={handleOpenMobileMenu}
+                onOpenSearch={handleOpenSearch}
+              />
+              <AiFloatingButton showAssistant={!location.pathname.startsWith("/cart") && !location.pathname.startsWith("/product/")} />
+            </>
+          )}
         </>
       )}
       {/* Global OTP Auth Modal */}
