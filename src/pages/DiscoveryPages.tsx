@@ -21,9 +21,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Boxes,
+  Cpu,
+  Headphones,
+  ShieldCheck,
+  Wrench,
+  Package,
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
-import { BRANDS } from "../data/brands";
+import { getManagedBrands } from "../data/brands";
+import type { Brand } from "../types";
+import { databaseStorageEnabled } from "../services/durableStorage";
 import { STORE_ASSETS as A } from "../assets/images";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { ProductCard } from "../components/product/ProductCard";
@@ -332,160 +340,205 @@ export function IndustryPage() {
 export function IndustriesPage() {
   useEffect(() => title("صنایع تحت پوشش"), []);
   return (
-    <div className="editorial editorial-wrap">
-      <section className="directory-intro">
-        <span className="store-eyebrow">از صنعت شما شروع کنیم</span>
-        <h1>
-          هر خط تولید،
-          <br />
-          مسیر انتخاب خودش را دارد.
-        </h1>
-        <p>
-          کاربردها، گروه قطعات و اطلاعات لازم برای بررسی فنی هر صنعت را ببینید.
-        </p>
+    <main className="company-page company-page--industries" dir="rtl">
+      <section className="company-hero company-hero--industries">
+        <div className="company-hero-copy">
+          <span className="company-kicker">صنایع تحت پوشش</span>
+          <h1>هر صنعت، نیاز فنی خودش را دارد؛ <em>مسیر تأمین هم باید تخصصی باشد.</em></h1>
+          <p>
+            برای شناخت گروه قطعات، کاربردها و اطلاعات لازم جهت بررسی فنی،
+            صنعت موردنظر را انتخاب کنید. هر صفحه به نیازهای همان صنعت و
+            خانواده‌های مرتبط در کاتالوگ متصل است.
+          </p>
+          <div className="company-hero-actions">
+            <Link to="/ai-consult" className="company-button company-button--primary">
+              مشاوره متناسب با صنعت <MessageSquare size={18} />
+            </Link>
+            <Link to="/products" className="company-button company-button--secondary">
+              جستجو در کاتالوگ <Search size={18} />
+            </Link>
+          </div>
+        </div>
+        <div className="company-hero-visual">
+          <img src={A.industries.bgPlant} alt="نمای یک مجموعه صنعتی و خطوط تولید" fetchPriority="high" />
+          <div className="company-hero-visual-shade" />
+          <div className="company-hero-visual-caption">
+            <span>صنعت پیش</span>
+            <strong>تأمین متناسب با کاربرد</strong>
+            <small>از شناخت نیاز تا بررسی قطعه</small>
+          </div>
+        </div>
       </section>
-      <div className="industry-directory">
-        {INDUSTRIES.map((i) => (
-          <Link to={`/industries/${i.slug}`} key={i.slug}>
-            <img src={i.image} alt={`صنعت ${i.title}`} loading="lazy" />
-            <div>
-              <span>{i.eyebrow}</span>
-              <h2>{i.title}</h2>
-              <ArrowUpLeft size={22} />
+
+      <section className="company-industry-intro">
+        <div>
+          <span className="company-kicker">انتخاب صنعت</span>
+          <h2>صفحه اختصاصی هر صنعت را ببینید</h2>
+          <p>در هر صفحه، گروه‌های قطعه و معیارهای فنی مرتبط با همان حوزه معرفی می‌شوند؛ پیشنهاد محصول نیز از کاتالوگ واقعی و خانواده‌های فعال انتخاب می‌شود.</p>
+        </div>
+        <span className="company-industry-count">{INDUSTRIES.length.toLocaleString("fa-IR")} حوزه تخصصی</span>
+      </section>
+
+      <section className="company-industry-grid">
+        {INDUSTRIES.map((industry) => (
+          <Link to={`/industries/${industry.slug}`} key={industry.slug} className="company-industry-card">
+            <img src={industry.image} alt={`خط تولید ${industry.title}`} loading="lazy" />
+            <div className="company-industry-card-shade" />
+            <div className="company-industry-card-copy">
+              <span>{industry.eyebrow}</span>
+              <h2>{industry.title}</h2>
+              <p>{industry.description}</p>
+              <div className="company-industry-tags">
+                {industry.parts.slice(0, 3).map((part) => <small key={part}>{part}</small>)}
+              </div>
+              <b>ورود به صفحه این صنعت <ArrowUpLeft size={18} /></b>
             </div>
           </Link>
         ))}
-      </div>
-    </div>
+      </section>
+      <section className="company-bottom-cta">
+        <div>
+          <span className="company-kicker">نیاز خط تولید شما</span>
+          <h2>اگر صنعت یا کاربرد خود را پیدا نکردید، با ما مطرح کنید.</h2>
+          <p>کارشناسان می‌توانند برای شناسایی نیاز و بررسی قطعه راهنمایی‌تان کنند.</p>
+        </div>
+        <Link to="/contact" className="company-button company-button--primary">تماس و هماهنگی <ArrowLeft size={18} /></Link>
+      </section>
+    </main>
   );
 }
 export function BrandsPage() {
   const [query, setQuery] = useState("");
   const [specialty, setSpecialty] = useState("");
-  useEffect(() => title("برندهای همکار"), []);
-  const brands = BRANDS.filter(
-    (b) =>
-      b.active !== false &&
-      `${b.name} ${b.nameEn} ${b.specialties?.join(" ")}`
-        .toLowerCase()
-        .includes(query.toLowerCase()) &&
-      (!specialty || b.specialties?.some((s) => s.includes(specialty))),
+  const [publishedBrands, setPublishedBrands] = useState<Brand[]>(() => getManagedBrands());
+  const [brandsReady, setBrandsReady] = useState(() => databaseStorageEnabled());
+
+  useEffect(() => {
+    title("برندها و محصولات");
+    const refreshBrands = () => {
+      setPublishedBrands(getManagedBrands());
+      setBrandsReady(databaseStorageEnabled());
+    };
+    refreshBrands();
+    window.addEventListener("atlas-brands-updated", refreshBrands);
+    window.addEventListener("sanat-durable-hydrated", refreshBrands);
+    window.addEventListener("atlas-portal-content-updated", refreshBrands);
+    return () => {
+      window.removeEventListener("atlas-brands-updated", refreshBrands);
+      window.removeEventListener("sanat-durable-hydrated", refreshBrands);
+      window.removeEventListener("atlas-portal-content-updated", refreshBrands);
+    };
+  }, []);
+
+  const specialties = useMemo(
+    () => Array.from(new Set(publishedBrands.flatMap((brand) => brand.specialties || []))).sort((a, b) => a.localeCompare(b, "fa")),
+    [publishedBrands],
   );
+  const brands = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
+    return publishedBrands.filter((brand) =>
+      brand.active !== false &&
+      `${brand.name} ${brand.nameEn} ${brand.country} ${brand.specialties?.join(" ")}`.toLocaleLowerCase().includes(q) &&
+      (!specialty || brand.specialties?.includes(specialty)),
+    );
+  }, [publishedBrands, query, specialty]);
+
   return (
-    <div className="editorial">
-      <section className="brand-intro">
-        <div className="editorial-wrap editorial-split">
-          <div>
-            <span className="store-eyebrow">شناخت برند، انتخاب آگاهانه</span>
-            <h1>
-              برندها؛
-              <br />
-              <em>در کنار مشخصات فنی.</em>
-            </h1>
-            <p>
-              با حوزه محصولات برندهای درج‌شده در کاتالوگ آشنا شوید. کد، سازگاری
-              و مدارک هر کالا را پیش از سفارش بررسی کنید.
-            </p>
-            <a href="#brand-directory" className="store-btn-primary">
-              کاوش برندها <ArrowLeft size={17} />
-            </a>
+    <main className="company-page company-page--brands" dir="rtl">
+      <section className="company-hero company-hero--brands">
+        <div className="company-hero-copy">
+          <span className="company-kicker">برندها و محصولات</span>
+          <h1>برند را بشناسید؛ <em>قطعه را با مشخصات فنی انتخاب کنید.</em></h1>
+          <p>
+            فهرست زیر از برندهای منتشرشده در اطلاعات صنعت پیش خوانده می‌شود.
+            برای بررسی کالاهای هر برند، وارد کاتالوگ شوید و کد، مشخصات و
+            وضعیت قیمت همان محصول را ببینید.
+          </p>
+          <div className="company-hero-actions">
+            <a href="#brand-directory" className="company-button company-button--primary">کاوش برندها <ArrowLeft size={18} /></a>
+            <Link to="/products" className="company-button company-button--secondary">کاتالوگ قطعات <Layers size={18} /></Link>
           </div>
-          <div className="brand-engineering-wall">
-            <img
-              className="brand-engineering-photo"
-              src={A.heroPulley}
-              alt="قطعات انتقال قدرت"
-            />
-            <div className="brand-logo-wall">
-              <img src={A.logoForza} alt="FORZA" />
-              <img src={A.swrLogo} alt="SWR" />
-              <span>کد دقیق · مشخصات روشن · انتخاب آگاهانه</span>
-            </div>
-            <span className="brand-wall-caption">در امتداد حرکت صنعت</span>
+        </div>
+        <div className="company-hero-visual">
+          <img src={A.brandsFullbleedBg} alt="برندها و قطعات صنعتی" fetchPriority="high" />
+          <div className="company-hero-visual-shade" />
+          <div className="company-hero-visual-caption">
+            <span>انتخاب آگاهانه</span>
+            <strong>برند، کد فنی، مشخصات</strong>
+            <small>اطلاعات برندهای منتشرشده در کاتالوگ</small>
           </div>
         </div>
       </section>
-      <section className="editorial-wrap" id="brand-directory">
-        <div className="editorial-section-bar">
-          <SectionHeading
-            eyebrow="شناخت حوزه محصولات"
-            title="برندهای کاتالوگ"
-          />
-          <label className="editorial-search">
-            <Search size={18} />
-            <input
-              aria-label="جستجوی برند"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="نام فارسی یا انگلیسی برند"
-            />
-          </label>
+
+      <section className="company-brand-toolbar" id="brand-directory">
+        <div>
+          <span className="company-kicker">فهرست برندها</span>
+          <h2>برندهای ثبت‌شده در کاتالوگ صنعت پیش</h2>
         </div>
-        <div
-          className="brand-filters"
-          role="group"
-          aria-label="حوزه محصولات برند"
-        >
-          {["", "تسمه", "پلی", "انتقال", "لاستیک"].map((t) => (
-            <button
-              key={t}
-              type="button"
-              aria-pressed={specialty === t}
-              onClick={() => {
-                setSpecialty(t);
-                window.requestAnimationFrame(() => {
-                  const gridEl = document.getElementById("brand-results-grid");
-                  scrollToSectionElement(gridEl, { behavior: "smooth" });
-                });
-              }}
-            >
-              {t || "همه حوزه‌ها"}
-            </button>
-          ))}
-          <span>{brands.length.toLocaleString("fa-IR")} برند</span>
-        </div>
-        <div id="brand-results-grid" className="brand-directory scroll-mt-24">
-          {brands.map((b) => (
-            <article id={b.id} key={b.id}>
-              <span className="brand-card-index">{b.nameEn}</span>
-              <div className="brand-card-logo">
-                <img
-                  src={
-                    b.id === "forza"
-                      ? A.logoForza
-                      : b.id === "swr"
-                        ? A.swrLogo
-                        : b.logo
-                  }
-                  alt={b.nameEn}
-                  loading="lazy"
-                />
-              </div>
-              <h2>{b.name}</h2>
-              <p>{b.description}</p>
-              <div className="editorial-tags">
-                {b.specialties?.map((s) => (
-                  <span key={s}>{s}</span>
-                ))}
-              </div>
-              <Link
-                to={`/products?brand=${encodeURIComponent(b.nameEn)}`}
-                className="editorial-text-link"
-              >
-                بررسی محصولات این برند <ArrowUpLeft size={17} />
-              </Link>
-            </article>
-          ))}
-        </div>
-        {!brands.length && (
-          <p role="status">برندی با این نام پیدا نشد. نام دیگری جستجو کنید.</p>
-        )}
-        <div className="editorial-note">
-          نمایش نام برند به معنی موجودی همه محصولات یا تأیید نمایندگی آن نیست.
-          موجودی و شرایط تأمین هر کد را در پنل خود بررسی کنید.
-        </div>
+        <label className="company-brand-search">
+          <Search size={19} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی نام برند، کشور یا حوزه تخصصی…" aria-label="جستجوی برندها" />
+        </label>
       </section>
-    </div>
+
+      {specialties.length > 0 && (
+        <div className="company-brand-filters" role="group" aria-label="فیلتر حوزه تخصصی برند">
+          <button type="button" aria-pressed={!specialty} onClick={() => setSpecialty("")}>همه حوزه‌ها</button>
+          {specialties.map((item) => (
+            <button type="button" key={item} aria-pressed={specialty === item} onClick={() => setSpecialty(item)}>{item}</button>
+          ))}
+        </div>
+      )}
+
+      {brands.length > 0 ? (
+        <section className="company-brand-grid" aria-live="polite">
+          {brands.map((brand) => {
+            const logo = brand.id === "forza" ? A.logoForza : brand.id === "swr" ? A.swrLogo : (brand.image || brand.logo);
+            return (
+              <article className="company-brand-card" key={brand.id}>
+                <div className="company-brand-logo">
+                  {logo ? <img src={logo} alt={brand.nameEn || brand.name} loading="lazy" /> : <span>{(brand.nameEn || brand.name).slice(0, 2).toUpperCase()}</span>}
+                </div>
+                <div className="company-brand-card-copy">
+                  <div className="company-brand-card-meta">
+                    <span>{brand.country || "برند صنعتی"}</span>
+                    {brand.isExclusive && <b>همکاری انحصاری اطلس</b>}
+                  </div>
+                  <h3>{brand.name}</h3>
+                  <p>{brand.description || "برای مشاهده محصولات و کدهای مرتبط، کاتالوگ صنعت پیش را بررسی کنید."}</p>
+                  {!!brand.specialties?.length && (
+                    <div className="company-brand-tags">
+                      {brand.specialties.slice(0, 4).map((item) => <small key={item}>{item}</small>)}
+                    </div>
+                  )}
+                  <Link to={`/products?q=${encodeURIComponent(brand.nameEn || brand.name)}`}>
+                    بررسی محصولات این برند <ArrowUpLeft size={17} />
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <div className="company-empty-state" role="status" aria-live="polite">
+          {brandsReady ? (
+            <>
+              <strong>{publishedBrands.length ? "برندی با این عبارت پیدا نشد." : "هنوز برندی برای نمایش منتشر نشده است."}</strong>
+              <p>{publishedBrands.length ? "عبارت جستجو یا فیلتر حوزه تخصصی را تغییر دهید." : "فهرست این صفحه از برندهای منتشرشده در پنل مدیریت خوانده می‌شود."}</p>
+            </>
+          ) : (
+            <>
+              <strong>در حال دریافت برندهای منتشرشده…</strong>
+              <p>اطلاعات این بخش از کاتالوگ و داده‌های اصلی صنعت پیش بارگذاری می‌شود.</p>
+            </>
+          )}
+        </div>
+      )}
+
+      <p className="company-brand-disclaimer">
+        نمایش نام یک برند به‌تنهایی به معنی موجودی همه محصولات یا تأیید نمایندگی رسمی آن نیست؛ وضعیت هر کالا و شرایط تأمین باید در صفحه محصول یا از طریق استعلام بررسی شود.
+      </p>
+    </main>
   );
 }
 export function KnowledgePage() {
@@ -841,7 +894,7 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
         <div className="about-navigation-links">
           {[
             ["/about", "آشنایی با صنعت پیش"],
-            ["/about#capabilities", "توانمندی‌ها و خدمات"],
+            ["/services", "توانمندی‌ها و خدمات"],
             ["/industries", "صنایع تحت پوشش"],
             ["/brands", "برندها و محصولات"],
             ["/knowledge", "دانشنامه کاربردی"],
@@ -860,98 +913,180 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
 }
 export function AboutPage() {
   useEffect(() => title("درباره صنعت پیش"), []);
+  const pathways = [
+    {
+      to: "/services",
+      title: "توانمندی‌ها و خدمات",
+      text: "از تأمین قطعات و مشاوره فنی تا شناسایی تصویری و بررسی ساخت قطعات خاص.",
+      image: A.whySanatCadEngineering,
+      Icon: Wrench,
+      action: "مشاهده خدمات",
+    },
+    {
+      to: "/industries",
+      title: "صنایع تحت پوشش",
+      text: "مسیرهای اختصاصی برای شناخت نیازهای خطوط تولید در صنایع مختلف.",
+      image: A.industries.bgPlant,
+      Icon: Factory,
+      action: "انتخاب صنعت",
+    },
+    {
+      to: "/brands",
+      title: "برندها و محصولات",
+      text: "شناخت برندهای ثبت‌شده در کاتالوگ و رفتن به محصولات مرتبط.",
+      image: A.brandsFullbleedBg,
+      Icon: Boxes,
+      action: "بررسی برندها",
+    },
+    {
+      to: "/products",
+      title: "کاتالوگ قطعات",
+      text: "جستجو بر اساس نام، برند، خانواده محصول و کد فنی.",
+      image: A.partsWarehouseVault,
+      Icon: Package,
+      action: "ورود به کاتالوگ",
+    },
+    {
+      to: "/knowledge",
+      title: "دانشنامه کاربردی",
+      text: "راهنماهای انتخاب، نگهداری و آماده‌سازی اطلاعات فنی قطعات.",
+      image: A.aiSearchMobile,
+      Icon: BookOpen,
+      action: "مطالعه راهنماها",
+    },
+    {
+      to: "/contact",
+      title: "تماس و هماهنگی مراجعه",
+      text: "راه‌های ارتباط با کارشناسان و هماهنگی پیش از مراجعه حضوری.",
+      image: A.engineerWhyAtlas,
+      Icon: Headphones,
+      action: "ارتباط با مجموعه",
+    },
+  ];
+
   return (
-    <div className="editorial">
-      <section id="about-hero" className="about-hero editorial-wrap editorial-split">
-        <div>
-          <span className="store-eyebrow">صنعت پیش · بازرگانی تسمه اطلس</span>
+    <main className="company-page company-page--about" dir="rtl">
+      <section className="company-hero company-hero--about">
+        <div className="company-hero-copy">
+          <div className="company-brand-pair">
+            <img src={A.atlasLogo} alt="لوگوی اطلس" />
+            <span>با پشتوانه بازرگانی تسمه اطلس</span>
+          </div>
+          <span className="company-kicker">درباره صنعت پیش</span>
           <h1>
-            با صنعت پیش،
-            <br />
-            <em>هوشمندانه پیش بروید.</em>
+            از تجربه اطلس تا
+            <em> بازار جامع قطعات صنعتی ایران</em>
           </h1>
           <p>
-            همراه شما در انتخاب، تأمین و بررسی ساخت قطعات صنعتی؛ با ترکیب تجربه
-            فنی، کاتالوگ قابل جستجو و ابزارهای هوشمند.
+            صنعت پیش با پشتوانه بازرگانی تسمه اطلس، با تجربه فعالیت از سال ۱۳۶۶،
+            شکل گرفته است تا مسیر تأمین قطعات صنعتی را ساده‌تر، شفاف‌تر و
+            تخصصی‌تر کند.
           </p>
-          <div className="editorial-actions">
-            <Link to="/products" className="store-btn-primary">
-              کاوش محصولات <ArrowLeft size={17} />
+          <p>
+            چشم‌انداز ما گردآوری قطعات و برندهای صنعتی در یک بازار آنلاین
+            تخصصی است؛ بستری برای جستجو با نام و کد فنی، بررسی مشخصات، مقایسه،
+            دریافت مشاوره، استعلام و خرید؛ متمرکز بر نیاز کارخانه‌ها و فعالان
+            صنعت، نه کالاهای عمومی.
+          </p>
+          <div className="company-hero-actions">
+            <Link to="/products" className="company-button company-button--primary">
+              ورود به کاتالوگ قطعات <ArrowLeft size={18} />
             </Link>
-            <Link to="/contact" className="store-btn-secondary">
-              ارتباط با ما <Phone size={17} />
+            <Link to="/contact" className="company-button company-button--secondary">
+              تماس با صنعت پیش <Phone size={17} />
             </Link>
           </div>
         </div>
-        <img src={A.whySanatDirectFactory} alt="تجهیزات و فضای صنعتی" />
-      </section>
-      <section className="industry-check-band" id="capabilities">
-        <div className="editorial-wrap">
-          <SectionHeading
-            eyebrow="چه کاری برای شما انجام می‌دهیم؟"
-            title="یک مسیر پیوسته؛ از نیاز تا پیگیری"
-          />
-          <div className="about-capabilities">
-            {[
-              [
-                "تأمین قطعات",
-                "خانواده‌ها، سایزها و کدهای کالا را در کاتالوگ بررسی کنید.",
-                "/products",
-              ],
-              [
-                "بررسی ساخت",
-                "نمونه، نقشه و شرایط کار را برای بررسی امکان ساخت ارائه کنید.",
-                "/contact",
-              ],
-              [
-                "راهنمایی هوشمند",
-                "پرسش فنی و شناسایی اولیه با تصویر را در میزکار FORZA تجربه کنید.",
-                "/ai-consult",
-              ],
-              [
-                "خرید و پیگیری",
-                "قیمت، موجودی و استعلام را پس از ورود در پنل خود دنبال کنید.",
-                "/register",
-              ],
-            ].map(([h, p, to], i) => (
-              <Link to={to} key={h}>
-                <span>۰{i + 1}</span>
-                <h3>{h}</h3>
-                <p>{p}</p>
-                <ArrowUpLeft size={19} />
-              </Link>
-            ))}
+        <div className="company-hero-visual">
+          <img src={A.whySanatDirectFactory} alt="فضای صنعتی و زنجیره تأمین قطعات" fetchPriority="high" />
+          <div className="company-hero-visual-shade" />
+          <div className="company-hero-visual-caption">
+            <span>صنعت پیش</span>
+            <strong>پیش به صنعت</strong>
+            <small>بازار تخصصی قطعات و تجهیزات صنعتی</small>
+          </div>
+          <div className="company-hero-visual-logo">
+            <img src={A.atlasLogo} alt="اطلس" />
+            <span>پشتوانه تجربه صنعتی</span>
           </div>
         </div>
       </section>
-      <section id="about-principles" className="editorial-wrap editorial-split">
-        <SectionHeading
-          eyebrow="انتخاب بدون ابهام"
-          title="مشخصات روشن، تصمیم آگاهانه"
-          text="تصویر و کد هر قطعه را کنار هم بررسی کنید. مشخصات نامشخص، قیمت اعلام‌نشده یا موجودی تأییدنشده را با اطلاعات واقعی تکمیل می‌کنیم؛ تأیید نهایی با بررسی کد و شرایط کار انجام می‌شود."
-        />
-        <div className="about-principles">
+
+      <section className="company-story">
+        <div className="company-story-copy">
+          <span className="company-kicker">ریشه و مسیر شکل‌گیری</span>
+          <h2>تجربه اطلس، پایه‌ای برای یک تجربه آنلاین تخصصی</h2>
           <p>
-            <Check size={19} />
-            کد، تصویر و مشخصات هر کالا در کنار هم
+            در بازار قطعات صنعتی، پیدا کردن کالا فقط با دانستن نام آن تمام
+            نمی‌شود. کد فنی، برند، ابعاد، شرایط کار و سازگاری با دستگاه در
+            انتخاب درست نقش دارند. صنعت پیش می‌خواهد این اطلاعات و مسیرهای
+            تأمین را در یک نقطه قابل جستجو و پیگیری کنار هم قرار دهد.
           </p>
           <p>
-            <Check size={19} />
-            نمایش قیمت و موجودی در حساب کاربری
-          </p>
-          <p>
-            <Check size={19} />
-            استعلام برای اطلاعات نیازمند بررسی
-          </p>
-          <p>
-            <Check size={19} />
-            همراهی ابزار هوشمند و ارتباط مستقیم
+            این پلتفرم با تکیه بر تجربه اطلس و با توسعه تدریجی کاتالوگ، ابزارهای
+            جستجو و خدمات دیجیتال ساخته می‌شود تا ارتباط میان نیاز صنعت و
+            تأمین‌کنندگان قطعات، روشن‌تر و سریع‌تر شود.
           </p>
         </div>
+        <div className="company-story-visual">
+          <img src={A.heroPulley} alt="نمونه‌ای از قطعات مکانیکی و انتقال قدرت" loading="lazy" />
+          <div>
+            <strong>بازار آنلاین، فقط برای صنعت</strong>
+            <span>قطعات · برندها · مشخصات فنی · استعلام و خرید</span>
+          </div>
+        </div>
       </section>
-      <section id="about-map" className="editorial-wrap">
-        <MapCard />
+
+      <section className="company-vision-banner">
+        <img src={A.refineryDuskWide} alt="" loading="lazy" />
+        <div>
+          <span>چشم‌انداز صنعت پیش</span>
+          <h2>برای هر نیاز صنعتی، یک مسیر روشن از جستجو تا تأمین</h2>
+          <p>
+            هدف، ساخت مرجعی تخصصی است که قطعات و برندهای صنعتی را به کاتالوگی
+            منسجم و تجربه‌ای یکپارچه برای انتخاب، استعلام و خرید آنلاین پیوند
+            دهد.
+          </p>
+          <Link to="/products">شروع جستجو در کاتالوگ <ArrowLeft size={17} /></Link>
+        </div>
       </section>
-    </div>
+
+      <section className="company-pathways" id="capabilities">
+        <div className="company-section-heading">
+          <span className="company-kicker">مسیرهای مرتبط با صنعت پیش</span>
+          <h2>از اینجا وارد بخش موردنیاز خود شوید</h2>
+          <p>هر بخش صفحه مستقل و اطلاعات مرتبط با خودش را دارد؛ از خدمات تا صنایع، برندها و راه‌های ارتباط.</p>
+        </div>
+        <div className="company-pathway-grid">
+          {pathways.map(({ to, title: cardTitle, text, image, Icon, action }) => (
+            <Link to={to} className="company-pathway-card" key={to}>
+              <div className="company-pathway-media">
+                <img src={image} alt="" loading="lazy" />
+                <span><Icon size={23} strokeWidth={1.8} /></span>
+              </div>
+              <div className="company-pathway-copy">
+                <h3>{cardTitle}</h3>
+                <p>{text}</p>
+                <b>{action} <ArrowUpLeft size={17} /></b>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="company-price-callout">
+        <div>
+          <span className="company-kicker">دسترسی مشتریان</span>
+          <h2>قیمت به‌روز هر کد، در حساب مشتری</h2>
+          <p>
+            قیمت کالا پس از ورود به حساب و بر اساس دسترسی و لیست قیمت فعال همان
+            مشتری نمایش داده می‌شود. برای خانواده‌های چندکددار، ابتدا باید کد
+            فنی موردنظر انتخاب شود؛ کالاهای بدون قیمت فعال نیز از مسیر استعلام
+            پیگیری می‌شوند.
+          </p>
+        </div>
+        <MemberAccess compact />
+      </section>
+    </main>
   );
 }
