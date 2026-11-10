@@ -11,10 +11,12 @@ import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const identificationOpen = useIdentificationOverlayOpen();
+  // Preserve the shared route-eligibility check for full-screen identification.
+  const showStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
   // The approved About page uses a full editorial composition; keep the fixed
   // storefront dock and floating assistant from covering its mobile hero/content.
   const isAboutEditorialPage = ["/about", "/about-us", "/history", "/licenses", "/awards"].includes(location.pathname);
-  const showStorefrontDock = !identificationOpen && !isAboutEditorialPage && isStorefrontBottomNavRoute(location.pathname);
+  const showStorefrontDockOnPage = showStorefrontDock && !isAboutEditorialPage;
 
   // Full-screen dedicated AI experiences (AI FORZA Voice & Cognivo AI Workspace)
   const isDedicatedAiWorkspace =
@@ -62,15 +64,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   return (
-    <div className={`storefront min-h-screen flex flex-col ${showStorefrontDock ? "has-mobile-dock" : "no-mobile-dock"}`}>
+    <div className={`storefront min-h-screen flex flex-col ${showStorefrontDockOnPage ? "has-mobile-dock" : "no-mobile-dock"}`}>
       <Header />
-      <main className={`flex-1 w-full ${showStorefrontDock ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
+      <main className={`flex-1 w-full ${showStorefrontDockOnPage ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
         {children}
       </main>
       <Footer />
       {/* The mobile dock and floating actions are limited to storefront routes.
           Never keep them mounted behind the camera or product-identification overlay. */}
-      {showStorefrontDock && (
+      {showStorefrontDockOnPage && (
         <>
           <MobileBottomBar
             onOpenMobileMenu={handleOpenMobileMenu}
