@@ -12,6 +12,9 @@ test('homepage About preview and company navigation lead to the dedicated compan
   const discovery = read('src/pages/DiscoveryPages.tsx');
   const app = read('src/App.tsx');
   const legacyAbout = read('src/pages/AboutUsPage.tsx');
+  const layout = read('src/components/layout/Layout.tsx');
+  assert.match(layout,/isAboutEditorialPage/);
+  assert.match(layout,/!isAboutEditorialPage/);
   assert.match(home,/HomeAboutSection/);
   assert.match(home,/<WhySanatPish \/>/);
   assert.match(overview,/export function HomeAboutSection/);
