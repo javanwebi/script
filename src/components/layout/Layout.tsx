@@ -46,7 +46,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     );
   }
 
-  const isEditorial=["/industries","/brands","/knowledge","/about"].some(p=>location.pathname.startsWith(p));
+  const isEditorial=["/industries","/brands","/knowledge","/about","/about-us","/history","/licenses","/awards"].some(p=>location.pathname.startsWith(p));
   const isAboutConcept=["/about","/about-us","/history","/licenses","/awards"].includes(location.pathname);
   const isHomePage = location.pathname === '/';
   const isCategoryPage = location.pathname.startsWith('/category/');
