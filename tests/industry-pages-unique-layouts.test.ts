@@ -110,9 +110,9 @@ test('premium industry pages keep split desktop hero and mobile-first station la
 
 test('ceramic production explorer no longer forces a desktop-width canvas on phones', () => {
   const premium = readFileSync(new URL('../src/industry-pages-premium.css', import.meta.url), 'utf8');
-  assert.match(premium, /#ceramic-production-line \\[class~="min-w-\\[860px\\]"\\]/);
+  assert.ok(premium.includes('#ceramic-production-line [class~="min-w-[860px]"]'));
   assert.match(premium, /min-width: 0 !important/);
-  assert.match(premium, /#ceramic-production-line \\[class\*="grid-cols-7"\\]/);
+  assert.ok(premium.includes('#ceramic-production-line [class*="grid-cols-7"]'));
   assert.match(premium, /flex: 0 0 112px/);
   assert.match(premium, /\.ceramic-recommendations/);
 });
