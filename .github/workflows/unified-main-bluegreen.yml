@@ -36,7 +36,7 @@ jobs:
           from pathlib import Path
           for filename in ('ops/deploy-single-port-vps.sh','ops/fix-nginx-api-write-routing-vps.sh'):
               source=Path(filename).read_text()
-              blocks=re.findall(r"<<'PY'\\s*\\n(.*?)\\nPY",source,re.S)
+              blocks=re.findall(r"<<'PY'\s*\n(.*?)\nPY",source,re.S)
               assert blocks,('NO_PYTHON_HEREDOC',filename)
               for index,block in enumerate(blocks):
                   ast.parse(block,filename=f'{filename}:python-heredoc-{index+1}')
