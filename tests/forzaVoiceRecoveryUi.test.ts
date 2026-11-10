@@ -72,7 +72,12 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   const vad=ui.slice(beginning,end);
   assert.match(vad,/window\.setInterval\(check,55\)/);
   assert.match(vad,/window\.clearInterval\(micPoll\)/);
+  assert.match(vad,/lastMicActivityRef\.current=micNow/);
   assert.doesNotMatch(vad,/requestAnimationFrame|cancelAnimationFrame/);
+  assert.match(ui,/autoGainControl:false/);
+  assert.match(ui,/source=diba rejected=below_near_field_vad/);
+  assert.match(ui,/source=browser rejected=below_near_field_vad/);
+  assert.match(ui,/Date\.now\(\)-lastMicActivityRef\.current>3500/);
 });
 
 test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
