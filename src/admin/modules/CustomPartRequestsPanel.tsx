@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import { Search, RefreshCw, FileImage, FileText, Phone, CalendarClock, Save, Download, Loader2, ClipboardList } from 'lucide-react';
 
 type RequestStatus = 'new' | 'reviewing' | 'quoted' | 'accepted' | 'rejected' | 'completed';
@@ -43,8 +44,7 @@ export const CustomPartRequestsPanel: React.FC = () => {
       const response = await fetch('/api/admin/custom-part-requests?' + params.toString(), {
         credentials: 'same-origin', cache: 'no-store', signal,
       });
-      const data = await response.json().catch(() => ({ success: false, message: 'پاسخ سرور معتبر نیست.' }));
-      if (!response.ok || !data.success) throw new Error(data.message || 'دریافت درخواست‌های ساخت ناموفق بود.');
+      const data = await requireAdminApiJson<{rows:RequestRow[]}>(response,'دریافت درخواست‌های ساخت');
       if (signal?.aborted) return;
       const nextRows = Array.isArray(data.rows) ? data.rows as RequestRow[] : [];
       setRows(nextRows);
@@ -81,8 +81,7 @@ export const CustomPartRequestsPanel: React.FC = () => {
           quoteAmount: quoteAmount.trim() === '' ? null : Number(quoteAmount), quoteCurrency,
         }),
       });
-      const data = await response.json().catch(() => ({ success: false, message: 'پاسخ سرور معتبر نیست.' }));
-      if (!response.ok || !data.success) throw new Error(data.message || 'ذخیره تغییرات انجام نشد.');
+      await requireAdminApiJson(response,'ذخیره تغییرات درخواست ساخت');
       setNotice('وضعیت و یادداشت درخواست ذخیره شد.');
       setRevision(value => value + 1);
     } catch (e) {

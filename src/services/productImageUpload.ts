@@ -1,3 +1,5 @@
+import { requireAdminApiJson } from '../utils/adminApiResponse';
+
 /** Admin-only upload: file content is stored on the server's persistent volume, never in Git or a product JSON field. */
 export interface StoredProductImage {
  id:string;
@@ -27,8 +29,7 @@ export async function uploadProductImage(file:File,details:{
   headers:{'Content-Type':file.type},
   body:file
  });
- const result=await response.json().catch(()=>({success:false,message:'پاسخ سرور قابل خواندن نیست.'}));
- if(!response.ok||!result.success||!result.image?.url)
-  throw new Error(result.message||'ذخیره تصویر و اتصال به کالا انجام نشد.');
+ const result=await requireAdminApiJson<{image?:StoredProductImage}>(response,'آپلود تصویر محصول');
+ if(!result.image?.url) throw new Error('آپلود تصویر: تصویر ذخیره‌شده در پاسخ سرور وجود ندارد.');
  return result.image as StoredProductImage;
 }

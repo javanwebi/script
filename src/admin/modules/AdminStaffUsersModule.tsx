@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
+import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import {
   Activity,AlertTriangle,Check,CheckCheck,ChevronLeft,CircleCheck,Clock3,
   KeyRound,LoaderCircle,LockKeyhole,Plus,RefreshCcw,Save,Search,ShieldCheck,
@@ -48,8 +49,7 @@ async function api(path:string,init?:RequestInit){
   ...init,credentials:'same-origin',cache:'no-store',
   headers:{'Content-Type':'application/json',...(init?.headers||{})}
  });
- const data=await response.json().catch(()=>({success:false,message:'پاسخ سرور معتبر نیست.'}));
- if(!response.ok || !data.success)throw new Error(data.message||'درخواست با خطا مواجه شد.');
+ const data=await requireAdminApiJson<any>(response,'مدیریت کاربران و دسترسی');
  return data;
 }
 function Stat({label,value,note,icon:Icon}:{label:string;value:string|number;note:string;icon:React.ElementType}){
