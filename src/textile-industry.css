@@ -1738,3 +1738,54 @@
     font-size: 8px;
   }
 }
+
+
+/* The reference uses a compact editorial nav rather than the full catalogue mega-menu. */
+.textile-reference-layout .header-support-status {
+  display: none !important;
+}
+.textile-reference-nav {
+  width: 100%;
+  min-height: 40px;
+  justify-content: space-between;
+  gap: 0 !important;
+}
+.textile-reference-nav-link {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 13px;
+  color: #e5ebef;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color .18s ease, background .18s ease;
+}
+.textile-reference-nav-link:hover {
+  color: #ff9a50;
+  background: rgba(255,255,255,.035);
+}
+.textile-reference-nav-link.is-active {
+  color: #f0781d;
+  font-weight: 850;
+}
+.textile-reference-nav-link.is-active::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  left: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: #e86a16;
+  box-shadow: 0 0 10px rgba(232,106,22,.45);
+}
+@media (max-width: 1100px) and (min-width: 761px) {
+  .textile-reference-nav-link {
+    padding-inline: 9px;
+    font-size: 9px;
+  }
+}
