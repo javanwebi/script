@@ -52,7 +52,7 @@ test("customer portal price surfaces use server prices and never reapply browser
   // A customer with price access but without quick-order permission must still
   // be able to submit an inquiry on mobile when stock is unavailable.
   assert.match(productDetail, /disabled=\{buyingAllowed && isSelectedStockKnown && activeStockCount <= 0\}/);
-  assert.match(consumer, /consumer-dashboard\/product\/\\$\{encodeURIComponent\(prod\.code\)\}/);
+  assert.ok(consumer.includes('to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}'));
 
   assert.match(publicCard, /location\.pathname\.startsWith\("\/consumer-dashboard\/"\)/);
   assert.match(cart, /subscribeCatalogChanges/);
