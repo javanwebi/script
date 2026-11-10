@@ -259,7 +259,7 @@ export const ConsumerDashboardPage: React.FC = () => {
       !enabledMenus.some((m) => m.id === "quick_buy")
     )
       return;
-    navigate(`/product/${encodeURIComponent(product.code)}`);
+    navigate(`/consumer-dashboard/product/${encodeURIComponent(product.code)}`);
     return;
   };
 
@@ -280,16 +280,12 @@ export const ConsumerDashboardPage: React.FC = () => {
 
   const handleDownloadMyPriceListExcel = () => {
     if (!resolvedConfig.permissions.allowExcelPriceListDownload) return;
-    const lists = pricingCreditService.getPriceLists();
-    const retailPl = lists.find((p) => p.code === "RETAIL" || p.isRetailCash);
-    if (!retailPl) {
-      showToast("لیست قیمت هنوز منتشر نشده است.");
+    if (currentUser?.canViewPrices !== true) {
+      showToast("دسترسی مشاهده قیمت برای این حساب فعال نیست؛ با پشتیبانی تماس بگیرید.");
       return;
     }
-    if (retailPl) {
-      pricingCreditService.exportPriceListToExcel(retailPl.id);
-    }
-    showToast("فایل «اکسل لیست قیمت من» (.xlsx) با موفقیت دانلود شد.");
+    pricingCreditService.downloadCurrentCustomerPriceListExcel("xlsx");
+    showToast("فایل «اکسل قیمت‌های به‌روز حساب شما» (.xlsx) با موفقیت آماده شد.");
   };
 
   const handleBannerAction = (banner: PortalBannerItem) => {
@@ -888,7 +884,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                     return (
                       <article key={prod.code} className="consumer-quickbuy-card">
                         <Link className="consumer-quickbuy-media"
-                          to={`/product/${encodeURIComponent(prod.code)}`}
+                          to={`/consumer-dashboard/product/${encodeURIComponent(prod.code)}`}
                           aria-label={`مشاهده ${prod.name}`}>
                           <ProductImage src={prod.images?.[0]} alt={prod.name}
                             loading="lazy" decoding="async" thumbnail />
