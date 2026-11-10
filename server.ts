@@ -7884,6 +7884,35 @@ async function start() {
   // React assets without pretending that its database uses Railway's TLS setup.
   // Keep the strict NODE_ENV=production database gate unchanged; this is only
   // a narrowly opt-in frontend serving mode, never a database-mode override.
+  // Every API request must terminate with JSON rather than accidentally
+  // serving the React SPA or Express's default HTML "Cannot POST" page.
+  // This makes frontend/backend revision drift immediately diagnosable.
+  app.use('/api', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(404).json({
+      success: false,
+      code: 'API_NOT_FOUND',
+      message: 'این مسیر API در نسخه فعال سرور موجود نیست؛ نسخه فرانت‌اند و بک‌اند باید هماهنگ شوند.'
+    });
+  });
+  // Express body parser errors (malformed/oversized payloads) also need a
+  // safe JSON contract. Never echo request bodies, cookies, SQL or HTML.
+  app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!req.path.startsWith('/api')) return next(error);
+    if (res.headersSent) return next(error);
+    const status = error?.status === 413 ? 413 :
+      error?.status === 400 || error?.type === 'entity.parse.failed' ? 400 : 500;
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(status).json({
+      success: false,
+      code: status === 413 ? 'PAYLOAD_TOO_LARGE' :
+        status === 400 ? 'INVALID_JSON' : 'API_ERROR',
+      message: status === 413 ? 'حجم درخواست از حد مجاز بیشتر است.' :
+        status === 400 ? 'ساختار درخواست JSON معتبر نیست.' :
+          'پردازش درخواست در سرور ناموفق بود.'
+    });
+  });
+
   const serveBuiltFrontend = process.env.NODE_ENV === 'production' || (
     process.env.SANATPISH_SERVE_DIST === '1' &&
     process.env.DATA_BACKEND === 'postgres' &&
