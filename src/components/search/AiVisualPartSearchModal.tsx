@@ -5,7 +5,7 @@ import {ImageRegionReview, type RegionPreparationState} from './ImageRegionRevie
 import type {ImageRegion} from '../../utils/imageRegion';
 import {measurementError} from '../../utils/partMeasurements';
 import { memberPath } from "../storefront/MemberAccess";
-import React, { useState, useRef } from "react";
+import React, { lazy, Suspense, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -64,6 +64,52 @@ import { VisionAnalysisProgress } from "./VisionAnalysisProgress";
 import { saveCustomerDeviceImage, getCustomerDeviceImage, getCustomerDeviceImageMetadata, adoptCustomerDeviceImage, customerImageBlobToDataUrl } from "../../services/customerImageVault";
 import { createCustomerImageIdentification, completeCustomerImageIdentification, selectCustomerImageProduct } from "../../services/customerIntelligenceService";
 
+const LazyCustomPartRequestModal = lazy(() =>
+  import('../home/CustomPartRequestModal').then(module => ({
+    default: module.CustomPartRequestModal,
+  })),
+);
+const MAX_MANUFACTURING_IMAGE_BYTES = 8 * 1024 * 1024;
+
+async function createManufacturingImageFile(blob: Blob, originalName: string): Promise<File> {
+  if (!blob.size || !blob.type.startsWith('image/')) {
+    throw new Error('تصویر قطعه برای پیوست درخواست ساخت معتبر نیست.');
+  }
+  const safeBase = (originalName || 'forza-part-image')
+    .split(/[\\/]/).pop()!.replace(/[.][^.]+$/, '').slice(0, 100) || 'forza-part-image';
+  const mime = blob.type.split(';')[0].toLowerCase();
+  const extension = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
+  if (blob.size <= MAX_MANUFACTURING_IMAGE_BYTES && ['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+    return new File([blob], safeBase + extension, { type: mime, lastModified: Date.now() });
+  }
+
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const encode = async (maxDimension: number, quality: number): Promise<Blob> => {
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('آماده‌سازی تصویر برای پیوست انجام نشد.');
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return new Promise((resolve, reject) => canvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('فشرده‌سازی تصویر ناموفق بود.')),
+        'image/webp',
+        quality,
+      ));
+    };
+    let compressed = await encode(2400, 0.86);
+    if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) compressed = await encode(1800, 0.72);
+    if (compressed.size > MAX_MANUFACTURING_IMAGE_BYTES) {
+      throw new Error('حجم تصویر برای ثبت درخواست ساخت زیاد است؛ لطفاً تصویر کم‌حجم‌تری انتخاب کنید.');
+    }
+    return new File([compressed], safeBase + '.webp', { type: 'image/webp', lastModified: Date.now() });
+  } finally {
+    bitmap.close();
+  }
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -73,6 +119,14 @@ interface Props {
 }
 
 type WizardStep = 1 | 2 | 3 | "analyzing" | "results";
+type ManufacturingRequestDraft = {
+  file: File;
+  partName: string;
+  partType: string;
+  dimensions: string;
+  alloyCondition: string;
+  notes: string;
+};
 
 interface AnalysisPhase {
   title: string;
@@ -116,6 +170,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const imagePreparationSequenceRef=useRef(0);
   const analysisSequenceRef=useRef(0);
   const analysisBusyRef=useRef(false);
+  const customRequestSequenceRef=useRef(0);
   const [localRegionEnabled,setLocalRegionEnabled]=useState(false);
   React.useEffect(()=>{
     if(!isOpen)return;
@@ -127,6 +182,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   },[isOpen]);
   React.useEffect(()=>{setQueryRegion(undefined);setCandidateRegions([]);setRegionDetectionId(null);setFullImageSelected(false);regionDetectionSequenceRef.current++;analysisSequenceRef.current++;analysisBusyRef.current=false;},[selectedImage]);
   React.useEffect(()=>{if(!isOpen){analysisSequenceRef.current++;analysisBusyRef.current=false;setCurrentStep(step=>step==="analyzing"?1:step);}},[isOpen]);
+  React.useEffect(() => {
+    if (!isOpen) {
+      customRequestSequenceRef.current++;
+      setCustomRequestOpen(false);
+      setCustomRequestDraft(null);
+      setIsPreparingCustomRequest(false);
+    }
+  }, [isOpen]);
   const [localImageId, setLocalImageId] = useState<string | null>(null);
   const [imageEventId, setImageEventId] = useState<string | null>(null);
   // Request-scoped data URL only; original Blob remains in the device vault.
@@ -182,6 +245,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   // Analysis result & error
   const [analysisResult, setAnalysisResult] =
     useState<AiPartAnalysisResult | null>(null);
+  const [customRequestDraft, setCustomRequestDraft] = useState<ManufacturingRequestDraft | null>(null);
+  const [customRequestOpen, setCustomRequestOpen] = useState(false);
+  const [isPreparingCustomRequest, setIsPreparingCustomRequest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
@@ -656,6 +722,75 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
     setErrorMessage('');
   };
 
+  // The original stays in the customer's local vault during identification.
+  // It is read and attached to the manufacturing request only after an explicit click.
+  const openCustomManufacturingRequest = async () => {
+    if (isPreparingCustomRequest) return;
+    const requestSequence = ++customRequestSequenceRef.current;
+    if (!selectedImage) {
+      setErrorMessage('تصویر قطعه برای ثبت درخواست ساخت پیدا نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
+      return;
+    }
+    setIsPreparingCustomRequest(true);
+    setErrorMessage('');
+    try {
+      let imageBlob: Blob | null = null;
+      let originalName = 'forza-part-image';
+      if (localImageId) {
+        const localRecord = await getCustomerDeviceImage(localImageId);
+        if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+        if (localRecord) {
+          imageBlob = localRecord.blob;
+          originalName = localRecord.originalName || originalName;
+        }
+      }
+      if (!imageBlob) {
+        const response = await fetch(temporaryImageDataUrl || selectedImage);
+        if (!response.ok) throw new Error('خواندن تصویر ذخیره‌شده روی دستگاه ممکن نشد؛ لطفاً تصویر را دوباره انتخاب کنید.');
+        imageBlob = await response.blob();
+      }
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      const file = await createManufacturingImageFile(imageBlob, originalName);
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      const summary = analysisResult?.summary;
+      const detectedName = [summary?.partFamilyFarsi, summary?.detectedPartType]
+        .map(value => String(value || '').trim())
+        .find(value => value.length > 1 && !/جست‌وجوی تصویری کاتالوگ|قطعه نامشخص|نامشخص/i.test(value));
+      const visualSummary = String(summary?.visualAnalysis || summary?.whatYouSee || 'در کاتالوگ، تطابق تصویری کافی پیدا نشد.').trim();
+      const observedDimensions = (summary?.observedSpecifications || [])
+        .filter(spec => String(spec.value || '').trim())
+        .map(spec => String(spec.name || 'مشخصه') + ': ' + String(spec.value).trim())
+        .join('، ')
+        .slice(0, 480);
+      const unknownParameters = (summary?.unknownParameters || []).filter(Boolean);
+      const regionNote = queryRegion
+        ? 'ناحیه انتخاب‌شده در تصویر: x=' + queryRegion.x.toFixed(4) + ', y=' + queryRegion.y.toFixed(4) +
+          ', width=' + queryRegion.width.toFixed(4) + ', height=' + queryRegion.height.toFixed(4) + ' (مختصات نسبی تصویر).'
+        : 'درخواست بر اساس تصویر کامل ارسالی ثبت شده است.';
+      const notes = [
+        'درخواست ساخت و مهندسی معکوس از مسیر شناسایی تصویری FORZA ثبت شده است.',
+        'خلاصه بررسی تصویر: ' + visualSummary,
+        analysisResult?.technicalAdvice ? 'توصیه فنی اولیه: ' + analysisResult.technicalAdvice : '',
+        unknownParameters.length ? 'پارامترهای نیازمند اندازه‌گیری یا تأیید: ' + unknownParameters.join('، ') : '',
+        regionNote,
+      ].filter(Boolean).join('\n').slice(0, 2800);
+      if (requestSequence !== customRequestSequenceRef.current || !isOpen) return;
+      setCustomRequestDraft({
+        file,
+        partName: detectedName || 'قطعه صنعتی برای بررسی و ساخت سفارشی',
+        partType: 'سایر قطعات مکانیکی خاص',
+        dimensions: observedDimensions,
+        alloyCondition: String(summary?.material || ''),
+        notes,
+      });
+      setCustomRequestOpen(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'آماده‌سازی تصویر برای درخواست ساخت ناموفق بود.');
+    } finally {
+      if (requestSequence === customRequestSequenceRef.current) setIsPreparingCustomRequest(false);
+    }
+  };
+
   const retakeCameraPhoto = () => {
     imagePreparationSequenceRef.current++;
     regionDetectionSequenceRef.current++;
@@ -705,6 +840,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   ): ReturnType<typeof pricingCreditService.calculateInquiryPrice> => null;
 
   return (
+    <>
     <Modal
       dialogLabel="شناسایی تصویری قطعه"
       fullScreen={fullScreen || initialCamera || cameraFlowActive || currentStep === "analyzing"}
@@ -2340,29 +2476,41 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                             ساخت سفارشی را اعلام می‌کنند.
                           </p>
                           <p className="text-[11px] text-slate-500 leading-relaxed">
-                            همین عکس را برای کارشناسان ما ارسال کنید تا امکان
-                            شناسایی ابعادی، استعلام قیمت و زمان تأمین یا ساخت
-                            بررسی شود.
+                            می‌توانید با همین تصویر، تعداد موردنیاز و اطلاعات تماس خود درخواست ساخت ثبت کنید.
+                            کارشناسان صنعت پیش امکان تأمین، مهندسی معکوس و زمان ساخت را بررسی می‌کنند.
+                          </p>
+                          <p className="text-[10px] text-slate-500 leading-relaxed">
+                            تصویر اصلی تا زمان ارسال نهایی فرم فقط روی دستگاه شما می‌ماند؛ با ارسال فرم، به‌صورت پیوست خصوصی درخواست ساخت برای کارشناسان مجاز CRM ثبت می‌شود.
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <a
-                          href="tel:03535254703"
-                          className="flex-1 h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          disabled={isPreparingCustomRequest || !selectedImage}
+                          onClick={() => void openCustomManufacturingRequest()}
+                          className="w-full min-h-12 rounded-xl bg-gradient-to-l from-[#E06518] to-[#C95210] px-4 py-3 text-white font-black text-xs shadow-lg shadow-orange-500/20 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60"
                         >
-                          <Phone className="w-4 h-4" />
-                          <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
-                        </a>
-                        <a
-                          href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>ارسال عکس در واتس‌اپ</span>
-                        </a>
+                          {isPreparingCustomRequest ? 'در حال آماده‌سازی تصویر...' : 'ثبت درخواست ساخت با همین تصویر'}
+                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <a
+                            href="tel:03535254703"
+                            className="h-11 bg-[#55565A] hover:bg-[#1B293E] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Phone className="w-4 h-4" />
+                            <span>تماس با صنعت پیش: ۰۳۵-۳۵۲۵۴۷۰۳</span>
+                          </a>
+                          <a
+                            href="https://wa.me/989903427027?text=سلام%2C%20این%20تصویر%20قطعه%20را%20برای%20ساخت%20سفارشی%20ارسال%20می‌کنم"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span>ارسال عکس در واتس‌اپ</span>
+                          </a>
+                        </div>
                       </div>
                     </div>
                   );
@@ -2409,5 +2557,25 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       )}
       </div>
     </Modal>
+    {customRequestOpen && customRequestDraft && (
+      <Suspense fallback={
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/65 p-4" role="status">
+          <div className="rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-700">در حال آماده‌سازی فرم درخواست ساخت...</div>
+        </div>
+      }>
+        <LazyCustomPartRequestModal
+          isOpen={customRequestOpen}
+          onClose={() => setCustomRequestOpen(false)}
+          initialPartName={customRequestDraft.partName}
+          initialPartType={customRequestDraft.partType}
+          initialDimensions={customRequestDraft.dimensions}
+          initialAlloyCondition={customRequestDraft.alloyCondition}
+          initialQuantity="1"
+          initialNotes={customRequestDraft.notes}
+          initialFile={customRequestDraft.file}
+        />
+      </Suspense>
+    )}
+    </>
   );
 };
