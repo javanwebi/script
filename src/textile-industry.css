@@ -2148,8 +2148,13 @@
   }
 
   .textile-hero-points {
+    position: static;
+    top: auto;
+    right: auto;
+    left: auto;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
+    width: 100%;
     margin-top: 12px;
   }
 
