@@ -43,7 +43,8 @@ test('mobile filter sheet exposes a modal dialog, escape handling and focus cont
 
 test('category controls expose selected state and use local category artwork where available', () => {
   assert.match(page, /aria-pressed=\{isSelected\}/);
-  assert.match(page, /cat\.image \|\| CATEGORY_ARTWORK\[cat\.slug\]/);
+  assert.match(page, /getManagedCategories\(\)/);
+  assert.match(page, /cat\.image \|\| CATEGORY_ARTWORK\[cat\.name\]/);
   assert.match(page, /loading="lazy" decoding="async"/);
 });
 
