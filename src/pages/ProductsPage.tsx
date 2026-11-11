@@ -9,7 +9,7 @@ import { ProductImage } from "../components/product/ProductImage";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
-import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
+import { subscribeCatalogChanges } from "../data/mockGenerator";
 import {
   CATEGORIES,
   findCatalogCategory,
@@ -133,10 +133,7 @@ export const ProductsPage: React.FC = () => {
       });
     return ()=>controller.abort();
   },[catalogVersion]);
-  const allProducts = useMemo(
-    () => catalogProducts.length ? catalogProducts : getAllProducts(),
-    [catalogProducts,catalogVersion],
-  );
+  const allProducts = catalogProducts;
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
