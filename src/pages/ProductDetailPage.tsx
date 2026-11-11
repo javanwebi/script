@@ -104,7 +104,7 @@ export const ProductDetailPage: React.FC = () => {
         : undefined,
     [decodedCode, isPreviewMode, catalogTick],
   );
-  const [remoteProduct,setRemoteProduct]=useState<{requestedCode:string;product:Product}|null>(null);
+  const [remoteProduct,setRemoteProduct]=useState<{requestedCode:string;product:Product;similarProducts?:Product[]}|null>(null);
   const [remoteProductLoading,setRemoteProductLoading]=useState(false);
   const [remoteProductError,setRemoteProductError]=useState(false);
   const [productLoadAttempt,setProductLoadAttempt]=useState(0);
@@ -128,10 +128,10 @@ export const ProductDetailPage: React.FC = () => {
         if(!response.ok || payload?.success!==true || !payload.product){
           throw new Error(payload?.message || "اطلاعات این خانواده محصول دریافت نشد.");
         }
-        return payload.product as Product;
+        return {product:payload.product as Product,similarProducts:Array.isArray(payload.similarProducts)?payload.similarProducts as Product[]:[]};
       })
-      .then(product=>{
-        if(!controller.signal.aborted)setRemoteProduct({requestedCode:decodedCode,product});
+      .then(result=>{
+        if(!controller.signal.aborted)setRemoteProduct({requestedCode:decodedCode,product:result.product,similarProducts:result.similarProducts});
       })
       .catch(()=>{
         if(!controller.signal.aborted)setRemoteProductError(true);
@@ -406,7 +406,9 @@ export const ProductDetailPage: React.FC = () => {
       };
 
   const isFavorited = isInWishlist(product.code);
-  const similarProducts = isDatabaseCatalogHydrated() ? getSimilarProducts(product, 4) : [];
+  const similarProducts = isDatabaseCatalogHydrated()
+    ? getSimilarProducts(product, 4)
+    : remoteProduct?.requestedCode===decodedCode ? remoteProduct.similarProducts || [] : [];
   const currentGalleryImage =
     galleryImages[activeImageIndex];
 
