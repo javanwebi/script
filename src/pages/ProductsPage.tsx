@@ -99,8 +99,44 @@ export const ProductsPage: React.FC = () => {
   // Keep the listing reactive; otherwise the first JSON-derived snapshot can
   // remain visible even after fresh PostgreSQL products arrive.
   const [catalogVersion,setCatalogVersion]=useState(0);
+  const [catalogProducts,setCatalogProducts]=useState<Product[]>([]);
+  const [catalogLoading,setCatalogLoading]=useState(true);
+  const [catalogError,setCatalogError]=useState("");
   useEffect(()=>subscribeCatalogChanges(()=>setCatalogVersion(v=>v+1)),[]);
-  const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setCatalogLoading(true);
+    setCatalogError("");
+    fetch("/api/catalog/listing",{
+      credentials:"same-origin",
+      cache:"default",
+      signal:controller.signal,
+    })
+      .then(async response=>{
+        const payload=await response.json().catch(()=>null);
+        if(!response.ok || payload?.success!==true || !Array.isArray(payload.products)){
+          throw new Error(payload?.message || "دریافت فهرست محصولات انجام نشد.");
+        }
+        return payload.products as Product[];
+      })
+      .then(products=>{
+        if(!controller.signal.aborted){
+          setCatalogProducts(products);
+          setCatalogLoading(false);
+        }
+      })
+      .catch(error=>{
+        if(!controller.signal.aborted){
+          setCatalogError(error instanceof Error ? error.message : "ارتباط با فهرست محصولات برقرار نشد.");
+          setCatalogLoading(false);
+        }
+      });
+    return ()=>controller.abort();
+  },[catalogVersion]);
+  const allProducts = useMemo(
+    () => catalogProducts.length ? catalogProducts : getAllProducts(),
+    [catalogProducts,catalogVersion],
+  );
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
@@ -564,39 +600,50 @@ export const ProductsPage: React.FC = () => {
           className="flex items-center justify-between text-xs text-slate-500 font-medium px-1 scroll-mt-24"
         >
           <div>
-            نمایش{" "}
-            <span className="font-bold text-slate-800 font-mono">
-              {toPersianDigits(paginatedProducts.length)}
-            </span>{" "}
-            از{" "}
-            <span className="font-bold text-orange-600 font-mono">
-              {toPersianDigits(filteredProducts.length)}
-            </span>{" "}
-            کالا
-            {selectedCategory !== "all" && (
-              <span>
-                {" "}
-                در دسته{" "}
-                <span className="font-bold text-slate-800">
-                  {activeCategoryObj?.name || selectedCategory}
-                </span>
-              </span>
+            {catalogLoading && allProducts.length===0 ? (
+              <span className="font-bold text-[#E06518]">در حال دریافت فهرست قطعات…</span>
+            ) : (
+              <>
+                نمایش{" "}
+                <span className="font-bold text-slate-800 font-mono">{toPersianDigits(paginatedProducts.length)}</span>{" "}
+                از{" "}
+                <span className="font-bold text-orange-600 font-mono">{toPersianDigits(filteredProducts.length)}</span>{" "}
+                کالا
+                {selectedCategory !== "all" && (
+                  <span>{" "}در دسته <span className="font-bold text-slate-800">{activeCategoryObj?.name || selectedCategory}</span></span>
+                )}
+              </>
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            صفحه{" "}
-            <span className="font-bold font-mono">
-              {toPersianDigits(currentPage)}
-            </span>{" "}
-            از{" "}
-            <span className="font-bold font-mono">
-              {toPersianDigits(totalPages)}
-            </span>
+            {catalogLoading && allProducts.length===0 ? "در حال آماده‌سازی" : <>صفحه{" "}
+              <span className="font-bold font-mono">{toPersianDigits(currentPage)}</span>{" "}از{" "}
+              <span className="font-bold font-mono">{toPersianDigits(totalPages)}</span>
+            </>}
           </div>
         </div>
 
         {/* Products Display (Grid or List) */}
-        {paginatedProducts.length === 0 ? (
+        {catalogLoading && allProducts.length===0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-label="در حال بارگذاری محصولات">
+            {Array.from({length:8},(_,index)=>(
+              <div key={index} className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">
+                <div className="h-40 rounded-xl bg-slate-100"/>
+                <div className="mt-4 h-3 w-1/3 rounded bg-slate-100"/>
+                <div className="mt-3 h-4 w-3/4 rounded bg-slate-100"/>
+                <div className="mt-3 h-3 w-1/2 rounded bg-slate-100"/>
+                <div className="mt-5 h-9 rounded-lg bg-slate-100"/>
+              </div>
+            ))}
+          </div>
+        ) : catalogError && allProducts.length===0 ? (
+          <div role="alert" className="rounded-2xl border border-orange-200 bg-orange-50 p-8 text-center space-y-3">
+            <Package className="mx-auto h-9 w-9 text-orange-600"/>
+            <h3 className="font-black text-slate-800">دریافت کاتالوگ با مشکل روبه‌رو شد</h3>
+            <p className="text-sm text-slate-600">{catalogError}</p>
+            <button type="button" onClick={()=>setCatalogVersion(value=>value+1)} className="rounded-xl bg-[#E56B1E] px-5 py-2.5 text-sm font-bold text-white">تلاش دوباره</button>
+          </div>
+        ) : paginatedProducts.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
             <div className="w-16 h-16 rounded-full bg-orange-50 text-orange-500 mx-auto flex items-center justify-center">
               <Package className="w-8 h-8" />
