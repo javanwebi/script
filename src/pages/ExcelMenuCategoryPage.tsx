@@ -87,6 +87,18 @@ const getCategoryArtwork = (category: MenuCategory): string | undefined => {
 const matchesSelection = (family: MenuFamily, selection: string) =>
   !selection || family.submenu === selection || family.leaf === selection;
 
+const hasCatalogImage = (product?: Product) => Boolean(product && (
+  product.images?.some(Boolean) ||
+  product.galleryImages?.some(image => Boolean(image.url)) ||
+  product.variants?.some(variant => variant.images?.some(Boolean))
+));
+
+const productPreviewImage = (product?: Product) =>
+  product?.images?.find(Boolean) ||
+  product?.galleryImages?.find(image => image.scope === 'family')?.url ||
+  product?.galleryImages?.find(image => image.url)?.url ||
+  product?.variants?.find(variant => variant.images?.some(Boolean))?.images?.find(Boolean);
+
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -242,7 +254,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
 
       const product = products.get(family.code);
       if (inStockOnly && !(product?.stockKnown === true && product.stock > 0 && !product.inquiryOnly)) return false;
-      if (imageOnly && !(product?.images?.length)) return false;
+      if (imageOnly && !hasCatalogImage(product)) return false;
 
       if (!query) return true;
       const searchable = normalizeSearch([
@@ -283,11 +295,9 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const currentPage = Math.min(requestedPage, totalPages);
   const pageFamilies = filteredFamilies.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly) + Number(Boolean(selection));
-  const featuredFamily = families.find(family => {
-    const product = products.get(family.code);
-    return Boolean(product?.images?.length);
-  });
+  const featuredFamily = families.find(family => hasCatalogImage(products.get(family.code)));
   const featuredProduct = featuredFamily ? products.get(featuredFamily.code) : undefined;
+  const featuredImage = productPreviewImage(featuredProduct);
 
   const compareFamilies = compareCodes
     .map(code => families.find(family => family.code === code))
@@ -361,7 +371,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
             <p>{category.description || 'خانواده‌ها و کدهای فنی ثبت‌شده در این گروه را بر اساس زیرگروه و مشخصات بررسی کنید.'}</p>
             <div className="excel-category-hero-stats">
               <div><strong>{toPersianDigits(families.length)}</strong><span>خانواده ثبت‌شده</span></div>
-              <div><strong>{toPersianDigits(skuTotal)}</strong><span>کد و سایز ثبت‌شده</span></div>
+              <div><strong>{toPersianDigits(skuTotal)}</strong><span>کد و سایز خانواده‌ها</span></div>
             </div>
             <div className="excel-category-hero-actions">
               <a href="#excel-category-products"><ArrowLeft size={16} /> مشاهده خانواده‌ها</a>
@@ -543,7 +553,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               <>
                 <span className="excel-category-featured-eyebrow"><CheckCircle2 size={14} /> نمونه از کاتالوگ این گروه</span>
                 <div className="excel-category-featured-image">
-                  <ProductImage src={featuredProduct.images?.[0]} alt={featuredProduct.name} loading="lazy" decoding="async" />
+                  <ProductImage src={featuredImage} alt={featuredProduct.name} loading="lazy" decoding="async" />
                 </div>
                 <span className="excel-category-featured-brand">{featuredFamily.brand || 'قطعه صنعتی'}</span>
                 <h3>{featuredFamily.name}</h3>
