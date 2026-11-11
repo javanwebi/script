@@ -13,7 +13,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import {
-  CATEGORIES,
+  getManagedCategories,
   findCatalogCategory,
   matchesCatalogCategory,
   resolveCategorySlug,
@@ -67,13 +67,13 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CATEGORY_ARTWORK: Record<string, string> = {
-  "power-transmission": STORE_ASSETS.categories.transmission,
-  "industrial-belts": STORE_ASSETS.categories.belts,
-  "ceramic-tiles": STORE_ASSETS.categories.ceramic,
-  "pulleys-idlers": STORE_ASSETS.categories.pulleys,
-  "bearings-bushings": STORE_ASSETS.categories.bearings,
-  "chains-sprockets": STORE_ASSETS.categories.chains,
-  "textile-machinery": STORE_ASSETS.categories.textile,
+  "تسمه و انتقال نیرو": STORE_ASSETS.categories.belts,
+  "پولی و انتقال نیرو": STORE_ASSETS.categories.pulleys,
+  "بلبرینگ و یاتاقان": STORE_ASSETS.categories.bearings,
+  "زنجیر و چرخ‌زنجیر": STORE_ASSETS.categories.chains,
+  "نوار و تسمه نقاله": STORE_ASSETS.categories.conveyor,
+  "تجهیزات خطوط کاشی و سرامیک": STORE_ASSETS.categories.ceramic,
+  "نساجی": STORE_ASSETS.categories.textile,
 };
 
 export const ProductsPage: React.FC = () => {
@@ -157,6 +157,10 @@ export const ProductsPage: React.FC = () => {
     };
   }, [mobileFiltersOpen]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  const managedCategories = useMemo(
+    () => getManagedCategories().filter((category) => category.active !== false),
+    [catalogVersion],
+  );
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
@@ -440,12 +444,12 @@ export const ProductsPage: React.FC = () => {
               </span>
             </button>
 
-            {CATEGORIES.map((cat) => {
+            {managedCategories.map((cat) => {
               const isSelected = selectedCategory === cat.slug;
               const icon = CATEGORY_ICONS[cat.slug] || (
                 <Layers className="w-4 h-4" />
               );
-              const artwork = cat.image || CATEGORY_ARTWORK[cat.slug];
+              const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
               return (
                 <button
                   key={cat.slug}
