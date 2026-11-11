@@ -28,6 +28,7 @@ test('the belt page defaults to the complete live catalogue and retains real cat
   assert.match(page, /filters\.minimumPrice/);
   assert.match(page, /filters\.maximumPrice/);
   assert.match(page, /filters\.inStock/);
+  assert.match(page, /filters\.inStock && !\(product\.stockKnown && product\.stock > 0\)/);
   assert.match(page, /filters\.quoteOnly/);
   assert.match(page, /sortBy === 'code'/);
   assert.match(page, /sortBy === 'price-low'/);
