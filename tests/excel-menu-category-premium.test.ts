@@ -6,11 +6,22 @@ const source = (file: string) => readFileSync(file, 'utf8');
 const page = source('src/pages/ExcelMenuCategoryPage.tsx');
 const styles = source('src/pages/excel-menu-category-premium.css');
 const routes = source('src/pages/CategoryPage.tsx');
+const api = source('server/catalogNavigationApi.ts');
 
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
   assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
   assert.match(routes, /return <ExcelMenuCategoryPage \/>/);
   assert.match(page, /fetch\('\/api\/catalog\/menu-category\/' \+ encodeURIComponent\(slug\)/);
+});
+
+test('category detail API returns only the approved database taxonomy and active assigned families', () => {
+  assert.match(api, /app\.get\('\/api\/catalog\/menu-category\/:slug'/);
+  assert.match(api, /metadata->>'source'='industrial_megamenu_hierarchy_v2'/);
+  assert.match(api, /catalog_family_menu_assignments/);
+  assert.match(api, /f\.is_active=true and f\.is_deleted=false/);
+  assert.match(api, /coalesce\(f\.item_count,0\) as "skuCount"/);
+  assert.match(api, /Cache-Control','no-store'/);
+  assert.doesNotMatch(api.slice(api.indexOf("app.get('/api/catalog/menu-category/:slug'"), api.indexOf('// Admin-only taxonomy review')), /price_snapshot|retail_price|wholesale_price/);
 });
 
 test('category detail reads real family records and never falls back to repository fixtures', () => {
@@ -40,6 +51,16 @@ test('category search includes actual family codes, product technical specs and 
   assert.match(page, /product\?\.technicalSpecs/);
   assert.match(page, /variant\.code/);
   assert.match(page, /variant\.technicalSpecs/);
+});
+
+test('family product cards preserve a usable image from the family gallery or SKU gallery', () => {
+  assert.match(page, /const hasCatalogImage = \(product\?: Product\)/);
+  assert.match(page, /product\?\.galleryImages\?\.some\(image => Boolean\(image\.url\)\)/);
+  assert.match(page, /variant\.images\?\.some\(Boolean\)/);
+  assert.match(page, /const productPreviewImage = \(product\?: Product\)/);
+  assert.match(page, /const previewImage = productPreviewImage\(product\)/);
+  assert.match(page, /images: product\.images\?\.some\(Boolean\) \? product\.images : previewImage \? \[previewImage\] : \[\]/);
+  assert.match(page, /<ProductCard product=\{cardProduct\}/);
 });
 
 test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
