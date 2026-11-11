@@ -4,6 +4,12 @@ import { readFileSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
+test("contact and visit pages do not have the fixed mobile dock covering their form and map", () => {
+  const layout = read("src/components/layout/Layout.tsx");
+  assert.match(layout, /isContactEditorialPage = \["\/contact", "\/factory-address", "\/office-address"\]/);
+  assert.match(layout, /!isAboutEditorialPage && !isContactEditorialPage/);
+});
+
 test("legacy catalog and FAQ links resolve to real destinations and unknown routes get a useful page", () => {
   const app = read("src/App.tsx");
   assert.ok(app.includes('path="*" element={<NotFoundPage />}'));
