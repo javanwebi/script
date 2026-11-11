@@ -149,9 +149,24 @@ const products = [
         "horizontal overflow on category route at " + width + "px: " + JSON.stringify(categoryBounds));
       await page.screenshot({
         path: `${out}/catalog-category-${width}.png`,
-        fullPage: true,
+        fullPage: false,
         animations: "disabled",
       });
+
+      // The featured family and a second real catalogue record can be selected and compared.
+      await page.locator(".category-featured-panel__compare").click();
+      await page.locator(".store-product-compare-toggle").first().click();
+      await page.locator(".category-comparison-dock").waitFor({ timeout: 10000 });
+      assert.equal(await page.locator(".category-comparison-dock__items button").count(), 2,
+        "comparison dock must contain both selected catalogue products");
+      await page.locator(".category-comparison-dock__actions button:first-child").click();
+      await page.getByRole("dialog").waitFor({ timeout: 10000 });
+      assert.ok(await page.locator(".category-comparison-table-wrap tbody tr").count() >= 5,
+        "technical comparison must include the actual catalogue attributes");
+      assert.equal(await page.locator(".category-comparison-table-wrap tbody th").getByText(/قیمت/).count(), 0,
+        "customer-specific prices must not be included in the comparison");
+      await page.getByRole("button", { name: "بستن مقایسه" }).first().click();
+      await page.locator(".category-comparison-dialog").waitFor({ state: "hidden" });
 
       // Product detail is hydrated from the same test catalogue and keeps guest pricing private.
       await page.goto(base + "/product/TEST-FAMILY-A", { waitUntil: "domcontentloaded" });
@@ -166,7 +181,7 @@ const products = [
       if (width === 390 || width === 1440) {
         await page.screenshot({
           path: `${out}/catalog-product-detail-${width}.png`,
-          fullPage: true,
+          fullPage: false,
           animations: "disabled",
         });
       }
