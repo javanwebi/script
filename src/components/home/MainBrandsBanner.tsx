@@ -315,7 +315,7 @@ export const MainBrandsBanner: React.FC = () => {
               {/* ATLAS Pill Button */}
               <div className="pt-1 w-full flex justify-center sm:justify-end">
                 <Link
-                  to="/category/power-transmission"
+                  to={categoryHrefFor("پولی و انتقال نیرو", "pulleys-idlers", "تسمه و انتقال نیرو", "industrial-belts")}
                   className="inline-flex items-center justify-between gap-4 px-5 py-2.5 rounded-full bg-[#0B101B]/80 hover:bg-[#EA580C] border border-[#F97316] hover:border-[#EA580C] text-[#FF7700] hover:text-white text-xs font-bold transition-all duration-300 shadow-[0_0_18px_rgba(249,115,22,0.25)] hover:shadow-[0_0_24px_rgba(249,115,22,0.6)] cursor-pointer group/btn"
                 >
                   <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
