@@ -47,6 +47,8 @@ test('all-products quick links use only approved Excel categories and open the c
   assert.match(page, /getManagedCategories\(\)[\s\S]*?category\.active !== false && \/\^excel-v2-\[0-9\]\+-\[0-9\]\+\$\//);
   assert.match(page, /to=\{\`\/category\/\$\{encodeURIComponent\(cat\.slug\)\}\`\}/);
   assert.match(page, /navigate\(\`\/category\/\$\{encodeURIComponent\(categoryParam\)\}/);
+  assert.match(page, /\["sub", "q", "brand", "stock", "image", "sort"\]/);
+  assert.match(page, /searchParams\.getAll\(key\)/);
   assert.match(page, /to="\/categories" className="catalogue-all-categories-link"/);
   assert.match(page, /cat\.image \|\| CATEGORY_ARTWORK\[cat\.name\]/);
   assert.match(page, /loading="lazy" decoding="async"/);
