@@ -1,6 +1,6 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
-import { DirectSkuProducts } from "../components/catalog/DirectSkuProducts";
+import { DirectSkuProducts, useDirectSkus } from "../components/catalog/DirectSkuProducts";
 import {
   matchesProductSearch,
   CATALOGUE_SKU_COUNT,
@@ -85,6 +85,7 @@ export const ProductsPage: React.FC = () => {
   const { currentUser, openAuthModal } = useAuth();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const directSkus = useDirectSkus();
 
   // URL-driven or local state
   const categoryParam = resolveCategorySlug(
@@ -215,9 +216,10 @@ export const ProductsPage: React.FC = () => {
   // Available brands in the entire catalog
   const allBrands = useMemo(() => {
     const bSet = new Set<string>();
-    allProducts.forEach((p) => bSet.add(p.brand));
+    allProducts.forEach((p) => { if (p.brand) bSet.add(p.brand); });
+    directSkus.forEach((item) => { if (item.brand) bSet.add(item.brand); });
     return Array.from(bSet).sort();
-  }, [allProducts]);
+  }, [allProducts, directSkus]);
 
   // Active category object
   const activeCategoryObj = useMemo(() => {
@@ -871,6 +873,7 @@ export const ProductsPage: React.FC = () => {
         )}
 
         <DirectSkuProducts
+          items={directSkus}
           categorySlug={selectedCategory === "all" || selectedCategory === "swr-forza-exclusive" ? "all" : selectedCategory}
           selectedSub={selectedSubcategory}
           searchQuery={searchQuery}
