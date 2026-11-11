@@ -528,7 +528,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       {/* ===================================================================== */}
       {/* 3. MAIN 2-COLUMN WORKSPACE (Overlapping Hero on Desktop)              */}
       {/* ===================================================================== */}
-      <main
+      <div
         ref={workspaceMainRef}
         id="contact-workspace-main"
         className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 lg:pt-0 lg:-mt-8 scroll-mt-24"
@@ -1009,7 +1009,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* ===================================================================== */}
       {/* 4. BOTTOM CORPORATE B2B BANNER                                        */}
