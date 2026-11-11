@@ -837,7 +837,7 @@ export const ProductDetailPage: React.FC = () => {
                     داده می‌شود):
                   </span>
                   <div className="product-detail-variant-chips flex flex-wrap gap-2">
-                    {visibleVariants.map((v) => {}
+                    {visibleVariants.map((v) => {
                       const isSel = v.code === selectedVariant?.code;
                       const vPrice = canViewCommercial
                         ? getCurrentCustomerSkuPrice(v, currentUser, canViewCommercial)
