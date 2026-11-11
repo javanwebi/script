@@ -825,7 +825,6 @@ export default async function handler(
         success: true,
         inquiry: { id, inquiryNumber: id },
         message: "درخواست شما با موفقیت ثبت شد.",
-        revision: db.revision,
       });
     }
     if (body.action === "inquiry") {
