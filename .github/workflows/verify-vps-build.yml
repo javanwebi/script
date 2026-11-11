@@ -23,6 +23,10 @@ on:
       - "src/pages/ContactUsPage.tsx"
       - "src/pages/NotFoundPage.tsx"
       - "src/pages/ProductsPage.tsx"
+      - "src/pages/SearchPage.tsx"
+      - "src/pages/DirectSkuDetailPage.tsx"
+      - "src/catalog-experience.css"
+      - "tests/catalog-route-safety.test.ts"
       - "src/pages/CategoryPage.tsx"
       - "src/pages/AllCategoriesPage.tsx"
       - "src/pages/ProductDetailPage.tsx"
@@ -65,6 +69,8 @@ jobs:
         run: node --import tsx --test tests/site-finalization.test.ts tests/company-pages-art-direction.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
+      - name: Catalogue route and product detail regression suite
+        run: node --import tsx --test tests/catalog-route-safety.test.ts
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
