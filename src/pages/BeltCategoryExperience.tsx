@@ -63,7 +63,7 @@ const deriveProfileOptions = (products: Product[]) => {
   const options = new Set<string>();
   products.forEach(product => {
     [product.code, product.name, product.nameEn || '', ...(product.variants || []).map(variant => variant.code)].forEach(value => {
-      const match = String(value).toUpperCase().match(/(?:^|[^A-Z0-9])(\\d{1,2}M|[A-Z]{1,4})(?=[\\s-]?\\d)/);
+      const match = String(value).toUpperCase().match(/(?:^|[^A-Z0-9])(\d{1,2}M|[A-Z]{1,4})(?=[\s-]?\d)/);
       if (match?.[1]) options.add(match[1]);
     });
   });
@@ -279,7 +279,7 @@ export const BeltCategoryExperience: React.FC = () => {
         </button>;
       })}</div>
     </section>
-    {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...PROFILES].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
+    {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...(profileOptions.length ? profileOptions : DEFAULT_PROFILES)].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
     <div className="bce-catalog" ref={productsRef}>
       <aside className="bce-sidebar" aria-label="فیلترهای محصولات"><div className="bce-sidebar-top"><h2><SlidersHorizontal size={19}/> فیلتر محصولات</h2><button type="button" onClick={() => changeFilters(blankFilters())}>پاکسازی <RotateCcw size={14}/></button></div><div className="bce-sidebar-search"><Search size={17}/><input aria-label="جستجو در کاتالوگ" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="نام، کد یا مشخصات فنی..."/></div><FilterFields value={filters} onChange={changeFilters} brands={brands} products={familyProducts} profiles={profileOptions} classic={showProfileFilter} hasPrices={hasPrices}/></aside>
       <section className="bce-results" aria-labelledby="bce-results-title"><div className="bce-results-heading"><div><small>کاتالوگ تخصصی صنعت پیش</small><h2 id="bce-results-title">محصولات {selectedFamily === 'all' ? 'تسمه و انتقال نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</h2></div><p>{toPersianDigits(filtered.length)} محصول مطابق انتخاب شما</p></div>
