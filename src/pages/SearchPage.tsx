@@ -1,17 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { searchProducts } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { DirectSkuProducts, useDirectSkus } from '../components/catalog/DirectSkuProducts';
-import { Search, ChevronLeft } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toPersianDigits } from '../utils/formatters';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
   const [localQuery, setLocalQuery] = useState(queryParam);
+  const [familyPage, setFamilyPage] = useState(1);
+  const familyPageSize = 24;
 
-  const results = useMemo(() => searchProducts(queryParam, 48), [queryParam]);
+  useEffect(() => setLocalQuery(queryParam), [queryParam]);
+  useEffect(() => setFamilyPage(1), [queryParam]);
+
+  const results = useMemo(() => searchProducts(queryParam, 5000), [queryParam]);
   const directSkus = useDirectSkus();
   const directSkuResults = useMemo(() => {
     const normalize = (value: string) => value
@@ -22,8 +27,8 @@ export const SearchPage: React.FC = () => {
       .replace(/[\u200c\s]+/g, ' ')
       .trim();
     const query = normalize(queryParam);
+    if (!query) return [];
     return directSkus.filter(item => {
-      if (!query) return true;
       const searchable = normalize([
         item.skuCode,
         item.name,
@@ -37,11 +42,17 @@ export const SearchPage: React.FC = () => {
     });
   }, [directSkus, queryParam]);
 
+  const totalFamilyPages = Math.max(1, Math.ceil(results.length / familyPageSize));
+  const currentFamilyPage = Math.min(familyPage, totalFamilyPages);
+  const paginatedFamilyResults = results.slice(
+    (currentFamilyPage - 1) * familyPageSize,
+    currentFamilyPage * familyPageSize,
+  );
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (localQuery.trim()) {
-      setSearchParams({ q: localQuery.trim() });
-    }
+    if (localQuery.trim()) setSearchParams({ q: localQuery.trim() });
+    else setSearchParams({});
   };
 
   return (
@@ -79,16 +90,24 @@ export const SearchPage: React.FC = () => {
 
         <div className="mt-4 text-xs text-[#777A7D] flex items-center justify-between">
           <div>
-            نتیجه جستجو برای: <strong className="text-[#55565A]">«{queryParam || 'همه محصولات'}»</strong>
+            نتیجه جستجو برای: <strong className="text-[#55565A]">«{queryParam || '—'}»</strong>
           </div>
           <div className="font-mono">
-            {toPersianDigits(results.length + directSkuResults.length)} کالا پیدا شد
+            {queryParam.trim()
+              ? `${toPersianDigits(results.length + directSkuResults.length)} کالا پیدا شد`
+              : 'برای شروع، عبارت جستجو را وارد کنید'}
           </div>
         </div>
       </div>
 
       {/* Results Grid */}
-      {results.length === 0 && directSkuResults.length === 0 ? (
+      {!queryParam.trim() ? (
+        <div className="bg-white rounded-[12px] border border-[#CBD2D8] p-12 text-center text-slate-500 space-y-3">
+          <Search className="mx-auto h-9 w-9 text-[#E06518]" />
+          <p className="text-base font-bold text-[#55565A]">جستجو در کاتالوگ صنعت پیش</p>
+          <p className="text-xs">کد فنی، نام قطعه، برند یا مشخصات فنی را وارد کنید تا خانواده‌ها و کالاهای مستقل هم‌زمان جستجو شوند.</p>
+        </div>
+      ) : results.length === 0 && directSkuResults.length === 0 ? (
         <div className="bg-white rounded-[12px] border border-[#CBD2D8] p-12 text-center text-slate-500 space-y-3">
           <p className="text-base font-bold text-[#55565A]">کالایی مطابق با عبارت جستجو یافت نشد.</p>
           <p className="text-xs">
@@ -99,12 +118,26 @@ export const SearchPage: React.FC = () => {
         <>
           {results.length > 0 && (
             <section className="space-y-3" aria-label="خانواده‌های محصول در نتایج جستجو">
-              <h2 className="text-sm font-black text-[#55565A]">خانواده‌های محصول</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-black text-[#55565A]">خانواده‌های محصول</h2>
+                <span className="text-[10px] text-slate-500">{toPersianDigits(results.length)} خانواده</span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {results.map(product => (
+                {paginatedFamilyResults.map(product => (
                   <ProductCard key={product.code} product={product} />
                 ))}
               </div>
+              {totalFamilyPages > 1 && (
+                <nav className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-3" aria-label="صفحه‌بندی خانواده‌های جستجو">
+                  <button type="button" disabled={currentFamilyPage <= 1} onClick={() => setFamilyPage(value => Math.max(1, value - 1))} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">
+                    <ChevronRight size={15} /> قبلی
+                  </button>
+                  <span className="text-[10px] text-slate-500">صفحه <strong className="text-[#C15B1A]">{toPersianDigits(currentFamilyPage)}</strong> از {toPersianDigits(totalFamilyPages)}</span>
+                  <button type="button" disabled={currentFamilyPage >= totalFamilyPages} onClick={() => setFamilyPage(value => Math.min(totalFamilyPages, value + 1))} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 disabled:opacity-40">
+                    بعدی <ChevronLeft size={15} />
+                  </button>
+                </nav>
+              )}
             </section>
           )}
           {directSkuResults.length > 0 && (
