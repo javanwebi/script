@@ -87,14 +87,7 @@ const getCategoryArtwork = (category: MenuCategory): string | undefined => {
 const matchesSelection = (family: MenuFamily, selection: string) =>
   !selection || family.submenu === selection || family.leaf === selection;
 
-const hasCatalogImage = (product?: Product) => Boolean(product && (
-  product.images?.some(Boolean) ||
-  product.image ||
-  product.galleryImages?.some(image => Boolean(image.url)) ||
-  product.variants?.some(variant => variant.images?.some(Boolean))
-));
-
-const productPreview = (product?: Product) => {
+function productPreview(product?: Product) {
   if (!product) return undefined;
   const familyGalleryImage = product.galleryImages?.find(image => image.scope === 'family' && image.url);
   if (familyGalleryImage) return { url: familyGalleryImage.url, scope: 'family' as const };
@@ -117,7 +110,9 @@ const productPreview = (product?: Product) => {
     scope: 'variant' as const,
     variantCode: skuVariantWithImage?.code,
   } : undefined;
-};
+}
+
+const hasCatalogImage = (product?: Product) => Boolean(productPreview(product));
 
 const normalizeSpecValue = (value: string) =>
   normalizeSearch(value).replace(/[×*]/g, 'x').replace(/\s+/g, '').replace(/,/g, '.');
