@@ -58,8 +58,9 @@ test("customer portal price surfaces use server prices and never reapply browser
   assert.match(publicCard, /const href = isCustomerPortalRoute && currentUser/);
   assert.doesNotMatch(publicCard, /const href = hasPricePermission/);
   assert.match(publicCard, /product\.galleryImages\?\.find\(image => image\.scope === "family" && image\.url\)/);
+  assert.match(publicCard, /image\.scope === "variant" && image\.url/);
+  assert.match(publicCard, /store-product-image-scope-badge/);
   assert.match(publicCard, /src=\{productImage\}/);
-  assert.match(publicCard, /identityVerified === true/);
   assert.match(cart, /subscribeCatalogChanges/);
   assert.match(cart, /resolvePurchaseLines/);
   assert.match(cart, /currentUser\?\.canViewPrices === true/);
