@@ -23,7 +23,7 @@ test('ceramic industry detail no longer defeats dynamic import and keeps a fallb
 
 test('non-home routes are loaded only when requested',()=>{
  const text=source('src/App.tsx');
- for(const name of ['AllCategoriesPage','CartPage','ClubPage','AgencyPage','AboutUsPage','ContactUsPage']){
+ for(const name of ['AllCategoriesPage','CartPage','ClubPage','AgencyPage','AboutPage','ServicesPage','IndustriesPage','BrandsPage','KnowledgePage','NotFoundPage','ContactUsPage']){
   assert.match(text,new RegExp('const '+name+' = lazy\\('));
   assert.doesNotMatch(text,new RegExp('^import \\{ '+name+' \\} from','m'));
  }
