@@ -23,7 +23,7 @@ test('category explorer reads approved navigation groups and category records fr
   assert.match(page, /category\.active !== false/);
   assert.match(page, /setSource\('database'\)/);
   assert.doesNotMatch(page, /APPROVED_MENU_CATEGORIES|APPROVED_MENU_GROUPS|USER_PRODUCTS|CATALOGUE_SKU_COUNT/);
-  assert.match(page, /setCatalogueCategories\(\[\]\)/);
+  assert.match(page, /useState<EnhancedCategory\[\]>\(\[\]\)/);
 });
 
 test('search is shareable and matches category names, descriptions, English labels and nested taxonomy', () => {
@@ -41,7 +41,7 @@ test('database outage never falls back to checked-in taxonomy and exposes retry'
   assert.match(page, /برای جلوگیری از نمایش آمار یا دسته‌بندی قدیمی/);
   assert.match(page, /تلاش مجدد/);
   assert.match(page, /setRetryCount\(value => value \+ 1\)/);
-  assert.match(page, /source === 'database' \\? toPersianDigits\\(catalogueGroups\\.length\\) : '—'/);
+  assert.ok(page.includes("source === 'database' ? toPersianDigits(catalogueGroups.length) : '—'"));
 });
 
 test('category cards reuse registered industrial assets and retain nested subcategory navigation', () => {
