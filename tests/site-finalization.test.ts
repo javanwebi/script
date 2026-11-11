@@ -41,6 +41,8 @@ test("public contact form reports success only after a persisted server response
   assert.match(api, /rateLimit\(req, "public-contact", 8\)/);
   assert.match(api, /x-real-ip/);
   assert.match(api, /source: "website_contact"/);
+  assert.match(api, /customerId: auth\.user\?\.id \|\| null/);
+  assert.doesNotMatch(api, /matchedCustomer|crmCustomers/);
   assert.match(api, /db\.values\.atlas_admin_inquiries_v1 = \[inquiry/);
   assert.match(api, /await writeDb\(db, revision, false, \["atlas_admin_inquiries_v1"\]\)/);
 });
