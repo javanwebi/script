@@ -154,7 +154,14 @@ export async function catalogProductApi(req:Request,res:Response){
   if(!family)return res.status(404).json({success:false,message:'خانواده محصول در کاتالوگ پیدا نشد.'});
   const visibleProduct=commercialVisible?family:publicCatalog(family);
   const product=compactCatalogReviews([visibleProduct])[0];
-  return res.json({success:true,product});
+  if(!publicListingCache){
+   const publicCatalogSnapshot=await publicProductsCached();
+   publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:createPublicListingValue(publicCatalogSnapshot)};
+  }
+  const similarProducts=(publicListingCache.value.products as any[])
+   .filter(candidate=>candidate.code!==family.code && candidate.categorySlug===family.categorySlug)
+   .slice(0,4);
+  return res.json({success:true,product,similarProducts});
  }catch(error:any){
   const status=Number(error?.status)||503;
   return res.status(status).json({success:false,message:status===403?'دسترسی مشاهده این کالا مجاز نیست.':'دریافت اطلاعات خانواده محصول ممکن نشد.'});
