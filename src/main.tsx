@@ -37,6 +37,7 @@ function removeRuntimeUnavailable(){
 async function boot(){
   let rerenderOnFirstDatabaseHydration:(()=>void)|undefined;
   let hydratedOnce=false;
+  let catalogHydratedOnce=false;
   let runtimeRetryTimer:number|undefined;
   let runtimeRetryAttempt=0;
   let runtimeRefreshInFlight=false;
@@ -91,19 +92,20 @@ async function boot(){
       installDatabaseReferences();
       // Lean admin bootstraps intentionally return an empty products array.
       // Only a full catalogue response may replace the browser's live product index.
-      if(data.productsIncluded===true && Array.isArray(data.products))installDatabaseProducts(data.products);
+      const hasFullCatalog=data.productsIncluded===true && Array.isArray(data.products);
+      if(hasFullCatalog)installDatabaseProducts(data.products);
       removeRuntimeUnavailable();
-      // The initial shell rendered without legacy JSON; remount once after DB hydration
-      // so category menus created on mount pick up real PostgreSQL values.
+      // The lean runtime hydrates categories and portal documents first. If a
+      // route later asks for the full catalogue, remount that route exactly once.
       if(!hydratedOnce){
         hydratedOnce=true;
-        // FORZA holds a live microphone, ongoing TTS playback and a 4-second
-        // particle animation. Mounting a new App key mid-call destroys all three.
-        // Catalog pages still retain their existing hydration remount behavior.
         if(shouldRemountAfterCatalogHydration(window.location.pathname)){
           rerenderOnFirstDatabaseHydration?.();
         }
+      }else if(hasFullCatalog && !catalogHydratedOnce && shouldRemountAfterCatalogHydration(window.location.pathname)){
+        rerenderOnFirstDatabaseHydration?.();
       }
+      if(hasFullCatalog)catalogHydratedOnce=true;
     }
   });
 
@@ -118,8 +120,11 @@ async function boot(){
   rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
   rerenderOnFirstDatabaseHydration();
 
-  const isAdminRoute=/^\/admin(?:\/|$)/.test(window.location.pathname);
-  const runtimeOptions={includeProducts:!isAdminRoute};
+  const pathname=window.location.pathname;
+  const isAdminRoute=/^\/admin(?:\/|$)/.test(pathname);
+  const isLightCatalogRoute=/^\/products\/?$/.test(pathname) ||
+    /^\/(?:product\/[^/]+|account\/product\/[^/]+|consumer-dashboard\/product\/[^/]+)\/?$/.test(pathname);
+  const runtimeOptions={includeProducts:!isAdminRoute && !isLightCatalogRoute};
 
   const refreshRuntime=async()=>{
     if(runtimeRefreshInFlight)return;
