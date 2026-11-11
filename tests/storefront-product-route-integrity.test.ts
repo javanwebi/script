@@ -99,8 +99,12 @@ test("search results include standalone SKUs and keep the route back to all prod
   assert.match(searchPage, /directSkuResults/);
   assert.match(searchPage, /<DirectSkuProducts[\s\S]*?items=\{directSkuResults\}/);
   assert.match(searchPage, /results\.length \+ directSkuResults\.length/);
+  assert.match(searchPage, /searchProducts\(queryParam, 5000\)/);
+  assert.match(searchPage, /const familyPageSize = 24/);
+  assert.match(searchPage, /paginatedFamilyResults\.map/);
+  assert.match(searchPage, /!queryParam\.trim\(\)/);
   assert.match(searchPage, /to="\/products"/);
-  assert.doesNotMatch(searchPage, /۳۱۸ قطعه/);
+  assert.doesNotMatch(searchPage, /۳۱۸ قطعه|AT-E001|AT-E045/);
 });
 
 test("the all-products route identifies itself clearly in its breadcrumb", () => {
