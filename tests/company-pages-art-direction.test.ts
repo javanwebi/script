@@ -13,6 +13,7 @@ test("company routes use the new page-specific art direction without changing ro
   assert.match(app, /const ServicesPage = lazy\(/);
   assert.doesNotMatch(app, /import\("\.\/pages\/ServicesPage"\)/);
   assert.match(app, /path="\/about" element={<AboutPage \/>}/);
+  assert.match(app, /import\("\.\/pages\/AboutPage"\)/);
   assert.match(app, /path="\/services" element={<ServicesPage \/>}/);
   assert.match(app, /path="\/industries" element={<IndustriesPage \/>}/);
   assert.match(app, /path="\/brands" element={<BrandsPage \/>}/);
@@ -27,6 +28,17 @@ test("company routes use the new page-specific art direction without changing ro
   ]) {
     assert.ok(pages.includes(pageClass), "missing page root: " + pageClass);
   }
+});
+
+test("routed About page uses the approved responsive story and existing site assets", () => {
+  const about = read("src/pages/AboutPage.tsx");
+  const css = read("src/pages/about-page-approved.css");
+  assert.match(about, /sp-about-page/);
+  assert.match(about, /با پشتوانه بازرگانی تسمه اطلس/);
+  assert.match(about, /STORE_ASSETS\.whySanatDirectFactory/);
+  assert.match(about, /STORE_ASSETS\.engineerWhyAtlas/);
+  assert.match(css, /max-width: 760px/);
+  assert.doesNotMatch(about, /about-atlas-story\.webp|about-worker-cta\.webp/);
 });
 
 test("About page explains the Atlas backing and links to every company destination", () => {
