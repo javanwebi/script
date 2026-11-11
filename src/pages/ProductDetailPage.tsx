@@ -1158,6 +1158,9 @@ export const ProductDetailPage: React.FC = () => {
         <div className="product-detail-tabs-nav flex items-center border-b border-slate-200/80 bg-slate-50/70 overflow-x-auto no-scrollbar" role="tablist" aria-label="اطلاعات تکمیلی محصول">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "specs"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("specs")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "specs"
@@ -1171,6 +1174,9 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "catalogue"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("catalogue")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "catalogue"
@@ -1184,6 +1190,9 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "delivery"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("delivery")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "delivery"
@@ -1196,7 +1205,7 @@ export const ProductDetailPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="product-detail-tabs-content p-5 sm:p-7">
+        <div className="product-detail-tabs-content p-5 sm:p-7" role="tabpanel" id="product-detail-tab-panel" tabIndex={0}>
           {activeTab === "specs" && (
             <div className="space-y-6">
               {/* Variant-Specific Specs Table */}
@@ -1505,7 +1514,7 @@ export const ProductDetailPage: React.FC = () => {
       )}
 
       {/* 4. MOBILE STICKY BOTTOM ACTION BAR */}
-      <div className="product-detail-mobile-action lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3">
+      <div className="product-detail-mobile-action lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3" aria-label="اقدام خرید کد انتخاب‌شده">
         <div className="min-w-0 flex-1">
           <span
             className="block text-[11px] font-mono text-slate-500 truncate"
