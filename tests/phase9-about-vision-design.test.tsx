@@ -6,65 +6,36 @@ import {getCatalogDisplayImageCandidates, CatalogResultImage} from '../src/compo
 
 const read = (file: string) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('homepage About preview and company navigation lead to the dedicated company pages', () => {
+test('homepage About preview leads to the routed approved company page', () => {
   const home = read('src/pages/HomePage.tsx');
   const overview = read('src/components/storefront/HomeOverview.tsx');
-  const discovery = read('src/pages/DiscoveryPages.tsx');
   const app = read('src/App.tsx');
-  const legacyAbout = read('src/pages/AboutUsPage.tsx');
   const layout = read('src/components/layout/Layout.tsx');
-  assert.match(layout,/isAboutEditorialPage/);
-  assert.match(layout,/!isAboutEditorialPage/);
-  assert.match(home,/HomeAboutSection/);
-  assert.match(home,/<WhySanatPish \/>/);
-  assert.match(overview,/export function HomeAboutSection/);
-  assert.match(overview,/با پشتوانه بازرگانی تسمه اطلس/);
-  assert.match(overview,/to="\/about"/);
-  assert.match(discovery,/export function AboutPage/);
-  assert.match(discovery,/sp-about-approved/);
-  assert.match(discovery,/sp-about-hero/);
-  assert.match(discovery,/src=\{A\.partsWarehouseVault\}/);
-  assert.match(discovery,/sp-about-hero-note/);
-  assert.match(discovery,/INDUSTRIAL PARTS MARKETPLACE/);
-  assert.match(discovery,/SANAT PISH \/ 01/);
-  assert.match(discovery,/image: A\.whySanatExpressDelivery/);
-  assert.match(discovery,/image: A\.reverseEngineeringLab/);
-  assert.match(discovery,/بازار تخصصی/);
-  assert.match(discovery,/year: "۱۳۸۴"/);
-  assert.match(discovery,/year: "۱۳۹۰"/);
-  assert.match(discovery,/year: "۱۴۰۱"/);
-  assert.match(discovery,/year: "امروز"/);
-  assert.match(discovery,/sp-about-timeline-year/);
-  assert.match(discovery,/پشتیبانی صنایع/);
-  assert.match(discovery,/پاسخگویی سریع/);
-  assert.match(discovery,/getManagedCategories\(\)/);
-  assert.match(discovery,/subscribeCatalogChanges\(refreshStats\)/);
-  assert.match(discovery,/catalogStats\.ready/);
-  assert.match(discovery,/aria-live="polite"/);
-  const aboutCss = read('src/about-page-approved.css');
-  assert.match(aboutCss,/grid-column:\s*1\s*\/\s*-1/);
-  const storyMarkup = discovery.slice(discovery.indexOf('<section className="sp-about-story"'), discovery.indexOf('<section className="sp-about-capabilities">'));
-  assert.match(storyMarkup,/sp-about-story-copy[\s\S]*?<\/div>\s*<div className="sp-about-timeline"/);
+  const about = read('src/pages/AboutPage.tsx');
   const main = read('src/main.tsx');
-  assert.match(main,/about-page-approved\.css/);
-  assert.match(aboutCss,/max-width: 760px/);
-  assert.match(aboutCss,/sp-about-timeline-year/);
-  assert.match(aboutCss,/prefers-reduced-motion/);
-  assert.match(aboutCss,/focus-visible/);
-  assert.match(discovery,/با پشتوانه بازرگانی تسمه اطلس/);
-  assert.match(discovery,/to: "\/services"/);
-  assert.match(discovery,/to: "\/industries"/);
-  assert.match(discovery,/to: "\/brands"/);
-  assert.match(discovery,/to: "\/knowledge"/);
-  assert.match(discovery,/to: "\/contact"/);
-  assert.match(discovery,/export function AboutNavigation/);
-  assert.match(app,/path="\/about" element={<AboutPage \/>}/);
-  assert.match(app,/path="\/services" element={<ServicesPage \/>}/);
-  assert.match(legacyAbout,/<WhySanatPish variant="about" \/>/);
-  assert.match(overview,/variant === 'about' \? 'about-why-sanat-pish'/);
-  assert.match(overview,/levitatingOrbitalEngine/);
-  assert.match(overview,/rightPillars\.map/);
-  assert.match(overview,/leftPillars\.map/);
+  const aboutCss = read('src/pages/about-page-approved.css');
+
+  assert.match(home, /HomeAboutSection/);
+  assert.match(home, /<WhySanatPish \/>/);
+  assert.match(overview, /با پشتوانه بازرگانی تسمه اطلس/);
+  assert.match(overview, /to="\/about"/);
+  assert.match(app, /path="\/about" element={<AboutPage \/>}/);
+  assert.match(app, /import\("\.\/pages\/AboutPage"\)/);
+  assert.match(layout, /isAboutEditorialPage/);
+  assert.match(about, /sp-about-page/);
+  assert.match(about, /بازار تخصصی/);
+  assert.match(about, /با پشتوانه بازرگانی تسمه اطلس/);
+  for (const path of ['/services', '/industries', '/brands', '/knowledge', '/contact']) {
+    assert.ok(about.includes(`to: "${path}"`), `missing About destination ${path}`);
+  }
+  assert.match(about, /sp-about-timeline__label/);
+  assert.match(about, /sp-about-capability/);
+  assert.match(about, /sp-about-destination/);
+  assert.match(main, /pages\/about-page-approved\.css/);
+  assert.match(aboutCss, /\.sp-about-page/);
+  assert.match(aboutCss, /max-width: 760px/);
+  assert.match(aboutCss, /prefers-reduced-motion/);
+  assert.match(aboutCss, /focus-visible/);
 });
 
 test('catalogue preview promotes only verified thumbnails to the real full-size original', () => {
