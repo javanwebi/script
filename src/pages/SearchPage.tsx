@@ -92,7 +92,7 @@ export const SearchPage: React.FC = () => {
         <div className="bg-white rounded-[12px] border border-[#CBD2D8] p-12 text-center text-slate-500 space-y-3">
           <p className="text-base font-bold text-[#55565A]">کالایی مطابق با عبارت جستجو یافت نشد.</p>
           <p className="text-xs">
-            پیشنهاد: کد کالا را با پیشوند <span className="font-mono font-bold">AT-E</span> (مانند <span className="font-mono font-bold">AT-E001</span> یا <span className="font-mono font-bold">AT-E045</span>) یا نام قطعه را جستجو فرمایید.
+            کد فنی را بدون فاصله اضافی وارد کنید یا بخشی از نام، برند، دسته‌بندی و مشخصات فنی را جستجو کنید.
           </p>
         </div>
       ) : (
