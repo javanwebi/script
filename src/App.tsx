@@ -93,7 +93,7 @@ function CatalogRouteHydrator() {
     const path=location.pathname;
     const lightweightRoute=/^\/products\/?$/.test(path) ||
       /^\/(?:product\/[^/]+|account\/product\/[^/]+|consumer-dashboard\/product\/[^/]+)\/?$/.test(path);
-    const requiresFullCatalog=/^\/(?:category|categories|search|sku|cart|wishlist|checkout|account|consumer-dashboard|ai-forza|ai-consult|industries|brands)(?:\/|$)/.test(path) || path==="/";
+    const requiresFullCatalog=/^\/(?:category|categories|search|sku|direct-product|cart|wishlist|checkout|account|consumer-dashboard|retail-account|ai-forza|ai-consult|ai-advisor|face-to-face|industry|industries|brands)(?:\/|$)/.test(path) || path==="/";
     if(lightweightRoute || !requiresFullCatalog || /^\/admin(?:\/|$)/.test(path) || isDatabaseCatalogHydrated())return;
     void refreshDurableStorage({includeProducts:true}).catch(error=>{
       console.warn("[SanatPish] Full catalogue hydration was deferred after route navigation.",error);
