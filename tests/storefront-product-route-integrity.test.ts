@@ -1,0 +1,82 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+const read = (path: string) => readFileSync(path, "utf8");
+const categoryPage = read("src/pages/CategoryPage.tsx");
+const productCard = read("src/components/product/ProductCard.tsx");
+const productsPage = read("src/pages/ProductsPage.tsx");
+const header = read("src/components/layout/Header.tsx");
+const megaMenu = read("src/components/catalog/ReferenceMegaMenu.tsx");
+const mobileExplorer = read("src/components/catalog/MobileCategoryExplorer.tsx");
+const routes = read("src/App.tsx");
+const categoryStyles = read("src/category-showcase.css");
+
+test("public product cards preserve public detail URLs for signed-in customers", () => {
+  assert.match(productCard, /const href = isCustomerPortalRoute && currentUser/);
+  assert.match(productCard, /memberPath\(currentUser, product\.code\)/);
+  assert.match(productCard, /\/product\/\$\{encodeURIComponent\(product\.code\)\}/);
+  assert.doesNotMatch(productCard, /const href = hasPricePermission/);
+});
+
+test("product cards resolve registered family gallery images and render useful technical specs", () => {
+  assert.match(productCard, /product\.galleryImages\?\.find\(image => image\.scope === "family" && image\.url\)/);
+  assert.match(productCard, /product\.images\?\.find\(Boolean\)/);
+  assert.match(productCard, /identityVerified === true/);
+  assert.match(productCard, /src=\{productImage\}/);
+  assert.match(productCard, /store-product-specs/);
+  assert.match(productCard, /className="product-card-image w-full h-full"/);
+});
+
+test("category pages use the selected category name instead of a hard-coded transmission title", () => {
+  assert.match(categoryPage, /محصولات \{category\.name\}/);
+  assert.match(categoryPage, /مشخصات مرتبط با \{category\.name\}/);
+  assert.doesNotMatch(categoryPage, /انتخاب قطعات انتقال نیرو/);
+});
+
+test("unknown legacy category routes wait for the database and never fall back to the first unrelated category", () => {
+  assert.match(categoryPage, /isDatabaseCatalogHydrated/);
+  assert.match(categoryPage, /findCatalogCategory\(slug \|\| ''\)/);
+  assert.match(categoryPage, /if \(!category\)/);
+  assert.match(categoryPage, /to="\/categories"/);
+  assert.match(categoryPage, /to="\/products"/);
+  assert.doesNotMatch(categoryPage, /CATEGORIES\[0\]/);
+});
+
+test("direct SKU results are placed after the family catalogue and confirmed-stock filtering is honest", () => {
+  const familyResults = categoryPage.indexOf("category-showcase-shop");
+  const directSkuResults = categoryPage.indexOf("<DirectSkuProducts categorySlug={category.slug}");
+  assert.ok(familyResults >= 0 && directSkuResults > familyResults);
+  assert.match(categoryPage, /p\.stockKnown === true && p\.stock > 0 && !p\.inquiryOnly/);
+});
+
+test("the all-products page exposes only approved category links and routes them to their assigned-family pages", () => {
+  assert.match(productsPage, /category\.active !== false && \/\^excel-v2-\[0-9\]\+-\[0-9\]\+\$\//);
+  assert.match(productsPage, /to=\{\`\/category\/\$\{encodeURIComponent\(cat\.slug\)\}\`\}/);
+  assert.match(productsPage, /navigate\(\`\/category\/\$\{encodeURIComponent\(categoryParam\)\}/);
+  assert.match(productsPage, /to="\/categories" className="catalogue-all-categories-link"/);
+});
+
+test("navigation clearly distinguishes the all-products catalogue from the category directory on desktop and mobile", () => {
+  assert.match(header, /<span className="font-bold">دسته‌بندی محصولات<\/span>/);
+  assert.match(megaMenu, /to="\/products"/);
+  assert.match(megaMenu, /to="\/categories"/);
+  assert.match(mobileExplorer, /to="\/products"/);
+  assert.match(mobileExplorer, /to="\/categories"/);
+});
+
+test("the canonical product route map keeps public family, direct SKU and customer portal details distinct", () => {
+  assert.match(routes, /path="\/products" element={<ProductsPage \/}>/);
+  assert.match(routes, /path="\/categories" element={<AllCategoriesPage \/}>/);
+  assert.match(routes, /path="\/category\/:slug" element={<CategoryPage \/}>/);
+  assert.match(routes, /path="\/product\/:code"/);
+  assert.match(routes, /path="\/direct-product\/:code"/);
+  assert.match(routes, /path="\/account\/product\/:code"/);
+  assert.match(routes, /path="\/consumer-dashboard\/product\/:code"/);
+});
+
+test("category product cards override the obsolete 440px empty-card sizing", () => {
+  assert.match(categoryStyles, /category-showcase \.category-showcase-products > \.store-product-card\s*\{[\s\S]*?min-height: 0 !important/);
+  assert.match(categoryStyles, /category-showcase \.category-showcase-products \.store-product-media\s*\{[\s\S]*?aspect-ratio: 1\.48/);
+  assert.match(categoryStyles, /category-showcase \.category-showcase-products \.store-product-media > a > \[role="img"\]/);
+});
