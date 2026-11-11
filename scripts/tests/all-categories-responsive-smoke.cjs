@@ -83,9 +83,10 @@ const viewports = [
 ];
 
 async function installApiRoutes(page, fallbackMode = false) {
+  let databaseUnavailable = fallbackMode;
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
-    if (fallbackMode && (
+    if (databaseUnavailable && (
       url.pathname === '/api/catalog/categories' ||
       url.pathname === '/api/catalog/navigation-groups'
     )) {
@@ -131,6 +132,7 @@ async function installApiRoutes(page, fallbackMode = false) {
     contentType: 'image/png',
     body: tinyPng,
   }));
+  return { setDatabaseUnavailable: value => { databaseUnavailable = value; } };
 }
 
 (async () => {
@@ -213,14 +215,19 @@ async function installApiRoutes(page, fallbackMode = false) {
       reducedMotion: 'reduce',
     });
     const fallbackPage = await fallbackContext.newPage();
-    await installApiRoutes(fallbackPage, true);
+    const fallbackApi = await installApiRoutes(fallbackPage, true);
     await fallbackPage.goto(baseUrl + '/categories', { waitUntil: 'domcontentloaded' });
     await fallbackPage.locator('.all-categories-page').waitFor();
     await fallbackPage.getByText('دریافت ساختار دسته‌بندی ناموفق بود').waitFor({ timeout: 15000 });
     assert.ok(await fallbackPage.locator('.all-categories-state-error').isVisible(), 'database failure should show a clear retryable error state');
     assert.equal(await fallbackPage.locator('.all-categories-stat-value').first().innerText(), '—', 'database failure must not present stale taxonomy counts');
     assert.equal(await fallbackPage.locator('.all-categories-card').count(), 0, 'database failure must not fall back to checked-in taxonomy');
-    assert.ok(await fallbackPage.getByRole('button', { name: 'تلاش مجدد' }).isVisible(), 'database failure should offer retry');
+    const retryButton = fallbackPage.getByRole('button', { name: 'تلاش مجدد' });
+    assert.ok(await retryButton.isVisible(), 'database failure should offer retry');
+    fallbackApi.setDatabaseUnavailable(false);
+    await retryButton.click();
+    await fallbackPage.getByText('ساختار دسته‌بندی از پایگاه داده دریافت شد').waitFor({ timeout: 15000 });
+    assert.equal(await fallbackPage.locator('.all-categories-card').count(), 3, 'retry should load live categories after the API recovers');
     await fallbackContext.close();
 
     assert.deepEqual(failures, [], 'browser page errors were detected');
