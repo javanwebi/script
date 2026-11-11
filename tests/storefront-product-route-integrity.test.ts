@@ -24,6 +24,8 @@ test("product cards resolve registered family gallery images and render useful t
   assert.match(productCard, /product\.galleryImages\?\.find\(image => image\.scope === "family" && image\.url\)/);
   assert.match(productCard, /product\.images\?\.find\(Boolean\)/);
   assert.match(productCard, /identityVerified === true/);
+  assert.match(productCard, /variantGalleryImage/);
+  assert.match(productCard, /store-product-image-scope-badge/);
   assert.match(productCard, /src=\{productImage\}/);
   assert.match(productCard, /store-product-specs/);
   assert.match(productCard, /className="product-card-image w-full h-full"/);
