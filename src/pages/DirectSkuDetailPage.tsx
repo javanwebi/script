@@ -2,26 +2,42 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowRight, Image as ImageIcon, MessageCircle, PhoneCall, Ruler } from 'lucide-react';
 import { ProductImage } from '../components/product/ProductImage';
-import { useDirectSkus } from '../components/catalog/DirectSkuProducts';
+import { useDirectSkuState } from '../components/catalog/DirectSkuProducts';
+import NotFoundPage from './NotFoundPage';
 import '../catalog-experience.css';
 
 export default function DirectSkuDetailPage() {
   const { code } = useParams<{ code: string }>();
-  const items = useDirectSkus();
+  const { items, loading, error } = useDirectSkuState();
   const item = items.find(row => row.skuCode === code);
 
-  if (!item) {
+  if (loading) {
     return (
       <div dir="rtl" className="product-detail-page direct-sku-detail-page">
         <div className="direct-sku-state">
           <span className="direct-sku-state__eyebrow">کاتالوگ صنعت پیش</span>
           <h1>در حال دریافت اطلاعات کد کالا</h1>
-          <p>اطلاعات قطعات مستقیم از کاتالوگ بارگذاری می‌شود. اگر این کد ثبت نشده باشد، پس از تکمیل دریافت اطلاعات می‌توانید به کاتالوگ بازگردید.</p>
+          <p>اطلاعات کدهای مستقل مستقیماً از کاتالوگ صنعت پیش دریافت می‌شود.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div dir="rtl" className="product-detail-page direct-sku-detail-page">
+        <div className="direct-sku-state">
+          <span className="direct-sku-state__eyebrow">اتصال کاتالوگ</span>
+          <h1>دریافت اطلاعات کد کالا ممکن نشد</h1>
+          <p>اتصال به سرویس کاتالوگ برقرار نشد. دوباره تلاش کنید یا از فهرست محصولات ادامه دهید.</p>
+          <button type="button" onClick={() => window.location.reload()}>تلاش دوباره</button>
           <Link to="/products">بازگشت به کاتالوگ</Link>
         </div>
       </div>
     );
   }
+
+  if (!item) return <NotFoundPage />;
 
   const productHref = '/category/' + encodeURIComponent(item.categorySlug) + '?sub=' + encodeURIComponent(item.submenu);
   const consultHref = '/ai-consult?' + new URLSearchParams({
