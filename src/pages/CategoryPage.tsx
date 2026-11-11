@@ -617,8 +617,8 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
         {featuredProduct && (
           <aside className="category-featured-panel">
             <div className="category-featured-panel__eyebrow">
-              <span>پیشنهاد از کاتالوگ واقعی</span>
-              <span>منتخب</span>
+              <span>از محصولات همین دسته</span>
+              <span>{featuredProduct.featured ? "محصول ویژه" : "نمونه دسته"}</span>
             </div>
             <Link to={`/product/${encodeURIComponent(featuredProduct.code)}`} className="category-featured-panel__media">
               <ProductImage src={featuredProduct.images?.[0]} alt={featuredProduct.name} thumbnail loading="lazy" decoding="async" />
