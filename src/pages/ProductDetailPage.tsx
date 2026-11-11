@@ -112,6 +112,7 @@ export const ProductDetailPage: React.FC = () => {
     familyCode: string;
     assignment: { categorySlug: string; categoryName: string; submenu: string; leaf: string | null } | null;
     relatedFamilyCodes: string[];
+    resolved: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -121,7 +122,7 @@ export const ProductDetailPage: React.FC = () => {
     }
     const familyCode = product.code;
     const controller = new AbortController();
-    setFamilyMenuRoute(null);
+    setFamilyMenuRoute({ familyCode, assignment: null, relatedFamilyCodes: [], resolved: false });
     fetch('/api/catalog/menu-family-route/' + encodeURIComponent(familyCode), {
       credentials: 'same-origin',
       cache: 'no-store',
@@ -140,11 +141,12 @@ export const ProductDetailPage: React.FC = () => {
           relatedFamilyCodes: Array.isArray(data?.relatedFamilyCodes)
             ? data.relatedFamilyCodes.filter((code: unknown): code is string => typeof code === 'string')
             : [],
+          resolved: true,
         });
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setFamilyMenuRoute({ familyCode, assignment: null, relatedFamilyCodes: [] });
+          setFamilyMenuRoute({ familyCode, assignment: null, relatedFamilyCodes: [], resolved: true });
         }
       });
     return () => controller.abort();
@@ -153,13 +155,16 @@ export const ProductDetailPage: React.FC = () => {
   const activeFamilyMenuRoute = familyMenuRoute?.familyCode === product?.code
     ? familyMenuRoute
     : null;
-  const categoryRouteSlug = activeFamilyMenuRoute?.assignment?.categorySlug || product?.categorySlug || '';
+  const categoryRouteSlug = activeFamilyMenuRoute?.resolved
+    ? activeFamilyMenuRoute.assignment?.categorySlug || product?.categorySlug || ''
+    : '';
   const categoryRouteHref = categoryRouteSlug
     ? `/category/${encodeURIComponent(categoryRouteSlug)}`
     : '/categories';
 
   const similarProducts = useMemo(() => {
     if (!product) return [];
+    if (activeFamilyMenuRoute && !activeFamilyMenuRoute.resolved) return [];
     if (activeFamilyMenuRoute?.assignment) {
       const relatedCodes = new Set(activeFamilyMenuRoute.relatedFamilyCodes);
       return getAllProducts()
