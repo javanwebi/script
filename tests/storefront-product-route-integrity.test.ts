@@ -25,6 +25,7 @@ test("product cards resolve registered family gallery images and render useful t
   assert.match(productCard, /product\.images\?\.find\(Boolean\)/);
   assert.match(productCard, /image\.scope === "variant" && image\.url/);
   assert.match(productCard, /variantGalleryImage/);
+  assert.match(productCard, /product\.variants\?\.find\(variant => variant\.images\?\.some\(Boolean\)\)/);
   assert.match(productCard, /store-product-image-scope-badge/);
   assert.match(productCard, /src=\{productImage\}/);
   assert.match(productCard, /store-product-specs/);
@@ -83,6 +84,19 @@ test("the canonical product route map keeps public family, direct SKU and custom
   assert.ok(routes.includes('path="/direct-product/:code"'));
   assert.ok(routes.includes('path="/account/product/:code"'));
   assert.ok(routes.includes('path="/consumer-dashboard/product/:code"'));
+});
+
+test("approved Excel category pages show SKU images as labelled previews and place direct SKUs after family results", () => {
+  const excelPage = read("src/pages/ExcelMenuCategoryPage.tsx");
+  const cardResolver = excelPage.indexOf("const cardProduct = product;");
+  const familyShop = excelPage.indexOf('<div className="excel-category-shop">');
+  const directSkuBlock = excelPage.lastIndexOf("<DirectSkuProducts categorySlug={slug}");
+  assert.ok(cardResolver >= 0, "approved category cards should pass original product image metadata to ProductCard");
+  assert.ok(familyShop >= 0 && directSkuBlock > familyShop, "direct SKUs should appear after the family catalogue");
+  assert.equal(excelPage.indexOf("<DirectSkuProducts categorySlug={slug}"), directSkuBlock, "there should be only one direct SKU block");
+  assert.match(excelPage, /productPreview/);
+  assert.match(excelPage, /featuredPreview\?\.scope === 'variant'/);
+  assert.match(excelPage, /excel-category-featured-image-scope/);
 });
 
 test("category product cards override the obsolete 440px empty-card sizing", () => {
