@@ -20,16 +20,14 @@ import './BeltCategoryExperience.css';
 
 const BELT_SLUG = 'تسمه-و-انتقال-نیرو';
 const FAMILY_OPTIONS = [
-  { id: 'کلاسیک', title: 'وی بلت', subtitle: 'A / B / C / D / E / Z / M', search: /کلاسیک/i },
+  { id: 'تسمه V-BELT', title: 'وی بلت', subtitle: 'A / B / C / D / E / Z / M · SPA / SPB / SPC', search: /V.?BELT|کلاسیک|اسپشیال|پروفیل باریک/i },
   { id: 'تسمه تایمینگ', title: 'تایمینگ', subtitle: 'متریک و اینچی', search: /تایم/i },
   { id: 'تسمه شیاری', title: 'شیاری', subtitle: 'PK / PY / PL', search: /شیاری/i },
   { id: 'تسمه گرد پلی اورتان', title: 'پلی‌یورتان', subtitle: 'صنعتی و انتقال حرکت', search: /گرد.*پلی|پلی.*گرد/i },
-  { id: 'اسپشیال', title: 'پروفیل باریک', subtitle: 'SPA / SPB / SPC', search: /اسپشیال|پروفیل باریک/i },
   { id: 'تسمه CRC پنج ضلعی', title: 'CRC پنج‌ضلعی', subtitle: 'جوشی و فابریک', search: /CRC|پنج ضلعی/i },
 ] as const;
 const FAMILY_ARTWORK: Record<string, string> = {
-  'کلاسیک': STORE_ASSETS.products.forzaBelt,
-  'اسپشیال': STORE_ASSETS.forzaSubBelt,
+  'تسمه V-BELT': STORE_ASSETS.products.forzaBelt,
   'تسمه تایمینگ': STORE_ASSETS.products.pvcBelt,
   'تسمه شیاری': STORE_ASSETS.categories.belts,
   'تسمه گرد پلی اورتان': STORE_ASSETS.forzaSubBelt,
@@ -175,7 +173,7 @@ function FeaturedProductCard({ product, compareSelected, compareDisabled, onTogg
 export const BeltCategoryExperience: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedFamily = searchParams.get('sub') || 'all';
-  const isClassic = selectedFamily === 'کلاسیک';
+  const isVbelt = selectedFamily === 'تسمه V-BELT';
   const [revision, setRevision] = useState(0);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('default');
@@ -214,7 +212,7 @@ export const BeltCategoryExperience: React.FC = () => {
   }, [allProducts]);
   const brands = useMemo(() => Array.from(new Set(familyProducts.map(p => p.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [familyProducts]);
   const profileOptions = useMemo(() => deriveProfileOptions(familyProducts), [familyProducts]);
-  const showProfileFilter = isClassic || selectedFamily === 'all';
+  const showProfileFilter = isVbelt || selectedFamily === 'all';
   const hasPrices = familyProducts.some(p => priceOf(p) !== null);
   const filtered = useMemo(() => {
     const minLength = filters.minimumLength !== '' ? number(filters.minimumLength) : null;
@@ -262,7 +260,7 @@ export const BeltCategoryExperience: React.FC = () => {
       <picture className="bce-hero-picture"><source media="(max-width: 640px)" srcSet="/images/belt-hero-cinematic.webp"/><img className="bce-hero-photo" src="/images/belt-hero-cinematic.webp" alt="نمای صنعتی پولی و تسمه انتقال نیرو در خط تولید" fetchPriority="high" decoding="async"/></picture>
       <div className="bce-hero-wash"/>
       <div className="bce-hero-content"><span className="bce-kicker"><Zap size={15}/> <span title="مرجع تخصصی تسمه‌های صنعتی و انتقال قدرت">ویترین صنعتی</span></span>
-        <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های کلاسیک V' : selectedFamily === 'all' ? 'انتقال مطمئن و پایدار نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</em></h1>
+        <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های V-BELT' : selectedFamily === 'all' ? 'انتقال مطمئن و پایدار نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</em></h1>
         <p>انواع تسمه صنعتی برای انتقال مطمئن، بهره‌وری بیشتر و عمر طولانی‌تر تجهیزات؛ از تسمه کلاسیک و تایمینگ تا شیاری و پلی‌یورتان، قطعه مناسب دستگاه را از کاتالوگ واقعی صنعت پیش پیدا کنید.</p>
         <div className="bce-hero-actions"><button type="button" onClick={scrollToProducts}>مشاهده محصولات <ArrowLeft size={18}/></button><Link to="/ai-consult">مشاوره انتخاب تسمه <Headphones size={18}/></Link></div>
         <div className="bce-hero-points"><span><ShieldCheck size={20}/> کاتالوگ کدهای واقعی</span><span><Truck size={20}/> استعلام موجودی و تأمین</span><span><Settings2 size={20}/> راهنمای انتخاب فنی</span></div>
@@ -279,7 +277,7 @@ export const BeltCategoryExperience: React.FC = () => {
         </button>;
       })}</div>
     </section>
-    {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...(profileOptions.length ? profileOptions : DEFAULT_PROFILES)].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
+    {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه V-BELT</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...(profileOptions.length ? profileOptions : DEFAULT_PROFILES)].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
     <div className="bce-catalog" ref={productsRef}>
       <aside className="bce-sidebar" aria-label="فیلترهای محصولات"><div className="bce-sidebar-top"><h2><SlidersHorizontal size={19}/> فیلتر محصولات</h2><button type="button" onClick={() => changeFilters(blankFilters())}>پاکسازی <RotateCcw size={14}/></button></div><div className="bce-sidebar-search"><Search size={17}/><input aria-label="جستجو در کاتالوگ" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="نام، کد یا مشخصات فنی..."/></div><FilterFields value={filters} onChange={changeFilters} brands={brands} products={familyProducts} profiles={profileOptions} classic={showProfileFilter} hasPrices={hasPrices}/></aside>
       <section className="bce-results" aria-labelledby="bce-results-title"><div className="bce-results-heading"><div><small>کاتالوگ تخصصی صنعت پیش</small><h2 id="bce-results-title">محصولات {selectedFamily === 'all' ? 'تسمه و انتقال نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</h2></div><p>{toPersianDigits(filtered.length)} محصول مطابق انتخاب شما</p></div>
