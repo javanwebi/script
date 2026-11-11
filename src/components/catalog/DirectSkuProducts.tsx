@@ -21,6 +21,7 @@ export type DirectSku = {
 type DirectSkuProductsProps = {
   /** Omit or pass "all" to include every category's standalone SKU. */
   categorySlug?: string;
+  items?: DirectSku[];
   selectedSub?: string;
   searchQuery?: string;
   selectedBrand?: string;
@@ -39,9 +40,10 @@ const normalizeSearch = (value: string) => value
   .replace(/[\u200c\s]+/g, ' ')
   .trim();
 
-export function useDirectSkus() {
+export function useDirectSkus(enabled = true) {
   const [items, setItems] = useState<DirectSku[]>([]);
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     const refresh = () => fetch('/api/catalog/direct-skus', { cache: 'no-store', credentials: 'same-origin' })
       .then(response => response.ok ? response.json() : null)
@@ -59,12 +61,13 @@ export function useDirectSkus() {
       alive = false;
       window.removeEventListener('catalog-direct-skus-updated', refresh);
     };
-  }, []);
+  }, [enabled]);
   return items;
 }
 
 export function DirectSkuProducts({
   categorySlug,
+  items: providedItems,
   selectedSub = 'all',
   searchQuery = '',
   selectedBrand = 'all',
@@ -74,7 +77,8 @@ export function DirectSkuProducts({
   title,
   description,
 }: DirectSkuProductsProps) {
-  const all = useDirectSkus();
+  const fetchedItems = useDirectSkus(!providedItems);
+  const all = providedItems ?? fetchedItems;
   const [page, setPage] = useState(1);
   const query = normalizeSearch(searchQuery);
   const items = useMemo(() => all.filter(item => {
