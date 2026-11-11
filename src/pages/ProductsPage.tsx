@@ -163,8 +163,13 @@ export const ProductsPage: React.FC = () => {
     };
   }, [mobileFiltersOpen]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  // The all-products page only exposes the approved Excel taxonomy as category
+  // destinations. Legacy categories remain routable for old URLs but are not
+  // mixed into this rail, where their IDs do not match the approved assignments.
   const managedCategories = useMemo(
-    () => getManagedCategories().filter((category) => category.active !== false),
+    () => getManagedCategories()
+      .filter(category => category.active !== false && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
     [catalogVersion],
   );
 
@@ -183,6 +188,17 @@ export const ProductsPage: React.FC = () => {
     setHasCatalogueImageFilter(imageParam);
     setCurrentPage(1);
   }, [categoryParam, subParam, queryParam, brandParam, stockParam, imageParam]);
+
+  // Approved Excel categories have their own family-assignment page. Never
+  // filter the legacy product.categorySlug field with an Excel category ID.
+  useEffect(() => {
+    if (!/^excel-v2-[0-9]+-[0-9]+$/.test(categoryParam)) return;
+    const destinationParams = new URLSearchParams();
+    if (subParam !== "all") destinationParams.set("sub", subParam);
+    if (queryParam.trim()) destinationParams.set("q", queryParam.trim());
+    const query = destinationParams.toString();
+    navigate(`/category/${encodeURIComponent(categoryParam)}${query ? `?${query}` : ""}`, { replace: true });
+  }, [categoryParam, subParam, queryParam, navigate]);
 
   // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
   useEffect(() => {
@@ -423,7 +439,10 @@ export const ProductsPage: React.FC = () => {
 
         {/* Minimal Category Selector Tabs */}
         <section className="catalogue-category-rail">
-          <div className="catalogue-section-heading"><div><span>دسته‌بندی کاتالوگ</span><h2>از کدام گروه شروع می‌کنید؟</h2></div><small>انتخاب دسته، فهرست کالاها را محدود می‌کند</small></div>
+          <div className="catalogue-section-heading">
+            <div><span>مسیرهای رسمی کاتالوگ</span><h2>ورود به دسته‌بندی تخصصی</h2></div>
+            <Link to="/categories" className="catalogue-all-categories-link">مشاهده همه دسته‌بندی‌ها <ChevronLeft size={15}/></Link>
+          </div>
           <div
             className="catalogue-category-track flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none"
             style={{ scrollbarWidth: "none" }}
@@ -445,30 +464,23 @@ export const ProductsPage: React.FC = () => {
             </button>
 
             {managedCategories.map((cat) => {
-              const isSelected = selectedCategory === cat.slug;
-              const icon = CATEGORY_ICONS[cat.name] || (
-                <Layers className="w-4 h-4" />
-              );
+              const icon = CATEGORY_ICONS[cat.name] || <Layers className="w-4 h-4" />;
               const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
               return (
-                <button
+                <Link
                   key={cat.slug}
-                  onClick={() => handleCategorySelect(cat.slug)}
-                  aria-pressed={isSelected}
-                  className={`catalogue-category-tile flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-orange-500 text-white shadow-md"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
+                  to={`/category/${encodeURIComponent(cat.slug)}`}
+                  aria-label={`مشاهده محصولات دسته ${cat.name}`}
+                  className="catalogue-category-tile flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-700"
                 >
                   <span className="catalogue-category-art">
                     {artwork ? <img src={artwork} alt="" loading="lazy" decoding="async" /> : icon}
                   </span>
                   <span className="catalogue-category-name">{cat.name}</span>
                   <span className="catalogue-category-count">
-                    {toPersianDigits(cat.count)}
+                    {toPersianDigits(cat.familyCount ?? cat.count)}
                   </span>
-                </button>
+                </Link>
               );
             })}
             {managedCategories.length === 0 && !catalogReady && (
