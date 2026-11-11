@@ -1985,3 +1985,11 @@
   .bce .bce-family-tile,
   .bce .bce-hero-actions > * { transition: none !important; }
 }
+
+
+/* Keyboard-visible focus for catalogue navigation, filters and comparison controls. */
+.bce :is(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid #e56b1e70;
+  outline-offset: 2px;
+}
+.bce .bce-compare-dialog:focus { outline: none; }
