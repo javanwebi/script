@@ -64,3 +64,17 @@ test("catalogue experience styles cover category, detail and narrow-screen layou
   assert.match(css, /@media \(max-width: 767px\)/);
   assert.match(css, /#E56B1E/);
 });
+
+
+test("category product comparison is interactive and never compares or reveals customer prices", () => {
+  const category = read("src/pages/CategoryPage.tsx");
+  const card = read("src/components/product/ProductCard.tsx");
+  assert.match(category, /comparisonCodes/);
+  assert.match(category, /category-comparison-dock/);
+  assert.match(category, /role="dialog" aria-modal="true"/);
+  assert.match(category, /technicalSpecs/);
+  assert.match(category, /قیمت اختصاصی در این بخش نمایش داده نمی‌شود/);
+  assert.match(card, /onToggleCompare/);
+  assert.match(card, /aria-pressed=\{compareSelected\}/);
+  assert.doesNotMatch(category, /comparisonRows[\s\S]{0,500}formatPrice/);
+});
