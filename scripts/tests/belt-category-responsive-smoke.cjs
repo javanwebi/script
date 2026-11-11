@@ -67,6 +67,17 @@ const viewports = [
       assert.ok(layout.document <= layout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(layout));
       assert.ok(layout.body <= layout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(layout));
 
+      const hero = page.locator('.bce-hero');
+      await hero.waitFor({ state: 'visible' });
+      const heroBox = await hero.boundingBox();
+      assert.ok(heroBox && heroBox.height >= 100, 'the industrial hero must remain visible in the initial viewport');
+      await page.locator('.bce-hero-photo').waitFor({ state: 'visible' });
+      await page.screenshot({
+        path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
+        fullPage: false,
+        animations: 'disabled',
+      });
+
       if (viewport.width > 980) {
         await page.locator('.bce-sidebar').waitFor({ state: 'visible' });
         await page.locator('.bce-featured-card').waitFor({ state: 'visible' });
@@ -91,12 +102,6 @@ const viewports = [
       await compareDialog.locator('.bce-compare-table').waitFor({ state: 'visible' });
       await compareDialog.locator('.bce-compare-head button').click();
       await page.locator('.bce-compare-clear').click();
-
-      await page.screenshot({
-        path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
-        fullPage: false,
-        animations: 'disabled',
-      });
 
       await page.locator('.bce-family-area .bce-section-heading button').click();
       assert.ok(page.url().includes('sub=all'), 'the all-families action must preserve the canonical category route');
