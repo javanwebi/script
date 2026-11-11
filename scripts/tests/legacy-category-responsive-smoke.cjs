@@ -52,35 +52,6 @@ const products = [
     unit: 'ورق',
     active: true,
   },
-];
-const runtimeFixture = {
-  success: true,
-  database: true,
-  userId: null,
-  values: {
-    atlas_admin_categories_v1: [{
-      id: 81,
-      slug: categorySlug,
-      name: categoryName,
-      nameEn: 'Industrial Materials & Sheets',
-      description: 'فوم، اسفنج، ورق‌های صنعتی و مواد پلیمری ثبت‌شده در کاتالوگ.',
-      icon: 'Package',
-      count: products.length,
-      familyCount: products.length,
-      skuCount: products.length,
-      active: true,
-      children: [
-        { name: 'فوم و اسفنج', children: [{ name: 'فوم صنعتی' }] },
-        { name: 'ورق صنعتی', children: [{ name: 'ورق پلیمری' }] },
-      ],
-      subcategories: ['فوم و اسفنج', 'ورق صنعتی'],
-    }],
-  },
-  versions: {},
-  productsIncluded: true,
-  products,
-};
-
   {
     code: 'FAM-MAT-003',
     name: 'رول صنعتی با تصویر اختصاصی کد',
@@ -116,6 +87,35 @@ const runtimeFixture = {
     unit: 'رول',
     active: true,
   },
+
+];
+const runtimeFixture = {
+  success: true,
+  database: true,
+  userId: null,
+  values: {
+    atlas_admin_categories_v1: [{
+      id: 81,
+      slug: categorySlug,
+      name: categoryName,
+      nameEn: 'Industrial Materials & Sheets',
+      description: 'فوم، اسفنج، ورق‌های صنعتی و مواد پلیمری ثبت‌شده در کاتالوگ.',
+      icon: 'Package',
+      count: products.length,
+      familyCount: products.length,
+      skuCount: products.length,
+      active: true,
+      children: [
+        { name: 'فوم و اسفنج', children: [{ name: 'فوم صنعتی' }] },
+        { name: 'ورق صنعتی', children: [{ name: 'ورق پلیمری' }] },
+      ],
+      subcategories: ['فوم و اسفنج', 'ورق صنعتی'],
+    }],
+  },
+  versions: {},
+  productsIncluded: true,
+  products,
+};
 const directSku = {
   skuCode: 'SKU-MAT-001',
   name: 'قطعه مستقیم نمونه از ورق صنعتی',
