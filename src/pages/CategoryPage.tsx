@@ -21,7 +21,8 @@ import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
-import { getProductsByCategory } from '../data/mockGenerator';
+import { getProductByCode, getProductsByCategory } from '../data/mockGenerator';
+import type { Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
 import { toPersianDigits } from '../utils/formatters';
@@ -44,7 +45,9 @@ import {
   Ruler,
   Camera,
   MessageCircle,
-  ChevronDown
+  ChevronDown,
+  Scale,
+  X
 } from 'lucide-react';
 
 export const CategoryPage: React.FC = () => {
@@ -164,7 +167,62 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
   const [inquiryOnlyFilter, setInquiryOnlyFilter] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'code'>('default');
   const [page, setPage] = useState(1);
+  const [comparisonCodes, setComparisonCodes] = useState<string[]>([]);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [comparisonNotice, setComparisonNotice] = useState('');
   const PAGE_SIZE = 24;
+
+  const comparisonProducts = useMemo<Product[]>(
+    () => comparisonCodes
+      .map(code => getProductByCode(code))
+      .filter((product): product is Product => Boolean(product)),
+    [comparisonCodes],
+  );
+  const comparisonRows = useMemo(() => {
+    const technicalKeys = [...new Set(comparisonProducts.flatMap(product =>
+      (product.technicalSpecs || []).map(spec => spec.key).filter(Boolean),
+    ))];
+    return [
+      { label: 'برند', values: comparisonProducts.map(product => product.brand || 'در کاتالوگ ثبت نشده') },
+      { label: 'دسته‌بندی', values: comparisonProducts.map(product => product.categoryName || category.name) },
+      { label: 'تعداد کد و سایز', values: comparisonProducts.map(product => toPersianDigits(Math.max(1, product.variants?.filter(variant => variant.active !== false).length || 0))) },
+      ...technicalKeys.map(key => ({
+        label: key,
+        values: comparisonProducts.map(product => product.technicalSpecs?.find(spec => spec.key === key)?.value || 'در کاتالوگ ثبت نشده'),
+      })),
+    ];
+  }, [comparisonProducts, category.name]);
+
+  const toggleComparison = (product: Product) => {
+    setComparisonNotice('');
+    if (comparisonCodes.includes(product.code)) {
+      setComparisonCodes(current => current.filter(code => code !== product.code));
+      return;
+    }
+    if (comparisonCodes.length >= 4) {
+      setComparisonNotice('برای مقایسه هم‌زمان حداکثر چهار کالا انتخاب می‌شود.');
+      return;
+    }
+    setComparisonCodes(current => [...current, product.code]);
+  };
+
+  useEffect(() => {
+    if (comparisonProducts.length < 2) setComparisonOpen(false);
+  }, [comparisonProducts.length]);
+
+  useEffect(() => {
+    if (!comparisonOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setComparisonOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [comparisonOpen]);
   const productsSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -575,9 +633,26 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
                         {!product.technicalSpecs?.length && <div><dt>دسته</dt><dd>{product.subcategory}</dd></div>}
                       </dl>
                       <div className="category-sku-status"><span className={product.stockKnown && product.stock > 0 ? 'available' : 'unconfirmed'}></span>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'استعلام موجودی و قیمت'}</div>
-                      <div className="category-sku-actions"><Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link><Link to={`/product/${encodeURIComponent(product.code)}`} aria-label={`اطلاعات فنی ${product.code}`} className="category-sku-secondary"><Ruler size={18}/></Link></div>
+                      <div className="category-sku-actions">
+                        <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link>
+                        <button
+                          type="button"
+                          className="category-sku-compare"
+                          onClick={() => toggleComparison(product)}
+                          aria-label={comparisonCodes.includes(product.code) ? `حذف ${product.name} از مقایسه` : `افزودن ${product.name} به مقایسه`}
+                          aria-pressed={comparisonCodes.includes(product.code)}
+                          disabled={comparisonCodes.length >= 4 && !comparisonCodes.includes(product.code)}
+                        ><Scale size={15}/></button>
+                        <Link to={`/product/${encodeURIComponent(product.code)}`} aria-label={`اطلاعات فنی ${product.code}`} className="category-sku-secondary"><Ruler size={18}/></Link>
+                      </div>
                     </article>
-                  ) : <ProductCard key={product.code} product={product}/>
+                  ) : <ProductCard
+                    key={product.code}
+                    product={product}
+                    compareSelected={comparisonCodes.includes(product.code)}
+                    compareDisabled={comparisonCodes.length >= 4 && !comparisonCodes.includes(product.code)}
+                    onToggleCompare={toggleComparison}
+                  />
                 ))}
               </div>
 
@@ -637,9 +712,54 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
             <Link to={`/product/${encodeURIComponent(featuredProduct.code)}`} className="category-featured-panel__action">
               مشاهده مشخصات و استعلام <ChevronLeft size={16} />
             </Link>
+            <button
+              type="button"
+              className="category-featured-panel__compare"
+              onClick={() => toggleComparison(featuredProduct)}
+              aria-pressed={comparisonCodes.includes(featuredProduct.code)}
+              disabled={comparisonCodes.length >= 4 && !comparisonCodes.includes(featuredProduct.code)}
+            ><Scale size={15}/>{comparisonCodes.includes(featuredProduct.code) ? 'حذف از مقایسه' : 'افزودن به مقایسه'}</button>
           </aside>
         )}
       </div>
+      {comparisonProducts.length > 0 && (
+        <div className="category-comparison-dock" dir="rtl" aria-live="polite">
+          <div className="category-comparison-dock__summary">
+            <strong>مقایسه قطعات <span>{toPersianDigits(comparisonProducts.length)}/۴</span></strong>
+            <small>فقط مشخصات ثبت‌شده مقایسه می‌شوند؛ قیمت اختصاصی در این بخش نمایش داده نمی‌شود.</small>
+          </div>
+          <div className="category-comparison-dock__items">
+            {comparisonProducts.map(product => (
+              <button key={product.code} type="button" onClick={() => setComparisonCodes(current => current.filter(code => code !== product.code))} aria-label={`حذف ${product.name} از مقایسه`}>
+                <span>{product.name}</span><X size={13}/>
+              </button>
+            ))}
+          </div>
+          <div className="category-comparison-dock__actions">
+            <button type="button" disabled={comparisonProducts.length < 2} onClick={() => setComparisonOpen(true)}>مقایسه {toPersianDigits(comparisonProducts.length)} کالا</button>
+            <button type="button" onClick={() => { setComparisonCodes([]); setComparisonNotice(''); }}>پاک کردن</button>
+          </div>
+          {comparisonNotice && <p className="category-comparison-dock__notice">{comparisonNotice}</p>}
+        </div>
+      )}
+      {comparisonOpen && comparisonProducts.length >= 2 && (
+        <div className="category-comparison-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setComparisonOpen(false); }}>
+          <section className="category-comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="category-comparison-title" dir="rtl">
+            <header>
+              <div><span>مقایسه فنی</span><h2 id="category-comparison-title">مقایسه مشخصات قطعات انتخاب‌شده</h2></div>
+              <button type="button" aria-label="بستن مقایسه" onClick={() => setComparisonOpen(false)}><X size={19}/></button>
+            </header>
+            <p className="category-comparison-dialog__hint">مقایسه بر اساس اطلاعات ثبت‌شده در کاتالوگ است. مشخصات خالی به‌عنوان «ثبت نشده» نشان داده می‌شوند.</p>
+            <div className="category-comparison-table-wrap">
+              <table>
+                <thead><tr><th scope="col">مشخصه</th>{comparisonProducts.map(product => <th scope="col" key={product.code}><strong>{product.name}</strong><code dir="ltr">{product.code}</code></th>)}</tr></thead>
+                <tbody>{comparisonRows.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{row.values.map((value,index)=><td key={comparisonProducts[index]?.code || index}>{value}</td>)}</tr>)}</tbody>
+              </table>
+            </div>
+            <footer><span>{toPersianDigits(comparisonProducts.length)} کالا انتخاب شده</span><button type="button" onClick={() => setComparisonOpen(false)}>بستن مقایسه</button></footer>
+          </section>
+        </div>
+      )}
       {isBeltCategory && (
         <>
           <section className="category-showcase-guide rounded-2xl bg-[#fff8f3] p-6 md:p-9">
