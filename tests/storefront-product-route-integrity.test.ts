@@ -84,12 +84,16 @@ test("the all-products route identifies itself clearly in its breadcrumb", () =>
 });
 
 test("the all-products page includes standalone SKUs without mixing them into family records", () => {
-  assert.match(productsPage, /import \{ DirectSkuProducts \} from "\.\.\/components\/catalog\/DirectSkuProducts"/);
+  assert.match(productsPage, /import \{ DirectSkuProducts, useDirectSkus \} from "\.\.\/components\/catalog\/DirectSkuProducts"/);
+  assert.match(productsPage, /const directSkus = useDirectSkus\(\)/);
+  assert.match(productsPage, /directSkus\.forEach\(\(item\) => \{ if \(item\.brand\) bSet\.add\(item\.brand\); \}\)/);
+  assert.match(productsPage, /items=\{directSkus\}/);
   assert.match(productsPage, /<DirectSkuProducts[\s\S]*?categorySlug=\{selectedCategory === "all" \|\| selectedCategory === "swr-forza-exclusive" \? "all" : selectedCategory\}/);
   assert.match(productsPage, /searchQuery=\{searchQuery\}/);
   assert.match(productsPage, /selectedBrand=\{selectedBrand\}/);
   assert.match(productsPage, /inStockOnly=\{inStockOnly\}/);
   assert.match(directSku, /categorySlug !== 'all'/);
+  assert.match(directSku, /useDirectSkus\(!providedItems\)/);
   assert.match(directSku, /item\.skuCode/);
   assert.match(directSku, /\/direct-product\//);
   assert.match(directSku, /if \(inStockOnly\) return false/);
