@@ -106,7 +106,7 @@ const categories = [{
       await page.goto(base + "/product/UNKNOWN-CATALOG-CODE", { waitUntil: "domcontentloaded" });
       await page.locator("body").waitFor({ state: "visible" });
       await page.goto(base + "/direct-product/UNKNOWN-DIRECT-SKU", { waitUntil: "domcontentloaded" });
-      await page.getByRole("heading", { name: "در حال دریافت اطلاعات کد کالا" }).waitFor({ timeout: 15000 });
+      await page.getByRole("heading", { name: "این مسیر به قطعه موردنظر نمی‌رسد." }).waitFor({ timeout: 15000 });
 
       assert.deepEqual(pageErrors, [], "browser page errors at " + width + "px");
       console.log("PASS catalogue direct routes at " + width + "px");
