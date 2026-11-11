@@ -9,6 +9,27 @@ on:
       - "src/pages/TextileIndustryPage.tsx"
       - "src/textile-industry.css"
       - "tests/industry-pages-unique-layouts.test.ts"
+      - "api/portal.ts"
+      - "index.html"
+      - "src/App.tsx"
+      - "src/components/home/HomeKnowledge.tsx"
+      - "src/components/home/MainBrandsBanner.tsx"
+      - "src/company-pages-art-direction.css"
+      - "src/catalogue-premium.css"
+      - "src/industry-art-direction.css"
+      - "src/industry-pages-premium.css"
+      - "src/pages/AboutPage.tsx"
+      - "src/pages/CompanyPagesExperience.tsx"
+      - "src/pages/ContactUsPage.tsx"
+      - "src/pages/NotFoundPage.tsx"
+      - "src/pages/ProductsPage.tsx"
+      - "src/pages/CategoryPage.tsx"
+      - "src/pages/AllCategoriesPage.tsx"
+      - "src/pages/ProductDetailPage.tsx"
+      - "src/services/clientService.ts"
+      - "src/utils/pageMeta.ts"
+      - "tests/site-finalization.test.ts"
+      - "tests/company-pages-art-direction.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main, feature/textile-industry-page]
@@ -40,6 +61,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript
         run: npm run lint
+      - name: Site finalization CRM and route regression suite
+        run: node --import tsx --test tests/site-finalization.test.ts tests/company-pages-art-direction.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Supabase SMS hook signature safety

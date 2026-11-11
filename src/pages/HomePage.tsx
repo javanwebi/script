@@ -1,6 +1,6 @@
 import { HomeCategoryStrip, HomeTrustStrip, HomeForzaBanner } from "../components/storefront/HomeSequence";
 import {HomeAiIntroduction,HomeIndustryShowcase,HomeMembership} from '../components/storefront/HomeDiscovery';
-import {HomeKnowledge} from './DiscoveryPages';
+import { HomeKnowledge } from "../components/home/HomeKnowledge";
 import {
   HomeAssist,
   IndustrialServices,

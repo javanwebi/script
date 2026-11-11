@@ -6,6 +6,7 @@ import {
   categorySlugFor,
 } from "../data/userProducts";
 import { ProductImage } from "../components/product/ProductImage";
+import { setPageMeta } from "../utils/pageMeta";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
@@ -76,6 +77,15 @@ export const ProductsPage: React.FC = () => {
   );
   const subParam = searchParams.get("sub") || "all";
   const queryParam = searchParams.get("q") || "";
+  useEffect(() => {
+    const title = queryParam.trim()
+      ? `جستجوی ${queryParam.trim()} | کاتالوگ صنعت پیش`
+      : "کاتالوگ قطعات صنعتی | صنعت پیش";
+    const description = queryParam.trim()
+      ? `نتایج جستجوی ${queryParam.trim()} در کاتالوگ قطعات و تجهیزات صنعتی صنعت پیش.`
+      : "جستجو در خانواده‌ها، کدهای فنی و برندهای قطعات صنعتی؛ بررسی مشخصات و مسیر ثبت استعلام در کاتالوگ صنعت پیش.";
+    setPageMeta({ title, description });
+  }, [queryParam]);
 
   const [selectedCategory, setSelectedCategory] =
     useState<string>(categoryParam);
@@ -392,6 +402,7 @@ export const ProductsPage: React.FC = () => {
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
+                aria-label="جست‌وجو در محصولات"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -418,6 +429,7 @@ export const ProductsPage: React.FC = () => {
               {/* Brand Filter */}
               <div className="relative">
                 <select
+                  aria-label="فیلتر برند"
                   value={selectedBrand}
                   onChange={(e) => {
                     setSelectedBrand(e.target.value);
@@ -439,8 +451,9 @@ export const ProductsPage: React.FC = () => {
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
+                  aria-label="مرتب‌سازی محصولات"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => { setSortBy(e.target.value as typeof sortBy); setCurrentPage(1); }}
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
                   <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
@@ -481,6 +494,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("grid")}
                   title="نمایش شبکه‌ای"
+                  aria-pressed={viewMode === "grid"}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "grid"
                       ? "bg-white text-orange-600 shadow-xs"
@@ -492,6 +506,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("list")}
                   title="نمایش لیستی"
+                  aria-pressed={viewMode === "list"}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "list"
                       ? "bg-white text-orange-600 shadow-xs"

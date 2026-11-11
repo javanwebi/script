@@ -378,22 +378,28 @@ function scopedState(db: Database, user: Row) {
   return result;
 }
 const attempts = new Map<string, { count: number; until: number }>();
-async function rateLimit(req: IncomingMessage) {
+async function rateLimit(req: IncomingMessage, scope = "login", limit = 25) {
+  const realIpHeader = req.headers["x-real-ip"];
+  const forwardedHeader = req.headers["x-forwarded-for"];
+  const realIp = Array.isArray(realIpHeader) ? realIpHeader[0] : realIpHeader;
+  const forwarded = Array.isArray(forwardedHeader) ? forwardedHeader[0] : forwardedHeader;
+  const forwardedClientIp = String(forwarded || "").split(",")[0].trim();
+  // The VPS reverse proxy overwrites X-Real-IP with the actual client address.
+  // Prefer it there so every visitor does not share the proxy's socket address.
   const ip = process.env.VERCEL
-    ? req.headers["x-forwarded-for"]
-    : req.socket.remoteAddress;
-  const key = `${redisKey()}:login:${crypto.createHash("sha256").update(String(ip)).digest("hex")}`;
+    ? forwardedClientIp || String(realIp || "").trim() || req.socket.remoteAddress
+    : String(realIp || "").trim() || req.socket.remoteAddress || forwardedClientIp;
+  const key = redisKey() + ":" + scope + ":" + crypto.createHash("sha256").update(String(ip)).digest("hex");
+  const message = scope === "login"
+    ? "تعداد تلاش‌های ورود بیش از حد مجاز است."
+    : "تعداد درخواست‌ها بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.";
   if(databaseEnabled()){
     const count=Number((await postgresDatabase().query(`insert into app_private.rate_limits(bucket,attempts,expires_at) values($1,1,now()+interval '15 minutes') on conflict(bucket) do update set attempts=case when rate_limits.expires_at<now() then 1 else rate_limits.attempts+1 end,expires_at=case when rate_limits.expires_at<now() then now()+interval '15 minutes' else rate_limits.expires_at end returning attempts`,[key])).rows[0].attempts);
-    if(count>25)fail(429,'تعداد تلاش‌های ورود بیش از حد مجاز است.');
+    if(count>limit)fail(429,message);
   } else if (redisUrl() && redisToken()) {
     const count = await redis(["INCR", key]);
     if (count === 1) await redis(["EXPIRE", key, 900]);
-    if (count > 25)
-      fail(
-        429,
-        "تلاش‌های ورود بیش از حد مجاز است؛ ۱۵ دقیقه دیگر دوباره تلاش کنید.",
-      );
+    if (count > limit) fail(429, scope === "login" ? "تلاش‌های ورود بیش از حد مجاز است؛ ۱۵ دقیقه دیگر دوباره تلاش کنید." : message);
   } else {
     const old = attempts.get(key);
     const entry =
@@ -402,7 +408,7 @@ async function rateLimit(req: IncomingMessage) {
         : { count: 0, until: Date.now() + 900000 };
     entry.count++;
     attempts.set(key, entry);
-    if (entry.count > 25) fail(429, "تعداد تلاش‌های ورود بیش از حد مجاز است.");
+    if (entry.count > limit) fail(429, message);
   }
 }
 async function readBody(req: IncomingMessage & { body?: Row }): Promise<Row> {
@@ -770,6 +776,74 @@ export default async function handler(
           : user!.favoriteBrands?.length
             ? 2
             : 1,
+      });
+    }
+    if (body.action === "public_contact") {
+      await rateLimit(req, "public-contact", 8);
+      const payload = body.payload || {};
+      const name = String(payload.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
+      const phone = mobile(payload.phone);
+      const email = String(payload.email || "").trim().slice(0, 254);
+      const companyName = String(payload.companyName || "").trim().slice(0, 160);
+      const subject = String(payload.subject || "").trim().slice(0, 160);
+      const message = String(payload.message || "").trim().slice(0, 3000);
+
+      if (name.length < 2) fail(400, "نام و نام خانوادگی را کامل وارد کنید.");
+      if (!subject) fail(400, "موضوع درخواست را انتخاب کنید.");
+      if (message.length < 5) fail(400, "شرح درخواست باید حداقل ۵ نویسه باشد.");
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        fail(400, "نشانی ایمیل معتبر وارد کنید.");
+
+      const crmCustomers = Array.isArray(db.values.atlas_admin_customers_v1)
+        ? db.values.atlas_admin_customers_v1
+        : [];
+      const matchedCustomer = crmCustomers.find((customer: any) => {
+        try {
+          return mobile(customer.phone) === phone;
+        } catch {
+          return false;
+        }
+      });
+      const id = "WEB-" + crypto.randomUUID();
+      const inquiry = {
+        id,
+        inquiryNumber: id,
+        customerId: matchedCustomer?.id || null,
+        customerName: name,
+        companyName,
+        phone,
+        email,
+        productCode: "CONTACT",
+        productName: subject,
+        requestedQty: 1,
+        quantity: 1,
+        customerNote: message,
+        notes: message,
+        subject,
+        message,
+        source: "website_contact",
+        sourceLabel: "فرم تماس سایت",
+        requestType: "public_contact",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        items: [
+          {
+            productCode: "CONTACT",
+            productName: subject,
+            quantity: 1,
+            notes: message,
+          },
+        ],
+      };
+      const previous = Array.isArray(db.values.atlas_admin_inquiries_v1)
+        ? db.values.atlas_admin_inquiries_v1
+        : [];
+      db.values.atlas_admin_inquiries_v1 = [inquiry, ...previous].slice(0, 10000);
+      await writeDb(db, revision, false, ["atlas_admin_inquiries_v1"]);
+      return send(201, {
+        success: true,
+        inquiry: { id, inquiryNumber: id },
+        message: "درخواست شما با موفقیت ثبت شد.",
       });
     }
     if (body.action === "inquiry") {

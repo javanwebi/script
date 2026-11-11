@@ -1,14 +1,30 @@
 import {RouteIntentPreload} from './components/layout/RouteIntentPreload';
 import {MobileSwipeHint} from './components/layout/MobileSwipeHint';
 import { PartIdentificationProvider, PartIdentificationPage } from './components/search/PartIdentificationProvider';
-import {
-  IndustryPage,
-  IndustriesPage,
-  BrandsPage,
-  KnowledgePage,
-  AboutPage,
-} from "./pages/DiscoveryPages";
 import React, { lazy, Suspense } from "react";
+
+const IndustryPage = lazy(() =>
+  import("./pages/DiscoveryPages").then((module) => ({ default: module.IndustryPage })),
+);
+const AboutPage = lazy(() =>
+  import("./pages/AboutPage").then((module) => ({ default: module.AboutPage })),
+);
+const ServicesPage = lazy(() =>
+  import("./pages/CompanyPagesExperience").then((module) => ({ default: module.ServicesPage })),
+);
+const IndustriesPage = lazy(() =>
+  import("./pages/CompanyPagesExperience").then((module) => ({ default: module.IndustriesPage })),
+);
+const BrandsPage = lazy(() =>
+  import("./pages/CompanyPagesExperience").then((module) => ({ default: module.BrandsPage })),
+);
+const KnowledgePage = lazy(() =>
+  import("./pages/CompanyPagesExperience").then((module) => ({ default: module.KnowledgePage })),
+);
+const NotFoundPage = lazy(() =>
+  import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
+);
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
@@ -75,9 +91,7 @@ const TileCeramicIndustryPage = lazy(() =>
     default: module.TileCeramicIndustryPage,
   })),
 );
-const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
 const ContactUsPage = lazy(() => import("./pages/ContactUsPage").then(m => ({default:m.ContactUsPage})));
-const ServicesPage = lazy(() => import("./pages/ServicesPage").then(m => ({default:m.ServicesPage})));
 const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((module) => ({
     default: module.AdminLayout,
@@ -196,8 +210,9 @@ export default function App() {
                     />
                     <Route
                       path="/catalog"
-                      element={<Navigate to="/knowledge" replace />}
+                      element={<Navigate to="/products" replace />}
                     />
+                    <Route path="/faq" element={<Navigate to="/knowledge" replace />} />
                     <Route
                       path="/consumer-dashboard/product/:code"
                       element={
@@ -318,7 +333,7 @@ export default function App() {
                     />
 
                     {/* Catch-all */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Suspense>
               </Layout></PartIdentificationProvider>

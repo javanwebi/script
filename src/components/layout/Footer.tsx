@@ -8,60 +8,21 @@ import {
   Headphones,
   ChevronLeft,
   ChevronDown,
-  Send,
-  Instagram,
   MessageCircle,
   ArrowUp,
-  Check,
   ShieldCheck,
   Award,
+  BookOpen,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
 import { SanatPishFooterLogo } from '../common/BrandIdentity';
 import { CATEGORIES } from '../../data/categories';
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
 
-// Official Iran Ministry of Industry Emblem SVG
-const MimtEmblemSvg: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 2C11.3 4.2 9.8 7.3 9.8 10C9.8 12.2 10.9 13.8 12 14.3C13.1 13.8 14.2 12.2 14.2 10C14.2 7.3 12.7 4.2 12 2Z" />
-    <path d="M8.2 7.5C6.7 10 5.8 13.2 5.8 15.8C5.8 19.4 8.5 22 12 22C8.8 21.6 7.6 18.5 7.6 15.8C7.6 13.2 8.5 10.5 9 9L8.2 7.5Z" />
-    <path d="M15.8 7.5C17.3 10 18.2 13.2 18.2 15.8C18.2 19.4 15.5 22 12 22C15.2 21.6 16.4 18.5 16.4 15.8C16.4 13.2 15.5 10.5 15 9L15.8 7.5Z" />
-    <line x1="12" y1="4.5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    <line x1="10.8" y1="2.5" x2="13.2" y2="2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-  </svg>
-);
-
-// Company Registration Hexagonal Emblem SVG
-const SherkatEmblemSvg: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
-    <path d="M12 2L20.5 7V17L12 22L3.5 17V7L12 2Z" strokeLinejoin="round" />
-    <path d="M12 7V17" strokeLinecap="round" />
-    <path d="M8 10L12 7L16 10" strokeLinejoin="round" />
-    <path d="M8 14H16" strokeLinecap="round" />
-    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-  </svg>
-);
-
-// E-Namad Calligraphic 'e' Emblem SVG
-const EnamadEmblemSvg: React.FC<{ className?: string }> = ({ className = 'w-7 h-7' }) => (
-  <svg viewBox="0 0 100 100" fill="none" className={className}>
-    <path
-      d="M30 68 C 24 50, 42 22, 68 28 C 88 32, 82 65, 60 70 C 44 74, 34 60, 48 48 C 60 38, 72 45, 70 55"
-      stroke="currentColor"
-      strokeWidth="7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <circle cx="72" cy="30" r="4.5" fill="#E06518" />
-  </svg>
-);
-
 export const Footer: React.FC = () => {
   const [isConsultOpen, setIsConsultOpen] = useState(false);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+  const currentPersianYear = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric' }).format(new Date());
 
   const toggleAccordion = (key: string) => {
     setOpenAccordion((prev) => (prev === key ? null : key));
@@ -69,17 +30,6 @@ export const Footer: React.FC = () => {
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newsletterEmail.trim()) {
-      setIsSubscribed(true);
-      setTimeout(() => {
-        setIsSubscribed(false);
-        setNewsletterEmail('');
-      }, 3500);
-    }
   };
 
   return (
@@ -123,94 +73,45 @@ export const Footer: React.FC = () => {
               </h3>
 
               <p className="text-[11px] text-[#55565A] leading-relaxed text-justify max-w-sm font-normal">
-                صنعت پیش، مرجع تخصصی ساخت، تولید و بازرگانی قطعات خطوط تولید صنعتی کشور است که با پشتوانه بیش از ۳۷ سال اعتبار بازرگانی تسمه اطلس (از سال ۱۳۶۶) و انباری با بیش از ۳۰,۰۰۰ قلم کالا و ارسال رایگان سراسری در خدمت صنایع ایران است.
+                صنعت پیش، بازار آنلاین تخصصی قطعات و تجهیزات خطوط تولید است که با پشتوانه تجربه بازرگانی تسمه اطلس از سال ۱۳۶۶، جستجو، بررسی مشخصات، مشاوره و مسیر استعلام را در یک بستر یکپارچه فراهم می‌کند.
               </p>
 
-              {/* Social Icons Row */}
+              {/* Verified contact channels only; no generic placeholder social destinations. */}
               <div className="flex items-center gap-2 pt-0.5">
-                <a
-                  href="https://instagram.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-7 h-7 rounded-lg bg-white border border-[#CBD2D8] flex items-center justify-center text-[#2B313A] hover:text-[#E06518] hover:border-[#E06518] hover:bg-orange-50/40 transition-colors shadow-2xs"
-                  title="اینستاگرام اطلس"
-                >
-                  <Instagram className="w-3.5 h-3.5" />
-                </a>
-
-                <a
-                  href="https://eitaa.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-7 h-7 rounded-lg bg-white border border-[#CBD2D8] flex items-center justify-center text-[#E06518] hover:text-[#C95210] hover:border-[#E06518] hover:bg-orange-50/40 transition-colors shadow-2xs font-bold text-xs"
-                  title="ایتا اطلس"
-                >
-                  <span>e</span>
-                </a>
-
-                <a
-                  href="https://t.me"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-7 h-7 rounded-lg bg-white border border-[#CBD2D8] flex items-center justify-center text-[#2B313A] hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50/40 transition-colors shadow-2xs"
-                  title="کانال تلگرام"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </a>
-
                 <a
                   href="https://wa.me/989903427027"
                   target="_blank"
-                  rel="noreferrer"
-                  className="w-7 h-7 rounded-lg bg-white border border-[#CBD2D8] flex items-center justify-center text-[#2B313A] hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50/40 transition-colors shadow-2xs"
-                  title="ارتباط در واتس‌اپ"
+                  rel="noopener noreferrer"
+                  className="flex h-8 items-center gap-2 rounded-lg border border-[#CBD2D8] bg-white px-2.5 text-[10px] font-bold text-[#2B313A] shadow-2xs transition-colors hover:border-emerald-500 hover:bg-emerald-50/40 hover:text-emerald-700"
+                  title="ارتباط در واتساپ"
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  واتساپ
+                </a>
+                <a
+                  href="mailto:info@sanatpish.com"
+                  className="flex h-8 items-center gap-2 rounded-lg border border-[#CBD2D8] bg-white px-2.5 text-[10px] font-bold text-[#2B313A] shadow-2xs transition-colors hover:border-[#E06518] hover:bg-orange-50/40 hover:text-[#E06518]"
+                  title="ارسال ایمیل به صنعت پیش"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  ایمیل
                 </a>
               </div>
 
               <div className="border-t border-[#CBD2D8] pt-3 max-w-sm" />
 
-              {/* Newsletter Section */}
+              {/* Useful knowledge link instead of a local-only newsletter form. */}
               <div className="space-y-1.5 max-w-sm">
-                <div className="flex items-center gap-1.5 text-[#2B313A] font-bold text-xs">
-                  <Mail className="w-3.5 h-3.5 text-[#E06518]" />
-                  <span>عضویت در خبرنامه</span>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#2B313A]">
+                  <BookOpen className="h-3.5 w-3.5 text-[#E56B1E]" />
+                  <span>دانشنامه و راهنماهای فنی</span>
                 </div>
-                <p className="text-[10px] text-[#55565A]">
-                  برای دریافت جدیدترین محصولات و قیمت‌ها، ایمیل خود را وارد کنید.
+                <p className="text-[10px] leading-5 text-[#55565A]">
+                  راهنماهای انتخاب، شناسایی و نگهداری قطعات را در دانشنامه صنعت پیش دنبال کنید.
                 </p>
-
-                <form onSubmit={handleNewsletterSubmit} className="pt-1">
-                  <div className="flex items-center bg-white border border-[#CBD2D8] rounded-xl p-1 focus-within:border-[#E06518] focus-within:ring-2 focus-within:ring-[#E06518]/20 transition-all shadow-2xs">
-                    <button
-                      type="submit"
-                      className="w-8 h-8 rounded-lg bg-[#E06518] hover:bg-[#C95210] text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer shadow-xs active:scale-95"
-                      title="ارسال ایمیل"
-                    >
-                      {isSubscribed ? (
-                        <Check className="w-4 h-4 text-white" />
-                      ) : (
-                        <Send className="w-3.5 h-3.5 rotate-180" />
-                      )}
-                    </button>
-
-                    <input
-                      type="email"
-                      value={newsletterEmail}
-                      onChange={(e) => setNewsletterEmail(e.target.value)}
-                      placeholder="ایمیل خود را وارد کنید..."
-                      required
-                      className="w-full bg-transparent text-xs text-[#2B313A] placeholder:text-[#777A7D] px-3 outline-none text-right font-sans"
-                      dir="rtl"
-                    />
-                  </div>
-                  {isSubscribed && (
-                    <p className="text-[10px] text-emerald-600 mt-1 font-bold text-right">
-                      ایمیل شما با موفقیت در سامانه اطلس ثبت شد.
-                    </p>
-                  )}
-                </form>
+                <Link to="/knowledge" className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#E56B1E] px-3 text-[10px] font-bold text-white shadow-xs transition-colors hover:bg-[#C95210]">
+                  مشاهده راهنماها <ChevronLeft className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
 
@@ -406,8 +307,8 @@ export const Footer: React.FC = () => {
                   </div>
                   <div className="space-y-0.5 text-[11px] text-[#2B313A] font-mono text-right" dir="ltr">
                     <div>
-                      <a href="tel:035352547034" className="hover:text-[#E06518] transition-colors font-bold">
-                        ۰۳۵-۳۵۲۵۴۷۰۳۴
+                      <a href="tel:03535254703" className="hover:text-[#E06518] transition-colors font-bold">
+                        ۰۳۵-۳۵۲۵۴۷۰۳ (دفتر مرکزی یزد)
                       </a>
                     </div>
                     <div>
@@ -470,53 +371,36 @@ export const Footer: React.FC = () => {
 
             {/* 6. TRUST BADGES & LICENSES */}
             <div className="space-y-3 text-right lg:border-r lg:border-[#CBD2D8] lg:pr-4 xl:pr-5">
-              <Link to="/about?tab=licenses" className="flex items-center justify-between mb-2 group">
+              <Link to="/about" className="mb-2 flex items-center justify-between group">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E06518]" />
-                  <h4 className="text-xs sm:text-[13px] font-bold text-[#2B313A] group-hover:text-[#E06518] transition-colors">
-                    نماد اعتماد و مجوزها
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#E56B1E]" />
+                  <h4 className="text-xs font-bold text-[#2B313A] transition-colors group-hover:text-[#E56B1E] sm:text-[13px]">
+                    پشتوانه و رویکرد صنعت پیش
                   </h4>
                 </div>
-                <ChevronLeft className="w-3.5 h-3.5 text-[#777A7D] group-hover:text-[#E06518] transition-colors" />
+                <ChevronLeft className="h-3.5 w-3.5 text-[#777A7D] transition-colors group-hover:text-[#E56B1E]" />
               </Link>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-white border border-[#CBD2D8] hover:border-[#E06518] rounded-xl p-2 flex flex-col items-center justify-between text-center min-h-[96px] transition-all shadow-2xs">
-                  <EnamadEmblemSvg className="w-6 h-6 text-[#2B313A] mt-0.5" />
-                  <div className="w-full space-y-0.5">
-                    <span className="text-[8px] text-[#2B313A] block font-bold leading-tight">
-                      نماد اعتماد
-                    </span>
-                    <div className="flex justify-center text-amber-500 text-[7px] tracking-widest">
-                      ★★★★★
-                    </div>
-                    <span className="text-[7.5px] text-[#777A7D] font-mono block" dir="ltr">
-                      eNAMAD.ir
-                    </span>
+                <div className="flex min-h-[96px] flex-col items-center justify-between rounded-xl border border-[#CBD2D8] bg-white p-2 text-center shadow-2xs transition-colors hover:border-[#E56B1E]">
+                  <Award className="mt-1 h-6 w-6 text-[#E56B1E]" />
+                  <div className="space-y-0.5">
+                    <strong className="block text-[9px] text-[#2B313A]">پشتوانه اطلس</strong>
+                    <span className="block text-[8px] leading-4 text-[#777A7D]">از سال ۱۳۶۶</span>
                   </div>
                 </div>
-
-                <div className="bg-white border border-[#CBD2D8] hover:border-[#E06518] rounded-xl p-2 flex flex-col items-center justify-between text-center min-h-[96px] transition-all shadow-2xs">
-                  <SherkatEmblemSvg className="w-5.5 h-5.5 text-[#2B313A] mt-0.5" />
-                  <div className="w-full space-y-0.5">
-                    <span className="text-[8px] text-[#2B313A] block font-bold leading-tight">
-                      سامانه ثبت
-                    </span>
-                    <span className="text-[8px] text-[#2B313A] block font-bold leading-tight">
-                      شرکت‌ها
-                    </span>
+                <div className="flex min-h-[96px] flex-col items-center justify-between rounded-xl border border-[#CBD2D8] bg-white p-2 text-center shadow-2xs transition-colors hover:border-[#E56B1E]">
+                  <ShieldCheck className="mt-1 h-6 w-6 text-[#E56B1E]" />
+                  <div className="space-y-0.5">
+                    <strong className="block text-[9px] text-[#2B313A]">تخصص صنعتی</strong>
+                    <span className="block text-[8px] leading-4 text-[#777A7D]">تمرکز بر قطعات خطوط تولید</span>
                   </div>
                 </div>
-
-                <div className="bg-white border border-[#CBD2D8] hover:border-[#E06518] rounded-xl p-2 flex flex-col items-center justify-between text-center min-h-[96px] transition-all shadow-2xs">
-                  <MimtEmblemSvg className="w-5.5 h-5.5 text-[#2B313A] mt-0.5" />
-                  <div className="w-full space-y-0.5">
-                    <span className="text-[8px] text-[#2B313A] block font-bold leading-tight">
-                      وزارت صنعت
-                    </span>
-                    <span className="text-[8px] text-[#2B313A] block font-bold leading-tight">
-                      معدن و تجارت
-                    </span>
+                <div className="flex min-h-[96px] flex-col items-center justify-between rounded-xl border border-[#CBD2D8] bg-white p-2 text-center shadow-2xs transition-colors hover:border-[#E56B1E]">
+                  <Headphones className="mt-1 h-6 w-6 text-[#E56B1E]" />
+                  <div className="space-y-0.5">
+                    <strong className="block text-[9px] text-[#2B313A]">پشتیبانی</strong>
+                    <span className="block text-[8px] leading-4 text-[#777A7D]">ارتباط با کارشناسان</span>
                   </div>
                 </div>
               </div>
@@ -552,22 +436,22 @@ export const Footer: React.FC = () => {
             </Link>
             <span className="text-slate-600 hidden sm:inline">|</span>
             <span className="text-slate-300 text-[11px]">
-              © ۱۴۰۴ صنعت پیش (بازرگانی تسمه اطلس از سال ۱۳۶۶) | پیش به صنعت | تمامی حقوق محفوظ است.
+              © {currentPersianYear} صنعت پیش (بازرگانی تسمه اطلس از سال ۱۳۶۶) | پیش به صنعت | تمامی حقوق محفوظ است.
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-400">
-              <Link to="/about" className="hover:text-white transition-colors">
-                شرایط استفاده
+              <Link to="/products" className="hover:text-white transition-colors">
+                کاتالوگ قطعات
               </Link>
               <span className="text-slate-600">|</span>
               <Link to="/knowledge" className="hover:text-white transition-colors">
-                سوالات متداول
+                دانشنامه فنی
               </Link>
               <span className="text-slate-600">|</span>
-              <Link to="/about" className="hover:text-white transition-colors">
-                حریم خصوصی
+              <Link to="/contact" className="hover:text-white transition-colors">
+                تماس با ما
               </Link>
             </div>
 

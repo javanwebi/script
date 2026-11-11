@@ -30,6 +30,8 @@ export const DEFAULT_CLIENTS: ClientLogo[] = MOSHTARI_CLIENTS.map((item, idx) =>
   createdAt: new Date().toISOString(),
 }));
 
+const DEFAULT_CLIENT_BY_ID = new Map(DEFAULT_CLIENTS.map((client) => [client.id, client]));
+
 class ClientService {
   private getStorage(): ClientLogo[] {
     try {
@@ -42,19 +44,29 @@ class ClientService {
       // Keep the bundled logos visible without silently writing them to PostgreSQL.
       // To intentionally hide all logos, admins may disable every entry.
       if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_CLIENTS;
-      return parsed
+      const normalizedClients = parsed
         .filter((entry): entry is Record<string, unknown> =>
           Boolean(entry && typeof entry === 'object' && !Array.isArray(entry) &&
-            typeof entry.id === 'string' && typeof entry.logo === 'string'))
-        .map((entry, index) => ({
-          ...entry,
-          // Adopted PostgreSQL rows expose active/sortOrder, while the admin
-          // interface uses isActive/order. Read both for older saved records.
-          isActive: typeof entry.isActive === 'boolean' ? entry.isActive :
-            (typeof entry.active === 'boolean' ? entry.active : true),
-          order: Number.isFinite(Number(entry.order ?? entry.sortOrder)) ?
-            Number(entry.order ?? entry.sortOrder) : index + 1,
-        })) as ClientLogo[];
+            typeof entry.id === 'string' &&
+            (typeof entry.logo === 'string' || DEFAULT_CLIENT_BY_ID.has(entry.id))))
+        .map((entry, index) => {
+          const fallback = DEFAULT_CLIENT_BY_ID.get(String(entry.id));
+          const storedLogo = typeof entry.logo === 'string' ? entry.logo.trim() : '';
+          return {
+            ...entry,
+            // Old adopted rows can contain an empty logo. Reuse the bundled
+            // verified asset for that known client instead of rendering img src="".
+            logo: storedLogo || fallback?.logo || '',
+            // Adopted PostgreSQL rows expose active/sortOrder, while the admin
+            // interface uses isActive/order. Read both for older saved records.
+            isActive: typeof entry.isActive === 'boolean' ? entry.isActive :
+              (typeof entry.active === 'boolean' ? entry.active : true),
+            order: Number.isFinite(Number(entry.order ?? entry.sortOrder)) ?
+              Number(entry.order ?? entry.sortOrder) : index + 1,
+          };
+        })
+        .filter((entry) => typeof entry.logo === 'string' && entry.logo.trim().length > 0) as ClientLogo[];
+      return normalizedClients.length > 0 ? normalizedClients : DEFAULT_CLIENTS;
     } catch {
       return DEFAULT_CLIENTS;
     }

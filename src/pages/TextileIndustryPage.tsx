@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { INDUSTRIES } from "../data/siteContent";
 import { STORE_ASSETS as A } from "../assets/images";
+import { setPageMeta } from "../utils/pageMeta";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { rankIndustryProducts } from "../utils/industryCatalog";
 import { ProductCard } from "../components/product/ProductCard";
@@ -134,7 +135,7 @@ export function TextileIndustryPage() {
   const [catalogVersion, setCatalogVersion] = useState(0);
 
   useEffect(() => {
-    document.title = "قطعات و راهکارهای صنعت نساجی | صنعت پیش";
+    setPageMeta({ title: "قطعات و راهکارهای صنعت نساجی | صنعت پیش", description: "راهنمای تخصصی قطعات و تجهیزات خطوط نساجی؛ بررسی مراحل تولید، قطعات انتقال نیرو و مسیر استعلام در صنعت پیش." });
     return subscribeCatalogChanges(() => setCatalogVersion((version) => version + 1));
   }, []);
 

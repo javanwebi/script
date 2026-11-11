@@ -5,6 +5,7 @@ import {
 } from "../components/storefront/MemberAccess";
 import { ProductVariants } from "../components/product/ProductVariants";
 import { ProductImage } from "../components/product/ProductImage";
+import { setPageMeta } from "../utils/pageMeta";
 import React, { useState, useEffect, useMemo } from "react";
 import {
   useParams,
@@ -102,6 +103,17 @@ export const ProductDetailPage: React.FC = () => {
         : undefined,
     [decodedCode, isPreviewMode, catalogTick],
   );
+  useEffect(() => {
+    const productLabel = product?.name || decodedCode;
+    setPageMeta({
+      title: product
+        ? `${productLabel} | مشخصات و استعلام | صنعت پیش`
+        : "محصول پیدا نشد | کاتالوگ صنعت پیش",
+      description: product
+        ? `مشخصات فنی، کدها و گزینه‌های مرتبط با ${productLabel} را در کاتالوگ صنعت پیش بررسی کنید.`
+        : "کد محصول را بررسی کنید یا برای یافتن قطعه موردنظر به کاتالوگ صنعت پیش بازگردید.",
+    });
+  }, [product, decodedCode]);
 
   // Visible variants (filter out inactive unless in preview mode)
   const visibleVariants = useMemo(() => {

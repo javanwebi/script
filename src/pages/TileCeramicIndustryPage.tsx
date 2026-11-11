@@ -25,6 +25,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../assets/images';
+import { setPageMeta } from '../utils/pageMeta';
 import { getProductImageUrl } from '../assets/imagesproducts';
 import { PartIdentificationLink } from '../components/search/PartIdentificationProvider';
 import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
@@ -67,6 +68,12 @@ interface ProblemItem {
 }
 
 export const TileCeramicIndustryPage: React.FC = () => {
+  useEffect(() => {
+    setPageMeta({
+      title: "قطعات خط تولید کاشی و سرامیک | صنعت پیش",
+      description: "راهنمای تخصصی قطعات خط تولید کاشی و سرامیک؛ بررسی مراحل تولید، قطعات پرمصرف و خانواده‌های مرتبط در کاتالوگ صنعت پیش.",
+    });
+  }, []);
   const navigate = useNavigate();
   // Interactive Stage State (Persisted in sessionStorage so Back button keeps selected stage)
   const [activeStageId, setActiveStageId] = useState<string>(() => {
@@ -830,6 +837,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
                         isSelected ? 'scale-115' : 'hover:scale-110'
                       }`}
                       aria-label={`مرحله ${stage.number}: ${stage.title}`}
+                      aria-pressed={isSelected}
                     >
                       <span
                         className={`relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full font-mono text-xs sm:text-sm font-black shadow-lg transition-all ${
@@ -854,6 +862,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleSelectStage(stage.id)}
+                        aria-pressed={isSelected}
                         className={`w-full py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center truncate ${
                           isSelected
                             ? 'bg-white text-[#23262B] font-black shadow-md border-2 border-[#E06518]'
@@ -886,6 +895,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
                   key={`mobile-stage-${stage.id}`}
                   type="button"
                   onClick={() => handleSelectStage(stage.id)}
+                  aria-pressed={isSelected}
                   className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-right ${
                     isSelected
                       ? 'bg-[#FFF5EE] text-[#23262B] font-black border-2 border-[#E06518] shadow-xs'

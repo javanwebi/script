@@ -29,6 +29,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../assets/images';
+import { setPageMeta } from '../utils/pageMeta';
 import yazdRegionMap from '../assets/images/yazd-region-osm.png';
 
 interface ContactUsPageProps {
@@ -159,11 +160,11 @@ const HERO_RIGHT_FEATURES = [
 export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all' }) => {
   const [searchParams] = useSearchParams();
   const formRef = useRef<HTMLDivElement>(null);
-  const workspaceMainRef = useRef<HTMLElement>(null);
+  const workspaceMainRef = useRef<HTMLDivElement>(null);
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
   const [selectedBranchId, setSelectedBranchId] = useState<BranchLocation['id']>(
-    defaultTab === 'factory' ? 'yazd_shop' : 'yazd_shop'
+    defaultTab === 'factory' ? 'meybod_warehouse' : defaultTab === 'offices' ? 'tehran_office' : 'yazd_shop'
   );
   const [isMapInteractive, setIsMapInteractive] = useState(true);
   const [mapZoomOffset, setMapZoomOffset] = useState(0);
@@ -179,14 +180,18 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
   // Contact form state
   const [formSubject, setFormSubject] = useState('');
   const [formName, setFormName] = useState('');
+  const [formCompany, setFormCompany] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  const [submittedInquiryNumber, setSubmittedInquiryNumber] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = 'تماس و هماهنگی مراجعه | صنعت پیش';
+    setPageMeta({ title: 'تماس و هماهنگی مراجعه | صنعت پیش', description: 'ارتباط با کارشناسان صنعت پیش برای مشاوره فنی، استعلام قطعات صنعتی و هماهنگی مراجعه به فروشگاه و انبار اطلس.' });
     const tabParam = searchParams.get('tab');
     if (tabParam === 'factory') {
       setSelectedBranchId('meybod_warehouse');
@@ -213,17 +218,47 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
     }, 80);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formPhone.trim()) return;
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
+    if (isSubmitting || !formName.trim() || !formPhone.trim()) return;
+
+    setIsSubmitting(true);
+    setSubmissionError('');
+    try {
+      const response = await fetch('/api/portal', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'public_contact',
+          payload: {
+            name: formName.trim(),
+            companyName: formCompany.trim(),
+            phone: formPhone.trim(),
+            email: formEmail.trim(),
+            subject: formSubject,
+            message: formMessage.trim(),
+          },
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || 'ثبت درخواست انجام نشد. لطفاً دوباره تلاش کنید.');
+      }
+
+      setSubmittedInquiryNumber(String(data.inquiry?.inquiryNumber || data.inquiry?.id || ''));
+      setIsSubmitted(true);
+      setFormSubject('');
       setFormName('');
+      setFormCompany('');
       setFormPhone('');
       setFormEmail('');
       setFormMessage('');
-    }, 4500);
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : 'ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleConfirmVisit = (e: React.FormEvent) => {
@@ -247,7 +282,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
 
   return (
     <div
-      className="home-refined w-full bg-[#fafafb] text-[#55565A] font-sans pb-10 overflow-x-hidden"
+      className="home-refined contact-page w-full bg-[#fafafb] text-[#55565A] font-sans pb-10 overflow-x-hidden"
       dir="rtl"
     >
       {/* ===================================================================== */}
@@ -255,7 +290,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       {/* ===================================================================== */}
       <section
         aria-label="تماس با صنعت پیش"
-        className="relative w-full overflow-hidden bg-white lg:bg-[#2B313A] text-[#55565A] lg:text-white border-b border-[#e5e7eb] lg:border-slate-800"
+        className="contact-page__hero relative w-full overflow-hidden bg-white lg:bg-[#2B313A] text-[#55565A] lg:text-white border-b border-[#e5e7eb] lg:border-slate-800"
       >
         {/* DESKTOP ARCHITECTURAL BACKGROUND (lg+) */}
         <div className="hidden lg:block absolute inset-0 z-0">
@@ -493,7 +528,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       {/* ===================================================================== */}
       {/* 3. MAIN 2-COLUMN WORKSPACE (Overlapping Hero on Desktop)              */}
       {/* ===================================================================== */}
-      <main
+      <div
         ref={workspaceMainRef}
         id="contact-workspace-main"
         className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 lg:pt-0 lg:-mt-8 scroll-mt-24"
@@ -798,26 +833,29 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                 </div>
 
                 {isSubmitted ? (
-                  <div
-                    role="status"
-                    className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-center space-y-3 animate-in fade-in"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="w-6 h-6" />
+                  <div role="status" aria-live="polite" className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center animate-in fade-in">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <CheckCircle2 className="h-6 w-6" />
                     </div>
-                    <h3 className="text-base font-black text-[#55565A]">
-                      پیام شما با موفقیت ثبت شد
-                    </h3>
-                    <p className="text-xs text-[#74757c] leading-relaxed">
-                      کارشناسان فروش و مهندسی صنعت پیش در کوتاه‌ترین زمان با شماره{' '}
-                      <span className="font-mono font-bold text-[#55565A]" dir="ltr">
-                        {formPhone}
-                      </span>{' '}
-                      تماس خواهند گرفت.
-                    </p>
+                    <h3 className="text-base font-black text-[#55565A]">درخواست شما در سامانه ثبت شد</h3>
+                    <p className="text-xs leading-relaxed text-[#74757c]">درخواست شما در پرونده پیگیری کارشناسان ثبت شده است. شماره پیگیری را برای مراجعات بعدی نگه دارید.</p>
+                    {submittedInquiryNumber && (
+                      <div className="mx-auto inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2">
+                        <span className="text-[10px] font-bold text-slate-500">شماره پیگیری</span>
+                        <strong className="font-mono text-xs text-[#1c2c38]" dir="ltr">{submittedInquiryNumber}</strong>
+                      </div>
+                    )}
+                    <button type="button" onClick={() => { setIsSubmitted(false); setSubmittedInquiryNumber(''); setSubmissionError(''); }} className="mx-auto inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300 bg-white px-4 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100">
+                      ثبت درخواست جدید
+                    </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleFormSubmit} className="space-y-4 text-right">
+                  <form onSubmit={handleFormSubmit} className="space-y-4 text-right" aria-busy={isSubmitting}>
+                    {submissionError && (
+                      <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs font-medium leading-6 text-red-700">
+                        {submissionError}
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <label
                         htmlFor="contact-subject"
@@ -867,6 +905,24 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                         value={formName}
                         onChange={(e) => setFormName(e.target.value)}
                         placeholder="نام و نام خانوادگی"
+                        maxLength={120}
+                        autoComplete="name"
+                        className="w-full h-11 px-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="contact-company" className="block text-xs font-bold text-[#55565A]">
+                        نام شرکت یا کارگاه <span className="font-normal text-slate-400">(اختیاری)</span>
+                      </label>
+                      <input
+                        id="contact-company"
+                        type="text"
+                        value={formCompany}
+                        onChange={(e) => setFormCompany(e.target.value)}
+                        placeholder="نام مجموعه شما"
+                        maxLength={160}
+                        autoComplete="organization"
                         className="w-full h-11 px-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors"
                       />
                     </div>
@@ -877,7 +933,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                           htmlFor="contact-phone"
                           className="block text-xs font-bold text-[#55565A]"
                         >
-                          شماره تماس <span className="text-[#E06518]">*</span>
+                          شماره موبایل <span className="text-[#E06518]">*</span>
                         </label>
                         <input
                           id="contact-phone"
@@ -886,6 +942,9 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                           value={formPhone}
                           onChange={(e) => setFormPhone(e.target.value)}
                           placeholder="۰۹۱۲ ۳۴۵ ۶۷۸۹"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          maxLength={15}
                           dir="ltr"
                           className="w-full h-11 px-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors text-right font-mono"
                         />
@@ -904,6 +963,8 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                           value={formEmail}
                           onChange={(e) => setFormEmail(e.target.value)}
                           placeholder="example@mail.com"
+                          autoComplete="email"
+                          maxLength={254}
                           dir="ltr"
                           className="w-full h-11 px-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors text-left font-mono"
                         />
@@ -924,21 +985,23 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                         value={formMessage}
                         onChange={(e) => setFormMessage(e.target.value)}
                         placeholder="شرح درخواست خود را بنویسید ..."
+                        maxLength={3000}
                         className="w-full p-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors resize-none leading-relaxed"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full h-12 bg-gradient-to-r from-[#C95210] to-[#E06518] hover:from-[#C2410C] hover:to-[#C95210] text-white font-black text-xs sm:text-sm rounded-xl shadow-[0_6px_18px_rgba(224,101,24,0.32)] hover:shadow-[0_8px_22px_rgba(224,101,24,0.45)] flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                      disabled={isSubmitting}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C95210] to-[#E06518] text-xs font-black text-white shadow-[0_6px_18px_rgba(224,101,24,0.32)] transition-all hover:from-[#C2410C] hover:to-[#C95210] hover:shadow-[0_8px_22px_rgba(224,101,24,0.45)] active:scale-[.99] disabled:cursor-wait disabled:opacity-65 sm:text-sm"
                     >
-                      <Send className="w-4 h-4" />
-                      <span>ارسال پیام</span>
+                      {isSubmitting ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Send className="h-4 w-4" />}
+                      <span>{isSubmitting ? 'در حال ثبت درخواست...' : 'ثبت درخواست و دریافت شماره پیگیری'}</span>
                     </button>
 
                     <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-[#74757c]">
                       <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>اطلاعات شما به صورت محرمانه نگهداری خواهد شد.</span>
+                      <span>اطلاعات تماس برای ثبت و پیگیری همین درخواست دریافت می‌شود.</span>
                     </div>
                   </form>
                 )}
@@ -946,7 +1009,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* ===================================================================== */}
       {/* 4. BOTTOM CORPORATE B2B BANNER                                        */}

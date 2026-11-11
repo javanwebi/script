@@ -9,6 +9,7 @@ import '../category-showcase.css';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
+import { setPageMeta } from '../utils/pageMeta';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -46,6 +47,16 @@ import {
 export const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  useEffect(() => {
+    const category = findCatalogCategory(slug || "");
+    const label = category?.name || decodeURIComponent(slug || "").replace(/-/g, " ");
+    setPageMeta({
+      title: category ? `${label} | قطعات صنعتی صنعت پیش` : "دسته‌بندی قطعات صنعتی | صنعت پیش",
+      description: category
+        ? `مشاهده خانواده‌ها، کدهای فنی و محصولات دسته ${label} در کاتالوگ صنعت پیش.`
+        : "دسته‌بندی‌های قطعات و تجهیزات صنعتی را در کاتالوگ صنعت پیش جستجو کنید.",
+    });
+  }, [slug]);
   // Keep original legacy category pages unchanged; approved Excel categories get their
   // own real family listing instead of linking several menu categories to one old page.
   if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || '')) {
