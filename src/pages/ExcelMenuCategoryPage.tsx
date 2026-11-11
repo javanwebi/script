@@ -271,8 +271,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       list.sort((a, b) => {
         const aProduct = products.get(a.code);
         const bProduct = products.get(b.code);
-        const aStock = aProduct?.stockKnown === true && !aProduct.inquiryOnly ? aProduct.stock : -1;
-        const bStock = bProduct?.stockKnown === true && !bProduct.inquiryOnly ? bProduct.stock : -1;
+        const aStock = aProduct && aProduct.stockKnown === true && !aProduct.inquiryOnly ? aProduct.stock : -1;
+        const bStock = bProduct && bProduct.stockKnown === true && !bProduct.inquiryOnly ? bProduct.stock : -1;
         return bStock - aStock;
       });
     }
@@ -282,7 +282,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredFamilies.length / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
   const pageFamilies = filteredFamilies.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly);
+  const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly) + Number(Boolean(selection));
   const featuredFamily = families.find(family => {
     const product = products.get(family.code);
     return Boolean(product?.images?.length);
@@ -298,14 +298,15 @@ export const ExcelMenuCategoryPage: React.FC = () => {
 
   const toggleCompare = (code: string) => {
     setCompareNotice('');
-    setCompareCodes(current => {
-      if (current.includes(code)) return current.filter(item => item !== code);
-      if (current.length >= 4) {
-        setCompareNotice('برای مقایسه هم‌زمان حداکثر چهار خانواده را انتخاب کنید.');
-        return current;
-      }
-      return [...current, code];
-    });
+    if (compareCodes.includes(code)) {
+      setCompareCodes(compareCodes.filter(item => item !== code));
+      return;
+    }
+    if (compareCodes.length >= 4) {
+      setCompareNotice('برای مقایسه هم‌زمان حداکثر چهار خانواده را انتخاب کنید.');
+      return;
+    }
+    setCompareCodes([...compareCodes, code]);
   };
 
   const selectSubcategory = (name: string) => updateParam('sub', name, false);
@@ -634,7 +635,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <footer><span>قیمت و موجودی فقط در پنل مجاز مشتری نمایش داده می‌شود.</span><button type="button" onClick={() => setComparisonOpen(false)}>بستن مقایسه</button></footer>
+            <footer><span>قیمت و اطلاعات موجودی بر اساس سطح دسترسی حساب مشتری نمایش داده می‌شود.</span><button type="button" onClick={() => setComparisonOpen(false)}>بستن مقایسه</button></footer>
           </section>
         </div>
       )}
