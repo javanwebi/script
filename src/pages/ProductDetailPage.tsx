@@ -204,6 +204,7 @@ export const ProductDetailPage: React.FC = () => {
   }, [decodedCode, product?.code, visibleVariants.length, galleryImages]);
 
   const syncSelectedVariantRoute = (variantCode: string) => {
+    if (isCustomerPortalRoute) return;
     const parentPath = location.pathname.slice(0, location.pathname.lastIndexOf("/"));
     const nextPath = `${parentPath}/${encodeURIComponent(variantCode)}`;
     if (nextPath !== location.pathname) {
@@ -262,9 +263,9 @@ export const ProductDetailPage: React.FC = () => {
     // When clickedImg.scope === 'family', we deliberately keep selectedVariantCode unchanged.
   };
 
-  if (!product && !catalogReady) {
+  if (!product && !catalogReady && !isCustomerPortalRoute) {
     return (
-      <div className="product-detail-loading" role="status" aria-live="polite" dir="rtl">
+      <div className="product-detail-loading product-detail-premium-state" role="status" aria-live="polite" dir="rtl">
         <span className="product-detail-loading-spinner" aria-hidden="true" />
         <h2>در حال دریافت اطلاعات قطعه</h2>
         <p>کاتالوگ و مشخصات فنی از پایگاه داده صنعت پیش بارگذاری می‌شود.</p>
@@ -274,7 +275,7 @@ export const ProductDetailPage: React.FC = () => {
 
   if (!product) {
     return (
-      <div className="product-detail-not-found bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xs">
+      <div className={`product-detail-not-found ${isCustomerPortalRoute ? "" : "product-detail-premium-state"} bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xs`}>
         <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-500">
           <AlertCircle className="w-7 h-7" />
         </div>
@@ -466,7 +467,7 @@ export const ProductDetailPage: React.FC = () => {
 
   return (
     <div
-      className="product-detail-page product-detail-premium space-y-6 lg:space-y-8 pb-24 lg:pb-12 text-right"
+      className={`product-detail-page ${isCustomerPortalRoute ? "" : "product-detail-premium"} space-y-6 lg:space-y-8 pb-24 lg:pb-12 text-right`}
       dir="rtl"
     >
       {!consultPromptDismissed && <aside className="product-detail-consult-prompt flex flex-wrap items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4">
