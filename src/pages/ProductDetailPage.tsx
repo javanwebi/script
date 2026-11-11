@@ -104,7 +104,7 @@ export const ProductDetailPage: React.FC = () => {
     [decodedCode, isPreviewMode, catalogTick],
   );
   useEffect(() => {
-    const productLabel = product?.name || product?.title || decodedCode;
+    const productLabel = product?.name || decodedCode;
     setPageMeta({
       title: product
         ? `${productLabel} | مشخصات و استعلام | صنعت پیش`
