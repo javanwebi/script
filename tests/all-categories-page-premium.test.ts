@@ -6,11 +6,13 @@ const source = (file: string) => readFileSync(file, 'utf8');
 const page = source('src/pages/AllCategoriesPage.tsx');
 const styles = source('src/pages/all-categories-premium.css');
 const routes = source('src/App.tsx');
+const layout = source('src/components/layout/Layout.tsx');
 
 test('all categories remains the canonical route and keeps existing category route registration', () => {
   assert.match(routes, /<Route path="\/categories" element={<AllCategoriesPage \/>} \/>/);
   assert.match(routes, /<Route path="\/category\/:slug" element={<CategoryPage \/>} \/>/);
   assert.match(page, /categoryHref\(category\.slug\)/);
+  assert.match(layout, /"\\/categories"/);
 });
 
 test('category explorer reads approved navigation groups and category records from the database API', () => {
