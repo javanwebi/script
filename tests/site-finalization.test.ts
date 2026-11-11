@@ -27,6 +27,7 @@ test("public contact form reports success only after a persisted server response
   const page = read("src/pages/ContactUsPage.tsx");
   const api = read("api/portal.ts");
   assert.match(page, /action: 'public_contact'/);
+  assert.match(page, /defaultTab === 'factory' \? 'meybod_warehouse' : 'yazd_shop'/);
   assert.match(page, /if \(!response\.ok \|\| !data\?\.success\)/);
   assert.ok(page.indexOf("setIsSubmitted(true)") > page.indexOf("await response.json()"));
   assert.match(page, /submissionError/);
