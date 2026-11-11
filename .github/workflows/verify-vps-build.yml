@@ -26,6 +26,7 @@ on:
       - "src/pages/SearchPage.tsx"
       - "src/pages/DirectSkuDetailPage.tsx"
       - "src/catalog-experience.css"
+      - "src/index.css"
       - "tests/catalog-route-safety.test.ts"
       - "src/pages/CategoryPage.tsx"
       - "src/pages/AllCategoriesPage.tsx"
