@@ -108,7 +108,7 @@ const LegacyCategoryPage: React.FC = () => {
   if (!category) {
     if (catalogReady) return <NotFoundPage />;
     return (
-      <main dir="rtl" className="category-route-state" role="status">
+      <div dir="rtl" className="category-route-state" role="status">
         <div>
           <span className="category-route-state__eyebrow">کاتالوگ صنعت پیش</span>
           <h1>در حال دریافت اطلاعات دسته‌بندی</h1>
@@ -116,7 +116,7 @@ const LegacyCategoryPage: React.FC = () => {
           <button type="button" onClick={() => window.location.reload()}>تلاش دوباره</button>
         </div>
         <span className="category-route-state__mark" aria-hidden="true">SP</span>
-      </main>
+      </div>
     );
   }
 
@@ -334,7 +334,7 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
           </div>}
         </>
       ) : (
-        <section className="relative overflow-hidden rounded-2xl bg-[#303337] p-8 text-white min-h-48 flex items-center justify-between gap-6">
+        <section className="category-showcase-intro relative overflow-hidden rounded-2xl bg-[#303337] p-8 text-white min-h-48 flex items-center justify-between gap-6">
           <div className="relative z-10 max-w-2xl"><h1 className="text-3xl font-black">{category.name}</h1>
           <p className="mt-3 text-sm text-slate-200 leading-7">{category.description}</p></div>
           {category.image && <img src={category.image} alt={category.name} className="relative z-10 w-32 h-32 md:w-48 md:h-40 rounded-2xl object-contain bg-white/95 p-3 shrink-0" />}
@@ -532,7 +532,7 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
 
         {/* Product Grid Column */}
         <div className="category-showcase-results space-y-6">
-          <div className="category-product-headline"><div><strong>انتخاب قطعات انتقال نیرو</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
+          <div className="category-product-headline"><div><strong>{category.name === "تسمه و انتقال نیرو" ? "انتخاب قطعات انتقال نیرو" : `قطعات ${category.name}`}</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
           <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
             <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
