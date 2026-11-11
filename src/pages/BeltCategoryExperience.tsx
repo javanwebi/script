@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpDown, Check, ChevronLeft, ChevronDown, CircleHelp, Filter, Heart, Headphones, Layers3, PackageSearch, RotateCcw, Ruler, Search, Settings2, ShieldCheck, SlidersHorizontal, Truck, X, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, Check, ChevronLeft, ChevronDown, CircleHelp, Filter, Heart, Headphones, Layers3, PackageSearch, RotateCcw, Ruler, Scale, Search, Settings2, ShieldCheck, SlidersHorizontal, Truck, X, Zap } from 'lucide-react';
 import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
+import { MemberAccess } from '../components/storefront/MemberAccess';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
 import { matchesCatalogCategory } from '../data/categories';
@@ -41,7 +42,7 @@ const referenceArtworkForProduct = (product: Product): string => {
   if (/اسپشیال|special|\bspa\b|\bspb\b|\bspc\b/i.test(text)) return STORE_ASSETS.forzaSubBelt;
   return STORE_ASSETS.products.forzaBelt;
 };
-const PROFILES = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'] as const;
+const DEFAULT_PROFILES = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'] as const;
 const number = (raw: string) => Number(raw.replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/[٬,]/g, ''));
 const priceOf = (p: Product): number | null => { const retail = p.prices?.retail; return typeof retail === 'number' && Number.isFinite(retail) && retail > 0 && !p.inquiryOnly ? retail : null; };
 const lengthMm = (p: Product): number | null => {
@@ -55,20 +56,30 @@ const lengthMm = (p: Product): number | null => {
 };
 const matchesProfile = (p: Product, profile: string) => {
   if (profile === 'all') return true;
-  const pattern = new RegExp('(^|[^A-Z])' + profile + '[-\\s]?\\d', 'i');
-  return [p.code, ...(p.variants || []).map(v => v.code)].some(code => pattern.test(code));
+  const pattern = new RegExp('(^|[^A-Z0-9])' + profile + '[-\\s]?\\d', 'i');
+  return [p.code, p.name, p.nameEn || '', ...(p.variants || []).map(v => v.code)].some(code => pattern.test(code));
+};
+const deriveProfileOptions = (products: Product[]) => {
+  const options = new Set<string>();
+  products.forEach(product => {
+    [product.code, product.name, product.nameEn || '', ...(product.variants || []).map(variant => variant.code)].forEach(value => {
+      const match = String(value).toUpperCase().match(/(?:^|[^A-Z0-9])(\\d{1,2}M|[A-Z]{1,4})(?=[\\s-]?\\d)/);
+      if (match?.[1]) options.add(match[1]);
+    });
+  });
+  return Array.from(options).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
 };
 type Filters = { brands: string[]; profile: string; minimumLength: string; maximumLength: string; minimumPrice: string; maximumPrice: string; inStock: boolean; quoteOnly: boolean };
 const blankFilters = (): Filters => ({ brands: [], profile: 'all', minimumLength: '', maximumLength: '', minimumPrice: '', maximumPrice: '', inStock: false, quoteOnly: false });
 type FilterPanelProps = {
-  value: Filters; onChange: (next: Filters) => void; brands: string[]; products: Product[]; classic: boolean; hasPrices: boolean;
+  value: Filters; onChange: (next: Filters) => void; brands: string[]; products: Product[]; profiles: string[]; classic: boolean; hasPrices: boolean;
 };
-function FilterFields({ value, onChange, brands, products, classic, hasPrices }: FilterPanelProps) {
+function FilterFields({ value, onChange, brands, products, profiles, classic, hasPrices }: FilterPanelProps) {
   const [brandSearch, setBrandSearch] = useState('');
   const change = (patch: Partial<Filters>) => onChange({ ...value, ...patch });
   return <div className="bce-filter-fields">
     {classic && <section className="bce-filter-group"><h3><Ruler size={17}/> پروفیل تسمه</h3>
-      <div className="bce-filter-chips" dir="ltr">{['all', ...PROFILES].map(item => <button type="button" key={item} className={value.profile === item ? 'active' : ''} onClick={() => change({ profile: item })}>{item === 'all' ? 'همه' : item}</button>)}</div>
+      <div className="bce-filter-chips" dir="ltr">{['all', ...(profiles.length ? profiles : DEFAULT_PROFILES)].map(item => <button type="button" key={item} className={value.profile === item ? 'active' : ''} onClick={() => change({ profile: item })}>{item === 'all' ? 'همه' : item}</button>)}</div>
     </section>}
     <section className="bce-filter-group"><h3><Layers3 size={17}/> برند سازنده</h3>
       <div className="bce-filter-search"><Search size={15}/><input aria-label="جستجو در برندها" value={brandSearch} onChange={e => setBrandSearch(e.target.value)} placeholder="جستجوی برند..." /></div>
@@ -89,35 +100,81 @@ function FilterFields({ value, onChange, brands, products, classic, hasPrices }:
     </section>
   </div>;
 }
-function CatalogCard({ product }: { product: Product }) {
+function CatalogCard({ product, compareSelected, compareDisabled, onToggleCompare }: { product: Product; compareSelected: boolean; compareDisabled: boolean; onToggleCompare: (code: string) => void }) {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const href = '/product/' + encodeURIComponent(product.code);
   const marked = isInWishlist(product.code);
-  const price = priceOf(product);
-  const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 2);
+  const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
-  return <article className="bce-product-card">
-    <div className="bce-product-image"><Link to={href} aria-label={'مشاهده ' + product.name}>{hasSpecificImage ? <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async" onError={() => setImageFailed(true)}/> : <img className="bce-product-reference-art" src={referenceArtworkForProduct(product)} alt="" loading="lazy" decoding="async"/>}</Link>
-      {!hasSpecificImage && <span className="bce-image-note">تصویر اختصاصی ثبت نشده</span>}
-      <button type="button" aria-label={marked ? 'حذف از علاقه‌مندی' : 'افزودن به علاقه‌مندی'} aria-pressed={marked} className="bce-heart" onClick={() => toggleWishlist(product.code)}><Heart size={18} fill={marked ? '#E06518' : 'none'}/></button>
+  return <article className="bce-product-row">
+    <div className="bce-row-media">
+      <Link to={href} aria-label={'مشاهده ' + product.name} className="bce-row-image">
+        {hasSpecificImage ? <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async" onError={() => setImageFailed(true)}/> : <img className="bce-product-reference-art" src={referenceArtworkForProduct(product)} alt="" loading="lazy" decoding="async"/>}
+      </Link>
+      {!hasSpecificImage && <span className="bce-image-note">تصویر مرجع</span>}
+      <button type="button" aria-label={marked ? 'حذف از علاقه‌مندی' : 'افزودن به علاقه‌مندی'} aria-pressed={marked} className="bce-heart" onClick={() => toggleWishlist(product.code)}><Heart size={16} fill={marked ? '#E56B1E' : 'none'}/></button>
       {product.variants && product.variants.length > 1 && <span className="bce-variant-badge">{toPersianDigits(product.variants.length)} سایز</span>}
     </div>
-    <div className="bce-product-info"><div className="bce-product-code"><b dir="ltr">{product.code}</b><span dir="ltr">{product.brand || 'قطعات صنعتی'}</span></div>
+    <div className="bce-row-content">
+      <div className="bce-row-heading">
+        <label className="bce-compare-select">
+          <input type="checkbox" checked={compareSelected} disabled={compareDisabled && !compareSelected} onChange={() => onToggleCompare(product.code)} aria-label={'مقایسه ' + product.name}/>
+          <span>مقایسه</span>
+        </label>
+        <div className="bce-product-code"><b dir="ltr">{product.code}</b><span dir="ltr">{product.brand || 'قطعات صنعتی'}</span></div>
+      </div>
       <Link to={href} className="bce-product-name">{product.name}</Link>
-      <p className="bce-product-family"><Layers3 size={13}/>{product.subcategory}</p>
+      <div className="bce-row-meta">
+        <p className="bce-product-family"><Layers3 size={13}/>{product.subcategory}</p>
+        <div className="bce-product-availability"><span className={product.stockKnown && product.stock > 0 ? 'dot in-stock' : 'dot'}/>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'موجودی نیازمند تأیید'}</div>
+      </div>
       <div className="bce-product-specs">{specs.length ? specs.map(spec => <div key={spec.key}><span>{spec.key}</span><strong>{spec.value}</strong></div>) : <div><span>گروه محصول</span><strong>{product.subcategory}</strong></div>}</div>
-      <div className="bce-product-availability"><span className={product.stockKnown && product.stock > 0 ? 'dot in-stock' : 'dot'}/>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'موجودی نیازمند تأیید'}</div>
-      <div className="bce-product-price">{price !== null ? <><strong>{toPersianDigits(price.toLocaleString('en-US'))}</strong><small>قیمت ثبت‌شده</small></> : <small>قیمت پس از استعلام</small>}</div>
-      <Link className="bce-product-cta" to={href}>مشاهده مشخصات و استعلام <ChevronLeft size={16}/></Link>
+      <div className="bce-row-footer">
+        <div className="bce-row-price"><small>قیمت و شرایط تجاری</small><strong>پس از ورود یا استعلام</strong></div>
+        <div className="bce-row-actions">
+          <div className="bce-member-access"><MemberAccess code={product.code} compact/></div>
+          <Link className="bce-quote-cta" to={href}>استعلام عمده</Link>
+        </div>
+      </div>
     </div>
   </article>;
 }
 
+function FeaturedProductCard({ product, compareSelected, compareDisabled, onToggleCompare }: { product: Product; compareSelected: boolean; compareDisabled: boolean; onToggleCompare: (code: string) => void }) {
+  const href = '/product/' + encodeURIComponent(product.code);
+  const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [product.images?.[0]]);
+  const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
+  return <aside className="bce-featured-card" aria-label="محصول پیشنهادی">
+    <div className="bce-featured-tag">محصول پیشنهادی</div>
+    <Link to={href} aria-label={'مشاهده ' + product.name} className="bce-featured-image">
+      {hasSpecificImage ? <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async" onError={() => setImageFailed(true)}/> : <img className="bce-product-reference-art" src={referenceArtworkForProduct(product)} alt="" loading="lazy" decoding="async"/>}
+    </Link>
+    {!hasSpecificImage && <span className="bce-featured-image-note">تصویر مرجع خانواده</span>}
+    <div className="bce-featured-content">
+      <div className="bce-product-code"><b dir="ltr">{product.code}</b><span dir="ltr">{product.brand || 'قطعات صنعتی'}</span></div>
+      <Link to={href} className="bce-featured-name">{product.name}</Link>
+      <p className="bce-featured-family">{product.subcategory}</p>
+      <div className="bce-featured-specs">{specs.length ? specs.map(spec => <div key={spec.key}><span>{spec.key}</span><strong>{spec.value}</strong></div>) : <div><span>گروه محصول</span><strong>{product.subcategory}</strong></div>}</div>
+      <div className="bce-featured-status"><span className={product.stockKnown && product.stock > 0 ? 'dot in-stock' : 'dot'}/>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'موجودی نیازمند تأیید'}</div>
+      <div className="bce-featured-actions">
+        <div className="bce-member-access"><MemberAccess code={product.code} compact/></div>
+        <Link className="bce-quote-cta" to={href}>استعلام عمده</Link>
+      </div>
+      <label className="bce-compare-select bce-featured-compare">
+        <input type="checkbox" checked={compareSelected} disabled={compareDisabled && !compareSelected} onChange={() => onToggleCompare(product.code)} aria-label={'مقایسه ' + product.name}/>
+        <span>افزودن به مقایسه</span>
+      </label>
+    </div>
+  </aside>;
+}
+
 export const BeltCategoryExperience: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedFamily = searchParams.get('sub') || 'کلاسیک';
+  const selectedFamily = searchParams.get('sub') || 'all';
   const isClassic = selectedFamily === 'کلاسیک';
   const [revision, setRevision] = useState(0);
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -127,6 +184,8 @@ export const BeltCategoryExperience: React.FC = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const [page, setPage] = useState(1);
+  const [compareCodes, setCompareCodes] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
   const productsRef = useRef<HTMLDivElement>(null);
   const firstSheetButton = useRef<HTMLButtonElement>(null);
   useEffect(() => subscribeCatalogChanges(() => setRevision(v => v + 1)), []);
@@ -140,6 +199,12 @@ export const BeltCategoryExperience: React.FC = () => {
     firstSheetButton.current?.focus();
     return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', close); };
   }, [sheetOpen]);
+  useEffect(() => {
+    if (!compareOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setCompareOpen(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [compareOpen]);
   const allProducts = useMemo(() => getProductsByCategory(BELT_SLUG, 12000).products, [revision]);
   const familyProducts = useMemo(() => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)), [allProducts, selectedFamily]);
   const familyCounts = useMemo(() => {
@@ -148,6 +213,8 @@ export const BeltCategoryExperience: React.FC = () => {
     return counts;
   }, [allProducts]);
   const brands = useMemo(() => Array.from(new Set(familyProducts.map(p => p.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [familyProducts]);
+  const profileOptions = useMemo(() => deriveProfileOptions(familyProducts), [familyProducts]);
+  const showProfileFilter = isClassic || selectedFamily === 'all';
   const hasPrices = familyProducts.some(p => priceOf(p) !== null);
   const filtered = useMemo(() => {
     const minLength = filters.minimumLength !== '' ? number(filters.minimumLength) : null;
@@ -157,7 +224,7 @@ export const BeltCategoryExperience: React.FC = () => {
     const selected = familyProducts.filter(product => {
       if (search.trim() && !matchesProductSearch(product, search.trim())) return false;
       if (filters.brands.length && !filters.brands.includes(product.brand)) return false;
-      if (isClassic && !matchesProfile(product, filters.profile)) return false;
+      if (filters.profile !== 'all' && !matchesProfile(product, filters.profile)) return false;
       if (filters.inStock && !(product.stockKnown && product.stock > 0 && !product.inquiryOnly)) return false;
       if (filters.quoteOnly && !product.inquiryOnly && priceOf(product) !== null) return false;
       if (minLength !== null || maxLength !== null) {
@@ -179,6 +246,10 @@ export const BeltCategoryExperience: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const featuredProduct = useMemo(() => filtered.find(product => product.images?.[0]) || filtered[0] || null, [filtered]);
+  const compareProducts = useMemo(() => compareCodes.map(code => allProducts.find(product => product.code === code)).filter((product): product is Product => Boolean(product)), [allProducts, compareCodes]);
+  const comparisonSpecKeys = useMemo(() => Array.from(new Set(compareProducts.flatMap(product => (product.technicalSpecs || []).filter(spec => spec.key && spec.value).map(spec => spec.key)))), [compareProducts]);
+  const toggleCompare = (code: string) => setCompareCodes(current => current.includes(code) ? current.filter(item => item !== code) : current.length < 4 ? [...current, code] : current);
   const activeCount = filters.brands.length + (filters.profile !== 'all' ? 1 : 0) + [filters.minimumLength, filters.maximumLength, filters.minimumPrice, filters.maximumPrice].filter(Boolean).length + Number(filters.inStock) + Number(filters.quoteOnly);
   const chooseFamily = (family: string) => { const params = new URLSearchParams(searchParams); params.set('sub', family); params.delete('q'); setSearchParams(params); setSearch(''); setPage(1); };
   const scrollToProducts = () => productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -210,16 +281,17 @@ export const BeltCategoryExperience: React.FC = () => {
     </section>
     {isClassic && <section className="bce-profile-row"><div><strong>پروفیل تسمه کلاسیک</strong><small>انتخاب مقطع مناسب دستگاه</small></div><div className="bce-profile-buttons" dir="ltr">{['all', ...PROFILES].map(value => <button key={value} type="button" aria-pressed={filters.profile === value} onClick={() => changeFilters({ ...filters, profile: value })}>{value === 'all' ? 'همه' : value}</button>)}</div></section>}
     <div className="bce-catalog" ref={productsRef}>
-      <aside className="bce-sidebar" aria-label="فیلترهای محصولات"><div className="bce-sidebar-top"><h2><SlidersHorizontal size={19}/> فیلتر محصولات</h2><button type="button" onClick={() => changeFilters(blankFilters())}>پاکسازی <RotateCcw size={14}/></button></div><div className="bce-sidebar-search"><Search size={17}/><input aria-label="جستجو در کاتالوگ" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="نام، کد یا مشخصات فنی..."/></div><FilterFields value={filters} onChange={changeFilters} brands={brands} products={familyProducts} classic={isClassic} hasPrices={hasPrices}/></aside>
+      <aside className="bce-sidebar" aria-label="فیلترهای محصولات"><div className="bce-sidebar-top"><h2><SlidersHorizontal size={19}/> فیلتر محصولات</h2><button type="button" onClick={() => changeFilters(blankFilters())}>پاکسازی <RotateCcw size={14}/></button></div><div className="bce-sidebar-search"><Search size={17}/><input aria-label="جستجو در کاتالوگ" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="نام، کد یا مشخصات فنی..."/></div><FilterFields value={filters} onChange={changeFilters} brands={brands} products={familyProducts} profiles={profileOptions} classic={showProfileFilter} hasPrices={hasPrices}/></aside>
       <section className="bce-results" aria-labelledby="bce-results-title"><div className="bce-results-heading"><div><small>کاتالوگ تخصصی صنعت پیش</small><h2 id="bce-results-title">محصولات {selectedFamily === 'all' ? 'تسمه و انتقال نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</h2></div><p>{toPersianDigits(filtered.length)} محصول مطابق انتخاب شما</p></div>
         <div className="bce-toolbar"><div className="bce-sort-desktop"><ArrowUpDown size={16}/><span>مرتب‌سازی:</span><button type="button" className={sortBy === 'default' ? 'current' : ''} onClick={() => setSortBy('default')}>پیشنهادی</button><button type="button" className={sortBy === 'code' ? 'current' : ''} onClick={() => setSortBy('code')}>کد کالا</button>{hasPrices && <><button type="button" className={sortBy === 'price-low' ? 'current' : ''} onClick={() => setSortBy('price-low')}>ارزان‌ترین</button><button type="button" className={sortBy === 'price-high' ? 'current' : ''} onClick={() => setSortBy('price-high')}>گران‌ترین</button></>}</div>
           <div className="bce-mobile-tools"><button type="button" onClick={openSheet}><Filter size={17}/> فیلتر {activeCount > 0 && <b>{toPersianDigits(activeCount)}</b>}</button><label><ArrowUpDown size={17}/><select aria-label="مرتب‌سازی موبایل" value={sortBy} onChange={e => setSortBy(e.target.value)}><option value="default">پیشنهادی</option><option value="code">کد کالا</option>{hasPrices && <><option value="price-low">ارزان‌ترین</option><option value="price-high">گران‌ترین</option></>}</select></label></div><span className="bce-count">{toPersianDigits(visible.length)} از {toPersianDigits(filtered.length)}</span>
         </div>
         {filtered.length === 0 ? <div className="bce-empty"><PackageSearch size={42}/><h3>کالایی مطابق این فیلترها پیدا نشد</h3><p>کد، خانواده یا فیلترها را تغییر دهید. اطلاعات ساختگی به جای محصولات واقعی نمایش داده نمی‌شود.</p><button type="button" onClick={() => { setSearch('');changeFilters(blankFilters()); }}>حذف فیلترها</button></div> : <>
-          <div className="bce-products-grid">{visible.map(p => <CatalogCard key={p.code} product={p}/>)}</div>
+          <div className="bce-products-list">{visible.map(p => <CatalogCard key={p.code} product={p} compareSelected={compareCodes.includes(p.code)} compareDisabled={compareCodes.length >= 4} onToggleCompare={toggleCompare}/>)}</div>
           {totalPages > 1 && <nav className="bce-pagination" aria-label="صفحه‌بندی محصولات"><button type="button" disabled={currentPage <= 1} onClick={() => {setPage(currentPage - 1); scrollToProducts();}}>قبلی</button><span>صفحه {toPersianDigits(currentPage)} از {toPersianDigits(totalPages)}</span><button type="button" disabled={currentPage >= totalPages} onClick={() => {setPage(currentPage + 1);scrollToProducts();}}>بعدی</button></nav>}
         </>}
       </section>
+      {featuredProduct && <FeaturedProductCard product={featuredProduct} compareSelected={compareCodes.includes(featuredProduct.code)} compareDisabled={compareCodes.length >= 4} onToggleCompare={toggleCompare}/>}
     </div>
     <section className="bce-selection-guide"><div className="bce-section-heading"><div><span>راهنمای کاربردی</span><h2>با اطمینان تسمه مناسب را انتخاب کنید</h2></div><Link to="/ai-consult">راهنمای تخصصی <ChevronLeft size={17}/></Link></div><div className="bce-steps">{[
       ['۰۱','نوع کاربرد','دستگاه، شرایط و محیط کاری را مشخص کنید.'],['۰۲','انتخاب مقطع','پروفیل و خانواده انتقال قدرت را تطبیق دهید.'],['۰۳','سایز و کد','طول و کد درج‌شده روی تسمه را کنترل کنید.'],['۰۴','استعلام','قیمت و موجودی کد موردنظر را دریافت کنید.']
@@ -229,6 +301,27 @@ export const BeltCategoryExperience: React.FC = () => {
     ].map(item => <Link key={item.name} to={item.link} className="bce-industry"><img src={item.image} alt={item.name} loading="lazy"/><div><h3>{item.name}</h3><small>{item.desc}</small></div><ChevronLeft size={21}/></Link>)}</div></section>
     <section className="bce-help-cards"><Link className="bce-help-visual" to="/identify-part"><img src={aiVisual} alt="" loading="lazy"/><div><span><Zap size={15}/> میزکار شناسایی</span><h2>قطعه را با تصویر پیدا کنید</h2><p>تصویر قطعه یا نوشته روی تسمه را ارسال کنید تا مسیر شناسایی ساده‌تر شود.</p><strong>شروع شناسایی <ArrowLeft size={16}/></strong></div></Link><Link className="bce-help-ai" to="/ai-consult"><img src={aiConsult} alt="" loading="lazy"/><div><span><Headphones size={15}/> مشاوره مهندسی</span><h2>در انتخاب قطعه تردید دارید؟</h2><p>مشخصات دستگاه و نیاز فنی را مطرح کنید و راهنمایی تخصصی دریافت کنید.</p><strong>شروع مشاوره <ArrowLeft size={16}/></strong></div></Link></section>
     <div className="bce-bottom-line"><CircleHelp size={17}/> سایز و سازگاری قطعه پیش از سفارش باید با مشخصات واقعی دستگاه تطبیق داده شود.</div>
-    {sheetOpen && <div className="bce-sheet-backdrop" onMouseDown={() => setSheetOpen(false)}><section className="bce-sheet" role="dialog" aria-modal="true" aria-label="فیلتر محصولات" onMouseDown={e => e.stopPropagation()}><div className="bce-sheet-grip"/><header><strong>فیلتر محصولات</strong><button type="button" ref={firstSheetButton} aria-label="بستن فیلترها" onClick={() => setSheetOpen(false)}><X size={22}/></button></header><div className="bce-sheet-scroll"><FilterFields value={draft} onChange={setDraft} brands={brands} products={familyProducts} classic={isClassic} hasPrices={hasPrices}/></div><footer><button type="button" onClick={() => setDraft(blankFilters())}>حذف فیلترها</button><button type="button" onClick={applySheet}><Check size={18}/> اعمال و نمایش محصولات</button></footer></section></div>}
+    <div className="bce-compare-dock" aria-label="مقایسه محصولات">
+      <div className="bce-compare-summary"><Scale size={19}/><div><strong>مقایسه محصولات</strong><small>{compareProducts.length ? toPersianDigits(compareProducts.length) + ' کالا انتخاب شده' : 'برای مقایسه، محصولات را انتخاب کنید'}</small></div></div>
+      <div className="bce-compare-selected">{compareProducts.slice(0, 3).map(product => <span key={product.code} dir="ltr">{product.code}</span>)}{compareProducts.length > 3 && <span>+۱</span>}</div>
+      <button type="button" className="bce-compare-open" disabled={!compareProducts.length} onClick={() => setCompareOpen(true)}>مشاهده مقایسه <ChevronLeft size={16}/></button>
+      {compareProducts.length > 0 && <button type="button" className="bce-compare-clear" onClick={() => setCompareCodes([])}>پاک کردن</button>}
+    </div>
+    {compareOpen && <div className="bce-compare-overlay" onMouseDown={() => setCompareOpen(false)}>
+      <section className="bce-compare-dialog" role="dialog" aria-modal="true" aria-label="مقایسه محصولات انتخاب‌شده" onMouseDown={event => event.stopPropagation()}>
+        <header className="bce-compare-head"><div><small>بررسی فنی کنار یکدیگر</small><h2>مقایسه محصولات انتخاب‌شده</h2></div><button type="button" aria-label="بستن مقایسه" onClick={() => setCompareOpen(false)}><X size={21}/></button></header>
+        {compareProducts.length < 2 ? <div className="bce-compare-empty"><Scale size={30}/><strong>برای مقایسه، حداقل دو محصول انتخاب کنید.</strong><p>می‌توانید تا چهار محصول را هم‌زمان بررسی کنید.</p></div> : <div className="bce-compare-table-wrap"><table className="bce-compare-table">
+          <thead><tr><th>مشخصات</th>{compareProducts.map(product => <th key={product.code}><div><b dir="ltr">{product.code}</b><button type="button" aria-label={'حذف ' + product.code + ' از مقایسه'} onClick={() => toggleCompare(product.code)}>×</button></div></th>)}</tr></thead>
+          <tbody>
+            <tr><th>نام محصول</th>{compareProducts.map(product => <td key={product.code}>{product.name}</td>)}</tr>
+            <tr><th>برند</th>{compareProducts.map(product => <td key={product.code} dir="ltr">{product.brand || 'ثبت نشده'}</td>)}</tr>
+            <tr><th>وضعیت تأمین</th>{compareProducts.map(product => <td key={product.code}>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'نیازمند تأیید'}</td>)}</tr>
+            {comparisonSpecKeys.map(key => <tr key={key}><th>{key}</th>{compareProducts.map(product => <td key={product.code}>{product.technicalSpecs?.find(spec => spec.key === key)?.value || 'ثبت نشده'}</td>)}</tr>)}
+          </tbody>
+        </table></div>}
+        <footer className="bce-compare-footer"><button type="button" onClick={() => setCompareOpen(false)}>بازگشت به محصولات</button><button type="button" onClick={() => setCompareCodes([])}>پاک کردن انتخاب‌ها</button></footer>
+      </section>
+    </div>}
+    {sheetOpen && <div className="bce-sheet-backdrop" onMouseDown={() => setSheetOpen(false)}><section className="bce-sheet" role="dialog" aria-modal="true" aria-label="فیلتر محصولات" onMouseDown={e => e.stopPropagation()}><div className="bce-sheet-grip"/><header><strong>فیلتر محصولات</strong><button type="button" ref={firstSheetButton} aria-label="بستن فیلترها" onClick={() => setSheetOpen(false)}><X size={22}/></button></header><div className="bce-sheet-scroll"><FilterFields value={draft} onChange={setDraft} brands={brands} products={familyProducts} profiles={profileOptions} classic={showProfileFilter} hasPrices={hasPrices}/></div><footer><button type="button" onClick={() => setDraft(blankFilters())}>حذف فیلترها</button><button type="button" onClick={applySheet}><Check size={18}/> اعمال و نمایش محصولات</button></footer></section></div>}
   </main>;
 };
