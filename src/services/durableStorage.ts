@@ -48,13 +48,13 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
   }catch(error){
    if(error instanceof Error && (error.name==='TimeoutError' || error.name==='AbortError'))
     throw new Error(includeProducts
-     ? 'دریافت فهرست کالاها بیش از ۳۰ ثانیه طول کشید؛ اتصال سرور یا پایگاه داده را بررسی کنید و دوباره تلاش کنید.'
+     ? 'دریافت فهرست کالاها بیش از ۳۰ ثانیه طول کشید؛ سرویس داده پاسخ‌گو نبود و باید دوباره تلاش شود.'
      : 'بارگذاری اولیه پنل بیش از حد طول کشید؛ دوباره تلاش کنید.');
    throw error;
   }
-  if(!res.ok)throw new Error('دریافت اطلاعات از پایگاه داده ممکن نشد.');
+  if(!res.ok)throw new Error('Runtime API returned HTTP '+res.status+'.');
   const data=await res.json() as DurableRuntimeState;
-  if(!data.success)throw new Error(data.message);
+  if(!data.success)throw new Error(data.message || 'پاسخ سرویس داده معتبر نبود.');
   enabled=data.database===true;
   if(enabled){
    // Never replace optimistic values or versions while their write is pending
