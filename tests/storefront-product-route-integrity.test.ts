@@ -10,6 +10,7 @@ const header = read("src/components/layout/Header.tsx");
 const megaMenu = read("src/components/catalog/ReferenceMegaMenu.tsx");
 const mobileExplorer = read("src/components/catalog/MobileCategoryExplorer.tsx");
 const footer = read("src/components/layout/Footer.tsx");
+const directSku = read("src/components/catalog/DirectSkuProducts.tsx");
 const routes = read("src/App.tsx");
 const categoryStyles = read("src/category-showcase.css");
 
@@ -75,6 +76,19 @@ test("navigation clearly distinguishes the all-products catalogue from the categ
   assert.match(megaMenu, /to="\/categories"/);
   assert.match(mobileExplorer, /to="\/products"/);
   assert.match(mobileExplorer, /to="\/categories"/);
+});
+
+test("the all-products page includes standalone SKUs without mixing them into family records", () => {
+  assert.match(productsPage, /import \{ DirectSkuProducts \} from "\.\.\/components\/catalog\/DirectSkuProducts"/);
+  assert.match(productsPage, /<DirectSkuProducts[\s\S]*?categorySlug=\{selectedCategory === "all" \|\| selectedCategory === "swr-forza-exclusive" \? "all" : selectedCategory\}/);
+  assert.match(productsPage, /searchQuery=\{searchQuery\}/);
+  assert.match(productsPage, /selectedBrand=\{selectedBrand\}/);
+  assert.match(productsPage, /inStockOnly=\{inStockOnly\}/);
+  assert.match(directSku, /categorySlug !== 'all'/);
+  assert.match(directSku, /item\.skuCode/);
+  assert.match(directSku, /\/direct-product\//);
+  assert.match(directSku, /if \(inStockOnly\) return false/);
+  assert.match(directSku, /direct-sku-products-grid/);
 });
 
 test("footer category links are hydrated from the approved database taxonomy", () => {
