@@ -34,7 +34,7 @@ const products = [
     code: 'FAM-MAT-002',
     name: 'ورق صنعتی نمونه بدون تصویر',
     nameEn: 'Industrial Sheet Sample',
-    brand: 'قطعات صنعتی',
+    brand: 'ثبت نشده',
     categorySlug,
     categoryName,
     submenu: 'ورق صنعتی',
@@ -146,6 +146,7 @@ async function installRoutes(page) {
       assert.equal(await page.locator('.store-product-card').count(), products.length, 'legacy category should render only its matching family products');
       assert.equal(await page.locator('.category-product-headline strong').innerText(), 'محصولات ' + categoryName, 'the product heading must match the selected category');
       assert.equal(await page.getByText('انتخاب قطعات انتقال نیرو').count(), 0, 'a materials category must not inherit the power-transmission heading');
+      assert.ok((await page.locator('.store-product-card').nth(1).locator('.store-product-meta').innerText()).includes('برند ثبت نشده'), 'placeholder brand values should be presented honestly');
 
       const familyImageElement = page.locator('.store-product-card').first().locator('.store-product-media img');
       await familyImageElement.waitFor({ state: 'visible' });
