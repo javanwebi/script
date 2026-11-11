@@ -14,7 +14,7 @@ test('public and customer-panel product detail routes remain registered', () => 
 
 test('product details wait for PostgreSQL hydration before showing a not-found state', () => {
   assert.match(page, /isDatabaseCatalogHydrated\(\)/);
-  assert.match(page, /if \(!product && !catalogReady\)/);
+  assert.match(page, /if \(!product && !catalogReady && !isCustomerPortalRoute\)/);
   assert.match(page, /product-detail-loading/);
   assert.match(page, /product-detail-not-found/);
 });
