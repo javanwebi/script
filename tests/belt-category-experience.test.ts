@@ -20,6 +20,8 @@ test('the belt page defaults to the complete live catalogue and retains real cat
   assert.match(page, /matchesCatalogCategory/);
   assert.match(page, /matchesProductSearch/);
   assert.match(page, /deriveProfileOptions\(familyProducts\)/);
+  assert.match(page, /const isVbelt = selectedFamily === 'تسمه V-BELT'/);
+  assert.doesNotMatch(page, /isClassic/);
   assert.match(page, /filters\.brands/);
   assert.match(page, /filters\.minimumLength/);
   assert.match(page, /filters\.maximumLength/);
@@ -67,6 +69,8 @@ test('the approved cream industrial visual system has explicit desktop, mobile a
   assert.match(css, /--bce-orange: #E56B1E/);
   assert.match(css, /--bce-bg: #fbf6ef/);
   assert.match(css, /bce-hero-picture/);
+  assert.match(css, /height: clamp\(164px, 17\.5vw, 205px\) !important/);
+  assert.match(css, /direction: ltr/);
   assert.match(css, /clip-path: polygon\(0 0, 100% 0, 84% 100%, 0 100%\)/);
   assert.match(css, /grid-template-columns: minmax\(195px, 23%\) minmax\(0, 1fr\) minmax\(210px, 25%\)/);
   for (const width of ['860px', '640px', '390px', '360px']) {
