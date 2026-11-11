@@ -1,0 +1,83 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+
+const source = (file: string) => readFileSync(file, 'utf8');
+const page = source('src/pages/ExcelMenuCategoryPage.tsx');
+const styles = source('src/pages/excel-menu-category-premium.css');
+const routes = source('src/pages/CategoryPage.tsx');
+
+test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
+  assert.match(routes, /if \(\/^excel-v2-\[0-9\]\+-\[0-9\]\+\$\/\.test\(slug \|\| ''\)\)/);
+  assert.match(routes, /return <ExcelMenuCategoryPage \/>/);
+  assert.match(page, /fetch\('\/api\/catalog\/menu-category\/' \+ encodeURIComponent\(slug\)/);
+});
+
+test('category detail reads real family records and never falls back to repository fixtures', () => {
+  assert.match(page, /body\.success/);
+  assert.match(page, /Array\.isArray\(body\.families\)/);
+  assert.match(page, /setData\(body\)/);
+  assert.doesNotMatch(page, /APPROVED_MENU_CATEGORIES|USER_PRODUCTS_RAW|INITIAL_CATEGORIES/);
+  assert.match(page, /status === 'error'/);
+  assert.match(page, /تلاش مجدد/);
+});
+
+test('subcategory, search, brand, image and verified-stock filters are shareable in the URL', () => {
+  assert.match(page, /searchParams\.get\('sub'\)/);
+  assert.match(page, /searchParams\.get\('q'\)/);
+  assert.match(page, /searchParams\.getAll\('brand'\)/);
+  assert.match(page, /searchParams\.get\('stock'\) === '1'/);
+  assert.match(page, /searchParams\.get\('image'\) === '1'/);
+  assert.match(page, /next\.delete\('page'\)/);
+  assert.match(page, /product\?\.stockKnown === true && product\.stock > 0 && !product\.inquiryOnly/);
+  assert.match(page, /imageOnly && !\(product\?\.images\?\.length\)/);
+});
+
+test('category search includes actual family codes, product technical specs and variant codes', () => {
+  assert.match(page, /family\.code/);
+  assert.match(page, /product\?\.technicalSpecs/);
+  assert.match(page, /variant\.code/);
+  assert.match(page, /variant\.technicalSpecs/);
+});
+
+test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
+  assert.match(page, /<DirectSkuProducts categorySlug=\{slug\}/);
+  assert.match(page, /<ProductCard product=\{product\}/);
+  assert.match(page, /'\/product\/' \+ encodeURIComponent\(family\.code\)/);
+  assert.match(page, /to="\/identify-part"/);
+  assert.match(page, /to="\/ai-consult"/);
+});
+
+test('technical comparison is limited to four families and uses registered family specs', () => {
+  assert.match(page, /compareCodes\.length >= 4/);
+  assert.match(page, /comparisonSpecs/);
+  assert.match(page, /products\.get\(family\.code\)\?\.technicalSpecs/);
+  assert.match(page, /role="dialog" aria-modal="true"/);
+  assert.match(page, /قیمت و اطلاعات موجودی بر اساس سطح دسترسی حساب مشتری نمایش داده می‌شود/);
+});
+
+test('mobile filter and comparison dialogs support Escape, focus containment and body scroll locking', () => {
+  assert.match(page, /document\.body\.style\.overflow = 'hidden'/);
+  assert.match(page, /event\.key === 'Escape'/);
+  assert.match(page, /event\.key !== 'Tab'/);
+  assert.match(page, /last\.focus\(\)/);
+  assert.match(page, /previousFocus\?\.focus\(\)/);
+  assert.match(page, /aria-modal="true"/);
+});
+
+test('category detail styling covers desktop, tablet, mobile, narrow phones and reduced motion', () => {
+  assert.match(styles, /grid-template-columns: minmax\(218px, \.76fr\) minmax\(0, 1\.7fr\) minmax\(220px, \.78fr\)/);
+  assert.match(styles, /@media \(max-width: 1180px\)/);
+  assert.match(styles, /@media \(max-width: 900px\)/);
+  assert.match(styles, /@media \(max-width: 640px\)/);
+  assert.match(styles, /@media \(max-width: 380px\)/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
+});
+
+test('category detail CSS is isolated from shared storefront and portal components', () => {
+  assert.match(page, /excel-menu-category-premium\.css/);
+  assert.match(styles, /\.excel-category-page/);
+  assert.doesNotMatch(styles, /(^|\n)body\s*\{/);
+  assert.doesNotMatch(styles, /(^|\n)\.store-product-card\s*\{/);
+});
