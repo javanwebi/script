@@ -1,4 +1,5 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
+import "../catalog-experience.css";
 import { ProductCard } from "../components/product/ProductCard";
 import {
   matchesProductSearch,
@@ -111,6 +112,10 @@ export const ProductsPage: React.FC = () => {
   const [catalogVersion,setCatalogVersion]=useState(0);
   useEffect(()=>subscribeCatalogChanges(()=>setCatalogVersion(v=>v+1)),[]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  const catalogueHeroProduct = useMemo(
+    () => allProducts.find(product => product.hasCatalogueImage && product.images?.[0]) || allProducts.find(product => product.images?.[0]),
+    [allProducts],
+  );
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
@@ -325,6 +330,12 @@ export const ProductsPage: React.FC = () => {
               مشخصات و قیمت همان کد را ببینید.
             </p>
           </div>
+          {catalogueHeroProduct && (
+            <div className="catalogue-intro-visual" aria-hidden="true">
+              <ProductImage src={catalogueHeroProduct.images?.[0]} alt="" thumbnail loading="lazy" decoding="async" />
+              <span>{catalogueHeroProduct.brand || "قطعه منتخب کاتالوگ"}</span>
+            </div>
+          )}
           <span>
             {toPersianDigits(allProducts.length)} خانواده ·{" "}
             {toPersianDigits(CATALOGUE_SKU_COUNT)} کد کالا
@@ -408,7 +419,7 @@ export const ProductsPage: React.FC = () => {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="جستجو در کد فنی قطعه (مثلاً AT-E045)، نام قطعه، برند یا مشخصات..."
+                placeholder="نام قطعه، کد فنی، برند یا مشخصات فنی را جستجو کنید..."
                 className="w-full pr-10 pl-24 h-10 bg-slate-50 text-xs text-slate-800 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all shadow-inner"
               />
               {searchQuery && (
