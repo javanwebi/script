@@ -23,7 +23,7 @@ test("public product cards preserve public detail URLs for signed-in customers",
 test("product cards resolve registered family gallery images and render useful technical specs", () => {
   assert.match(productCard, /product\.galleryImages\?\.find\(image => image\.scope === "family" && image\.url\)/);
   assert.match(productCard, /product\.images\?\.find\(Boolean\)/);
-  assert.match(productCard, /identityVerified === true/);
+  assert.match(productCard, /image\.scope === "variant" && image\.url/);
   assert.match(productCard, /variantGalleryImage/);
   assert.match(productCard, /store-product-image-scope-badge/);
   assert.match(productCard, /src=\{productImage\}/);
