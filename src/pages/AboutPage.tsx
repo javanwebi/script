@@ -6,6 +6,7 @@ import {
   ShoppingCart, UsersRound, Wrench,
 } from "lucide-react";
 import { STORE_ASSETS } from "../assets/images";
+import { setPageMeta } from "../utils/pageMeta";
 
 const capabilities = [
   { title: "تأمین قطعات", text: "دسترسی به کاتالوگ تخصصی قطعات و تجهیزات موردنیاز خطوط تولید", image: STORE_ASSETS.heroSteelCoils, Icon: PackageCheck },
@@ -38,7 +39,7 @@ const valueFacts = [
 
 export function AboutPage() {
   useEffect(() => {
-    document.title = "درباره صنعت پیش | پیش به صنعت";
+    setPageMeta({ title: "درباره صنعت پیش | بازار آنلاین تخصصی قطعات صنعتی", description: "با صنعت پیش و پشتوانه بازرگانی تسمه اطلس آشنا شوید؛ بازار آنلاین تخصصی برای جستجو، بررسی مشخصات، مشاوره و تأمین قطعات خطوط تولید." });
   }, []);
 
   return (
@@ -75,7 +76,7 @@ export function AboutPage() {
       <section className="sp-about-story" id="sp-about-story" aria-labelledby="sp-about-story-title">
         <div className="sp-about-story__visual">
           <img src={STORE_ASSETS.whySanatDirectFactory} alt="محیط صنعتی و تأمین قطعات" loading="lazy" decoding="async" />
-          <div className="sp-about-story__photo-label"><span>ریشه ما</span><strong>بازرگانی تسمه اطلس</strong></div>
+          <div className="sp-about-story__photo-label"><span>پشتوانه ما</span><strong>تجربه بازرگانی اطلس</strong></div>
         </div>
         <div className="sp-about-story__content">
           <span className="sp-about-eyebrow sp-about-eyebrow--light">داستان ما</span>
