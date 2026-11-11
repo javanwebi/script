@@ -774,7 +774,7 @@ export const Header: React.FC = () => {
                   aria-haspopup="true"
                   aria-expanded={isMegaMenuOpen}
                   onClick={() => {
-                    setIsMegaMenuOpen(open => !open);
+                    setIsMegaMenuOpen(true);
                     setActiveDropdown(null);
                   }}
                   onMouseEnter={() => {
