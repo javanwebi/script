@@ -25,7 +25,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     location.pathname === "/consumer-dashboard" ||
     location.pathname.startsWith("/consumer-dashboard/");
   const canViewPrices = hasPricePermission && isCustomerPortalRoute;
-  const hasVariants = Boolean(product.variants?.length);
+  const variantCount = product.variantCount ?? product.variants?.length ?? 0;
+  const hasVariants = variantCount > 0;
   const price = !hasVariants
     ? getCurrentCustomerSkuPrice(product, currentUser, canViewPrices)
     : 0;
@@ -74,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <p>
           <Layers size={14} />
           {hasVariants
-            ? `${toPersianDigits(product.variants?.length || 0)} کد و سایز قابل انتخاب`
+            ? `${toPersianDigits(variantCount)} کد و سایز قابل انتخاب`
             : product.categoryName}
         </p>
         <div className="store-product-bottom">

@@ -20,6 +20,7 @@ import {
   subscribeCatalogChanges,
 } from "../data/mockGenerator";
 import type { TechnicalReview } from "../data/productTechnicalData";
+import type { Product } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
@@ -52,6 +53,7 @@ import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
 import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
+import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 
 export const ProductDetailPage: React.FC = () => {
   const location = useLocation();
@@ -95,13 +97,51 @@ export const ProductDetailPage: React.FC = () => {
   }, []);
 
   const decodedCode = code ? decodeURIComponent(code).trim() : "";
-  const product = useMemo(
+  const cachedProduct = useMemo(
     () =>
-      decodedCode
+      decodedCode && isDatabaseCatalogHydrated()
         ? getProductByCode(decodedCode, { includeInactive: isPreviewMode })
         : undefined,
     [decodedCode, isPreviewMode, catalogTick],
   );
+  const [remoteProduct,setRemoteProduct]=useState<{requestedCode:string;product:Product;similarProducts?:Product[]}|null>(null);
+  const [remoteProductLoading,setRemoteProductLoading]=useState(false);
+  const [remoteProductError,setRemoteProductError]=useState(false);
+  const [productLoadAttempt,setProductLoadAttempt]=useState(0);
+  useEffect(()=>{
+    if(!decodedCode || cachedProduct){
+      setRemoteProduct(null);
+      setRemoteProductLoading(false);
+      setRemoteProductError(false);
+      return;
+    }
+    const controller=new AbortController();
+    setRemoteProductLoading(true);
+    setRemoteProductError(false);
+    fetch("/api/catalog/product/"+encodeURIComponent(decodedCode),{
+      credentials:"same-origin",
+      cache:"no-store",
+      signal:controller.signal,
+    })
+      .then(async response=>{
+        const payload=await response.json().catch(()=>null);
+        if(!response.ok || payload?.success!==true || !payload.product){
+          throw new Error(payload?.message || "اطلاعات این خانواده محصول دریافت نشد.");
+        }
+        return {product:payload.product as Product,similarProducts:Array.isArray(payload.similarProducts)?payload.similarProducts as Product[]:[]};
+      })
+      .then(result=>{
+        if(!controller.signal.aborted)setRemoteProduct({requestedCode:decodedCode,product:result.product,similarProducts:result.similarProducts});
+      })
+      .catch(()=>{
+        if(!controller.signal.aborted)setRemoteProductError(true);
+      })
+      .finally(()=>{
+        if(!controller.signal.aborted)setRemoteProductLoading(false);
+      });
+    return ()=>controller.abort();
+  },[decodedCode,cachedProduct?.code,productLoadAttempt]);
+  const product = cachedProduct || (remoteProduct?.requestedCode===decodedCode ? remoteProduct.product : undefined);
 
   // Visible variants (filter out inactive unless in preview mode)
   const visibleVariants = useMemo(() => {
@@ -248,6 +288,15 @@ export const ProductDetailPage: React.FC = () => {
     // When clickedImg.scope === 'family', we deliberately keep selectedVariantCode unchanged.
   };
 
+  if (!product && remoteProductLoading) {
+    return (
+      <div role="status" className="mx-auto my-12 max-w-xl rounded-3xl border border-slate-200 bg-white p-12 text-center">
+        <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl bg-orange-100"/>
+        <p className="mt-4 text-sm font-bold text-slate-700">در حال دریافت مشخصات و کدهای این خانواده محصول…</p>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xs">
@@ -261,6 +310,11 @@ export const ProductDetailPage: React.FC = () => {
           کد کالای وارد شده در کاتالوگ جامع قطعات ثبت نشده است یا ممکن است
           موقتاً غیرفعال شده باشد.
         </p>
+        {remoteProductError && (
+          <button type="button" onClick={()=>setProductLoadAttempt(value=>value+1)} className="inline-flex px-5 py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-xs font-bold text-orange-700">
+            تلاش دوباره برای دریافت اطلاعات
+          </button>
+        )}
         <Link
           to="/products"
           className="inline-flex px-6 py-2.5 bg-[#E06518] text-white text-xs font-bold rounded-xl hover:bg-[#C95210] transition-colors shadow-xs"
@@ -352,7 +406,9 @@ export const ProductDetailPage: React.FC = () => {
       };
 
   const isFavorited = isInWishlist(product.code);
-  const similarProducts = getSimilarProducts(product, 4);
+  const similarProducts = isDatabaseCatalogHydrated()
+    ? getSimilarProducts(product, 4)
+    : remoteProduct?.requestedCode===decodedCode ? remoteProduct.similarProducts || [] : [];
   const currentGalleryImage =
     galleryImages[activeImageIndex];
 

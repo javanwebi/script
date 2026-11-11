@@ -46,6 +46,9 @@ export interface ProductGalleryImage {
 export interface Product {
   submenu?: string;
   variants?: ProductVariant[];
+  /** Lightweight catalogue cards avoid downloading every SKU detail up front. */
+  variantCount?: number;
+  searchText?: string;
   sourceRow?: number;
   stockKnown?: boolean;
   imageScope?: 'family-example' | 'mixed' | 'sku-verified';

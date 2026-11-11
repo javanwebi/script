@@ -53,10 +53,12 @@ export function installCatalogProducts(products:Product[], options:{rawFixture?:
 
 export function matchesProductSearch(product:Product,query:string){
  const terms=normalizeCatalogueText(query).split(' ').filter(Boolean);
- const haystack=searchIndex.get(product.code)||normalizeCatalogueText([
-   product.name,product.code,product.brand,product.categoryName,product.submenu,product.subcategory,
-   ...(product.technicalSpecs||[]).map(s=>s.value),
-   ...(product.variants||[]).flatMap(v=>[v.code,v.size,v.name,v.model,...(v.technicalSpecs||[]).map(s=>s.value)])
- ].join(' '));
+ const haystack=product.searchText
+   ? normalizeCatalogueText(product.searchText)
+   : searchIndex.get(product.code)||normalizeCatalogueText([
+      product.name,product.code,product.brand,product.categoryName,product.submenu,product.subcategory,
+      ...(product.technicalSpecs||[]).map(s=>s.value),
+      ...(product.variants||[]).flatMap(v=>[v.code,v.size,v.name,v.model,...(v.technicalSpecs||[]).map(s=>s.value)])
+     ].join(' '));
  return terms.every(term=>haystack.includes(term));
 }

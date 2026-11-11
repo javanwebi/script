@@ -8,8 +8,9 @@ import {
   KnowledgePage,
   AboutPage,
 } from "./pages/DiscoveryPages";
-import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { isDatabaseCatalogHydrated, refreshDurableStorage } from "./services/durableStorage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ClubPointsProvider } from "./context/ClubPointsContext";
@@ -86,9 +87,25 @@ const AdminLayout = lazy(() =>
 
 function CustomerPanelEntry() { const { currentUser } = useAuth(); return <Navigate to={currentUser?.approvedB2B ? "/account" : "/consumer-dashboard"} replace/>; }
 
+function CatalogRouteHydrator() {
+  const location=useLocation();
+  useEffect(()=>{
+    const path=location.pathname;
+    const lightweightRoute=/^\/products\/?$/.test(path) ||
+      /^\/(?:product\/[^/]+|account\/product\/[^/]+|consumer-dashboard\/product\/[^/]+)\/?$/.test(path);
+    const requiresFullCatalog=/^\/(?:category|categories|search|sku|direct-product|cart|wishlist|checkout|account|consumer-dashboard|retail-account|ai-forza|ai-consult|ai-advisor|face-to-face|industry|industries|brands)(?:\/|$)/.test(path) || path==="/";
+    if(lightweightRoute || !requiresFullCatalog || /^\/admin(?:\/|$)/.test(path) || isDatabaseCatalogHydrated())return;
+    void refreshDurableStorage({includeProducts:true}).catch(error=>{
+      console.warn("[SanatPish] Full catalogue hydration was deferred after route navigation.",error);
+    });
+  },[location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <CatalogRouteHydrator />
       <ScrollToTop /><RouteIntentPreload /><MobileSwipeHint />
       <AuthProvider>
         <CartProvider>
