@@ -11,6 +11,8 @@ test('products page keeps its canonical route and the homepage/customer panels r
   assert.match(routes, /<Route path="\/" element={<HomePage \/>} \/>/);
   assert.match(routes, /path="\/consumer-dashboard/);
   assert.match(routes, /path="\/account/);
+  assert.match(routes, /path="\/catalog"[\s\S]*?Navigate to="\/products"/);
+  assert.match(routes, /<Route path="\/knowledge" element={<KnowledgePage \/>} \/>/);
 });
 
 test('catalogue hero uses an existing industrial asset and real catalogue counts', () => {
