@@ -156,6 +156,18 @@ const viewports = [
         await page.locator('.bce-sidebar-top button').click();
       }
       assert.equal(await rows.count(), productFixture.length, 'clearing the stock filter must restore all catalogue items');
+      if (viewport.width <= 860) {
+        await page.getByLabel('مرتب‌سازی موبایل').selectOption('code');
+      } else {
+        await page.locator('.bce-sort-desktop button').filter({ hasText: 'کد کالا' }).click();
+      }
+      const firstSortedCode = (await rows.first().locator('.bce-product-code b').textContent())?.trim();
+      assert.equal(firstSortedCode, '8M-1200', 'code sorting must reorder the actual product rows');
+      if (viewport.width <= 860) {
+        await page.getByLabel('مرتب‌سازی موبایل').selectOption('default');
+      } else {
+        await page.locator('.bce-sort-desktop button').filter({ hasText: 'پیشنهادی' }).click();
+      }
       await rows.nth(0).locator('.bce-compare-select input').check({ force: true });
       await rows.nth(1).locator('.bce-compare-select input').check({ force: true });
       await page.locator('.bce-compare-open').click();
