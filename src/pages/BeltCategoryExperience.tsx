@@ -261,9 +261,9 @@ export const BeltCategoryExperience: React.FC = () => {
     <section className="bce-hero" aria-labelledby="bce-hero-title">
       <picture className="bce-hero-picture"><source media="(max-width: 640px)" srcSet="/images/belt-hero-cinematic.webp"/><img className="bce-hero-photo" src="/images/belt-hero-cinematic.webp" alt="نمای صنعتی پولی و تسمه انتقال نیرو در خط تولید" fetchPriority="high" decoding="async"/></picture>
       <div className="bce-hero-wash"/>
-      <div className="bce-hero-content"><span className="bce-kicker"><Zap size={15}/> مرجع تخصصی تسمه‌های صنعتی و انتقال قدرت</span>
-        <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های کلاسیک V' : 'قطعه درست، برای حرکت بی‌وقفه'}</em></h1>
-        <p>از تسمه کلاسیک و تایمینگ تا شیاری و پلی‌یورتان؛ با انتخاب خانواده، مقطع و کد فنی، قطعه مناسب دستگاه را از کاتالوگ صنعت پیش پیدا کنید.</p>
+      <div className="bce-hero-content"><span className="bce-kicker"><Zap size={15}/> <span title="مرجع تخصصی تسمه‌های صنعتی و انتقال قدرت">ویترین صنعتی</span></span>
+        <h1 id="bce-hero-title">تسمه و انتقال نیرو <em>{isClassic ? 'تسمه‌های کلاسیک V' : selectedFamily === 'all' ? 'انتقال مطمئن و پایدار نیرو' : FAMILY_OPTIONS.find(item => item.id === selectedFamily)?.title || selectedFamily}</em></h1>
+        <p>انواع تسمه صنعتی برای انتقال مطمئن، بهره‌وری بیشتر و عمر طولانی‌تر تجهیزات؛ از تسمه کلاسیک و تایمینگ تا شیاری و پلی‌یورتان، قطعه مناسب دستگاه را از کاتالوگ واقعی صنعت پیش پیدا کنید.</p>
         <div className="bce-hero-actions"><button type="button" onClick={scrollToProducts}>مشاهده محصولات <ArrowLeft size={18}/></button><Link to="/ai-consult">مشاوره انتخاب تسمه <Headphones size={18}/></Link></div>
         <div className="bce-hero-points"><span><ShieldCheck size={20}/> کاتالوگ کدهای واقعی</span><span><Truck size={20}/> استعلام موجودی و تأمین</span><span><Settings2 size={20}/> راهنمای انتخاب فنی</span></div>
       </div>
