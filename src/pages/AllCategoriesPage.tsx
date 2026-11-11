@@ -120,12 +120,12 @@ export const AllCategoriesPage: React.FC = () => {
 
   useEffect(() => {
     const target = window.location.hash.slice(1);
-    if (!/^menu-group-excel-v2-[0-9]+$/.test(target)) return;
+    if (source !== 'database' || !/^menu-group-excel-v2-[0-9]+$/.test(target)) return;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(target)?.scrollIntoView({ block: 'start', behavior: 'auto' });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [source, catalogueGroups]);
 
   useEffect(() => {
     const controller = new AbortController();
