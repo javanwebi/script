@@ -94,6 +94,9 @@ test("the all-products page includes standalone SKUs without mixing them into fa
   assert.match(directSku, /\/direct-product\//);
   assert.match(directSku, /if \(inStockOnly\) return false/);
   assert.match(directSku, /direct-sku-products-grid/);
+  assert.match(directSku, /const pageSize = 16/);
+  assert.match(directSku, /pageItems\.map/);
+  assert.match(directSku, /direct-sku-products-pagination/);
 });
 
 test("footer category links are hydrated from the approved database taxonomy", () => {
