@@ -1192,3 +1192,32 @@
     opacity: .8;
   }
 }
+
+
+.catalogue-premium-page .catalogue-products-list .store-product-card {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.catalogue-premium-page .catalogue-products-list .store-product-media {
+  align-self: stretch;
+  aspect-ratio: 1;
+  margin: 10px;
+}
+
+.catalogue-premium-page .catalogue-products-list .store-product-copy {
+  padding: 17px 18px;
+}
+
+@media (max-width: 640px) {
+  .catalogue-premium-page .catalogue-products-list .store-product-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .catalogue-premium-page .catalogue-products-list .store-product-card {
+    grid-template-columns: 94px minmax(0, 1fr);
+  }
+}
