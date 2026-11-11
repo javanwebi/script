@@ -4826,3 +4826,178 @@ select {
     overflow: visible;
   }
 }
+
+
+/* Standalone SKUs are part of the complete catalogue, but remain visually
+   distinct from family cards because they have their own independent code. */
+.direct-sku-products {
+  margin-top: clamp(22px, 3vw, 36px);
+  padding: clamp(14px, 2vw, 22px);
+  border: 1px solid #eadfd6;
+  border-radius: 18px;
+  background: linear-gradient(155deg, #fff 0%, #fffaf6 100%);
+  box-shadow: 0 5px 20px rgba(38, 45, 52, .045);
+}
+.direct-sku-products-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.direct-sku-products-heading > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #bd5b1e;
+  font-size: 9px;
+  font-weight: 900;
+}
+.direct-sku-products-heading h2 {
+  margin-top: 5px;
+  color: #333e47;
+  font-size: clamp(14px, 1.3vw, 18px);
+  font-weight: 950;
+  line-height: 1.8;
+}
+.direct-sku-products-heading p {
+  max-width: 650px;
+  margin-top: 4px;
+  color: #78838c;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.direct-sku-products-heading > strong {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid #f0ddcf;
+  border-radius: 9px;
+  color: #a85119;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+.direct-sku-products-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.direct-sku-product-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e7e9eb;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.direct-sku-product-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(224, 101, 24, .48);
+  box-shadow: 0 10px 22px rgba(35, 43, 52, .08);
+}
+.direct-sku-product-image {
+  display: flex;
+  aspect-ratio: 1.35;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: 8px 8px 0;
+  border: 1px solid #eff0f2;
+  border-radius: 10px;
+  background: radial-gradient(ellipse at center, #fff 0%, #f3f5f6 100%);
+}
+.direct-sku-product-image img {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  object-fit: contain;
+}
+.direct-sku-product-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 11px 12px;
+}
+.direct-sku-product-code {
+  color: #c15b1a;
+  font-size: 9px;
+  font-weight: 950;
+}
+.direct-sku-product-copy h3 {
+  min-height: 40px;
+  color: #34414b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.8;
+}
+.direct-sku-product-category,
+.direct-sku-product-brand {
+  overflow: hidden;
+  color: #85909a;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.direct-sku-product-brand {
+  color: #b36b3b;
+  font-weight: 800;
+}
+.direct-sku-product-spec {
+  display: flex;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 5px 7px;
+  border: 1px solid #edf0f2;
+  border-radius: 7px;
+  background: #fafbfc;
+  font-size: 8px;
+}
+.direct-sku-product-spec b {
+  color: #89939c;
+  font-weight: 650;
+}
+.direct-sku-product-spec strong {
+  overflow: hidden;
+  color: #47535d;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.direct-sku-product-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #eff0f2;
+  color: #bd5b1e;
+  font-size: 9px;
+  font-weight: 900;
+}
+@media (max-width: 1050px) {
+  .direct-sku-products-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .direct-sku-products { padding: 12px; border-radius: 14px; }
+  .direct-sku-products-heading { align-items: flex-start; }
+  .direct-sku-products-heading > strong { font-size: 9px; }
+  .direct-sku-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .direct-sku-product-image { margin: 6px 6px 0; aspect-ratio: 1.15; }
+  .direct-sku-product-copy { padding: 8px; gap: 5px; }
+  .direct-sku-product-copy h3 { font-size: 10px; min-height: 38px; }
+}
+@media (max-width: 360px) {
+  .direct-sku-products-heading { flex-direction: column; }
+  .direct-sku-products-heading > strong { align-self: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .direct-sku-product-card { transition: none; }
+  .direct-sku-product-card:hover { transform: none; }
+}
