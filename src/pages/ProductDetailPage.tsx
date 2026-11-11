@@ -169,8 +169,10 @@ export const ProductDetailPage: React.FC = () => {
       const productsByCode = new Map(getAllProducts().map(candidate => [candidate.code, candidate] as const));
       return activeFamilyMenuRoute.relatedFamilyCodes
         .filter(code => code !== product.code)
-        .map(code => productsByCode.get(code))
-        .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+        .flatMap(code => {
+          const candidate = productsByCode.get(code);
+          return candidate ? [candidate] : [];
+        })
         .slice(0, 4);
     }
     return getSimilarProducts(product, 4);
