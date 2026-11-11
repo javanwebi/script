@@ -66,13 +66,13 @@ test("navigation clearly distinguishes the all-products catalogue from the categ
 });
 
 test("the canonical product route map keeps public family, direct SKU and customer portal details distinct", () => {
-  assert.match(routes, /path="\/products" element={<ProductsPage \/}>/);
-  assert.match(routes, /path="\/categories" element={<AllCategoriesPage \/}>/);
-  assert.match(routes, /path="\/category\/:slug" element={<CategoryPage \/}>/);
-  assert.match(routes, /path="\/product\/:code"/);
-  assert.match(routes, /path="\/direct-product\/:code"/);
-  assert.match(routes, /path="\/account\/product\/:code"/);
-  assert.match(routes, /path="\/consumer-dashboard\/product\/:code"/);
+  assert.ok(routes.includes('<Route path="/products" element={<ProductsPage />} />'));
+  assert.ok(routes.includes('<Route path="/categories" element={<AllCategoriesPage />} />'));
+  assert.ok(routes.includes('<Route path="/category/:slug" element={<CategoryPage />} />'));
+  assert.ok(routes.includes('path="/product/:code"'));
+  assert.ok(routes.includes('path="/direct-product/:code"'));
+  assert.ok(routes.includes('path="/account/product/:code"'));
+  assert.ok(routes.includes('path="/consumer-dashboard/product/:code"'));
 });
 
 test("category product cards override the obsolete 440px empty-card sizing", () => {
