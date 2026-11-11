@@ -55,7 +55,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 const GROUP_ICONS: Record<string, React.ElementType> = {
   'excel-v2-1': Layers,
-  'excel-v2-2': ArrowLeft,
+  'excel-v2-2': Package,
   'excel-v2-3': CircleDot,
   'excel-v2-4': Cpu,
   'excel-v2-5': ShieldCheck,
