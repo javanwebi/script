@@ -37,7 +37,7 @@ on:
       - "tests/company-pages-art-direction.test.ts"
       - ".github/workflows/verify-vps-build.yml"
   push:
-    branches: [main, feature/textile-industry-page]
+    branches: [main, feature/textile-industry-page, "engineering/**"]
     paths:
       - "src/**"
       - "server.ts"
