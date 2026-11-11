@@ -45,14 +45,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   // every variant. Legacy image arrays are treated as family images only when
   // they have no SKU-scope metadata.
   const familyGalleryImage = product.galleryImages?.find(image => image.scope === "family" && image.url);
-  const variantGalleryImage = product.galleryImages?.find(image => image.scope === "variant" && image.url);
+  const galleryVariantImage = product.galleryImages?.find(image => image.scope === "variant" && image.url);
+  const skuVariantWithImage = product.variants?.find(variant => variant.images?.some(Boolean));
+  const variantGalleryImage = galleryVariantImage || (skuVariantWithImage
+    ? { url: skuVariantWithImage.images?.find(Boolean) || "", variantCode: skuVariantWithImage.code }
+    : undefined);
   const canUseLegacyFamilyImage = !product.galleryImages?.length &&
     product.imageScope !== "sku-verified" && product.imageScope !== "mixed";
   const legacyFamilyImage = canUseLegacyFamilyImage
     ? product.images?.find(Boolean) || product.image
     : undefined;
   const productImage = familyGalleryImage?.url || legacyFamilyImage || variantGalleryImage?.url;
-  const isVariantImagePreview = !familyGalleryImage && !legacyFamilyImage && Boolean(variantGalleryImage);
+  const isVariantImagePreview = !familyGalleryImage && !legacyFamilyImage && Boolean(variantGalleryImage?.url);
   const variantImageLabel = variantGalleryImage?.variantCode
     ? `نمونه تصویر کد ${variantGalleryImage.variantCode}`
     : "نمونه تصویر یک کد فنی";
