@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { setPageMeta } from '../utils/pageMeta';
 import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../data/approvedMenuFallback';
 import type { EnhancedCategory } from '../data/categories';
@@ -41,6 +42,12 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 export const AllCategoriesPage: React.FC = () => {
+  useEffect(() => {
+    setPageMeta({
+      title: "دسته‌بندی قطعات صنعتی | صنعت پیش",
+      description: "فهرست دسته‌ها و زیرگروه‌های تأییدشده قطعات صنعتی را مرور کنید و از هر گروه به خانواده‌ها و کدهای فنی مرتبط برسید.",
+    });
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   useEffect(()=>{
     const target=window.location.hash.slice(1);
