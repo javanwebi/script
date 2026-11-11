@@ -262,7 +262,9 @@ export const ProductsPage: React.FC = () => {
         return (b.rating || 0) - (a.rating || 0);
       }
       if (sortBy === "stock_desc") {
-        return b.stock - a.stock;
+        const aStock = a.stockKnown === true && !a.inquiryOnly ? a.stock : -1;
+        const bStock = b.stockKnown === true && !b.inquiryOnly ? b.stock : -1;
+        return bStock - aStock;
       }
       return 0;
     });
@@ -327,6 +329,7 @@ export const ProductsPage: React.FC = () => {
     setSelectedBrand("all");
     setInStockOnly(false);
     setHasCatalogueImageFilter(false);
+    setCurrentPage(1);
     const nextParams = new URLSearchParams(searchParams);
     ["brand", "stock", "image"].forEach((key) => nextParams.delete(key));
     setSearchParams(nextParams, { replace: true });
