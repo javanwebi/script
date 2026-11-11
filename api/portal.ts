@@ -793,7 +793,7 @@ export default async function handler(
         inquiryNumber: id,
         customerId: auth.user?.id || "guest",
         customerName: name,
-        companyName: companyName || auth.user?.companyName || "",
+        companyName,
         phone,
         email,
         productCode: "CONTACT",
