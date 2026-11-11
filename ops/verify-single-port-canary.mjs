@@ -61,6 +61,12 @@ const missingBody = await missingApi.json();
 assert.equal(missingBody.code, "API_NOT_FOUND");
 console.log("API_NOT_FOUND_JSON_CONTRACT_OK");
 
+const familyRoute = await json(candidate, "/api/catalog/menu-family-route/CANARY-FAMILY-NOT-FOUND");
+assert.equal(familyRoute.success, true, "FAMILY_MENU_ROUTE_ENDPOINT_MISSING");
+assert.equal(familyRoute.assignment, null, "UNKNOWN_CANARY_FAMILY_MUST_NOT_RESOLVE");
+assert.deepEqual(familyRoute.relatedFamilyCodes, [], "UNKNOWN_CANARY_FAMILY_MUST_NOT_RETURN_RELATED_CODES");
+console.log("PUBLIC_FAMILY_MENU_ROUTE_CONTRACT_OK");
+
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
 
