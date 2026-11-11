@@ -25,7 +25,7 @@ const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ClubPointsProvider } from "./context/ClubPointsContext";
@@ -99,6 +99,13 @@ const AdminLayout = lazy(() =>
 );
 
 function CustomerPanelEntry() { const { currentUser } = useAuth(); return <Navigate to={currentUser?.approvedB2B ? "/account" : "/consumer-dashboard"} replace/>; }
+
+function LegacyDealerRedirect() {
+  const location = useLocation();
+  // Dealer accounts now use the protected industrial customer portal. Keep
+  // legacy query/hash context while avoiding the retired demo dealer UI.
+  return <Navigate to={{ pathname: "/account", search: location.search, hash: location.hash }} replace />;
+}
 
 export default function App() {
   return (
