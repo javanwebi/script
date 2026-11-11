@@ -181,6 +181,9 @@ async function installRoutes(page) {
 
       assert.equal(await page.locator('.store-product-card').count(), products.length, 'legacy category should render only its matching family products');
       assert.equal(await page.locator('.category-product-headline strong').innerText(), 'محصولات ' + categoryName, 'the product heading must match the selected category');
+      const breadcrumb = page.locator('.category-showcase nav');
+      assert.equal(await breadcrumb.locator('a[href="/products"]').count(), 1, 'legacy category breadcrumb should return to the all-products catalogue');
+      assert.equal(await breadcrumb.locator('a[href="/categories"]').count(), 0, 'legacy category should not claim membership in the separate approved category directory');
       assert.equal(await page.getByText('انتخاب قطعات انتقال نیرو').count(), 0, 'a materials category must not inherit the power-transmission heading');
       assert.ok((await page.locator('.store-product-card').nth(1).locator('.store-product-meta').innerText()).includes('برند ثبت نشده'), 'placeholder brand values should be presented honestly');
 
