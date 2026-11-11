@@ -236,7 +236,7 @@ export const AllCategoriesPage: React.FC = () => {
   const clearSearch = () => setSearchQuery('');
 
   return (
-    <main className="all-categories-page" dir="rtl">
+    <div className="all-categories-page" dir="rtl">
       <div className="all-categories-shell">
         <nav className="all-categories-breadcrumbs" aria-label="مسیر صفحه">
           <Link to="/">صفحه اصلی</Link>
@@ -292,7 +292,7 @@ export const AllCategoriesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="all-categories-hero-visual" aria-label="محیط صنعتی و زنجیره تأمین قطعات">
+          <div className="all-categories-hero-visual" role="img" aria-label="محیط صنعتی و تجهیزات خطوط تولید">
             <img
               src={STORE_ASSETS.industries.manufacturing}
               alt="محیط صنعتی و تجهیزات خطوط تولید"
@@ -496,7 +496,7 @@ export const AllCategoriesPage: React.FC = () => {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 };
 
