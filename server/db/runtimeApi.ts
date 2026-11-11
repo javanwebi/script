@@ -74,17 +74,68 @@ async function publicProductsCached():Promise<unknown>{
  return publicCatalogInFlight;
 }
 /** Compact first-paint index: full SKU payloads are fetched only on product detail. */
-export async function publicCatalogListingApi(_req:Request,res:Response){
+export async function publicCatalogListingApi(req:Request,res:Response){
  if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
- res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=120');
  try{
-  if(publicListingCache && Date.now()<publicListingCache.expires)return res.json(publicListingCache.value);
-  const catalog=await publicProductsCached();
+  const identity=await getPortalIdentity(req);
+  const publicRequest=!identity.user && !identity.admin && !identity.staff;
+  res.setHeader('Cache-Control',publicRequest?'public, max-age=30, stale-while-revalidate=120':'private, no-store');
+  res.setHeader('Vary','Cookie');
+  if(publicRequest && publicListingCache && Date.now()<publicListingCache.expires)return res.json(publicListingCache.value);
+
+  let catalog:any[]=[];
+  if(identity.staff){
+   if(!canStaff(identity,'products'))return res.status(403).json({success:false,message:'دسترسی مشاهده فهرست کالاها مجاز نیست.'});
+   catalog=await getAdminCatalogProducts() as any[];
+   if(!canStaff(identity,'products','prices'))catalog=publicCatalog(catalog) as any[];
+  }else if(identity.admin){
+   catalog=await getAdminCatalogProducts() as any[];
+  }else if(identity.user && identity.canReadCommerce){
+   if(adoptedSchema()){
+    catalog=await transaction(async client=>{
+     const data=await readAdoptedProducts(client,{includeTechnicalReviews:false});
+     await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
+     const rows=identity.user!.canViewPrices
+      ? (await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c')).rows
+      : [];
+     const prices=new Map(rows.map((row:any)=>[row.variant_code,toman(row.amount,row.currency)]));
+     const zeroPrices={base:0,retail:0,wholesale:0,dealer:0};
+     for(const family of data){
+      for(const variant of family.variants||[]){
+       const amount=identity.user!.canViewPrices?Number(prices.get(variant.code)||0):0;
+       variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};
+       variant.price=amount;
+       if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}
+      }
+      family.prices=family.variants?.[0]?.prices||zeroPrices;
+      family.stock=(family.variants||[]).reduce((sum:number,variant:any)=>sum+Number(variant.stock||0),0);
+      family.stockKnown=Boolean(family.variants?.length) && family.variants.every((variant:any)=>variant.stockKnown===true);
+     }
+     return data;
+    }) as any[];
+   }else{
+    catalog=await readProducts({includeTechnicalReviews:false}) as any[];
+    const zeroPrices={base:0,retail:0,wholesale:0,dealer:0};
+    for(const family of catalog){
+     for(const variant of family.variants||[]){
+      if(!identity.user.canViewPrices){variant.prices=zeroPrices;variant.price=0;}
+      if(!identity.user.canViewStock){variant.stock=0;variant.stockKnown=false;}
+     }
+     family.prices=family.variants?.[0]?.prices||zeroPrices;
+     family.stock=(family.variants||[]).reduce((sum:number,variant:any)=>sum+Number(variant.stock||0),0);
+     family.stockKnown=Boolean(family.variants?.length) && family.variants.every((variant:any)=>variant.stockKnown===true);
+    }
+   }
+  }else{
+   catalog=await publicProductsCached() as any[];
+  }
+
   const value=createPublicListingValue(catalog);
-  publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
+  if(publicRequest)publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
   return res.json(value);
- }catch{
-  return res.status(503).json({success:false,message:'دریافت فهرست سبک محصولات ممکن نشد.'});
+ }catch(error:any){
+  const status=Number(error?.status)||503;
+  return res.status(status).json({success:false,message:status===403?'دسترسی مشاهده فهرست کالاها مجاز نیست.':'دریافت فهرست سبک محصولات ممکن نشد.'});
  }
 }
 
