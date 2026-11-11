@@ -142,7 +142,15 @@ const viewports = [
       const compareDialog = page.getByRole('dialog', { name: 'مقایسه محصولات انتخاب‌شده' });
       await compareDialog.waitFor({ state: 'visible' });
       await compareDialog.locator('.bce-compare-table').waitFor({ state: 'visible' });
+      await page.keyboard.press('Shift+Tab');
+      const focusStayedInDialog = await compareDialog.evaluate(dialog => dialog.contains(document.activeElement));
+      assert.ok(focusStayedInDialog, 'keyboard focus must remain inside the comparison dialog');
+      await page.keyboard.press('Escape');
+      await compareDialog.waitFor({ state: 'hidden' });
+      await page.locator('.bce-compare-open').click();
+      await compareDialog.waitFor({ state: 'visible' });
       await compareDialog.locator('.bce-compare-head button').click();
+      await compareDialog.waitFor({ state: 'hidden' });
       await page.locator('.bce-compare-clear').click();
 
       await page.locator('.bce-family-area .bce-section-heading button').click();
