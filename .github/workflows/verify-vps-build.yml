@@ -26,6 +26,7 @@ on:
       - "tests/customer-pricing-visibility.test.ts"
       - "tests/storefront-product-route-integrity.test.ts"
       - "scripts/tests/products-catalogue-responsive-smoke.cjs"
+      - "scripts/tests/legacy-category-responsive-smoke.cjs"
       - "src/pages/ProductDetailPage.tsx"
       - "src/pages/product-detail-premium.css"
       - "tests/product-detail-premium.test.ts"
@@ -116,6 +117,8 @@ jobs:
         run: node scripts/tests/belt-category-responsive-smoke.cjs
       - name: Verify products catalogue desktop and mobile interactions
         run: node scripts/tests/products-catalogue-responsive-smoke.cjs
+      - name: Verify legacy category desktop and mobile interactions
+        run: node scripts/tests/legacy-category-responsive-smoke.cjs
       - name: Verify product detail desktop and mobile interactions
         run: node scripts/tests/product-detail-responsive-smoke.cjs
       - name: Verify all categories desktop and mobile interactions
@@ -131,6 +134,7 @@ jobs:
           path: |
             /tmp/belt-category-*.png
             /tmp/products-catalogue-*.png
+            /tmp/legacy-category-*.png
             /tmp/product-detail-*.png
             /tmp/all-categories-*.png
             /tmp/excel-category-*.png
