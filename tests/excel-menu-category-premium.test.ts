@@ -78,12 +78,6 @@ test('family product cards preserve a usable image from the family gallery or SK
   assert.match(page, /<ProductCard product=\{cardProduct\}/);
 });
 
-test('family cards use a valid gallery or variant image when legacy product images are absent', () => {
-  assert.match(page, /const previewImage = productPreviewImage\(product\)/);
-  assert.match(page, /images: product\.images\?\.some\(Boolean\) \? product\.images : previewImage \? \[previewImage\] : \[\]/);
-  assert.match(page, /<ProductCard product=\{cardProduct\}/);
-});
-
 test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
   assert.match(page, /<DirectSkuProducts categorySlug=\{slug\}/);
   assert.match(page, /const cardProduct = product \?/);
