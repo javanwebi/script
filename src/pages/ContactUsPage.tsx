@@ -164,7 +164,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
   const [selectedBranchId, setSelectedBranchId] = useState<BranchLocation['id']>(
-    defaultTab === 'factory' ? 'yazd_shop' : 'yazd_shop'
+    defaultTab === 'factory' ? 'meybod_warehouse' : 'yazd_shop'
   );
   const [isMapInteractive, setIsMapInteractive] = useState(true);
   const [mapZoomOffset, setMapZoomOffset] = useState(0);
