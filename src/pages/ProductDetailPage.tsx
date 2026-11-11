@@ -1651,7 +1651,7 @@ export const ProductDetailPage: React.FC = () => {
             </p>
             <p className="text-xs text-slate-500 mt-1">
               خانواده: {product.name} | برند: {activeBrand} | دسته‌بندی:{" "}
-              {product.categoryName}
+              {activeFamilyMenuRoute?.assignment?.categoryName || product.categoryName}
             </p>
           </div>
 
