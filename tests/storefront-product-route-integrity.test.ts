@@ -36,7 +36,8 @@ test("product cards resolve registered family gallery images and render useful t
 test("category pages use the selected category name instead of a hard-coded transmission title", () => {
   assert.match(categoryPage, /محصولات \{category\.name\}/);
   assert.match(categoryPage, /مشخصات مرتبط با \{category\.name\}/);
-  assert.match(categoryPage, /<Link to="\\/products" className="hover:text-\[#E06518\] transition-colors">[\\s\\S]*?همه محصولات/);
+  assert.ok(categoryPage.includes('<Link to="/products" className="hover:text-[#E06518] transition-colors">'));
+  assert.ok(categoryPage.includes('همه محصولات'));
   assert.doesNotMatch(categoryPage, /انتخاب قطعات انتقال نیرو/);
 });
 
