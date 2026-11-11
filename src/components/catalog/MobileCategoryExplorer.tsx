@@ -172,6 +172,7 @@ export function MobileCategoryExplorer({
               <strong>دسته‌ای با این عبارت پیدا نشد.</strong>
               <p>عبارت دیگری را وارد کنید یا جستجو را پاک کنید.</p>
               {search && <button type="button" onClick={() => onSearch("")}>نمایش همه دسته‌ها</button>}
+              <Link to="/products" onClick={onNavigate}>مشاهده کاتالوگ همه محصولات</Link>
               <Link to="/categories" onClick={onNavigate}>مشاهده صفحه دسته‌بندی‌ها</Link>
             </div>
           )}
