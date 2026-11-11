@@ -46,6 +46,21 @@ test('subcategory, search, brand, image and verified-stock filters are shareable
   assert.match(page, /variant\.images/);
 });
 
+test('profile and dimension filters use real family and SKU specs and remain shareable', () => {
+  assert.match(page, /searchParams\.get\('spec'\)/);
+  assert.match(page, /searchParams\.get\('specValue'\)/);
+  assert.match(page, /const matchesTechnicalFilter = \(product: Product \| undefined, specKey: string, specValue: string\)/);
+  assert.match(page, /variant\.technicalSpecs \|\| \[\]/);
+  assert.match(page, /const availableSpecKeys = useMemo/);
+  assert.match(page, /پروفیل\|قطر\|عرض\|طول\|گام\|ضخامت\|سایز\|ابعاد/);
+  assert.match(page, /updateParam\('spec', event\.target\.value\)/);
+  assert.match(page, /updateParam\('specValue', event\.target\.value\)/);
+  assert.match(page, /aria-label="مقدار پروفیل یا ابعاد"/);
+  assert.match(page, /Number\(Boolean\(specKey \|\| specValue\)\)/);
+  assert.match(page, /'spec', 'specValue'/);
+  assert.match(styles, /\.excel-category-spec-filter select/);
+});
+
 test('category search includes actual family codes, product technical specs and variant codes', () => {
   assert.match(page, /family\.code/);
   assert.match(page, /product\?\.technicalSpecs/);
