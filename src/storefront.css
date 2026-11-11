@@ -5001,3 +5001,35 @@ select {
   .direct-sku-product-card { transition: none; }
   .direct-sku-product-card:hover { transform: none; }
 }
+
+.direct-sku-products-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  color: #78838c;
+  font-size: 10px;
+}
+.direct-sku-products-pagination button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid #e7e9eb;
+  border-radius: 8px;
+  color: #4e5a64;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 850;
+}
+.direct-sku-products-pagination button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.direct-sku-products-pagination strong {
+  color: #bd5b1e;
+  font-weight: 950;
+}
