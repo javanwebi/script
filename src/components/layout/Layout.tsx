@@ -51,7 +51,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     );
   }
 
-  const isEditorial=["/industries","/brands","/knowledge","/about"].some(p=>location.pathname.startsWith(p));
+  const isEditorial=["/industries","/brands","/knowledge","/about","/categories"].some(p=>location.pathname.startsWith(p));
   const isHomePage = location.pathname === '/';
   const isCategoryPage = location.pathname.startsWith('/category/');
   const isTextileReferencePage = location.pathname.startsWith('/industries/textile');

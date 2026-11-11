@@ -42,6 +42,7 @@ import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { ProductCard } from "../components/product/ProductCard";
 import { MemberAccess } from "../components/storefront/MemberAccess";
 import { rankIndustryProducts } from "../utils/industryCatalog";
+import "./industry-pages-premium.css";
 const title = (text: string) => {
   document.title = `${text} | صنعت پیش`;
 };
@@ -224,36 +225,53 @@ export function IndustryPage() {
   }
   return (
     <div className={`editorial industry-page industry-${industry.slug}`}>
-      <section className={`industry-hero industry-hero--${industry.slug}`}>
-        <img
-          src={industry.image}
-          alt={`خط تولید ${industry.title}`}
-          fetchPriority="high"
-        />
-        <div className="industry-hero-shade" />
-        <div className="editorial-wrap">
-          <nav className="editorial-crumb">
-            <Link to="/">صنعت پیش</Link>
-            <span>/</span>
-            <Link to="/industries">صنایع</Link>
-          </nav>
-          <span className="industry-kicker">{industry.eyebrow}</span>
-          <h1>
-            همراه خط تولید
-            <br />
-            <em>{industry.title}</em>
-          </h1>
-          <p>{industry.description}</p>
-          <div className="editorial-actions">
-            <a className="store-btn-primary" href="#industry-parts">
-              کاوش قطعات این صنعت <ArrowLeft size={17} />
-            </a>
-            <Link
-              className="industry-secondary"
-              to={`/ai-consult?industry=${industry.slug}`}
-            >
-              مشاوره با FORZA <MessageSquare size={17} />
-            </Link>
+      <section className={`industry-hero industry-hero--${industry.slug}`} aria-labelledby="industry-hero-title">
+        <div className="industry-hero-layout">
+          <div className="industry-hero-visual">
+            <img
+              src={industry.image}
+              alt={`خط تولید ${industry.title}`}
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div className="industry-hero-shade" />
+            <div className="industry-hero-visual-caption">
+              <span>فرآیند تولید {industry.title}</span>
+              <strong>انتخاب قطعه بر اساس کاربرد و شرایط واقعی خط</strong>
+            </div>
+          </div>
+          <div className="industry-hero-copy">
+            <nav className="editorial-crumb industry-hero-crumb" aria-label="مسیر صفحه">
+              <Link to="/">صنعت پیش</Link>
+              <span>/</span>
+              <Link to="/industries">صنایع</Link>
+              <span>/</span>
+              <span>{industry.title}</span>
+            </nav>
+            <span className="industry-kicker">{industry.eyebrow}</span>
+            <h1 id="industry-hero-title" className="industry-hero-title">
+              همراه خط تولید
+              <em>{industry.title}</em>
+            </h1>
+            <p className="industry-hero-description">{industry.description}</p>
+            <div className="industry-hero-tags" aria-label="گروه‌های مرتبط این صنعت">
+              {industry.parts.slice(0, 4).map(part => <span key={part}>{part}</span>)}
+            </div>
+            <div className="industry-hero-actions">
+              <a className="industry-hero-primary" href="#industry-parts">
+                کاوش قطعات این صنعت <ArrowLeft size={16} />
+              </a>
+              <Link className="industry-hero-secondary" to={`/ai-consult?industry=${industry.slug}`}>
+                مشاوره با FORZA <MessageSquare size={16} />
+              </Link>
+              <Link className="industry-hero-identify" to="/identify-part">
+                شناسایی با تصویر <ScanLine size={16} />
+              </Link>
+            </div>
+            <div className="industry-hero-metrics">
+              <span><b>{industry.parts.length.toLocaleString("fa-IR")}</b> گروه قطعه مرتبط</span>
+              <span><b>{industry.checks.length.toLocaleString("fa-IR")}</b> معیار بررسی فنی</span>
+            </div>
           </div>
         </div>
       </section>
@@ -352,7 +370,7 @@ export function IndustryPage() {
 export function IndustriesPage() {
   useEffect(() => title("صنایع تحت پوشش"), []);
   return (
-    <main className="company-page company-page--industries" dir="rtl">
+    <div className="company-page company-page--industries" dir="rtl">
       <section className="company-hero company-hero--industries">
         <div className="company-hero-copy">
           <span className="company-kicker">صنایع تحت پوشش</span>
@@ -416,7 +434,7 @@ export function IndustriesPage() {
         </div>
         <Link to="/contact" className="company-button company-button--primary">تماس و هماهنگی <ArrowLeft size={18} /></Link>
       </section>
-    </main>
+    </div>
   );
 }
 export function BrandsPage() {

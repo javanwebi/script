@@ -52,6 +52,8 @@ import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
 import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
+import { isDatabaseCatalogHydrated } from "../services/durableStorage";
+import "./product-detail-premium.css";
 
 export const ProductDetailPage: React.FC = () => {
   const location = useLocation();
@@ -90,9 +92,11 @@ export const ProductDetailPage: React.FC = () => {
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [catalogTick, setCatalogTick] = useState(0);
-  useEffect(() => {
-    return subscribeCatalogChanges(() => setCatalogTick((t) => t + 1));
-  }, []);
+  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
+  useEffect(() => subscribeCatalogChanges(() => {
+    setCatalogTick((tick) => tick + 1);
+    setCatalogReady(isDatabaseCatalogHydrated());
+  }), []);
 
   const decodedCode = code ? decodeURIComponent(code).trim() : "";
   const product = useMemo(
@@ -199,10 +203,20 @@ export const ProductDetailPage: React.FC = () => {
     }
   }, [decodedCode, product?.code, visibleVariants.length, galleryImages]);
 
+  const syncSelectedVariantRoute = (variantCode: string) => {
+    if (isCustomerPortalRoute) return;
+    const parentPath = location.pathname.slice(0, location.pathname.lastIndexOf("/"));
+    const nextPath = `${parentPath}/${encodeURIComponent(variantCode)}`;
+    if (nextPath !== location.pathname) {
+      navigate({ pathname: nextPath, search: location.search }, { replace: true });
+    }
+  };
+
   // 1. Customer selects a SKU code -> show image, specs, and price of that SKU
   const handleSelectVariant = (newVariantCode: string) => {
     setSelectedVariantCode(newVariantCode);
     setQuantity(1);
+    syncSelectedVariantRoute(newVariantCode);
 
     const currentImg = galleryImages[activeImageIndex];
     // If current image is already linked to this exact SKU, keep it (do not jump)
@@ -243,14 +257,25 @@ export const ProductDetailPage: React.FC = () => {
       if (targetExists && selectedVariantCode !== clickedImg.variantCode) {
         setSelectedVariantCode(clickedImg.variantCode);
         setQuantity(1);
+        syncSelectedVariantRoute(clickedImg.variantCode);
       }
     }
     // When clickedImg.scope === 'family', we deliberately keep selectedVariantCode unchanged.
   };
 
+  if (!product && !catalogReady && !isCustomerPortalRoute) {
+    return (
+      <div className="product-detail-loading product-detail-premium-state" role="status" aria-live="polite" dir="rtl">
+        <span className="product-detail-loading-spinner" aria-hidden="true" />
+        <h2>در حال دریافت اطلاعات قطعه</h2>
+        <p>کاتالوگ و مشخصات فنی از پایگاه داده صنعت پیش بارگذاری می‌شود.</p>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xs">
+      <div className={`product-detail-not-found ${isCustomerPortalRoute ? "" : "product-detail-premium-state"} bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xs`}>
         <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-500">
           <AlertCircle className="w-7 h-7" />
         </div>
@@ -442,10 +467,10 @@ export const ProductDetailPage: React.FC = () => {
 
   return (
     <div
-      className="product-detail-page space-y-6 lg:space-y-8 pb-24 lg:pb-12 text-right"
+      className={`product-detail-page ${isCustomerPortalRoute ? "" : "product-detail-premium"} space-y-6 lg:space-y-8 pb-24 lg:pb-12 text-right`}
       dir="rtl"
     >
-      {!consultPromptDismissed && <aside className="flex flex-wrap items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+      {!consultPromptDismissed && <aside className="product-detail-consult-prompt flex flex-wrap items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4">
         <p className="flex-1 text-sm">درباره {product.name} بیشتر بدانید؛ فورزا برای انتخاب مناسب راهنمایی‌تان کند؟</p>
         <Link className="store-btn-primary" to={'/ai-consult?' + new URLSearchParams({
           productCode: selectedVariant?.code || product.code,
@@ -488,8 +513,8 @@ export const ProductDetailPage: React.FC = () => {
       )}
 
       {/* 1. BREADCRUMB & UTILITY ACTIONS */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <nav className="flex items-center gap-1.5 text-xs text-slate-500 overflow-x-auto no-scrollbar py-1">
+      <div className="product-detail-breadcrumb-row flex items-center justify-between gap-3 flex-wrap">
+        <nav className="product-detail-breadcrumbs flex items-center gap-1.5 text-xs text-slate-500 overflow-x-auto no-scrollbar py-1" aria-label="مسیر صفحه">
           <Link
             to="/"
             className="hover:text-[#E06518] transition-colors shrink-0"
@@ -505,7 +530,7 @@ export const ProductDetailPage: React.FC = () => {
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <Link
-            to={`/category/${product.categorySlug}`}
+            to={`/category/${encodeURIComponent(product.categorySlug)}`}
             className="hover:text-[#E06518] transition-colors shrink-0 max-w-[140px] sm:max-w-none truncate"
           >
             {product.categoryName}
@@ -811,7 +836,7 @@ export const ProductDetailPage: React.FC = () => {
                     انتخاب سریع کد کالا (با انتخاب هر کد، تصویر و قیمت آن نمایش
                     داده می‌شود):
                   </span>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="product-detail-variant-chips flex flex-wrap gap-2">
                     {visibleVariants.map((v) => {
                       const isSel = v.code === selectedVariant?.code;
                       const vPrice = canViewCommercial
@@ -826,7 +851,9 @@ export const ProductDetailPage: React.FC = () => {
                           key={v.code}
                           type="button"
                           onClick={() => handleSelectVariant(v.code)}
-                          className={`px-3 py-2 rounded-xl border text-right transition-all cursor-pointer flex flex-col gap-0.5 ${
+                          aria-pressed={isSel}
+                          aria-label={`انتخاب کد کالا ${v.code}، ${v.size || v.name}`}
+                          className={`product-detail-variant-chip px-3 py-2 rounded-xl border text-right transition-all cursor-pointer flex flex-col gap-0.5 ${
                             isSel
                               ? "border-[#E06518] bg-orange-50/90 text-[#37383b] ring-1 ring-[#E06518]"
                               : "border-slate-200 bg-white hover:border-slate-300 text-slate-700"
@@ -965,7 +992,7 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* Primary SKU-Owned Pricing & Order Action Area */}
-            <div className="pt-5 border-t border-slate-200/80 space-y-4">
+            <div className="product-detail-pricing pt-5 border-t border-slate-200/80 space-y-4">
               {!canViewCommercial ? (
                 <MemberAccess
                   code={selectedVariantCode || product.code}
@@ -973,7 +1000,7 @@ export const ProductDetailPage: React.FC = () => {
                 />
               ) : !isSelectedInquiryOnly && activeUnitPrice > 0 ? (
                 /* SKU HAS AN ACTIVE PRICE */
-                <div className="space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200/90">
+                <div className="product-detail-price-card space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200/90">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div>
                       <span className="text-xs text-slate-500 block mb-1">
@@ -1128,10 +1155,13 @@ export const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* 2.5 INTERACTIVE TABS: SPECS (SHARED + VARIANT-SPECIFIC), CATALOGUE, DELIVERY */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="flex items-center border-b border-slate-200/80 bg-slate-50/70 overflow-x-auto no-scrollbar">
+      <div className="product-detail-tabs bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
+        <div className="product-detail-tabs-nav flex items-center border-b border-slate-200/80 bg-slate-50/70 overflow-x-auto no-scrollbar" role="tablist" aria-label="اطلاعات تکمیلی محصول">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "specs"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("specs")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "specs"
@@ -1145,6 +1175,9 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "catalogue"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("catalogue")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "catalogue"
@@ -1158,6 +1191,9 @@ export const ProductDetailPage: React.FC = () => {
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "delivery"}
+            aria-controls="product-detail-tab-panel"
             onClick={() => setActiveTab("delivery")}
             className={`px-5 sm:px-7 py-4 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer transition-all ${
               activeTab === "delivery"
@@ -1170,7 +1206,7 @@ export const ProductDetailPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-5 sm:p-7">
+        <div className="product-detail-tabs-content p-5 sm:p-7" role="tabpanel" id="product-detail-tab-panel" tabIndex={0}>
           {activeTab === "specs" && (
             <div className="space-y-6">
               {/* Variant-Specific Specs Table */}
@@ -1457,13 +1493,13 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* 3. SIMILAR PRODUCTS */}
       {similarProducts.length > 0 && (
-        <div className="space-y-4 pt-2">
+        <div className="product-detail-similar space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-[#55565A]">
               محصولات مشابه در این دسته‌بندی
             </h2>
             <Link
-              to={`/category/${product.categorySlug}`}
+              to={`/category/${encodeURIComponent(product.categorySlug)}`}
               className="text-xs font-bold text-[#E06518] hover:text-[#C95210] flex items-center gap-1 transition-colors"
             >
               <span>مشاهده تمام قطعات</span>
@@ -1479,7 +1515,7 @@ export const ProductDetailPage: React.FC = () => {
       )}
 
       {/* 4. MOBILE STICKY BOTTOM ACTION BAR */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3">
+      <div className="product-detail-mobile-action lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] flex items-center justify-between gap-3" aria-label="اقدام خرید کد انتخاب‌شده">
         <div className="min-w-0 flex-1">
           <span
             className="block text-[11px] font-mono text-slate-500 truncate"

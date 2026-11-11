@@ -9,7 +9,25 @@ on:
       - "src/pages/TextileIndustryPage.tsx"
       - "src/pages/BeltCategoryExperience.tsx"
       - "src/pages/BeltCategoryExperience.css"
+      - "src/pages/ProductsPage.tsx"
+      - "src/pages/products-page-premium.css"
+      - "tests/products-page-premium.test.ts"
+      - "scripts/tests/products-catalogue-responsive-smoke.cjs"
+      - "src/pages/ProductDetailPage.tsx"
+      - "src/pages/product-detail-premium.css"
+      - "tests/product-detail-premium.test.ts"
+      - "scripts/tests/product-detail-responsive-smoke.cjs"
+      - "src/pages/AllCategoriesPage.tsx"
+      - "src/pages/all-categories-premium.css"
+      - "tests/all-categories-page-premium.test.ts"
+      - "scripts/tests/all-categories-responsive-smoke.cjs"
+      - "src/pages/ExcelMenuCategoryPage.tsx"
+      - "src/pages/excel-menu-category-premium.css"
+      - "tests/excel-menu-category-premium.test.ts"
+      - "scripts/tests/excel-menu-category-responsive-smoke.cjs"
       - "src/textile-industry.css"
+      - "tests/textile-industry-premium.test.ts"
+      - "scripts/tests/textile-industry-responsive-smoke.cjs"
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
@@ -44,6 +62,16 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript
         run: npm run lint
+      - name: Products catalogue regression suite
+        run: node --import tsx --test tests/products-page-premium.test.ts
+      - name: Product detail regression suite
+        run: node --import tsx --test tests/product-detail-premium.test.ts
+      - name: All categories regression suite
+        run: node --import tsx --test tests/all-categories-page-premium.test.ts
+      - name: Excel menu category regression suite
+        run: node --import tsx --test tests/excel-menu-category-premium.test.ts
+      - name: Textile industry regression suite
+        run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Belt category reference and regression suite
@@ -60,22 +88,38 @@ jobs:
         run: |
           npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Launch production preview for belt category browser tests
+      - name: Launch production preview for catalogue browser tests
         run: |
-          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/belt-category-preview.log 2>&1 &
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/storefront-preview.log 2>&1 &
           for i in $(seq 1 50); do
-            if curl -sf http://127.0.0.1:4173/category/%D8%AA%D8%B3%D9%85%D9%87-%D9%88-%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84-%D9%86%DB%8C%D8%B1%D9%88 >/dev/null; then exit 0; fi
+            if curl -sf http://127.0.0.1:4173/products >/dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/belt-category-preview.log
+          cat /tmp/storefront-preview.log
           exit 1
       - name: Verify belt category desktop and mobile interactions
         run: node scripts/tests/belt-category-responsive-smoke.cjs
+      - name: Verify products catalogue desktop and mobile interactions
+        run: node scripts/tests/products-catalogue-responsive-smoke.cjs
+      - name: Verify product detail desktop and mobile interactions
+        run: node scripts/tests/product-detail-responsive-smoke.cjs
+      - name: Verify all categories desktop and mobile interactions
+        run: node scripts/tests/all-categories-responsive-smoke.cjs
+      - name: Verify Excel menu category desktop and mobile interactions
+        run: node scripts/tests/excel-menu-category-responsive-smoke.cjs
+      - name: Verify textile industry desktop and mobile interactions
+        run: node scripts/tests/textile-industry-responsive-smoke.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: belt-category-responsive-screenshots
-          path: /tmp/belt-category-*.png
+          name: storefront-responsive-screenshots
+          path: |
+            /tmp/belt-category-*.png
+            /tmp/products-catalogue-*.png
+            /tmp/product-detail-*.png
+            /tmp/all-categories-*.png
+            /tmp/excel-category-*.png
+            /tmp/textile-industry-*.png
           if-no-files-found: ignore
       - name: Print focused Vite failure
         if: failure()
