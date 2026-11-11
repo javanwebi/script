@@ -40,7 +40,7 @@ test('the reference composition adds a real featured product, list rows and a wo
   assert.match(page, /className="bce-products-list"/);
   assert.match(page, /className="bce-compare-dock"/);
   assert.match(page, /setCompareOpen\(true\)/);
-  assert.match(page, /compareCodes\.length < 4/);
+  assert.match(page, /current\.length < 4/);
   assert.match(page, /compareProducts\.length < 2/);
   assert.match(page, /className="bce-compare-table"/);
   assert.match(page, /comparisonSpecKeys\.map/);
@@ -55,10 +55,8 @@ test('the redesign retains the guide, industry links, FORZA entry points and mob
     'bce-bottom-line',
     'bce-sheet-backdrop',
     '/identify-part',
-    '/ai-consult',
-    'باکیفیت'
+    '/ai-consult'
   ]) {
-    if (marker === 'باکیفیت') continue;
     assert.ok(page.includes(marker), 'missing retained page content or route: ' + marker);
   }
   assert.match(page, /applySheet/);
