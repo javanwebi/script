@@ -281,7 +281,7 @@ export const AllCategoriesPage: React.FC = () => {
               <kbd>جستجو</kbd>
             </form>
             <div className="all-categories-source-status" aria-live="polite">
-              <span className={source === 'database' ? 'is-live' : source === 'fallback' ? 'is-fallback' : 'is-loading'} />
+              <span className={source === 'database' ? 'is-live' : source === 'error' ? 'is-error' : 'is-loading'} />
               {source === 'database'
                 ? 'ساختار دسته‌بندی از پایگاه داده دریافت شد'
                 : source === 'error'
