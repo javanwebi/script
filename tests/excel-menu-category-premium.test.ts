@@ -55,7 +55,7 @@ test('category search includes actual family codes, product technical specs and 
 
 test('family product cards preserve a usable image from the family gallery or SKU gallery', () => {
   assert.match(page, /const hasCatalogImage = \(product\?: Product\)/);
-  assert.match(page, /product\?\.galleryImages\?\.some\(image => Boolean\(image\.url\)\)/);
+  assert.match(page, /product\.galleryImages\?\.some\(image => Boolean\(image\.url\)\)/);
   assert.match(page, /variant\.images\?\.some\(Boolean\)/);
   assert.match(page, /const productPreviewImage = \(product\?: Product\)/);
   assert.match(page, /const previewImage = productPreviewImage\(product\)/);
