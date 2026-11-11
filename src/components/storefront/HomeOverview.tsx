@@ -85,32 +85,41 @@ export function HomeAboutSection() {
     { Icon: Layers, title: "کاتالوگ تخصصی", text: "جستجو با نام، برند و کد فنی" },
     { Icon: Cpu, title: "ابزارهای هوشمند", text: "شناسایی تصویری و راهنمایی FORZA" },
   ];
+
   return (
-    <section className="home-about-preview" aria-labelledby="home-about-preview-title" dir="rtl">
+    <section
+      className="home-about-preview"
+      aria-labelledby="home-about-preview-title"
+      dir="ltr"
+    >
       <div className="home-about-preview__visual">
         <img
           src={STORE_ASSETS.whySanatDirectFactory}
-          alt="محیط صنعتی و زنجیره تأمین قطعات"
+          alt="محیط صنعتی و زنجیره تأمین قطعات صنعت پیش"
           loading="lazy"
           decoding="async"
           fetchPriority="low"
         />
         <div className="home-about-preview__shade" />
-        <div className="home-about-preview__atlas">
-          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" loading="lazy" decoding="async" fetchPriority="low" />
+        <div className="home-about-preview__atlas" dir="rtl">
+          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" loading="lazy" decoding="async" />
           <span>با پشتوانه بازرگانی تسمه اطلس از سال ۱۳۶۶</span>
         </div>
-        <div className="home-about-preview__visual-caption">
+        <div className="home-about-preview__visual-caption" dir="rtl">
           <span>صنعت پیش</span>
           <strong>بازار تخصصی قطعات صنعتی</strong>
         </div>
+        <span className="home-about-preview__visual-index" aria-hidden="true">SANAT PISH / 01</span>
       </div>
-      <div className="home-about-preview__copy">
+
+      <div className="home-about-preview__copy" dir="rtl">
         <span className="home-about-preview__eyebrow">درباره صنعت پیش</span>
         <h2 id="home-about-preview-title">
-          از تجربه اطلس تا
-          <em> بازار جامع قطعات صنعتی</em>
+          صنعت پیش؛ <em>همراه مطمئن صنایع ایران</em>
         </h2>
+        <h3 className="home-about-preview__story-title">
+          از تجربه اطلس تا بازار جامع قطعات صنعتی
+        </h3>
         <p>
           صنعت پیش با پشتوانه بازرگانی تسمه اطلس شکل گرفته است تا مسیر پراکنده
           تأمین قطعات را به تجربه‌ای تخصصی و آنلاین تبدیل کند. هدف ما گردآوری
@@ -121,6 +130,7 @@ export function HomeAboutSection() {
           این بازار برای نیازهای واقعی کارخانه‌ها و فعالان صنعت طراحی می‌شود؛
           نه یک فروشگاه عمومی، بلکه مقصدی تخصصی برای قطعات و تجهیزات صنعتی.
         </p>
+
         <div className="home-about-preview__highlights">
           {highlights.map(({ Icon, title, text }) => (
             <div key={title}>
@@ -129,9 +139,10 @@ export function HomeAboutSection() {
             </div>
           ))}
         </div>
+
         <div className="home-about-preview__actions">
           <Link to="/about" className="home-about-preview__primary">
-            آشنایی با صنعت پیش <ArrowLeft size={18} />
+            مشاهده بیشتر درباره ما <ArrowLeft size={18} />
           </Link>
           <Link to="/products" className="home-about-preview__secondary">
             مشاهده کاتالوگ محصولات
@@ -141,7 +152,6 @@ export function HomeAboutSection() {
     </section>
   );
 }
-
 export function WhySanatPish({ variant = 'home' }: { variant?: 'home' | 'about' }) {
   const [introVideoOpen, setIntroVideoOpen] = useState(false);
 
