@@ -6,7 +6,7 @@ const out = process.env.SCREENSHOT_DIR || "/tmp";
 const base = process.env.PREVIEW_URL || "http://127.0.0.1:4173";
 
 const pages = [
-  { path: "/about", selector: ".company-page--about .sp-about-hero", heading: /بازار تخصصی قطعات صنعتی با پشتوانه اطلس/ },
+  { path: "/about", selector: ".sp-about-page .sp-about-hero", heading: /بازار تخصصی/ },
   { path: "/services", selector: ".company-page--services", heading: /از شناخت قطعه تا/ },
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
   { path: "/industries/textile", selector: ".textile-page .textile-hero", heading: /نساجی/ },
@@ -42,18 +42,18 @@ const pages = [
       const aboutLink = page.locator('.home-about-preview a[href="/about"]').first();
       await aboutLink.waitFor({ state: "visible" });
       await aboutLink.click();
-      await page.locator(".company-page--about .sp-about-hero").waitFor({ timeout: 15000 });
+      await page.locator(".sp-about-page .sp-about-hero").waitFor({ timeout: 15000 });
       await page.getByRole("heading", { level: 1 }).first().waitFor();
 
       const requiredAboutLinks = ["/services", "/industries", "/brands", "/knowledge", "/contact"];
       for (const href of requiredAboutLinks) {
-        assert.ok(await page.locator(`.company-page--about a[href="${href}"]`).count() > 0,
+        assert.ok(await page.locator(`.sp-about-page a[href="${href}"]`).count() > 0,
           `About page is missing its ${href} navigation link`);
       }
       assert.equal(await page.locator(".sp-about-capability").count(), 4,
         "approved About page must show its four visual capabilities");
-      const timelineYears = await page.locator(".sp-about-timeline-year").allTextContents();
-      assert.deepEqual(timelineYears.map(value => value.trim()), ["۱۳۸۴", "۱۳۹۰", "۱۴۰۱", "امروز"],
+      const timelineYears = await page.locator(".sp-about-timeline__label").allTextContents();
+      assert.deepEqual(timelineYears.map(value => value.trim()), ["پشتوانه", "شناخت", "توسعه", "امروز"],
         "approved About page must show the four Atlas-to-Sanat Pish milestones");
       assert.equal(await page.locator(".sp-about-destination").count(), 5,
         "approved About page must link to its five next destinations");
@@ -63,7 +63,7 @@ const pages = [
       }));
       assert.ok(aboutBounds.page <= aboutBounds.viewport + 3,
         `horizontal overflow on About at ${width}px: ${JSON.stringify(aboutBounds)}`);
-      const heroImageLoaded = await page.locator(".sp-about-hero-visual img").evaluate(
+      const heroImageLoaded = await page.locator(".sp-about-hero__visual img").evaluate(
         image => image.complete && image.naturalWidth > 0
       );
       assert.ok(heroImageLoaded, "About hero industrial image did not load");
