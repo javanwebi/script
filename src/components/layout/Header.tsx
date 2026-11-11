@@ -758,6 +758,10 @@ export const Header: React.FC = () => {
               }`}>
                 <Link
                   to="/products"
+                  onClick={() => {
+                    setIsMegaMenuOpen(false);
+                    setActiveDropdown(null);
+                  }}
                   onFocus={() => {
                     setActiveDropdown(null);
                     setIsMegaMenuOpen(true);
