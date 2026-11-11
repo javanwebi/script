@@ -1,4 +1,5 @@
 import '../catalog-refinement.css';
+import '../catalog-experience.css';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, Layers, Package, Search } from 'lucide-react';
