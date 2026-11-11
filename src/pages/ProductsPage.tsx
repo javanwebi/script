@@ -727,7 +727,7 @@ export const ProductsPage: React.FC = () => {
             <span className="font-bold text-orange-600 font-mono">
               {toPersianDigits(filteredProducts.length)}
             </span>{" "}
-            کالا
+            خانواده
             {selectedCategory !== "all" && (
               <span>
                 {" "}
@@ -763,11 +763,10 @@ export const ProductsPage: React.FC = () => {
               <Package className="w-8 h-8" />
             </div>
             <h3 className="text-base font-black text-slate-800">
-              هیچ محصولی با معیارهای انتخابی شما یافت نشد
+              در میان خانواده‌های محصول نتیجه‌ای پیدا نشد
             </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              لطفاً فیلترها را تغییر داده یا واژه جستجوی دیگری را وارد کنید.
-              برای مشاهده همه محصولات دکمه زیر را لمس نمایید.
+              فیلترها را تغییر دهید یا جستجوی دیگری انجام دهید. کالاهای مستقلی که خانواده ندارند، در بخش جداگانه پایین همین صفحه نمایش داده می‌شوند.
             </p>
             <button
               onClick={handleResetFilters}
