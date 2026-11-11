@@ -141,6 +141,10 @@ const products = [
       await page.goto(base + "/category/" + encodeURIComponent(categorySlug), { waitUntil: "domcontentloaded" });
       await page.locator(".category-showcase-intro").waitFor({ timeout: 30000 });
       await page.getByRole("heading", { name: categoryName }).first().waitFor();
+      const heroImage = page.locator(".category-showcase-intro img");
+      assert.equal(await heroImage.count(), 1, "category hero must use category artwork or the industrial fallback");
+      assert.ok(await heroImage.evaluate(image => image.complete && image.naturalWidth > 0),
+        "category hero industrial image did not load");
       const categoryBounds = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
         page: document.documentElement.scrollWidth,
