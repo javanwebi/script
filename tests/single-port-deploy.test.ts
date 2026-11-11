@@ -8,6 +8,18 @@ const file = (name: string) => fs.readFileSync(path.resolve(process.cwd(), name)
 const one = file("ops/deploy-single-port-vps.sh");
 const launcher = file("ops/deploy-main-bluegreen-vps.sh");
 const mainEntrypoint = file("ops/sanatpish-deploy-main.sh");
+const nimaDeploy = file("ops/deploy-forza-nima-pinned-vps.sh");
+
+test("Nima promotion accepts only the canonical isolated release directory created by the site deployer", () => {
+  assert.match(one, /RELEASE_ROOT="\$DEPLOY_ROOT\/releases"/);
+  assert.match(one, /STAGE="\$RELEASE_ROOT\/\$STAMP"/);
+  assert.match(nimaDeploy, /RELEASE_ROOT=\/opt\/sanatpish\/\.deploy\/releases/);
+  assert.match(nimaDeploy, /\[\[ "\$STAGE" == "\$RELEASE_ROOT\/"\* \]\]/);
+  assert.match(nimaDeploy, /dirname -- "\$STAGE"/);
+  assert.match(nimaDeploy, /\[\[ -d "\$STAGE" && ! -L "\$STAGE" \]\]/);
+  assert.match(nimaDeploy, /realpath -e -- "\$STAGE"/);
+  assert.doesNotMatch(nimaDeploy, /\/opt\/sanatpish-unified-stage-/);
+});
 
 test("the canonical command deploys pinned main and fast-forwards the /opt/sanatpish source checkout only after successful promotion", () => {
   assert.match(mainEntrypoint, /APP=\/opt\/sanatpish/);
