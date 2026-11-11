@@ -7,6 +7,7 @@ import {
 } from "../data/userProducts";
 import { ProductImage } from "../components/product/ProductImage";
 import { STORE_ASSETS } from "../assets/images";
+import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 import "./products-page-premium.css";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -116,8 +117,12 @@ export const ProductsPage: React.FC = () => {
   // A Supabase /api/runtime hydration replaces the initial catalogue snapshot.
   // Keep the listing reactive; otherwise the first JSON-derived snapshot can
   // remain visible even after fresh PostgreSQL products arrive.
-  const [catalogVersion,setCatalogVersion]=useState(0);
-  useEffect(() => subscribeCatalogChanges(() => setCatalogVersion((version) => version + 1)), []);
+  const [catalogVersion, setCatalogVersion] = useState(0);
+  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
+  useEffect(() => subscribeCatalogChanges(() => {
+    setCatalogVersion((version) => version + 1);
+    setCatalogReady(isDatabaseCatalogHydrated());
+  }), []);
   useEffect(() => {
     if (!mobileFiltersOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -405,8 +410,8 @@ export const ProductsPage: React.FC = () => {
               </Link>
             </div>
             <div className="catalogue-hero-metrics" aria-label="آمار کاتالوگ">
-              <span><strong>{toPersianDigits(allProducts.length)}</strong><small>خانواده محصول</small></span>
-              <span><strong>{toPersianDigits(CATALOGUE_SKU_COUNT)}</strong><small>کد فنی کالا</small></span>
+              <span><strong>{catalogReady ? toPersianDigits(allProducts.length) : "—"}</strong><small>خانواده محصول</small></span>
+              <span><strong>{catalogReady ? toPersianDigits(CATALOGUE_SKU_COUNT) : "—"}</strong><small>کد فنی کالا</small></span>
             </div>
           </div>
           <div className="catalogue-hero-art" aria-hidden="true">
@@ -431,16 +436,10 @@ export const ProductsPage: React.FC = () => {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              <Package className="w-4 h-4" />
-              <span>همه محصولات</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold ${
-                  selectedCategory === "all"
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-200 text-slate-600"
-                }`}
-              >
-                {toPersianDigits(allProducts.length)}
+              <span className="catalogue-category-art"><Package className="w-5 h-5" /></span>
+              <span className="catalogue-category-name">همه محصولات</span>
+              <span className="catalogue-category-count">
+                {catalogReady ? toPersianDigits(allProducts.length) : "—"}
               </span>
             </button>
 
@@ -471,6 +470,9 @@ export const ProductsPage: React.FC = () => {
                 </button>
               );
             })}
+            {managedCategories.length === 0 && !catalogReady && (
+              <span className="catalogue-category-placeholder" role="status">در حال دریافت دسته‌بندی‌ها…</span>
+            )}
           </div>
         </section>
 
@@ -543,7 +545,7 @@ export const ProductsPage: React.FC = () => {
                 <select
                   aria-label="مرتب‌سازی محصولات"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => { setSortBy(e.target.value as any); setCurrentPage(1); }}
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
                   <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
@@ -734,7 +736,13 @@ export const ProductsPage: React.FC = () => {
         </div>
 
         {/* Products Display (Grid or List) */}
-        {paginatedProducts.length === 0 ? (
+        {!catalogReady && paginatedProducts.length === 0 ? (
+          <div className="catalogue-loading" role="status" aria-live="polite">
+            <span className="catalogue-loading-spinner" aria-hidden="true" />
+            <h3>در حال دریافت کاتالوگ واقعی صنعت پیش</h3>
+            <p>اطلاعات محصولات و مشخصات از پایگاه داده بارگذاری می‌شود.</p>
+          </div>
+        ) : paginatedProducts.length === 0 ? (
           <div className="catalogue-empty bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
             <div className="w-16 h-16 rounded-full bg-orange-50 text-orange-500 mx-auto flex items-center justify-center">
               <Package className="w-8 h-8" />
