@@ -22,6 +22,29 @@ on:
       - 'scripts/tests/company-pages-responsive-smoke.cjs'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
+      - 'api/portal.ts'
+      - 'index.html'
+      - 'package.json'
+      - 'src/App.tsx'
+      - 'src/components/home/HomeKnowledge.tsx'
+      - 'src/components/home/MainBrandsBanner.tsx'
+      - 'src/company-pages-art-direction.css'
+      - 'src/catalogue-premium.css'
+      - 'src/industry-art-direction.css'
+      - 'src/industry-pages-premium.css'
+      - 'src/pages/AboutPage.tsx'
+      - 'src/pages/CompanyPagesExperience.tsx'
+      - 'src/pages/NotFoundPage.tsx'
+      - 'src/pages/about-page-approved.css'
+      - 'src/pages/ContactUsPage.tsx'
+      - 'src/pages/ProductsPage.tsx'
+      - 'src/pages/CategoryPage.tsx'
+      - 'src/pages/AllCategoriesPage.tsx'
+      - 'src/pages/ProductDetailPage.tsx'
+      - 'src/services/clientService.ts'
+      - 'src/utils/pageMeta.ts'
+      - 'tests/company-pages-art-direction.test.ts'
+      - 'tests/site-finalization.test.ts'
   pull_request:
     branches: [main]
     paths:
@@ -44,6 +67,29 @@ on:
       - 'scripts/tests/company-pages-responsive-smoke.cjs'
       - 'scripts/tests/consumer-portal-responsive-smoke.cjs'
       - '.github/workflows/consumer-portal-responsive.yml'
+      - 'api/portal.ts'
+      - 'index.html'
+      - 'package.json'
+      - 'src/App.tsx'
+      - 'src/components/home/HomeKnowledge.tsx'
+      - 'src/components/home/MainBrandsBanner.tsx'
+      - 'src/company-pages-art-direction.css'
+      - 'src/catalogue-premium.css'
+      - 'src/industry-art-direction.css'
+      - 'src/industry-pages-premium.css'
+      - 'src/pages/AboutPage.tsx'
+      - 'src/pages/CompanyPagesExperience.tsx'
+      - 'src/pages/NotFoundPage.tsx'
+      - 'src/pages/about-page-approved.css'
+      - 'src/pages/ContactUsPage.tsx'
+      - 'src/pages/ProductsPage.tsx'
+      - 'src/pages/CategoryPage.tsx'
+      - 'src/pages/AllCategoriesPage.tsx'
+      - 'src/pages/ProductDetailPage.tsx'
+      - 'src/services/clientService.ts'
+      - 'src/utils/pageMeta.ts'
+      - 'tests/company-pages-art-direction.test.ts'
+      - 'tests/site-finalization.test.ts'
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,6 +106,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run lint
+      - name: Site finalization routes, CRM submission and link regressions
+        run: node --import tsx --test tests/site-finalization.test.ts tests/company-pages-art-direction.test.ts tests/catalog-refinement.test.ts tests/industry-pages-unique-layouts.test.ts
       - name: Official website and FORZA logo placement tests
         run: node --import tsx --test tests/official-brand-logo-placement.test.ts
       - name: Company pages and customer price visibility regression tests
