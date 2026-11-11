@@ -250,11 +250,11 @@ export function IndustryPage() {
   const partArtwork = industry ? INDUSTRY_PART_ARTWORK[industry.slug] || [] : [];
   if (!industry) {
     return (
-      <main className="min-h-[60vh] bg-[#f5f7f8] px-4 py-16 text-center" dir="rtl">
+      <section className="min-h-[60vh] bg-[#f5f7f8] px-4 py-16 text-center" dir="rtl">
         <h1 className="text-2xl font-black text-[#1c2c38]">صفحه این صنعت پیدا نشد</h1>
         <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-500">از فهرست صنایع، حوزه موردنظر را انتخاب کنید.</p>
         <Link to="/industries" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#E56B1E] px-5 py-3 text-sm font-bold text-white">مشاهده صنایع <ArrowLeft size={17} /></Link>
-      </main>
+      </section>
     );
   }
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
