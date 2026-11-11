@@ -820,7 +820,7 @@ export default async function handler(
         ? db.values.atlas_admin_inquiries_v1
         : [];
       db.values.atlas_admin_inquiries_v1 = [inquiry, ...previous].slice(0, 10000);
-      await writeDb(db, revision);
+      await writeDb(db, revision, false, ["atlas_admin_inquiries_v1"]);
       return send(201, {
         success: true,
         inquiry: { id, inquiryNumber: id },
