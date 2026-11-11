@@ -159,4 +159,5 @@ jobs:
             /tmp/consumer-portal-*.png
             /tmp/company-pages-*.png
             /tmp/catalog-category-*.png
+            /tmp/catalog-product-detail-*.png
           if-no-files-found: ignore
