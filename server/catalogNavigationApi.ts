@@ -121,6 +121,41 @@ export function registerCatalogNavigationApi(app:Express){
   });
 
 
+  // Public family-to-menu route resolution. This keeps product-detail breadcrumbs
+  // and related-family links aligned with the approved Excel taxonomy without
+  // exposing prices, customer data or staff-only assignment records.
+  app.get('/api/catalog/menu-family-route/:code',async(req,res)=>{
+    try{
+      const familyCode=clean(req.params.code,180);
+      if(!familyCode)return res.status(400).json({success:false,message:'کد خانواده معتبر نیست.'});
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
+      const assignment=await database().query(
+        `select a.category_slug as "categorySlug",c.name as "categoryName",
+          a.submenu_name as submenu,a.leaf_name as leaf
+         from public.catalog_family_menu_assignments a
+         join public.catalog_categories c on c.slug=a.category_slug and c.is_active=true
+         where a.family_code=$1 and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+         limit 1`,[familyCode]);
+      if(!assignment.rows.length)return res.json({success:true,assignment:null,relatedFamilyCodes:[]});
+      const route=assignment.rows[0];
+      const related=await database().query(
+        `select a.family_code as code
+         from public.catalog_family_menu_assignments a
+         join public.catalog_families f on f.code=a.family_code and f.is_active=true and f.is_deleted=false
+         where a.category_slug=$1 and a.family_code<>$2
+           and (a.leaf_name=$3 or a.submenu_name=$4)
+         order by case when a.leaf_name=$3 then 0 else 1 end,f.name,f.code
+         limit 12`,
+        [route.categorySlug,familyCode,route.leaf||null,route.submenu]);
+      res.setHeader('Cache-Control','no-store');
+      return res.json({
+        success:true,
+        assignment:route,
+        relatedFamilyCodes:related.rows.map(row=>row.code).filter(Boolean)
+      });
+    }catch(error){return fail(res,error);}
+  });
+
   // Admin-only taxonomy review. Product identities and legacy paths are not rewritten.
 
   // Shared read source for catalogue, image audit, and product editor; RLS-protected table is server-only.
