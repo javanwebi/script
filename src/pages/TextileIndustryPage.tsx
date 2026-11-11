@@ -82,7 +82,7 @@ const stages = [
 
 const benefits = [
   { icon: Factory, title: "پوشش کامل تولید", detail: "از ریسندگی تا تکمیل پارچه" },
-  { icon: ShieldCheck, title: "تضمین کیفیت صنعتی", detail: "مطابق استانداردهای جهانی" },
+  { icon: ShieldCheck, title: "انتخاب فنی دقیق", detail: "با بررسی شرایط واقعی خط تولید" },
   { icon: Boxes, title: "تأمین سریع و مطمئن", detail: "قطعات اورجینال و جایگزین" },
   { icon: Headset, title: "مشاوره تخصصی مهندسی", detail: "انتخاب، جایگزینی و بهینه‌سازی" },
 ];
@@ -146,20 +146,26 @@ export function TextileIndustryPage() {
   const StageIcon = activeStage.icon;
 
   return (
-    <main className="textile-page" dir="rtl">
+    <div className="textile-page" dir="rtl">
       <section className="textile-hero" aria-labelledby="textile-title">
-        <img
-          className="textile-hero-image"
-          src={A.industries.textile}
-          alt="ماشین‌آلات و خط تولید صنعت نساجی"
-          fetchPriority="high"
-          decoding="async"
-        />
-        <div className="textile-hero-shade" />
         <div className="textile-hero-grid textile-wrap">
+          <div className="textile-hero-visual">
+            <img
+              className="textile-hero-image"
+              src={A.industries.textile}
+              alt="ماشین‌آلات و خط تولید صنعت نساجی"
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div className="textile-hero-shade" />
+            <div className="textile-hero-visual-caption">
+              <span>زنجیره تولید نساجی</span>
+              <strong>از ریسندگی تا تکمیل پارچه</strong>
+            </div>
+          </div>
           <div className="textile-hero-copy">
             <span className="textile-hero-kicker">راهکارهای تخصصی صنعت نساجی</span>
-            <h1 id="textile-title">نساجی</h1>
+            <h1 id="textile-title">قطعات و راهکارهای صنعت نساجی</h1>
             <span className="textile-title-rule" />
             <p>
               تأمین قطعات تخصصی برای خطوط ریسندگی، بافندگی، رنگرزی و تکمیل پارچه؛
@@ -176,12 +182,12 @@ export function TextileIndustryPage() {
                 مشاوره با FORZA <ActivityIcon />
               </Link>
             </div>
-          </div>
-          <div className="textile-hero-points" aria-label="مزیت‌های راهکار نساجی">
-            <div><ShieldCheck /><span><b>قابلیت اطمینان بالا</b><small>در مسیر تولید پیوسته</small></span></div>
-            <div><Waves /><span><b>مقاومت در برابر رطوبت</b><small>با انتخاب متناسب با محیط</small></span></div>
-            <div><Gauge /><span><b>کاهش توقفات خط تولید</b><small>با بررسی فنی پیش از انتخاب</small></span></div>
-            <div><Settings2 /><span><b>افزایش عمر تجهیزات</b><small>با تطبیق قطعه و کاربرد</small></span></div>
+            <div className="textile-hero-points" aria-label="مزیت‌های راهکار نساجی">
+              <div><ShieldCheck /><span><b>انتخاب فنی دقیق</b><small>متناسب با شرایط خط تولید</small></span></div>
+              <div><Waves /><span><b>توجه به رطوبت و دما</b><small>در انتخاب جنس و آب‌بندی</small></span></div>
+              <div><Gauge /><span><b>کاهش ریسک توقف</b><small>با بررسی فنی پیش از تأمین</small></span></div>
+              <div><Settings2 /><span><b>افزایش عمر تجهیزات</b><small>با تطبیق قطعه و کاربرد</small></span></div>
+            </div>
           </div>
         </div>
       </section>
@@ -313,7 +319,7 @@ export function TextileIndustryPage() {
             <Link to="/ai-consult?industry=textile" className="textile-button textile-button-primary">
               شروع مشاوره با FORZA <ArrowLeft size={17} />
             </Link>
-            <Link to="/part-identification" className="textile-forza-secondary">
+            <Link to="/identify-part" className="textile-forza-secondary">
               شناسایی تصویری قطعه <ScanLine size={16} />
             </Link>
           </div>
@@ -358,11 +364,11 @@ export function TextileIndustryPage() {
             مشاهده قطعات نساجی <ArrowLeft size={16} />
           </Link>
           <Link to="/ai-consult?industry=textile" className="textile-button textile-button-ghost">
-            مشاوره تخصصی رایگان <Headset size={16} />
+            مشاوره تخصصی <Headset size={16} />
           </Link>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 
