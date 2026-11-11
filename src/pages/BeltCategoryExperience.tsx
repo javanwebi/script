@@ -199,9 +199,42 @@ export const BeltCategoryExperience: React.FC = () => {
   }, [sheetOpen]);
   useEffect(() => {
     if (!compareOpen) return;
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setCompareOpen(false); };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
+    const dialog = document.querySelector<HTMLElement>('.bce-compare-dialog');
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) || []);
+    focusable()[0]?.focus();
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCompareOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeydown);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
   }, [compareOpen]);
   const allProducts = useMemo(() => getProductsByCategory(BELT_SLUG, 12000).products, [revision]);
   const familyProducts = useMemo(() => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)), [allProducts, selectedFamily]);
