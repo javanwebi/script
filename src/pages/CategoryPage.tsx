@@ -403,7 +403,7 @@ const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof 
         <section className="category-showcase-intro relative overflow-hidden rounded-2xl bg-[#303337] p-8 text-white min-h-48 flex items-center justify-between gap-6">
           <div className="relative z-10 max-w-2xl"><h1 className="text-3xl font-black">{category.name}</h1>
           <p className="mt-3 text-sm text-slate-200 leading-7">{category.description}</p></div>
-          {category.image && <img src={categoryHeroImage} alt={category.name} className="relative z-10 w-32 h-32 md:w-48 md:h-40 rounded-2xl object-contain bg-white/95 p-3 shrink-0" />}
+          {categoryHeroImage && <img src={categoryHeroImage} alt={category.name} className="relative z-10 w-32 h-32 md:w-48 md:h-40 rounded-2xl object-cover bg-white/95 p-1 shrink-0" />}
         </section>
       )}
       {!isBeltCategory && category.subcategories?.length > 0 && (
