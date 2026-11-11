@@ -55,6 +55,12 @@ test('product information tabs are accessible and retain all three content panel
   assert.match(page, /activeTab === "delivery"/);
 });
 
+test('premium visual changes and SKU URL updates do not alter customer-panel detail routes', () => {
+  assert.match(page, /isCustomerPortalRoute \? "" : "product-detail-premium"/);
+  assert.match(page, /if \(isCustomerPortalRoute\) return;/);
+  assert.match(page, /!catalogReady && !isCustomerPortalRoute/);
+});
+
 test('product detail layout has deliberate desktop, tablet, mobile and reduced-motion rules', () => {
   assert.match(styles, /grid-template-columns: minmax\(0, \.95fr\) minmax\(0, 1\.05fr\)/);
   assert.match(styles, /@media \(max-width: 1100px\)/);
