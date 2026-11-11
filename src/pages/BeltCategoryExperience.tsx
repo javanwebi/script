@@ -20,11 +20,11 @@ import './BeltCategoryExperience.css';
 
 const BELT_SLUG = 'تسمه-و-انتقال-نیرو';
 const FAMILY_OPTIONS = [
-  { id: 'کلاسیک', title: 'کلاسیک V', subtitle: 'A / B / C / D / E / Z / M', search: /کلاسیک/i },
-  { id: 'اسپشیال', title: 'پروفیل باریک', subtitle: 'SPA / SPB / SPC', search: /اسپشیال|پروفیل باریک/i },
+  { id: 'کلاسیک', title: 'وی بلت', subtitle: 'A / B / C / D / E / Z / M', search: /کلاسیک/i },
   { id: 'تسمه تایمینگ', title: 'تایمینگ', subtitle: 'متریک و اینچی', search: /تایم/i },
   { id: 'تسمه شیاری', title: 'شیاری', subtitle: 'PK / PY / PL', search: /شیاری/i },
-  { id: 'تسمه گرد پلی اورتان', title: 'گرد پلی‌یورتان', subtitle: 'صنعتی و انتقال حرکت', search: /گرد.*پلی|پلی.*گرد/i },
+  { id: 'تسمه گرد پلی اورتان', title: 'پلی‌یورتان', subtitle: 'صنعتی و انتقال حرکت', search: /گرد.*پلی|پلی.*گرد/i },
+  { id: 'اسپشیال', title: 'پروفیل باریک', subtitle: 'SPA / SPB / SPC', search: /اسپشیال|پروفیل باریک/i },
   { id: 'تسمه CRC پنج ضلعی', title: 'CRC پنج‌ضلعی', subtitle: 'جوشی و فابریک', search: /CRC|پنج ضلعی/i },
 ] as const;
 const FAMILY_ARTWORK: Record<string, string> = {
