@@ -274,8 +274,8 @@ const LegacyCategoryPage: React.FC = () => {
           صفحه اصلی
         </Link>
         <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-        <Link to="/products" className="hover:text-[#E06518] transition-colors">
-          همه محصولات
+        <Link to="/categories" className="hover:text-[#E06518] transition-colors">
+          دسته‌بندی‌ها
         </Link>
         <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
         <span className="text-slate-800 font-bold">{category.name}</span>
