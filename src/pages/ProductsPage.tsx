@@ -6,6 +6,7 @@ import {
   categorySlugFor,
 } from "../data/userProducts";
 import { ProductImage } from "../components/product/ProductImage";
+import { setPageMeta } from "../utils/pageMeta";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
@@ -76,6 +77,15 @@ export const ProductsPage: React.FC = () => {
   );
   const subParam = searchParams.get("sub") || "all";
   const queryParam = searchParams.get("q") || "";
+  useEffect(() => {
+    const title = queryParam.trim()
+      ? `جستجوی ${queryParam.trim()} | کاتالوگ صنعت پیش`
+      : "کاتالوگ قطعات صنعتی | صنعت پیش";
+    const description = queryParam.trim()
+      ? `نتایج جستجوی ${queryParam.trim()} در کاتالوگ قطعات و تجهیزات صنعتی صنعت پیش.`
+      : "جستجو در خانواده‌ها، کدهای فنی و برندهای قطعات صنعتی؛ بررسی مشخصات و مسیر ثبت استعلام در کاتالوگ صنعت پیش.";
+    setPageMeta({ title, description });
+  }, [queryParam]);
 
   const [selectedCategory, setSelectedCategory] =
     useState<string>(categoryParam);
