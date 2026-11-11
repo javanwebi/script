@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Image as ImageIcon, ArrowUpLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductImage } from '../product/ProductImage';
 import { toPersianDigits } from '../../utils/formatters';
 
@@ -133,9 +133,13 @@ export function DirectSkuProducts({
         {pageItems.map(item => (
           <Link key={item.skuCode} to={'/direct-product/' + encodeURIComponent(item.skuCode)} className="direct-sku-product-card">
             <div className="direct-sku-product-image">
-              {item.imageUrl
-                ? <ProductImage src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" loading="lazy" decoding="async" />
-                : <ImageIcon className="text-slate-300" size={34} />}
+              <ProductImage
+                src={item.imageUrl || undefined}
+                alt={item.name}
+                className="h-full w-full object-contain"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
             <div className="direct-sku-product-copy">
               <span className="direct-sku-product-code" dir="ltr">{item.skuCode}</span>
