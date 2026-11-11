@@ -1304,12 +1304,6 @@
     line-height: 1.6;
   }
 
-  .all-categories-fallback-note {
-    margin-top: 9px;
-    padding: 9px 10px;
-    font-size: 8px;
-  }
-
   .all-categories-group-nav {
     align-items: flex-start;
     flex-direction: column;
@@ -1641,7 +1635,8 @@
     transition-duration: .01ms !important;
   }
 
-  .all-categories-source-status .is-loading {
+  .all-categories-source-status .is-loading,
+  .all-categories-state-spinner {
     animation: none;
   }
 }
