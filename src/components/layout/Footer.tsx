@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Phone,
@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
 import { SanatPishFooterLogo } from '../common/BrandIdentity';
-import { CATEGORIES } from '../../data/categories';
+import { getManagedCategories } from '../../data/categories';
+import { subscribeCatalogChanges } from '../../data/mockGenerator';
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
 
 // Official Iran Ministry of Industry Emblem SVG
@@ -59,9 +60,26 @@ const EnamadEmblemSvg: React.FC<{ className?: string }> = ({ className = 'w-7 h-
 
 export const Footer: React.FC = () => {
   const [isConsultOpen, setIsConsultOpen] = useState(false);
+  const [footerCategories, setFooterCategories] = useState(() => getManagedCategories()
+    .filter(category => category.active !== false && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+
+  useEffect(() => {
+    const refreshCategories = () => {
+      setFooterCategories(getManagedCategories()
+        .filter(category => category.active !== false && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug))
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+    };
+    const unsubscribe = subscribeCatalogChanges(refreshCategories);
+    window.addEventListener('atlas-categories-updated', refreshCategories);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('atlas-categories-updated', refreshCategories);
+    };
+  }, []);
 
   const toggleAccordion = (key: string) => {
     setOpenAccordion((prev) => (prev === key ? null : key));
@@ -310,14 +328,21 @@ export const Footer: React.FC = () => {
               </button>
 
               <ul className={`space-y-1.5 text-[11px] text-[#55565A] pt-1.5 md:pt-0 ${openAccordion === 'products' ? 'block' : 'hidden'} md:block animate-in fade-in`}>
-                {CATEGORIES.slice(0, 4).map(category => (
+                {footerCategories.length > 0 ? footerCategories.slice(0, 4).map(category => (
                   <li key={category.slug}>
-                    <Link to={`/category/${category.slug}`} className="hover:text-[#E06518] transition-colors flex items-center justify-between gap-2 group">
+                    <Link to={`/category/${encodeURIComponent(category.slug)}`} className="hover:text-[#E06518] transition-colors flex items-center justify-between gap-2 group">
                       <span>{category.name}</span>
                       <ChevronLeft className="w-3 h-3 shrink-0 text-[#777A7D] group-hover:text-[#E06518] transition-colors" />
                     </Link>
                   </li>
-                ))}
+                )) : (
+                  <li>
+                    <Link to="/categories" className="hover:text-[#E06518] transition-colors flex items-center justify-between gap-2 group">
+                      <span>مشاهده همه دسته‌بندی‌ها</span>
+                      <ChevronLeft className="w-3 h-3 shrink-0 text-[#777A7D] group-hover:text-[#E06518] transition-colors" />
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
