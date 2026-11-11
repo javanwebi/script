@@ -43,7 +43,7 @@ export function AboutPage() {
   }, []);
 
   return (
-    <main className="sp-about-page" dir="rtl">
+    <div className="sp-about-page" dir="rtl">
       <section className="sp-about-hero" aria-labelledby="sp-about-title">
         <div className="sp-about-hero__visual">
           <img src={STORE_ASSETS.partsWarehouseVault} alt="چرخ‌دنده‌های فولادی و مجموعه انتقال قدرت در محیط صنعتی" fetchPriority="high" decoding="async" />
@@ -155,7 +155,7 @@ export function AboutPage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 
