@@ -27,13 +27,21 @@ export function invalidatePublicCatalogCache(){
  publicListingCache=undefined;
  invalidateAdminCatalogCache();
 }
-/** Seed the public response cache from the catalogue already loaded during startup. */
+function createPublicListingValue(catalog:unknown){
+ const products=(Array.isArray(catalog)?catalog:[])
+  .filter((product:any)=>product?.active!==false)
+  .map((product:any)=>toCatalogListingProduct(product));
+ const brands=Array.from(new Set(products.map((product:any)=>product.brand).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b,'fa'));
+ return {success:true as const,total:products.length,brands,products};
+}
+/** Seed both public caches from the catalogue already loaded during startup. */
 export function primePublicCatalogCache(products:unknown){
  publicCatalogGeneration++;
  publicCatalogInFlight=undefined;
  primeAdminCatalogCache(products);
- publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:compactCatalogReviews(publicCatalog(products))};
- publicListingCache=undefined;
+ const publicProducts=compactCatalogReviews(publicCatalog(products));
+ publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:publicProducts};
+ publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:createPublicListingValue(publicProducts)};
 }
 const PUBLIC_DOCUMENT_TTL_MS=60000;
 const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
@@ -71,12 +79,8 @@ export async function publicCatalogListingApi(_req:Request,res:Response){
  res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=120');
  try{
   if(publicListingCache && Date.now()<publicListingCache.expires)return res.json(publicListingCache.value);
-  const catalog=await publicProductsCached() as any[];
-  const products=(Array.isArray(catalog)?catalog:[])
-   .filter(product=>product?.active!==false)
-   .map(product=>toCatalogListingProduct(product));
-  const brands=Array.from(new Set(products.map(product=>product.brand).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fa'));
-  const value={success:true as const,total:products.length,brands,products};
+  const catalog=await publicProductsCached();
+  const value=createPublicListingValue(catalog);
   publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
   return res.json(value);
  }catch{
