@@ -175,6 +175,13 @@ async function installApiRoutes(page, fallbackMode = false) {
       const search = page.getByRole('searchbox', { name: 'جستجو در دسته‌بندی و زیرگروه‌ها' });
       await search.fill('تایمینگ');
       assert.ok(new URL(page.url()).searchParams.get('q') === 'تایمینگ', 'search should be shareable in the URL');
+      // The URL update is synchronous, while React Router's derived category
+      // sections commit on the next render. Wait for the filtered DOM instead
+      // of asserting against the pre-render card list.
+      await page.waitForFunction(() => (
+        document.querySelectorAll('.all-categories-card').length === 1 &&
+        document.querySelectorAll('.all-categories-group').length === 1
+      ), null, { timeout: 10000 });
       assert.equal(await page.locator('.all-categories-card').count(), 1, 'search should narrow to the matching category');
       assert.equal(await page.locator('.all-categories-group').count(), 1, 'empty groups should be removed from filtered results');
 
