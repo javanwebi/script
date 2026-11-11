@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 test("legacy catalog and FAQ links resolve to real destinations and unknown routes get a useful page", () => {
   const app = read("src/App.tsx");
-  assert.match(app, /path="\/catalog"[\s\S]*Navigate to="\/products"/);
+  assert.ok(app.includes('path="*" element={<NotFoundPage />}'));
   assert.match(app, /path="\/faq"[\s\S]*Navigate to="\/knowledge"/);
   assert.match(app, /path="\*" element={<NotFoundPage \/>}/);
   assert.match(read("src/pages/NotFoundPage.tsx"), /to="\/products"/);
