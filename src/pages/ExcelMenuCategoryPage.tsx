@@ -336,7 +336,13 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     .map(code => families.find(family => family.code === code))
     .filter((family): family is MenuFamily => Boolean(family));
   const comparisonSpecs = Array.from(new Set(
-    compareFamilies.flatMap(family => (products.get(family.code)?.technicalSpecs || []).map(spec => spec.key)),
+    compareFamilies.flatMap(family => {
+      const product = products.get(family.code);
+      return [
+        ...(product?.technicalSpecs || []),
+        ...(product?.variants || []).flatMap(variant => variant.technicalSpecs || []),
+      ].map(spec => spec.key);
+    }),
   )).slice(0, 10);
 
   const toggleCompare = (code: string) => {
@@ -710,7 +716,12 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                   <tr><th>زیرگروه</th>{compareFamilies.map(family => <td key={family.code}>{family.leaf || family.submenu || '—'}</td>)}</tr>
                   <tr><th>تعداد کد و سایز</th>{compareFamilies.map(family => <td key={family.code}>{toPersianDigits(family.skuCount)}</td>)}</tr>
                   {comparisonSpecs.map(specKey => <tr key={specKey}><th>{specKey}</th>{compareFamilies.map(family => {
-                    const value = products.get(family.code)?.technicalSpecs?.find(spec => spec.key === specKey)?.value || '—';
+                    const product = products.get(family.code);
+                    const values = [
+                      ...(product?.technicalSpecs || []),
+                      ...(product?.variants || []).flatMap(variant => variant.technicalSpecs || []),
+                    ].filter(spec => spec.key === specKey).map(spec => spec.value).filter(Boolean);
+                    const value = Array.from(new Set(values)).join('، ') || '—';
                     return <td key={family.code}>{value}</td>;
                   })}</tr>)}
                 </tbody>
