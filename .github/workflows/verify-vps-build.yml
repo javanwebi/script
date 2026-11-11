@@ -11,7 +11,20 @@ on:
       - "src/pages/BeltCategoryExperience.css"
       - "src/pages/ProductsPage.tsx"
       - "src/pages/products-page-premium.css"
+      - "src/pages/CategoryPage.tsx"
+      - "src/category-showcase.css"
+      - "src/components/product/ProductCard.tsx"
+      - "src/components/layout/Header.tsx"
+      - "src/components/catalog/ReferenceMegaMenu.tsx"
+      - "src/components/catalog/MobileCategoryExplorer.tsx"
+      - "src/components/catalog/mobile-category-explorer.css"
+      - "src/reference-menu.css"
+      - "src/storefront.css"
+      - "src/data/categories.ts"
+      - "src/App.tsx"
       - "tests/products-page-premium.test.ts"
+      - "tests/customer-pricing-visibility.test.ts"
+      - "tests/storefront-product-route-integrity.test.ts"
       - "scripts/tests/products-catalogue-responsive-smoke.cjs"
       - "src/pages/ProductDetailPage.tsx"
       - "src/pages/product-detail-premium.css"
@@ -64,6 +77,8 @@ jobs:
         run: npm run lint
       - name: Products catalogue regression suite
         run: node --import tsx --test tests/products-page-premium.test.ts
+      - name: Storefront product route and category integrity
+        run: node --import tsx --test tests/storefront-product-route-integrity.test.ts tests/customer-pricing-visibility.test.ts
       - name: Product detail regression suite
         run: node --import tsx --test tests/product-detail-premium.test.ts
       - name: All categories regression suite
