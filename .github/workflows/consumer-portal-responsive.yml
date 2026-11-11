@@ -1,7 +1,7 @@
 name: Consumer portal responsive UI smoke
 on:
   push:
-    branches: [design/consumer-premium-dashboard-20261101]
+    branches: [design/consumer-premium-dashboard-20261101, "engineering/**"]
     paths:
       - 'src/components/portal/**'
       - 'src/components/common/BrandIdentity.tsx'
