@@ -377,6 +377,8 @@ export const ProductsPage: React.FC = () => {
               return (
                 <button
                   key={cat.slug}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => handleCategorySelect(cat.slug)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
                     isSelected
