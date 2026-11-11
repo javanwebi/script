@@ -774,7 +774,7 @@ export const Header: React.FC = () => {
                 }`}
               >
                 <LayoutGrid className="w-4 h-4 text-[#E06518] shrink-0" />
-                <span className="font-bold">همه محصولات</span>
+                <span className="font-bold">دسته‌بندی محصولات</span>
                 <ChevronDown
                   className={`w-3.5 h-3.5 text-slate-400 group-hover:text-[#E06518] transition-transform duration-200 ${
                     isMegaMenuOpen ? 'rotate-180 text-[#E06518]' : ''
