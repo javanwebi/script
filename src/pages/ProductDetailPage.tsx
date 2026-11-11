@@ -53,6 +53,7 @@ import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
 import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
+import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 
 export const ProductDetailPage: React.FC = () => {
   const location = useLocation();
@@ -98,7 +99,7 @@ export const ProductDetailPage: React.FC = () => {
   const decodedCode = code ? decodeURIComponent(code).trim() : "";
   const cachedProduct = useMemo(
     () =>
-      decodedCode
+      decodedCode && isDatabaseCatalogHydrated()
         ? getProductByCode(decodedCode, { includeInactive: isPreviewMode })
         : undefined,
     [decodedCode, isPreviewMode, catalogTick],
@@ -405,7 +406,7 @@ export const ProductDetailPage: React.FC = () => {
       };
 
   const isFavorited = isInWishlist(product.code);
-  const similarProducts = getSimilarProducts(product, 4);
+  const similarProducts = isDatabaseCatalogHydrated() ? getSimilarProducts(product, 4) : [];
   const currentGalleryImage =
     galleryImages[activeImageIndex];
 
