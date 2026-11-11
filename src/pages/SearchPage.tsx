@@ -1,17 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { searchProducts } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { Search, ChevronLeft } from 'lucide-react';
 import { toPersianDigits } from '../utils/formatters';
 
+const MAX_SEARCH_RESULTS = 48;
+
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
   const [localQuery, setLocalQuery] = useState(queryParam);
+  useEffect(() => setLocalQuery(queryParam), [queryParam]);
 
   const results = useMemo(() => {
-    return searchProducts(queryParam, 48);
+    return searchProducts(queryParam, MAX_SEARCH_RESULTS);
   }, [queryParam]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -39,7 +42,7 @@ export const SearchPage: React.FC = () => {
               type="text"
               value={localQuery}
               onChange={e => setLocalQuery(e.target.value)}
-              placeholder="جستجو در کاتالوگ ۳۱۸ قطعه با کد فنی (مانند AT-E045)، نام یا برند..."
+              placeholder="نام قطعه، کد فنی، برند یا مشخصات فنی را جستجو کنید..."
               className="w-full h-11 pr-10 pl-4 bg-slate-50 border border-[#CBD2D8] rounded-xl text-sm focus:outline-none focus:border-[#E06518] text-[#55565A]"
             />
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
@@ -56,8 +59,9 @@ export const SearchPage: React.FC = () => {
           <div>
             نتیجه جستجو برای: <strong className="text-[#55565A]">«{queryParam || 'همه محصولات'}»</strong>
           </div>
-          <div className="font-mono">
-            {toPersianDigits(results.length)} کالا پیدا شد
+          <div className="font-mono text-left" aria-live="polite">
+            {toPersianDigits(results.length)} نتیجه نمایش‌داده‌شده
+            {results.length === MAX_SEARCH_RESULTS && <span className="mr-2 text-slate-400">· حداکثر نتایج این صفحه</span>}
           </div>
         </div>
       </div>
@@ -67,7 +71,7 @@ export const SearchPage: React.FC = () => {
         <div className="bg-white rounded-[12px] border border-[#CBD2D8] p-12 text-center text-slate-500 space-y-3">
           <p className="text-base font-bold text-[#55565A]">کالایی مطابق با عبارت جستجو یافت نشد.</p>
           <p className="text-xs">
-            پیشنهاد: کد کالا را با پیشوند <span className="font-mono font-bold">AT-E</span> (مانند <span className="font-mono font-bold">AT-E001</span> یا <span className="font-mono font-bold">AT-E045</span>) یا نام قطعه را جستجو فرمایید.
+            نام قطعه، کد فنی، برند یا یکی از مشخصات ثبت‌شده را وارد کنید؛ برای نتیجه دقیق‌تر می‌توانید عبارت جستجو را محدودتر کنید.
           </p>
         </div>
       ) : (
