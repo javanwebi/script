@@ -69,8 +69,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? "برند ثبت نشده"
     : rawBrand;
 
-  // Public catalogue cards must always open the public product page, even for
-  // signed-in customers. Portal-specific cards are handled by PortalProductCard.
+  // Public storefront cards open the public family detail route. If this shared
+  // card is rendered inside a customer portal, preserve that portal's member route.
   const href = isCustomerPortalRoute && currentUser
     ? memberPath(currentUser, product.code)
     : `/product/${encodeURIComponent(product.code)}`;
