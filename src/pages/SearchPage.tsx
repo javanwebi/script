@@ -40,6 +40,7 @@ export const SearchPage: React.FC = () => {
           <div className="relative flex-1">
             <input
               type="text"
+              aria-label="جست‌وجو در کاتالوگ قطعات"
               value={localQuery}
               onChange={e => setLocalQuery(e.target.value)}
               placeholder="نام قطعه، کد فنی، برند یا مشخصات فنی را جستجو کنید..."
