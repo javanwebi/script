@@ -229,8 +229,7 @@ export const AllCategoriesPage: React.FC = () => {
     .filter(group => group.categories.length > 0), [catalogueCategories, catalogueGroups, query]);
 
   const visibleCategoryCount = categorySections.reduce((total, section) => total + section.categories.length, 0);
-  const liveCategoryCount = catalogueGroups.reduce((total, group) =>
-    total + catalogueCategories.filter(category => group.categorySlugs.includes(category.slug)).length, 0);
+  const liveCategoryCount = catalogueCategories.length;
 
   const clearSearch = () => setSearchQuery('');
 
