@@ -26,6 +26,8 @@ test("product cards resolve registered family gallery images and render useful t
   assert.match(productCard, /src=\{productImage\}/);
   assert.match(productCard, /store-product-specs/);
   assert.match(productCard, /className="product-card-image w-full h-full"/);
+  assert.match(productCard, /برند ثبت نشده/);
+  assert.match(productCard, /ثبت\\s\*نشده/);
 });
 
 test("category pages use the selected category name instead of a hard-coded transmission title", () => {
