@@ -6,9 +6,12 @@ const source = (file: string) => readFileSync(file, 'utf8');
 const page = source('src/pages/TextileIndustryPage.tsx');
 const styles = source('src/textile-industry.css');
 const routes = source('src/App.tsx');
+const industryRouter = source('src/pages/DiscoveryPages.tsx');
 
 test('textile industry remains on its dedicated route and uses the shared layout landmark', () => {
-  assert.match(routes, /path="\/industries\/textile"/);
+  assert.match(routes, /path="\\/industries\\/:slug"/);
+  assert.match(industryRouter, /if \(slug === "textile"\)/);
+  assert.match(industryRouter, /<TextileIndustryPage \/>/);
   assert.match(page, /<div className="textile-page" dir="rtl">/);
   assert.doesNotMatch(page, /<main className="textile-page"/);
 });
