@@ -509,6 +509,22 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                 </label>
               )) : <p className="excel-category-filter-muted">برندی برای این گروه ثبت نشده است.</p>}
             </fieldset>
+            <fieldset className="excel-category-spec-filter">
+              <legend>پروفیل و ابعاد فنی</legend>
+              <select aria-label="نوع مشخصه فنی" value={specKey} onChange={event => updateParam('spec', event.target.value)}>
+                <option value="">همه مشخصات فنی</option>
+                {availableSpecKeys.map(key => <option value={key} key={key}>{key}</option>)}
+              </select>
+              <input
+                type="search"
+                aria-label="مقدار پروفیل یا ابعاد"
+                value={specValue}
+                onChange={event => updateParam('specValue', event.target.value)}
+                placeholder="مثلاً SPA، ۱۲۵۰ یا 25 mm"
+                autoComplete="off"
+              />
+              <small>مقدار کامل یا بخشی از مشخصه را وارد کنید.</small>
+            </fieldset>
             <fieldset>
               <legend>وضعیت اطلاعات</legend>
               <label className="excel-category-filter-choice">
@@ -648,6 +664,22 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                         : selectedBrands.filter(value => value !== brand))} />
                   </label>
                 ))}
+              </fieldset>
+              <fieldset className="excel-category-spec-filter">
+                <legend>پروفیل و ابعاد فنی</legend>
+                <select aria-label="نوع مشخصه فنی" value={specKey} onChange={event => updateParam('spec', event.target.value)}>
+                  <option value="">همه مشخصات فنی</option>
+                  {availableSpecKeys.map(key => <option value={key} key={key}>{key}</option>)}
+                </select>
+                <input
+                  type="search"
+                  aria-label="مقدار پروفیل یا ابعاد"
+                  value={specValue}
+                  onChange={event => updateParam('specValue', event.target.value)}
+                  placeholder="مثلاً SPA، ۱۲۵۰ یا 25 mm"
+                  autoComplete="off"
+                />
+                <small>مقدار کامل یا بخشی از مشخصه را وارد کنید.</small>
               </fieldset>
               <fieldset>
                 <legend>وضعیت اطلاعات</legend>
