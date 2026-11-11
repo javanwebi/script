@@ -794,11 +794,21 @@ export default async function handler(
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
         fail(400, "نشانی ایمیل معتبر وارد کنید.");
 
+      const crmCustomers = Array.isArray(db.values.atlas_admin_customers_v1)
+        ? db.values.atlas_admin_customers_v1
+        : [];
+      const matchedCustomer = crmCustomers.find((customer: any) => {
+        try {
+          return mobile(customer.phone) === phone;
+        } catch {
+          return false;
+        }
+      });
       const id = "WEB-" + crypto.randomUUID();
       const inquiry = {
         id,
         inquiryNumber: id,
-        customerId: auth.user?.id || "guest",
+        customerId: matchedCustomer?.id || null,
         customerName: name,
         companyName,
         phone,
@@ -806,6 +816,8 @@ export default async function handler(
         productCode: "CONTACT",
         productName: subject,
         requestedQty: 1,
+        quantity: 1,
+        customerNote: message,
         notes: message,
         subject,
         message,
