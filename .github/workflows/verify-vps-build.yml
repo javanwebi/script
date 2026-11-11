@@ -26,6 +26,8 @@ on:
       - "tests/excel-menu-category-premium.test.ts"
       - "scripts/tests/excel-menu-category-responsive-smoke.cjs"
       - "src/textile-industry.css"
+      - "tests/textile-industry-premium.test.ts"
+      - "scripts/tests/textile-industry-responsive-smoke.cjs"
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
@@ -68,6 +70,8 @@ jobs:
         run: node --import tsx --test tests/all-categories-page-premium.test.ts
       - name: Excel menu category regression suite
         run: node --import tsx --test tests/excel-menu-category-premium.test.ts
+      - name: Textile industry regression suite
+        run: node --import tsx --test tests/textile-industry-premium.test.ts
       - name: Industry page regression suite
         run: node --import tsx --test tests/industry-pages-unique-layouts.test.ts
       - name: Belt category reference and regression suite
@@ -103,6 +107,8 @@ jobs:
         run: node scripts/tests/all-categories-responsive-smoke.cjs
       - name: Verify Excel menu category desktop and mobile interactions
         run: node scripts/tests/excel-menu-category-responsive-smoke.cjs
+      - name: Verify textile industry desktop and mobile interactions
+        run: node scripts/tests/textile-industry-responsive-smoke.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -113,6 +119,7 @@ jobs:
             /tmp/product-detail-*.png
             /tmp/all-categories-*.png
             /tmp/excel-category-*.png
+            /tmp/textile-industry-*.png
           if-no-files-found: ignore
       - name: Print focused Vite failure
         if: failure()
