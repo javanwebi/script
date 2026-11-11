@@ -6,6 +6,19 @@ const { chromium } = require('playwright');
 const baseUrl = process.env.PRODUCTS_PREVIEW_URL || 'http://127.0.0.1:4173';
 const categorySlug = 'بلبرینگ-و-یاتاقان';
 const categoryName = 'بلبرینگ و یاتاقان';
+const approvedCategorySlug = 'excel-v2-13-1';
+const approvedCategory = {
+  slug: approvedCategorySlug,
+  name: categoryName,
+  description: 'خانواده‌ها و کدهای فنی بلبرینگ و یاتاقان.',
+  image: null,
+  children: [{ name: 'بلبرینگ', children: [{ name: 'بلبرینگ شیار عمیق' }] }],
+};
+const assignedFamilies = [
+  { code: 'TEST-BRG-001', name: 'بلبرینگ آزمایشی شیار عمیق 6205', brand: 'Test Bearing', submenu: 'بلبرینگ', leaf: 'بلبرینگ شیار عمیق', skuCount: 1 },
+  { code: 'TEST-BRG-002', name: 'بلبرینگ آزمایشی شیار عمیق 6206', brand: 'Test Bearing', submenu: 'بلبرینگ', leaf: 'بلبرینگ شیار عمیق', skuCount: 1 },
+  { code: 'TEST-BRG-003', name: 'یاتاقان آزمایشی صنعتی', brand: 'Test Motion', submenu: 'یاتاقان', leaf: 'یاتاقان', skuCount: 1 },
+];
 const products = [
   {
     code: 'TEST-BRG-001',
@@ -78,7 +91,7 @@ const runtimeFixture = {
   values: {
     atlas_admin_categories_v1: [{
       id: 1,
-      slug: categorySlug,
+      slug: approvedCategorySlug,
       name: categoryName,
       nameEn: 'Bearings & Bushings',
       description: 'بلبرینگ و یاتاقان',
@@ -123,6 +136,12 @@ const viewports = [
         if (url.includes('/api/runtime')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(runtimeFixture) });
         }
+        if (url.includes('/api/catalog/menu-category/')) {
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, category: approvedCategory, families: assignedFamilies }) });
+        }
+        if (url.includes('/api/catalog/direct-skus')) {
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: [] }) });
+        }
         if (url.includes('/api/catalog/overrides')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) });
         }
@@ -163,10 +182,16 @@ const viewports = [
       assert.equal(await page.locator('.store-product-card').count(), products.length, 'clearing search should restore the result set');
 
       const categoryTile = page.locator('.catalogue-category-tile:not(.catalogue-category-tile--all)').first();
+      assert.equal(await categoryTile.getAttribute('href'), '/category/' + approvedCategorySlug, 'approved category quick links should use the canonical assigned-family route');
       await categoryTile.click();
-      assert.ok(new URL(page.url()).searchParams.has('category'), 'category selection should be linkable');
-      assert.equal(await page.locator('.store-product-card').count(), products.length, 'the selected category should retain its products');
-      await page.locator('.catalogue-category-tile--all').click();
+      await page.locator('.excel-category-page').waitFor();
+      await page.getByRole('heading', { name: categoryName }).waitFor();
+      assert.ok(page.url().endsWith('/category/' + approvedCategorySlug), 'category tile should open the approved category page');
+      assert.ok(await page.locator('.excel-category-product-shell .store-product-card').count() > 0, 'category route should render assigned real families');
+      await page.goBack({ waitUntil: 'domcontentloaded' });
+      await page.locator('.catalogue-premium-page').waitFor();
+      await page.locator('.store-product-card').first().waitFor();
+      assert.equal(await page.locator('.store-product-card').count(), products.length, 'returning from a category should restore the all-products catalogue');
 
       if (viewport.width <= 640) {
         const filterTrigger = page.locator('.catalogue-mobile-filter-trigger');
