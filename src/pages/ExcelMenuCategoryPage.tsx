@@ -337,7 +337,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     );
   }
 
-  if (status === 'error' || !data?.category) {
+  if (status === 'error' || !category) {
     return (
       <div className="excel-category-page" dir="rtl">
         <nav className="excel-category-breadcrumbs" aria-label="مسیر صفحه">
