@@ -761,7 +761,7 @@
 .bce-hero {
   position: relative;
   display: block;
-  height: clamp(164px, 17.5vw, 205px);
+  height: clamp(164px, 17.5vw, 205px) !important;
   min-height: 0 !important;
   border-radius: 0;
   overflow: hidden;
@@ -1758,7 +1758,7 @@
 }
 @media (max-width: 640px) {
   .bce { padding: 0 0 112px; }
-  .bce-hero { height: clamp(112px, 32vw, 145px); min-height: 0 !important; }
+  .bce-hero { height: clamp(112px, 32vw, 145px) !important; min-height: 0 !important; }
   .bce-hero-picture {
     width: 58%;
     clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%);
@@ -1956,7 +1956,7 @@
   .bce-sheet-scroll { padding-inline: 12px; }
 }
 @media (max-width: 390px) {
-  .bce-hero { height: 118px; }
+  .bce-hero { height: 118px !important; }
   .bce-hero-content { width: 49% !important; }
   .bce-hero h1 { font-size: 15px; }
   .bce-hero-content > p { font-size: 7px; }
@@ -1968,7 +1968,7 @@
   .bce-quote-cta { font-size: 6.5px; padding-inline: 4px; }
 }
 @media (max-width: 360px) {
-  .bce-hero { height: 114px; }
+  .bce-hero { height: 114px !important; }
   .bce-hero h1 { font-size: 14px; }
   .bce-family-tile { flex-basis: 74px; }
   .bce-row-content .bce-product-name { font-size: 8px; }
