@@ -325,7 +325,7 @@ export default function App() {
                     <Route path="/agency/*" element={<AgencyPage />} />
                     <Route
                       path="/dealer/*"
-                      element={<Navigate to="/account" replace />}
+                      element={<LegacyDealerRedirect />}
                     />
                     <Route
                       path="/admin/demo-agencies"
