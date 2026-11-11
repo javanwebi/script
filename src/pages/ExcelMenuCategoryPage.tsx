@@ -89,12 +89,14 @@ const matchesSelection = (family: MenuFamily, selection: string) =>
 
 const hasCatalogImage = (product?: Product) => Boolean(product && (
   product.images?.some(Boolean) ||
+  product.image ||
   product.galleryImages?.some(image => Boolean(image.url)) ||
   product.variants?.some(variant => variant.images?.some(Boolean))
 ));
 
 const productPreviewImage = (product?: Product) =>
   product?.images?.find(Boolean) ||
+  product?.image ||
   product?.galleryImages?.find(image => image.scope === 'family')?.url ||
   product?.galleryImages?.find(image => image.url)?.url ||
   product?.variants?.find(variant => variant.images?.some(Boolean))?.images?.find(Boolean);
