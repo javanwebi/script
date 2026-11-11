@@ -94,7 +94,7 @@ test('technical comparison is limited to four families and uses registered famil
   assert.match(page, /compareFamilies\.flatMap\(family => \{/);
   assert.match(page, /variant\.technicalSpecs \|\| \[\]/);
   assert.match(page, /\.filter\(spec => spec\.key === specKey\)/);
-  assert.match(page, /products\.get\(family\.code\)\?\.technicalSpecs/);
+  assert.match(page, /const product = products\.get\(family\.code\)/);
   assert.match(page, /role="dialog" aria-modal="true"/);
   assert.match(page, /قیمت و اطلاعات موجودی بر اساس سطح دسترسی حساب مشتری نمایش داده می‌شود/);
 });
