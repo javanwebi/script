@@ -33,7 +33,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? "ورود به پنل برای مشاهده قیمت"
     : !hasPricePermission
       ? "دسترسی قیمت برای این حساب فعال نیست"
-      : "ورود به پنل برای مشاهده قیمت";
+      : "مشاهده قیمت در پنل مشتری";
   const priceLabel = hasVariants
     ? canViewPrices ? "انتخاب کد فنی برای مشاهده قیمت" : unavailablePriceLabel
     : canViewPrices
