@@ -392,7 +392,7 @@ async function rateLimit(req: IncomingMessage, scope = "login", limit = 25) {
   } else if (redisUrl() && redisToken()) {
     const count = await redis(["INCR", key]);
     if (count === 1) await redis(["EXPIRE", key, 900]);
-    if (count > limit) fail(429, message);
+    if (count > limit) fail(429, scope === "login" ? "تلاش‌های ورود بیش از حد مجاز است؛ ۱۵ دقیقه دیگر دوباره تلاش کنید." : message);
   } else {
     const old = attempts.get(key);
     const entry =
