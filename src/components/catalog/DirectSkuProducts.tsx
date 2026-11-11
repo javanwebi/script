@@ -35,6 +35,7 @@ const normalizeSearch = (value: string) => value
   .toLocaleLowerCase('fa-IR')
   .replace(/ي/g, 'ی')
   .replace(/ك/g, 'ک')
+  .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
   .replace(/[\u200c\s]+/g, ' ')
   .trim();
 
