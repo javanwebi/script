@@ -23,7 +23,7 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(overview,/صنعت پیش؛ <em>همراه مطمئن صنایع ایران<\/em>/);
   assert.match(overview,/از تجربه اطلس تا بازار جامع قطعات صنعتی/);
   assert.match(overview,/مشاهده بیشتر درباره ما/);
-  assert.match(css,/\.home-about-preview__story-title/);
+  assert.match(homeCss,/\.home-about-preview__story-title/);
   assert.match(discovery,/export function AboutPage/);
   assert.match(discovery,/sp-about-approved/);
   assert.match(discovery,/sp-about-hero/);
@@ -46,6 +46,7 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(discovery,/catalogStats\.ready/);
   assert.match(discovery,/aria-live="polite"/);
   const aboutCss = read('src/about-page-approved.css');
+  const homeCss = read('src/company-pages.css');
   assert.match(aboutCss,/grid-column:\s*1\s*\/\s*-1/);
   const storyMarkup = discovery.slice(discovery.indexOf('<section className="sp-about-story"'), discovery.indexOf('<section className="sp-about-capabilities">'));
   assert.match(storyMarkup,/sp-about-story-copy[\s\S]*?<\/div>\s*<div className="sp-about-timeline"/);
