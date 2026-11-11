@@ -125,7 +125,8 @@ const viewports = [
         await bandoLabel.click({ force: true });
         await filterDialog.locator('footer button').last().click();
       } else {
-        await page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input').check({ force: true });
+        const bandoLabel = page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' });
+        await bandoLabel.click({ force: true });
       }
       assert.equal(await rows.count(), 1, 'brand filter must reduce the list to the matching catalogue product');
       if (viewport.width <= 860) {
@@ -147,7 +148,7 @@ const viewports = [
         await stockLabel.click({ force: true });
         await filterDialog.locator('footer button').last().click();
       } else {
-        await page.locator('.bce-sidebar .bce-toggles label').first().locator('input').check({ force: true });
+        await page.locator('.bce-sidebar .bce-toggles label').first().click({ force: true });
       }
       assert.equal(await rows.count(), 5, 'confirmed stock filtering must retain stocked items even when their price requires inquiry');
       if (viewport.width <= 860) {
