@@ -44,7 +44,7 @@ class ClientService {
       // Keep the bundled logos visible without silently writing them to PostgreSQL.
       // To intentionally hide all logos, admins may disable every entry.
       if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_CLIENTS;
-      return parsed
+      const normalizedClients = parsed
         .filter((entry): entry is Record<string, unknown> =>
           Boolean(entry && typeof entry === 'object' && !Array.isArray(entry) &&
             typeof entry.id === 'string' &&
@@ -66,6 +66,7 @@ class ClientService {
           };
         })
         .filter((entry) => typeof entry.logo === 'string' && entry.logo.trim().length > 0) as ClientLogo[];
+      return normalizedClients.length > 0 ? normalizedClients : DEFAULT_CLIENTS;
     } catch {
       return DEFAULT_CLIENTS;
     }
