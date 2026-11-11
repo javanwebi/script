@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, Image as ImageIcon, MessageCircle, PhoneCall, Ruler } from 'lucide-react';
+import { Image as ImageIcon, MessageCircle, PhoneCall, Ruler } from 'lucide-react';
 import { ProductImage } from '../components/product/ProductImage';
 import { useDirectSkuState } from '../components/catalog/DirectSkuProducts';
 import NotFoundPage from './NotFoundPage';
@@ -18,6 +18,7 @@ export default function DirectSkuDetailPage() {
           <span className="direct-sku-state__eyebrow">کاتالوگ صنعت پیش</span>
           <h1>در حال دریافت اطلاعات کد کالا</h1>
           <p>اطلاعات کدهای مستقل مستقیماً از کاتالوگ صنعت پیش دریافت می‌شود.</p>
+          <Link to="/products">بازگشت به کاتالوگ</Link>
         </div>
       </div>
     );
