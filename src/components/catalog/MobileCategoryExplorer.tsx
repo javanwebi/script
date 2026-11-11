@@ -157,10 +157,14 @@ export function MobileCategoryExplorer({
                   );
                 })}
               </div>
-              <Link className="sanat-mobile-category-browse" to="/categories" onClick={onNavigate}>
-                مشاهده تمام دسته‌بندی‌های محصولات
-                <ArrowLeft size={16} />
-              </Link>
+              <div className="sanat-mobile-category-actions">
+                <Link className="sanat-mobile-category-products" to="/products" onClick={onNavigate}>
+                  کاتالوگ همه محصولات <ArrowLeft size={15} />
+                </Link>
+                <Link className="sanat-mobile-category-browse" to="/categories" onClick={onNavigate}>
+                  همه دسته‌بندی‌ها <ArrowLeft size={15} />
+                </Link>
+              </div>
             </>
           ) : (
             <div className="sanat-mobile-category-empty">
