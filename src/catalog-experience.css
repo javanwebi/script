@@ -627,6 +627,23 @@
 }
 .product-detail-page .product-detail-page,
 .direct-sku-detail-page { min-width: 0; }
+.direct-sku-detail-page .direct-sku-detail-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.direct-sku-detail-image .direct-sku-image-label {
+  position: absolute;
+  inset-inline-start: 12px;
+  bottom: 12px;
+  padding: 5px 9px;
+  border: 1px solid #E8DED4;
+  border-radius: 8px;
+  color: #7A4A2A;
+  background: rgba(255,255,255,.92);
+  font-size: 9px;
+  font-weight: 850;
+}
 .direct-sku-detail-page .product-detail-meta {
   display: flex;
   align-items: center;
