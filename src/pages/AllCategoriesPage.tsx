@@ -22,7 +22,6 @@ import {
   X,
 } from 'lucide-react';
 import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
-import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../data/approvedMenuFallback';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { STORE_ASSETS } from '../assets/images';
@@ -38,7 +37,7 @@ type MenuGroup = {
   categorySlugs: string[];
 };
 
-type CatalogueSource = 'loading' | 'database' | 'fallback';
+type CatalogueSource = 'loading' | 'database' | 'error';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Cpu,
@@ -114,9 +113,10 @@ const categoryHref = (slug: string, subcategory?: string) => {
 export const AllCategoriesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
-  const [catalogueCategories, setCatalogueCategories] = useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
-  const [catalogueGroups, setCatalogueGroups] = useState<MenuGroup[]>(APPROVED_MENU_GROUPS);
+  const [catalogueCategories, setCatalogueCategories] = useState<EnhancedCategory[]>([]);
+  const [catalogueGroups, setCatalogueGroups] = useState<MenuGroup[]>([]);
   const [source, setSource] = useState<CatalogueSource>('loading');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const target = window.location.hash.slice(1);
@@ -190,7 +190,7 @@ export const AllCategoriesPage: React.FC = () => {
         setSource('database');
       } catch (error) {
         if (!mounted || (error instanceof Error && error.name === 'AbortError')) return;
-        setSource('fallback');
+        setSource('error');
       }
     };
 
@@ -199,7 +199,7 @@ export const AllCategoriesPage: React.FC = () => {
       mounted = false;
       controller.abort();
     };
-  }, []);
+  }, [retryCount]);
 
   const setSearchQuery = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -286,8 +286,8 @@ export const AllCategoriesPage: React.FC = () => {
               <span className={source === 'database' ? 'is-live' : source === 'fallback' ? 'is-fallback' : 'is-loading'} />
               {source === 'database'
                 ? 'ساختار دسته‌بندی از پایگاه داده دریافت شد'
-                : source === 'fallback'
-                  ? 'نمایش راهنمای دسته‌بندی؛ آمار زنده در دسترس نیست'
+                : source === 'error'
+                  ? 'دریافت ساختار دسته‌بندی ناموفق بود'
                   : 'در حال دریافت ساختار دسته‌بندی…'}
             </div>
           </div>
@@ -331,11 +331,7 @@ export const AllCategoriesPage: React.FC = () => {
           </div>
         </section>
 
-        {source === 'fallback' && (
-          <p className="all-categories-fallback-note" role="status">
-            ساختار راهنما برای مرور نام دسته‌ها نمایش داده شده است. تعداد خانواده‌ها، کدها و موجودی فقط پس از دریافت داده معتبر از پایگاه داده نمایش داده می‌شود.
-          </p>
-        )}
+
 
         {categorySections.length > 0 && (
           <nav className="all-categories-group-nav" aria-label="پرش به گروه‌های دسته‌بندی">
@@ -363,7 +359,20 @@ export const AllCategoriesPage: React.FC = () => {
             </div>
           </div>
 
-          {categorySections.length === 0 ? (
+          {source === 'loading' ? (
+            <div className="all-categories-state" role="status" aria-live="polite">
+              <span className="all-categories-state-spinner" aria-hidden="true" />
+              <h3>در حال دریافت دسته‌بندی‌های صنعت پیش</h3>
+              <p>ساختار گروه‌ها و زیرگروه‌ها از پایگاه داده خوانده می‌شود.</p>
+            </div>
+          ) : source === 'error' ? (
+            <div className="all-categories-state all-categories-state-error" role="alert">
+              <span><Boxes size={24} /></span>
+              <h3>اتصال به ساختار دسته‌بندی برقرار نشد</h3>
+              <p>برای جلوگیری از نمایش آمار یا دسته‌بندی قدیمی، اطلاعات ذخیره‌شده محلی جایگزین داده پایگاه داده نشده است.</p>
+              <button type="button" onClick={() => { setSource('loading'); setRetryCount(value => value + 1); }}>تلاش مجدد</button>
+            </div>
+          ) : categorySections.length === 0 ? (
             <div className="all-categories-empty">
               <span><Search size={25} /></span>
               <h3>دسته‌ای با این عبارت پیدا نشد</h3>
