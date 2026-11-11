@@ -194,11 +194,12 @@ export const ProductsPage: React.FC = () => {
   useEffect(() => {
     if (!/^excel-v2-[0-9]+-[0-9]+$/.test(categoryParam)) return;
     const destinationParams = new URLSearchParams();
-    if (subParam !== "all") destinationParams.set("sub", subParam);
-    if (queryParam.trim()) destinationParams.set("q", queryParam.trim());
+    ["sub", "q", "brand", "stock", "image", "sort"].forEach(key => {
+      searchParams.getAll(key).forEach(value => destinationParams.append(key, value));
+    });
     const query = destinationParams.toString();
     navigate(`/category/${encodeURIComponent(categoryParam)}${query ? `?${query}` : ""}`, { replace: true });
-  }, [categoryParam, subParam, queryParam, navigate]);
+  }, [categoryParam, searchParams, navigate]);
 
   // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
   useEffect(() => {
