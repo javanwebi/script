@@ -398,8 +398,8 @@ export const ProductsPage: React.FC = () => {
             صفحه اصلی
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-800 font-bold">
-            محصولات و کاتالوگ صنعتی
+          <span className="text-slate-800 font-bold" aria-current="page">
+            همه محصولات
           </span>
           {activeCategoryObj && (
             <>
