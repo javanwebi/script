@@ -262,7 +262,7 @@
   box-shadow: 0 0 0 3px rgba(39, 150, 106, .12);
 }
 
-.all-categories-source-status .is-fallback {
+.all-categories-source-status .is-error {
   background: #d58a36;
   box-shadow: 0 0 0 3px rgba(213, 138, 54, .12);
 }
