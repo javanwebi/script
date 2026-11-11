@@ -75,7 +75,11 @@ const viewports = [
       const heroBox = await hero.boundingBox();
       const expectedHeroHeight = viewport.width <= 360 ? 114 : viewport.width <= 390 ? 118 : viewport.width <= 640 ? Math.max(112, Math.min(145, viewport.width * 0.32)) : Math.max(164, Math.min(205, viewport.width * 0.175));
       assert.ok(heroBox && Math.abs(heroBox.height - expectedHeroHeight) <= 2, 'unexpected hero height at ' + viewport.width + 'px: ' + JSON.stringify({ actual: heroBox?.height, expected: expectedHeroHeight }));
-      await page.locator('.bce-hero-photo').waitFor({ state: 'visible' });
+      const heroPhoto = page.locator('.bce-hero-photo');
+      await heroPhoto.waitFor({ state: 'visible' });
+      await heroPhoto.evaluate(image => image.decode());
+      const heroImageLoaded = await heroPhoto.evaluate(image => image.complete && image.naturalWidth > 0);
+      assert.ok(heroImageLoaded, 'the industrial hero image must load successfully');
       await page.screenshot({
         path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
         fullPage: false,
