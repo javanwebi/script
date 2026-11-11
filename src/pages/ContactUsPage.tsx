@@ -180,6 +180,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
   // Contact form state
   const [formSubject, setFormSubject] = useState('');
   const [formName, setFormName] = useState('');
+  const [formCompany, setFormCompany] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formMessage, setFormMessage] = useState('');
@@ -232,6 +233,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
           action: 'public_contact',
           payload: {
             name: formName.trim(),
+            companyName: formCompany.trim(),
             phone: formPhone.trim(),
             email: formEmail.trim(),
             subject: formSubject,
@@ -247,6 +249,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       setSubmittedInquiryNumber(String(data.inquiry?.inquiryNumber || data.inquiry?.id || ''));
       setIsSubmitted(true);
       setFormName('');
+      setFormCompany('');
       setFormPhone('');
       setFormEmail('');
       setFormMessage('');
@@ -907,13 +910,29 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                       />
                     </div>
 
+                    <div className="space-y-1.5">
+                      <label htmlFor="contact-company" className="block text-xs font-bold text-[#55565A]">
+                        نام شرکت یا کارگاه <span className="font-normal text-slate-400">(اختیاری)</span>
+                      </label>
+                      <input
+                        id="contact-company"
+                        type="text"
+                        value={formCompany}
+                        onChange={(e) => setFormCompany(e.target.value)}
+                        placeholder="نام مجموعه شما"
+                        maxLength={160}
+                        autoComplete="organization"
+                        className="w-full h-11 px-3.5 rounded-xl bg-[#fafafb] border border-[#e5e7eb] focus:bg-white focus:border-[#E06518] text-xs text-[#55565A] placeholder:text-slate-400 outline-none transition-colors"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label
                           htmlFor="contact-phone"
                           className="block text-xs font-bold text-[#55565A]"
                         >
-                          شماره تماس <span className="text-[#E06518]">*</span>
+                          شماره موبایل <span className="text-[#E06518]">*</span>
                         </label>
                         <input
                           id="contact-phone"
@@ -981,7 +1000,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
 
                     <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-[#74757c]">
                       <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>اطلاعات شما به صورت محرمانه نگهداری خواهد شد.</span>
+                      <span>اطلاعات تماس برای ثبت و پیگیری همین درخواست دریافت می‌شود.</span>
                     </div>
                   </form>
                 )}
