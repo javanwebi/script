@@ -1,34 +1,60 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
+import { getManagedCategories, resolveCategorySlug } from '../../data/categories';
 
 export const MainBrandsBanner: React.FC = () => {
+  const [managedCategories, setManagedCategories] = useState(() => getManagedCategories());
+
+  useEffect(() => {
+    const refresh = () => setManagedCategories(getManagedCategories());
+    refresh();
+    window.addEventListener('sanat-durable-hydrated', refresh);
+    window.addEventListener('atlas-categories-updated', refresh);
+    return () => {
+      window.removeEventListener('sanat-durable-hydrated', refresh);
+      window.removeEventListener('atlas-categories-updated', refresh);
+    };
+  }, []);
+
+  const normalizeCategoryLabel = (value: string) =>
+    value.replace(/[\s\u200c]+/g, '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLocaleLowerCase('fa-IR');
+
+  const categoryHrefFor = (...candidates: string[]) => {
+    const wanted = new Set(candidates.map(normalizeCategoryLabel));
+    const match = managedCategories.find((category) =>
+      wanted.has(normalizeCategoryLabel(category.name)) ||
+      wanted.has(normalizeCategoryLabel(category.slug))
+    );
+    if (!match) return '/categories';
+    return `/category/${encodeURIComponent(resolveCategorySlug(match.slug))}`;
+  };
   // Subcategories for FORZA (Ordered Left-to-Right matching reference image)
   const forzaCategories = [
     {
       id: 'belts',
       title: 'تسمه‌ها',
       image: STORE_ASSETS.forzaSubBelt || STORE_ASSETS.products.forzaBelt,
-      link: '/category/industrial-belts',
+      link: categoryHrefFor('تسمه و انتقال نیرو', 'industrial-belts'),
     },
     {
       id: 'bearings',
       title: 'بلبرینگ‌ها',
       image: STORE_ASSETS.forzaSubBearing || STORE_ASSETS.products.bearing,
-      link: '/category/power-transmission',
+      link: categoryHrefFor('بلبرینگ و یاتاقان', 'bearings-bushings'),
     },
     {
       id: 'couplings',
       title: 'کوپلینگ‌ها',
       image: STORE_ASSETS.forzaSubCoupling || STORE_ASSETS.categories.transmission,
-      link: '/category/power-transmission',
+      link: categoryHrefFor('انتقال قدرت مکانیکی', 'couplings-elastomers'),
     },
     {
       id: 'fittings',
       title: 'اتصالات صنعتی',
       image: STORE_ASSETS.forzaSubFittings || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: categoryHrefFor('اتصالات و نگهدارنده', 'industrial-fasteners-accessories'),
     },
   ];
 
@@ -38,25 +64,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'pulleys',
       title: 'پولی‌ها',
       image: STORE_ASSETS.categories.pulleys || STORE_ASSETS.products.aluPulley,
-      link: '/category/power-transmission',
+      link: categoryHrefFor('پولی و انتقال نیرو', 'pulleys-idlers'),
     },
     {
       id: 'belts',
       title: 'تسمه‌ها',
       image: STORE_ASSETS.categories.belts || STORE_ASSETS.products.pvcBelt,
-      link: '/category/industrial-belts',
+      link: categoryHrefFor('تسمه و انتقال نیرو', 'industrial-belts'),
     },
     {
       id: 'sprockets',
       title: 'چرخ زنجیر',
       image: STORE_ASSETS.categories.chains || STORE_ASSETS.products.motor,
-      link: '/category/power-transmission',
+      link: categoryHrefFor('زنجیر و چرخ‌زنجیر', 'chains-sprockets'),
     },
     {
       id: 'transmission',
       title: 'انتقال قدرت',
       image: STORE_ASSETS.categories.transmission || STORE_ASSETS.products.bearing,
-      link: '/category/power-transmission',
+      link: categoryHrefFor('تسمه و انتقال نیرو', 'industrial-belts'),
     },
   ];
 
@@ -66,25 +92,25 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'valves',
       title: 'شیرآلات',
       image: STORE_ASSETS.swrSubValve || STORE_ASSETS.products.valve,
-      link: '/category/industrial-valves',
+      link: categoryHrefFor('قطعات پمپ و سیالات', 'pumps-fluids-pneumatics'),
     },
     {
       id: 'elbows',
       title: 'اتصالات',
       image: STORE_ASSETS.swrSubElbow || STORE_ASSETS.products.ceramicParts,
-      link: '/category/production-fittings',
+      link: categoryHrefFor('اتصالات و نگهدارنده', 'industrial-fasteners-accessories'),
     },
     {
       id: 'pipes',
       title: 'لوله‌ها',
       image: STORE_ASSETS.swrSubPipes || STORE_ASSETS.products.pipes,
-      link: '/category/pipes-flanges',
+      link: categoryHrefFor('شیلنگ و اتصالات', 'hoses-channels'),
     },
     {
       id: 'flanges',
       title: 'فلنج‌ها',
       image: STORE_ASSETS.swrSubFlanges || STORE_ASSETS.products.flange,
-      link: '/category/pipes-flanges',
+      link: categoryHrefFor('اتصالات و نگهدارنده', 'industrial-fasteners-accessories', 'hoses-channels'),
     },
   ];
 
