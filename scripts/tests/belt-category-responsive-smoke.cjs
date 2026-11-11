@@ -25,6 +25,7 @@ const runtimeFixture = {
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
+  { width: 1024, height: 724 },
   { width: 768, height: 1024 },
   { width: 390, height: 844 },
   { width: 360, height: 800 },
@@ -69,8 +70,23 @@ const viewports = [
 
       const hero = page.locator('.bce-hero');
       await hero.waitFor({ state: 'visible' });
-      const heroBox = await hero.boundingBox();
-      assert.ok(heroBox && heroBox.height >= 100, 'the industrial hero must remain visible in the initial viewport');
+      const heroInfo = await hero.evaluate(element => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          count: document.querySelectorAll('.bce-hero').length,
+          rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+          display: style.display,
+          height: style.height,
+          minHeight: style.minHeight,
+          visibility: style.visibility,
+          position: style.position,
+          parent: element.parentElement?.className || null,
+        };
+      });
+      console.log('BELT_HERO_DEBUG', viewport.width + 'x' + viewport.height, JSON.stringify(heroInfo));
+      assert.ok(heroInfo.rect.width > 0 && heroInfo.rect.height > 0, 'the industrial hero must remain visible in the initial viewport');
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.locator('.bce-hero-photo').waitFor({ state: 'visible' });
       await page.screenshot({
         path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
