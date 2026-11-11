@@ -12,6 +12,7 @@ on:
       - "src/textile-industry.css"
       - "tests/industry-pages-unique-layouts.test.ts"
       - "tests/belt-category-experience.test.ts"
+      - "scripts/tests/belt-category-responsive-smoke.cjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
     branches: [main, feature/textile-industry-page]
@@ -55,6 +56,27 @@ jobs:
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS
         run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
+      - name: Install Chromium for belt category responsive smoke
+        run: |
+          npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Launch production preview for belt category browser tests
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/belt-category-preview.log 2>&1 &
+          for i in $(seq 1 50); do
+            if curl -sf http://127.0.0.1:4173/category/%D8%AA%D8%B3%D9%85%D9%87-%D9%88-%D8%A7%D9%86%D8%AA%D9%82%D8%A7%D9%84-%D9%86%DB%8C%D8%B1%D9%88 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/belt-category-preview.log
+          exit 1
+      - name: Verify belt category desktop and mobile interactions
+        run: node scripts/tests/belt-category-responsive-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: belt-category-responsive-screenshots
+          path: /tmp/belt-category-*.png
+          if-no-files-found: ignore
       - name: Print focused Vite failure
         if: failure()
         run: |
