@@ -40,13 +40,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
       : unavailablePriceLabel;
 
-  // Prefer a family-level gallery image. A SKU image is only a safe family
-  // preview when its identity has been explicitly verified by the catalogue team.
-  const productImage =
-    product.galleryImages?.find(image => image.scope === "family" && image.url)?.url ||
-    product.images?.find(Boolean) ||
-    product.image ||
-    product.galleryImages?.find(image => image.scope === "variant" && image.identityVerified === true && image.url)?.url;
+  // Prefer a family image. If the family has only SKU-bound gallery images,
+  // show one as a clearly-labelled example instead of pretending it represents
+  // every variant. Legacy image arrays are treated as family images only when
+  // they have no SKU-scope metadata.
+  const familyGalleryImage = product.galleryImages?.find(image => image.scope === "family" && image.url);
+  const variantGalleryImage = product.galleryImages?.find(image => image.scope === "variant" && image.url);
+  const canUseLegacyFamilyImage = !product.galleryImages?.length &&
+    product.imageScope !== "sku-verified" && product.imageScope !== "mixed";
+  const legacyFamilyImage = canUseLegacyFamilyImage
+    ? product.images?.find(Boolean) || product.image
+    : undefined;
+  const productImage = familyGalleryImage?.url || legacyFamilyImage || variantGalleryImage?.url;
+  const isVariantImagePreview = !familyGalleryImage && !legacyFamilyImage && Boolean(variantGalleryImage);
+  const variantImageLabel = variantGalleryImage?.variantCode
+    ? `نمونه تصویر کد ${variantGalleryImage.variantCode}`
+    : "نمونه تصویر یک کد فنی";
 
   const previewSpecs = (product.technicalSpecs || [])
     .filter(spec => spec.key?.trim() && spec.value?.trim())
@@ -69,11 +78,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <ProductImage
             src={productImage}
             thumbnail
-            alt={product.name}
+            alt={isVariantImagePreview ? `${product.name} — ${variantImageLabel}` : product.name}
             className="product-card-image w-full h-full"
             loading="lazy"
             decoding="async"
           />
+          {isVariantImagePreview && (
+            <span className="store-product-image-scope-badge">{variantImageLabel}</span>
+          )}
         </Link>
         <button
           type="button"
