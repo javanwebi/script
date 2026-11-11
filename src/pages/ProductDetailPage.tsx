@@ -166,9 +166,11 @@ export const ProductDetailPage: React.FC = () => {
     if (!product) return [];
     if (activeFamilyMenuRoute && !activeFamilyMenuRoute.resolved) return [];
     if (activeFamilyMenuRoute?.assignment) {
-      const relatedCodes = new Set(activeFamilyMenuRoute.relatedFamilyCodes);
-      return getAllProducts()
-        .filter(candidate => candidate.code !== product.code && relatedCodes.has(candidate.code))
+      const productsByCode = new Map(getAllProducts().map(candidate => [candidate.code, candidate] as const));
+      return activeFamilyMenuRoute.relatedFamilyCodes
+        .filter(code => code !== product.code)
+        .map(code => productsByCode.get(code))
+        .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
         .slice(0, 4);
     }
     return getSimilarProducts(product, 4);
