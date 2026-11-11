@@ -542,23 +542,26 @@
 .home-about-preview__visual::before {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   inset: 10px -10px -10px 12px;
   border-radius: 0 34px 0 34px;
   background: linear-gradient(145deg, #f07822, #e15d13 62%, #ffb16f);
 }
 .home-about-preview__visual > img {
+  z-index: 1;
   object-position: center;
   transform: scale(1.015);
   transition: transform .7s cubic-bezier(.2,.7,.2,1);
 }
 .home-about-preview:hover .home-about-preview__visual > img { transform: scale(1.055); }
 .home-about-preview__shade {
+  z-index: 2;
   background:
     linear-gradient(0deg, rgba(10,18,27,.82), transparent 48%),
     linear-gradient(90deg, rgba(10,18,27,.16), transparent 58%);
 }
 .home-about-preview__atlas {
+  z-index: 3;
   top: 18px;
   right: 18px;
   max-width: calc(100% - 36px);
@@ -566,7 +569,8 @@
   border-radius: 13px;
   box-shadow: 0 8px 22px rgba(18,27,37,.12);
 }
-.home-about-preview__visual-caption { right: 25px; bottom: 25px; }
+.home-about-preview__visual-caption { z-index: 3; right: 25px; bottom: 25px; }
+.home-about-preview__visual-index { z-index: 3; }
 .home-about-preview__visual-caption strong {
   font-size: clamp(20px, 2vw, 28px);
   line-height: 1.55;
