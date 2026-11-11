@@ -16,7 +16,14 @@ STAGE="$4"
 [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || fail "invalid_sha"
 [[ "$SITE" =~ ^sanatpish-unified-live-[A-Za-z0-9-]+$ ]] || fail "unexpected_site_container"
 [[ "$NETWORK" =~ ^[A-Za-z0-9_.-]+$ ]] || fail "unexpected_network"
-[[ "$STAGE" == /opt/sanatpish-unified-stage-* ]] || fail "unexpected_stage"
+# The site deployer extracts its pinned Git archive directly under this
+# release root. Accept only one real, direct child release directory; never
+# follow a symlink or an arbitrary caller-provided staging path.
+RELEASE_ROOT=/opt/sanatpish/.deploy/releases
+[[ "$STAGE" == "$RELEASE_ROOT/"* ]] || fail "unexpected_stage"
+[[ "$(dirname -- "$STAGE")" == "$RELEASE_ROOT" ]] || fail "stage_must_be_direct_release_child"
+[[ -d "$STAGE" && ! -L "$STAGE" ]] || fail "release_stage_unavailable"
+[[ "$(realpath -e -- "$STAGE")" == "$STAGE" ]] || fail "release_stage_path_not_canonical"
 test -f "$STAGE/Dockerfile.forza-nima" && test -f "$STAGE/scripts/forza_nima_voice_http.py" || fail "pinned_voice_source_missing"
 test "$(git -C /opt/sanatpish cat-file -t "$SHA")" = commit || fail "unavailable_release_sha"
 
