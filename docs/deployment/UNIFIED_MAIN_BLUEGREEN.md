@@ -58,7 +58,7 @@ Every later update needs only:
 sudo sanatpish-deploy-main
 ```
 
-The command does not checkout, clean, reset, or modify tracked files under `/opt/sanatpish`. It archives exactly the fetched commit into an isolated stage, builds and tests a private no-host-port canary, checks catalog parity, then replaces the single fixed-port app with rollback. The previous production container is stopped and preserved for immediate rollback.
+The command first verifies that `/opt/sanatpish` is on the local `main` branch, has no tracked local edits, and can fast-forward to the fetched release. It builds and tests an isolated archive and private no-host-port canary, checks catalog parity, then replaces the single fixed-port app with rollback. **Only after the new production app and voice pass all health checks**, the wrapper fast-forwards the tracked source checkout at `/opt/sanatpish` to that exact deployed commit. This makes the page source visible in the main project folder while preserving untracked owner-managed files and release data. If the source checkout has tracked edits, is not on `main`, or cannot fast-forward, the command stops before deployment rather than overwriting server work. The active container continues to use the isolated release under `/opt/sanatpish/.deploy/releases`; do not edit that generated release directly. The previous production container is stopped and preserved for immediate rollback.
 
 ### Working in multiple chats
 
