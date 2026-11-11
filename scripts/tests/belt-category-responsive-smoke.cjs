@@ -3,6 +3,25 @@ const { chromium } = require('playwright');
 
 const baseUrl = process.env.BELT_PREVIEW_URL || 'http://127.0.0.1:4173';
 const route = '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو');
+const beltSlug = 'تسمه-و-انتقال-نیرو';
+const productFixture = [
+  { code: 'A42', name: 'تسمه وی بلت کلاسیک A42', nameEn: 'Classic V-Belt A42', brand: 'Bando', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه V-BELT', subcategory: 'کلاسیک', technicalSpecs: [{ key: 'پروفیل', value: 'A' }, { key: 'طول مؤثر', value: '1067 mm' }, { key: 'جنس', value: 'NR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 3, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['کلاسیک'], unit: 'عدد', active: true, featured: true },
+  { code: 'SPA 1250', name: 'تسمه پروفیل باریک SPA 1250', nameEn: 'Narrow V-Belt SPA 1250', brand: 'Optibelt', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه V-BELT', subcategory: 'پروفیل باریک', technicalSpecs: [{ key: 'پروفیل', value: 'SPA' }, { key: 'طول مؤثر', value: '1250 mm' }, { key: 'جنس', value: 'NR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 5, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['اسپشیال'], unit: 'عدد', active: true },
+  { code: '8M-1200', name: 'تسمه تایمینگ 8M-1200', nameEn: 'Timing Belt 8M-1200', brand: 'Gates', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه تایمینگ', subcategory: 'تسمه تایمینگ', technicalSpecs: [{ key: 'گام (Pitch)', value: '8 mm' }, { key: 'طول مؤثر', value: '1200 mm' }, { key: 'جنس', value: 'HNBR' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 2, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['تایمینگ'], unit: 'عدد', active: true },
+  { code: 'PK 8', name: 'تسمه شیاری PK 8', nameEn: 'Ribbed Belt PK 8', brand: 'Megadyne', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه شیاری', subcategory: 'تسمه شیاری', technicalSpecs: [{ key: 'پروفیل', value: 'PK' }, { key: 'تعداد شیار', value: '8' }, { key: 'طول مؤثر', value: '800 mm' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 0, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['شیاری'], unit: 'عدد', active: true },
+  { code: 'PU-8', name: 'تسمه گرد پلی یورتان 8mm', nameEn: 'Round Polyurethane Belt 8mm', brand: 'Contitech', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه گرد پلی اورتان', subcategory: 'تسمه گرد پلی اورتان', technicalSpecs: [{ key: 'قطر', value: '8 mm' }, { key: 'جنس', value: 'Polyurethane' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 4, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['پلی یورتان'], unit: 'متر', active: true },
+  { code: 'CRC-WELD-01', name: 'تسمه CRC پنج ضلعی جوشی پلی یورتان', nameEn: 'Welded Pentagonal Polyurethane Belt', brand: 'Mitsuboshi', categorySlug: beltSlug, categoryName: 'تسمه و انتقال نیرو', submenu: 'تسمه CRC پنج ضلعی', subcategory: 'تسمه CRC پنج ضلعی', technicalSpecs: [{ key: 'مقطع', value: 'پنج ضلعی' }, { key: 'اتصال', value: 'جوشی' }, { key: 'جنس', value: 'Polyurethane' }], prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 }, stock: 1, stockKnown: true, inquiryOnly: true, variants: [], images: [], tags: ['CRC', 'جوشی'], unit: 'متر', active: true },
+];
+const runtimeFixture = {
+  success: true,
+  database: true,
+  userId: null,
+  values: {},
+  versions: {},
+  productsIncluded: true,
+  products: productFixture,
+};
+
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
@@ -21,6 +40,16 @@ const viewports = [
       const pageErrors = [];
       page.setDefaultTimeout(12000);
       page.on('pageerror', error => pageErrors.push(error.message));
+      await page.route('**/api/runtime*', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(runtimeFixture),
+      }));
+      await page.route('**/api/catalog/overrides*', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: {} }),
+      }));
 
       await page.goto(baseUrl + route, { waitUntil: 'domcontentloaded' });
       await page.locator('main.bce').waitFor();
