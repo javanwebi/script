@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Boxes, Home, Search } from "lucide-react";
+import { setPageMeta } from "../utils/pageMeta";
 
 export function NotFoundPage() {
   useEffect(() => {
-    document.title = "صفحه پیدا نشد | صنعت پیش";
+    setPageMeta({ title: "صفحه پیدا نشد | صنعت پیش", description: "این نشانی در صنعت پیش پیدا نشد. از کاتالوگ قطعات یا دسته‌بندی‌های صنعتی برای ادامه استفاده کنید." });
   }, []);
 
   return (
