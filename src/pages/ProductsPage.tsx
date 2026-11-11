@@ -2,7 +2,6 @@ import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
 import {
   matchesProductSearch,
-  CATALOGUE_SKU_COUNT,
   categorySlugFor,
 } from "../data/userProducts";
 import { ProductImage } from "../components/product/ProductImage";
@@ -134,6 +133,10 @@ export const ProductsPage: React.FC = () => {
     return ()=>controller.abort();
   },[catalogVersion]);
   const allProducts = catalogProducts;
+  const catalogSkuCount = useMemo(
+    () => allProducts.reduce((sum, product) => sum + (product.variantCount ?? product.variants?.length ?? 0), 0),
+    [allProducts],
+  );
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
@@ -350,7 +353,7 @@ export const ProductsPage: React.FC = () => {
           </div>
           <span>
             {toPersianDigits(allProducts.length)} خانواده ·{" "}
-            {toPersianDigits(CATALOGUE_SKU_COUNT)} کد کالا
+            {toPersianDigits(catalogSkuCount)} کد کالا
           </span>
         </section>
 
