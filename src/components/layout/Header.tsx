@@ -439,7 +439,7 @@ export const Header: React.FC = () => {
                           {liveResults.brands.map(b => (
                             <Link
                               key={b.id}
-                              to={`/category/swr-forza-exclusive`}
+                              to={`/products?q=${encodeURIComponent(b.name)}`}
                               onClick={() => setIsSearchDropdownOpen(false)}
                               className="text-xs font-bold text-[#2B313A] hover:text-[#E06518] flex items-center gap-1"
                             >
