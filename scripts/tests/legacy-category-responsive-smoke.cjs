@@ -87,6 +87,35 @@ const products = [
     unit: 'رول',
     active: true,
   },
+  {
+    code: 'FAM-MAT-004',
+    name: 'بلبرینگ صنعتی با تصویر متصل به کد',
+    nameEn: 'Industrial Bearing with Variant Image',
+    brand: 'FORZA',
+    categorySlug,
+    categoryName,
+    submenu: 'بلبرینگ صنعتی',
+    subcategory: 'بلبرینگ',
+    technicalSpecs: [{ key: 'قطر داخلی', value: '25 mm' }],
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    stock: 0,
+    stockKnown: false,
+    inquiryOnly: true,
+    variants: [{
+      code: 'SKU-MAT-004',
+      size: '25 mm',
+      name: 'بلبرینگ صنعتی 25 میلی‌متر',
+      images: ['/storage/products/33333333-3333-4333-8333-333333333333.webp'],
+      active: true,
+    }],
+    images: ['/storage/products/33333333-3333-4333-8333-333333333333.webp'],
+    galleryImages: [],
+    imageScope: 'sku-verified',
+    hasCatalogueImage: true,
+    tags: ['بلبرینگ'],
+    unit: 'عدد',
+    active: true,
+  },
 
 ];
 const runtimeFixture = {
@@ -198,7 +227,10 @@ async function installRoutes(page) {
       assert.ok(placeholderBox && placeholderBox.width > 100 && placeholderBox.height > 100, 'missing-image state should fill the media frame rather than collapse to a small icon');
       const skuPreviewBadge = page.locator('.store-product-card').nth(2).locator('.store-product-image-scope-badge');
       await skuPreviewBadge.waitFor({ state: 'visible' });
-      assert.ok((await skuPreviewBadge.innerText()).includes('SKU-MAT-003'), 'SKU-bound image must be labelled with the exact variant code');
+      assert.ok((await skuPreviewBadge.innerText()).includes('SKU-MAT-003'), 'gallery SKU image must be labelled with the exact variant code');
+      const variantArrayBadge = page.locator('.store-product-card').nth(3).locator('.store-product-image-scope-badge');
+      await variantArrayBadge.waitFor({ state: 'visible' });
+      assert.ok((await variantArrayBadge.innerText()).includes('SKU-MAT-004'), 'variant.images fallback must preserve the exact SKU identity');
 
       const firstHref = await page.locator('.store-product-card').first().locator('.store-product-title').getAttribute('href');
       assert.equal(firstHref, '/product/FAM-MAT-001', 'public category card should keep the public product detail route');
