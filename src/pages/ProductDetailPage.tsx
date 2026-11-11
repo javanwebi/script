@@ -6,6 +6,7 @@ import {
 import { ProductVariants } from "../components/product/ProductVariants";
 import { ProductImage } from "../components/product/ProductImage";
 import { setPageMeta } from "../utils/pageMeta";
+import "../catalog-experience.css";
 import React, { useState, useEffect, useMemo } from "react";
 import {
   useParams,
