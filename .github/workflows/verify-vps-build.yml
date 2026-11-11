@@ -30,6 +30,7 @@ on:
       - "scripts/tests/products-catalogue-responsive-smoke.cjs"
       - "scripts/tests/legacy-category-responsive-smoke.cjs"
       - "src/pages/ProductDetailPage.tsx"
+      - "server/catalogNavigationApi.ts"
       - "src/pages/product-detail-premium.css"
       - "tests/product-detail-premium.test.ts"
       - "scripts/tests/product-detail-responsive-smoke.cjs"
