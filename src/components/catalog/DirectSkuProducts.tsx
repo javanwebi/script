@@ -105,7 +105,7 @@ export function DirectSkuProducts({
     return true;
   }), [all, categorySlug, selectedSub, selectedBrand, exclusiveBrandsOnly, imageOnly, inStockOnly, query]);
 
-  useEffect(() => setPage(1), [categorySlug, selectedSub, selectedBrand, exclusiveBrandsOnly, imageOnly, inStockOnly, query]);
+  useEffect(() => setPage(1), [all, categorySlug, selectedSub, selectedBrand, exclusiveBrandsOnly, imageOnly, inStockOnly, query]);
 
   if (!items.length) return null;
 
