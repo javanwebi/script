@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { STORE_ASSETS as A } from "../assets/images";
+import { setPageMeta } from "../utils/pageMeta";
 import { getManagedBrands } from "../data/brands";
 import { databaseStorageEnabled } from "../services/durableStorage";
 import type { Brand } from "../types";
@@ -71,7 +72,7 @@ const companyDestinations = [
 
 export function AboutPage() {
   useEffect(() => {
-    document.title = "درباره صنعت پیش | بازار تخصصی قطعات صنعتی";
+    setPageMeta({ title: "درباره صنعت پیش | بازار آنلاین تخصصی قطعات صنعتی", description: "آشنایی با صنعت پیش و پشتوانه بازرگانی تسمه اطلس؛ بستری تخصصی برای جستجو، مشاوره و تأمین قطعات صنعتی." });
   }, []);
 
   return (
@@ -318,7 +319,7 @@ const serviceSteps = [
 
 export function ServicesPage() {
   useEffect(() => {
-    document.title = "توانمندی‌ها و خدمات | صنعت پیش";
+    setPageMeta({ title: "توانمندی‌ها و خدمات | صنعت پیش", description: "کاتالوگ قطعات صنعتی، مشاوره تخصصی FORZA، شناسایی تصویری، مهندسی معکوس و مسیرهای استعلام و پیگیری سفارش در صنعت پیش." });
   }, []);
 
   return (
@@ -439,7 +440,7 @@ export function ServicesPage() {
 
 export function IndustriesPage() {
   useEffect(() => {
-    document.title = "صنایع تحت پوشش | صنعت پیش";
+    setPageMeta({ title: "صنایع تحت پوشش | صنعت پیش", description: "مسیرهای تخصصی تأمین قطعات برای خطوط کاشی و سرامیک، نساجی، بسته‌بندی، غذایی، ماشین‌سازی و لاستیک و پلاستیک." });
   }, []);
 
   return (
@@ -535,7 +536,7 @@ export function BrandsPage() {
   const [brandsReady, setBrandsReady] = useState(() => databaseStorageEnabled());
 
   useEffect(() => {
-    document.title = "برندها و محصولات | صنعت پیش";
+    setPageMeta({ title: "برندهای صنعتی و محصولات | صنعت پیش", description: "برندهای صنعتی ثبت‌شده در کاتالوگ صنعت پیش را بررسی کنید و به محصولات و خانواده‌های مرتبط دسترسی پیدا کنید." });
     const refreshBrands = () => {
       setPublishedBrands(getManagedBrands());
       setBrandsReady(databaseStorageEnabled());
@@ -713,9 +714,7 @@ export function KnowledgePage() {
   const article = ARTICLES.find((item) => item.slug === slug);
 
   useEffect(() => {
-    document.title = article?.title
-      ? article.title + " | دانشنامه صنعت پیش"
-      : "دانشنامه کاربردی | صنعت پیش";
+    setPageMeta({ title: article?.title ? article.title + " | دانشنامه صنعت پیش" : "دانشنامه فنی | صنعت پیش", description: article?.summary || "راهنماهای فنی انتخاب، شناسایی و نگهداری قطعات صنعتی در دانشنامه صنعت پیش." });
   }, [article]);
 
   const categories = useMemo(
