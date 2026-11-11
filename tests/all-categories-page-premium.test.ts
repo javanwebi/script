@@ -12,7 +12,7 @@ test('all categories remains the canonical route and keeps existing category rou
   assert.match(routes, /<Route path="\/categories" element={<AllCategoriesPage \/>} \/>/);
   assert.match(routes, /<Route path="\/category\/:slug" element={<CategoryPage \/>} \/>/);
   assert.match(page, /categoryHref\(category\.slug\)/);
-  assert.match(layout, /"\\/categories"/);
+  assert.ok(layout.includes('"/categories"'));
 });
 
 test('category explorer reads approved navigation groups and category records from the database API', () => {
