@@ -56,6 +56,12 @@ test("brand banner resolves category links from the approved live taxonomy", () 
   assert.doesNotMatch(banner, /\/category\/power-transmission/);
 });
 
+test("brand search results open matching catalog results instead of the FORZA/SWR landing category", () => {
+  const header = read("src/components/layout/Header.tsx");
+  assert.match(header, /to=\{\`\/products\?q=\$\{encodeURIComponent\(b\.name\)\}\`\}/);
+  assert.doesNotMatch(header, /to=\{\`\/category\/swr-forza-exclusive\`\}/);
+});
+
 test("known customer logos recover bundled assets instead of rendering empty sources", () => {
   const service = read("src/services/clientService.ts");
   assert.match(service, /DEFAULT_CLIENT_BY_ID/);
