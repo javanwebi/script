@@ -33,6 +33,7 @@ import {
   Tag,
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
+import { setPageMeta } from "../utils/pageMeta";
 import { getManagedBrands } from "../data/brands";
 import { getManagedCategories } from "../data/categories";
 import type { Brand } from "../types";
@@ -235,7 +236,12 @@ export function IndustryPage() {
   const industry = INDUSTRIES.find((i) => i.slug === slug);
   const [tick, setTick] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => setTick((t) => t + 1)), []);
-  useEffect(() => title(industry ? `قطعات صنعت ${industry.title}` : "صنعت پیدا نشد | صنعت پیش"), [industry]);
+  useEffect(() => {
+    setPageMeta({
+      title: industry ? `قطعات صنعت ${industry.title} | صنعت پیش` : "صنعت پیدا نشد | صنعت پیش",
+      description: industry?.description || "مسیرهای تخصصی بررسی قطعات و تجهیزات خطوط تولید در صنعت پیش.",
+    });
+  }, [industry]);
   const products = useMemo(
     () => industry ? rankIndustryProducts(getAllProducts(), industry, 6) : [],
     [industry, tick],
