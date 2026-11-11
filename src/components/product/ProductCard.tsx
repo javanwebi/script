@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Heart, ArrowUpLeft, Layers } from "lucide-react";
+import { Heart, ArrowUpLeft, Layers, Scale } from "lucide-react";
 import type { Product } from "../../types";
 import { ProductImage } from "./ProductImage";
 import { useWishlist } from "../../context/WishlistContext";
@@ -11,9 +11,17 @@ import { toPersianDigits, formatPrice } from "../../utils/formatters";
 
 export interface ProductCardProps {
   product: Product;
+  compareSelected?: boolean;
+  compareDisabled?: boolean;
+  onToggleCompare?: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  compareSelected = false,
+  compareDisabled = false,
+  onToggleCompare,
+}) => {
   const { currentUser } = useAuth();
   const location = useLocation();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -56,9 +64,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             decoding="async"
           />
         </Link>
+        {onToggleCompare && (
+          <button
+            type="button"
+            className="store-product-compare-toggle"
+            onClick={() => onToggleCompare(product)}
+            aria-label={compareSelected ? `حذف ${product.name} از مقایسه` : `افزودن ${product.name} به مقایسه`}
+            aria-pressed={compareSelected}
+            disabled={compareDisabled && !compareSelected}
+          >
+            <Scale size={14} />
+            <span>{compareSelected ? "انتخاب شد" : "مقایسه"}</span>
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => toggleWishlist(product.code)}
+          onClick={() => toggleWishlist(product.code)
           aria-label={selected ? `حذف ${product.name} از نشان‌شده‌ها` : `نشان کردن ${product.name}`}
           aria-pressed={selected}
         >
