@@ -29,10 +29,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const price = !hasVariants
     ? getCurrentCustomerSkuPrice(product, currentUser, canViewPrices)
     : 0;
-  const href = hasPricePermission
-    ? memberPath(currentUser, product.code)
-    : `/product/${encodeURIComponent(product.code)}`;
-
   const unavailablePriceLabel = !currentUser
     ? "ورود به پنل برای مشاهده قیمت"
     : !hasPricePermission
@@ -44,14 +40,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
       : unavailablePriceLabel;
 
+  // Prefer a family-level gallery image. A SKU image is only a safe family
+  // preview when its identity has been explicitly verified by the catalogue team.
+  const productImage =
+    product.galleryImages?.find(image => image.scope === "family" && image.url)?.url ||
+    product.images?.find(Boolean) ||
+    product.image ||
+    product.galleryImages?.find(image => image.scope === "variant" && image.identityVerified === true && image.url)?.url;
+
+  const previewSpecs = (product.technicalSpecs || [])
+    .filter(spec => spec.key?.trim() && spec.value?.trim())
+    .slice(0, 2);
+
+  // Public catalogue cards must always open the public product page, even for
+  // signed-in customers. Portal-specific cards are handled by PortalProductCard.
+  const href = isCustomerPortalRoute && currentUser
+    ? memberPath(currentUser, product.code)
+    : `/product/${encodeURIComponent(product.code)}`;
+
   return (
     <article className="store-product-card">
       <div className="store-product-media">
         <Link to={href}>
           <ProductImage
-            src={product.images?.[0]}
+            src={productImage}
             thumbnail
             alt={product.name}
+            className="product-card-image w-full h-full"
             loading="lazy"
             decoding="async"
           />
@@ -77,6 +92,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             ? `${toPersianDigits(product.variants?.length || 0)} کد و سایز قابل انتخاب`
             : product.categoryName}
         </p>
+        {previewSpecs.length > 0 && (
+          <div className="store-product-specs" aria-label="مشخصات فنی منتخب">
+            {previewSpecs.map(spec => (
+              <span key={spec.key}>
+                <strong>{spec.key}</strong>
+                <b>{spec.value}</b>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="store-product-bottom">
           <span className={price > 0 ? "store-product-price store-product-price--visible" : "store-product-price"}>
             {priceLabel}
