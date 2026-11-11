@@ -7,22 +7,40 @@ export type DirectSku={
  skuCode:string;name:string;categorySlug:string;categoryName:string;submenu:string;subcategory:string;
  brand:string;imageUrl:string|null;technicalSpecs:Array<{key:string;value:string}>;priceSnapshot:Record<string,unknown>;active:boolean;
 };
-export function useDirectSkus(){
+
+export function useDirectSkuState(){
  const [items,setItems]=useState<DirectSku[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState(false);
  useEffect(()=>{
    let alive=true;
-   const refresh=()=>fetch('/api/catalog/direct-skus',{cache:'no-store'})
-     .then(response=>response.ok?response.json():null)
-     .then(data=>{if(alive&&data?.success&&Array.isArray(data.items))setItems(data.items)})
-     .catch(()=>{/* Leave the existing family catalogue visible on a transient network failure. */});
+   const refresh=async()=>{
+     if(alive){setLoading(true);setError(false);}
+     try{
+       const response=await fetch('/api/catalog/direct-skus',{cache:'no-store'});
+       if(!response.ok)throw new Error('دریافت کدهای مستقیم ناموفق بود.');
+       const data=await response.json();
+       if(!data?.success||!Array.isArray(data.items))throw new Error('پاسخ کاتالوگ معتبر نیست.');
+       if(alive)setItems(data.items);
+     }catch{
+       if(alive)setError(true);
+     }finally{
+       if(alive)setLoading(false);
+     }
+   };
    void refresh();
    window.addEventListener('catalog-direct-skus-updated',refresh);
    return ()=>{alive=false;window.removeEventListener('catalog-direct-skus-updated',refresh);};
  },[]);
- return items;
+ return {items,loading,error};
 }
+
+export function useDirectSkus(){
+ return useDirectSkuState().items;
+}
+
 export function DirectSkuProducts({categorySlug,selectedSub='all'}:{categorySlug:string;selectedSub?:string}){
- const all=useDirectSkus();
+ const {items:all}=useDirectSkuState();
  const items=useMemo(()=>all.filter(item=>item.categorySlug===categorySlug&&
    (selectedSub==='all'||selectedSub===item.submenu||selectedSub===item.subcategory)),[all,categorySlug,selectedSub]);
  if(!items.length)return null;
