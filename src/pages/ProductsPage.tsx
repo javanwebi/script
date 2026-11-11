@@ -349,6 +349,8 @@ export const ProductsPage: React.FC = () => {
             style={{ scrollbarWidth: "none" }}
           >
             <button
+              type="button"
+              aria-pressed={selectedCategory === "all"}
               onClick={() => handleCategorySelect("all")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
                 selectedCategory === "all"
