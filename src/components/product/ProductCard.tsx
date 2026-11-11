@@ -51,6 +51,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const previewSpecs = (product.technicalSpecs || [])
     .filter(spec => spec.key?.trim() && spec.value?.trim())
     .slice(0, 2);
+  const rawBrand = typeof product.brand === "string" ? product.brand.trim() : "";
+  const brandLabel = !rawBrand || /^(?:ثبت\s*نشده|نامشخص|بدون\s*برند|unknown|n\/a|[-—])$/i.test(rawBrand)
+    ? "برند ثبت نشده"
+    : rawBrand;
 
   // Public catalogue cards must always open the public product page, even for
   // signed-in customers. Portal-specific cards are handled by PortalProductCard.
@@ -82,7 +86,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </div>
       <div className="store-product-copy">
         <div className="store-product-meta">
-          <span>{product.brand || "قطعات صنعتی"}</span>
+          <span>{brandLabel}</span>
           <span dir="ltr">{product.code}</span>
         </div>
         <Link to={href} className="store-product-title">{product.name}</Link>
