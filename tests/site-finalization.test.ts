@@ -35,7 +35,7 @@ test("public contact form reports success only after a persisted server response
   assert.match(api, /x-real-ip/);
   assert.match(api, /source: "website_contact"/);
   assert.match(api, /db\.values\.atlas_admin_inquiries_v1 = \[inquiry/);
-  assert.match(api, /await writeDb\(db, revision\)/);
+  assert.match(api, /await writeDb\(db, revision, false, \["atlas_admin_inquiries_v1"\]\)/);
 });
 
 test("footer exposes only configured contact routes and no fake trust or newsletter confirmations", () => {
