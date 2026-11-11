@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Image as ImageIcon, ArrowUpLeft, Layers } from 'lucide-react';
+import { Image as ImageIcon, ArrowUpLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductImage } from '../product/ProductImage';
 import { toPersianDigits } from '../../utils/formatters';
 
@@ -75,6 +75,7 @@ export function DirectSkuProducts({
   description,
 }: DirectSkuProductsProps) {
   const all = useDirectSkus();
+  const [page, setPage] = useState(1);
   const query = normalizeSearch(searchQuery);
   const items = useMemo(() => all.filter(item => {
     if (categorySlug && categorySlug !== 'all' && item.categorySlug !== categorySlug) return false;
@@ -100,8 +101,14 @@ export function DirectSkuProducts({
     return true;
   }), [all, categorySlug, selectedSub, selectedBrand, exclusiveBrandsOnly, imageOnly, inStockOnly, query]);
 
+  useEffect(() => setPage(1), [categorySlug, selectedSub, selectedBrand, exclusiveBrandsOnly, imageOnly, inStockOnly, query]);
+
   if (!items.length) return null;
 
+  const pageSize = 16;
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const isGlobalCatalogue = !categorySlug || categorySlug === 'all';
   const sectionTitle = title || (isGlobalCatalogue ? 'کالاهای مستقیم بدون خانواده' : 'کدهای کالای مستقیم این گروه');
   const sectionDescription = description || (isGlobalCatalogue
@@ -119,7 +126,7 @@ export function DirectSkuProducts({
         <strong>{toPersianDigits(items.length)} کالا</strong>
       </div>
       <div className="direct-sku-products-grid">
-        {items.map(item => (
+        {pageItems.map(item => (
           <Link key={item.skuCode} to={'/direct-product/' + encodeURIComponent(item.skuCode)} className="direct-sku-product-card">
             <div className="direct-sku-product-image">
               {item.imageUrl
@@ -141,6 +148,17 @@ export function DirectSkuProducts({
           </Link>
         ))}
       </div>
+      {totalPages > 1 && (
+        <nav className="direct-sku-products-pagination" aria-label="صفحه‌بندی کالاهای مستقیم">
+          <button type="button" disabled={currentPage <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>
+            <ChevronRight size={15} /> قبلی
+          </button>
+          <span>صفحه <strong>{toPersianDigits(currentPage)}</strong> از {toPersianDigits(totalPages)}</span>
+          <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))}>
+            بعدی <ChevronLeft size={15} />
+          </button>
+        </nav>
+      )}
     </section>
   );
 }
