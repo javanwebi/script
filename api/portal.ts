@@ -774,7 +774,7 @@ export default async function handler(
     if (body.action === "public_contact") {
       await rateLimit(req, "public-contact", 8);
       const payload = body.payload || {};
-      const name = String(payload.name || "").replace(/\\s+/g, " ").trim().slice(0, 120);
+      const name = String(payload.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
       const phone = mobile(payload.phone);
       const email = String(payload.email || "").trim().slice(0, 254);
       const companyName = String(payload.companyName || "").trim().slice(0, 160);
@@ -784,7 +784,7 @@ export default async function handler(
       if (name.length < 2) fail(400, "نام و نام خانوادگی را کامل وارد کنید.");
       if (!subject) fail(400, "موضوع درخواست را انتخاب کنید.");
       if (message.length < 5) fail(400, "شرح درخواست باید حداقل ۵ نویسه باشد.");
-      if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
         fail(400, "نشانی ایمیل معتبر وارد کنید.");
 
       const id = "WEB-" + crypto.randomUUID();
