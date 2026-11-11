@@ -71,7 +71,8 @@ test('family cards use a valid gallery or variant image when legacy product imag
 
 test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
   assert.match(page, /<DirectSkuProducts categorySlug=\{slug\}/);
-  assert.match(page, /<ProductCard product=\{product\}/);
+  assert.match(page, /const cardProduct = product \?/);
+  assert.match(page, /<ProductCard product=\{cardProduct\}/);
   assert.match(page, /'\/product\/' \+ encodeURIComponent\(family\.code\)/);
   assert.match(page, /to="\/identify-part"/);
   assert.match(page, /to="\/ai-consult"/);
