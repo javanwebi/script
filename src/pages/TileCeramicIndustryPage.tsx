@@ -25,6 +25,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../assets/images';
+import { setPageMeta } from '../utils/pageMeta';
 import { getProductImageUrl } from '../assets/imagesproducts';
 import { PartIdentificationLink } from '../components/search/PartIdentificationProvider';
 import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
