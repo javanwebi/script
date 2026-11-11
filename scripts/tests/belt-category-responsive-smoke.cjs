@@ -136,6 +136,26 @@ const viewports = [
         await page.locator('.bce-sidebar-top button').click();
       }
       assert.equal(await rows.count(), productFixture.length, 'clearing filters must restore the full live-fixture result set');
+      if (viewport.width <= 860) {
+        await page.locator('.bce-mobile-tools > button').click();
+        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
+        await filterDialog.waitFor({ state: 'visible' });
+        await filterDialog.locator('.bce-toggles label').first().locator('input').check({ force: true });
+        await filterDialog.locator('footer button').last().click();
+      } else {
+        await page.locator('.bce-sidebar .bce-toggles label').first().locator('input').check({ force: true });
+      }
+      assert.equal(await rows.count(), 5, 'confirmed stock filtering must retain stocked items even when their price requires inquiry');
+      if (viewport.width <= 860) {
+        await page.locator('.bce-mobile-tools > button').click();
+        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
+        await filterDialog.waitFor({ state: 'visible' });
+        await filterDialog.locator('footer button').first().click();
+        await filterDialog.locator('footer button').last().click();
+      } else {
+        await page.locator('.bce-sidebar-top button').click();
+      }
+      assert.equal(await rows.count(), productFixture.length, 'clearing the stock filter must restore all catalogue items');
       await rows.nth(0).locator('.bce-compare-select input').check({ force: true });
       await rows.nth(1).locator('.bce-compare-select input').check({ force: true });
       await page.locator('.bce-compare-open').click();
