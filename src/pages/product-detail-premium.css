@@ -401,8 +401,7 @@
 }
 
 /* Hydration and not-found states must not look like a blank or broken page. */
-.product-detail-loading,
-.product-detail-not-found {
+.product-detail-premium-state {
   display: grid;
   justify-items: center;
   gap: 13px;
@@ -419,19 +418,19 @@
   box-shadow: 0 9px 26px rgba(62, 55, 47, .045);
 }
 
-.product-detail-loading h2 {
+.product-detail-premium-state.product-detail-loading h2 {
   color: #3f474e;
   font-size: 16px;
   font-weight: 900;
 }
 
-.product-detail-loading p {
+.product-detail-premium-state.product-detail-loading p {
   color: #858b8f;
   font-size: 11px;
   line-height: 2;
 }
 
-.product-detail-loading-spinner {
+.product-detail-premium-state .product-detail-loading-spinner {
   width: 34px;
   height: 34px;
   border: 3px solid #f4dfd0;
@@ -735,8 +734,36 @@
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
-  .product-detail-loading-spinner {
+  .product-detail-premium-state .product-detail-loading-spinner {
     animation: none;
     border-top-color: #e06518;
+  }
+}
+
+
+@media print {
+  .product-detail-premium {
+    max-width: none;
+    padding: 0;
+    color: #222;
+    background: #fff;
+  }
+
+  .product-detail-premium .product-detail-consult-prompt,
+  .product-detail-premium .product-detail-mobile-action,
+  .product-detail-premium .product-detail-breadcrumb-row > div:last-child {
+    display: none !important;
+  }
+
+  .product-detail-premium .product-detail-gallery {
+    position: static;
+  }
+
+  .product-detail-premium .product-detail-main,
+  .product-detail-premium .product-detail-tabs,
+  .product-detail-premium .product-detail-similar {
+    border-color: #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
   }
 }
