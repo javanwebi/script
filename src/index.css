@@ -12,9 +12,9 @@
 @theme {
   --font-sans: "Vazirmatn", sans-serif;
   --font-mono: "Vazirmatn", monospace;
-  --color-brand-primary: #E06518;
-  --color-brand-hover: #C95210;
-  --color-brand-accent: #E06518;
+  --color-brand-primary: #E56B1E;
+  --color-brand-hover: #C95715;
+  --color-brand-accent: #E56B1E;
   --color-brand-dark: #2B313A;
   --color-text-main: #55565A;
   --color-text-muted: #777A7D;
@@ -26,6 +26,10 @@
 
 @layer base {
   :root {
+    --sp-brand-primary: #E56B1E;
+    --sp-brand-hover: #C95715;
+    --sp-brand-cream: #FFF6EB;
+    --sp-brand-ink: #27333E;
     --bg-main: #FFFFFF;
     --bg-section: #F3F4F6;
     --bg-section-subtle: #F7F8FA;
@@ -34,11 +38,11 @@
     --text-primary: #55565A;
     --text-secondary: #777A7D;
     --heading-primary: #55565A;
-    --btn-primary: #E06518;
-    --btn-hover: #C95210;
+    --btn-primary: #E56B1E;
+    --btn-hover: #C95715;
     --border-color: #E5E7EB;
     --icon-normal: #55565A;
-    --icon-accent: #E06518;
+    --icon-accent: #E56B1E;
     --ai-primary: #55565A;
     --ai-accent: #E06518;
   }
@@ -64,13 +68,13 @@
 
 /* Custom button styles according to brand tokens */
 .btn-atlas-primary {
-  background-color: #E06518;
+  background-color: var(--sp-brand-primary);
   color: #FFFFFF;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-atlas-primary:hover {
-  background-color: #C95210;
+  background-color: var(--sp-brand-hover);
 }
 
 .btn-atlas-secondary {
@@ -82,8 +86,8 @@
 
 .btn-atlas-secondary:hover {
   background-color: #F3F4F6;
-  color: #E06518;
-  border-color: #E06518;
+  color: var(--sp-brand-primary);
+  border-color: var(--sp-brand-primary);
 }
 
 /* AI Specialized Component Styles (#55565A + #E06518) */
