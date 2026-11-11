@@ -71,14 +71,12 @@ test('the approved cream industrial visual system has explicit desktop, mobile a
   assert.match(css, /--bce-bg: #fbf6ef/);
   assert.match(css, /bce-hero-picture/);
   assert.match(css, /height: clamp\(164px, 17\.5vw, 205px\) !important/);
-  assert.match(css, /direction: ltr/);
+  assert.match(css, /direction: rtl/);
   assert.match(css, /clip-path: polygon\(0 0, 100% 0, 84% 100%, 0 100%\)/);
   assert.match(css, /grid-template-columns: minmax\(195px, 23%\) minmax\(0, 1fr\) minmax\(210px, 25%\)/);
-  assert.match(css, /\.bce-sidebar \{ grid-column: 3; direction: rtl; \}/);
-  assert.match(css, /\.bce-results \{ grid-column: 2; direction: rtl; \}/);
-  assert.match(css, /\.bce-featured-card \{ grid-column: 1; direction: rtl; \}/);
-  assert.match(css, /\.bce-results \{ grid-column: 1; \}/);
-  assert.match(css, /\.bce-sidebar \{ grid-column: 2; \}/);
+  assert.match(css, /\.bce-catalog \{[\s\S]*?direction: rtl;[\s\S]*?grid-template-columns: minmax\(210px, 25%\) minmax\(0, 1fr\) minmax\(195px, 23%\)/);
+  assert.match(css, /DOM order is filters, results, featured; RTL grid flow places them right, center, left/);
+  assert.match(css, /grid-template-columns: minmax\(190px, 25%\) minmax\(0, 1fr\)/);
   for (const width of ['860px', '640px', '390px', '360px']) {
     assert.ok(css.includes('max-width: ' + width), 'missing responsive breakpoint ' + width);
   }
