@@ -57,14 +57,15 @@ import {
 const BELT_CATEGORY_SLUG = categorySlugFor("تسمه و انتقال نیرو");
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  "power-transmission": <Cpu className="w-4 h-4" />,
-  "industrial-belts": <Layers className="w-4 h-4" />,
-  "ceramic-tiles": <Grid className="w-4 h-4" />,
-  "pulleys-idlers": <CircleDot className="w-4 h-4" />,
-  "bearings-bushings": <Shield className="w-4 h-4" />,
-  "chains-sprockets": <LinkIcon className="w-4 h-4" />,
-  "textile-machinery": <Scissors className="w-4 h-4" />,
-  "swr-forza-exclusive": <ShieldCheck className="w-4 h-4" />,
+  "تسمه و انتقال نیرو": <Layers className="w-4 h-4" />,
+  "پولی و انتقال نیرو": <CircleDot className="w-4 h-4" />,
+  "بلبرینگ و یاتاقان": <Shield className="w-4 h-4" />,
+  "زنجیر و چرخ‌زنجیر": <LinkIcon className="w-4 h-4" />,
+  "تجهیزات خطوط کاشی و سرامیک": <Grid className="w-4 h-4" />,
+  "نوار و تسمه نقاله": <Layers className="w-4 h-4" />,
+  "قطعات پمپ و سیالات": <Cpu className="w-4 h-4" />,
+  "نساجی": <Scissors className="w-4 h-4" />,
+  "تجهیزات نساجی": <Scissors className="w-4 h-4" />,
 };
 
 const CATEGORY_ARTWORK: Record<string, string> = {
@@ -445,7 +446,7 @@ export const ProductsPage: React.FC = () => {
 
             {managedCategories.map((cat) => {
               const isSelected = selectedCategory === cat.slug;
-              const icon = CATEGORY_ICONS[cat.slug] || (
+              const icon = CATEGORY_ICONS[cat.name] || (
                 <Layers className="w-4 h-4" />
               );
               const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
