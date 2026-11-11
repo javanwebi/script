@@ -101,9 +101,12 @@ const productPreviewImage = (product?: Product) =>
   product?.galleryImages?.find(image => image.url)?.url ||
   product?.variants?.find(variant => variant.images?.some(Boolean))?.images?.find(Boolean);
 
+const normalizeSpecValue = (value: string) =>
+  normalizeSearch(value).replace(/[×*]/g, 'x').replace(/\s+/g, '').replace(/,/g, '.');
+
 const matchesTechnicalFilter = (product: Product | undefined, specKey: string, specValue: string) => {
   const normalizedKey = normalizeSearch(specKey);
-  const normalizedValue = normalizeSearch(specValue);
+  const normalizedValue = normalizeSpecValue(specValue);
   if (!normalizedKey && !normalizedValue) return true;
   const specs = [
     ...(product?.technicalSpecs || []),
@@ -111,7 +114,7 @@ const matchesTechnicalFilter = (product: Product | undefined, specKey: string, s
   ];
   return specs.some(spec =>
     (!normalizedKey || normalizeSearch(spec.key).includes(normalizedKey)) &&
-    (!normalizedValue || normalizeSearch(spec.value).includes(normalizedValue)),
+    (!normalizedValue || normalizeSpecValue(spec.value).includes(normalizedValue)),
   );
 };
 
