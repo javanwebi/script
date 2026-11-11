@@ -8,7 +8,7 @@ const styles = source('src/pages/excel-menu-category-premium.css');
 const routes = source('src/pages/CategoryPage.tsx');
 
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
-  assert.match(routes, /if \(\/^excel-v2-\[0-9\]\+-\[0-9\]\+\$\/\.test\(slug \|\| ''\)\)/);
+  assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
   assert.match(routes, /return <ExcelMenuCategoryPage \/>/);
   assert.match(page, /fetch\('\/api\/catalog\/menu-category\/' \+ encodeURIComponent\(slug\)/);
 });
