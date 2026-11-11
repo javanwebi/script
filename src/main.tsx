@@ -109,7 +109,7 @@ async function boot(){
 
   // Parallelize the real PostgreSQL homepage summaries with importing the App.
   // Never prefetch home data for FORZA calls, account or admin routes.
-  if(window.location.pathname==='/')prefetchHomeFirstPaint();
+  if (window.location.pathname === '/') prefetchHomeFirstPaint();
 
   // Start React before awaiting a potentially slow cross-region database read.
   const {default:App}=await import('./App.tsx');
