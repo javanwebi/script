@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { INDUSTRIES } from "../data/siteContent";
 import { STORE_ASSETS as A } from "../assets/images";
+import { setPageMeta } from "../utils/pageMeta";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { rankIndustryProducts } from "../utils/industryCatalog";
 import { ProductCard } from "../components/product/ProductCard";
