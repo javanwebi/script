@@ -58,7 +58,9 @@ const viewports = [
       await page.locator('.bce-products-list .bce-product-row').first().waitFor({ timeout: 20000 });
 
       const familyCount = await page.locator('.bce-family-tile').count();
-      assert.equal(familyCount, 6, 'all existing belt families must remain available');
+      assert.equal(familyCount, 5, 'the five top-level belt families must remain available');
+      const firstFourFamilies = (await page.locator('.bce-family-name').allTextContents()).slice(0, 4);
+      assert.deepEqual(firstFourFamilies, ['وی بلت', 'تایمینگ', 'شیاری', 'پلی‌یورتان'], 'the first four family tiles must match the approved reference order');
 
       const layout = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -100,6 +102,14 @@ const viewports = [
       }
 
       const rows = page.locator('.bce-products-list .bce-product-row');
+      await page.locator('.bce-family-tile').first().click();
+      assert.ok(page.url().includes('V-BELT'), 'the V-belt family tile must select the combined V-belt catalogue group');
+      await page.locator('.bce-profile-row').waitFor({ state: 'visible' });
+      const profileLabels = await page.locator('.bce-profile-buttons button').allTextContents();
+      assert.ok(profileLabels.includes('A') && profileLabels.includes('SPA'), 'the V-belt profile choices must be derived from both classic and special profiles');
+      await page.locator('.bce-family-area .bce-section-heading button').click();
+      assert.ok(page.url().includes('sub=all'), 'returning to all families must restore the canonical catalogue');
+
       if (viewport.width <= 860) {
         await page.locator('.bce-mobile-tools > button').click();
         const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
