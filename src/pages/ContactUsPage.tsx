@@ -248,6 +248,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
 
       setSubmittedInquiryNumber(String(data.inquiry?.inquiryNumber || data.inquiry?.id || ''));
       setIsSubmitted(true);
+      setFormSubject('');
       setFormName('');
       setFormCompany('');
       setFormPhone('');
