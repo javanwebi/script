@@ -9,7 +9,7 @@ const routes = source('src/App.tsx');
 const industryRouter = source('src/pages/DiscoveryPages.tsx');
 
 test('textile industry remains on its dedicated route and uses the shared layout landmark', () => {
-  assert.match(routes, /path="\\/industries\\/:slug"/);
+  assert.ok(routes.includes('path="/industries/:slug"'));
   assert.match(industryRouter, /if \(slug === "textile"\)/);
   assert.match(industryRouter, /<TextileIndustryPage \/>/);
   assert.match(page, /<div className="textile-page" dir="rtl">/);
