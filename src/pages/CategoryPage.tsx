@@ -6,6 +6,9 @@ import aiRobot from '../assets/images/ai_consult_robot_1789379706342.jpg';
 import aiScan from '../assets/images/ai_search_mobile_1789379723502.jpg';
 import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
+import '../catalog-experience.css';
+import { databaseStorageEnabled } from '../services/durableStorage';
+import NotFoundPage from './NotFoundPage';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
@@ -15,7 +18,7 @@ import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
-import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
+import { findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
 import { getProductsByCategory } from '../data/mockGenerator';
@@ -89,8 +92,38 @@ const PulleyCategoryRoute: React.FC = () => {
 
 const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [catalogReady, setCatalogReady] = useState(() => databaseStorageEnabled());
 
-  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
+  useEffect(() => {
+    const syncCatalogState = () => setCatalogReady(databaseStorageEnabled());
+    window.addEventListener('sanat-durable-hydrated', syncCatalogState);
+    window.addEventListener('atlas-categories-updated', syncCatalogState);
+    return () => {
+      window.removeEventListener('sanat-durable-hydrated', syncCatalogState);
+      window.removeEventListener('atlas-categories-updated', syncCatalogState);
+    };
+  }, []);
+
+  const category = findCatalogCategory(slug || '');
+  if (!category) {
+    if (catalogReady) return <NotFoundPage />;
+    return (
+      <main dir="rtl" className="category-route-state" role="status">
+        <div>
+          <span className="category-route-state__eyebrow">کاتالوگ صنعت پیش</span>
+          <h1>در حال دریافت اطلاعات دسته‌بندی</h1>
+          <p>ساختار دسته‌ها و مشخصات محصولات از پایگاه داده بارگذاری می‌شود. تا تکمیل دریافت اطلاعات، محتوای قدیمی یا نمونه نمایش داده نمی‌شود.</p>
+          <button type="button" onClick={() => window.location.reload()}>تلاش دوباره</button>
+        </div>
+        <span className="category-route-state__mark" aria-hidden="true">SP</span>
+      </main>
+    );
+  }
+
+  return <LegacyCategoryContent key={category.slug} category={category} />;
+};
+
+const LegacyCategoryContent: React.FC<{ category: NonNullable<ReturnType<typeof findCatalogCategory>> }> = ({ category }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const subParam = searchParams.get('sub') || 'all';
 
@@ -215,8 +248,12 @@ const LegacyCategoryPage: React.FC = () => {
     return list;
   }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
 
-  const paginated = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
+  const featuredProduct = filteredProducts.find(product => product.featured && product.active !== false) || filteredProducts[0];
+  const listingProducts = featuredProduct
+    ? filteredProducts.filter(product => product.code !== featuredProduct.code)
+    : filteredProducts;
+  const paginated = listingProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(listingProducts.length / PAGE_SIZE) || 1;
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -494,13 +531,13 @@ const LegacyCategoryPage: React.FC = () => {
         </div>
 
         {/* Product Grid Column */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="category-showcase-results space-y-6">
           <div className="category-product-headline"><div><strong>انتخاب قطعات انتقال نیرو</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
           <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
             <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
           </div>
-          {paginated.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4">
               <div className="w-16 h-16 bg-orange-50 text-[#E06518] rounded-full flex items-center justify-center mx-auto">
                 <Package className="w-8 h-8" />
@@ -577,6 +614,31 @@ const LegacyCategoryPage: React.FC = () => {
             </>
           )}
         </div>
+        {featuredProduct && (
+          <aside className="category-featured-panel">
+            <div className="category-featured-panel__eyebrow">
+              <span>پیشنهاد از کاتالوگ واقعی</span>
+              <span>منتخب</span>
+            </div>
+            <Link to={`/product/${encodeURIComponent(featuredProduct.code)}`} className="category-featured-panel__media">
+              <ProductImage src={featuredProduct.images?.[0]} alt={featuredProduct.name} thumbnail loading="lazy" decoding="async" />
+            </Link>
+            <div className="category-featured-panel__copy">
+              <span className="category-featured-panel__brand">{featuredProduct.brand || 'قطعه صنعتی'}</span>
+              <h3>{featuredProduct.name}</h3>
+              <code dir="ltr">{featuredProduct.code}</code>
+              <p>{featuredProduct.subcategory || featuredProduct.submenu || featuredProduct.categoryName}</p>
+            </div>
+            <dl className="category-featured-panel__specs">
+              {(featuredProduct.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3).map(spec => (
+                <div key={spec.key}><dt>{spec.key}</dt><dd>{spec.value}</dd></div>
+              ))}
+            </dl>
+            <Link to={`/product/${encodeURIComponent(featuredProduct.code)}`} className="category-featured-panel__action">
+              مشاهده مشخصات و استعلام <ChevronLeft size={16} />
+            </Link>
+          </aside>
+        )}
       </div>
       {isBeltCategory && (
         <>
