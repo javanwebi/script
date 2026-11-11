@@ -379,9 +379,16 @@ function scopedState(db: Database, user: Row) {
 }
 const attempts = new Map<string, { count: number; until: number }>();
 async function rateLimit(req: IncomingMessage, scope = "login", limit = 25) {
+  const realIpHeader = req.headers["x-real-ip"];
+  const forwardedHeader = req.headers["x-forwarded-for"];
+  const realIp = Array.isArray(realIpHeader) ? realIpHeader[0] : realIpHeader;
+  const forwarded = Array.isArray(forwardedHeader) ? forwardedHeader[0] : forwardedHeader;
+  const forwardedClientIp = String(forwarded || "").split(",")[0].trim();
+  // The VPS reverse proxy overwrites X-Real-IP with the actual client address.
+  // Prefer it there so every visitor does not share the proxy's socket address.
   const ip = process.env.VERCEL
-    ? req.headers["x-forwarded-for"]
-    : req.socket.remoteAddress;
+    ? forwardedClientIp || String(realIp || "").trim() || req.socket.remoteAddress
+    : String(realIp || "").trim() || req.socket.remoteAddress || forwardedClientIp;
   const key = redisKey() + ":" + scope + ":" + crypto.createHash("sha256").update(String(ip)).digest("hex");
   const message = scope === "login"
     ? "تعداد تلاش‌های ورود بیش از حد مجاز است."
