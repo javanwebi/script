@@ -534,6 +534,7 @@
 }
 .home-about-preview__visual {
   min-height: clamp(330px, 34vw, 480px);
+  filter: drop-shadow(12px 12px 0 rgba(229,107,30,.92));
   border-radius: 0 30px 0 30px;
   clip-path: polygon(14% 0, 100% 0, 100% 78%, 83% 100%, 0 100%, 0 18%);
   isolation: isolate;
