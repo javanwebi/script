@@ -23,7 +23,7 @@ test('homepage About preview and company navigation lead to the dedicated compan
   assert.match(overview,/صنعت پیش؛ <em>همراه مطمئن صنایع ایران<\/em>/);
   assert.match(overview,/از تجربه اطلس تا بازار جامع قطعات صنعتی/);
   assert.match(overview,/مشاهده بیشتر درباره ما/);
-  assert.match(homeCss,/\.home-about-preview__story-title/);
+  assert.match(read('src/company-pages.css'),/\.home-about-preview__story-title/);
   assert.match(discovery,/export function AboutPage/);
   assert.match(discovery,/sp-about-approved/);
   assert.match(discovery,/sp-about-hero/);
