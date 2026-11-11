@@ -23,6 +23,66 @@ const categories = [{
   active: true,
 }];
 
+// Isolated UI fixture only: never reaches production data or the live database.
+const testPrices = { base: 0, retail: 0, wholesale: 0, dealer: 0 };
+const products = [
+  {
+    code: "TEST-FAMILY-A",
+    name: "قطعه آزمایشی A",
+    brand: "برند آزمایشی A",
+    categorySlug,
+    categoryName,
+    submenu: "بلبرینگ",
+    subcategory: "بلبرینگ شیار عمیق",
+    technicalSpecs: [{ key: "قطر داخلی", value: "۲۰ میلی‌متر" }, { key: "قطر خارجی", value: "۴۷ میلی‌متر" }],
+    prices: testPrices,
+    stock: 0,
+    stockKnown: false,
+    inquiryOnly: true,
+    images: [],
+    tags: [],
+    unit: "عدد",
+    featured: true,
+    description: "رکورد آزمایشی برای آزمون چیدمان و تعامل صفحه",
+    active: true,
+    variants: [{
+      code: "TEST-SKU-A1",
+      size: "۲۰ × ۴۷ × ۱۴ میلی‌متر",
+      name: "قطعه آزمایشی A — سایز اول",
+      brand: "برند آزمایشی A",
+      price: 0,
+      prices: testPrices,
+      inquiryOnly: true,
+      stock: 0,
+      stockKnown: false,
+      technicalSpecs: [{ key: "قطر داخلی", value: "۲۰ میلی‌متر" }],
+      images: [],
+      active: true,
+    }],
+  },
+  {
+    code: "TEST-FAMILY-B",
+    name: "قطعه آزمایشی B",
+    brand: "برند آزمایشی B",
+    categorySlug,
+    categoryName,
+    submenu: "بلبرینگ",
+    subcategory: "بلبرینگ شیار عمیق",
+    technicalSpecs: [{ key: "قطر داخلی", value: "۲۵ میلی‌متر" }, { key: "قطر خارجی", value: "۵۲ میلی‌متر" }],
+    prices: testPrices,
+    stock: 0,
+    stockKnown: false,
+    inquiryOnly: true,
+    images: [],
+    tags: [],
+    unit: "عدد",
+    featured: false,
+    description: "رکورد آزمایشی دوم برای آزمون فهرست محصولات",
+    active: true,
+    variants: [],
+  },
+];
+
 (async () => {
   mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -57,7 +117,7 @@ const categories = [{
             atlas_admin_brands_v1: [],
           },
           versions: {},
-          products: [],
+          products,
           productsIncluded: true,
         }),
       }));
@@ -92,6 +152,26 @@ const categories = [{
         fullPage: true,
         animations: "disabled",
       });
+
+      // Product detail is hydrated from the same test catalogue and keeps guest pricing private.
+      await page.goto(base + "/product/TEST-FAMILY-A", { waitUntil: "domcontentloaded" });
+      await page.locator(".product-detail-main").waitFor({ timeout: 20000 });
+      await page.getByRole("heading", { name: "قطعه آزمایشی A — سایز اول" }).waitFor({ timeout: 20000 });
+      const detailBounds = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+      }));
+      assert.ok(detailBounds.page <= detailBounds.viewport + 3,
+        "horizontal overflow on product detail at " + width + "px: " + JSON.stringify(detailBounds));
+      if (width === 390 || width === 1440) {
+        await page.screenshot({
+          path: `${out}/catalog-product-detail-${width}.png`,
+          fullPage: true,
+          animations: "disabled",
+        });
+      }
+      assert.equal(await page.locator(".product-detail-info").getByText(/تومان/).count(), 0,
+        "guest product detail must not expose commercial prices");
 
       // Invalid category slugs must render the same useful 404, not a broken empty category.
       await page.goto(base + "/category/not-a-real-category", { waitUntil: "domcontentloaded" });
