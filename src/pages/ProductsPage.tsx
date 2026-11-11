@@ -1,5 +1,6 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
+import { DirectSkuProducts } from "../components/catalog/DirectSkuProducts";
 import {
   matchesProductSearch,
   CATALOGUE_SKU_COUNT,
@@ -869,6 +870,18 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        <DirectSkuProducts
+          categorySlug={selectedCategory === "all" || selectedCategory === "swr-forza-exclusive" ? "all" : selectedCategory}
+          selectedSub={selectedSubcategory}
+          searchQuery={searchQuery}
+          selectedBrand={selectedBrand}
+          imageOnly={hasCatalogueImageFilter}
+          inStockOnly={inStockOnly}
+          exclusiveBrandsOnly={selectedCategory === "swr-forza-exclusive"}
+          title="کالاهای مستقیم بدون خانواده"
+          description="این کالاها به‌صورت مستقل در کاتالوگ ثبت شده‌اند و بدون وابستگی به خانواده‌های محصول، صفحه مشخصات اختصاصی دارند."
+        />
       </div>
     </div>
   );
