@@ -187,6 +187,11 @@ async function installApiRoutes(page, fallbackMode = false) {
 
       const subcategoryLink = page.locator('.all-categories-subcategory-links a').filter({ hasText: 'سیم‌دار فابریک' }).first();
       assert.ok((await subcategoryLink.getAttribute('href')).includes('sub='), 'subcategory quick links should preserve the selected taxonomy value');
+      const nestedTree = page.locator('.all-categories-card').filter({ hasText: 'تسمه تایمینگ' }).locator('.all-categories-tree');
+      await nestedTree.locator('summary').click();
+      const firstSubgroup = nestedTree.locator('ul > li details').first();
+      await firstSubgroup.locator('summary').click();
+      await firstSubgroup.getByRole('link', { name: 'پلی‌یورتان' }).waitFor();
 
       await page.locator('.all-categories-group-nav a').filter({ hasText: 'نوارهای نقاله و انتقال مواد' }).click();
       assert.ok(page.url().includes('#menu-group-excel-v2-2'), 'group jump navigation should preserve the established deep-link anchor');
