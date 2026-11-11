@@ -15,13 +15,15 @@ test('all categories remains the canonical route and keeps existing category rou
   assert.ok(layout.includes('"/categories"'));
 });
 
-test('category explorer reads approved navigation groups and category records from the database API', () => {
+test('category explorer reads approved navigation groups and category records from the database API only', () => {
   assert.match(page, /fetch\('\/api\/catalog\/categories'/);
   assert.match(page, /fetch\('\/api\/catalog\/navigation-groups'/);
   assert.match(page, /group\.categorySlugs\.map\(slug => indexed\.get\(slug\)\)/);
   assert.match(page, /group\.active !== false/);
   assert.match(page, /category\.active !== false/);
   assert.match(page, /setSource\('database'\)/);
+  assert.doesNotMatch(page, /APPROVED_MENU_CATEGORIES|APPROVED_MENU_GROUPS|USER_PRODUCTS|CATALOGUE_SKU_COUNT/);
+  assert.match(page, /setCatalogueCategories\(\[\]\)/);
 });
 
 test('search is shareable and matches category names, descriptions, English labels and nested taxonomy', () => {
@@ -33,12 +35,13 @@ test('search is shareable and matches category names, descriptions, English labe
   assert.match(page, /normalizeSearch\(group\.title\)/);
 });
 
-test('fallback taxonomy is clearly labelled and never presents stale product or SKU counts as live', () => {
-  assert.match(page, /source === 'fallback'/);
-  assert.match(page, /آمار زنده در دسترس نیست/);
-  assert.match(page, /آمار پس از اتصال به کاتالوگ/);
-  assert.doesNotMatch(page, /USER_PRODUCTS|CATALOGUE_SKU_COUNT/);
-  assert.match(page, /source === 'database' \? toPersianDigits\(catalogueGroups\.length\) : '—'/);
+test('database outage never falls back to checked-in taxonomy and exposes retry', () => {
+  assert.match(page, /source === 'error'/);
+  assert.match(page, /اتصال به ساختار دسته‌بندی برقرار نشد/);
+  assert.match(page, /برای جلوگیری از نمایش آمار یا دسته‌بندی قدیمی/);
+  assert.match(page, /تلاش مجدد/);
+  assert.match(page, /setRetryCount\(value => value \+ 1\)/);
+  assert.match(page, /source === 'database' \\? toPersianDigits\\(catalogueGroups\\.length\\) : '—'/);
 });
 
 test('category cards reuse registered industrial assets and retain nested subcategory navigation', () => {
