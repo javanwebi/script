@@ -761,7 +761,8 @@
   position: absolute;
   z-index: 3;
   top: 9px;
-  left: 9px;
+  right: 9px;
+  left: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1861,7 +1862,8 @@
 
   .excel-category-compare-toggle {
     top: 6px;
-    left: 6px;
+    right: 6px;
+    left: auto;
     min-height: 25px;
     gap: 4px;
     padding-inline: 6px;
