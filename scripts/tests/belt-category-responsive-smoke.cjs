@@ -83,19 +83,45 @@ const viewports = [
       if (viewport.width > 980) {
         await page.locator('.bce-sidebar').waitFor({ state: 'visible' });
         await page.locator('.bce-featured-card').waitFor({ state: 'visible' });
+        const positions = await page.evaluate(() => {
+          const box = selector => {
+            const rect = document.querySelector(selector).getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          };
+          return {
+            featured: box('.bce-featured-card'),
+            results: box('.bce-results'),
+            filters: box('.bce-sidebar'),
+          };
+        });
+        assert.ok(positions.featured.left < positions.results.left && positions.results.left < positions.filters.left, 'desktop columns must be featured-left, products-center, filters-right: ' + JSON.stringify(positions));
       } else {
         await page.locator('.bce-featured-card').waitFor({ state: 'hidden' });
       }
 
+      const rows = page.locator('.bce-products-list .bce-product-row');
       if (viewport.width <= 860) {
         await page.locator('.bce-mobile-tools > button').click();
-        await page.getByRole('dialog', { name: 'فیلتر محصولات' }).waitFor({ state: 'visible' });
+        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
+        await filterDialog.waitFor({ state: 'visible' });
         const sheetOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         assert.ok(sheetOverflow <= 1, 'mobile filter sheet caused horizontal overflow');
-        await page.locator('.bce-sheet button[aria-label="بستن فیلترها"]').click();
+        await filterDialog.locator('.bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input').check({ force: true });
+        await filterDialog.locator('footer button').last().click();
+      } else {
+        await page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input').check({ force: true });
       }
-
-      const rows = page.locator('.bce-products-list .bce-product-row');
+      assert.equal(await rows.count(), 1, 'brand filter must reduce the list to the matching catalogue product');
+      if (viewport.width <= 860) {
+        await page.locator('.bce-mobile-tools > button').click();
+        const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
+        await filterDialog.waitFor({ state: 'visible' });
+        await filterDialog.locator('footer button').first().click();
+        await filterDialog.locator('footer button').last().click();
+      } else {
+        await page.locator('.bce-sidebar-top button').click();
+      }
+      assert.equal(await rows.count(), productFixture.length, 'clearing filters must restore the full live-fixture result set');
       await rows.nth(0).locator('.bce-compare-select input').check({ force: true });
       await rows.nth(1).locator('.bce-compare-select input').check({ force: true });
       await page.locator('.bce-compare-open').click();
