@@ -392,6 +392,7 @@ export const ProductsPage: React.FC = () => {
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
+                aria-label="جست‌وجو در محصولات"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -418,6 +419,7 @@ export const ProductsPage: React.FC = () => {
               {/* Brand Filter */}
               <div className="relative">
                 <select
+                  aria-label="فیلتر برند"
                   value={selectedBrand}
                   onChange={(e) => {
                     setSelectedBrand(e.target.value);
@@ -439,8 +441,9 @@ export const ProductsPage: React.FC = () => {
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
+                  aria-label="مرتب‌سازی محصولات"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => { setSortBy(e.target.value as typeof sortBy); setCurrentPage(1); }}
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
                   <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
@@ -481,6 +484,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("grid")}
                   title="نمایش شبکه‌ای"
+                  aria-pressed={viewMode === "grid"}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "grid"
                       ? "bg-white text-orange-600 shadow-xs"
@@ -492,6 +496,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("list")}
                   title="نمایش لیستی"
+                  aria-pressed={viewMode === "list"}
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "list"
                       ? "bg-white text-orange-600 shadow-xs"
