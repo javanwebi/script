@@ -237,10 +237,12 @@ async function installRoutes(page) {
     const page = await context.newPage();
     await installRoutes(page);
     await page.goto(baseUrl + '/category/unknown-legacy-category', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: 'این دسته‌بندی در کاتالوگ فعال نیست' }).waitFor({ timeout: 25000 });
+    const notFoundHeading = page.getByRole('heading', { name: 'این دسته‌بندی در کاتالوگ فعال نیست' });
+    await notFoundHeading.waitFor({ timeout: 25000 });
+    const notFoundPanel = notFoundHeading.locator('xpath=ancestor::section[1]');
     assert.equal(await page.locator('.store-product-card').count(), 0, 'unknown categories must not show the first unrelated category');
-    assert.equal(await page.locator('a[href="/categories"]').count(), 1, 'unknown category should point back to the category directory');
-    assert.equal(await page.locator('a[href="/products"]').count(), 1, 'unknown category should expose the all-products route');
+    assert.equal(await notFoundPanel.locator('a[href="/categories"]').count(), 1, 'unknown category should point back to the category directory');
+    assert.equal(await notFoundPanel.locator('a[href="/products"]').count(), 1, 'unknown category should expose the all-products route');
     await context.close();
 
     assert.deepEqual(failures, [], 'browser page errors were detected');
