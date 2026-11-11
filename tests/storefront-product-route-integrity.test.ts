@@ -9,6 +9,7 @@ const productsPage = read("src/pages/ProductsPage.tsx");
 const header = read("src/components/layout/Header.tsx");
 const megaMenu = read("src/components/catalog/ReferenceMegaMenu.tsx");
 const mobileExplorer = read("src/components/catalog/MobileCategoryExplorer.tsx");
+const footer = read("src/components/layout/Footer.tsx");
 const routes = read("src/App.tsx");
 const categoryStyles = read("src/category-showcase.css");
 
@@ -74,6 +75,15 @@ test("navigation clearly distinguishes the all-products catalogue from the categ
   assert.match(megaMenu, /to="\/categories"/);
   assert.match(mobileExplorer, /to="\/products"/);
   assert.match(mobileExplorer, /to="\/categories"/);
+});
+
+test("footer category links are hydrated from the approved database taxonomy", () => {
+  assert.match(footer, /getManagedCategories\(\)/);
+  assert.match(footer, /subscribeCatalogChanges/);
+  assert.match(footer, /excel-v2-\[0-9\]\+-\[0-9\]\+/);
+  assert.match(footer, /to=\{\`\/category\/\$\{encodeURIComponent\(category\.slug\)\}\`\}/);
+  assert.doesNotMatch(footer, /CATEGORIES\.slice/);
+  assert.match(footer, /to="\/categories"/);
 });
 
 test("the canonical product route map keeps public family, direct SKU and customer portal details distinct", () => {
