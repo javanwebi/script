@@ -323,8 +323,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const setStockFilter = (checked: boolean) => updateParam('stock', checked ? '1' : '');
   const setImageFilter = (checked: boolean) => updateParam('image', checked ? '1' : '');
   const isSelectedForCompare = (code: string) => compareCodes.includes(code);
-  const artwork = category ? getCategoryArtwork(category) : undefined;
-
   if (status === 'loading') {
     return (
       <div className="excel-category-page" dir="rtl">
@@ -353,6 +351,9 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     );
   }
 
+  const resolvedCategory = category!;
+  const artwork = getCategoryArtwork(resolvedCategory);
+
   return (
     <div className="excel-category-page" dir="rtl">
       <div className="excel-category-shell">
@@ -361,14 +362,14 @@ export const ExcelMenuCategoryPage: React.FC = () => {
           <ChevronLeft size={13} />
           <Link to="/categories">دسته‌بندی‌ها</Link>
           <ChevronLeft size={13} />
-          <span aria-current="page">{category.name}</span>
+          <span aria-current="page">{resolvedCategory.name}</span>
         </nav>
 
         <header className="excel-category-hero">
           <div className="excel-category-hero-copy">
             <span className="excel-category-eyebrow"><Layers size={14} /> کاتالوگ تخصصی صنعت پیش</span>
-            <h1>{category.name}</h1>
-            <p>{category.description || 'خانواده‌ها و کدهای فنی ثبت‌شده در این گروه را بر اساس زیرگروه و مشخصات بررسی کنید.'}</p>
+            <h1>{resolvedCategory.name}</h1>
+            <p>{resolvedCategory.description || 'خانواده‌ها و کدهای فنی ثبت‌شده در این گروه را بر اساس زیرگروه و مشخصات بررسی کنید.'}</p>
             <div className="excel-category-hero-stats">
               <div><strong>{toPersianDigits(families.length)}</strong><span>خانواده ثبت‌شده</span></div>
               <div><strong>{toPersianDigits(skuTotal)}</strong><span>کد و سایز خانواده‌ها</span></div>
@@ -381,7 +382,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
           </div>
           <div className={`excel-category-hero-visual ${artwork ? 'has-image' : 'has-placeholder'}`}>
             {artwork ? (
-              <img src={artwork} alt={category.name} loading="eager" fetchPriority="high" decoding="async" />
+              <img src={artwork} alt={resolvedCategory.name} loading="eager" fetchPriority="high" decoding="async" />
             ) : (
               <div className="excel-category-hero-placeholder" aria-hidden="true">
                 <span /><span /><Package size={66} />
@@ -400,7 +401,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
             <button type="button" aria-pressed={!selection} onClick={() => selectSubcategory('')}>همه خانواده‌ها <strong>{toPersianDigits(families.length)}</strong></button>
           </div>
           <div className="excel-category-subnav-groups">
-            {(category.children || []).filter(node => node.hidden !== true).map(node => {
+            {(resolvedCategory.children || []).filter(node => node.hidden !== true).map(node => {
               const nodeCount = families.filter(family => family.submenu === node.name || family.leaf === node.name).length;
               return (
                 <div className={`excel-category-subnav-group ${selection === node.name ? 'is-selected' : ''}`} key={node.name}>
