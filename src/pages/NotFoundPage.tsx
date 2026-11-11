@@ -8,7 +8,7 @@ export function NotFoundPage() {
   }, []);
 
   return (
-    <main className="min-h-[68vh] w-full bg-[#f5f7f8] px-4 py-14 sm:py-20" dir="rtl">
+    <section className="min-h-[68vh] w-full bg-[#f5f7f8] px-4 py-14 sm:py-20" dir="rtl">
       <section className="mx-auto flex min-h-[420px] max-w-5xl flex-col items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white px-5 py-12 text-center shadow-[0_24px_70px_rgba(22,39,53,.08)] sm:px-10">
         <div className="relative mb-5 flex h-24 w-24 items-center justify-center rounded-3xl bg-[#fff1e7] text-[#E56B1E]">
           <Boxes size={42} strokeWidth={1.6} />
@@ -33,7 +33,7 @@ export function NotFoundPage() {
           </Link>
         </div>
       </section>
-    </main>
+    </section>
   );
 }
 
