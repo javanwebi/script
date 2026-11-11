@@ -216,10 +216,11 @@ async function installApiRoutes(page, fallbackMode = false) {
     await installApiRoutes(fallbackPage, true);
     await fallbackPage.goto(baseUrl + '/categories', { waitUntil: 'domcontentloaded' });
     await fallbackPage.locator('.all-categories-page').waitFor();
-    await fallbackPage.getByText('نمایش راهنمای دسته‌بندی؛ آمار زنده در دسترس نیست').waitFor({ timeout: 15000 });
-    assert.ok(await fallbackPage.locator('.all-categories-fallback-note').isVisible(), 'fallback taxonomy should be explicitly labelled');
-    assert.equal(await fallbackPage.locator('.all-categories-stat-value').first().innerText(), '—', 'fallback group count must not be presented as live');
-    assert.ok(await fallbackPage.locator('.all-categories-card-meta-muted').count() > 0, 'fallback must not display stale family/SKU counts');
+    await fallbackPage.getByText('دریافت ساختار دسته‌بندی ناموفق بود').waitFor({ timeout: 15000 });
+    assert.ok(await fallbackPage.locator('.all-categories-state-error').isVisible(), 'database failure should show a clear retryable error state');
+    assert.equal(await fallbackPage.locator('.all-categories-stat-value').first().innerText(), '—', 'database failure must not present stale taxonomy counts');
+    assert.equal(await fallbackPage.locator('.all-categories-card').count(), 0, 'database failure must not fall back to checked-in taxonomy');
+    assert.ok(await fallbackPage.getByRole('button', { name: 'تلاش مجدد' }).isVisible(), 'database failure should offer retry');
     await fallbackContext.close();
 
     assert.deepEqual(failures, [], 'browser page errors were detected');
