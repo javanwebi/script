@@ -13,7 +13,7 @@ import {registerCustomPartRequestsApi} from './server/db/customPartRequestsApi';
 import {registerAdminCustomerCredentialsApi} from './server/db/adminCustomerCredentialsApi';
 import {canStaff,catalogMutationPermission,assertStaffCommercialFields,preserveStaffCommercialFields,assertStaffCatalogStructure} from './server/db/staffPermissions';
 import {checkoutApi} from './server/db/checkout';
-import {runtimeApi,adminCatalogApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
+import {runtimeApi,adminCatalogApi,primePublicCatalogCache,publicVariantReviewApi,publicHomePreviewApi,publicCatalogListingApi,catalogProductApi,invalidatePublicCatalogCache} from './server/db/runtimeApi';
 import {databaseEnabled,database,adoptedSchema,assertProductionDatabaseConfig} from './server/db/connection';
 import {readProducts,readDocument,writeDocument,saveProducts} from './server/db/repository';
 import {transaction} from './server/db/connection';
@@ -435,6 +435,8 @@ app.get('/api/admin/catalog',adminCatalogApi);
 app.get('/api/runtime',runtimeApi);app.post('/api/runtime',runtimeApi);
 app.get('/api/catalog/variant-review/:code',publicVariantReviewApi);
 app.get('/api/catalog/home-preview',publicHomePreviewApi);
+app.get('/api/catalog/listing',publicCatalogListingApi);
+app.get('/api/catalog/product/:code',catalogProductApi);
 app.all('/api/portal', (req, res) => { void portalHandler(req, res); });
 app.use('/api/catalog', (req, res, next) => {
   if(req.method==='GET' || req.method==='HEAD')return next();
