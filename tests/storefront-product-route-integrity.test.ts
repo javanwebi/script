@@ -78,6 +78,11 @@ test("navigation clearly distinguishes the all-products catalogue from the categ
   assert.match(mobileExplorer, /to="\/categories"/);
 });
 
+test("the all-products route identifies itself clearly in its breadcrumb", () => {
+  assert.match(productsPage, /aria-current="page">\s*همه محصولات/);
+  assert.match(productsPage, /to="\/categories" className="catalogue-all-categories-link"/);
+});
+
 test("the all-products page includes standalone SKUs without mixing them into family records", () => {
   assert.match(productsPage, /import \{ DirectSkuProducts \} from "\.\.\/components\/catalog\/DirectSkuProducts"/);
   assert.match(productsPage, /<DirectSkuProducts[\s\S]*?categorySlug=\{selectedCategory === "all" \|\| selectedCategory === "swr-forza-exclusive" \? "all" : selectedCategory\}/);
