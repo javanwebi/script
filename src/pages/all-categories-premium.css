@@ -462,7 +462,7 @@
   border: 3px solid #f4dfd0;
   border-top-color: #e06518;
   border-radius: 50%;
-  animation: all-categories-pulse .9s linear infinite;
+  animation: all-categories-spin .8s linear infinite;
 }
 
 .all-categories-state-error {
@@ -1091,6 +1091,10 @@
 .all-categories-page :is(a, button, input, summary):focus-visible {
   outline: 3px solid rgba(229, 107, 30, .36);
   outline-offset: 3px;
+}
+
+@keyframes all-categories-spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes all-categories-pulse {
