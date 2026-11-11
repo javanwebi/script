@@ -122,11 +122,14 @@ const viewports = [
         assert.ok(sheetOverflow <= 1, 'mobile filter sheet caused horizontal overflow');
         const bandoLabel = filterDialog.locator('.bce-filter-brand-list label').filter({ hasText: 'Bando' });
         await bandoLabel.scrollIntoViewIfNeeded();
-        await bandoLabel.click({ force: true });
+        const bandoInput = bandoLabel.locator('input');
+        await bandoInput.evaluate(input => input.click());
+        assert.equal(await bandoInput.isChecked(), true, 'mobile brand checkbox must become checked');
         await filterDialog.locator('footer button').last().click();
       } else {
-        const bandoLabel = page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' });
-        await bandoLabel.click({ force: true });
+        const bandoInput = page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input');
+        await bandoInput.evaluate(input => input.click());
+        assert.equal(await bandoInput.isChecked(), true, 'desktop brand checkbox must become checked');
       }
       assert.equal(await rows.count(), 1, 'brand filter must reduce the list to the matching catalogue product');
       if (viewport.width <= 860) {
@@ -145,10 +148,14 @@ const viewports = [
         await filterDialog.waitFor({ state: 'visible' });
         const stockLabel = filterDialog.locator('.bce-toggles label').first();
         await stockLabel.scrollIntoViewIfNeeded();
-        await stockLabel.click({ force: true });
+        const stockInput = stockLabel.locator('input');
+        await stockInput.evaluate(input => input.click());
+        assert.equal(await stockInput.isChecked(), true, 'mobile stock checkbox must become checked');
         await filterDialog.locator('footer button').last().click();
       } else {
-        await page.locator('.bce-sidebar .bce-toggles label').first().click({ force: true });
+        const stockInput = page.locator('.bce-sidebar .bce-toggles label').first().locator('input');
+        await stockInput.evaluate(input => input.click());
+        assert.equal(await stockInput.isChecked(), true, 'desktop stock checkbox must become checked');
       }
       assert.equal(await rows.count(), 5, 'confirmed stock filtering must retain stocked items even when their price requires inquiry');
       if (viewport.width <= 860) {
