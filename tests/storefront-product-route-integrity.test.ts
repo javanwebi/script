@@ -4,6 +4,8 @@ import { test } from "node:test";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const categoryPage = read("src/pages/CategoryPage.tsx");
+const productDetail = read("src/pages/ProductDetailPage.tsx");
+const serverNavigationApi = read("server/catalogNavigationApi.ts");
 const productCard = read("src/components/product/ProductCard.tsx");
 const productsPage = read("src/pages/ProductsPage.tsx");
 const header = read("src/components/layout/Header.tsx");
@@ -34,6 +36,19 @@ test("product cards resolve registered family gallery images and render useful t
   assert.match(productCard, /className="product-card-image w-full h-full"/);
   assert.match(productCard, /برند ثبت نشده/);
   assert.match(productCard, /ثبت\\s\*نشده/);
+});
+
+test("family detail breadcrumbs and related products follow approved Excel family assignments", () => {
+  assert.match(serverNavigationApi, /app\.get\('\/api\/catalog\/menu-family-route\/:code'/);
+  assert.match(serverNavigationApi, /catalog_family_menu_assignments/);
+  assert.match(serverNavigationApi, /relatedFamilyCodes/);
+  assert.match(serverNavigationApi, /industrial_megamenu_hierarchy_v2/);
+  assert.match(productDetail, /\/api\/catalog\/menu-family-route\//);
+  assert.match(productDetail, /activeFamilyMenuRoute\?\.assignment\?\.categorySlug/);
+  assert.match(productDetail, /const relatedCodes = new Set\(activeFamilyMenuRoute\.relatedFamilyCodes\)/);
+  assert.match(productDetail, /getAllProducts\(\)/);
+  assert.match(productDetail, /to=\{categoryRouteHref\}/);
+  assert.doesNotMatch(productDetail, /to=\{\`\/category\/\$\{encodeURIComponent\(product\.categorySlug\)\}\`\}/);
 });
 
 test("category pages use the selected category name instead of a hard-coded transmission title", () => {
