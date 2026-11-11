@@ -73,7 +73,7 @@ test('the approved cream industrial visual system has explicit desktop, mobile a
   assert.match(css, /height: clamp\(164px, 17\.5vw, 205px\) !important/);
   assert.match(css, /direction: rtl/);
   assert.match(css, /clip-path: polygon\(0 0, 100% 0, 84% 100%, 0 100%\)/);
-  assert.match(css, /grid-template-columns: minmax\(195px, 23%\) minmax\(0, 1fr\) minmax\(210px, 25%\)/);
+  assert.match(css, /grid-template-columns: minmax\(210px, 25%\) minmax\(0, 1fr\) minmax\(195px, 23%\)/);
   assert.match(css, /\.bce-catalog \{[\s\S]*?direction: rtl;[\s\S]*?grid-template-columns: minmax\(210px, 25%\) minmax\(0, 1fr\) minmax\(195px, 23%\)/);
   assert.match(css, /DOM order is filters, results, featured; RTL grid flow places them right, center, left/);
   assert.match(css, /grid-template-columns: minmax\(190px, 25%\) minmax\(0, 1fr\)/);
