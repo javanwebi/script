@@ -160,7 +160,7 @@ const HERO_RIGHT_FEATURES = [
 export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all' }) => {
   const [searchParams] = useSearchParams();
   const formRef = useRef<HTMLDivElement>(null);
-  const workspaceMainRef = useRef<HTMLElement>(null);
+  const workspaceMainRef = useRef<HTMLDivElement>(null);
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
   const [selectedBranchId, setSelectedBranchId] = useState<BranchLocation['id']>(
