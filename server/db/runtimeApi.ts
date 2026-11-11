@@ -10,6 +10,7 @@ import {canStaff,namespacePermission,assertStaffDocumentChange} from './staffPer
 import {publicCatalog,compactCatalogReviews} from '../../src/utils/catalogPrivacy';
 import {selectHomePreviewProducts} from '../../src/utils/homeCatalogPreview';
 import {getAdminCatalogProducts,invalidateAdminCatalogCache,primeAdminCatalogCache} from './adminCatalogCache';
+import {toCatalogListingProduct} from '../../src/utils/catalogListing';
 function checkOrigin(req:Request){if(req.get('origin') && new URL(req.get('origin')!).host!==req.get('host'))throw Object.assign(new Error('درخواست از مبدأ نامعتبر است.'),{status:403});}
 function guestScope(req:Request,res:Response){let token=(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith('sp_guest='))?.slice(9);if(!token || !/^[a-f0-9]{64}$/.test(token)){token=crypto.randomBytes(32).toString('hex');res.append('Set-Cookie',`sp_guest=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV==='production'?'; Secure':''}`);}return 'guest:'+crypto.createHash('sha256').update(token).digest('hex');}
 // Cache only the shared public catalogue. Never cache user-specific prices, stock visibility or sessions.
@@ -17,11 +18,13 @@ const PUBLIC_CATALOG_TTL_MS=120000;
 let publicCatalogCache:{expires:number,value:unknown}|undefined;
 let publicCatalogInFlight:Promise<unknown>|undefined;
 let publicCatalogGeneration=0;
+let publicListingCache:{expires:number;value:{success:true;total:number;brands:string[];products:unknown[]}}|undefined;
 /** Public /api/runtime responses must see newly uploaded images immediately. */
 export function invalidatePublicCatalogCache(){
  publicCatalogGeneration++;
  publicCatalogCache=undefined;
  publicCatalogInFlight=undefined;
+ publicListingCache=undefined;
  invalidateAdminCatalogCache();
 }
 /** Seed the public response cache from the catalogue already loaded during startup. */
@@ -30,6 +33,7 @@ export function primePublicCatalogCache(products:unknown){
  publicCatalogInFlight=undefined;
  primeAdminCatalogCache(products);
  publicCatalogCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:compactCatalogReviews(publicCatalog(products))};
+ publicListingCache=undefined;
 }
 const PUBLIC_DOCUMENT_TTL_MS=60000;
 const sharedDocumentCache=new Map<string,{expires:number,value:unknown}>();
@@ -61,6 +65,98 @@ async function publicProductsCached():Promise<unknown>{
  }
  return publicCatalogInFlight;
 }
+/** Compact first-paint index: full SKU payloads are fetched only on product detail. */
+export async function publicCatalogListingApi(_req:Request,res:Response){
+ if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
+ res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=120');
+ try{
+  if(publicListingCache && Date.now()<publicListingCache.expires)return res.json(publicListingCache.value);
+  const catalog=await publicProductsCached() as any[];
+  const products=(Array.isArray(catalog)?catalog:[])
+   .filter(product=>product?.active!==false)
+   .map(product=>toCatalogListingProduct(product));
+  const brands=Array.from(new Set(products.map(product=>product.brand).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fa'));
+  const value={success:true as const,total:products.length,brands,products};
+  publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value};
+  return res.json(value);
+ }catch{
+  return res.status(503).json({success:false,message:'دریافت فهرست سبک محصولات ممکن نشد.'});
+ }
+}
+
+function findCatalogFamily(products:any[],code:string){
+ const normalized=code.trim().toLowerCase();
+ return products.find(product=>
+  String(product?.code||'').toLowerCase()===normalized ||
+  (Array.isArray(product?.variants) && product.variants.some((variant:any)=>String(variant?.code||'').toLowerCase()===normalized))
+ );
+}
+
+/** Fetch the full technical/commercial payload for one selected family only. */
+export async function catalogProductApi(req:Request,res:Response){
+ res.setHeader('Cache-Control','private, no-store');
+ res.setHeader('Vary','Cookie');
+ if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
+ const code=String(req.params.code||'').trim();
+ if(!code || code.length>180)return res.status(400).json({success:false,message:'کد محصول معتبر نیست.'});
+ try{
+  const identity=await getPortalIdentity(req);
+  let products:any[]=[];
+  let commercialVisible=false;
+  if(identity.staff){
+   if(!canStaff(identity,'products'))return res.status(403).json({success:false,message:'دسترسی مشاهده این کالا مجاز نیست.'});
+   products=await getAdminCatalogProducts() as any[];
+   commercialVisible=canStaff(identity,'products','prices');
+  }else if(identity.admin){
+   products=await getAdminCatalogProducts() as any[];
+   commercialVisible=true;
+  }else if(identity.user && identity.canReadCommerce){
+   products=await readProducts({includeTechnicalReviews:false}) as any[];
+   const family=findCatalogFamily(products,code);
+   if(family){
+    const variants=Array.isArray(family.variants)?family.variants:[];
+    const zeroPrices={base:0,retail:0,wholesale:0,dealer:0};
+    if(adoptedSchema()){
+     await transaction(async client=>{
+      await client.query("select set_config('request.jwt.claim.sub',$1,true)",[identity.user!.authUserId]);
+      const codes=variants.map((variant:any)=>variant.code).filter(Boolean);
+      const rows=identity.user!.canViewPrices && codes.length
+       ? (await client.query('select c.variant_code,c.currency,app_private.current_variant_price(c.variant_code) as amount from public.variant_commercial_specs c where c.variant_code=any($1::text[])',[codes])).rows
+       : [];
+      const prices=new Map(rows.map((row:any)=>[row.variant_code,toman(row.amount,row.currency)]));
+      for(const variant of variants){
+       const amount=identity.user!.canViewPrices?Number(prices.get(variant.code)||0):0;
+       variant.prices={base:amount,retail:amount,wholesale:amount,dealer:amount};
+       variant.price=amount;
+       if(!identity.user!.canViewStock){variant.stock=0;variant.stockKnown=false;}
+      }
+     });
+    }else{
+     for(const variant of variants){
+      if(!identity.user.canViewPrices){variant.prices=zeroPrices;variant.price=0;}
+      if(!identity.user.canViewStock){variant.stock=0;variant.stockKnown=false;}
+     }
+    }
+    family.prices=variants[0]?.prices||zeroPrices;
+    family.stock=variants.reduce((sum:number,variant:any)=>sum+Number(variant.stock||0),0);
+    family.stockKnown=variants.length>0 && variants.every((variant:any)=>variant.stockKnown===true);
+    family.inquiryOnly=variants.length===0 || variants.every((variant:any)=>variant.inquiryOnly===true);
+   }
+   commercialVisible=true;
+  }else{
+   products=await publicProductsCached() as any[];
+  }
+  const family=findCatalogFamily(products,code);
+  if(!family)return res.status(404).json({success:false,message:'خانواده محصول در کاتالوگ پیدا نشد.'});
+  const visibleProduct=commercialVisible?family:publicCatalog(family);
+  const product=compactCatalogReviews([visibleProduct])[0];
+  return res.json({success:true,product});
+ }catch(error:any){
+  const status=Number(error?.status)||503;
+  return res.status(status).json({success:false,message:status===403?'دسترسی مشاهده این کالا مجاز نیست.':'دریافت اطلاعات خانواده محصول ممکن نشد.'});
+ }
+}
+
 /** First-paint catalog preview: independent of the 10k-SKU runtime hydration. */
 export async function publicHomePreviewApi(_req:Request,res:Response){
  res.setHeader('Cache-Control','public, max-age=20');
