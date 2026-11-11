@@ -99,6 +99,20 @@ const productPreviewImage = (product?: Product) =>
   product?.galleryImages?.find(image => image.url)?.url ||
   product?.variants?.find(variant => variant.images?.some(Boolean))?.images?.find(Boolean);
 
+const matchesTechnicalFilter = (product: Product | undefined, specKey: string, specValue: string) => {
+  const normalizedKey = normalizeSearch(specKey);
+  const normalizedValue = normalizeSearch(specValue);
+  if (!normalizedKey && !normalizedValue) return true;
+  const specs = [
+    ...(product?.technicalSpecs || []),
+    ...(product?.variants || []).flatMap(variant => variant.technicalSpecs || []),
+  ];
+  return specs.some(spec =>
+    (!normalizedKey || normalizeSearch(spec.key).includes(normalizedKey)) &&
+    (!normalizedValue || normalizeSearch(spec.value).includes(normalizedValue)),
+  );
+};
+
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,6 +132,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const selectedBrands = searchParams.getAll('brand');
   const inStockOnly = searchParams.get('stock') === '1';
   const imageOnly = searchParams.get('image') === '1';
+  const specKey = searchParams.get('spec') || '';
+  const specValue = searchParams.get('specValue') || '';
   const requestedSort = searchParams.get('sort') || 'default';
   const sortBy: SortMode = ['default', 'name', 'code', 'sku_desc', 'stock_desc'].includes(requestedSort)
     ? requestedSort as SortMode
@@ -222,6 +238,20 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const availableBrands = useMemo(() => Array.from(new Set(
     families.map(family => family.brand).filter(Boolean),
   )).sort((a, b) => a.localeCompare(b, 'fa')), [families]);
+  const availableSpecKeys = useMemo(() => {
+    const keys = new Set<string>();
+    const dimensionKey = /پروفیل|قطر|عرض|طول|گام|ضخامت|سایز|ابعاد|pitch|width|length|profile|diameter|thickness/i;
+    families.forEach(family => {
+      const product = products.get(family.code);
+      [
+        ...(product?.technicalSpecs || []),
+        ...(product?.variants || []).flatMap(variant => variant.technicalSpecs || []),
+      ].forEach(spec => {
+        if (dimensionKey.test(spec.key)) keys.add(spec.key);
+      });
+    });
+    return Array.from(keys).sort((a, b) => a.localeCompare(b, 'fa'));
+  }, [families, products]);
 
   const updateParam = (key: string, value: string, replace = true) => {
     const next = new URLSearchParams(searchParams);
@@ -241,7 +271,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
 
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams);
-    ['q', 'brand', 'stock', 'image', 'sort', 'sub', 'page'].forEach(key => next.delete(key));
+    ['q', 'brand', 'stock', 'image', 'spec', 'specValue', 'sort', 'sub', 'page'].forEach(key => next.delete(key));
     setSearchParams(next, { replace: true });
     setMobileFiltersOpen(false);
   };
@@ -255,6 +285,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       const product = products.get(family.code);
       if (inStockOnly && !(product?.stockKnown === true && product.stock > 0 && !product.inquiryOnly)) return false;
       if (imageOnly && !hasCatalogImage(product)) return false;
+      if (!matchesTechnicalFilter(product, specKey, specValue)) return false;
 
       if (!query) return true;
       const searchable = normalizeSearch([
@@ -289,12 +320,12 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       });
     }
     return list;
-  }, [families, selection, selectedBrands.join('|'), inStockOnly, imageOnly, search, products, sortBy]);
+  }, [families, selection, selectedBrands.join('|'), inStockOnly, imageOnly, specKey, specValue, search, products, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredFamilies.length / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
   const pageFamilies = filteredFamilies.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly) + Number(Boolean(selection));
+  const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly) + Number(Boolean(selection)) + Number(Boolean(specKey || specValue));
   const featuredFamily = families.find(family => hasCatalogImage(products.get(family.code)));
   const featuredProduct = featuredFamily ? products.get(featuredFamily.code) : undefined;
   const featuredImage = productPreviewImage(featuredProduct);
