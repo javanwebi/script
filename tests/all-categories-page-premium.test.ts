@@ -54,6 +54,8 @@ test('category cards reuse registered industrial assets and retain nested subcat
 });
 
 test('group anchors, search, visual identification and FORZA routes remain connected', () => {
+  assert.match(page, /if \(source !== 'database'/);
+  assert.match(page, /\[source, catalogueGroups\]/);
   assert.match(page, /menu-group-\$\{section\.id\}/);
   assert.match(page, /to="\/identify-part"/);
   assert.match(page, /to="\/ai-consult"/);
