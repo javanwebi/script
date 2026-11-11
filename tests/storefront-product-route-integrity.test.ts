@@ -64,7 +64,9 @@ test("the all-products page exposes only approved category links and routes them
 });
 
 test("navigation clearly distinguishes the all-products catalogue from the category directory on desktop and mobile", () => {
-  assert.match(header, /<span className="font-bold">دسته‌بندی محصولات<\/span>/);
+  assert.match(header, /to="\/products"/);
+  assert.match(header, /<span>همه محصولات<\/span>/);
+  assert.match(header, /aria-label="باز کردن دسته‌بندی محصولات"/);
   assert.match(megaMenu, /to="\/products"/);
   assert.match(megaMenu, /to="\/categories"/);
   assert.match(mobileExplorer, /to="\/products"/);
