@@ -91,16 +91,21 @@ const viewports = [
         await page.locator('.bce-featured-card').waitFor({ state: 'visible' });
         const positions = await page.evaluate(() => {
           const box = selector => {
-            const rect = document.querySelector(selector).getBoundingClientRect();
-            return { left: rect.left, right: rect.right };
+            const element = document.querySelector(selector);
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return { left: rect.left, right: rect.right, width: rect.width, height: rect.height, display: style.display, visibility: style.visibility, textLength: (element.innerText || '').length };
           };
           return {
             featured: box('.bce-featured-card'),
             results: box('.bce-results'),
             filters: box('.bce-sidebar'),
+            grid: box('.bce-catalog'),
           };
         });
         assert.ok(positions.featured.left < positions.results.left && positions.results.left < positions.filters.left, 'desktop columns must be featured-left, products-center, filters-right: ' + JSON.stringify(positions));
+        assert.ok(positions.featured.width >= 170 && positions.featured.height >= 220, 'featured product column collapsed: ' + JSON.stringify(positions));
+        assert.ok(positions.results.width >= 300 && positions.results.height >= 220, 'product results column collapsed: ' + JSON.stringify(positions));
       } else {
         await page.locator('.bce-featured-card').waitFor({ state: 'hidden' });
       }
