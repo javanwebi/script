@@ -31,6 +31,7 @@ test("portal authentication, isolation, persistence and admin edits", async (t) 
       cookie: r.headers.get("set-cookie")?.split(";")[0] || "",
     };
   };
+  let publicContactId = "";
   try {
     await t.test(
       "guest and forged cookie cannot edit customer data",
@@ -69,6 +70,38 @@ test("portal authentication, isolation, persistence and admin edits", async (t) 
           ).status,
           403,
         );
+      },
+    );
+    await t.test(
+      "guest contact requests are validated and persisted for CRM follow-up",
+      async () => {
+        const invalidPhone = await request({
+          action: "public_contact",
+          payload: { name: "مشتری آزمایش", phone: "1234", subject: "مشاوره", message: "درخواست آزمایشی" },
+        });
+        assert.equal(invalidPhone.status, 400);
+
+        const invalidEmail = await request({
+          action: "public_contact",
+          payload: { name: "مشتری آزمایش", phone: "09121113333", email: "not-an-email", subject: "مشاوره", message: "درخواست آزمایشی" },
+        });
+        assert.equal(invalidEmail.status, 400);
+
+        const result = await request({
+          action: "public_contact",
+          payload: {
+            name: "مشتری آزمایش",
+            companyName: "کارخانه آزمایشی",
+            phone: "09121113333",
+            email: "contact@example.com",
+            subject: "هماهنگی مراجعه",
+            message: "برای بازدید از انبار درخواست هماهنگی دارم.",
+          },
+        });
+        assert.equal(result.status, 201);
+        assert.equal(result.data.success, true);
+        assert.match(result.data.inquiry.inquiryNumber, /^WEB-/);
+        publicContactId = result.data.inquiry.id;
       },
     );
     const registration = await request({
@@ -281,6 +314,15 @@ test("portal authentication, isolation, persistence and admin edits", async (t) 
       })
     ).cookie;
     let snapshot = (await request(undefined, admin)).data;
+    const publicContactInquiry = snapshot.values.atlas_admin_inquiries_v1.find(
+      (entry: any) => entry.id === publicContactId,
+    );
+    assert.ok(publicContactInquiry);
+    assert.equal(publicContactInquiry.customerId, null);
+    assert.equal(publicContactInquiry.customerName, "مشتری آزمایش");
+    assert.equal(publicContactInquiry.companyName, "کارخانه آزمایشی");
+    assert.equal(publicContactInquiry.customerNote, "برای بازدید از انبار درخواست هماهنگی دارم.");
+    assert.equal(publicContactInquiry.source, "website_contact");
     const users = snapshot.values.atlas_admin_customers_v1;
     const b2b = {
       id: "crm-b2b",
