@@ -14,6 +14,7 @@ const categoryStyles = read("src/category-showcase.css");
 
 test("public product cards preserve public detail URLs for signed-in customers", () => {
   assert.match(productCard, /const href = isCustomerPortalRoute && currentUser/);
+  assert.match(productCard, /مشاهده قیمت در پنل مشتری/);
   assert.match(productCard, /memberPath\(currentUser, product\.code\)/);
   assert.match(productCard, /\/product\/\$\{encodeURIComponent\(product\.code\)\}/);
   assert.doesNotMatch(productCard, /const href = hasPricePermission/);
@@ -50,6 +51,7 @@ test("direct SKU results are placed after the family catalogue and confirmed-sto
   const directSkuResults = categoryPage.indexOf("<DirectSkuProducts categorySlug={category.slug}");
   assert.ok(familyResults >= 0 && directSkuResults > familyResults);
   assert.match(categoryPage, /p\.stockKnown === true && p\.stock > 0 && !p\.inquiryOnly/);
+  assert.doesNotMatch(categoryPage, /price_asc|price_desc/);
 });
 
 test("the all-products page exposes only approved category links and routes them to their assigned-family pages", () => {
