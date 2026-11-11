@@ -50,6 +50,8 @@ test('profile and dimension filters use real family and SKU specs and remain sha
   assert.match(page, /searchParams\.get\('spec'\)/);
   assert.match(page, /searchParams\.get\('specValue'\)/);
   assert.match(page, /const matchesTechnicalFilter = \(product: Product \| undefined, specKey: string, specValue: string\)/);
+  assert.match(page, /const normalizeSpecValue = \(value: string\)/);
+  assert.match(page, /replace\(\/\[×\*\]\/g, 'x'\)/);
   assert.match(page, /variant\.technicalSpecs \|\| \[\]/);
   assert.match(page, /const availableSpecKeys = useMemo/);
   assert.match(page, /پروفیل\|قطر\|عرض\|طول\|گام\|ضخامت\|سایز\|ابعاد/);
