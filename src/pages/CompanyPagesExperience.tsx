@@ -76,7 +76,7 @@ export function AboutPage() {
   }, []);
 
   return (
-    <main className="company-page company-page--about sp-art-page" dir="rtl">
+    <div className="company-page company-page--about sp-art-page" dir="rtl">
       <section className="sp-art-hero sp-art-hero--about">
         <div className="sp-art-hero-copy">
           <div className="sp-art-brandline">
@@ -233,7 +233,7 @@ export function AboutPage() {
         </div>
         <MemberAccess compact />
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -323,7 +323,7 @@ export function ServicesPage() {
   }, []);
 
   return (
-    <main className="company-page company-page--services sp-art-page" dir="rtl">
+    <div className="company-page company-page--services sp-art-page" dir="rtl">
       <section className="sp-art-hero sp-art-hero--services">
         <div className="sp-art-hero-copy">
           <span className="sp-art-kicker">توانمندی‌ها و خدمات</span>
@@ -434,7 +434,7 @@ export function ServicesPage() {
           ارتباط با کارشناسان <Headphones size={18} />
         </Link>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -444,7 +444,7 @@ export function IndustriesPage() {
   }, []);
 
   return (
-    <main className="company-page company-page--industries sp-art-page" dir="rtl">
+    <div className="company-page company-page--industries sp-art-page" dir="rtl">
       <section className="sp-art-hero sp-art-hero--industries">
         <div className="sp-art-hero-copy">
           <span className="sp-art-kicker">صنایع تحت پوشش</span>
@@ -525,7 +525,7 @@ export function IndustriesPage() {
           تماس و هماهنگی <ArrowLeft size={18} />
         </Link>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -570,7 +570,7 @@ export function BrandsPage() {
   }, [publishedBrands, query, specialty]);
 
   return (
-    <main className="company-page company-page--brands sp-art-page" dir="rtl">
+    <div className="company-page company-page--brands sp-art-page" dir="rtl">
       <section className="sp-art-hero sp-art-hero--brands">
         <div className="sp-art-hero-copy">
           <span className="sp-art-kicker">برندها و محصولات</span>
@@ -703,7 +703,7 @@ export function BrandsPage() {
           وضعیت هر کالا و شرایط تأمین باید در صفحه محصول یا از طریق استعلام بررسی شود.
         </p>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -731,7 +731,7 @@ export function KnowledgePage() {
 
   if (slug && !article) {
     return (
-      <main className="company-page company-page--knowledge sp-art-page" dir="rtl">
+      <div className="company-page company-page--knowledge sp-art-page" dir="rtl">
         <div className="sp-knowledge-empty">
           <BookOpen size={32} />
           <h1>این راهنما پیدا نشد</h1>
@@ -740,13 +740,13 @@ export function KnowledgePage() {
             بازگشت به دانشنامه <ArrowLeft size={18} />
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (article) {
     return (
-      <main className="company-page company-page--knowledge sp-art-page sp-knowledge-article" dir="rtl">
+      <div className="company-page company-page--knowledge sp-art-page sp-knowledge-article" dir="rtl">
         <header className="sp-knowledge-article-head">
           <Link to="/knowledge" className="sp-knowledge-back">
             <ArrowLeft size={17} /> بازگشت به دانشنامه
@@ -787,14 +787,14 @@ export function KnowledgePage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   const featured = list[0];
 
   return (
-    <main className="company-page company-page--knowledge sp-art-page" dir="rtl">
+    <div className="company-page company-page--knowledge sp-art-page" dir="rtl">
       <section className="sp-knowledge-hero knowledge-intro">
         <div className="sp-knowledge-hero-copy">
           <span className="sp-art-kicker">دانشنامه کاربردی صنعت پیش</span>
@@ -871,6 +871,6 @@ export function KnowledgePage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }
