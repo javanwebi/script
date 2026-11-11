@@ -1,303 +1,502 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowUpLeft,
+  Boxes,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  CircleDot,
+  Cpu,
+  Flame,
+  Grid,
+  Layers,
+  Link as LinkIcon,
+  Package,
+  Search,
+  Scissors,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../data/approvedMenuFallback';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
-import { USER_PRODUCTS, CATALOGUE_SKU_COUNT } from '../data/userProducts';
-import { 
-  Layers, 
-  Cpu, 
-  Grid, 
-  CircleDot, 
-  Shield, 
-  Link as LinkIcon, 
-  Scissors, 
-  ShieldCheck, 
-  Package, 
-  Search, 
-  ChevronLeft, 
-  Boxes, 
-  ArrowLeft,
-  Sparkles,
-  CheckCircle2,
-  Flame,
-  Award
-} from 'lucide-react';
+import { STORE_ASSETS } from '../assets/images';
 import { toPersianDigits } from '../utils/formatters';
+import './all-categories-premium.css';
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  Cpu: <Cpu className="w-6 h-6" />,
-  Layers: <Layers className="w-6 h-6" />,
-  Grid: <Grid className="w-6 h-6" />,
-  CircleDot: <CircleDot className="w-6 h-6" />,
-  Shield: <Shield className="w-6 h-6" />,
-  Link: <LinkIcon className="w-6 h-6" />,
-  Scissors: <Scissors className="w-6 h-6" />,
-  ShieldCheck: <ShieldCheck className="w-6 h-6" />,
-  Package: <Package className="w-6 h-6" />,
-  Flame: <Flame className="w-6 h-6" />,
-  Award: <Award className="w-6 h-6" />,
+type MenuGroup = {
+  id: string;
+  title: string;
+  iconKey?: string;
+  sortOrder?: number;
+  active?: boolean;
+  categorySlugs: string[];
+};
+
+type CatalogueSource = 'loading' | 'database' | 'fallback';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Cpu,
+  Layers,
+  Grid,
+  CircleDot,
+  Shield,
+  Link: LinkIcon,
+  Scissors,
+  ShieldCheck,
+  Package,
+  Flame,
+  Award: ShieldCheck,
+};
+
+const GROUP_ICONS: Record<string, React.ElementType> = {
+  'excel-v2-1': Layers,
+  'excel-v2-2': ArrowLeft,
+  'excel-v2-3': CircleDot,
+  'excel-v2-4': Cpu,
+  'excel-v2-5': ShieldCheck,
+  'excel-v2-6': Grid,
+  'excel-v2-7': Shield,
+  'excel-v2-8': Flame,
+  'excel-v2-9': LinkIcon,
+  'excel-v2-10': Sparkles,
+  'excel-v2-11': Grid,
+  'excel-v2-12': Cpu,
+  'excel-v2-13': CircleDot,
+  'excel-v2-14': Boxes,
+};
+
+const normalizeSearch = (value: string) => value
+  .toLocaleLowerCase('fa-IR')
+  .replace(/ي/g, 'ی')
+  .replace(/ك/g, 'ک')
+  .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  .replace(/[\u200c\s]+/g, ' ')
+  .trim();
+
+const categoryArtwork = (category: EnhancedCategory): string | undefined => {
+  if (category.image) return category.image;
+  const name = normalizeSearch(category.name);
+  if (/تسمه|belt/.test(name)) return STORE_ASSETS.categories.belts;
+  if (/نوار نقاله|نقاله|انتقال مواد/.test(name)) return STORE_ASSETS.categories.conveyor;
+  if (/رولر|غلتک/.test(name)) return STORE_ASSETS.products.ceramicRoller;
+  if (/پولی|pulley/.test(name)) return STORE_ASSETS.categories.pulleys;
+  if (/بلبرینگ|یاتاقان|bearing/.test(name)) return STORE_ASSETS.categories.bearings;
+  if (/زنجیر|چرخ زنجیر/.test(name)) return STORE_ASSETS.categories.chains;
+  if (/ریل راهنما|گاید راهنما|پروفیل هدایت/.test(name)) return STORE_ASSETS.categories.conveyor;
+  if (/قطعات پمپ/.test(name)) return STORE_ASSETS.products.pump;
+  if (/نسوز|حرارتی/.test(name)) return STORE_ASSETS.industries.ceramic;
+  if (/لعاب|چاپ|روتاری/.test(name)) return STORE_ASSETS.industries.ceramic;
+  if (/توری مش/.test(name)) return STORE_ASSETS.industries.manufacturing;
+  if (/سفارشی|نقشه فنی/.test(name)) return STORE_ASSETS.reverseEngineeringLab;
+  return undefined;
+};
+
+const categoryDescription = (category: EnhancedCategory) => {
+  if (category.description?.trim()) return category.description.trim();
+  const childNames = (category.children || []).filter(node => node.hidden !== true).map(node => node.name);
+  return childNames.length
+    ? childNames.slice(0, 3).join('، ')
+    : 'مسیرهای مرتبط و ساختار زیرگروه‌های این دسته را بررسی کنید.';
+};
+
+const categoryHref = (slug: string, subcategory?: string) => {
+  const path = '/category/' + encodeURIComponent(resolveCategorySlug(slug));
+  if (!subcategory) return path;
+  return path + '?' + new URLSearchParams({ sub: subcategory }).toString();
 };
 
 export const AllCategoriesPage: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  useEffect(()=>{
-    const target=window.location.hash.slice(1);
-    if(!/^menu-group-excel-v2-[0-9]+$/.test(target))return;
-    const frame=requestAnimationFrame(()=>{
-      document.getElementById(target)?.scrollIntoView({block:"start",behavior:"auto"});
-    });
-    return ()=>cancelAnimationFrame(frame);
-  },[]);
-  const [importedCategories, setImportedCategories] = useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
-  const [importedGroups, setImportedGroups] = useState<Array<{
-    id: string; title: string; categorySlugs: string[];
-  }>>(APPROVED_MENU_GROUPS);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
+  const [catalogueCategories, setCatalogueCategories] = useState<EnhancedCategory[]>(APPROVED_MENU_CATEGORIES);
+  const [catalogueGroups, setCatalogueGroups] = useState<MenuGroup[]>(APPROVED_MENU_GROUPS);
+  const [source, setSource] = useState<CatalogueSource>('loading');
 
   useEffect(() => {
+    const target = window.location.hash.slice(1);
+    if (!/^menu-group-excel-v2-[0-9]+$/.test(target)) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(target)?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     let mounted = true;
+
     const loadExcelHierarchy = async () => {
       try {
         const [categoriesResponse, groupsResponse] = await Promise.all([
-          fetch('/api/catalog/categories', { credentials: 'same-origin', cache: 'no-store' }),
-          fetch('/api/catalog/navigation-groups', { credentials: 'same-origin', cache: 'no-store' }),
+          fetch('/api/catalog/categories', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: controller.signal,
+          }),
+          fetch('/api/catalog/navigation-groups', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: controller.signal,
+          }),
         ]);
-        if (!categoriesResponse.ok || !groupsResponse.ok) return;
-        const [categoriesData, groupsData] = await Promise.all([categoriesResponse.json(), groupsResponse.json()]);
-        if (!categoriesData?.success || !groupsData?.success ||
-          !Array.isArray(categoriesData.categories) || !Array.isArray(groupsData.groups)) return;
+        if (!categoriesResponse.ok || !groupsResponse.ok) throw new Error('Catalogue navigation request failed');
+
+        const [categoriesData, groupsData] = await Promise.all([
+          categoriesResponse.json(),
+          groupsResponse.json(),
+        ]);
+        if (
+          !categoriesData?.success ||
+          !groupsData?.success ||
+          !Array.isArray(categoriesData.categories) ||
+          !Array.isArray(groupsData.groups)
+        ) {
+          throw new Error('Catalogue navigation response is incomplete');
+        }
+
         const indexed = new Map<string, EnhancedCategory>(
-          (categoriesData.categories as EnhancedCategory[]).map(category => [category.slug, category])
+          (categoriesData.categories as EnhancedCategory[])
+            .filter(category => category && typeof category.slug === 'string' && category.active !== false)
+            .map(category => [category.slug, category]),
         );
-        const groups = (groupsData.groups as {
-          id: string; title: string; active?: boolean; sortOrder: number; categorySlugs: string[];
-        }[]).filter(group => /^excel-v2-[0-9]+$/.test(group.id) && group.active !== false)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-        if (!groups.length) return;
+        const groups = (groupsData.groups as MenuGroup[])
+          .filter(group =>
+            /^excel-v2-[0-9]+$/.test(group.id) &&
+            group.active !== false &&
+            Array.isArray(group.categorySlugs),
+          )
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
         const seen = new Set<string>();
-        const ordered = groups.flatMap(group => (group.categorySlugs || []).map(slug => indexed.get(slug)))
+        const ordered = groups
+          .flatMap(group => group.categorySlugs.map(slug => indexed.get(slug)))
           .filter((category): category is EnhancedCategory => {
             if (!category || seen.has(category.slug)) return false;
             seen.add(category.slug);
             return true;
           });
-        if (mounted && ordered.length === APPROVED_MENU_CATEGORIES.length && groups.length === APPROVED_MENU_GROUPS.length) {
-          setImportedCategories(ordered);
-          setImportedGroups(groups);
-        }
-      } catch {
-        // The hydrated catalogue is the fallback if the dedicated navigation API is unavailable.
+
+        if (!groups.length || !ordered.length) throw new Error('No approved catalogue categories were returned');
+        if (!mounted) return;
+
+        setCatalogueCategories(ordered);
+        setCatalogueGroups(groups);
+        setSource('database');
+      } catch (error) {
+        if (!mounted || (error instanceof Error && error.name === 'AbortError')) return;
+        setSource('fallback');
       }
     };
+
     void loadExcelHierarchy();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
-  const catalogueCategories = importedCategories;
-  const filteredCategories = catalogueCategories.filter(cat => {
-    if (cat.active === false) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      cat.name.toLowerCase().includes(q) ||
-      (cat.nameEn || '').toLowerCase().includes(q) ||
-      cat.description.toLowerCase().includes(q) ||
-      flattenCategoryNodes(cat.children || []).some(node => node.hidden !== true && node.name.toLowerCase().includes(q))
-    );
-  });
+  const setSearchQuery = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    const trimmed = value.trim();
+    if (trimmed) next.set('q', value);
+    else next.delete('q');
+    setSearchParams(next, { replace: true });
+  };
 
-  const categorySections = importedGroups.length
-    ? importedGroups.map(group => ({
-        id: group.id, title: group.title,
-        categories: filteredCategories.filter(category => group.categorySlugs.includes(category.slug)),
-      })).filter(section => section.categories.length > 0)
-    : [{ id: 'all', title: '', categories: filteredCategories }];
+  const query = normalizeSearch(searchQuery);
+  const categorySections = useMemo(() => catalogueGroups
+    .map(group => {
+      const groupMatches = query.length > 0 && normalizeSearch(group.title).includes(query);
+      const categories = catalogueCategories.filter(category => {
+        if (!group.categorySlugs.includes(category.slug)) return false;
+        if (!query || groupMatches) return true;
+        const searchable = normalizeSearch([
+          category.name,
+          category.nameEn || '',
+          category.description || '',
+          ...flattenCategoryNodes(category.children || []).map(node => node.name),
+        ].join(' '));
+        return searchable.includes(query);
+      });
+      return { ...group, categories };
+    })
+    .filter(group => group.categories.length > 0), [catalogueCategories, catalogueGroups, query]);
+
+  const visibleCategoryCount = categorySections.reduce((total, section) => total + section.categories.length, 0);
+  const visibleGroupCount = categorySections.length;
+  const liveCategoryCount = catalogueGroups.reduce((total, group) =>
+    total + catalogueCategories.filter(category => group.categorySlugs.includes(category.slug)).length, 0);
+
+  const clearSearch = () => setSearchQuery('');
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8 text-right" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-          <Link to="/" className="hover:text-orange-600 transition-colors">
-            صفحه اصلی
-          </Link>
-          <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-800 font-bold">تمام دسته‌بندی‌های محصولات</span>
+    <main className="all-categories-page" dir="rtl">
+      <div className="all-categories-shell">
+        <nav className="all-categories-breadcrumbs" aria-label="مسیر صفحه">
+          <Link to="/">صفحه اصلی</Link>
+          <ChevronLeft aria-hidden="true" />
+          <span aria-current="page">دسته‌بندی قطعات صنعتی</span>
         </nav>
 
-        {/* Page Header */}
-        <div className="bg-gradient-to-l from-[#484344] to-[#3A3637] text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-bold">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>کاتالوگ جامع و دسته‌بندی تخصصی قطعات اطلس</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
-                تمام دسته‌بندی‌های قطعات و تجهیزات صنعتی
-              </h1>
-              <p className="text-slate-300 text-sm sm:text-base max-w-3xl leading-relaxed">
-                دسته‌بندی محصولات بر اساس گروه، زیرگروه و نوع فنی؛ همراه با خانواده‌های محصول، سایزها و کدهای کالا.
-              </p>
-            </div>
-
-            {/* Quick Stats Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center">
-                <span className="block text-2xl font-black text-orange-400 font-mono">
-                  {toPersianDigits(catalogueCategories.length)}
-                </span>
-                <span className="text-xs text-slate-300 font-medium">دسته‌بندی تخصصی</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center">
-                <span className="block text-2xl font-black text-white font-mono">
-                  {toPersianDigits(USER_PRODUCTS.length)}
-                </span>
-                <span className="text-xs text-slate-300 font-medium">خانواده محصول</span>
-              </div>
-              <div className="col-span-2 sm:col-span-1 bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center">
-                <span className="block text-2xl font-black text-emerald-400 font-mono">
-                  {toPersianDigits(CATALOGUE_SKU_COUNT)}
-                </span>
-                <span className="text-xs text-slate-300 font-medium">کد کالا و سایز</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Search Box */}
-          <div className="mt-8 relative max-w-2xl">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجو در نام دسته‌بندی، زیردسته‌ها، نوع قطعه، کاربرد..."
-              className="w-full bg-white/95 text-slate-900 pr-12 pl-4 py-3.5 rounded-2xl shadow-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-sm placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg hover:bg-slate-300"
-              >
-                پاک کردن
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Grouped exactly as the main menu hierarchy in Supabase. */}
-        <div className="space-y-9">
-          {categorySections.map(section => (
-            <section id={`menu-group-${section.id}`} key={section.id} className="space-y-4 scroll-mt-28">
-              {section.title && (
-                <h2 className="border-r-4 border-[#E56B1E] pr-3 text-xl font-black text-[#484344]">
-                  {section.title}
-                </h2>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6">
-          {section.categories.map((category) => {
-            const familyCount = category.familyCount ?? category.count;
-            const skuCount = category.skuCount ?? category.count;
-
-            return (
-              <div
-                key={category.id}
-                className="group relative flex flex-col bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(10,23,47,0.04)] hover:shadow-[0_15px_35px_rgba(224,101,24,0.12)] hover:border-orange-300 transition-all duration-300 overflow-hidden"
-              >
-                {/* Image & Header Banner */}
-                <div className="relative h-48 bg-slate-100 overflow-hidden">
-                  {category.image ? (
-                    <img
-                      src={category.image}
-                      alt={category.name}
-                      className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
-                      <Boxes className="w-16 h-16" />
-                    </div>
-                  )}
-
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#484344]/80 via-transparent to-transparent" />
-
-                  {/* Icon & Count Badges */}
-                  <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                    <div className="w-10 h-10 rounded-2xl bg-white/90 backdrop-blur-md shadow-md flex items-center justify-center text-orange-600 border border-white/50">
-                      {ICON_MAP[category.icon] || <Boxes className="w-5 h-5" />}
-                    </div>
-                  </div>
-
-                  <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-[#484344]/90 backdrop-blur-md text-orange-300 border border-orange-400/40">
-                      {toPersianDigits(skuCount)} کد کالا
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/90 text-[#484344] border border-white/70 shadow-sm">
-                      {toPersianDigits(familyCount)} خانواده
-                    </span>
-                  </div>
-
-                  {/* Category Title overlayed at bottom of banner */}
-                  <div className="absolute bottom-3 right-3 left-3 z-10 text-white">
-                    <h2 className="text-lg font-black drop-shadow-sm group-hover:text-orange-400 transition-colors">
-                      {category.name}
-                    </h2>
-                    <p className="text-[11px] text-slate-300 font-mono tracking-wider">
-                      {category.nameEn}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="flex-1 flex flex-col p-5 space-y-4">
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-2">
-                    {category.description}
-                  </p>
-
-                  <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} />
-
-                  {/* Action Link Button */}
-                  <div className="pt-2 mt-auto border-t border-slate-100">
-                    <Link
-                      to={`/category/${resolveCategorySlug(category.slug)}`}
-                      className="w-full inline-flex items-center justify-center gap-2 bg-[#484344] hover:bg-[#E06518] text-white py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm hover:shadow-md group-hover:shadow-orange-500/20"
-                    >
-                      <span>مشاهده محصولات این دسته‌بندی</span>
-                      <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        {/* Empty state if search returns nothing */}
-        {filteredCategories.length === 0 && (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 max-w-md mx-auto space-y-4">
-            <Boxes className="w-16 h-16 text-slate-300 mx-auto" />
-            <h3 className="text-lg font-bold text-slate-800">دسته‌بندی مورد نظر یافت نشد</h3>
-            <p className="text-sm text-slate-500">
-              عبارت دیگری را جستجو کنید یا تمام دسته‌بندی‌ها را مشاهده نمایید.
+        <section className="all-categories-hero" aria-labelledby="all-categories-title">
+          <div className="all-categories-hero-copy">
+            <span className="all-categories-eyebrow">
+              <span className="all-categories-eyebrow-mark"><Layers size={14} /></span>
+              راهنمای انتخاب قطعات صنعت پیش
+            </span>
+            <h1 id="all-categories-title">
+              قطعه موردنیاز خط تولید را
+              <em> دقیق‌تر پیدا کنید.</em>
+            </h1>
+            <p>
+              از گروه اصلی تا زیرگروه تخصصی حرکت کنید؛ مشخصات فنی را بررسی کنید و به کاتالوگ همان دسته برسید.
             </p>
-            <button
-              onClick={() => setSearchQuery('')}
-              className="px-4 py-2 bg-orange-500 text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors"
-            >
-              نمایش همه دسته‌بندی‌ها
-            </button>
+            <div className="all-categories-hero-actions">
+              <Link to="/products" className="all-categories-primary-action">
+                مشاهده کاتالوگ محصولات <ArrowLeft size={16} />
+              </Link>
+              <Link to="/identify-part" className="all-categories-secondary-action">
+                شناسایی قطعه با تصویر <ArrowUpLeft size={16} />
+              </Link>
+            </div>
+            <form className="all-categories-search" role="search" onSubmit={event => event.preventDefault()}>
+              <Search aria-hidden="true" size={19} />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                aria-label="جستجو در دسته‌بندی و زیرگروه‌ها"
+                placeholder="نام قطعه، دسته یا زیرگروه را جستجو کنید…"
+                autoComplete="off"
+              />
+              {searchQuery && (
+                <button type="button" onClick={clearSearch} aria-label="پاک کردن جستجو">
+                  <X size={16} />
+                </button>
+              )}
+              <kbd>جستجو</kbd>
+            </form>
+            <div className="all-categories-source-status" aria-live="polite">
+              <span className={source === 'database' ? 'is-live' : source === 'fallback' ? 'is-fallback' : 'is-loading'} />
+              {source === 'database'
+                ? 'ساختار دسته‌بندی از پایگاه داده دریافت شد'
+                : source === 'fallback'
+                  ? 'نمایش راهنمای دسته‌بندی؛ آمار زنده در دسترس نیست'
+                  : 'در حال دریافت ساختار دسته‌بندی…'}
+            </div>
           </div>
+
+          <div className="all-categories-hero-visual" aria-label="محیط صنعتی و زنجیره تأمین قطعات">
+            <img
+              src={STORE_ASSETS.industries.manufacturing}
+              alt="محیط صنعتی و تجهیزات خطوط تولید"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div className="all-categories-hero-visual-shade" />
+            <div className="all-categories-hero-stamp">
+              <span>مسیر انتخاب</span>
+              <strong>گروه <i>›</i> زیرگروه <i>›</i> کد فنی</strong>
+            </div>
+            <div className="all-categories-hero-note">
+              <CheckCircle2 size={15} />
+              <span>دسترسی مستقیم به ساختار کاتالوگ</span>
+            </div>
+          </div>
+
+          <div className="all-categories-hero-stats" aria-label="آمار ساختار دسته‌بندی">
+            <div>
+              <span className="all-categories-stat-value">
+                {source === 'database' ? toPersianDigits(catalogueGroups.length) : '—'}
+              </span>
+              <span className="all-categories-stat-label">گروه اصلی</span>
+            </div>
+            <div>
+              <span className="all-categories-stat-value">
+                {source === 'database' ? toPersianDigits(liveCategoryCount) : '—'}
+              </span>
+              <span className="all-categories-stat-label">دسته تخصصی</span>
+            </div>
+            <div className="all-categories-stat-cta">
+              <span>انتخاب دقیق‌تر</span>
+              <strong>بدون حدس‌زدن کد کالا</strong>
+            </div>
+          </div>
+        </section>
+
+        {source === 'fallback' && (
+          <p className="all-categories-fallback-note" role="status">
+            ساختار راهنما برای مرور نام دسته‌ها نمایش داده شده است. تعداد خانواده‌ها، کدها و موجودی فقط پس از دریافت داده معتبر از پایگاه داده نمایش داده می‌شود.
+          </p>
         )}
 
+        {categorySections.length > 0 && (
+          <nav className="all-categories-group-nav" aria-label="پرش به گروه‌های دسته‌بندی">
+            <span>پرش به گروه:</span>
+            <div>
+              {categorySections.map((section, index) => (
+                <a key={section.id} href={`#menu-group-${section.id}`}>
+                  <span>{toPersianDigits(index + 1)}</span>
+                  {section.title}
+                </a>
+              ))}
+            </div>
+          </nav>
+        )}
+
+        <section className="all-categories-results" aria-label="گروه‌های دسته‌بندی">
+          <div className="all-categories-results-heading">
+            <div>
+              <span>فهرست راهنمای محصولات</span>
+              <h2>{query ? 'نتایج جستجو در دسته‌بندی‌ها' : 'گروه‌های تخصصی قطعات'}</h2>
+            </div>
+            <div className="all-categories-results-count" aria-live="polite">
+              <strong>{source === 'database' ? toPersianDigits(visibleCategoryCount) : '—'}</strong>
+              <span>دسته در این نما</span>
+            </div>
+          </div>
+
+          {categorySections.length === 0 ? (
+            <div className="all-categories-empty">
+              <span><Search size={25} /></span>
+              <h3>دسته‌ای با این عبارت پیدا نشد</h3>
+              <p>نام قطعه یا بخشی از عنوان زیرگروه را کوتاه‌تر وارد کنید.</p>
+              <button type="button" onClick={clearSearch}>نمایش همه دسته‌ها</button>
+            </div>
+          ) : (
+            <div className="all-categories-groups">
+              {categorySections.map((section, sectionIndex) => {
+                const GroupIcon = GROUP_ICONS[section.id] || Layers;
+                return (
+                  <section
+                    className="all-categories-group"
+                    id={`menu-group-${section.id}`}
+                    key={section.id}
+                    aria-labelledby={`all-categories-group-${section.id}`}
+                  >
+                    <header className="all-categories-group-heading">
+                      <div className="all-categories-group-index">{toPersianDigits(sectionIndex + 1)}</div>
+                      <div className="all-categories-group-icon"><GroupIcon size={20} /></div>
+                      <div className="all-categories-group-title">
+                        <span>گروه تخصصی</span>
+                        <h3 id={`all-categories-group-${section.id}`}>{section.title}</h3>
+                      </div>
+                      <div className="all-categories-group-count">
+                        <strong>{toPersianDigits(section.categories.length)}</strong>
+                        <span>دسته</span>
+                      </div>
+                    </header>
+
+                    <div className="all-categories-card-grid">
+                      {section.categories.map((category, categoryIndex) => {
+                        const CategoryIcon = ICON_MAP[category.icon] || Package;
+                        const artwork = categoryArtwork(category);
+                        const childNodes = (category.children || []).filter(node => node.hidden !== true);
+                        const familyCount = source === 'database' ? Number(category.familyCount ?? category.count ?? 0) : null;
+                        const skuCount = source === 'database' ? Number(category.skuCount ?? 0) : null;
+                        const route = categoryHref(category.slug);
+
+                        return (
+                          <article className="all-categories-card" key={category.id || category.slug}>
+                            <div className={`all-categories-card-art ${artwork ? 'has-image' : 'has-placeholder'}`}>
+                              {artwork ? (
+                                <img src={artwork} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <div className="all-categories-art-placeholder" aria-hidden="true">
+                                  <span className="all-categories-art-ring all-categories-art-ring-one" />
+                                  <span className="all-categories-art-ring all-categories-art-ring-two" />
+                                  <CategoryIcon size={34} />
+                                </div>
+                              )}
+                              <span className="all-categories-card-number">{toPersianDigits(categoryIndex + 1)}</span>
+                              <span className="all-categories-card-group">{section.title}</span>
+                            </div>
+
+                            <div className="all-categories-card-content">
+                              <div className="all-categories-card-title-row">
+                                <span className="all-categories-card-icon"><CategoryIcon size={17} /></span>
+                                <div>
+                                  <h4><Link to={route}>{category.name}</Link></h4>
+                                  {category.nameEn && <span dir="ltr">{category.nameEn}</span>}
+                                </div>
+                              </div>
+                              <p>{categoryDescription(category)}</p>
+
+                              <div className="all-categories-card-meta">
+                                {source === 'database' ? (
+                                  <>
+                                    <span>
+                                      <strong>{toPersianDigits(familyCount ?? 0)}</strong>
+                                      خانواده
+                                    </span>
+                                    <span>
+                                      <strong>{toPersianDigits(skuCount ?? 0)}</strong>
+                                      کد کالا
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="all-categories-card-meta-muted">آمار پس از اتصال به کاتالوگ</span>
+                                )}
+                              </div>
+
+                              {childNodes.length > 0 && (
+                                <div className="all-categories-subcategory-links" aria-label={`زیرگروه‌های ${category.name}`}>
+                                  {childNodes.slice(0, 3).map(node => (
+                                    <Link
+                                      key={node.name}
+                                      to={categoryHref(category.slug, node.value || node.name)}
+                                    >
+                                      {node.name}
+                                    </Link>
+                                  ))}
+                                  {childNodes.length > 3 && (
+                                    <span>+{toPersianDigits(childNodes.length - 3)}</span>
+                                  )}
+                                </div>
+                              )}
+
+                              <details className="all-categories-tree">
+                                <summary>
+                                  مشاهده ساختار کامل زیرگروه‌ها
+                                  <ChevronDown size={15} />
+                                </summary>
+                                <CategoryNavigation nodes={category.children || []} categorySlug={category.slug} />
+                              </details>
+
+                              <Link to={route} className="all-categories-card-action">
+                                مشاهده محصولات این دسته <ArrowLeft size={16} />
+                              </Link>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="all-categories-bottom-cta">
+          <div>
+            <span>کد یا تصویر قطعه را در اختیار ندارید؟</span>
+            <h2>از جستجوی هوشمند تا مشاوره فنی، مسیر انتخاب را ادامه دهید.</h2>
+          </div>
+          <div>
+            <Link to="/identify-part"><Search size={16} /> شناسایی با تصویر</Link>
+            <Link to="/ai-consult"><Sparkles size={16} /> مشاوره FORZA</Link>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 
