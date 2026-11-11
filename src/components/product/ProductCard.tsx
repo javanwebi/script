@@ -79,7 +79,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
         <button
           type="button"
-          onClick={() => toggleWishlist(product.code)
+          onClick={() => toggleWishlist(product.code)}
           aria-label={selected ? `حذف ${product.name} از نشان‌شده‌ها` : `نشان کردن ${product.name}`}
           aria-pressed={selected}
         >
