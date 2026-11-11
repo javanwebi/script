@@ -511,11 +511,16 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               <div className="excel-category-product-grid">
                 {pageFamilies.map(family => {
                   const product = products.get(family.code);
+                  const previewImage = productPreviewImage(product);
+                  const cardProduct = product ? {
+                    ...product,
+                    images: product.images?.some(Boolean) ? product.images : previewImage ? [previewImage] : [],
+                  } : undefined;
                   const selected = isSelectedForCompare(family.code);
                   return (
                     <div className="excel-category-product-shell" key={family.code}>
-                      {product ? (
-                        <ProductCard product={product} />
+                      {cardProduct ? (
+                        <ProductCard product={cardProduct} />
                       ) : (
                         <article className="excel-category-family-card">
                           <div className="excel-category-family-art"><Package size={32} /><span>خانواده کاتالوگ</span></div>
