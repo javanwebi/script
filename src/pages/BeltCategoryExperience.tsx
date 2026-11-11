@@ -256,7 +256,7 @@ export const BeltCategoryExperience: React.FC = () => {
       if (search.trim() && !matchesProductSearch(product, search.trim())) return false;
       if (filters.brands.length && !filters.brands.includes(product.brand)) return false;
       if (filters.profile !== 'all' && !matchesProfile(product, filters.profile)) return false;
-      if (filters.inStock && !(product.stockKnown && product.stock > 0 && !product.inquiryOnly)) return false;
+      if (filters.inStock && !(product.stockKnown && product.stock > 0)) return false;
       if (filters.quoteOnly && !product.inquiryOnly && priceOf(product) !== null) return false;
       if (minLength !== null || maxLength !== null) {
         const length = lengthMm(product);
