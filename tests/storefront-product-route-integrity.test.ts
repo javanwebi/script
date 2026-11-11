@@ -8,6 +8,7 @@ const productDetail = read("src/pages/ProductDetailPage.tsx");
 const serverNavigationApi = read("server/catalogNavigationApi.ts");
 const productCard = read("src/components/product/ProductCard.tsx");
 const productsPage = read("src/pages/ProductsPage.tsx");
+const searchPage = read("src/pages/SearchPage.tsx");
 const header = read("src/components/layout/Header.tsx");
 const megaMenu = read("src/components/catalog/ReferenceMegaMenu.tsx");
 const mobileExplorer = read("src/components/catalog/MobileCategoryExplorer.tsx");
@@ -91,6 +92,15 @@ test("navigation clearly distinguishes the all-products catalogue from the categ
   assert.match(megaMenu, /to="\/categories"/);
   assert.match(mobileExplorer, /to="\/products"/);
   assert.match(mobileExplorer, /to="\/categories"/);
+});
+
+test("search results include standalone SKUs and keep the route back to all products", () => {
+  assert.match(searchPage, /useDirectSkus\(\)/);
+  assert.match(searchPage, /directSkuResults/);
+  assert.match(searchPage, /<DirectSkuProducts[\s\S]*?items=\{directSkuResults\}/);
+  assert.match(searchPage, /results\.length \+ directSkuResults\.length/);
+  assert.match(searchPage, /to="\/products"/);
+  assert.doesNotMatch(searchPage, /۳۱۸ قطعه/);
 });
 
 test("the all-products route identifies itself clearly in its breadcrumb", () => {
