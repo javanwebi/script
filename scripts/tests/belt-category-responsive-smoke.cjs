@@ -70,23 +70,9 @@ const viewports = [
 
       const hero = page.locator('.bce-hero');
       await hero.waitFor({ state: 'visible' });
-      const heroInfo = await hero.evaluate(element => {
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return {
-          count: document.querySelectorAll('.bce-hero').length,
-          rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-          display: style.display,
-          height: style.height,
-          minHeight: style.minHeight,
-          visibility: style.visibility,
-          position: style.position,
-          parent: element.parentElement?.className || null,
-        };
-      });
-      console.log('BELT_HERO_DEBUG', viewport.width + 'x' + viewport.height, JSON.stringify(heroInfo));
-      assert.ok(heroInfo.rect.width > 0 && heroInfo.rect.height > 0, 'the industrial hero must remain visible in the initial viewport');
-      await page.evaluate(() => window.scrollTo(0, 0));
+      const heroBox = await hero.boundingBox();
+      const expectedHeroHeight = viewport.width <= 360 ? 114 : viewport.width <= 390 ? 118 : viewport.width <= 640 ? Math.max(112, Math.min(145, viewport.width * 0.32)) : Math.max(164, Math.min(205, viewport.width * 0.175));
+      assert.ok(heroBox && Math.abs(heroBox.height - expectedHeroHeight) <= 2, 'unexpected hero height at ' + viewport.width + 'px: ' + JSON.stringify({ actual: heroBox?.height, expected: expectedHeroHeight }));
       await page.locator('.bce-hero-photo').waitFor({ state: 'visible' });
       await page.screenshot({
         path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
