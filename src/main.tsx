@@ -7,7 +7,6 @@ import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
 import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
 import './index.css';
 import './company-pages.css';
-import './about-page-approved.css';
 import './company-pages-art-direction.css';
 import './pages/about-page-approved.css';
 
