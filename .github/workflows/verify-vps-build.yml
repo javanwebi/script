@@ -16,6 +16,7 @@ on:
       - "src/components/product/ProductCard.tsx"
       - "src/components/catalog/DirectSkuProducts.tsx"
       - "src/components/layout/Header.tsx"
+      - "src/components/layout/Footer.tsx"
       - "src/components/catalog/ReferenceMegaMenu.tsx"
       - "src/components/catalog/MobileCategoryExplorer.tsx"
       - "src/components/catalog/mobile-category-explorer.css"
