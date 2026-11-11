@@ -154,7 +154,7 @@ export async function catalogProductApi(req:Request,res:Response){
   if(!family)return res.status(404).json({success:false,message:'خانواده محصول در کاتالوگ پیدا نشد.'});
   const visibleProduct=commercialVisible?family:publicCatalog(family);
   const product=compactCatalogReviews([visibleProduct])[0];
-  if(!publicListingCache){
+  if(!publicListingCache || Date.now()>=publicListingCache.expires){
    const publicCatalogSnapshot=await publicProductsCached();
    publicListingCache={expires:Date.now()+PUBLIC_CATALOG_TTL_MS,value:createPublicListingValue(publicCatalogSnapshot)};
   }
