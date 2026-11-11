@@ -307,8 +307,8 @@ export const Footer: React.FC = () => {
                   </div>
                   <div className="space-y-0.5 text-[11px] text-[#2B313A] font-mono text-right" dir="ltr">
                     <div>
-                      <a href="tel:035352547034" className="hover:text-[#E06518] transition-colors font-bold">
-                        ۰۳۵-۳۵۲۵۴۷۰۳۴
+                      <a href="tel:03535254703" className="hover:text-[#E06518] transition-colors font-bold">
+                        ۰۳۵-۳۵۲۵۴۷۰۳ (دفتر مرکزی یزد)
                       </a>
                     </div>
                     <div>
