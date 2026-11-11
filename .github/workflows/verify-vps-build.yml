@@ -10,6 +10,7 @@ on:
       - "src/pages/BeltCategoryExperience.tsx"
       - "src/pages/BeltCategoryExperience.css"
       - "src/pages/ProductsPage.tsx"
+      - "src/pages/SearchPage.tsx"
       - "src/pages/products-page-premium.css"
       - "src/pages/CategoryPage.tsx"
       - "src/category-showcase.css"
