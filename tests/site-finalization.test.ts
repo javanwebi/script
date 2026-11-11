@@ -17,7 +17,7 @@ test("homepage knowledge cards use published article slugs and do not advertise 
   const homeKnowledge = read("src/components/home/HomeKnowledge.tsx");
   const legacyDiscovery = read("src/pages/DiscoveryPages.tsx");
   assert.match(homeKnowledge, /ARTICLES\.slice\(0, 4\)/);
-  assert.match(homeKnowledge, /to=\{\`\/knowledge\/\$\{article\.slug\}\`\}/);
+  assert.ok(homeKnowledge.includes('to={`/knowledge/${article.slug}`}'));
   assert.match(homeKnowledge, /مشاهده کاتالوگ/);
   assert.doesNotMatch(homeKnowledge, /PDF - 12\.5MB|دانلود کاتالوگ/);
   assert.doesNotMatch(legacyDiscovery, /roller-wear|belt-selection|visual-inquiry|PDF - 12\.5MB/);
@@ -58,8 +58,8 @@ test("brand banner resolves category links from the approved live taxonomy", () 
 
 test("brand search results open matching catalog results instead of the FORZA/SWR landing category", () => {
   const header = read("src/components/layout/Header.tsx");
-  assert.match(header, /to=\{\`\/products\?q=\$\{encodeURIComponent\(b\.name\)\}\`\}/);
-  assert.doesNotMatch(header, /to=\{\`\/category\/swr-forza-exclusive\`\}/);
+  assert.ok(header.includes('to={`/products?q=${encodeURIComponent(b.name)}`}'));
+  assert.ok(!header.includes('to={`/category/swr-forza-exclusive`}'));
 });
 
 test("known customer logos recover bundled assets instead of rendering empty sources", () => {
