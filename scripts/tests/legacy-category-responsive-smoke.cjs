@@ -80,6 +80,42 @@ const runtimeFixture = {
   productsIncluded: true,
   products,
 };
+
+  {
+    code: 'FAM-MAT-003',
+    name: 'رول صنعتی با تصویر اختصاصی کد',
+    nameEn: 'Industrial Roll with SKU Image',
+    brand: 'FORZA',
+    categorySlug,
+    categoryName,
+    submenu: 'رول صنعتی',
+    subcategory: 'رول',
+    technicalSpecs: [{ key: 'طول', value: '25 m' }],
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    stock: 0,
+    stockKnown: false,
+    inquiryOnly: true,
+    variants: [{
+      code: 'SKU-MAT-003',
+      size: '25 m',
+      name: 'رول صنعتی 25 متری',
+      images: ['/storage/products/22222222-2222-4222-8222-222222222222.webp'],
+      active: true,
+    }],
+    images: ['/storage/products/22222222-2222-4222-8222-222222222222.webp'],
+    galleryImages: [{
+      id: 'gallery-variant-3',
+      scope: 'variant',
+      url: '/storage/products/22222222-2222-4222-8222-222222222222.webp',
+      variantCode: 'SKU-MAT-003',
+      identityVerified: true,
+    }],
+    imageScope: 'sku-verified',
+    hasCatalogueImage: true,
+    tags: ['رول'],
+    unit: 'رول',
+    active: true,
+  },
 const directSku = {
   skuCode: 'SKU-MAT-001',
   name: 'قطعه مستقیم نمونه از ورق صنعتی',
@@ -157,6 +193,9 @@ async function installRoutes(page) {
       await missingImage.waitFor({ state: 'visible' });
       const placeholderBox = await missingImage.boundingBox();
       assert.ok(placeholderBox && placeholderBox.width > 100 && placeholderBox.height > 100, 'missing-image state should fill the media frame rather than collapse to a small icon');
+      const skuPreviewBadge = page.locator('.store-product-card').nth(2).locator('.store-product-image-scope-badge');
+      await skuPreviewBadge.waitFor({ state: 'visible' });
+      assert.ok((await skuPreviewBadge.innerText()).includes('SKU-MAT-003'), 'SKU-bound image must be labelled with the exact variant code');
 
       const firstHref = await page.locator('.store-product-card').first().locator('.store-product-title').getAttribute('href');
       assert.equal(firstHref, '/product/FAM-MAT-001', 'public category card should keep the public product detail route');
