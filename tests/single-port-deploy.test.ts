@@ -7,6 +7,20 @@ import test from "node:test";
 const file = (name: string) => fs.readFileSync(path.resolve(process.cwd(), name), "utf8");
 const one = file("ops/deploy-single-port-vps.sh");
 const launcher = file("ops/deploy-main-bluegreen-vps.sh");
+const mainEntrypoint = file("ops/sanatpish-deploy-main.sh");
+
+test("the canonical command deploys pinned main and fast-forwards the /opt/sanatpish source checkout only after successful promotion", () => {
+  assert.match(mainEntrypoint, /APP=\/opt\/sanatpish/);
+  assert.match(mainEntrypoint, /CURRENT_BRANCH=.*branch --show-current/);
+  assert.match(mainEntrypoint, /\[\[ "\$CURRENT_BRANCH" == "main" \]\]/);
+  assert.match(mainEntrypoint, /git -C "\$APP" diff --quiet && git -C "\$APP" diff --cached --quiet/);
+  assert.match(mainEntrypoint, /git -C "\$APP" merge-base --is-ancestor HEAD "\$SHA"/);
+  const deploy = mainEntrypoint.indexOf('SANATPISH_RELEASE_SHA="$SHA" bash "$TEMP"');
+  const sync = mainEntrypoint.indexOf('git -C "$APP" merge --ff-only "$SHA"');
+  assert.ok(deploy >= 0 && sync > deploy, "source checkout must only fast-forward after a successful deployment");
+  assert.match(mainEntrypoint, /SOURCE_CHECKOUT_UPDATED path=\$APP commit=\$SHA/);
+  assert.match(mainEntrypoint, /test "\$\(git -C "\$APP" rev-parse HEAD\)" = "\$SHA"/);
+});
 
 test("the existing server entrypoint always uses the fixed-port release script", () => {
   assert.match(launcher, /ops\/deploy-single-port-vps\.sh/);
