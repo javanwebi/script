@@ -124,94 +124,132 @@ export function MapCard({ compact = false }: { compact?: boolean }) {
 }
 type IndustryContent = (typeof INDUSTRIES)[number];
 
+const INDUSTRY_SHOWCASE: Record<string, {
+  kicker: string;
+  title: string;
+  artwork: { label: string; image: string }[];
+}> = {
+  textile: {
+    kicker: "حرکت در تمام طول خط",
+    title: "از ریسندگی تا تکمیل؛ هماهنگی حرکت، کیفیت تولید را حفظ می‌کند",
+    artwork: [
+      { label: "انتقال نیرو", image: A.categories.belts },
+      { label: "پولی و محرک", image: A.categories.pulleys },
+      { label: "هدایت و جابه‌جایی", image: A.categories.conveyor },
+    ],
+  },
+  packaging: {
+    kicker: "ریتم پیوسته بسته‌بندی",
+    title: "هر توقف کوچک در انتقال محصول، روی کل خط اثر می‌گذارد",
+    artwork: [
+      { label: "انتقال محصول", image: A.categories.conveyor },
+      { label: "زنجیر و محرک", image: A.categories.chains },
+      { label: "تسمه و انتقال نیرو", image: A.categories.belts },
+    ],
+  },
+  food: {
+    kicker: "محیط‌های حساس تولید",
+    title: "قطعه را با تماس، شست‌وشو و دمای واقعی محیط تطبیق دهید",
+    artwork: [
+      { label: "انتقال در خط", image: A.categories.conveyor },
+      { label: "شیلنگ و مسیر سیال", image: A.products.pipes },
+      { label: "شیرآلات و اتصالات", image: A.products.valve },
+    ],
+  },
+  machinery: {
+    kicker: "مهندسی در سطح مجموعه",
+    title: "مشخصات هر قطعه را در ارتباط با کل مجموعه مکانیکی ببینید",
+    artwork: [
+      { label: "مجموعه محرک", image: A.categories.pulleys },
+      { label: "یاتاقان و تکیه‌گاه", image: A.categories.bearings },
+      { label: "زنجیر و انتقال", image: A.categories.chains },
+    ],
+  },
+  rubber: {
+    kicker: "انتخاب بر پایه شرایط کار",
+    title: "سایش، فشار و دما را پیش از انتخاب جنس قطعه بررسی کنید",
+    artwork: [
+      { label: "شیلنگ و مسیر سیال", image: A.products.pipes },
+      { label: "تسمه و انتقال", image: A.categories.belts },
+      { label: "قطعات پلیمری", image: A.products.pvcBelt },
+    ],
+  },
+};
+
+const INDUSTRY_PART_ARTWORK: Record<string, string[]> = {
+  textile: [A.categories.belts, A.categories.pulleys, A.categories.conveyor, A.products.pvcBelt],
+  packaging: [A.categories.conveyor, A.categories.chains, A.categories.belts, A.categories.pulleys],
+  food: [A.categories.conveyor, A.products.pipes, A.products.valve, A.categories.bearings],
+  machinery: [A.categories.pulleys, A.categories.bearings, A.categories.chains, A.categories.transmission],
+  rubber: [A.products.pipes, A.products.pvcBelt, A.products.ceramicParts, A.categories.transmission],
+};
+
 function IndustryVisualModule({ industry }: { industry: IndustryContent }) {
-  const steps = industry.steps.slice(0, 4);
-  if (industry.slug === 'textile') {
-    return (
-      <section className="industry-visual-module industry-visual-module--textile editorial-wrap" aria-label="مسیر تولید نساجی">
-        <div className="industry-visual-copy">
-          <span className="industry-visual-eyebrow">کنترل حرکت در چهار مرحله</span>
-          <h2>از ریسندگی تا جمع‌کردن پارچه، حرکت باید هماهنگ بماند</h2>
-          <p>{industry.note}</p>
-          <div className="industry-material-tags">{industry.parts.map(part => <span key={part}>{part}</span>)}</div>
+  const visual = INDUSTRY_SHOWCASE[industry.slug];
+  if (!visual) return null;
+
+  return (
+    <section
+      className={`industry-showcase industry-showcase--${industry.slug} editorial-wrap`}
+      aria-label={`راهنمای تصویری صنعت ${industry.title}`}
+    >
+      <div className="industry-showcase-copy">
+        <span className="industry-showcase-kicker">{visual.kicker}</span>
+        <h2>{visual.title}</h2>
+        <p>{industry.note}</p>
+        <div className="industry-showcase-flow">
+          {industry.steps.map((step, index) => (
+            <div key={step}>
+              <b>{String(index + 1).padStart(2, "0")}</b>
+              <span>{step}</span>
+            </div>
+          ))}
         </div>
-        <div className="industry-visual-step-grid">
-          {steps.map((step, index) => <div className="industry-visual-step" key={step}><b>0{index + 1}</b><span>{step}</span></div>)}
+      </div>
+      <div className="industry-showcase-art">
+        <div className="industry-showcase-main-art">
+          <img src={visual.artwork[0].image} alt={visual.artwork[0].label} loading="lazy" />
+          <div>
+            <span>گروه کاربردی</span>
+            <strong>{visual.artwork[0].label}</strong>
+          </div>
         </div>
-      </section>
-    );
-  }
-  if (industry.slug === 'packaging') {
-    return (
-      <section className="industry-visual-module industry-visual-module--packaging editorial-wrap" aria-label="ایستگاه‌های خط بسته‌بندی">
-        <div className="industry-visual-copy">
-          <span className="industry-visual-eyebrow">جریان پیوسته محصول</span>
-          <h2>هر ایستگاه به قطعه‌ای هماهنگ با سرعت خط نیاز دارد</h2>
-          <p>{industry.note}</p>
+        <div className="industry-showcase-art-stack">
+          {visual.artwork.slice(1).map((item) => (
+            <div className="industry-showcase-small-art" key={item.label}>
+              <img src={item.image} alt={item.label} loading="lazy" />
+              <span>{item.label}</span>
+            </div>
+          ))}
         </div>
-        <div className="industry-packaging-flow">
-          {steps.map((step, index) => <div className="industry-packaging-step" key={step}><span className="industry-packaging-number">{index + 1}</span><div><b>{step}</b><small>{industry.parts[index % industry.parts.length]}</small></div></div>)}
-        </div>
-      </section>
-    );
-  }
-  if (industry.slug === 'food') {
-    return (
-      <section className="industry-visual-module industry-visual-module--food editorial-wrap" aria-label="مسیر کنترل قطعات صنایع غذایی">
-        <div className="industry-food-seal"><span>FOOD</span><b>کنترل پیش از نصب</b><small>جنس، تماس و شست‌وشو</small></div>
-        <div className="industry-visual-copy">
-          <span className="industry-visual-eyebrow">محیط تولید حساس</span>
-          <h2>سازگاری بهداشتی را برای کد دقیق قطعه تأیید کنید</h2>
-          <p>{industry.note}</p>
-          <div className="industry-food-points">{industry.checks.map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
-        </div>
-      </section>
-    );
-  }
-  if (industry.slug === 'machinery') {
-    return (
-      <section className="industry-visual-module industry-visual-module--machinery editorial-wrap" aria-label="فرایند مهندسی ماشین‌آلات">
-        <div className="industry-machinery-blueprint">
-          <span>ENGINEERING INPUT</span>
-          <div className="industry-blueprint-grid">{['نقشه','تلرانس','جنس','بار و سرعت'].map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
-          <small>اطلاعات پایه برای بررسی تأمین یا ساخت</small>
-        </div>
-        <div className="industry-visual-copy">
-          <span className="industry-visual-eyebrow">از نمونه تا مجموعه مکانیکی</span>
-          <h2>قطعه را در ارتباط با کل مجموعه بررسی کنید</h2>
-          <p>{industry.note}</p>
-          <div className="industry-machinery-steps">{steps.map((step, index) => <span key={step}><b>{index + 1}</b>{step}</span>)}</div>
-        </div>
-      </section>
-    );
-  }
-  if (industry.slug === 'rubber') {
-    return (
-      <section className="industry-visual-module industry-visual-module--rubber editorial-wrap" aria-label="انتخاب قطعات لاستیک و پلاستیک">
-        <div className="industry-visual-copy">
-          <span className="industry-visual-eyebrow">انتخاب بر پایه شرایط واقعی کار</span>
-          <h2>جنس قطعه را با ماده، فشار و دمای خط تطبیق دهید</h2>
-          <p>{industry.note}</p>
-          <div className="industry-material-tags">{industry.parts.map(part => <span key={part}>{part}</span>)}</div>
-        </div>
-        <div className="industry-rubber-criteria">{industry.checks.map((item, index) => <div key={item}><b>0{index + 1}</b><span>{item}</span></div>)}</div>
-      </section>
-    );
-  }
-  return null;
+        <p className="industry-showcase-disclaimer">
+          تصاویر برای معرفی گروه‌های کاربردی هستند؛ انتخاب نهایی با تطبیق مشخصات فنی انجام می‌شود.
+        </p>
+      </div>
+    </section>
+  );
 }
 
 export function IndustryPage() {
   const { slug = "ceramic" } = useParams();
-  const industry = INDUSTRIES.find((i) => i.slug === slug) || INDUSTRIES[0];
+  const industry = INDUSTRIES.find((i) => i.slug === slug);
   const [tick, setTick] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => setTick((t) => t + 1)), []);
-  useEffect(() => title(`قطعات صنعت ${industry.title}`), [industry]);
+  useEffect(() => title(industry ? `قطعات صنعت ${industry.title}` : "صنعت پیدا نشد | صنعت پیش"), [industry]);
   const products = useMemo(
-    () =>
-      rankIndustryProducts(getAllProducts(), industry, 6),
+    () => industry ? rankIndustryProducts(getAllProducts(), industry, 6) : [],
     [industry, tick],
   );
+  const partArtwork = industry ? INDUSTRY_PART_ARTWORK[industry.slug] || [] : [];
+  if (!industry) {
+    return (
+      <main className="min-h-[60vh] bg-[#f5f7f8] px-4 py-16 text-center" dir="rtl">
+        <h1 className="text-2xl font-black text-[#1c2c38]">صفحه این صنعت پیدا نشد</h1>
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-500">از فهرست صنایع، حوزه موردنظر را انتخاب کنید.</p>
+        <Link to="/industries" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#E56B1E] px-5 py-3 text-sm font-bold text-white">مشاهده صنایع <ArrowLeft size={17} /></Link>
+      </main>
+    );
+  }
   if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
     return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
   }
@@ -231,29 +269,44 @@ export function IndustryPage() {
           fetchPriority="high"
         />
         <div className="industry-hero-shade" />
+        <div className="industry-hero-media-index" aria-label="خلاصه مسیر این صنعت">
+          <span className="industry-hero-media-index-label">راهنمای تخصصی صنعت</span>
+          <div>
+            <strong>{industry.steps.length.toLocaleString("fa-IR")}</strong>
+            <small>ایستگاه خط تولید</small>
+          </div>
+          <i aria-hidden="true" />
+          <div>
+            <strong>{industry.parts.length.toLocaleString("fa-IR")}</strong>
+            <small>گروه قطعات مرتبط</small>
+          </div>
+          <p>{industry.parts.slice(0, 2).join("  /  ")}</p>
+        </div>
         <div className="editorial-wrap">
-          <nav className="editorial-crumb">
-            <Link to="/">صنعت پیش</Link>
-            <span>/</span>
-            <Link to="/industries">صنایع</Link>
-          </nav>
-          <span className="industry-kicker">{industry.eyebrow}</span>
-          <h1>
-            همراه خط تولید
-            <br />
-            <em>{industry.title}</em>
-          </h1>
-          <p>{industry.description}</p>
-          <div className="editorial-actions">
-            <a className="store-btn-primary" href="#industry-parts">
-              کاوش قطعات این صنعت <ArrowLeft size={17} />
-            </a>
-            <Link
-              className="industry-secondary"
-              to={`/ai-consult?industry=${industry.slug}`}
-            >
-              مشاوره با FORZA <MessageSquare size={17} />
-            </Link>
+          <div className="industry-hero-copy">
+            <nav className="editorial-crumb">
+              <Link to="/">صنعت پیش</Link>
+              <span>/</span>
+              <Link to="/industries">صنایع</Link>
+            </nav>
+            <span className="industry-kicker">{industry.eyebrow}</span>
+            <h1>
+              همراه خط تولید
+              <br />
+              <em>{industry.title}</em>
+            </h1>
+            <p>{industry.description}</p>
+            <div className="editorial-actions">
+              <a className="store-btn-primary" href="#industry-parts">
+                کاوش قطعات این صنعت <ArrowLeft size={17} />
+              </a>
+              <Link
+                className="industry-secondary"
+                to={`/ai-consult?industry=${industry.slug}`}
+              >
+                مشاوره با FORZA <MessageSquare size={17} />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -269,9 +322,10 @@ export function IndustryPage() {
           {industry.parts.map((p, i) => (
             <Link
               key={p}
+              className="industry-part-link"
               to={`/products?q=${encodeURIComponent(industry.terms[i])}`}
             >
-              <Layers size={22} />
+              <img src={partArtwork[i] || A.categories.transmission} alt="" loading="lazy" />
               <span>
                 {p}
                 <small>مشاهده خانواده‌ها و مشخصات</small>
