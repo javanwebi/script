@@ -94,7 +94,7 @@ const viewports = [
             const element = document.querySelector(selector);
             const rect = element.getBoundingClientRect();
             const style = getComputedStyle(element);
-            return { left: rect.left, right: rect.right, width: rect.width, height: rect.height, display: style.display, visibility: style.visibility, textLength: (element.innerText || '').length };
+            return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, display: style.display, visibility: style.visibility, opacity: style.opacity, position: style.position, textLength: (element.innerText || '').length };
           };
           return {
             featured: box('.bce-featured-card'),
@@ -104,8 +104,10 @@ const viewports = [
           };
         });
         assert.ok(positions.featured.left < positions.results.left && positions.results.left < positions.filters.left, 'desktop columns must be featured-left, products-center, filters-right: ' + JSON.stringify(positions));
+        console.log('BELT_DESKTOP_GEOMETRY', viewport.width + 'x' + viewport.height, JSON.stringify(positions));
         assert.ok(positions.featured.width >= 170 && positions.featured.height >= 220, 'featured product column collapsed: ' + JSON.stringify(positions));
         assert.ok(positions.results.width >= 300 && positions.results.height >= 220, 'product results column collapsed: ' + JSON.stringify(positions));
+        assert.ok(positions.featured.top < viewport.height && positions.results.top < viewport.height, 'desktop content starts below the initial viewport: ' + JSON.stringify(positions));
       } else {
         await page.locator('.bce-featured-card').waitFor({ state: 'hidden' });
       }
