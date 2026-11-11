@@ -67,6 +67,12 @@ interface ProblemItem {
 }
 
 export const TileCeramicIndustryPage: React.FC = () => {
+  useEffect(() => {
+    setPageMeta({
+      title: "قطعات خط تولید کاشی و سرامیک | صنعت پیش",
+      description: "راهنمای تخصصی قطعات خط تولید کاشی و سرامیک؛ بررسی مراحل تولید، قطعات پرمصرف و خانواده‌های مرتبط در کاتالوگ صنعت پیش.",
+    });
+  }, []);
   const navigate = useNavigate();
   // Interactive Stage State (Persisted in sessionStorage so Back button keeps selected stage)
   const [activeStageId, setActiveStageId] = useState<string>(() => {
