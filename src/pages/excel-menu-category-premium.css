@@ -1939,7 +1939,7 @@
 
   .excel-category-compare-dock {
     right: 8px;
-    bottom: 76px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
     width: calc(100% - 16px);
     gap: 8px;
     padding: 9px;
