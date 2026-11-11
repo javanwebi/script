@@ -1040,9 +1040,10 @@
   margin: 13px 18px 0;
   scroll-margin-top: 80px;
 }
-.bce-featured-card,
-.bce-results,
-.bce-sidebar { direction: rtl; }
+/* DOM order is filters, results, featured; pin each to the approved visual column. */
+.bce-sidebar { grid-column: 3; direction: rtl; }
+.bce-results { grid-column: 2; direction: rtl; }
+.bce-featured-card { grid-column: 1; direction: rtl; }
 .bce-sidebar {
   position: sticky;
   top: 82px;
@@ -1710,6 +1711,8 @@
   .bce-catalog {
     grid-template-columns: minmax(0, 1fr) minmax(190px, 25%);
   }
+  .bce-results { grid-column: 1; }
+  .bce-sidebar { grid-column: 2; }
   .bce-featured-card { display: none; }
   .bce-products-list { gap: 7px; }
   .bce-product-row { grid-template-columns: 82px minmax(0, 1fr); }
