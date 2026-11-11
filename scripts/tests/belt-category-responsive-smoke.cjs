@@ -120,7 +120,9 @@ const viewports = [
         await filterDialog.waitFor({ state: 'visible' });
         const sheetOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         assert.ok(sheetOverflow <= 1, 'mobile filter sheet caused horizontal overflow');
-        await filterDialog.locator('.bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input').check({ force: true });
+        const bandoLabel = filterDialog.locator('.bce-filter-brand-list label').filter({ hasText: 'Bando' });
+        await bandoLabel.scrollIntoViewIfNeeded();
+        await bandoLabel.click({ force: true });
         await filterDialog.locator('footer button').last().click();
       } else {
         await page.locator('.bce-sidebar .bce-filter-brand-list label').filter({ hasText: 'Bando' }).locator('input').check({ force: true });
@@ -140,7 +142,9 @@ const viewports = [
         await page.locator('.bce-mobile-tools > button').click();
         const filterDialog = page.getByRole('dialog', { name: 'فیلتر محصولات' });
         await filterDialog.waitFor({ state: 'visible' });
-        await filterDialog.locator('.bce-toggles label').first().locator('input').check({ force: true });
+        const stockLabel = filterDialog.locator('.bce-toggles label').first();
+        await stockLabel.scrollIntoViewIfNeeded();
+        await stockLabel.click({ force: true });
         await filterDialog.locator('footer button').last().click();
       } else {
         await page.locator('.bce-sidebar .bce-toggles label').first().locator('input').check({ force: true });
