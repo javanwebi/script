@@ -123,8 +123,30 @@ export const ProductsPage: React.FC = () => {
     const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
+    const focusableElements = () => Array.from(document.querySelectorAll<HTMLElement>(
+      ".catalogue-filter-sheet a[href], .catalogue-filter-sheet button:not([disabled]), .catalogue-filter-sheet input:not([disabled]), .catalogue-filter-sheet select:not([disabled]), .catalogue-filter-sheet [tabindex]:not([tabindex='-1'])"
+    ));
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileFiltersOpen(false);
+      if (event.key === "Escape") {
+        setMobileFiltersOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusableElements();
+      if (!items.length) {
+        event.preventDefault();
+        mobileFilterCloseRef.current?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", closeOnEscape);
     mobileFilterCloseRef.current?.focus();
@@ -381,7 +403,7 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
           <div className="catalogue-hero-art" aria-hidden="true">
-            <img src={STORE_ASSETS.heroBanner} alt="" loading="lazy" decoding="async" />
+            <img src={STORE_ASSETS.heroBanner} alt="" loading="eager" fetchPriority="high" decoding="async" />
             <span className="catalogue-hero-art-label">تأمین هوشمند قطعات صنعتی</span>
           </div>
         </section>
@@ -471,6 +493,7 @@ export const ProductsPage: React.FC = () => {
                   onClick={() => {
                     setSearchQuery("");
                     setCurrentPage(1);
+                    updateSearchParam("q", null);
                   }}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 bg-slate-200 hover:bg-slate-300 px-2 py-0.5 rounded cursor-pointer"
                 >
@@ -519,7 +542,7 @@ export const ProductsPage: React.FC = () => {
                   <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
                   <option value="name_asc">مرتب‌سازی: نام قطعه (الفبا)</option>
                   <option value="rating_desc">مرتب‌سازی: بیشترین امتیاز</option>
-
+                  <option value="stock_desc">مرتب‌سازی: بیشترین موجودی ثبت‌شده</option>
                 </select>
               </div>
 
@@ -557,6 +580,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("grid")}
                   aria-pressed={viewMode === "grid"}
+                  aria-label="نمایش شبکه‌ای"
                   title="نمایش شبکه‌ای"
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "grid"
@@ -569,6 +593,7 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={() => setViewMode("list")}
                   aria-pressed={viewMode === "list"}
+                  aria-label="نمایش لیستی"
                   title="نمایش لیستی"
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     viewMode === "list"
@@ -604,8 +629,9 @@ export const ProductsPage: React.FC = () => {
                   type="button"
                   className="text-xs text-[#E06518] font-bold"
                   onClick={() => {
-                    searchParams.delete("sub");
-                    setSearchParams(searchParams);
+                    const nextParams = new URLSearchParams(searchParams);
+                    nextParams.delete("sub");
+                    setSearchParams(nextParams);
                     window.requestAnimationFrame(() => {
                       scrollToSectionElement(resultsSectionRef.current, {
                         behavior: "smooth",
@@ -622,8 +648,10 @@ export const ProductsPage: React.FC = () => {
                 categorySlug={activeCategoryObj.slug}
                 selected={selectedSubcategory}
                 onSelect={(name) => {
-                  searchParams.set("sub", name);
-                  setSearchParams(searchParams);
+                  const nextParams = new URLSearchParams(searchParams);
+                  if (name === "all") nextParams.delete("sub");
+                  else nextParams.set("sub", name);
+                  setSearchParams(nextParams);
                   window.requestAnimationFrame(() => {
                     scrollToSectionElement(resultsSectionRef.current, {
                       behavior: "smooth",
