@@ -30,7 +30,9 @@ test('subcategory, search, brand, image and verified-stock filters are shareable
   assert.match(page, /searchParams\.get\('image'\) === '1'/);
   assert.match(page, /next\.delete\('page'\)/);
   assert.match(page, /product\?\.stockKnown === true && product\.stock > 0 && !product\.inquiryOnly/);
-  assert.match(page, /imageOnly && !\(product\?\.images\?\.length\)/);
+  assert.match(page, /imageOnly && !hasCatalogImage\(product\)/);
+  assert.match(page, /product\?\.galleryImages/);
+  assert.match(page, /variant\.images/);
 });
 
 test('category search includes actual family codes, product technical specs and variant codes', () => {
