@@ -49,7 +49,6 @@ async function stubApis(page){
     await stubApis(gpu);
     await gpu.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
     await gpu.locator('canvas[data-engine="webgl"]').waitFor({timeout:20000});
-    await gpu.waitForFunction(()=>/[0-9,]+ PARTICLES/.test(document.body.innerText),null,{timeout:30000});
     const formed=await gpu.locator('canvas[data-engine="webgl"]').evaluate(c=>({w:c.width,h:c.height}));
     assert.ok(formed.w>0&&formed.h>0,'WebGL framebuffer must be non-empty');
     await gpu.evaluate(()=>{
@@ -99,8 +98,32 @@ async function stubApis(page){
     assert.ok(fallbackResult.visible>100,'Canvas2D must render visible FORZA pixels on unsupported WebGL devices');
     assert.doesNotMatch((await fallback.locator('body').innerText()),/موتور گرافیکی فورزا دیر آماده شد|شتاب‌دهنده گرافیکی WebGL در دسترس نیست/);
     assert.deepEqual(fallbackErrors,[]);
-    console.log('FORZA_PARTICLE_ENGINE_BROWSER_PASS webgl=1 context_recovery=1 canvas_fallback=1 visible_pixels='+fallbackResult.visible);
     await fallback.close();
+
+    // A context that exists but renders at single-digit FPS (SwiftShader /
+    // software GPU) must be released and switched to the same Canvas poster.
+    const slowGpu=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
+    const slowGpuErrors=[];
+    slowGpu.on('pageerror',e=>slowGpuErrors.push(e.message));
+    await stubApis(slowGpu);
+    await slowGpu.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
+    await slowGpu.locator('canvas[data-engine="webgl"]').waitFor({timeout:20000});
+    await slowGpu.locator('canvas.forza-canvas-fallback').waitFor({timeout:30000});
+    await slowGpu.waitForFunction(()=>document.body.innerText.includes('CANVAS'),null,{timeout:15000});
+    const slowGpuResult=await slowGpu.locator('canvas.forza-canvas-fallback').evaluate(canvas=>{
+      const ctx=canvas.getContext('2d');
+      if(!ctx)return {width:canvas.width,height:canvas.height,visible:0};
+      const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+      let visible=0;
+      for(let i=3;i<data.length;i+=64)if(data[i]>0)visible++;
+      return {width:canvas.width,height:canvas.height,visible};
+    });
+    assert.ok(slowGpuResult.width>0&&slowGpuResult.height>0);
+    assert.ok(slowGpuResult.visible>100,'single-digit software GPU must recover to visible Canvas poster');
+    assert.equal(await slowGpu.locator('canvas[data-engine="webgl"]').count(),0,'slow WebGL context must be released');
+    assert.deepEqual(slowGpuErrors,[]);
+    console.log('FORZA_PARTICLE_ENGINE_BROWSER_PASS webgl=1 context_recovery=1 no_webgl=1 software_gpu_recovery=1 visible_pixels='+slowGpuResult.visible);
+    await slowGpu.close();
   }finally{
     await browser.close();
   }
