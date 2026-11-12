@@ -1211,67 +1211,114 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Browser speech is a low-latency live preview only. When the
-        // server Diba recognizer is enabled, its final transcript is verified
-        // on every recorded turn before the AI receives the query.
+        // Chrome supplies the immediate live transcript. Diba is the
+        // server-side recovery/verification path when a recorded utterance
+        // needs a final transcript; a transient Diba outage must never turn
+        // into a red fatal call error.
         const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
         if (audioBlob && needsServerFinal) {
-          if(serverSttConfiguredRef.current===false){
-            console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
-            if(!q)throw new Error('تشخیص گفتار سروری آماده نیست و مرورگر هم متنی تشخیص نداد. لطفاً سؤال را تایپ کنید.');
-          }else{
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-            });
-            reader.readAsDataURL(audioBlob);
-            const audioBase64 = extractForzaAudioBase64(await base64Promise);
-            const sttStartedAt=performance.now();
-            const sttAbort=new AbortController();
-            const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('تبدیل گفتار به متن بیش از حد طول کشید.')),10_500);
-            try {
-              const sttResponse = await fetch('/api/ai/forza-live', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({
-                  audioBase64,
-                  audioMimeType:audioMime || audioBlob.type || 'audio/webm',
-                  transcribeOnly:true,
-                }),
-                signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
-              });
-              const sttData:any=await sttResponse.json().catch(()=>null);
-              const serverTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
-              if(sttResponse.ok&&sttData?.success&&serverTranscript){
-                payload.query=chooseForzaFinalTranscript(q,serverTranscript);
-                console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
-                  Math.round(performance.now()-sttStartedAt)+' source='+
-                  (payload.query===q?'browser_guarded':'server_final')+
-                  ' transcript_chars='+serverTranscript.length);
-                setUserText(payload.query);
-                setMicrophoneError(null);
-              }else{
-                console.warn('[FORZA_STT] server_final_unavailable status='+sttResponse.status+
-                  ' code='+String(sttData?.errorCode||'unknown').slice(0,48)+
-                  ' browser_fallback='+(q?'1':'0'));
-                if(!q)throw new Error(sttData?.error||'تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+          });
+          reader.readAsDataURL(audioBlob);
+          const audioBase64 = extractForzaAudioBase64(await base64Promise);
+          const sttStartedAt=performance.now();
+          const sttAbort=new AbortController();
+          const sttTimer=window.setTimeout(()=>sttAbort.abort(new Error('forza_stt_timeout')),10_500);
+          try {
+            let serverTranscript='';
+            let lastStatus=0;
+            let lastCode='unknown';
+            for(let attempt=0;attempt<2&&!serverTranscript;attempt++){
+              try{
+                const sttResponse = await fetch('/api/ai/forza-live', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({
+                    audioBase64,
+                    audioMimeType:audioMime || audioBlob.type || 'audio/webm',
+                    transcribeOnly:true,
+                  }),
+                  signal:AbortSignal.any([sttAbort.signal,pocketAbort.signal]),
+                });
+                const sttData:any=await sttResponse.json().catch(()=>null);
+                serverTranscript=String(sttData?.userTranscript||sttData?.text||'').trim();
+                lastStatus=sttResponse.status;
+                lastCode=String(sttData?.errorCode||'unknown').slice(0,48);
+                if(sttResponse.ok&&sttData?.success&&serverTranscript)break;
+                serverTranscript='';
+                const retryable=[502,503,504].includes(lastStatus)||
+                  ['stt_provider_unavailable','stt_worker_unavailable','diba_stt_busy'].includes(lastCode);
+                if(attempt===0&&retryable&&!sttAbort.signal.aborted&&!pocketAbort.signal.aborted){
+                  console.warn('[FORZA_STT] transient_retry status='+lastStatus+' code='+lastCode);
+                  await new Promise<void>(resolve=>window.setTimeout(resolve,220));
+                  continue;
+                }
+                break;
+              }catch(attemptError:any){
+                if(pocketAbort.signal.aborted||sttAbort.signal.aborted)throw attemptError;
+                if(attempt===0){
+                  console.warn('[FORZA_STT] transient_retry network=1');
+                  await new Promise<void>(resolve=>window.setTimeout(resolve,220));
+                  continue;
+                }
+                throw attemptError;
               }
-            }catch(sttError:any){
-              if(pocketAbort.signal.aborted)throw sttError;
-              console.warn('[FORZA_STT] server_final_error code='+
-                String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
-                ' browser_fallback='+(q?'1':'0'));
-              if(!q)throw new Error('تشخیص گفتار سرور موقتاً در دسترس نیست؛ لطفاً دوباره صحبت کنید یا پیام را تایپ کنید.');
-            }finally{
-              window.clearTimeout(sttTimer);
             }
+            if(serverTranscript){
+              payload.query=chooseForzaFinalTranscript(q,serverTranscript);
+              console.info('[FORZA_STT] turn='+generation+' provider=diba-vosk duration_ms='+
+                Math.round(performance.now()-sttStartedAt)+' source='+
+                (payload.query===q?'browser_guarded':'server_final')+
+                ' transcript_chars='+serverTranscript.length);
+              setUserText(payload.query);
+              setMicrophoneError(null);
+            }else{
+              console.warn('[FORZA_STT] server_final_unavailable status='+lastStatus+
+                ' code='+lastCode+' browser_fallback='+(q?'1':'0'));
+              if(!q){
+                // A missed utterance is recoverable: keep the call open and
+                // automatically return to listening instead of showing a red
+                // server error or sending an empty prompt to the language model.
+                setErrorNotice(null);
+                setMicrophoneError(null);
+                setUserText('');
+                setAiText('');
+                setDisplayedAi('متوجه نشدم؛ لطفاً یک بار دیگر بفرمایید.');
+                return;
+              }
+            }
+          }catch(sttError:any){
+            if(pocketAbort.signal.aborted)throw sttError;
+            console.warn('[FORZA_STT] server_final_recovered code='+
+              String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
+              ' browser_fallback='+(q?'1':'0'));
+            if(!q){
+              setErrorNotice(null);
+              setMicrophoneError(null);
+              setUserText('');
+              setAiText('');
+              setDisplayedAi('متوجه نشدم؛ لطفاً یک بار دیگر بفرمایید.');
+              return;
+            }
+          }finally{
+            window.clearTimeout(sttTimer);
           }
         } else if (audioBlob && q) {
           console.info('[FORZA_STT] turn='+generation+
             ' source=browser-final diba_verify=skipped chars='+q.length);
         } else if (audioBlob && !q) {
-          throw new Error('متن گفتار دریافت نشد و موتور دایبا هم آماده نیست. لطفاً دوباره نزدیک میکروفون صحبت کنید یا پیام را تایپ کنید.');
+          // The browser and optional server recognizer both returned no words.
+          // Do not convert that into a fatal error; resume the live microphone.
+          console.info('[FORZA_STT] empty_transcript recovered=resume_listening');
+          setErrorNotice(null);
+          setMicrophoneError(null);
+          setUserText('');
+          setAiText('');
+          setDisplayedAi('متوجه نشدم؛ لطفاً یک بار دیگر بفرمایید.');
+          return;
         }
 
         // Render every incoming SSE delta immediately; the selected Nima
