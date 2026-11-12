@@ -397,9 +397,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
       // Every device receives the same particle coordinates and glow layer.
       // Only framebuffer resolution adapts; the humanoid/logo is never removed.
-      const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.25);
+      const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
       let pixelRatio = Math.max(0.65, maxPixelRatio * (appliedQuality === 'low' ? 0.82 : 1));
-      const EMBER_COUNT = 720;
+      const EMBER_COUNT = 900;
       const emberPositions = new Float32Array(EMBER_COUNT * 3);
       const emberSeeds = new Float32Array(EMBER_COUNT);
       for (let i = 0; i < EMBER_COUNT; i++) {
@@ -465,7 +465,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         const resizeFallback = () => {
           const width = Math.max(1, mountEl.clientWidth);
           const height = Math.max(1, mountEl.clientHeight);
-          dpr = Math.min(window.devicePixelRatio || 1, 1.15);
+          dpr = Math.min(window.devicePixelRatio || 1, 1.25);
           const targetWidth = Math.round(width * dpr);
           const targetHeight = Math.round(height * dpr);
           if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
@@ -801,7 +801,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
             frameCount = 0;
             lastFpsTime = now;
-            if (fps < 18) {
+            if (fps < 22) {
               severeFpsSamples++;
               if (severeFpsSamples >= 2) {
                 switchToCanvasForPerformance(fps);
