@@ -506,8 +506,11 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             ? 4 * rawProgress * rawProgress * rawProgress
             : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
           if (source && imageWidth > 0 && imageHeight > 0) {
-            const drawWidth = width;
-            const drawHeight = drawWidth * imageHeight / imageWidth;
+            // Match the WebGL camera's aspect-aware crop on both wide
+            // desktops and tall phones (cover, never stretch or letterbox).
+            const coverScale = Math.max(width / imageWidth, height / imageHeight);
+            const drawWidth = imageWidth * coverScale;
+            const drawHeight = imageHeight * coverScale;
             const pulse = 1 + Math.min(1, props.current.audioLevel || 0) * 0.006;
             const dw = drawWidth * pulse;
             const dh = drawHeight * pulse;
