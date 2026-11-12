@@ -34,7 +34,7 @@ test('inline backticks, titles and standalone URLs cannot be voiced',()=>{
 
 test('spoken dimension operator is meaningful, while original technical codes are unchanged',()=>{
   assert.equal(forzaSpokenPlainText('ابعاد ۱۰×۲۰ و کد SPA 1250 و 6202ZZ و C3'),
-    'ابعاد ده در بیست و کد اِس پی اِی یک هزار و دویست و پنجاه و شش دو صفر دو، زِد زِد و سی سه');
+    'ابعاد ده در بیست و کد اِس پی اِی هزار و دویست و پنجاه و شش دو صفر دو، زِد زِد و سی سه');
   assert.equal(chunks('ابعاد 10*20').at(-1),'ابعاد 10×20');
 });
 
