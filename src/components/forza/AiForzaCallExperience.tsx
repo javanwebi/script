@@ -306,8 +306,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const startDibaTurn=useCallback(()=>{
     const model=localSttModelRef.current;
     if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
+    // A monitorOnly wake-up occurs after every SSE update, interruption and
+    // playback completion. Replacing an active Vosk recognizer at that point
+    // loses the customer's first syllables and can trigger repeated turns.
+    if(localSttRecognizerRef.current)return true;
     try{
-      localSttRecognizerRef.current?.remove?.();
       const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
       localSttFinalRef.current='';
       const update=(value:string,isFinal:boolean)=>{
@@ -1338,6 +1341,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         ' phase=request_preparation_end_to_turn_ms='+
         (detectedSpeechEndAtRef.current?Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
       vadRef.current.reset();
+      // The previous utterance has been committed. Begin a new recognizer
+      // segment for near-field barge-in while the LLM is responding; ordinary
+      // monitorOnly calls preserve this recognizer until the next turn.
+      localSttRecognizerRef.current?.remove?.();
+      localSttRecognizerRef.current=null;
       startListening(true); // monitor barge-in, without changing the AI status
       let playerForTurn:ForzaContinuousWav|null=null;
       let bufferedNima:ForzaNimaBufferedSpeech|null=null;
