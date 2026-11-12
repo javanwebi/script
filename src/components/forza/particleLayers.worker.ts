@@ -2,7 +2,7 @@ import { W, H, B64 } from './pixels';
 import { buildParticleLayers, buildParticlePosterPixels } from './particleLayers.shared';
 
 type WorkerScope = {
-  onmessage: ((event: MessageEvent<{ type: string }>) => void) | null;
+  onmessage: ((event: MessageEvent<{ type: string; includeLayers?: boolean }>) => void) | null;
   postMessage(message: unknown, transfer?: Transferable[]): void;
 };
 
@@ -19,7 +19,7 @@ workerScope.onmessage = async event => {
   if (event.data?.type !== 'build') return;
   try {
     const pixels = decodeBase64(B64);
-    const layers = buildParticleLayers(pixels, W, H);
+    const layers = event.data.includeLayers === false ? null : buildParticleLayers(pixels, W, H);
     const posterPixels = buildParticlePosterPixels(pixels);
     let poster: ImageBitmap | null = null;
     let transferablePosterPixels: Uint8ClampedArray | null = posterPixels;
@@ -41,12 +41,15 @@ workerScope.onmessage = async event => {
       // Main thread can build the tiny 2D poster if OffscreenCanvas is absent.
     }
 
-    const transfer: Transferable[] = [
-      layers.sharp.pos.buffer as ArrayBuffer, layers.sharp.col.buffer as ArrayBuffer, layers.sharp.start.buffer as ArrayBuffer,
-      layers.sharp.seed.buffer as ArrayBuffer, layers.sharp.lum.buffer as ArrayBuffer,
-      layers.glow.pos.buffer as ArrayBuffer, layers.glow.col.buffer as ArrayBuffer, layers.glow.start.buffer as ArrayBuffer,
-      layers.glow.seed.buffer as ArrayBuffer, layers.glow.lum.buffer as ArrayBuffer,
-    ];
+    const transfer: Transferable[] = [];
+    if (layers) {
+      transfer.push(
+        layers.sharp.pos.buffer as ArrayBuffer, layers.sharp.col.buffer as ArrayBuffer, layers.sharp.start.buffer as ArrayBuffer,
+        layers.sharp.seed.buffer as ArrayBuffer, layers.sharp.lum.buffer as ArrayBuffer,
+        layers.glow.pos.buffer as ArrayBuffer, layers.glow.col.buffer as ArrayBuffer, layers.glow.start.buffer as ArrayBuffer,
+        layers.glow.seed.buffer as ArrayBuffer, layers.glow.lum.buffer as ArrayBuffer,
+      );
+    }
     if (poster) transfer.push(poster);
     else if (transferablePosterPixels) transfer.push(transferablePosterPixels.buffer as ArrayBuffer);
 
