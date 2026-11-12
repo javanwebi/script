@@ -1425,6 +1425,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             setVoicePending(true);
           }
           setAiText(reply);
+          // Replace the customer bubble with the live assistant subtitle on
+          // the very first SSE chunk; do not wait for TTS completion.
+          setDisplayedAi(reply);
           if(useNima){
             // Enforce monotonic SSE text; never speak a revised/duplicate
             // segment after the consumer has already heard its predecessor.
@@ -1516,6 +1519,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
           setAiText(reply);
+          setDisplayedAi(reply);
           try {
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
