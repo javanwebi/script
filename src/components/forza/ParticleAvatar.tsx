@@ -455,6 +455,11 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         let dpr = 1;
         let fallbackFrames = 0;
         let fallbackLast = fallbackStartedAt;
+        let fallbackLastRender = 0;
+        let fallbackTargetFrameMs = 0;
+        let fallbackLowFpsSamples = 0;
+        let fallbackHighFpsSamples = 0;
+        let glowCanvas: HTMLCanvasElement | null = null;
 
         const resizeFallback = () => {
           const width = Math.max(1, mountEl.clientWidth);
@@ -470,6 +475,29 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             canvasWidth = width;
             canvasHeight = height;
             context.setTransform(dpr, 0, 0, dpr, 0, 0);
+            glowCanvas = null;
+            if (source && imageWidth > 0 && imageHeight > 0) {
+              const glow = document.createElement('canvas');
+              glow.width = targetWidth;
+              glow.height = targetHeight;
+              const glowContext = glow.getContext('2d');
+              if (glowContext) {
+                const scale = Math.max(targetWidth / imageWidth, targetHeight / imageHeight);
+                const drawWidth = imageWidth * scale;
+                const drawHeight = imageHeight * scale;
+                const x = (targetWidth - drawWidth) / 2;
+                const y = (targetHeight - drawHeight) / 2;
+                glowContext.globalCompositeOperation = 'lighter';
+                glowContext.filter = 'blur(22px)';
+                glowContext.globalAlpha = 0.32;
+                glowContext.drawImage(source, x, y, drawWidth, drawHeight);
+                glowContext.filter = 'blur(4px)';
+                glowContext.globalAlpha = 0.46;
+                glowContext.drawImage(source, x, y, drawWidth, drawHeight);
+                glowContext.filter = 'none';
+                glowCanvas = glow;
+              }
+            }
           }
         };
 
@@ -479,6 +507,11 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             return;
           }
           const now = performance.now();
+          if (fallbackTargetFrameMs > 0 && now - fallbackLastRender < fallbackTargetFrameMs) {
+            fallbackRaf = requestAnimationFrame(renderFallback);
+            return;
+          }
+          fallbackLastRender = now;
           const dt = Math.min((now - fallbackLast) / 1000, 0.05);
           fallbackLast = now;
           if (!props.current.paused) fallbackTime += dt;
@@ -518,13 +551,10 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             const y = (height - dh) / 2;
             context.save();
             context.globalCompositeOperation = 'lighter';
-            context.filter = 'blur(22px)';
-            context.globalAlpha = 0.32 * progress;
-            context.drawImage(source, x, y, dw, dh);
-            context.filter = 'blur(4px)';
-            context.globalAlpha = 0.46 * progress;
-            context.drawImage(source, x, y, dw, dh);
-            context.filter = 'none';
+            if (glowCanvas) {
+              context.globalAlpha = progress;
+              context.drawImage(glowCanvas, 0, 0, width, height);
+            }
             context.globalAlpha = progress;
             context.drawImage(source, x, y, dw, dh);
             context.restore();
@@ -547,6 +577,18 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             const fps = Math.round(fallbackFrames * 1000 / (now - fallbackLastFpsTime));
             fallbackFrames = 0;
             fallbackLastFpsTime = now;
+            if (fps < 42) {
+              fallbackLowFpsSamples++;
+              fallbackHighFpsSamples = 0;
+              if (fallbackLowFpsSamples >= 2) fallbackTargetFrameMs = 1000 / 30;
+            } else if (fps >= 55) {
+              fallbackHighFpsSamples++;
+              fallbackLowFpsSamples = 0;
+              if (fallbackHighFpsSamples >= 5) fallbackTargetFrameMs = 0;
+            } else {
+              fallbackLowFpsSamples = 0;
+              fallbackHighFpsSamples = 0;
+            }
             props.current.onStats?.({
               fps,
               tier: 'CANVAS',
