@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 // Ensure the standalone mega-menu stylesheet is included even if global CSS import ordering changes.
 import "../../reference-menu.css";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowUpLeft, Box, ChevronLeft, Factory, Layers, Link2, Move, PackageSearch, Search, Sparkles } from "lucide-react";
-import { CATEGORIES, getManagedCategories, resolveCategorySlug } from "../../data/categories";
+import { ArrowLeft, ArrowUpLeft, Box, ChevronLeft, Factory, Grid, Layers, Link2, Move, PackageSearch, Search, Sparkles } from "lucide-react";
+import { getManagedCategories, resolveCategorySlug } from "../../data/categories";
 import type { CategoryNode, EnhancedCategory } from "../../data/categories";
 import { STORE_ASSETS as A } from "../../assets/images";
-import { CategoryNavigation } from "./CategoryNavigation";
 import { MobileCategoryExplorer } from "./MobileCategoryExplorer";
 import { toPersianDigits } from "../../utils/formatters";
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
+import { resolveNavigationCategoriesAndGroups } from "../../services/catalogTaxonomyResolver";
 
 type SavedNavigationGroup = {
   id: string;
@@ -23,7 +23,10 @@ type SavedNavigationGroup = {
 
 const isApprovedCategory = (category: EnhancedCategory) =>
   Boolean(category?.name) && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug || '') && category.active !== false;
+
 const readCategories = (): EnhancedCategory[] => {
+  const resolved = resolveNavigationCategoriesAndGroups().categories.filter(isApprovedCategory);
+  if (resolved.length === APPROVED_MENU_CATEGORIES.length) return resolved;
   const managed = getManagedCategories().filter(isApprovedCategory);
   return managed.length === APPROVED_MENU_CATEGORIES.length ? managed : APPROVED_MENU_CATEGORIES;
 };
@@ -48,6 +51,7 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
 };
 
 const categoryArtwork = (category: EnhancedCategory): string => {
+  if (category.image) return category.image;
   const name = category.name || "";
   if (/تسمه|انتقال نیرو|انتقال قدرت/i.test(name)) return A.categories.belts;
   if (/پولی/i.test(name)) return A.categories.pulleys;
@@ -211,13 +215,15 @@ export function ReferenceMegaMenu({
   }
 
   const groups = activeCategory ? visibleNodes(activeCategory.children || []) : [];
+  const activeFamilyCount = Number(activeCategory?.familyCount ?? activeCategory?.count ?? 0);
+  const activeSkuCount = Number(activeCategory?.skuCount ?? 0);
 
   return (
     <div className="reference-catalog-menu" dir="rtl" aria-label="مگامنو دسته‌بندی محصولات" style={{ top: topOffset }}>
       <header className="reference-menu-header">
         <div className="reference-menu-header-copy">
-          <span>کاتالوگ صنعتی صنعت پیش</span>
-          <strong>قطعه موردنیاز خط تولید را سریع پیدا کنید</strong>
+          <span>کاتالوگ صنعتی صنعت پیش · ۱۴ گروه اصلی و ۳۴ دسته تخصصی</span>
+          <strong>قطعه، خانواده و کد فنی موردنیاز خط تولید را سریع پیدا کنید</strong>
         </div>
         <label className="reference-menu-search">
           <Search size={17} aria-hidden="true" />
@@ -264,6 +270,7 @@ export function ReferenceMegaMenu({
                           ? Box
                           : Move;
                   const count = Number(category.familyCount ?? category.count ?? 0);
+                  const skuCount = Number(category.skuCount ?? 0);
                   return (
                     <button
                       type="button"
@@ -277,7 +284,11 @@ export function ReferenceMegaMenu({
                       <CategoryThumbnail category={category} FallbackIcon={Icon} />
                       <span className="reference-menu-category-copy">
                         <strong>{category.name}</strong>
-                        <small>{count > 0 ? toPersianDigits(count) + " خانواده کالا" : "مشاهده زیرگروه‌ها"}</small>
+                        <small>
+                          {count > 0
+                            ? `${toPersianDigits(count)} خانواده · ${toPersianDigits(skuCount)} کد فنی`
+                            : "مشاهده زیرگروه‌ها"}
+                        </small>
                       </span>
                       <ChevronLeft size={15} className="reference-menu-category-arrow" />
                     </button>
@@ -303,12 +314,28 @@ export function ReferenceMegaMenu({
           <>
             <div className="reference-menu-category-hero">
               <div className="reference-menu-category-copy-block">
-                <span className="reference-menu-eyebrow">دسته‌بندی منتخب</span>
+                <div className="reference-menu-eyebrow-row">
+                  <span className="reference-menu-eyebrow">دسته‌بندی منتخب</span>
+                  {activeFamilyCount > 0 && (
+                    <span className="reference-menu-stat-pill">
+                      {toPersianDigits(activeFamilyCount)} خانواده · {toPersianDigits(activeSkuCount)} کد فنی
+                    </span>
+                  )}
+                </div>
                 <h2>{activeCategory.name}</h2>
                 <p>{activeCategory.description || "زیرگروه‌ها را بررسی کنید یا مستقیم وارد کاتالوگ محصولات شوید."}</p>
-                <Link to={categoryHref(activeCategory)} onClick={onNavigate}>
-                  مشاهده محصولات این دسته <ArrowLeft size={16} />
-                </Link>
+                <div className="reference-menu-hero-actions">
+                  <Link to={categoryHref(activeCategory)} onClick={onNavigate}>
+                    مشاهده محصولات این دسته <ArrowLeft size={16} />
+                  </Link>
+                  <Link
+                    to={categoryHref(activeCategory)}
+                    className="reference-menu-secondary-cta"
+                    onClick={onNavigate}
+                  >
+                    <Grid size={14} /> مشاهده کاتالوگ و کدهای فنی
+                  </Link>
+                </div>
               </div>
               <img src={categoryArtwork(activeCategory)} alt="" loading="lazy" decoding="async" />
             </div>

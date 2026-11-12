@@ -53,6 +53,11 @@ import { ProductCard } from "../components/product/ProductCard";
 import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
+import {
+  ensureCatalogFamiliesLoaded,
+  getFamilyMenuAssignment,
+  resolveNavigationCategoriesAndGroups,
+} from "../services/catalogTaxonomyResolver";
 import "./product-detail-premium.css";
 
 export const ProductDetailPage: React.FC = () => {
@@ -92,20 +97,41 @@ export const ProductDetailPage: React.FC = () => {
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [catalogTick, setCatalogTick] = useState(0);
-  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
+  const [catalogReady, setCatalogReady] = useState(() => {
+    ensureCatalogFamiliesLoaded();
+    return isDatabaseCatalogHydrated();
+  });
   useEffect(() => subscribeCatalogChanges(() => {
     setCatalogTick((tick) => tick + 1);
     setCatalogReady(isDatabaseCatalogHydrated());
   }), []);
 
   const decodedCode = code ? decodeURIComponent(code).trim() : "";
+  const requestedSkuParam = (searchParams.get("sku") || "").trim();
   const product = useMemo(
-    () =>
-      decodedCode
+    () => {
+      ensureCatalogFamiliesLoaded();
+      return decodedCode
         ? getProductByCode(decodedCode, { includeInactive: isPreviewMode })
-        : undefined,
+        : undefined;
+    },
     [decodedCode, isPreviewMode, catalogTick],
   );
+
+  const assignedTaxonomy = useMemo(() => {
+    if (!product) return null;
+    const assignment = getFamilyMenuAssignment(product.code, product);
+    const { categories, groups } = resolveNavigationCategoriesAndGroups();
+    const cat = categories.find((c) => c.slug === assignment.categorySlug);
+    const grp = groups.find((g) => g.id === assignment.groupId);
+    return {
+      assignment,
+      categorySlug: cat?.slug || product.categorySlug,
+      categoryName: cat?.name || product.categoryName,
+      groupTitle: grp?.title,
+      groupId: grp?.id,
+    };
+  }, [product, catalogTick]);
 
   // Visible variants (filter out inactive unless in preview mode)
   const visibleVariants = useMemo(() => {
@@ -184,10 +210,19 @@ export const ProductDetailPage: React.FC = () => {
   // Initialize selected variant & matching image when URL code or family changes
   useEffect(() => {
     if (!product) return;
+    const matchedFromSkuQuery = requestedSkuParam
+      ? visibleVariants.find(
+          (v) => v.code.toLowerCase() === requestedSkuParam.toLowerCase(),
+        )
+      : undefined;
     const matchedFromUrl = visibleVariants.find(
       (v) => v.code.toLowerCase() === decodedCode.toLowerCase(),
     );
-    const initialCode = matchedFromUrl?.code || visibleVariants[0]?.code || "";
+    const initialCode =
+      matchedFromSkuQuery?.code ||
+      matchedFromUrl?.code ||
+      visibleVariants[0]?.code ||
+      "";
     setSelectedVariantCode(initialCode);
 
     if (initialCode) {
@@ -526,14 +561,25 @@ export const ProductDetailPage: React.FC = () => {
             to="/products"
             className="hover:text-[#E06518] transition-colors shrink-0"
           >
-            محصولات
+            همه محصولات
           </Link>
+          {assignedTaxonomy?.groupTitle && assignedTaxonomy.groupId && (
+            <>
+              <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <Link
+                to={`/categories#menu-group-${assignedTaxonomy.groupId}`}
+                className="hover:text-[#E06518] transition-colors shrink-0 max-w-[140px] sm:max-w-none truncate"
+              >
+                {assignedTaxonomy.groupTitle}
+              </Link>
+            </>
+          )}
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <Link
-            to={`/category/${encodeURIComponent(product.categorySlug)}`}
+            to={`/category/${encodeURIComponent(assignedTaxonomy?.categorySlug || product.categorySlug)}`}
             className="hover:text-[#E06518] transition-colors shrink-0 max-w-[140px] sm:max-w-none truncate"
           >
-            {product.categoryName}
+            {assignedTaxonomy?.categoryName || product.categoryName}
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span className="text-[#55565A] font-bold shrink-0">

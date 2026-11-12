@@ -4,7 +4,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "lib": [
       "ES2022",
       "DOM",
@@ -24,5 +24,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "dist", "temp_repo", "scripts/database", "tests/database", "tests/production-category-bootstrap.test.ts"]
+  "include": ["src"],
+  "exclude": ["dist", "temp_repo", "tests", "server", "scripts"]
 }

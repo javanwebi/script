@@ -5,9 +5,13 @@ import {
   CATALOGUE_SKU_COUNT,
   categorySlugFor,
 } from "../data/userProducts";
-import { ProductImage } from "../components/product/ProductImage";
 import { STORE_ASSETS } from "../assets/images";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
+import {
+  ensureCatalogFamiliesLoaded,
+  getFamilyMenuAssignment,
+  resolveNavigationCategoriesAndGroups,
+} from "../services/catalogTaxonomyResolver";
 import "./products-page-premium.css";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -22,35 +26,27 @@ import {
 import { CategoryNavigation } from "../components/catalog/CategoryNavigation";
 import { Product } from "../types";
 import { toPersianDigits } from "../utils/formatters";
-import { useAuth } from "../context/AuthContext";
-import { useCart } from "../context/CartContext";
-import { useWishlist } from "../context/WishlistContext";
 import {
   Search,
-  Filter,
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  Heart,
-  ShoppingCart,
-  Eye,
-  Check,
   Package,
   Layers,
   Sparkles,
   Grid3X3,
   List,
   RotateCcw,
-  Tag,
   Cpu,
   Grid,
   CircleDot,
   Shield,
   Link as LinkIcon,
   Scissors,
-  ShieldCheck,
-  ArrowUpDown,
   Image as ImageIcon,
+  ArrowUpLeft,
+  ArrowLeft,
+  Boxes,
   X,
 } from "lucide-react";
 
@@ -81,20 +77,20 @@ const CATEGORY_ARTWORK: Record<string, string> = {
 export const ProductsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { currentUser, openAuthModal } = useAuth();
-  const { addToCart } = useCart();
-  const { toggleWishlist, isInWishlist } = useWishlist();
 
   // URL-driven or local state
-  const categoryParam = resolveCategorySlug(
-    searchParams.get("category") || "all",
-  );
+  const rawCategoryParam = searchParams.get("category") || "all";
+  const categoryParam = /^excel-v2-/.test(rawCategoryParam)
+    ? rawCategoryParam
+    : resolveCategorySlug(rawCategoryParam);
+  const groupParam = searchParams.get("group") || "all";
   const subParam = searchParams.get("sub") || "all";
   const queryParam = searchParams.get("q") || "";
   const brandParam = searchParams.get("brand") || "all";
   const stockParam = searchParams.get("stock") === "1";
   const imageParam = searchParams.get("image") === "1";
 
+  const [selectedGroup, setSelectedGroup] = useState<string>(groupParam);
   const [selectedCategory, setSelectedCategory] =
     useState<string>(categoryParam);
   const [selectedSubcategory, setSelectedSubcategory] =
@@ -102,28 +98,29 @@ export const ProductsPage: React.FC = () => {
   const [selectedBrand, setSelectedBrand] = useState<string>(brandParam);
   const [searchQuery, setSearchQuery] = useState<string>(queryParam);
   const [sortBy, setSortBy] = useState<
-    "code_asc" | "name_asc" | "rating_desc" | "stock_desc"
+    "code_asc" | "name_asc" | "sku_desc" | "rating_desc" | "stock_desc"
   >("code_asc");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "grouped">("grid");
   const [inStockOnly, setInStockOnly] = useState<boolean>(stockParam);
   const [hasCatalogueImageFilter, setHasCatalogueImageFilter] =
     useState<boolean>(imageParam);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const mobileFilterCloseRef = useRef<HTMLButtonElement>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [addedItemCode, setAddedItemCode] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 24;
-  // A Supabase /api/runtime hydration replaces the initial catalogue snapshot.
-  // Keep the listing reactive; otherwise the first JSON-derived snapshot can
-  // remain visible even after fresh PostgreSQL products arrive.
   const [catalogVersion, setCatalogVersion] = useState(0);
-  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
+  const [catalogReady, setCatalogReady] = useState(() => {
+    ensureCatalogFamiliesLoaded();
+    return isDatabaseCatalogHydrated() || getAllProducts().length > 0;
+  });
+
   useEffect(() => subscribeCatalogChanges(() => {
     setCatalogVersion((version) => version + 1);
-    setCatalogReady(isDatabaseCatalogHydrated());
+    setCatalogReady(isDatabaseCatalogHydrated() || getAllProducts().length > 0);
   }), []);
+
   useEffect(() => {
     if (!mobileFiltersOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -162,11 +159,36 @@ export const ProductsPage: React.FC = () => {
       previousFocus?.focus();
     };
   }, [mobileFiltersOpen]);
-  const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
-  const managedCategories = useMemo(
-    () => getManagedCategories().filter((category) => category.active !== false),
+
+  const allProducts = useMemo(() => {
+    ensureCatalogFamiliesLoaded();
+    return getAllProducts();
+  }, [catalogVersion]);
+
+  const taxonomyData = useMemo(
+    () => resolveNavigationCategoriesAndGroups(),
     [catalogVersion],
   );
+
+  const managedCategories = useMemo(() => {
+    const stored = getManagedCategories().filter((category) => category.active !== false);
+    if (stored.some((c) => /^excel-v2-/.test(c.slug))) {
+      return stored;
+    }
+    return taxonomyData.categories;
+  }, [catalogVersion, taxonomyData.categories]);
+
+  const hasExcelTaxonomy = useMemo(
+    () => managedCategories.some((c) => /^excel-v2-/.test(c.slug)),
+    [managedCategories],
+  );
+
+  const visibleManagedCategories = useMemo(() => {
+    if (!hasExcelTaxonomy || selectedGroup === "all") return managedCategories;
+    const groupObj = taxonomyData.groups.find((g) => g.id === selectedGroup);
+    if (!groupObj) return managedCategories;
+    return managedCategories.filter((c) => groupObj.categorySlugs.includes(c.slug));
+  }, [managedCategories, hasExcelTaxonomy, selectedGroup, taxonomyData.groups]);
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
@@ -175,6 +197,7 @@ export const ProductsPage: React.FC = () => {
 
   // Synchronize category state if URL changes
   useEffect(() => {
+    setSelectedGroup(groupParam);
     setSelectedCategory(categoryParam);
     setSelectedSubcategory(subParam);
     setSearchQuery(queryParam);
@@ -182,7 +205,7 @@ export const ProductsPage: React.FC = () => {
     setInStockOnly(stockParam);
     setHasCatalogueImageFilter(imageParam);
     setCurrentPage(1);
-  }, [categoryParam, subParam, queryParam, brandParam, stockParam, imageParam]);
+  }, [groupParam, categoryParam, subParam, queryParam, brandParam, stockParam, imageParam]);
 
   // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
   useEffect(() => {
@@ -197,48 +220,97 @@ export const ProductsPage: React.FC = () => {
   // Available brands in the entire catalog
   const allBrands = useMemo(() => {
     const bSet = new Set<string>();
-    allProducts.forEach((p) => bSet.add(p.brand));
-    return Array.from(bSet).sort();
+    allProducts.forEach((p) => {
+      if (p.brand) bSet.add(p.brand);
+    });
+    return Array.from(bSet).sort((a, b) => a.localeCompare(b, "fa"));
   }, [allProducts]);
 
   // Active category object
   const activeCategoryObj = useMemo(() => {
-    return findCatalogCategory(selectedCategory);
-  }, [selectedCategory]);
+    if (selectedCategory === "all") return undefined;
+    return (
+      managedCategories.find((c) => c.slug === selectedCategory) ||
+      taxonomyData.categories.find((c) => c.slug === selectedCategory) ||
+      findCatalogCategory(selectedCategory)
+    );
+  }, [selectedCategory, managedCategories, taxonomyData.categories]);
+
+  const activeGroupObj = useMemo(() => {
+    if (selectedGroup !== "all") {
+      return taxonomyData.groups.find((g) => g.id === selectedGroup);
+    }
+    if (activeCategoryObj && /^excel-v2-/.test(activeCategoryObj.slug)) {
+      return taxonomyData.groups.find((g) =>
+        g.categorySlugs.includes(activeCategoryObj.slug),
+      );
+    }
+    return undefined;
+  }, [selectedGroup, activeCategoryObj, taxonomyData.groups]);
+
+  // Helper to match product against Excel taxonomy or legacy category
+  const productMatchesTaxonomy = (
+    p: Product,
+    catSlug: string,
+    subName: string,
+    grpId: string,
+  ) => {
+    const assignment = getFamilyMenuAssignment(p.code, p);
+    if (grpId !== "all") {
+      if (assignment.groupId !== grpId) return false;
+    }
+    if (catSlug === "all") {
+      if (subName !== "all") {
+        return (
+          assignment.submenu === subName ||
+          assignment.leaf === subName ||
+          p.subcategory === subName
+        );
+      }
+      return true;
+    }
+    if (catSlug === "swr-forza-exclusive") {
+      return p.brand.includes("SWR") || p.brand.includes("FORZA");
+    }
+    if (/^excel-v2-\d+$/.test(catSlug)) {
+      if (assignment.groupId !== catSlug) return false;
+      if (subName !== "all") {
+        return assignment.submenu === subName || assignment.leaf === subName;
+      }
+      return true;
+    }
+    if (/^excel-v2-\d+-\d+$/.test(catSlug)) {
+      if (assignment.categorySlug !== catSlug) return false;
+      if (subName !== "all") {
+        return assignment.submenu === subName || assignment.leaf === subName;
+      }
+      return true;
+    }
+    return matchesCatalogCategory(p, catSlug, subName);
+  };
 
   // Filtered products
   const filteredProducts = useMemo(() => {
-    let result = [...allProducts];
+    let result = allProducts.filter((p) =>
+      productMatchesTaxonomy(p, selectedCategory, selectedSubcategory, selectedGroup),
+    );
 
-    // Match the selected branch together with all of its descendants.
-    if (selectedCategory === "swr-forza-exclusive") {
-      result = result.filter(
-        (p) => p.brand.includes("SWR") || p.brand.includes("FORZA"),
-      );
-    } else if (selectedCategory !== "all") {
-      result = result.filter((p) =>
-        matchesCatalogCategory(p, selectedCategory, selectedSubcategory),
-      );
-    } else if (selectedSubcategory !== "all") {
-      result = result.filter((p) => p.subcategory === selectedSubcategory);
-    }
-
-    // 3. Brand Filter
+    // Brand Filter
     if (selectedBrand !== "all") {
       result = result.filter((p) => p.brand === selectedBrand);
     }
 
-    // 4. In-Stock Filter
+    // In-Stock Filter
     if (inStockOnly) {
       result = result.filter((p) => p.stockKnown === true && p.stock > 0 && !p.inquiryOnly);
     }
 
-    // 5. Official Catalogue Image Filter
+    // Official Catalogue Image Filter
     if (hasCatalogueImageFilter) {
       result = result.filter((p) => p.hasCatalogueImage);
     }
 
-    // 6. Search Query
+    // Search Query (including family codes, names, specs, and variant SKU codes)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
@@ -250,6 +322,13 @@ export const ProductsPage: React.FC = () => {
           p.brand.toLowerCase().includes(q) ||
           p.subcategory.toLowerCase().includes(q) ||
           p.categoryName.toLowerCase().includes(q) ||
+          (p.variants &&
+            p.variants.some(
+              (v) =>
+                v.code.toLowerCase().includes(q) ||
+                v.name.toLowerCase().includes(q) ||
+                (v.size && v.size.toLowerCase().includes(q)),
+            )) ||
           (p.tags && p.tags.some((t) => t.toLowerCase().includes(q))) ||
           (p.technicalSpecs &&
             p.technicalSpecs.some(
@@ -260,13 +339,21 @@ export const ProductsPage: React.FC = () => {
       );
     }
 
-    // 7. Sorting
+    // Sorting
     result.sort((a, b) => {
       if (sortBy === "code_asc") {
+        const aImg = a.hasCatalogueImage || (a.images && a.images.length > 0) ? 1 : 0;
+        const bImg = b.hasCatalogueImage || (b.images && b.images.length > 0) ? 1 : 0;
+        if (bImg !== aImg) return bImg - aImg;
         return a.code.localeCompare(b.code, undefined, { numeric: true });
       }
       if (sortBy === "name_asc") {
         return a.name.localeCompare(b.name, "fa");
+      }
+      if (sortBy === "sku_desc") {
+        const aSkus = a.variants?.length || 1;
+        const bSkus = b.variants?.length || 1;
+        return bSkus - aSkus;
       }
       if (sortBy === "rating_desc") {
         return (b.rating || 0) - (a.rating || 0);
@@ -282,6 +369,7 @@ export const ProductsPage: React.FC = () => {
     return result;
   }, [
     allProducts,
+    selectedGroup,
     selectedCategory,
     selectedSubcategory,
     selectedBrand,
@@ -290,6 +378,45 @@ export const ProductsPage: React.FC = () => {
     searchQuery,
     sortBy,
   ]);
+
+  // Total SKU count in filtered results
+  const filteredSkuCount = useMemo(() => {
+    return filteredProducts.reduce(
+      (sum, p) => sum + Math.max(1, p.variants?.length || 1),
+      0,
+    );
+  }, [filteredProducts]);
+
+  // Grouped sections when viewMode === 'grouped'
+  const groupedCategorySections = useMemo(() => {
+    if (viewMode !== "grouped") return [];
+    const byCategory = new Map<string, Product[]>();
+    filteredProducts.forEach((product) => {
+      const assignment = getFamilyMenuAssignment(product.code, product);
+      const bucket = byCategory.get(assignment.categorySlug) || [];
+      bucket.push(product);
+      byCategory.set(assignment.categorySlug, bucket);
+    });
+
+    return taxonomyData.categories
+      .map((cat) => {
+        const items = byCategory.get(cat.slug) || [];
+        const totalSkus = items.reduce(
+          (sum, item) => sum + Math.max(1, item.variants?.length || 1),
+          0,
+        );
+        const grp = taxonomyData.groups.find((g) =>
+          g.categorySlugs.includes(cat.slug),
+        );
+        return {
+          category: cat,
+          groupTitle: grp?.title || "گروه تخصصی",
+          items,
+          totalSkus,
+        };
+      })
+      .filter((section) => section.items.length > 0);
+  }, [viewMode, filteredProducts, taxonomyData]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
@@ -303,6 +430,19 @@ export const ProductsPage: React.FC = () => {
     if (value) nextParams.set(key, value);
     else nextParams.delete(key);
     setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleGroupSelect = (groupId: string) => {
+    setSelectedGroup(groupId);
+    setSelectedCategory("all");
+    setSelectedSubcategory("all");
+    setCurrentPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("category");
+    nextParams.delete("sub");
+    if (groupId === "all") nextParams.delete("group");
+    else nextParams.set("group", groupId);
+    setSearchParams(nextParams);
   };
 
   const handleCategorySelect = (slug: string) => {
@@ -319,22 +459,6 @@ export const ProductsPage: React.FC = () => {
     });
   };
 
-  const handleAddToCart = (product: Product, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (product.variants?.length) {
-      navigate(`/product/${encodeURIComponent(product.code)}`);
-      return;
-    }
-    if (!currentUser) {
-      openAuthModal();
-      return;
-    }
-    addToCart(product, 1);
-    setAddedItemCode(product.code);
-    setTimeout(() => setAddedItemCode(null), 1500);
-  };
-
   const clearAdvancedFilters = () => {
     setSelectedBrand("all");
     setInStockOnly(false);
@@ -346,6 +470,7 @@ export const ProductsPage: React.FC = () => {
   };
 
   const handleResetFilters = () => {
+    setSelectedGroup("all");
     setSelectedCategory("all");
     setSelectedSubcategory("all");
     setSelectedBrand("all");
@@ -355,11 +480,12 @@ export const ProductsPage: React.FC = () => {
     setSortBy("code_asc");
     setCurrentPage(1);
     const nextParams = new URLSearchParams(searchParams);
-    ["category", "sub", "q", "brand", "stock", "image"].forEach((key) => nextParams.delete(key));
+    ["group", "category", "sub", "q", "brand", "stock", "image"].forEach((key) => nextParams.delete(key));
     setSearchParams(nextParams);
   };
 
   const activeFiltersCount =
+    (selectedGroup !== "all" ? 1 : 0) +
     (selectedCategory !== "all" ? 1 : 0) +
     (selectedSubcategory !== "all" ? 1 : 0) +
     (selectedBrand !== "all" ? 1 : 0) +
@@ -380,9 +506,21 @@ export const ProductsPage: React.FC = () => {
             صفحه اصلی
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
+          <Link to="/categories" className="hover:text-orange-600 transition-colors">
+            همه دسته‌بندی‌ها
+          </Link>
+          <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-slate-800 font-bold">
-            محصولات و کاتالوگ صنعتی
+            همه محصولات و خانواده‌های کاتالوگ
           </span>
+          {activeGroupObj && (
+            <>
+              <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-700 font-bold">
+                {activeGroupObj.title}
+              </span>
+            </>
+          )}
           {activeCategoryObj && (
             <>
               <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
@@ -396,14 +534,17 @@ export const ProductsPage: React.FC = () => {
         {/* Industrial catalogue hero */}
         <section className="catalogue-intro catalogue-hero">
           <div className="catalogue-hero-copy">
-            <span className="store-eyebrow">کاتالوگ تخصصی صنعت پیش</span>
-            <h1>قطعه مناسب خط تولید را دقیق‌تر پیدا کنید</h1>
+            <span className="store-eyebrow">مرجع مهندسی و تأمین قطعات صنعتی صنعت پیش</span>
+            <h1>بانک جامع خانواده‌ها و کدهای فنی همه محصولات</h1>
             <p>
-              از خانواده و برند تا کد فنی و مشخصات؛ محصولات را در کاتالوگ واقعی
-              صنعت پیش جست‌وجو و مقایسه کنید.
+              تمامی خانواده‌های محصول و کدهای فنی (SKU) در ۱۴ گروه اصلی و ۳۴ دسته‌بندی تخصصی سازمان‌دهی شده‌اند. از طریق دسته‌بندی‌ها، زیرگروه‌ها یا جستجوی مستقیم کد فنی، قطعه موردنیاز خط تولید را انتخاب کنید.
             </p>
             <div className="catalogue-hero-actions">
-              <Link to="/identify-part" className="catalogue-hero-primary">
+              <Link to="/categories" className="catalogue-hero-primary">
+                <Layers className="w-4 h-4 ml-1.5" />
+                نقشه کامل دسته‌بندی‌ها (۳۴ دسته)
+              </Link>
+              <Link to="/identify-part" className="catalogue-hero-secondary">
                 شناسایی تصویری قطعه
               </Link>
               <Link to="/ai-consult" className="catalogue-hero-secondary">
@@ -412,18 +553,87 @@ export const ProductsPage: React.FC = () => {
             </div>
             <div className="catalogue-hero-metrics" aria-label="آمار کاتالوگ">
               <span><strong>{catalogReady ? toPersianDigits(allProducts.length) : "—"}</strong><small>خانواده محصول</small></span>
-              <span><strong>{catalogReady ? toPersianDigits(CATALOGUE_SKU_COUNT) : "—"}</strong><small>کد فنی کالا</small></span>
+              <span><strong>{catalogReady ? toPersianDigits(CATALOGUE_SKU_COUNT) : "—"}</strong><small>کد فنی کالا (SKU)</small></span>
+              <span><strong>{toPersianDigits(taxonomyData.groups.length)}</strong><small>گروه تخصصی</small></span>
+              <span><strong>{toPersianDigits(taxonomyData.categories.length)}</strong><small>دسته‌بندی مهندسی</small></span>
             </div>
           </div>
           <div className="catalogue-hero-art" aria-hidden="true">
-            <img src={STORE_ASSETS.heroBanner} alt="" loading="eager" fetchPriority="high" decoding="async" />
-            <span className="catalogue-hero-art-label">تأمین هوشمند قطعات صنعتی</span>
+            <img src={STORE_ASSETS.productsSleekWhiteHero} alt="" loading="eager" fetchPriority="high" decoding="async" />
+            <span className="catalogue-hero-art-label">ساختار یکپارچه: گروه <i>›</i> دسته <i>›</i> خانواده <i>›</i> کد فنی</span>
           </div>
         </section>
 
-        {/* Minimal Category Selector Tabs */}
+        {/* Tier 1: 14 Main Groups Explorer (shown when full taxonomy is active) */}
+        {hasExcelTaxonomy && (
+          <section className="catalogue-groups-explorer" aria-label="گروه‌های اصلی همه محصولات">
+            <div className="catalogue-groups-header">
+              <div>
+                <span>ساختار سطح اول منوی همه محصولات</span>
+                <h2>انتخاب گروه اصلی تخصصی ({toPersianDigits(taxonomyData.groups.length)} گروه)</h2>
+              </div>
+              <div className="catalogue-groups-mode-switch" role="group" aria-label="نحوه نمایش دسته‌بندی محصولات">
+                <button
+                  type="button"
+                  className={viewMode === "grid" ? "is-active" : ""}
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                  نمای شبکه‌ای خانواده‌ها
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "grouped" ? "is-active" : ""}
+                  onClick={() => setViewMode("grouped")}
+                >
+                  <Boxes className="w-3.5 h-3.5" />
+                  نمای تفکیکی دسته‌بندی‌ها
+                </button>
+              </div>
+            </div>
+            <div className="catalogue-groups-pills">
+              <button
+                type="button"
+                onClick={() => handleGroupSelect("all")}
+                aria-pressed={selectedGroup === "all"}
+                className={`catalogue-group-pill ${selectedGroup === "all" ? "is-selected" : ""}`}
+              >
+                <span>همه ۱۴ گروه تخصصی</span>
+                <b>{toPersianDigits(allProducts.length)} خانواده</b>
+              </button>
+              {taxonomyData.groups.map((grp, idx) => {
+                const isSelected = selectedGroup === grp.id;
+                return (
+                  <button
+                    key={grp.id}
+                    type="button"
+                    onClick={() => handleGroupSelect(grp.id)}
+                    aria-pressed={isSelected}
+                    className={`catalogue-group-pill ${isSelected ? "is-selected" : ""}`}
+                  >
+                    <small>{toPersianDigits(idx + 1)}</small>
+                    <span>{grp.title}</span>
+                    <b>{toPersianDigits(grp.familyCount)}</b>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Tier 2: Category Selector Rail */}
         <section className="catalogue-category-rail">
-          <div className="catalogue-section-heading"><div><span>دسته‌بندی کاتالوگ</span><h2>از کدام گروه شروع می‌کنید؟</h2></div><small>انتخاب دسته، فهرست کالاها را محدود می‌کند</small></div>
+          <div className="catalogue-section-heading">
+            <div>
+              <span>دسته‌بندی کاتالوگ</span>
+              <h2>
+                {activeGroupObj
+                  ? `دسته‌های تخصصی در «${activeGroupObj.title}»`
+                  : "از کدام دسته تخصصی شروع می‌کنید؟"}
+              </h2>
+            </div>
+            <small>انتخاب هر دسته، خانواده‌ها و کدهای فنی همان بخش را نمایش می‌دهد</small>
+          </div>
           <div
             className="catalogue-category-track flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none"
             style={{ scrollbarWidth: "none" }}
@@ -444,12 +654,14 @@ export const ProductsPage: React.FC = () => {
               </span>
             </button>
 
-            {managedCategories.map((cat) => {
+            {visibleManagedCategories.map((cat) => {
               const isSelected = selectedCategory === cat.slug;
               const icon = CATEGORY_ICONS[cat.name] || (
                 <Layers className="w-4 h-4" />
               );
               const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
+              const famCount = Number(cat.familyCount ?? cat.count ?? 0);
+              const skuCount = Number(cat.skuCount ?? 0);
               return (
                 <button
                   key={cat.slug}
@@ -464,9 +676,16 @@ export const ProductsPage: React.FC = () => {
                   <span className="catalogue-category-art">
                     {artwork ? <img src={artwork} alt="" loading="lazy" decoding="async" /> : icon}
                   </span>
-                  <span className="catalogue-category-name">{cat.name}</span>
+                  <span className="catalogue-category-name">
+                    {cat.name}
+                    {skuCount > 0 && (
+                      <small className="catalogue-category-sku-sub">
+                        {toPersianDigits(skuCount)} کد فنی
+                      </small>
+                    )}
+                  </span>
                   <span className="catalogue-category-count">
-                    {toPersianDigits(cat.count)}
+                    {toPersianDigits(famCount)}
                   </span>
                 </button>
               );
@@ -476,6 +695,41 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
         </section>
+
+        {/* Active Category Spotlight Banner with direct link to dedicated Category Page */}
+        {activeCategoryObj && (
+          <section className="catalogue-active-category-banner" aria-label={`مشخصات دسته ${activeCategoryObj.name}`}>
+            <div className="catalogue-active-category-info">
+              <div className="catalogue-active-category-badges">
+                <span className="catalogue-active-badge-primary">دسته انتخاب‌شده</span>
+                {activeGroupObj && (
+                  <span className="catalogue-active-badge-secondary">{activeGroupObj.title}</span>
+                )}
+              </div>
+              <h3>{activeCategoryObj.name}</h3>
+              {activeCategoryObj.description && <p>{activeCategoryObj.description}</p>}
+            </div>
+            <div className="catalogue-active-category-actions">
+              <div className="catalogue-active-category-stats">
+                <div>
+                  <strong>{toPersianDigits(filteredProducts.length)}</strong>
+                  <span>خانواده فعال</span>
+                </div>
+                <div>
+                  <strong>{toPersianDigits(filteredSkuCount)}</strong>
+                  <span>کد فنی (SKU)</span>
+                </div>
+              </div>
+              <Link
+                to={`/category/${encodeURIComponent(activeCategoryObj.slug)}`}
+                className="catalogue-active-category-cta"
+              >
+                <span>ورود به صفحه تخصصی و مقایسه فنی این دسته</span>
+                <ArrowUpLeft className="w-4 h-4" />
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* Search, Secondary Filters & View Controls Bar */}
         <section className="catalogue-toolbar bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3">
@@ -495,7 +749,7 @@ export const ProductsPage: React.FC = () => {
                   else nextParams.delete("q");
                   setSearchParams(nextParams, { replace: true });
                 }}
-                placeholder="جستجو در کد فنی قطعه (مثلاً AT-E045)، نام قطعه، برند یا مشخصات..."
+                placeholder="جستجو در کد خانواده (FAM-10005)، کد فنی کالا (SKU)، نام قطعه، برند یا ابعاد..."
                 className="w-full pr-10 pl-24 h-10 bg-slate-50 text-xs text-slate-800 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all shadow-inner"
               />
               {searchQuery && (
@@ -549,7 +803,8 @@ export const ProductsPage: React.FC = () => {
                   onChange={(e) => { setSortBy(e.target.value as any); setCurrentPage(1); }}
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
-                  <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
+                  <option value="code_asc">مرتب‌سازی: کد خانواده (صعودی)</option>
+                  <option value="sku_desc">مرتب‌سازی: بیشترین تعداد کد فنی (SKU)</option>
                   <option value="name_asc">مرتب‌سازی: نام قطعه (الفبا)</option>
                   <option value="rating_desc">مرتب‌سازی: بیشترین امتیاز</option>
                   <option value="stock_desc">مرتب‌سازی: بیشترین موجودی ثبت‌شده</option>
@@ -585,7 +840,7 @@ export const ProductsPage: React.FC = () => {
                 </span>
               </label>
 
-              {/* View Mode Toggle (Grid vs List) */}
+              {/* View Mode Toggle (Grid vs List vs Grouped) */}
               <div className="catalogue-view-toggle flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
                 <button
                   onClick={() => setViewMode("grid")}
@@ -629,11 +884,11 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
 
-          {activeCategoryObj && (
+          {activeCategoryObj && (activeCategoryObj.children || []).length > 0 && (
             <div className="pt-4 border-t border-slate-100">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <span className="text-xs font-bold text-[#484344]">
-                  زیرگروه‌های {activeCategoryObj.name}
+                  زیرگروه‌های تخصصی {activeCategoryObj.name}
                 </span>
                 <button
                   type="button"
@@ -707,13 +962,17 @@ export const ProductsPage: React.FC = () => {
           <div>
             نمایش{" "}
             <span className="font-bold text-slate-800 font-mono">
-              {toPersianDigits(paginatedProducts.length)}
+              {toPersianDigits(viewMode === "grouped" ? filteredProducts.length : paginatedProducts.length)}
             </span>{" "}
             از{" "}
             <span className="font-bold text-orange-600 font-mono">
               {toPersianDigits(filteredProducts.length)}
             </span>{" "}
-            کالا
+            خانواده محصول (شامل{" "}
+            <span className="font-bold text-slate-800 font-mono">
+              {toPersianDigits(filteredSkuCount)}
+            </span>{" "}
+            کد فنی)
             {selectedCategory !== "all" && (
               <span>
                 {" "}
@@ -725,25 +984,37 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
           <div className="text-[11px] text-slate-400">
-            صفحه{" "}
-            <span className="font-bold font-mono">
-              {toPersianDigits(currentPage)}
-            </span>{" "}
-            از{" "}
-            <span className="font-bold font-mono">
-              {toPersianDigits(totalPages)}
-            </span>
+            {viewMode === "grouped" ? (
+              <span>
+                تفکیک‌شده در{" "}
+                <strong className="font-mono text-slate-700">
+                  {toPersianDigits(groupedCategorySections.length)}
+                </strong>{" "}
+                دسته تخصصی
+              </span>
+            ) : (
+              <>
+                صفحه{" "}
+                <span className="font-bold font-mono">
+                  {toPersianDigits(currentPage)}
+                </span>{" "}
+                از{" "}
+                <span className="font-bold font-mono">
+                  {toPersianDigits(totalPages)}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Products Display (Grid or List) */}
+        {/* Products Display (Grid, List, or Grouped by Category) */}
         {!catalogReady && paginatedProducts.length === 0 ? (
           <div className="catalogue-loading" role="status" aria-live="polite">
             <span className="catalogue-loading-spinner" aria-hidden="true" />
             <h3>در حال دریافت کاتالوگ واقعی صنعت پیش</h3>
             <p>اطلاعات محصولات و مشخصات از پایگاه داده بارگذاری می‌شود.</p>
           </div>
-        ) : paginatedProducts.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="catalogue-empty bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
             <div className="w-16 h-16 rounded-full bg-orange-50 text-orange-500 mx-auto flex items-center justify-center">
               <Package className="w-8 h-8" />
@@ -763,6 +1034,56 @@ export const ProductsPage: React.FC = () => {
               <span>مشاهده تمام محصولات</span>
             </button>
           </div>
+        ) : viewMode === "grouped" ? (
+          <div className="catalogue-grouped-sections">
+            {groupedCategorySections.map((section) => (
+              <section
+                key={section.category.slug}
+                className="catalogue-grouped-block"
+                aria-labelledby={`grouped-cat-${section.category.slug}`}
+              >
+                <header className="catalogue-grouped-header">
+                  <div className="catalogue-grouped-header-main">
+                    <span className="catalogue-grouped-eyebrow">
+                      {section.groupTitle}
+                    </span>
+                    <h3 id={`grouped-cat-${section.category.slug}`}>
+                      <Link to={`/category/${encodeURIComponent(section.category.slug)}`}>
+                        {section.category.name}
+                      </Link>
+                    </h3>
+                  </div>
+                  <div className="catalogue-grouped-header-actions">
+                    <span className="catalogue-grouped-stat">
+                      <strong>{toPersianDigits(section.items.length)}</strong> خانواده ·{" "}
+                      <strong>{toPersianDigits(section.totalSkus)}</strong> کد فنی
+                    </span>
+                    <button
+                      type="button"
+                      className="catalogue-grouped-filter-btn"
+                      onClick={() => {
+                        setViewMode("grid");
+                        handleCategorySelect(section.category.slug);
+                      }}
+                    >
+                      نمایش همه در این صفحه
+                    </button>
+                    <Link
+                      to={`/category/${encodeURIComponent(section.category.slug)}`}
+                      className="catalogue-grouped-page-link"
+                    >
+                      صفحه تخصصی دسته <ArrowLeft className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </header>
+                <div className="store-product-grid catalogue-products-grid">
+                  {section.items.slice(0, 8).map((product) => (
+                    <ProductCard key={product.code} product={product} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         ) : (
           <div
             className={
@@ -776,7 +1097,7 @@ export const ProductsPage: React.FC = () => {
         )}
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
+        {viewMode !== "grouped" && totalPages > 1 && (
           <div className="catalogue-pagination bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
               نمایش ردیف{" "}
@@ -793,7 +1114,7 @@ export const ProductsPage: React.FC = () => {
               <span className="font-mono font-bold text-orange-600">
                 {toPersianDigits(filteredProducts.length)}
               </span>{" "}
-              قطعه
+              خانواده قطعه
             </div>
 
             <div className="flex items-center gap-1">

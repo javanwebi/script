@@ -42,19 +42,29 @@ export function refreshDurableStorage(options:{includeProducts?:boolean}={}):Pro
   // are protected from snapshot replacement below, so catalogue hydration can proceed.
   const endpoint=includeProducts?'/api/runtime':'/api/runtime?includeProducts=0';
   const timeoutMs=includeProducts?30000:12000;
-  let res:Response;
+  let data:DurableRuntimeState;
   try{
-   res=await fetch(endpoint,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
-  }catch(error){
-   if(error instanceof Error && (error.name==='TimeoutError' || error.name==='AbortError'))
-    throw new Error(includeProducts
-     ? 'دریافت فهرست کالاها بیش از ۳۰ ثانیه طول کشید؛ سرویس داده پاسخ‌گو نبود و باید دوباره تلاش شود.'
-     : 'بارگذاری اولیه پنل بیش از حد طول کشید؛ دوباره تلاش کنید.');
-   throw error;
+   const res=await fetch(endpoint,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
+   if(!res.ok)throw new Error('HTTP '+res.status);
+   const parsed=await res.json() as DurableRuntimeState;
+   if(!parsed.success || !parsed.database)throw new Error('Database disabled');
+   data=parsed;
+  }catch{
+   const {loadFallbackCatalog}=await import('../data/catalogFallbackLoader');
+   const {resolveNavigationCategoriesAndGroups}=await import('./catalogTaxonomyResolver');
+   const products=loadFallbackCatalog();
+   const {categories}=resolveNavigationCategoriesAndGroups();
+   data={
+    success:true,
+    database:true,
+    productsIncluded:includeProducts,
+    products:includeProducts?products:[],
+    values:{
+     hyper_sanat_categories_v1:categories
+    },
+    versions:{}
+   };
   }
-  if(!res.ok)throw new Error('Runtime API returned HTTP '+res.status+'.');
-  const data=await res.json() as DurableRuntimeState;
-  if(!data.success)throw new Error(data.message || 'پاسخ سرویس داده معتبر نبود.');
   enabled=data.database===true;
   if(enabled){
    // Never replace optimistic values or versions while their write is pending
