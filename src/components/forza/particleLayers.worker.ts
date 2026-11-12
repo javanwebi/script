@@ -19,12 +19,14 @@ workerScope.onmessage = async event => {
   if (event.data?.type !== 'build') return;
   try {
     const pixels = decodeBase64(B64);
-    const layers = event.data.includeLayers === false ? null : buildParticleLayers(pixels, W, H);
+
+    // Publish the exact FORZA silhouette before the expensive point-cloud
+    // preprocessing. The main thread can paint it immediately while this
+    // worker builds the interactive WebGL particle buffers.
     const posterPixels = buildParticlePosterPixels(pixels);
     let poster: ImageBitmap | null = null;
     let transferablePosterPixels: Uint8ClampedArray | null = posterPixels;
 
-    // OffscreenCanvas keeps poster preparation away from the UI thread too.
     try {
       if (typeof OffscreenCanvas !== 'undefined') {
         const canvas = new OffscreenCanvas(W, H);
@@ -38,9 +40,24 @@ workerScope.onmessage = async event => {
         }
       }
     } catch {
-      // Main thread can build the tiny 2D poster if OffscreenCanvas is absent.
+      // Transfer the RGBA buffer when OffscreenCanvas/ImageBitmap is unavailable.
     }
 
+    const posterTransfer: Transferable[] = [];
+    if (poster) posterTransfer.push(poster);
+    else if (transferablePosterPixels) posterTransfer.push(transferablePosterPixels.buffer as ArrayBuffer);
+
+    workerScope.postMessage({
+      type: 'poster',
+      width: W,
+      height: H,
+      poster,
+      posterPixels: transferablePosterPixels,
+    }, posterTransfer);
+
+    // Unsupported-WebGL devices need only the poster. On supported devices,
+    // continue the heavy preprocessing here without blocking the UI thread.
+    const layers = event.data.includeLayers === false ? null : buildParticleLayers(pixels, W, H);
     const transfer: Transferable[] = [];
     if (layers) {
       transfer.push(
@@ -50,16 +67,14 @@ workerScope.onmessage = async event => {
         layers.glow.seed.buffer as ArrayBuffer, layers.glow.lum.buffer as ArrayBuffer,
       );
     }
-    if (poster) transfer.push(poster);
-    else if (transferablePosterPixels) transfer.push(transferablePosterPixels.buffer as ArrayBuffer);
 
     workerScope.postMessage({
       type: 'ready',
       width: W,
       height: H,
       layers,
-      poster,
-      posterPixels: transferablePosterPixels,
+      poster: null,
+      posterPixels: null,
     }, transfer);
   } catch (error) {
     workerScope.postMessage({
