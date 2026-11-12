@@ -904,6 +904,20 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           emberGeometry.dispose();
           emberMaterial.dispose();
           scene.clear();
+          api.current = {
+            reform: () => { fallbackStartedAt = performance.now(); formationReported = false; },
+            burst: () => {},
+            snap: () => {},
+            seek: (seconds: number) => { fallbackTime = Math.max(0, seconds); },
+            getStats: () => ({
+              time: fallbackTime,
+              particles: totalParticleCount,
+              backgroundParticles: EMBER_COUNT,
+              width: mountEl.clientWidth,
+              height: mountEl.clientHeight,
+              frames: fallbackFrameCount,
+            }),
+          };
           void activateFallback();
         };
 
