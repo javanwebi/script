@@ -30,7 +30,9 @@ workerScope.onmessage = async event => {
         const canvas = new OffscreenCanvas(W, H);
         const context = canvas.getContext('2d');
         if (context) {
-          context.putImageData(new ImageData(posterPixels, W, H), 0, 0);
+          const imageData = context.createImageData(W, H);
+          imageData.data.set(posterPixels);
+          context.putImageData(imageData, 0, 0);
           poster = await createImageBitmap(canvas);
           transferablePosterPixels = null;
         }
