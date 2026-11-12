@@ -18,15 +18,15 @@ test('xKiro chat and TTS keys are never interpreted as Gemini STT keys',()=>{
     {provider:'none',reason:'unsupported_provider'});
 });
 
-test('Gemini STT requires explicit opt-in and a dedicated Gemini credential',()=>{
+test('Gemini STT is rejected even when a dedicated Gemini credential is present',()=>{
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'gemini',XKIRO_API_KEY:'test'}),
-    {provider:'none',reason:'missing_gemini_key'});
-  assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'gemini',GEMINI_API_KEY:'MY_GEMINI_API_KEY'}),
-    {provider:'none',reason:'missing_gemini_key'});
+    {provider:'none',reason:'unsupported_provider'});
+  assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'gemini',GEMINI_API_KEY:'old-key'}),
+    {provider:'none',reason:'unsupported_provider'});
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'browser',GEMINI_API_KEY:'old-key'}),
     {provider:'none',reason:'disabled'});
   assert.deepEqual(selectForzaSttProvider({FORZA_STT_PROVIDER:'gemini',FORZA_STT_GEMINI_API_KEY:'dedicated-key'}),
-    {provider:'gemini',key:'dedicated-key',reason:'configured'});
+    {provider:'none',reason:'unsupported_provider'});
 });
 
 test('legacy AI_FORZA_API_KEY and ai-forza cannot silently enable Gemini STT',()=>{
@@ -71,6 +71,8 @@ test('legacy private credentials cannot disable the image-provisioned Diba runti
   const nonBundledEnv:Record<string,string|undefined>={};
   applyPrivateForzaConfig(nonBundledEnv,{FORZA_STT_PROVIDER:'gemini'});
   assert.equal(nonBundledEnv.FORZA_STT_PROVIDER,'gemini');
+  assert.deepEqual(selectForzaSttProvider(nonBundledEnv),
+    {provider:'none',reason:'unsupported_provider'});
 });
 
 test('the real single-port VPS runtime provisions and requires ready Diba STT',()=>{
