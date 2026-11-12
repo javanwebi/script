@@ -247,6 +247,7 @@ async function clearMobileFilters(page) {
 
       await page.getByRole('button', { name: /همه خانواده‌ها/ }).click();
       await page.waitForURL(url => !url.searchParams.has('sub'), { timeout: 10000 });
+      await expectProductCount(page, 24, 'clearing subcategory should restore all families');
 
       const search = page.getByRole('searchbox', { name: 'جستجو در خانواده‌ها و مشخصات فنی' });
       await search.fill('6205');
@@ -254,11 +255,19 @@ async function clearMobileFilters(page) {
       await expectProductCount(page, 1, 'search should match an actual variant code');
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
       await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });
-
-      await page.locator('.excel-category-pagination button').last().click();
+      await expectProductCount(page, 24, 'clearing search should restore all families and pagination');
+      await page.locator('.excel-category-pagination').waitFor({ state: 'visible' });
+      const nextPageButton = page.getByRole('button', { name: 'بعدی' });
+      await nextPageButton.waitFor({ state: 'visible' });
+      assert.equal(await nextPageButton.isEnabled(), true, 'next page should be available after clearing search');
+      await nextPageButton.click();
       await page.waitForURL(url => url.searchParams.get('page') === '2', { timeout: 10000 });
       await expectProductCount(page, 3, 'second page should show the remaining three families');
-      await page.locator('.excel-category-pagination button').first().click();
+      const previousPageButton = page.getByRole('button', { name: 'قبلی' });
+      await previousPageButton.waitFor({ state: 'visible' });
+      assert.equal(await previousPageButton.isEnabled(), true, 'previous page should be available on page two');
+      await previousPageButton.click();
+      await page.waitForURL(url => url.searchParams.get('page') === '1' || !url.searchParams.has('page'), { timeout: 10000 });
       await expectProductCount(page, 24, 'previous page should restore the first result page');
 
       if (viewport.width <= 900) {
