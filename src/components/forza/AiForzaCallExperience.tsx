@@ -472,7 +472,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Keep the last near-field VAD timestamp briefly so delayed final STT
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
-        setAudioLevel(current.level);
+        if(!isAiSpeakingRef.current)setAudioLevel(current.level);
         if(current.speechStarted){
           hasSpeechSoundRef.current=true;
           // During TTS this is only a VAD *candidate*. WebSpeech/local STT
@@ -760,7 +760,46 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     let fallbackStarted = false;
     let startWatchdog: number | undefined;
     let endWatchdog: number | undefined;
+    let outputMeterTimer:number|undefined;
     let cancelPending: () => void = () => {};
+    const stopOutputMeter=()=>{
+      if(outputMeterTimer!==undefined)window.clearInterval(outputMeterTimer);
+      outputMeterTimer=undefined;
+      setAudioLevel(0);
+    };
+    const startOutputMeter=()=>{
+      if(outputMeterTimer!==undefined)return;
+      const ctx=ensureCtx();
+      let analyser=analyserRef.current;
+      if(ctx&&ctx.state==='running'){
+        if(!analyser){
+          analyser=ctx.createAnalyser();
+          analyser.fftSize=256;
+          analyser.connect(ctx.destination);
+          analyserRef.current=analyser;
+        }
+        if(!audioSourceNodeRef.current){
+          audioSourceNodeRef.current=ctx.createMediaElementSource(audio);
+          audioSourceNodeRef.current.connect(analyser);
+        }
+      }
+      const samples=analyser?new Float32Array(analyser.fftSize):null;
+      outputMeterTimer=window.setInterval(()=>{
+        if(settled||audio.paused){stopOutputMeter();return;}
+        let level:number;
+        if(analyser&&ctx?.state==='running'&&samples){
+          analyser.getFloatTimeDomainData(samples);
+          let sum=0;
+          for(let i=0;i<samples.length;i++)sum+=samples[i]*samples[i];
+          level=Math.min(1,Math.sqrt(sum/Math.max(1,samples.length))*9);
+        }else{
+          // Autoplay may run before the shared AudioContext is unlocked.
+          // Keep the hair motion alive until the real output analyser is ready.
+          level=0.22+0.16*Math.abs(Math.sin(audio.currentTime*13));
+        }
+        setAudioLevel(previous=>Math.abs(previous-level)<0.025?previous:level);
+      },33);
+    };
     const cleanup = () => {
       audio.removeEventListener('ended', ended);
       audio.removeEventListener('error', failed);
@@ -794,6 +833,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoicePending(false);
       setStatus('speaking');
       setTurn('ai');
+      startOutputMeter();
       setAutoplayBlocked(false);
       setPendingAudioUrl(null);
     };
@@ -809,7 +849,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (settled) return;
       const source = ctx.createBufferSource();
       source.buffer = decoded;
-      source.connect(ctx.destination);
+      source.connect(analyserRef.current ?? ctx.destination);
       currentBufferSourceRef.current = source;
       source.onended = () => {
         if (currentBufferSourceRef.current === source) currentBufferSourceRef.current = null;
@@ -1066,7 +1106,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setVoicePending(false);
       setStatus('speaking');
       setTurn('ai');
-    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms));
+    },ms=>console.warn('[FORZA_AUDIO_UNDERRUN] wait_ms='+ms),
+    undefined,undefined,level=>setAudioLevel(previous=>
+      Math.abs(previous-level)<0.025?previous:level));
     player.setMuted(isSpeakerMuted);
     continuousVoiceRef.current=player;
     try{
@@ -1454,6 +1496,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               ' endToPlaybackMs='+(stage==='playback_started'&&detectedSpeechEndAtRef.current
                 ? Math.round(performance.now()-detectedSpeechEndAtRef.current):-1));
           },
+          level=>setAudioLevel(previous=>Math.abs(previous-level)<0.025?previous:level),
         );
         playerForTurn=continuousPlayer;
         continuousPlayer.setMuted(isSpeakerMuted);
