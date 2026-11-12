@@ -145,7 +145,6 @@ test('interrupting mid-WAV records only audio actually scheduled as played',asyn
 test('avatar meter follows the decoded TTS output, not microphone input',async()=>{
   const originalFetch=globalThis.fetch;
   const levels:number[]=[];
-  let ended:(()=>void)|null=null;
   const analyser={
     fftSize:128,
     connect(){},disconnect(){},
