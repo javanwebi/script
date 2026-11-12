@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   PhoneOff,
   Volume2,
@@ -341,11 +342,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // Cancel only after near-field and speaker-echo guards pass. Otherwise
         // FORZA could cut off its own short acknowledgement when the mic hears it.
         backchannelRef.current?.cancel();
+        const firstWords=!activeTranscriptRef.current.trim()&&!isProcessingTurnRef.current;
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);setTurn('user');
+        hasSpeechSoundRef.current=true;
+        const publish=()=>{setUserText(transcript);setIsUserSpeaking(true);setTurn('user');};
+        // The very first audible words must not wait behind WebGL paint or
+        // React's normal deferred batch on weak/SwiftShader devices.
+        if(firstWords)flushSync(publish);
+        else publish();
         maybeBackchannelRef.current(transcript,isFinal);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
@@ -1995,13 +2002,21 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
              speechInterimRef.current!==recognized.hasInterim){
             lastTranscriptChangedAtRef.current=Date.now();
           }
+          const firstWords=!activeTranscriptRef.current.trim()&&!isProcessingTurnRef.current;
           speechInterimRef.current = recognized.hasInterim;
           hasSpeechSoundRef.current = true;
           activeTranscriptRef.current = currentSpeech;
-          setUserText(currentSpeech);
-          setStatus('listening');
-          setTurn('user');
-          setIsUserSpeaking(true);
+          const publish=()=>{
+            setUserText(currentSpeech);
+            setStatus('listening');
+            setTurn('user');
+            setIsUserSpeaking(true);
+          };
+          // Critical low-latency transcript: commit the first partial in the
+          // same microphone callback. Later updates remain React-batched to
+          // avoid re-rendering the whole HUD for each ASR hypothesis.
+          if(firstWords)flushSync(publish);
+          else publish();
           maybeBackchannelRef.current(currentSpeech,!recognized.hasInterim);
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
