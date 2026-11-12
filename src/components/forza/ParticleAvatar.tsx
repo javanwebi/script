@@ -322,8 +322,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
     }, [restartKey]);
 
     useEffect(() => {
-      const el = mount.current;
-      if (!el) return;
+      const mountEl = mount.current;
+      if (!mountEl) return;
       const qualityMode: 'high' | 'balanced' | 'low' = quality === 'high' ? 'high' : quality === 'low' ? 'low' : 'balanced';
       const profile = qualityMode === 'high' ? { pixelRatio: 1.5, embers: 900, tier: 'HIGH' }
         : qualityMode === 'low' ? { pixelRatio: 1, embers: 360, tier: 'LOW' }
@@ -343,7 +343,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
       renderer.domElement.style.background = 'transparent';
-      el.appendChild(renderer.domElement);
+      mountEl.appendChild(renderer.domElement);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
@@ -367,7 +367,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
       let worldH = WORLD_W;
       function resize() {
-        const w = el.clientWidth, h = el.clientHeight;
+        const w = mountEl.clientWidth, h = mountEl.clientHeight;
         if (!w || !h) return;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
@@ -440,7 +440,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           catch (e) { console.error('Snap download failed:', e); }
         },
         seek: (seconds: number) => { t = Math.max(0, seconds); shared.uTime.value = t; },
-        getStats: () => ({ time: t, particles: totalParticleCount, backgroundParticles: N, width: el.clientWidth, height: el.clientHeight, frames: frameCount }),
+        getStats: () => ({ time: t, particles: totalParticleCount, backgroundParticles: N, width: mountEl.clientWidth, height: mountEl.clientHeight, frames: frameCount }),
       };
 
       const loadSilhouette = async () => {
@@ -477,7 +477,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         window.removeEventListener('resize', resize);
         glowPts?.geometry.dispose(); sharpPts?.geometry.dispose(); eg.dispose();
         scene.clear(); renderer.dispose(); glowMat?.dispose(); sharpMat?.dispose(); emberMat.dispose();
-        el.innerHTML = '';
+        mountEl.innerHTML = '';
       };
     }, [quality]);
 
