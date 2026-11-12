@@ -144,6 +144,11 @@ test('FORZA opens its voice controller without putting Three.js in the first cal
   assert.match(routePreload,/const warmForza=\(\)=>Promise\.all/);
 });
 
+test('assistant subtitles replace the customer bubble on the first SSE text chunk',()=>{
+  assert.equal((ui.match(/setDisplayedAi\\(reply\\)/g)||[]).length,2);
+  assert.match(ui,/setAiText\\(reply\\);[\\s\\S]{0,220}setDisplayedAi\\(reply\\);/);
+});
+
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
   assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
   assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
