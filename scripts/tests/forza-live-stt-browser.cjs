@@ -42,7 +42,7 @@ function wav(){
     externalModelDownloads++;
     return route.abort();
   });
-  await page.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
+  await page.route('**/api/runtime*',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({status:200,contentType:'audio/wav',body:wav()}));
   await page.route('**/api/ai/forza-live',r=>{serverTranscriptions++;return r.fulfill({status:503,body:'{}'});});
