@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {joinForzaRecognitionSession} from '../src/utils/forzaConversation';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0].replace('catch(error:any)','catch(error)');
@@ -58,6 +59,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const rec={};
  let interrupted=0,echo=true;
  const scope:Record<string,any>={
+  joinForzaRecognitionSession,recognitionSessionPrefixRef:ref(''),activeTranscriptRef:ref(''),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
   extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
