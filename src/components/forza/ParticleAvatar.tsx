@@ -537,7 +537,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
               fps,
               tier: 'CANVAS',
               renderMs: Math.round((performance.now() - now) * 10) / 10,
-              particles: totalParticleCount || EMBER_COUNT,
+              particles: totalParticleCount,
             });
           }
           fallbackRaf = requestAnimationFrame(renderFallback);
