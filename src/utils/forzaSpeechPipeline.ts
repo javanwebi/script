@@ -166,13 +166,32 @@ const spokenTechnicalCodes: Readonly<Record<string, string>> = {
   'PJ': 'پی جِی',
   'PL': 'پی اِل',
   'GT': 'جی تی',
+  'SPA': 'اِس پی اِی',
+  'SPB': 'اِس پی بی',
+  'SPC': 'اِس پی سی',
+  'SPZ': 'اِس پی زِد',
+  'HTD': 'اِچ تی دی',
+  'AT5': 'اِی تی پنج',
+  'T5': 'تی پنج',
   'XPA': 'ایکس پی اِی',
   'XPB': 'ایکس پی بی',
   'XPC': 'ایکس پی سی',
 };
+const spokenCodeDigits:Readonly<Record<string,string>>={
+  '0':'صفر','1':'یک','2':'دو','3':'سه','4':'چهار',
+  '5':'پنج','6':'شش','7':'هفت','8':'هشت','9':'نه',
+};
 export function verbalizeForzaTechnicalTerms(text: string): string {
-  return String(text || '').replace(
-    /\b(?:2RS|RS|ZZ|C3|C4|DIN|ISO|SWR|PK|PJ|PL|GT|XPA|XPB|XPC)\b/gi,
+  const suffixes=String(text||'').replace(
+    /(^|[^A-Za-z0-9])([0-9۰-۹]{3,6})\s*(2RS|RS|ZZ|C3|C4|2Z|LLU|LLB)(?=$|[^A-Za-z0-9])/giu,
+    (_whole,prefix:string,digits:string,suffix:string)=>{
+      const ascii=digits.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+      const spoken=ascii.split('').map(d=>spokenCodeDigits[d]||d).join(' ');
+      return prefix+spoken+'، '+(spokenTechnicalCodes[suffix.toUpperCase()]||suffix);
+    },
+  );
+  return suffixes.replace(
+    /\b(?:2RS|RS|ZZ|C3|C4|DIN|ISO|SWR|PK|PJ|PL|GT|SPA|SPB|SPC|SPZ|HTD|AT5|T5|XPA|XPB|XPC)\b/gi,
     code => spokenTechnicalCodes[code.toUpperCase()] || code,
   );
 }
