@@ -186,11 +186,25 @@ async function expectProductCount(page, count, message) {
   assert.equal(await page.locator('.excel-category-product-shell').count(), count, message);
 }
 
-async function applyMobileFilter(page, label) {
+async function selectFilterChoice(page, containerSelector, label, queryKey, queryValue = '1') {
+  const choice = page.locator(containerSelector + ' label').filter({ hasText: label }).first();
+  await choice.locator('span').click();
+  await page.waitForURL(url => queryKey === 'brand'
+    ? url.searchParams.getAll(queryKey).includes(queryValue)
+    : url.searchParams.get(queryKey) === queryValue, { timeout: 10000 });
+  await page.waitForFunction(({ selector, text }) => {
+    const labelElement = Array.from(document.querySelectorAll(selector + ' label'))
+      .find(element => element.textContent?.includes(text));
+    const input = labelElement?.querySelector('input[type="checkbox"]');
+    return input instanceof HTMLInputElement && input.checked;
+  }, { selector: containerSelector, text: label }, { timeout: 10000 });
+}
+
+async function applyMobileFilter(page, label, queryKey, queryValue = '1') {
   await page.locator('.excel-category-mobile-filter').click();
   const sheet = page.getByRole('dialog', { name: 'فیلترهای دسته‌بندی' });
   await sheet.waitFor({ state: 'visible' });
-  await sheet.locator('label').filter({ hasText: label }).locator('input').check();
+  await selectFilterChoice(page, '.excel-category-filter-sheet', label, queryKey, queryValue);
   await sheet.locator('footer button').last().click();
   await sheet.waitFor({ state: 'hidden' });
 }
@@ -280,24 +294,9 @@ async function clearMobileFilters(page) {
         await page.keyboard.press('Escape');
         await sheet.waitFor({ state: 'hidden' });
         assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden', 'closing filters should restore page scrolling');
-        await applyMobileFilter(page, 'Test Brand');
+        await applyMobileFilter(page, 'Test Brand', 'brand', 'Test Brand');
       } else {
-        const brandLabel = page.locator('.excel-category-filter-panel label').filter({ hasText: 'Test Brand' }).first();
-        const brandInput = brandLabel.locator('input');
-        console.log('DESKTOP_BRAND_FILTER_BEFORE', viewport.width, JSON.stringify({
-          url: page.url(),
-          checked: await brandInput.isChecked(),
-          labelText: await brandLabel.innerText(),
-          labels: await page.locator('.excel-category-filter-panel label').allInnerTexts(),
-        }));
-        await brandLabel.locator('span').click();
-        await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
-        await page.waitForFunction(() => {
-          const input = Array.from(document.querySelectorAll('.excel-category-filter-panel input[type="checkbox"]'))
-            .find(element => element.closest('label')?.innerText.includes('Test Brand'));
-          return input instanceof HTMLInputElement && input.checked;
-        }, null, { timeout: 10000 });
-        console.log('DESKTOP_BRAND_FILTER_AFTER', viewport.width, page.url(), await brandInput.isChecked());
+        await selectFilterChoice(page, '.excel-category-filter-panel', 'Test Brand', 'brand', 'Test Brand');
       }
       await expectProductCount(page, 2, 'brand filter should return the two matching families');
       await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
@@ -306,16 +305,16 @@ async function clearMobileFilters(page) {
       else await page.locator('.excel-category-filter-heading button').click();
       await expectProductCount(page, 24, 'clearing brand filter should restore the first page');
 
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای موجودی تأییدشده');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای موجودی تأییدشده' }).locator('input').check();
+      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای موجودی تأییدشده', 'stock');
+      else await selectFilterChoice(page, '.excel-category-filter-panel', 'فقط دارای موجودی تأییدشده', 'stock');
       await expectProductCount(page, 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
       await page.waitForURL(url => url.searchParams.get('stock') === '1', { timeout: 10000 });
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
 
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای تصویر ثبت‌شده');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای تصویر ثبت‌شده' }).locator('input').check();
+      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای تصویر ثبت‌شده', 'image');
+      else await selectFilterChoice(page, '.excel-category-filter-panel', 'فقط دارای تصویر ثبت‌شده', 'image');
       await expectProductCount(page, 1, 'image filter should return only families with a registered image');
       await page.waitForURL(url => url.searchParams.get('image') === '1', { timeout: 10000 });
 
