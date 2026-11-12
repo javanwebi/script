@@ -176,6 +176,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recorderStartedAtRef = useRef(0);
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
+  const loadingLocalSttRef=useRef(false);
+  const startLocalSttRecoveryRef=useRef<()=>void>(()=>{});
+  const browserNetworkFailuresRef=useRef(0);
   const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
   const localSttNodeRef=useRef<ScriptProcessorNode|null>(null);
   const localSttSinkRef=useRef<GainNode|null>(null);
@@ -239,7 +242,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       words,heardSpeechEchoRef.current,recentPlayback) || playbackEchoHistoryRef.current.matches(words);
   };
   const serverSttConfiguredRef=useRef(false);
-  const [serverSttLabel,setServerSttLabel]=useState('در حال بررسی موتور دایبا...');
+  const [serverSttLabel,setServerSttLabel]=useState('گفتار زنده مرورگر؛ دایبا پشتیبان');
 
   // MediaRecorder audio capture refs (fallback & complementary for STT)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -428,6 +431,41 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     setIsUserSpeaking(false);
   }, []);
+
+  // Normal Chrome calls start using streaming WebSpeech immediately: downloading
+  // a large Diba model on every page entry slows the first paint and saturates
+  // bandwidth for concurrent visitors. Fetch local Vosk only when WebSpeech is
+  // unavailable or repeatedly fails. Server Diba handles missing final text.
+  const requestLocalSttRecovery=useCallback(()=>{
+    if(callClosedRef.current||loadingLocalSttRef.current||localSttModelRef.current)return;
+    loadingLocalSttRef.current=true;
+    setLocalSttStatus('loading');
+    setServerSttLabel('اتصال تشخیص گفتار محلی...');
+    void loadDibaSttModel().then(model=>{
+      if(callClosedRef.current)return;
+      localSttModelRef.current=model;
+      setLocalSttStatus('ready');
+      setServerSttLabel('دایبا محلی فعال است');
+      setMicrophoneError(null);
+      attachLocalStt();
+      if(greetingFinishedRef.current&&!micMutedRef.current){
+        const rec=recognitionRef.current;
+        if(rec&&isRecognitionActiveRef.current){
+          rec.onresult=null;rec.onerror=null;rec.onend=null;
+          try{rec.abort();}catch{}
+          isRecognitionActiveRef.current=false;
+        }
+        startListening(true);
+      }
+    }).catch(()=>{
+      if(callClosedRef.current)return;
+      setLocalSttStatus('fallback');
+      setServerSttLabel(serverSttConfiguredRef.current
+        ? 'تشخیص گفتار سرور (دایبا)'
+        : 'تشخیص گفتار مرورگر');
+    }).finally(()=>{loadingLocalSttRef.current=false;});
+  },[attachLocalStt,startListening]);
+  startLocalSttRecoveryRef.current=requestLocalSttRecovery;
 
   // Low-latency VAD uses actual mic PCM RMS, not decorative frequency motion.
   // The worker STT fallback receives MediaRecorder audio after a real speech
@@ -1918,6 +1956,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           return;
         }
         recognitionRetryRef.current=0;
+        browserNetworkFailuresRef.current=0;
         recognitionFailedRef.current=false;
         webSpeechFailedRef.current=false;
         setMicrophoneError(null);
@@ -2003,6 +2042,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(callClosedRef.current||recognitionRef.current!==rec)return;
         const error = e?.error;
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
+        if(error==='network' && ++browserNetworkFailuresRef.current>=3)
+          startLocalSttRecoveryRef.current();
         const retryDelay=forzaRecognitionRetryDelay(String(error),recognitionRetryRef.current);
         if(retryDelay!==null && !callClosedRef.current && !micMutedRef.current){
           recognitionFailedRef.current=true;
@@ -2119,6 +2160,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       isRecognitionActiveRef.current=false;
       recognitionRef.current=initSpeechRecognition();
       if(!recognitionRef.current&&!localSttRecognizerRef.current&&!localSttModelRef.current){
+        startLocalSttRecoveryRef.current();
         recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
         setMicrophoneError('موتور تشخیص گفتار محلی در حال آماده‌سازی است؛ لطفاً چند لحظه صبر کنید.');
       }
@@ -2133,43 +2175,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
 
-  // Diba/Vosk is loaded in the background and is preferred for live partials;
-  // Web Speech remains only a compatibility fallback for browsers that cannot
-  // download or execute the local model.
-
-  // Warm the Persian Diba/Vosk recognizer in the visitor's browser while the
-  // avatar forms. This avoids relying on a cloud browser speech service and
-  // keeps continuous partial transcripts on the device. The model download
-  // never blocks the scene, greeting, or microphone permission flow.
-  useEffect(()=>{
-    let active=true;
-    setLocalSttStatus('loading');
-    setServerSttLabel('در حال آماده‌سازی تشخیص گفتار محلی...');
-    void loadDibaSttModel().then(model=>{
-      if(!active)return;
-      localSttModelRef.current=model;
-      setLocalSttStatus('ready');
-      setServerSttLabel('دایبا محلی آماده است');
-      setMicrophoneError(null);
-      attachLocalStt();
-      // If the browser fallback started while the local model downloaded,
-      // switch over without closing the microphone or losing the current call.
-      if(greetingFinishedRef.current&&!micMutedRef.current){
-        const recognizer=recognitionRef.current;
-        if(recognizer&&isRecognitionActiveRef.current){
-          recognizer.onresult=null;recognizer.onerror=null;recognizer.onend=null;
-          try{recognizer.abort();}catch{}
-          isRecognitionActiveRef.current=false;
-        }
-        startListening(true);
-      }
-    }).catch(()=>{
-      if(!active)return;
-      setLocalSttStatus('fallback');
-      setServerSttLabel('تشخیص گفتار مرورگر (حالت جایگزین)');
-    });
-    return()=>{active=false;};
-  },[attachLocalStt,startListening]);
+  // Browser STT is immediate. Diba/Vosk is downloaded only on demand
+  // after unsupported SpeechRecognition or repeated network errors.
 
   // Discover the optional server-side Diba fallback independently of the
   // text AI provider. It is used only when no client transcript was produced.
