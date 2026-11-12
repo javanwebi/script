@@ -109,14 +109,28 @@ async function stubApis(page){
     await stubApis(slowGpu);
     await slowGpu.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
     await slowGpu.locator('canvas[data-engine="webgl"]').waitFor({timeout:20000});
-    await slowGpu.locator('canvas.forza-canvas-fallback').waitFor({timeout:30000});
-    await slowGpu.waitForFunction(()=>document.body.innerText.includes('ADAPTIVE'),null,{timeout:15000});
+    // The poster must paint while the worker is still preparing the full
+    // point cloud; do not confuse an appended-but-empty canvas with recovery.
+    await slowGpu.waitForFunction(()=>{
+      const canvas=document.querySelector('canvas.forza-canvas-fallback');
+      if(!canvas||!canvas.width||!canvas.height)return false;
+      const context=canvas.getContext('2d');
+      if(!context)return false;
+      const data=context.getImageData(0,0,canvas.width,canvas.height).data;
+      let visible=0;
+      for(let i=3;i<data.length;i+=64)if(data[i]>8)visible++;
+      return visible>100;
+    },null,{timeout:20000});
+    // A single-digit software renderer must eventually be released. The same
+    // visible poster remains in place after the WebGL canvas is removed.
+    await slowGpu.waitForFunction(()=>!document.querySelector('canvas[data-engine="webgl"]')&&
+      Boolean(document.querySelector('canvas.forza-canvas-fallback')),null,{timeout:30000});
     const slowGpuResult=await slowGpu.locator('canvas.forza-canvas-fallback').evaluate(canvas=>{
       const ctx=canvas.getContext('2d');
       if(!ctx)return {width:canvas.width,height:canvas.height,visible:0};
       const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
       let visible=0;
-      for(let i=3;i<data.length;i+=64)if(data[i]>0)visible++;
+      for(let i=3;i<data.length;i+=64)if(data[i]>8)visible++;
       return {width:canvas.width,height:canvas.height,visible};
     });
     assert.ok(slowGpuResult.width>0&&slowGpuResult.height>0);
