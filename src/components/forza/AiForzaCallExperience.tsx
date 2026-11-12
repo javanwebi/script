@@ -121,16 +121,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  // Start with a GPU-safe scene. Mobile/low-memory devices begin in low mode;
-  // sustained low FPS can step a balanced desktop down without affecting STT.
-  const [quality, setQuality] = useState<'balanced' | 'low'>(() => {
+  // Mobile/low-memory devices start with a smaller framebuffer. Every device
+  // still receives the same particle map; ParticleAvatar adapts resolution live.
+  const [quality] = useState<'balanced' | 'low'>(() => {
     const nav = navigator as Navigator & { deviceMemory?: number };
     const cores = nav.hardwareConcurrency || 4;
     const memory = nav.deviceMemory || 4;
     const compact = window.matchMedia('(max-width: 767px)').matches;
     return compact || cores <= 4 || memory <= 4 ? 'low' : 'balanced';
   });
-  const slowFpsSamplesRef = useRef(0);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [consultationImage,setConsultationImage]=useState('');
@@ -258,14 +257,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatusState(s);
   }, []);
 
+  // ParticleAvatar adapts framebuffer resolution internally without remounting
+  // or changing the shared particle silhouette. React only displays telemetry.
   const onParticleStats = useCallback((next: { fps: number | null; tier: string; renderMs: number; particles?: number }) => {
     setStats(previous => ({ ...previous, ...next }));
-    if (next.fps !== null && next.fps < 18) {
-      slowFpsSamplesRef.current += 1;
-      if (slowFpsSamplesRef.current >= 2) setQuality('low');
-    } else if (next.fps !== null && next.fps >= 24) {
-      slowFpsSamplesRef.current = 0;
-    }
   }, []);
 
   // Download the small offline greeting while the particles form, not after.
@@ -335,7 +330,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           lastTranscriptChangedAtRef.current=Date.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
+        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);setTurn('user');
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
@@ -1425,11 +1420,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply=callPlainText.push(fullText);
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
+            // Switch the single live message card to the assistant as soon as
+            // text exists; never wait for a WebAudio source to begin playing.
+            setTurn('ai');
             console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
               ' clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
           }
           setAiText(reply);
+          // Replace the customer bubble with the live assistant subtitle on
+          // the very first SSE chunk; do not wait for TTS completion.
+          setDisplayedAi(reply);
           if(useNima){
             // Enforce monotonic SSE text; never speak a revised/duplicate
             // segment after the consumer has already heard its predecessor.
@@ -1521,6 +1522,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
         if(reply && activeTurnRef.current?.generation===generation && !pocketAbort.signal.aborted){
           setAiText(reply);
+          setDisplayedAi(reply);
           try {
             console.info('[FORZA_LATENCY] phase=whole-answer-tts-request '+
               'clientMs='+Math.round(performance.now()-turnStartedAt)+
@@ -1586,9 +1588,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isAiSpeakingRef.current=false;
         setVoicePending(false);
         isProcessingTurnRef.current = false;
+        // Keep the completed assistant answer in the single live message
+        // card. The next actual transcript switches it back to the customer.
         setStatus('listening');
-        setTurn('user');
-        startListening();
+        setTurn('ai');
+        startListening(true);
       }
     },
     [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,ensureVoiceMode]
@@ -1977,20 +1981,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     void initializeMicrophone();
   }, [initializeMicrophone]);
 
-  // Never leave the call in a permanent black/loading state if WebGL or the
-  // large silhouette chunk fails. The CSS ember fallback remains visible and
-  // the voice conversation is allowed to start after a bounded wait.
-  useEffect(() => {
-    if (particlesFormed) return;
-    const timer = window.setTimeout(() => {
-      if (callClosedRef.current || greetingStartedRef.current) return;
-      console.warn('[FORZA_PARTICLES] formation_watchdog_fallback=1');
-      setErrorNotice('موتور گرافیکی فورزا دیر آماده شد؛ مکالمه در حالت سبک ادامه پیدا می‌کند.');
-      setParticlesFormed(true);
-    }, 7000);
-    return () => window.clearTimeout(timer);
-  }, [particlesFormed]);
-
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
   useEffect(() => {
@@ -2254,7 +2244,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {/* Turn Status Pill & Mic / Speaker Controls */}
         <div className="forza-status-dock self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
-            {turn === 'user'
+            {status === 'listening' || turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
@@ -2278,7 +2268,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </span>
           <span
             className={`w-2 h-2 rounded-full ${
-              turn === 'user'
+              status === 'listening' || turn === 'user'
                 ? 'bg-white shadow-[0_0_8px_#ffffff]'
                 : status === 'thinking'
                 ? 'bg-[#e06518] shadow-[0_0_8px_#e06518] animate-pulse'

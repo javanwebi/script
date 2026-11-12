@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 const ui=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const audio=readFileSync(new URL('../src/utils/forzaContinuousWav.ts',import.meta.url),'utf8');
 const avatar=readFileSync(new URL('../src/components/forza/ParticleAvatar.tsx',import.meta.url),'utf8');
+const particleWorker=readFileSync(new URL('../src/components/forza/particleLayers.worker.ts',import.meta.url),'utf8');
+const particleLayers=readFileSync(new URL('../src/components/forza/particleLayers.shared.ts',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/components/forza/style.css',import.meta.url),'utf8');
 const routePreload=readFileSync(new URL('../src/components/layout/RouteIntentPreload.tsx',import.meta.url),'utf8');
 const forzaPage=readFileSync(new URL('../src/pages/AiForzaPage.tsx',import.meta.url),'utf8');
@@ -32,19 +34,53 @@ test('text correction can stop a pending/playing answer and does not block on UI
   assert.match(ui,/voiceStage === 'playing'/);
 });
 
-test('particle identity loads after first paint and adapts density to the available GPU',()=>{
-  assert.match(ui,/const \[quality, setQuality\] = useState<'balanced' \| 'low'>/);
-  assert.match(ui,/slowFpsSamplesRef\.current >= 2/);
-  assert.match(avatar,/await import\('\.\/pixels'\)/);
-  assert.match(avatar,/buildLayers\(decode\(B64\), W, H, qualityMode\)/);
-  assert.match(avatar,/quality === 'balanced' \? 2/);
-  assert.match(avatar,/setClearColor\(0x080402, 0\)/);
+test('the original FORZA silhouette is identical across device tiers; only render resolution adapts',()=>{
+  assert.match(ui,/const \[quality\] = useState<'balanced' \| 'low'>/);
+  assert.match(avatar,/new Worker\(new URL\('\.\/particleLayers\.worker\.ts', import\.meta\.url\)/);
+  assert.match(avatar,/adaptiveScale/);
+  assert.match(avatar,/renderer\.setPixelRatio\(pixelRatio\)/);
+  assert.match(avatar,/const maxPixelRatio = Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/);
+  assert.match(avatar,/const EMBER_COUNT = 900/);
+  assert.match(avatar,/fps < 42/);
   assert.match(avatar,/dt \/ 2\.8/);
+  assert.match(avatar,/setClearColor\(0x080402, 0\)/);
+  assert.match(particleLayers,/const stride = 1/);
+  assert.match(particleLayers,/const glowStep = 4/);
+  assert.match(particleWorker,/import \{ W, H, B64 \} from '\.\/pixels'/);
+  assert.match(particleWorker,/buildParticleLayers\(pixels, W, H\)/);
+  assert.match(particleWorker,/OffscreenCanvas/);
   assert.match(ui,/PROCEDURAL IDENTITY/);
   assert.match(ui,/PARTICLE MESH · REALTIME GPU/);
   assert.match(ui,/SYNC <b className="text-white">—<\/b>/);
   assert.match(ui,/AI FORZA در حال صحبت/);
-  assert.doesNotMatch(ui,/const \[quality\] = useState<'high'>/);
+});
+
+test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette without a red error',()=>{
+  assert.match(avatar,/startCanvasFallback/);
+  assert.match(avatar,/const coverScale = Math\.max\(width \/ imageWidth, height \/ imageHeight\)/);
+  assert.match(avatar,/glowContext\.filter = 'blur\(22px\)'/);
+  assert.match(avatar,/context\.drawImage\(glowCanvas, 0, 0, width, height\)/);
+  assert.match(avatar,/fallbackTargetFrameMs = 1000 \/ 30/);
+  assert.match(avatar,/fps < 22/);
+  assert.match(avatar,/switchToCanvasFallback\('slow_gpu', fps\)/);
+  assert.match(avatar,/switchToCanvasFallback\('worker_unavailable'\)/);
+  assert.match(avatar,/canvas_fallback=1 reason=/);
+  assert.match(avatar,/activeRenderer\.forceContextLoss/);
+  assert.match(avatar,/webglcontextlost/);
+  assert.match(avatar,/webglcontextrestored/);
+  assert.match(avatar,/forza-canvas-fallback/);
+  assert.match(avatar,/resolveParticlePoster/);
+  assert.match(particleLayers,/buildParticlePosterPixels/);
+  assert.match(particleLayers,/buildParticlePosterPixelsAsync/);
+  assert.match(avatar,/await shared\.buildParticlePosterPixelsAsync\(pixels\)/);
+  assert.match(avatar,/particleFullPayloadPromise/);
+  assert.match(avatar,/particlePosterOnlyPromise/);
+  assert.match(avatar,/adaptiveScale <= 0\.7/);
+  assert.match(avatar,/1000 \/ 45/);
+  assert.match(avatar,/1000 \/ 30/);
+  assert.doesNotMatch(avatar,/شتاب‌دهنده گرافیکی WebGL در دسترس نیست/);
+  assert.doesNotMatch(avatar,/موتور گرافیکی فورزا دیر آماده شد/);
+  assert.doesNotMatch(ui,/formation_watchdog_fallback=1/);
 });
 
 test('stop remains accessible but does not expand the original status pill',()=>{
@@ -86,7 +122,7 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   assert.match(ui,/onPointerDownCapture=\{resumeAudioFromGesture\}/);
   assert.match(ui,/unlockForzaAudioFromGesture\(\)/);
   assert.match(ui,/ctxRef\.current\?\.state === 'running'/);
-  assert.match(ui,/formation_watchdog_fallback=1/);
+  assert.doesNotMatch(ui,/formation_watchdog_fallback=1/);
 });
 
 test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
@@ -115,6 +151,32 @@ test('FORZA opens its voice controller without putting Three.js in the first cal
   assert.match(routePreload,/const warmForza=\(\)=>Promise\.all/);
 });
 
+test('assistant subtitles replace the customer bubble on the first SSE text chunk',()=>{
+  assert.equal((ui.match(/setDisplayedAi\(reply\)/g)||[]).length,2);
+  assert.match(ui,/setAiText\(reply\);[\s\S]{0,220}setDisplayedAi\(reply\);/);
+  const firstText=ui.indexOf("if(!firstTextDelivered&&reply.trim())");
+  const firstTextEnd=ui.indexOf("setAiText(reply)",firstText);
+  assert.ok(firstText>=0&&firstTextEnd>firstText);
+  assert.match(ui.slice(firstText,firstTextEnd),/setTurn\('ai'\)/,
+    'switch to the assistant bubble before waiting for audio playback');
+});
+
+test('the completed FORZA answer remains visible until the next customer transcript',()=>{
+  assert.match(ui,/setStatus\('listening'\);\s*setTurn\('ai'\);\s*startListening\(true\);/);
+  assert.match(ui,/setUserText\(transcript\);setIsUserSpeaking\(true\);setTurn\('user'\)/);
+  assert.match(ui,/setUserText\(currentSpeech\);\s*setStatus\('listening'\);\s*setTurn\('user'\)/);
+  assert.match(ui,/status === 'listening' \|\| turn === 'user'/,
+    'the status pill must still show that the microphone is listening');
+});
+
+test('the original FORZA poster is published before full worker particle preprocessing',()=>{
+  const poster=particleWorker.indexOf("type: 'poster'");
+  const layers=particleWorker.indexOf('buildParticleLayers(pixels, W, H)');
+  assert.ok(poster>=0&&layers>poster,'poster must arrive before the expensive particle buffer build');
+  assert.match(avatar,/loadParticleLayerPayload\(true, showEarlyPoster\)/);
+  assert.match(avatar,/onFormationComplete/);
+});
+
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
   assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
   assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
@@ -130,7 +192,7 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
   assert.match(avatar,/document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);
   assert.match(avatar,/if \(document\.hidden\)/);
   assert.match(avatar,/last = performance\.now\(\)/);
-  assert.match(avatar,/document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
+  assert.match(avatar,/if \(visibilityHandler\) document\.removeEventListener\('visibilitychange', visibilityHandler\)/);
 });
 
 
