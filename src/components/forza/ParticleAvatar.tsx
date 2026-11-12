@@ -630,6 +630,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           const payload = layerPayload || await loadParticleLayerPayload(Boolean(renderer));
           if (cancelled) return;
           layerPayload = payload;
+          // If WebGL recovered while the poster was loading, keep the restored
+          // renderer instead of layering a stale Canvas fallback over it.
+          if (renderer && !contextLost) return;
           const poster = resolveParticlePoster(payload);
           startCanvasFallback(poster, payload.width, payload.height);
         } catch (error) {
@@ -804,7 +807,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             if (fps < 22) {
               severeFpsSamples++;
               if (severeFpsSamples >= 2) {
-                switchToCanvasForPerformance(fps);
+                switchToCanvasFallback('slow_gpu', fps);
                 return;
               }
             } else {
@@ -876,9 +879,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         // WebGL context yet render the full scene at single-digit FPS. After
         // two consecutive severe samples, release WebGL and draw the same
         // silhouette poster with the lightweight Canvas2D engine.
-        const switchToCanvasForPerformance = (fps: number) => {
+        const switchToCanvasFallback = (reason: 'slow_gpu' | 'worker_unavailable', fps = 0) => {
           if (!renderer || cancelled) return;
-          console.info('[FORZA_PARTICLES] software_gpu_canvas_fallback=1 fps=' + fps);
+          console.info('[FORZA_PARTICLES] canvas_fallback=1 reason=' + reason + (fps > 0 ? ' fps=' + fps : ''));
           contextLost = true;
           if (raf) cancelAnimationFrame(raf);
           raf = 0;
@@ -936,10 +939,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           layerPayload = payload;
           const poster = resolveParticlePoster(payload);
           if (!payload.layers) {
-            renderer!.domElement.style.visibility = 'hidden';
-            if (raf) cancelAnimationFrame(raf);
-            raf = 0;
-            startCanvasFallback(poster, payload.width, payload.height);
+            switchToCanvasFallback('worker_unavailable');
             return;
           }
           const uniforms = shared as Record<string, { value: any }>;
