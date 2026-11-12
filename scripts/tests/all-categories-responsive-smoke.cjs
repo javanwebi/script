@@ -190,6 +190,10 @@ async function installApiRoutes(page, fallbackMode = false) {
 
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
       await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });
+      await page.waitForFunction(
+        () => document.querySelectorAll('.all-categories-card').length === 3,
+        null, { timeout: 10000 },
+      );
       assert.equal(await page.locator('.all-categories-card').count(), 3, 'clearing search should restore all categories');
 
       const subcategoryLink = page.locator('.all-categories-subcategory-links a').filter({ hasText: 'سیم‌دار فابریک' }).first();
