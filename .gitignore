@@ -6,6 +6,35 @@ coverage/
 *.log
 .env*
 !.env.example
-.aistudio/
 .cache/
+imagemoshtari/
+imageai/
+.aistudio/
+.data/
+
+
+# Customer data belongs in the runtime database, never in source control.
+src/data/usersDb.json
+src/data/smsLogsDb.json
+
+!.env.database.example
+
+# Product uploads belong to the persistent Railway volume, never Git/Docker builds.
+storage/
+
+# Never commit proprietary FORZA voice recordings, training data or checkpoints.
+/private-voice/
+/voice-data/
+/voice-training/
+*.ckpt
+
+# Private local vision provisioning
+.env.local-vision
+.local-vision-enabled
+__pycache__/
+*.pyc
+
+# Runtime release stages and deployment metadata stay on the VPS only.
+/.deploy/
 temp_repo/
+

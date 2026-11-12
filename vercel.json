@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/portal",
+      "destination": "/api/portal"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "fix/customer-portals-content-access": false
+    }
+  }
+}

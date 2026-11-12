@@ -1,0 +1,28 @@
+name: FORZA xKiro free-model rotation and safety
+on:
+  pull_request:
+    paths:
+      - 'server/ai/xkiroFreeFailover.ts'
+      - 'server/ai/baiConsult.ts'
+      - 'server.ts'
+      - 'tests/xkiro-free-failover.test.ts'
+      - 'tests/bai-consult.test.ts'
+      - '.github/workflows/forza-xkiro-free-failover.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck app and free-model routing
+        run: npm run lint
+      - name: Free-model-only and streaming regression tests
+        run: node --import tsx --test tests/xkiro-free-failover.test.ts tests/bai-consult.test.ts

@@ -8,8 +8,8 @@ import {
   Boxes,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
-  Grid,
   Headphones,
   Image as ImageIcon,
   Layers,
@@ -25,11 +25,6 @@ import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
 import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
-import {
-  ensureCatalogFamiliesLoaded,
-  resolveMenuCategoryPayload,
-  resolveNavigationCategoriesAndGroups,
-} from '../services/catalogTaxonomyResolver';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
 import { STORE_ASSETS } from '../assets/images';
@@ -43,24 +38,19 @@ type MenuFamily = {
   submenu: string | null;
   leaf: string | null;
   skuCount: number;
-  image?: string | null;
-  sampleSkus?: string[];
 };
 
 type MenuCategory = {
   slug: string;
   name: string;
-  nameEn?: string;
   description: string;
-  image?: string | null;
+  image: string | null;
   children: CategoryNode[];
 };
 
 type MenuResponse = {
   success: boolean;
   category?: MenuCategory;
-  groupId?: string;
-  groupTitle?: string;
   families?: MenuFamily[];
   message?: string;
 };
@@ -131,9 +121,8 @@ const matchesTechnicalFilter = (product: Product | undefined, specKey: string, s
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialLocalPayload = useMemo(() => resolveMenuCategoryPayload(slug), [slug]);
-  const [data, setData] = useState<MenuResponse | null>(initialLocalPayload);
-  const [status, setStatus] = useState<CatalogueStatus>(initialLocalPayload ? 'ready' : 'loading');
+  const [data, setData] = useState<MenuResponse | null>(null);
+  const [status, setStatus] = useState<CatalogueStatus>('loading');
   const [retryCount, setRetryCount] = useState(0);
   const [catalogRevision, refreshProducts] = useState(0);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -161,14 +150,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    const localResolved = resolveMenuCategoryPayload(slug);
-    if (localResolved) {
-      setData(localResolved);
-      setStatus('ready');
-    } else {
-      setStatus('loading');
-      setData(null);
-    }
+    setStatus('loading');
+    setData(null);
     setCompareCodes([]);
     setComparisonOpen(false);
 
@@ -192,13 +175,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       })
       .catch(error => {
         if (!active || (error instanceof Error && error.name === 'AbortError')) return;
-        const fallback = resolveMenuCategoryPayload(slug);
-        if (fallback) {
-          setData(fallback);
-          setStatus('ready');
-        } else {
-          setStatus('error');
-        }
+        setStatus('error');
       });
 
     return () => {
@@ -256,26 +233,9 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     };
   }, [mobileFiltersOpen, comparisonOpen]);
 
-  const products = useMemo(() => {
-    ensureCatalogFamiliesLoaded();
-    return new Map<string, Product>(
-      getAllProducts().map(product => [product.code, product]),
-    );
-  }, [data, status, catalogRevision]);
-
-  const taxonomyOverview = useMemo(() => resolveNavigationCategoriesAndGroups(), [catalogRevision]);
-  const parentGroup = useMemo(() => {
-    const groupId = data?.groupId || taxonomyOverview.groups.find(g => g.categorySlugs.includes(slug))?.id;
-    return taxonomyOverview.groups.find(g => g.id === groupId);
-  }, [data?.groupId, slug, taxonomyOverview]);
-
-  const siblingCategories = useMemo(() => {
-    if (!parentGroup) return [];
-    const bySlug = new Map(taxonomyOverview.categories.map(c => [c.slug, c]));
-    return parentGroup.categorySlugs
-      .map(catSlug => bySlug.get(catSlug))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  }, [parentGroup, taxonomyOverview]);
+  const products = useMemo(() => new Map<string, Product>(
+    getAllProducts().map(product => [product.code, product]),
+  ), [data, status, catalogRevision]);
 
   const families = data?.families || [];
   const category = data?.category;
@@ -339,7 +299,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
         family.brand,
         family.submenu || '',
         family.leaf || '',
-        ...(family.sampleSkus || []),
         product?.name || '',
         product?.nameEn || '',
         ...(product?.technicalSpecs || []).flatMap(spec => [spec.key, spec.value]),
@@ -406,7 +365,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const setStockFilter = (checked: boolean) => updateParam('stock', checked ? '1' : '');
   const setImageFilter = (checked: boolean) => updateParam('image', checked ? '1' : '');
   const isSelectedForCompare = (code: string) => compareCodes.includes(code);
-
   if (status === 'loading') {
     return (
       <div className="excel-category-page" dir="rtl">
@@ -437,7 +395,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
 
   const resolvedCategory = category!;
   const artwork = getCategoryArtwork(resolvedCategory);
-  const activeSubgroupsCount = (resolvedCategory.children || []).filter(node => node.hidden !== true).length;
 
   return (
     <div className="excel-category-page" dir="rtl">
@@ -446,41 +403,21 @@ export const ExcelMenuCategoryPage: React.FC = () => {
           <Link to="/">صفحه اصلی</Link>
           <ChevronLeft size={13} />
           <Link to="/categories">دسته‌بندی‌ها</Link>
-          {parentGroup && (
-            <>
-              <ChevronLeft size={13} />
-              <Link to={`/categories#menu-group-${parentGroup.id}`}>{parentGroup.title}</Link>
-            </>
-          )}
           <ChevronLeft size={13} />
           <span aria-current="page">{resolvedCategory.name}</span>
         </nav>
 
         <header className="excel-category-hero">
           <div className="excel-category-hero-copy">
-            <div className="excel-category-eyebrow-row">
-              <span className="excel-category-eyebrow">
-                <Layers size={14} />
-                {parentGroup?.title || 'کاتالوگ تخصصی صنعت پیش'}
-              </span>
-              {resolvedCategory.nameEn && (
-                <span className="excel-category-eyebrow-en" dir="ltr">
-                  {resolvedCategory.nameEn}
-                </span>
-              )}
-            </div>
+            <span className="excel-category-eyebrow"><Layers size={14} /> کاتالوگ تخصصی صنعت پیش</span>
             <h1>{resolvedCategory.name}</h1>
             <p>{resolvedCategory.description || 'خانواده‌ها و کدهای فنی ثبت‌شده در این گروه را بر اساس زیرگروه و مشخصات بررسی کنید.'}</p>
             <div className="excel-category-hero-stats">
               <div><strong>{toPersianDigits(families.length)}</strong><span>خانواده ثبت‌شده</span></div>
               <div><strong>{toPersianDigits(skuTotal)}</strong><span>کد و سایز خانواده‌ها</span></div>
-              <div><strong>{toPersianDigits(activeSubgroupsCount)}</strong><span>زیرگروه تخصصی</span></div>
             </div>
             <div className="excel-category-hero-actions">
               <a href="#excel-category-products"><ArrowLeft size={16} /> مشاهده خانواده‌ها</a>
-              <Link to="/products">
-                <Grid size={16} /> نمای کاتالوگ جامع همه محصولات
-              </Link>
               <Link to="/identify-part"><ImageIcon size={16} /> شناسایی با تصویر</Link>
               <Link to="/ai-consult"><Headphones size={16} /> مشاوره فنی</Link>
             </div>
@@ -499,30 +436,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
             </div>
           </div>
         </header>
-
-        {siblingCategories.length > 1 && (
-          <nav className="excel-category-sibling-bar" aria-label="سایر دسته‌های این گروه تخصصی">
-            <div className="excel-category-sibling-label">
-              <span>دسته‌های هم‌گروه در «{parentGroup?.title}»:</span>
-            </div>
-            <div className="excel-category-sibling-links">
-              {siblingCategories.map(sibling => {
-                const isCurrent = sibling.slug === resolvedCategory.slug;
-                return (
-                  <Link
-                    key={sibling.slug}
-                    to={`/category/${encodeURIComponent(sibling.slug)}`}
-                    className={`excel-category-sibling-pill ${isCurrent ? 'is-current' : ''}`}
-                    aria-current={isCurrent ? 'page' : undefined}
-                  >
-                    <span>{sibling.name}</span>
-                    <b>{toPersianDigits(sibling.familyCount ?? 0)} خانواده</b>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
 
         <section className="excel-category-subnav" aria-label="انتخاب زیرگروه">
           <div className="excel-category-subnav-heading">
@@ -657,7 +570,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               <div className="excel-category-product-grid">
                 {pageFamilies.map(family => {
                   const product = products.get(family.code);
-                  const previewImage = productPreviewImage(product) || family.image || artwork;
+                  const previewImage = productPreviewImage(product);
                   const cardProduct = product ? {
                     ...product,
                     images: product.images?.some(Boolean) ? product.images : previewImage ? [previewImage] : [],

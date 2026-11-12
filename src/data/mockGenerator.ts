@@ -36,7 +36,8 @@ export function installDatabaseProducts(products:Product[]){databaseProducts=pro
 // when the API is unavailable. Dev/CLI fixtures remain for isolated tests.
 const baselineProducts=():Product[]=>{
   if (databaseProducts) return databaseProducts;
-  if (USER_PRODUCTS.length > 0) return USER_PRODUCTS;
+  // A browser in any environment must never treat bundled product JSON as live inventory.
+  // Isolated Node tests may still use the legacy fixtures until the retirement gate passes.
   if (typeof window !== 'undefined') return [];
   return USER_PRODUCTS_RAW;
 };
@@ -49,26 +50,14 @@ let cachedMapIncludingInactive: Map<string, Product> | null = null;
 let serverSyncStarted = false;
 const catalogListeners = new Set<() => void>();
 
-let notifyScheduled = false;
 function notifyCatalogListeners() {
-  const run = () => {
-    notifyScheduled = false;
-    catalogListeners.forEach((fn) => {
-      try {
-        fn();
-      } catch {
-        // ignore listener errors
-      }
-    });
-  };
-  if (typeof window !== "undefined" && typeof queueMicrotask === "function") {
-    if (!notifyScheduled) {
-      notifyScheduled = true;
-      queueMicrotask(run);
+  catalogListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // ignore listener errors
     }
-    return;
-  }
-  run();
+  });
 }
 
 export function subscribeCatalogChanges(listener: () => void): () => void {

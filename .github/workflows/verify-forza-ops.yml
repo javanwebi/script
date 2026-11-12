@@ -1,0 +1,28 @@
+name: Verify FORZA VPS operation scripts
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/forza-voice-*.sh'
+      - '.github/workflows/verify-forza-ops.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bash-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check all FORZA VPS scripts
+        run: |
+          set -euo pipefail
+          for script in ops/forza-voice-*.sh; do
+            echo "Syntax checking: $script"
+            bash -n "$script"
+          done
+      - name: Ensure promotion and rollback retain recovery paths
+        run: |
+          grep -q 'FORZA_RESIDENT_LIVE_OK' ops/forza-voice-promote-vps.sh
+          grep -q 'FORZA_VOICE_ROLLBACK_OK' ops/forza-voice-rollback-vps.sh
+          grep -q 'FORZA_PROMOTE_FAILED' ops/forza-voice-promote-vps.sh

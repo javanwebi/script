@@ -1,0 +1,35 @@
+name: FORZA isolated Piper VPS benchmark scripts
+on:
+  pull_request:
+    paths:
+      - 'ops/forza-piper-benchmark-vps.sh'
+      - '.github/workflows/forza-piper-vps-benchmark.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/forza-piper-benchmark-vps.sh'
+      - '.github/workflows/forza-piper-vps-benchmark.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax and Python benchmark syntax
+        run: |
+          bash -n ops/forza-piper-benchmark-vps.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("ops/forza-piper-benchmark-vps.sh").read_text()
+          start = 'cat > "$ROOT/benchmark.py" <<' + "'PY'\n"
+          benchmark = text.split(start, 1)[1].split("\nPY\n", 1)[0]
+          compile(benchmark, "benchmark.py", "exec")
+          assert "docker stop" not in text
+          assert "docker restart" not in text
+          assert "docker update" not in text
+          assert "FORZA_PIPER_BENCH_PASS" in text
+          print("FORZA_PIPER_SCRIPT_VALID")
+          PY

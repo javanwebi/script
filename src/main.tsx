@@ -126,11 +126,7 @@ async function boot(){
     runtimeRefreshInFlight=true;
     try{
       const state=await refreshDurableStorage(runtimeOptions);
-      if(!state.database){
-        showRuntimeFailure(true);
-      } else {
-        removeRuntimeUnavailable();
-      }
+      if(!state.database)showRuntimeFailure(true);
     }catch(error){
       console.error('[SanatPish] Runtime data request failed; this does not by itself prove PostgreSQL is unavailable.',error);
       showRuntimeFailure(false,error);

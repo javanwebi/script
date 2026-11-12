@@ -20,11 +20,23 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 // Pages
 import { HomePage } from "./pages/HomePage";
-import { ProductsPage } from "./pages/ProductsPage";
-import { CategoryPage } from "./pages/CategoryPage";
-import { AllCategoriesPage } from "./pages/AllCategoriesPage";
+const ProductsPage = lazy(() =>
+  import("./pages/ProductsPage").then((module) => ({
+    default: module.ProductsPage,
+  })),
+);
+const CategoryPage = lazy(() =>
+  import("./pages/CategoryPage").then((module) => ({
+    default: module.CategoryPage,
+  })),
+);
+const AllCategoriesPage = lazy(() => import("./pages/AllCategoriesPage").then(m => ({default:m.AllCategoriesPage})));
 const DirectSkuDetailPage = lazy(() => import("./pages/DirectSkuDetailPage"));
-import { ProductDetailPage } from "./pages/ProductDetailPage";
+const ProductDetailPage = lazy(() =>
+  import("./pages/ProductDetailPage").then((module) => ({
+    default: module.ProductDetailPage,
+  })),
+);
 import { SearchPage } from "./pages/SearchPage";
 const CartPage = lazy(() => import("./pages/CartPage").then(m => ({default:m.CartPage})));
 import { WishlistPage } from "./pages/WishlistPage";

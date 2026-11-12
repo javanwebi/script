@@ -3,7 +3,6 @@ import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
 import {getPortalIdentity} from '../api/portal';
 import {canStaff} from './db/staffPermissions';
-import {resolveNavigationCategoriesAndGroups,resolveMenuCategoryPayload} from '../src/services/catalogTaxonomyResolver';
 
 const clean=(value:unknown,max=150)=>typeof value==='string'?value.trim().slice(0,max):'';
 const imageAllowed=(url:string)=>!url||((url.startsWith('/storage/products/')||url.startsWith('/storage/categories/'))&&!url.includes('..'))||(/^https:\/\/[^\s]+$/i.test(url)&&url.length<=2000);
@@ -14,10 +13,7 @@ export function registerCatalogNavigationApi(app:Express){
   // A small category/group query avoids loading full product catalogue for first paint.
   app.get('/api/catalog/home-categories',async(_req,res)=>{
     res.setHeader('Cache-Control','no-store');
-    if(!databaseEnabled()){
-      const {categories}=resolveNavigationCategoriesAndGroups();
-      return res.json({success:true,categories});
-    }
+    if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
     try{
       const result=await database().query(
         `with ordered_categories as (
@@ -49,11 +45,7 @@ export function registerCatalogNavigationApi(app:Express){
   // PostgreSQL is the authoritative source for every product category shown in the mega-menu.
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
-      if(!databaseEnabled()){
-        res.setHeader('Cache-Control','no-store');
-        const {categories}=resolveNavigationCategoriesAndGroups();
-        return res.json({success:true,categories});
-      }
+      if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
       const result=await database().query(
         `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
           c.sort_order as "sortOrder",c.is_active as active,c.metadata,
@@ -105,12 +97,7 @@ export function registerCatalogNavigationApi(app:Express){
     try{
       const slug=clean(req.params.slug,90);
       if(!/^excel-v2-[0-9]+-[0-9]+$/.test(slug))return res.status(404).json({success:false,message:'دسته موجود نیست.'});
-      if(!databaseEnabled()){
-        res.setHeader('Cache-Control','no-store');
-        const resolved=resolveMenuCategoryPayload(slug);
-        if(!resolved)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
-        return res.json(resolved);
-      }
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'پایگاه داده در دسترس نیست.'});
       const category=await database().query(
         `select c.slug,c.name,c.description,c.image_url as image,c.metadata
          from public.catalog_categories c
@@ -199,10 +186,7 @@ export function registerCatalogNavigationApi(app:Express){
 
   app.get('/api/catalog/navigation-groups',async(req,res)=>{
     try{
-      if(!databaseEnabled()){
-        const {groups}=resolveNavigationCategoriesAndGroups();
-        return res.json({success:true,groups});
-      }
+      if(!databaseEnabled())return res.status(503).json({success:false,groups:[]});
       const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
       const rows=await database().query(
         'select id,title,icon_key as "iconKey",image_url as "imageUrl",category_slugs as "categorySlugs",sort_order as "sortOrder",is_active as active from public.catalog_navigation_groups '+(withInactive?'':'where is_active=true ')+'order by sort_order,id');
@@ -239,7 +223,7 @@ export function registerCatalogNavigationApi(app:Express){
 
   app.get('/api/catalog/direct-skus',async(req,res)=>{
     try{
-      if(!databaseEnabled())return res.json({success:true,items:[]});
+      if(!databaseEnabled())return res.status(503).json({success:false,items:[]});
       const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
       const rows=await database().query('select sku_code as "skuCode",name,category_slug as "categorySlug",category_name as "categoryName",submenu,subcategory,brand,image_url as "imageUrl",technical_specs as "technicalSpecs",price_snapshot as "priceSnapshot",source_family_code as "sourceFamilyCode",is_active as active from public.catalog_direct_skus '+(withInactive?'':'where is_active=true ')+'order by updated_at desc,sku_code limit 5000');
       const identity=await getPortalIdentity(req);

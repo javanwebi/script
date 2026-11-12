@@ -1,0 +1,12 @@
+{
+  "name": "rza-forza-particles",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i src/index.css -o src/tailwind.out.css --minify",
+    "build:js": "esbuild src/main.jsx --bundle --minify --format=iife --jsx=automatic --loader:.woff2=file --asset-names=fonts/[name] --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/app.js",
+    "build": "npm run build:css && npm run build:js"
+  },
+  "dependencies": { "react": "18.3.1", "react-dom": "18.3.1", "three": "0.185.1" },
+  "devDependencies": { "esbuild": "0.27.2", "tailwindcss": "3.4.18" }
+}

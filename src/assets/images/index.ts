@@ -44,8 +44,8 @@ import prodPumpImg from './mobile/prod_pump_1789640002577.webp';
 import prodMotorImg from './mobile/prod_motor_1789640017545.webp';
 import prodBearingNskImg from './mobile/prod_bearing_nsk_1789640036345.webp';
 import footerConveyorImg from './mobile/footer_conveyor_1789463035125.webp';
-import forzaAiRobotHaloImg from '../IMAGESITE/Futuristic FORZA AI Robot Halo.png';
-import levitatingOrbitalEngineImg from '../IMAGESITE/Levitating Orbital Engine Assembly (1).png';
+import forzaAiRobotHaloImg from '../IMAGESITE/mobile/Futuristic FORZA AI Robot Halo.webp';
+import levitatingOrbitalEngineImg from '../IMAGESITE/mobile/Levitating Orbital Engine Assembly (1).webp';
 import refineryDuskWideImg from './mobile/refinery_dusk_wide_1790695808002.webp';
 
 const atlasAiCyborgImg = forzaAiRobotHaloImg;
@@ -55,9 +55,7 @@ const aiForzaDesktopCinematicImg = levitatingOrbitalEngineImg;
 import authIndustrialHeroImg from './mobile/auth_industrial_hero_1791191790536.webp';
 import bannerAuthLoginImg from './mobile/banner_auth_login_1791194148886.webp';
 import bannerAuthRegisterImg from './mobile/banner_auth_register_1791194168672.webp';
-import catalogWhiteHeroBannerImg from './catalog_white_hero_banner_1794431870555.jpg';
 import categoriesSleekWhiteHeroImg from './categories_sleek_white_hero_1794432538666.jpg';
-import productsSleekWhiteHeroImg from './products_sleek_white_hero_1794432538406.jpg';
 import forzaSwrDualBannerImg from './mobile/forza_swr_hero_banner_1791281882552.webp';
 import brandsFullbleedBgImg from './mobile/brands_fullbleed_bg_1791282424638.webp';
 import forzaSubBeltImg from './mobile/forza_sub_belt_1791282448324.webp';
@@ -107,9 +105,7 @@ export const STORE_ASSETS = {
   authIndustrialHero: authIndustrialHeroImg,
   bannerAuthLogin: bannerAuthLoginImg,
   bannerAuthRegister: bannerAuthRegisterImg,
-  catalogWhiteHeroBanner: catalogWhiteHeroBannerImg,
   categoriesSleekWhiteHero: categoriesSleekWhiteHeroImg,
-  productsSleekWhiteHero: productsSleekWhiteHeroImg,
   heroBanner: heroBannerImg,
   heroPulley: atlasHeroPulleyImg,
   heroSteelCoils: heroSteelCoilsImg,

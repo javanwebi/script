@@ -85,11 +85,9 @@ export function HomeCategoryStrip() {
           const image=group.imageUrl ||
             group.categorySlugs.map(slug=>categoryBySlug.get(slug)?.image).find(Boolean) ||
             groupArt[groupNumber(group.id)];
-          const targetCategorySlug = group.categorySlugs && group.categorySlugs.length > 0 ? group.categorySlugs[0] : null;
-          const targetRoute = targetCategorySlug ? `/category/${encodeURIComponent(targetCategorySlug)}` : `/categories#menu-group-${group.id}`;
           return (
             <Link className="home-category-item home-category-group" key={group.id}
-              to={targetRoute} title={group.title}>
+              to={`/categories#menu-group-${group.id}`} title={group.title}>
               {image ? (
                 <img src={image} alt={group.title} loading="lazy" decoding="async" fetchPriority="low"/>
               ) : (
@@ -98,7 +96,7 @@ export function HomeCategoryStrip() {
                 </span>
               )}
               <strong>{group.title}</strong>
-              <small>مشاهده کاتالوگ <ArrowUpLeft size={12}/></small>
+              <small>مشاهده دسته‌ها <ArrowUpLeft size={12}/></small>
             </Link>
           );
         })}

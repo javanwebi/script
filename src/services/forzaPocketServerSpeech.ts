@@ -127,7 +127,7 @@ async function render(text:string):Promise<Buffer>{
     },PHRASE_TIMEOUT_MS);
     pending.set(id,{resolve:resolveTask,reject:rejectTask,timer});
     try{
-      child!.stdin.write(JSON.stringify({id,text})+'\n',(error: Error | null | undefined)=>{
+      child!.stdin.write(JSON.stringify({id,text})+'\n',(error)=>{
         if(error && pending.has(id))destroyWorker('pocket_worker_write_failed');
       });
     }catch{

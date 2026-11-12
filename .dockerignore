@@ -1,0 +1,15 @@
+.git
+node_modules
+dist
+.data
+.cache
+.env
+.env.*
+!.env.example
+imageai
+imagemoshtari
+android
+*.log
+
+# Product uploads belong to the persistent Railway volume, never Git/Docker builds.
+storage/

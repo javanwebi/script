@@ -957,36 +957,40 @@
 /* Upload/camera stage: less visual noise, more room for the submitted part. */
 .sanat-visual-search-wizard {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 16px 40px -12px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e9edf2;
+  box-shadow: 0 18px 52px rgba(20,31,46,.09);
 }
 .sanat-visual-search-hero {
   min-width: 0;
-  background: #0b111e;
+  background: #111a27;
 }
 .sanat-visual-search-hero__content { min-width: 0; }
-.sanat-visual-search-hero__copy h3 { letter-spacing: -.02em; }
+.sanat-visual-search-hero__copy h3 { letter-spacing: -.025em; }
 .sanat-visual-search-form {
   min-width: 0;
-  background: #ffffff;
+  background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
 }
-.sanat-visual-search-heading h3 { letter-spacing: -.02em; }
-.sanat-visual-search-heading p { max-width: 44rem; }
+.sanat-visual-stepper {
+  margin-bottom: 4px;
+  border-color: #e8edf2;
+}
+.sanat-visual-stepper > div { max-width: 440px; }
+.sanat-visual-search-heading h3 { letter-spacing: -.025em; }
+.sanat-visual-search-heading p { max-width: 42rem; }
 .sanat-visual-upload-dropzone {
-  min-height: 180px;
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 190px;
+  border-color: #efc6aa;
+  background: linear-gradient(135deg,#fff 0%,#fff7f1 100%);
+  box-shadow: inset 0 0 0 1px rgba(229,107,30,.035);
 }
 .sanat-visual-upload-dropzone:hover {
-  border-color: #e06518;
-  background: #fffaf5;
-  box-shadow: 0 10px 25px -5px rgba(224, 101, 24, 0.12);
+  border-color: #e56b1e;
+  background: linear-gradient(135deg,#fff 0%,#fff1e6 100%);
+  box-shadow: 0 12px 30px rgba(229,107,30,.09);
 }
 .sanat-visual-image-preview {
   background: #fff;
-  border-color: #e2e8f0;
+  border-color: #e5e9ef;
   box-shadow: 0 8px 22px rgba(28,39,53,.055);
 }
 .sanat-visual-image-preview > div:first-child {
@@ -1000,20 +1004,22 @@
 }
 @media (max-width: 1023px) {
   .sanat-visual-search-hero {
-    min-height: auto;
-    padding-bottom: 16px;
+    min-height: 146px;
+    padding-bottom: 14px;
   }
   .sanat-visual-search-hero__content {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 0;
   }
   .sanat-visual-search-hero__copy {
+    grid-column: 1 / -1;
+    grid-row: 1;
     min-width: 0;
   }
   .sanat-visual-search-hero__image { display: none !important; }
-  .sanat-visual-search-hero__copy h3 { font-size: 18px; }
-  .sanat-visual-search-hero__copy p { max-width: 100%; }
+  .sanat-visual-search-hero__copy h3 { font-size: 19px; }
+  .sanat-visual-search-hero__copy p { max-width: 34rem; }
 }
 @media (max-width: 640px) {
   .sanat-visual-search-wizard {
@@ -1023,20 +1029,26 @@
     box-shadow: none;
   }
   .sanat-visual-search-hero {
-    min-height: auto;
-    padding: 20px 16px 16px;
+    min-height: 128px;
+    padding: 48px 16px 12px;
   }
-  .sanat-visual-search-hero__copy h3 { font-size: 16px; }
-  .sanat-visual-search-hero__copy p { font-size: 11px; line-height: 1.7; }
-  .sanat-visual-search-form { padding: 16px 14px !important; }
-  .sanat-visual-search-heading h3 { font-size: 16px; }
+  .sanat-visual-search-hero__copy h3 { font-size: 17px; }
+  .sanat-visual-search-hero__copy p { font-size: 11px; line-height: 1.8; }
+  .sanat-visual-search-form { padding: 13px !important; }
+  .sanat-visual-stepper { padding-bottom: 12px; }
+  .sanat-visual-stepper > div { max-width: 100%; }
+  .sanat-visual-stepper > div > div { gap: 5px; }
+  .sanat-visual-stepper > div > div > div:first-child { width: 32px; height: 32px; }
+  .sanat-visual-stepper span { font-size: 10px; }
+  .sanat-visual-search-heading h3 { font-size: 17px; }
   .sanat-visual-upload-dropzone {
-    min-height: 150px;
-    padding: 16px 12px;
-    border-radius: 16px;
+    min-height: 156px;
+    padding: 18px 14px;
+    border-radius: 17px;
   }
   .sanat-visual-image-preview { padding: 10px; gap: 10px; }
 }
+
 
 /* Explicit crop search action: selection is preview-only until the customer confirms. */
 .sanat-region-picker__side .sanat-region-picker__search {
@@ -1063,133 +1075,71 @@
   }
 }
 
-/* Animated laser scanning line for industrial HUD */
-@keyframes industrialScanLaser {
-  0% {
-    top: 4%;
-    opacity: 0.25;
-  }
-  50% {
-    top: 92%;
-    opacity: 0.95;
-  }
-  100% {
-    top: 4%;
-    opacity: 0.25;
-  }
-}
-.sanat-scan-laser-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, #e06518 15%, #ff9852 50%, #e06518 85%, transparent 100%);
-  box-shadow: 0 0 10px 2px rgba(224, 101, 24, 0.75);
-  animation: industrialScanLaser 2.8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 10;
-}
-
 /* Phase 9 — evidence-first vision UX. Scope to the existing scanner so
    product, category and admin cards retain their original design. */
 .sanat-visual-search-shell .sp-vision-journey {
   position: relative;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 7px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e1e6ed;
+  background: linear-gradient(110deg,#fff,#f6f8fa 60%,#fff4ed);
 }
 .sanat-visual-search-shell .sp-vision-journey__step {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
+  padding: 9px 11px;
+  border: 1px solid transparent;
   border-radius: 12px;
-  background: #ffffff;
-  color: #64748b;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #7d8793;
 }
 .sanat-visual-search-shell .sp-vision-journey__step.is-current {
-  border-color: #ea580c;
-  background: #fff7ed;
-  color: #c2410c;
-  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.12);
+  border-color: #efb790;
+  background: #fff1e7;
+  color: #8e3b0c;
+  box-shadow: 0 3px 12px rgba(224,101,24,.09);
 }
 .sanat-visual-search-shell .sp-vision-journey__step.is-complete {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  color: #34624a;
 }
 .sanat-visual-search-shell .sp-vision-journey__number {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #475569;
-  font: 800 12px/1 'Vazirmatn', sans-serif;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  border: 1px solid #dfe4ea;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: 800 12px/1 inherit;
 }
 .sanat-visual-search-shell .is-current .sp-vision-journey__number {
   background: #e06518;
   border-color: #e06518;
-  color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(224, 101, 24, 0.2);
+  color: white;
 }
 .sanat-visual-search-shell .is-complete .sp-vision-journey__number {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
+  background: #e7f6ee;
+  border-color: #c0e6d1;
 }
 .sanat-visual-search-shell .sp-vision-journey__step strong {
   display: block;
   font-size: 11px;
-  line-height: 1.4;
-  font-weight: 800;
-  color: inherit;
-  white-space: nowrap;
+  line-height: 1.7;
+  font-weight: 850;
+  white-space: normal;
 }
 .sanat-visual-search-shell .sp-vision-journey__step small {
   display: block;
   margin-top: 1px;
   font-size: 10px;
-  line-height: 1.3;
-  color: #94a3b8;
-  white-space: nowrap;
-}
-.sanat-visual-search-shell .is-current small {
-  color: #ea580c;
-  font-weight: 600;
-}
-.sanat-visual-search-shell .is-complete small {
-  color: #16a34a;
-}
-@media (max-width: 820px) {
-  .sanat-visual-search-shell .sp-vision-journey {
-    display: flex;
-    overflow-x: auto;
-    padding: 8px 12px;
-    gap: 6px;
-    scrollbar-width: none;
-  }
-  .sanat-visual-search-shell .sp-vision-journey::-webkit-scrollbar {
-    display: none;
-  }
-  .sanat-visual-search-shell .sp-vision-journey__step {
-    flex: 0 0 auto;
-    padding: 6px 10px;
-    gap: 6px;
-  }
-  .sanat-visual-search-shell .sp-vision-journey__step small {
-    display: none;
-  }
+  line-height: 1.7;
+  color: #87919b;
 }
 .sp-vision-result-panel { min-width: 0; }
 .sp-vision-result-intro {

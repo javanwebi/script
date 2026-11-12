@@ -1,0 +1,68 @@
+# Build-time Debian APT downloads repeatedly time out on the Hostino VPS.
+# Keep the production Node 22 Bookworm runtime, but import an official,
+# prebuilt CPython interpreter and a pinned self-contained FFmpeg binary.
+# No apt-get/apt update is executed during this image build.
+FROM python:3.11-bookworm AS python-runtime
+FROM mwader/static-ffmpeg:8.1.2 AS ffmpeg-runtime
+FROM node:22-bookworm
+
+# Official Python's /usr/local does not contain node/npm; Docker COPY merges
+# its Python interpreter and standard library into the Node image.
+COPY --from=python-runtime /usr/local/ /usr/local/
+# Standalone FFmpeg/FFprobe need no Debian package downloads or shared libs.
+COPY --from=ffmpeg-runtime /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-runtime /ffprobe /usr/local/bin/ffprobe
+
+# Production runs the website with node --import tsx, and the same container
+# starts an isolated Python/Vosk worker that decodes audio via FFmpeg.
+# A restricted VPS can reach Docker Hub but time out against PyPI itself.
+# Try independent HTTPS mirrors with bounded retry instead of mixing indexes.
+# A BuildKit wheel cache survives subsequent image attempts, without storing
+# any customer microphone audio, session state or credentials.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eux; \
+    node --version; \
+    python3 --version; \
+    ffmpeg -version >/dev/null; \
+    python3 -m venv /opt/forza-pocket; \
+    installed=0; \
+    for index in \
+      https://mirrors.aliyun.com/pypi/simple \
+      https://pypi.tuna.tsinghua.edu.cn/simple \
+      https://mirrors.ustc.edu.cn/pypi/simple \
+      https://pypi.org/simple; do \
+      echo "DIBA_PIP_INDEX_TRY=$index"; \
+      if timeout --signal=TERM --kill-after=5s 105s \
+        /opt/forza-pocket/bin/pip --isolated install \
+          --disable-pip-version-check \
+          --timeout 12 --retries 1 --prefer-binary \
+          --index-url "$index" vosk==0.3.45; then \
+        installed=1; \
+        echo "DIBA_PIP_INDEX_OK=$index"; \
+        break; \
+      fi; \
+      echo "DIBA_PIP_INDEX_FAILED=$index"; \
+    done; \
+    test "$installed" -eq 1; \
+    /opt/forza-pocket/bin/python -m pip --isolated check; \
+    /opt/forza-pocket/bin/python -c 'import vosk, cffi'
+
+# Pinned Diba Persian small model; downloaded only into the private image,
+# not browser assets or persistent customer storage. Audio stays in pipes.
+RUN set -eux; \
+    mkdir -p /opt/diba-stt; \
+    curl -fL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 180 \
+      https://huggingface.co/Dibachain/Diba-STT/resolve/c244182debe853f83a00a03642830e7507a55d1d/browser/diba-stt-fa-small.tar.gz \
+      -o /tmp/diba-stt-fa-small.tar.gz; \
+    tar -xzf /tmp/diba-stt-fa-small.tar.gz -C /opt/diba-stt; \
+    MODEL_ROOT="$(find /opt/diba-stt -type d -name am -printf '%h\n' | head -n 1)"; \
+    test -n "$MODEL_ROOT"; \
+    ln -s "$MODEL_ROOT" /opt/diba-stt/model; \
+    test -d /opt/diba-stt/model/am; \
+    test -d /opt/diba-stt/model/conf; \
+    rm -f /tmp/diba-stt-fa-small.tar.gz
+
+ENV FORZA_STT_PROVIDER=diba \
+    FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model \
+    FORZA_STT_PYTHON=/opt/forza-pocket/bin/python \
+    FORZA_STT_WORKERS=2

@@ -868,47 +868,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell" dir="rtl">
-      {!cameraFlowActive && (
-        <header className="flex items-center justify-between px-4 py-3 sm:px-6 bg-[#0f172a] border-b border-slate-800 text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-[#E06518]">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-black text-white">میزکار شناسایی تصویری قطعات</h2>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                  FORZA VISION
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700"
-            aria-label={fullScreen ? "بازگشت به میزکار" : "بستن"}
-          >
-            {fullScreen ? (
-              <>
-                <ArrowRight className="w-3.5 h-3.5 text-[#E06518]" />
-                <span>بازگشت به میزکار</span>
-              </>
-            ) : (
-              <>
-                <X className="w-3.5 h-3.5" />
-                <span>بستن</span>
-              </>
-            )}
-          </button>
-        </header>
-      )}
-
-      {!cameraFlowActive && (
+      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
             { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
@@ -916,33 +876,11 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
             { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
           ].map((step, index) => {
-            const activeIndex =
-              currentStep === 'results'
-                ? 3
-                : currentStep === 'analyzing' || currentStep === 2 || currentStep === 3
-                  ? 2
-                  : selectedImage
-                    ? 1
-                    : 0;
-            const isCompleted = index < activeIndex;
-            const isCurrent = index === activeIndex;
+            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
             return (
-              <div
-                key={step.label}
-                className={[
-                  'sp-vision-journey__step',
-                  isCurrent ? 'is-current' : '',
-                  isCompleted ? 'is-complete' : '',
-                ].filter(Boolean).join(' ')}
-                aria-current={isCurrent ? 'step' : undefined}
-              >
-                <span className="sp-vision-journey__number">
-                  {isCompleted ? <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" /> : index + 1}
-                </span>
-                <span>
-                  <strong>{step.label}</strong>
-                  <small>{step.detail}</small>
-                </span>
+              <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
+                <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
+                <span><strong>{step.label}</strong><small>{step.detail}</small></span>
               </div>
             );
           })}
@@ -1078,125 +1016,216 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </footer>
         </section>
       ) : currentStep === 1 ? (
-        <div
-          style={fullScreen ? { minHeight: "100dvh" } : undefined}
-          dir="rtl"
-          data-testid="identification-wizard"
-          className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[500px] lg:min-h-[540px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative"
-        >
-          {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
-          <div
-            data-testid="identification-image-panel"
-            className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0b111e] text-white p-5 lg:p-7 relative flex flex-col justify-between overflow-hidden shadow-2xl"
+        <div style={fullScreen ? { minHeight: "100dvh" } : undefined} dir="rtl" data-testid="identification-wizard" className="sp-vision-entry sanat-visual-search-wizard grid grid-cols-1 lg:grid-cols-12 min-h-[580px] lg:min-h-[630px] rounded-2xl md:rounded-3xl overflow-hidden bg-white text-right font-['Vazirmatn'] relative">
+          {/* Absolute Close Button for Step 1 */}
+          <button
+            type="button"
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+            className={`absolute top-4 left-4 z-30 ${fullScreen ? "px-3 h-9 gap-2 rounded-xl" : "w-8 h-8 rounded-full"} bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer shadow-xs`}
+            aria-label={fullScreen ? "بازگشت به میزکار" : "بستن"}
           >
-            {/* Background Texture & Engineering Grid */}
+            {fullScreen ? <><ArrowRight className="w-4 h-4" /><span className="text-xs font-bold">بازگشت به میزکار</span></> : <X className="w-5 h-5" />}
+          </button>
+
+          {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
+          <div data-testid="identification-image-panel" className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
+            {/* Industrial Background Texture */}
             <div
-              className="absolute inset-0 z-0 opacity-15 bg-cover bg-center pointer-events-none filter contrast-125"
+              className="absolute inset-0 z-0 opacity-25 bg-cover bg-center pointer-events-none filter contrast-125"
               style={{
                 backgroundImage: `url(${IMAGES.authIndustrialHero || IMAGES.refineryDuskWide})`,
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0b111e]/95 via-[#0b111e]/90 to-[#0b111e] z-0" />
-            <div className="absolute inset-0 bg-[radial-gradient(#e06518_1px,transparent_1px)] [background-size:18px_18px] opacity-10 pointer-events-none z-0" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F19]/85 via-[#0B0F19]/90 to-[#0B0F19] z-0" />
 
             {/* Content Container */}
-            <div className="sanat-visual-search-hero__content relative z-10 flex flex-col justify-between h-full space-y-4">
-              <div>
+            <div className="sanat-visual-search-hero__content relative z-10 grid grid-cols-3 items-center gap-3 lg:flex lg:flex-col lg:items-stretch lg:justify-between h-full lg:space-y-4">
+              <div className="sanat-visual-search-hero__copy col-span-2 col-start-2 row-start-1">
                 {/* Header Tag */}
-                <div className="flex items-center gap-2 text-[#E06518] text-[10px] font-mono font-extrabold tracking-widest uppercase">
-                  <span className="w-2 h-2 rounded-full bg-[#E06518] animate-pulse" />
-                  <span>FORZA VISION • INDUSTRIAL AI</span>
+                <div className="flex items-center gap-2 text-[#E06518] text-[11px] lg:text-xs font-mono font-extrabold tracking-widest uppercase">
+                  <Sparkles className="w-3.5 h-3.5 text-[#E06518]" />
+                  <span>AI PART SEARCH</span>
                 </div>
 
                 {/* Main Title & Subtitle */}
-                <div className="mt-2.5 space-y-1.5">
-                  <h3 className="text-base lg:text-xl font-black text-white leading-snug">
-                    شناسایی دقیق قطعه با <span className="text-[#E06518]">هوش مصنوعی</span>
+                <div className="mt-3 space-y-2">
+                  <h3 className="text-base lg:text-2xl font-black text-white leading-tight">
+                    با <span className="text-[#E06518]">هوش مصنوعی</span> قطعه
+                    را پیدا کنید
                   </h3>
-                  <p className="text-[11px] lg:text-xs text-slate-300 leading-relaxed font-medium">
-                    تطبیق فوری مشخصات ظاهری، ابعاد و کدهای فنی با بیش از ۳۰,۰۰۰ قلم قطعات خطوط تولید کشور
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                    با یک عکس، مشخصات قطعه را شناسایی کرده و سریع‌تر به محصول
+                    مورد نظر خود دسترسی پیدا کنید.
                   </p>
                 </div>
               </div>
 
-              {/* Central Targeted Bearing / Industrial Part Image with HUD Scanner */}
-              <div className="sanat-visual-search-hero__image relative flex items-center justify-center my-1">
-                <div className="relative p-3.5 rounded-2xl bg-slate-900/80 border border-slate-700/80 shadow-2xl group w-full max-w-[210px] overflow-hidden flex flex-col items-center backdrop-blur-xs">
-                  {/* Laser Scan Line */}
-                  <div className="sanat-scan-laser-line" aria-hidden="true" />
-
+              {/* Central Targeted Bearing / Industrial Part Image */}
+              <div className="sanat-visual-search-hero__image col-start-1 row-start-1 lg:my-5 relative flex items-center justify-center">
+                <div className="relative p-2 lg:p-4 rounded-2xl bg-gradient-to-b from-slate-800/70 to-slate-900/90 border border-slate-700/80 shadow-2xl group max-w-[220px]">
                   {/* Futuristic Glowing Orange Framing Brackets */}
-                  <div className="absolute top-1.5 right-1.5 w-4 h-4 border-t-2 border-r-2 border-[#E06518] rounded-tr-md shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute top-1.5 left-1.5 w-4 h-4 border-t-2 border-l-2 border-[#E06518] rounded-tl-md shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute bottom-1.5 right-1.5 w-4 h-4 border-b-2 border-r-2 border-[#E06518] rounded-br-md shadow-[0_0_8px_#E06518]" />
-                  <div className="absolute bottom-1.5 left-1.5 w-4 h-4 border-b-2 border-l-2 border-[#E06518] rounded-bl-md shadow-[0_0_8px_#E06518]" />
-
-                  {/* Optical HUD Coordinates Overlay */}
-                  <div className="w-full flex items-center justify-between text-[9px] font-mono text-orange-400/80 mb-1 z-10 px-1">
-                    <span>CAD: MATCH</span>
-                    <span>FOV: 94°</span>
-                  </div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-[#E06518] rounded-tr-lg shadow-[0_0_8px_#E06518]" />
+                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-[#E06518] rounded-tl-lg shadow-[0_0_8px_#E06518]" />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-[#E06518] rounded-br-lg shadow-[0_0_8px_#E06518]" />
+                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-[#E06518] rounded-bl-lg shadow-[0_0_8px_#E06518]" />
 
                   <img
                     src={IMAGES.products.bearingNsk || IMAGES.products.bearing}
                     alt="AI Part Search"
-                    className="w-24 h-24 lg:w-32 lg:h-32 object-contain filter drop-shadow-[0_10px_20px_rgba(224,101,24,0.35)] transform group-hover:scale-105 transition-transform duration-300 my-1 z-10"
+                    className="w-16 h-20 sm:w-24 sm:h-24 lg:w-44 lg:h-44 object-contain filter drop-shadow-[0_12px_24px_rgba(224,101,24,0.4)] transform group-hover:scale-105 transition-transform duration-300"
                   />
+                </div>
+              </div>
 
-                  <div className="w-full text-center text-[10px] font-mono font-bold text-slate-300 bg-slate-800/80 rounded-md py-0.5 mt-1 border border-slate-700/60 z-10">
-                    Ø 52mm · BEARING 6205-2RS
+              {/* Feature Badges - Desktop (Vertical) vs Mobile (3 Horizontal) */}
+              <div className="hidden lg:flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4 text-[#E06518]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      شناسایی دقیق قطعه
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      با هوش مصنوعی پیشرفته
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-[#E06518]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      جستجوی سریع
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      در میان هزاران محصول
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    <Cpu className="w-4 h-4 text-[#E06518]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      نتایج معتبر
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      بر اساس کاتالوگ واقعی و قیمت‌گذاری
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Feature Badges */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-900/50 border border-slate-800">
-                  <div className="w-7 h-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Zap className="w-3.5 h-3.5 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">تشخیص خودکار ابعاد و تیپ</div>
-                    <div className="text-[10px] text-slate-400">تسمه، پولی، یاتاقان، زنجیر، کاسه‌نمد</div>
-                  </div>
+              {/* Mobile Horizontal Feature Row */}
+              <div className="hidden grid-cols-3 gap-2 py-2 border-t border-b border-slate-800 text-center">
+                <div className="flex flex-col items-center">
+                  <Zap className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[11px] font-bold text-white">
+                    شناسایی دقیق
+                  </span>
+                  <span className="text-[9px] text-slate-400">
+                    با هوش مصنوعی
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-900/50 border border-slate-800">
-                  <div className="w-7 h-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                    <Cpu className="w-3.5 h-3.5 text-[#E06518]" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">اتصال به کاتالوگ و استعلام قیمت</div>
-                    <div className="text-[10px] text-slate-400">موجودی انبار و ثبت درخواست ساخت سفارشی</div>
-                  </div>
+                <div className="flex flex-col items-center border-r border-l border-slate-800 px-1">
+                  <ShieldCheck className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[11px] font-bold text-white">
+                    جستجوی سریع
+                  </span>
+                  <span className="text-[9px] text-slate-400">در کاتالوگ</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[11px] font-bold text-white">
+                    نتایج معتبر
+                  </span>
+                  <span className="text-[9px] text-slate-400">
+                    قیمت‌گذاری دقیق
+                  </span>
                 </div>
               </div>
 
-              {/* Bottom Reassurance */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
-                <span>🔒 نگهداری امن در حافظه دستگاه</span>
-                <span className="font-mono text-slate-300">v3.2.0</span>
+              {/* Bottom Branding Tag */}
+              <div className="hidden lg:flex items-center gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 font-mono">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#E06518] animate-pulse shadow-[0_0_8px_#E06518]" />
+                <span>
+                  Powered by{" "}
+                  <strong className="text-white font-bold">FORZA AI</strong>
+                </span>
               </div>
             </div>
           </div>
 
           {/* FORM / UPLOAD PANEL (Desktop = Right in RTL, Mobile = Bottom) */}
-          <div className="sanat-visual-search-form lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-5 sm:p-7 flex flex-col justify-between">
-            {/* STEP CONTENT BODY */}
-            <div className="space-y-4">
-              <div className="sanat-visual-search-heading text-right space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-orange-50 border border-orange-200/80 text-[#E06518] text-[11px] font-bold">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>سامانه هوشمند تشخیص قطعات صنعتی</span>
+          <div className="sanat-visual-search-form lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
+            {/* STEPPER HEADER */}
+            <div className="sanat-visual-stepper pt-2 pb-4 border-b border-slate-200/80">
+              <div className="flex items-center justify-between max-w-sm mx-auto relative">
+                {/* Step 1 Item */}
+                <div className="flex flex-col items-center gap-1.5 relative z-10">
+                  <div className="w-9 h-9 rounded-full bg-[#E06518] text-white font-black text-sm flex items-center justify-center shadow-md shadow-orange-500/20 ring-4 ring-orange-100">
+                    ۱
+                  </div>
+                  <span className="text-xs font-bold text-[#E06518]">
+                    تصویر قطعه
+                  </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-black text-[#2B313A]">
-                  {isUsingCamera ? "قطعه را در کادر دوربین قرار دهید" : "تصویر قطعه صنعتی خود را ثبت یا بارگذاری کنید"}
+
+                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
+
+                {/* Step 2 Item */}
+                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
+                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
+                    ۲
+                  </div>
+                  <span className="text-xs font-medium text-slate-600">
+                    پردازش تصویر
+                  </span>
+                </div>
+
+                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
+
+                {/* Step 3 Item */}
+                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
+                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
+                    ۳
+                  </div>
+                  <span className="text-xs font-medium text-slate-600">
+                    تحلیل و نتایج
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* STEP CONTENT BODY */}
+            <div className="my-4 space-y-4">
+              <div className="sanat-visual-search-heading text-right space-y-1">
+                <h3 className="text-xl lg:text-2xl font-black text-[#2B313A]">
+                  {isUsingCamera ? "قطعه را در کادر دوربین قرار دهید" : "قطعه صنعتی خود را شناسایی کنید"}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  عکس مستقیم با نور مناسب بگیرید یا فایل انتخاب کنید؛ شکل دنده‌ها، ابعاد و کدهای پلاک به تشخیص دقیق‌تر کمک می‌کنند.
+                  عکس واضح بگیرید یا تصویر انتخاب کنید؛ کدها و شکل ظاهری قطعه در کادر مشخص باشند.
                 </p>
               </div>
 
+              {!selectedImage && !isUsingCamera && (
+                <div className="sanat-scan-intro" role="note">
+                  <div className="sanat-scan-intro__copy">
+                    <span className="sanat-scan-intro__eyebrow">FORZA VISION / صنعت پیش</span>
+                    <strong>از روی ظاهر قطعه جستجو کنید</strong>
+                    <span>عکس واقعی · مشخصات واقعی · نتیجه از کاتالوگ</span>
+                  </div>
+                </div>
+              )}
               {/* Error notification banner */}
               {errorMessage && !selectedImage && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2" role="alert">
@@ -1206,82 +1235,39 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
               )}
 
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                tabIndex={-1}
-                aria-label="انتخاب تصویر قطعه"
+                ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+                className="sr-only" tabIndex={-1} aria-label="انتخاب تصویر قطعه"
                 onChange={(event) => {
                   const image = event.currentTarget.files?.[0];
                   if (image) handleFile(image);
                   event.currentTarget.value = "";
                 }}
               />
-
               {/* Upload Dropzone OR Camera OR Selected Image */}
               {!selectedImage && !isUsingCamera ? (
-                <div className="space-y-3">
-                  <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDragOver(true);
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`sanat-visual-upload-dropzone border-2 border-dashed rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group relative ${
-                      isDragOver
-                        ? "border-[#E06518] bg-orange-50/80 scale-[1.01] shadow-lg shadow-orange-500/10"
-                        : "border-slate-300 bg-gradient-to-b from-slate-50/80 to-white hover:border-[#E06518] hover:bg-orange-50/30 hover:shadow-md"
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-[#E06518] mb-2 group-hover:scale-108 group-hover:border-orange-300 transition-all">
-                      <UploadCloud className="w-6 h-6 text-[#E06518]" />
-                    </div>
-                    <strong className="text-xs sm:text-sm font-black text-slate-800 group-hover:text-[#E06518] transition-colors">
-                      عکس قطعه را اینجا بکشید یا برای انتخاب فایل کلیک کنید
-                    </strong>
-                    <span className="text-[11px] text-slate-400 mt-1">
-                      فرمت‌های مجاز: JPG • PNG • WEBP (حداکثر ۱۰ مگابایت)
-                    </span>
-
-                    <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2.5" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2.5 bg-[#E06518] hover:bg-[#C95210] active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/25 flex items-center gap-2 transition-all cursor-pointer"
-                      >
-                        <GalleryImage className="w-4 h-4" />
-                        <span>انتخاب فایل تصویر</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void startCamera()}
-                        className="px-4 py-2.5 bg-white hover:bg-slate-100 active:scale-[0.98] text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
-                      >
-                        <Camera className="w-4 h-4 text-[#E06518]" />
-                        <span>عکاسی با دوربین زنده</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="دوربین در دسترس" />
-                      </button>
-                    </div>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`sanat-visual-upload-dropzone border-2 border-dashed rounded-2xl p-6 lg:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                    isDragOver
+                      ? "border-[#E06518] bg-orange-50/70 scale-[1.01]"
+                      : "border-[#CBD8E6] bg-[#F4F7FC] hover:bg-slate-100/80 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-slate-200/80 flex items-center justify-center text-[#E06518] mb-3 group-hover:scale-105 transition-transform">
+                    <UploadCloud className="w-7 h-7 text-[#E06518]" />
                   </div>
-
-                  {/* 3 PHOTOGRAPHIC QUICK TIPS */}
-                  <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-100/70 border border-slate-200/70 rounded-xl text-center">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[11px] font-bold text-slate-700">زاویه مستقیم ۹۰°</span>
-                      <span className="text-[9px] text-slate-500">کادربندی مسطح از روبرو</span>
-                    </div>
-                    <div className="flex flex-col items-center border-r border-l border-slate-200/80 px-1">
-                      <span className="text-[11px] font-bold text-slate-700">نور کافی</span>
-                      <span className="text-[9px] text-slate-500">وضوح دنده‌ها و شیارها</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[11px] font-bold text-slate-700">کد و پلاک فنی</span>
-                      <span className="text-[9px] text-slate-500">خوانایی اعداد و مارک</span>
-                    </div>
-                  </div>
+                  <span className="font-bold text-xs sm:text-sm text-[#2B313A]">
+                    عکس قطعه را اینجا رها کنید یا برای انتخاب کلیک کنید
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-1 font-mono">
+                    حداکثر حجم ۱۰ مگابایت | JPG • PNG • WEBP
+                  </span>
                 </div>
               ) : isUsingCamera ? (
                 <div className="sanat-scan-viewfinder relative rounded-2xl overflow-hidden bg-[#12203C] border border-slate-800 shadow-md my-2">
@@ -1302,16 +1288,14 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     />
                     <canvas ref={canvasRef} className="hidden" />
                     <span className="sanat-scan-viewfinder__corners" aria-hidden="true" />
-                    <span className="sanat-scan-viewfinder__hint" role="status" aria-live="polite">
-                      {isCameraReady ? "دوربین فعال · قطعه را در کادر قرار دهید" : "در حال آماده‌سازی تصویر دوربین…"}
-                    </span>
+                    <span className="sanat-scan-viewfinder__hint" role="status" aria-live="polite">{isCameraReady ? "دوربین فعال · قطعه را در کادر قرار دهید" : "در حال آماده‌سازی تصویر دوربین…"}</span>
                   </div>
                   <div className="sanat-scan-viewfinder__actions absolute bottom-4 left-0 right-0 flex items-center justify-center gap-3 px-4">
                     <button
                       type="button"
                       onClick={capturePhoto}
                       disabled={!isCameraReady}
-                      className="min-h-11 px-5 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 cursor-pointer transition-all"
+                      className="min-h-12 px-5 bg-[#E06518] hover:bg-[#C95210] text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 cursor-pointer transition-all"
                     >
                       <Camera className="w-4 h-4" />
                       <span>ثبت عکس قطعه</span>
@@ -1319,7 +1303,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={stopCamera}
-                      className="min-h-11 px-4 bg-white/90 hover:bg-white text-slate-800 rounded-xl text-xs font-bold cursor-pointer transition-all"
+                      className="min-h-12 px-4 bg-white/90 hover:bg-white text-slate-800 rounded-xl text-xs font-bold cursor-pointer transition-all"
                     >
                       انصراف
                     </button>
@@ -1341,37 +1325,93 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                   onChangeImage={() => fileInputRef.current?.click()}
                 />
               )}
+              {!selectedImage && !isUsingCamera && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedImage) {
+                      handleAnalyze("quick");
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  disabled={isUploadingImage}
+                  className="h-12 bg-[#E06518] hover:bg-[#C95210] active:scale-[0.99] text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md shadow-orange-500/20 hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>
+                    {selectedImage ? "شروع شناسایی هوشمند" : "انتخاب تصویر"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void startCamera()}
+                  className="h-12 bg-white hover:bg-slate-50 active:scale-[0.98] text-[#2B313A] border border-slate-200 hover:border-slate-300 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Camera className="w-4 h-4 text-slate-600" />
+                  <span>استفاده از دوربین</span>
+                </button>
+              </div>
+              )}
+
+              {/* 3 FEATURE HIGHLIGHT BADGES */}
+              {!selectedImage && !isUsingCamera && (
+              <div className="grid grid-cols-3 gap-2 py-3 px-3 bg-slate-100/70 rounded-2xl border border-slate-200/60 text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <Cpu className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
+                    تشخیص خودکار با AI
+                  </span>
+                </div>
+                <div className="flex flex-col items-center justify-center border-r border-l border-slate-200/80 px-1">
+                  <Search className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
+                    جستجو در کاتالوگ
+                  </span>
+                </div>
+                <div className="flex flex-col items-center justify-center">
+                  <Target className="w-4 h-4 text-[#E06518] mb-1" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-700">
+                    نمایش نتایج دقیق
+                  </span>
+                </div>
+              </div>
+              )}
             </div>
 
             {/* BOTTOM SAMPLE THUMBNAILS SECTION */}
             {!selectedImage && !isUsingCamera && (
-              <div className="pt-3 border-t border-slate-200/80 space-y-1.5 mt-3">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                  <span>تصویری در اختیار ندارید؟ آزمایش فوری با قطعات نمونه:</span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {INDUSTRIAL_PRESET_SAMPLES.map((sample) => (
-                    <button
-                      key={sample.id}
-                      type="button"
-                      onClick={() => loadPreset(sample)}
-                      className="flex flex-col items-center p-2 rounded-xl bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-[#E06518] transition-all cursor-pointer group shadow-2xs text-center"
-                      title={sample.title}
-                    >
-                      <div className="w-10 h-10 flex items-center justify-center mb-1">
-                        <img
-                          src={sample.imageUrl}
-                          alt={sample.title}
-                          className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform"
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-700 group-hover:text-[#E06518] line-clamp-1">
-                        {sample.title}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            <div className="pt-3 border-t border-slate-200/80 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                <span>نمونه تصاویر قابل قبول</span>
               </div>
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                {INDUSTRIAL_PRESET_SAMPLES.map((sample) => (
+                  <button
+                    key={sample.id}
+                    type="button"
+                    onClick={() => loadPreset(sample)}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white hover:bg-orange-50/70 border border-slate-200 hover:border-[#E06518] p-1.5 flex items-center justify-center transition-all cursor-pointer shrink-0 group shadow-2xs"
+                    title={sample.title}
+                  >
+                    <img
+                      src={sample.imageUrl}
+                      alt={sample.title}
+                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                    />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => loadPreset(INDUSTRIAL_PRESET_SAMPLES[0])}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </div>

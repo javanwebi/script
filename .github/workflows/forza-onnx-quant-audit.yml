@@ -1,0 +1,116 @@
+name: FORZA Pocket CPU quant and transient WAV policy
+on:
+  pull_request:
+    paths:
+      - ops/forza-onnx-cpu-quant-benchmark-vps.sh
+      - ops/forza-progressive-stream-smoke-vps.sh
+      - ops/forza-amir-inmemory-smoke-vps.sh
+      - scripts/forza_quantize_flow.py
+      - scripts/forza_voice_http.py
+      - scripts/forza_pocket_worker.py
+      - tests/test_forza_punctuation_flow.py
+      - tests/test_forza_amir_private.py
+      - scripts/forza_amir_voice_http.py
+      - Dockerfile.forza-amir
+      - ops/forza-amir-private-canary-vps.sh
+      - ops/forza-amir-go-live-vps.sh
+      - ops/forza-amir-rollback-vps.sh
+      - src/utils/forzaWavFrameStream.ts
+      - tests/forza-wav-frame-stream.test.ts
+      - Dockerfile.forza-voice
+      - src/components/forza/AiForzaCallExperience.tsx
+      - tests/forza-boot-speech.test.ts
+      - .github/workflows/forza-onnx-quant-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint shell, Python and embedded Node
+        run: |
+          bash -n ops/forza-onnx-cpu-quant-benchmark-vps.sh
+          bash -n ops/forza-progressive-stream-smoke-vps.sh
+          bash -n ops/forza-amir-inmemory-smoke-vps.sh
+          bash -n ops/forza-amir-private-canary-vps.sh
+          bash -n ops/forza-amir-go-live-vps.sh
+          bash -n ops/forza-amir-rollback-vps.sh
+          python3 -m py_compile scripts/forza_quantize_flow.py scripts/forza_pocket_worker.py scripts/forza_voice_http.py
+          python3 tests/test_forza_punctuation_flow.py
+          python3 -m py_compile scripts/forza_amir_voice_http.py
+          python3 tests/test_forza_amir_private.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          script=Path("ops/forza-onnx-cpu-quant-benchmark-vps.sh").read_text()
+          node=script.split("node - <<'JS'\n",1)[1].split("\nJS\n",1)[0]
+          subprocess.run(["node","--check","-"],input=node,text=True,check=True)
+          df=script.split("cat > \"$STAGE/Dockerfile\" <<'DOCKER'\n",1)[1].split("\nDOCKER\n",1)[0]
+          patch=df.split("RUN python3 - <<'PY'\n",1)[1].split("\nPY\n",1)[0]
+          compile(patch,"candidate_patch","exec")
+          for marker in ("FORZA_TUNE_PROFILE_START","FORZA_TUNE_RESULT",
+                        "FORZA_TUNE_BENCH_DONE","VOICE_SHA","STATE_SHA",
+                        "docker commit --change", "--memory 2g"):
+              assert marker in script, marker
+          for marker in ("FORZA_CPU_INTRA","FORZA_ONNX_INT8"):
+              assert marker in Path("Dockerfile.forza-voice").read_text()
+          for unsafe in ('docker rm -f "$LIVE"', 'docker stop "$LIVE"',
+                         'docker restart "$LIVE"', 'docker rename "$LIVE"'):
+              assert unsafe not in script
+          print("FORZA_SAFE_CPU_TUNE_OK")
+          PY
+      - name: Confirm Python output uses in-memory buffers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/forza_pocket_worker.py").read_text()
+          assert "stream = io.BytesIO()" in s
+          assert "sf.write(stream, audio" in s
+          s=Path("scripts/forza_voice_http.py").read_text()
+          assert "audio_cache" not in s
+          s=Path("src/components/forza/AiForzaCallExperience.tsx").read_text()
+          assert "voiceCacheRef" not in s
+          assert "activeNimaBuffer.add(phrase)" in s
+          assert "playPocketFullAnswer" in s  # legacy Pocket fallback remains available
+          assert "await player.enqueueWav(audio)" in s
+          assert "readForzaWavFrames" not in s
+          assert "ForzaLiveSpeechQueue" not in s
+          assert "playPocketProgressive" not in s
+          amir=Path("ops/forza-amir-inmemory-smoke-vps.sh").read_text()
+          assert "fa_IR-amir-medium.onnx" in amir
+          assert "FORZA_AMIR_RESULT" in amir
+          assert "sha256sum -c" in amir
+          assert "--read-only" in amir
+          assert "generated_wav_saved=0" in amir
+          assert "synthesize_wav" not in amir
+          assert 'open("' not in amir
+          assert 'wave.open' not in amir
+          private=Path("scripts/forza_amir_voice_http.py").read_text()
+          assert "FORZA_VOICE_TOKEN" in private
+          assert "io.BytesIO()" in private
+          assert "PiperVoice.load" in private
+          assert "write_bytes(" not in private
+          assert 'X-Forza-Voice", VOICE_ID' in private
+          docker=Path("Dockerfile.forza-amir").read_text()
+          canary=Path("ops/forza-amir-private-canary-vps.sh").read_text()
+          assert "FORZA_AMIR_PRIVATE_CANARY_RESULT" in canary
+          assert "generated_wav_saved=0" in canary
+          promote=Path("ops/forza-amir-go-live-vps.sh").read_text()
+          rollback=Path("ops/forza-amir-rollback-vps.sh").read_text()
+          assert "FORZA_AMIR_LIVE_OK" in promote
+          assert "FORZA_AMIR_DEPLOY_FAILED" in promote
+          assert "FORZA_VOICE_ENGINE=amir" in promote
+          assert "/usr/local/sbin/sanatpish-deploy" in promote
+          assert "FORZA_POCKET_RESTORED" in rollback
+          assert "generated_wav_saved=0" in promote
+          assert "forza-amir-rollback-container" in promote and "forza-amir-rollback-container" in rollback
+          for unsafe in ("docker system prune", "docker volume rm", "drop database", "rm -rf /opt/sanatpish"):
+              assert unsafe not in promote and unsafe not in rollback
+          assert "--read-only" in canary
+          assert "piper-tts==1.8.0" in docker
+          assert "fb815380d969ea372b0b21b0de14421f58fe481047e153e69685d079b6e1a9d1" in docker
+          print("FORZA_NO_PERSISTENT_WAV_OK")
+          PY
