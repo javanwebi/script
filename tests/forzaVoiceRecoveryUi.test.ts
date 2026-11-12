@@ -60,6 +60,13 @@ test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette w
   assert.match(avatar,/forza-canvas-fallback/);
   assert.match(avatar,/resolveParticlePoster/);
   assert.match(particleLayers,/buildParticlePosterPixels/);
+  assert.match(particleLayers,/buildParticlePosterPixelsAsync/);
+  assert.match(avatar,/await shared\.buildParticlePosterPixelsAsync\(pixels\)/);
+  assert.match(avatar,/particleFullPayloadPromise/);
+  assert.match(avatar,/particlePosterOnlyPromise/);
+  assert.match(avatar,/targetFrameMs <= 0\.7/);
+  assert.match(avatar,/1000 \/ 45/);
+  assert.match(avatar,/1000 \/ 30/);
   assert.doesNotMatch(avatar,/شتاب‌دهنده گرافیکی WebGL در دسترس نیست/);
   assert.doesNotMatch(avatar,/موتور گرافیکی فورزا دیر آماده شد/);
   assert.doesNotMatch(ui,/formation_watchdog_fallback=1/);
