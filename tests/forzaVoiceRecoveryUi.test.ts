@@ -154,6 +154,11 @@ test('FORZA opens its voice controller without putting Three.js in the first cal
 test('assistant subtitles replace the customer bubble on the first SSE text chunk',()=>{
   assert.equal((ui.match(/setDisplayedAi\(reply\)/g)||[]).length,2);
   assert.match(ui,/setAiText\(reply\);[\s\S]{0,220}setDisplayedAi\(reply\);/);
+  const firstText=ui.indexOf("if(!firstTextDelivered&&reply.trim())");
+  const firstTextEnd=ui.indexOf("setAiText(reply)",firstText);
+  assert.ok(firstText>=0&&firstTextEnd>firstText);
+  assert.match(ui.slice(firstText,firstTextEnd),/setTurn\('ai'\)/,
+    'switch to the assistant bubble before waiting for audio playback');
 });
 
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
