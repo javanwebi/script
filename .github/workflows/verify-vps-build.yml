@@ -38,6 +38,7 @@ on:
       - "src/**"
       - "tests/all-categories-page-premium.test.ts"
       - "scripts/tests/all-categories-responsive-smoke.cjs"
+      - "scripts/tests/excel-menu-category-responsive-smoke.cjs"
       - "server.ts"
       - "server/auth/**"
       - "api/sms.ts"
