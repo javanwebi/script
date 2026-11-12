@@ -73,6 +73,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const callClosedRef = useRef(false);
   const stopAcknowledgementRef=useRef<ForzaStopAcknowledgement|null>(null);
   const backchannelRef=useRef<ForzaStopAcknowledgement|null>(null);
+  const playBackchannelRef=useRef<(bytes:Uint8Array,controller:AbortController)=>Promise<void>>(async()=>{});
+  const maybeBackchannelRef=useRef<(transcript:string,isFinal:boolean)=>void>(()=>{});
   const lastBackchannelAtRef=useRef(0);
   const thinkingAcknowledgementTimerRef=useRef<number|null>(null);
   const voiceModeRef = useRef<'pocket-farsi-v2'|'piper-nima-gyro-medium'|'piper-amir-medium'>('pocket-farsi-v2');
@@ -316,6 +318,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
+        // New customer speech cancels a pending/playing backchannel before
+        // the microphone transcript is forwarded to the assistant.
+        backchannelRef.current?.cancel();
         const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
         if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
@@ -335,6 +340,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
         hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);setTurn('user');
+        maybeBackchannelRef.current(transcript,isFinal);
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
@@ -661,6 +667,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const stopAudio = useCallback(() => {
     stopAcknowledgementRef.current?.cancel();
+    backchannelRef.current?.cancel();
+    if(thinkingAcknowledgementTimerRef.current!==null){
+      window.clearTimeout(thinkingAcknowledgementTimerRef.current);
+      thinkingAcknowledgementTimerRef.current=null;
+    }
     manualReplayAbortRef.current?.abort(new Error('forza_manual_replay_stopped'));
     manualReplayAbortRef.current=null;
     isManualReplayPendingRef.current=false;
@@ -946,6 +957,90 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     };
   },[greetingPhase,activeVoiceLabel,requestPocketAudio]);
 
+  useEffect(()=>{
+    if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
+    const acknowledgement=new ForzaStopAcknowledgement(signal=>
+      requestPocketAudio('آهان، متوجه شدم.',signal,'call-'+callIdRef.current+'-backchannel'));
+    backchannelRef.current=acknowledgement;
+    // Keep the private Nima worker warm sequentially; never flood its queue
+    // with two simultaneous warm-up inferences as the greeting finishes.
+    void (stopAcknowledgementRef.current?.warm()||Promise.resolve()).then(()=>acknowledgement.warm());
+    return ()=>{
+      acknowledgement.dispose();
+      if(backchannelRef.current===acknowledgement)backchannelRef.current=null;
+    };
+  },[greetingPhase,activeVoiceLabel,requestPocketAudio]);
+
+  const playBackchannel=useCallback(async(bytes:Uint8Array,controller:AbortController):Promise<void>=>{
+    if(callClosedRef.current||controller.signal.aborted||speakerMutedRef.current)return;
+    let player=continuousVoiceRef.current;
+    const ownsPlayer=!player;
+    if(!player){
+      player=new ForzaContinuousWav(ensureCtx,()=>{
+        if(controller.signal.aborted||callClosedRef.current)return;
+        isAiSpeakingRef.current=true;
+        lastForzaPlaybackAtRef.current=Date.now();
+        setVoicePending(false);setVoiceStage('playing');
+        setStatus('speaking');setTurn('ai');
+      },undefined,()=>{
+        if(controller.signal.aborted||callClosedRef.current||isProcessingTurnRef.current)return;
+        isAiSpeakingRef.current=false;
+        setVoicePending(false);setVoiceStage('idle');
+        setStatus('listening');setTurn('user');
+      },undefined,level=>setAudioLevel(previous=>
+        Math.abs(previous-level)<0.025?previous:level));
+      player.setMuted(speakerMutedRef.current);
+      continuousVoiceRef.current=player;
+    }
+    const activePlayer=player;
+    const cancel=()=>activePlayer.cancel();
+    controller.signal.addEventListener('abort',cancel,{once:true});
+    manualReplayAbortRef.current=controller;
+    isManualReplayPendingRef.current=true;
+    try{
+      await activePlayer.enqueueWav(bytes);
+      if(!controller.signal.aborted&&!callClosedRef.current){
+        lastBackchannelAtRef.current=Date.now();
+        playbackEchoHistoryRef.current.record('آهان، متوجه شدم.');
+        heardSpeechEchoRef.current='آهان، متوجه شدم.';
+      }
+    }finally{
+      controller.signal.removeEventListener('abort',cancel);
+      if(ownsPlayer){
+        activePlayer.cancel();
+        if(continuousVoiceRef.current===activePlayer)continuousVoiceRef.current=null;
+      }
+      if(manualReplayAbortRef.current===controller){
+        manualReplayAbortRef.current=null;
+        isManualReplayPendingRef.current=false;
+        if(ownsPlayer&&!isProcessingTurnRef.current&&!callClosedRef.current){
+          isAiSpeakingRef.current=false;setVoicePending(false);setVoiceStage('idle');
+          setStatus('listening');setTurn('user');
+        }
+      }
+    }
+  },[ensureCtx,setStatus]);
+  playBackchannelRef.current=playBackchannel;
+
+  // Only acknowledge a genuine mid-thought pause, not every completed sentence.
+  // The cached Nima phrase is cancelled immediately if the customer resumes.
+  maybeBackchannelRef.current=(transcript,isFinal)=>{
+    const text=String(transcript||'').trim();
+    if(!isFinal||text.length<12||text.split(/\\s+/u).length<4||
+       callClosedRef.current||micMutedRef.current||isProcessingTurnRef.current||
+       isAiSpeakingRef.current||isManualReplayPendingRef.current||
+       forzaTurnIntent(text)!=='question')return;
+    const silence=vadRef.current.silenceDuration(Date.now());
+    if(!vadRef.current.heardSpeech||silence<220||silence>900||
+       forzaEndOfTurnPauseMs(text,false)<1450||
+       Date.now()-lastBackchannelAtRef.current<9000)return;
+    const acknowledgement=backchannelRef.current;
+    if(!acknowledgement)return;
+    const requested=acknowledgement.request((audio,controller)=>
+      playBackchannelRef.current(audio,controller),180);
+    if(requested)lastBackchannelAtRef.current=Date.now();
+  };
+
   const playPocketFullAnswer=useCallback(async(
     answer:string,
     player:ForzaContinuousWav,
@@ -1107,6 +1202,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         interruptCurrentTurn();
       }
       if(q && forzaTurnIntent(q)==='stop'){
+        backchannelRef.current?.cancel();
         // A pure stop command should not trigger an extra AI response.
         setUserText(q);
         setIsUserSpeaking(false);
@@ -1428,6 +1524,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply=callPlainText.push(fullText);
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
+            if(thinkingAcknowledgementTimerRef.current!==null){
+              window.clearTimeout(thinkingAcknowledgementTimerRef.current);
+              thinkingAcknowledgementTimerRef.current=null;
+            }
             // Switch the single live message card to the assistant as soon as
             // text exists; never wait for a WebAudio source to begin playing.
             setTurn('ai');
@@ -1587,6 +1687,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // This never stops/replaces the actual Pocket voice container.
         pocketAbort.abort();
         if(terminalIdleTimer!==null)window.clearTimeout(terminalIdleTimer);
+        if(thinkingAcknowledgementTimerRef.current!==null){
+          window.clearTimeout(thinkingAcknowledgementTimerRef.current);
+          thinkingAcknowledgementTimerRef.current=null;
+        }
         bufferedNima?.cancel();
         playerForTurn?.cancel();
         if(activeTurnRef.current?.generation!==generation)return;
@@ -2076,6 +2180,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const releaseCallResources = useCallback(() => {
     callClosedRef.current=true;
     stopAcknowledgementRef.current?.dispose();stopAcknowledgementRef.current=null;
+    backchannelRef.current?.dispose();backchannelRef.current=null;
     playbackEchoHistoryRef.current.clear();
     ++microphoneGenerationRef.current;
     micAutoStartedRef.current=false;
