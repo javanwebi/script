@@ -910,7 +910,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         const handleContextRestored = () => {
           if (cancelled || !renderer) return;
           contextLost = false;
-          stopCanvasFallback();
+          // Keep the early poster visible if the worker has not delivered the
+          // real particle buffers yet; otherwise restoration can flash black.
+          if (layerPayload?.layers) stopCanvasFallback();
           if (formationReported) {
             formationReady = true;
             shared.uProgress.value = 1;
