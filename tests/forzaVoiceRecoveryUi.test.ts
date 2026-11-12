@@ -202,13 +202,13 @@ test('Diba recording keeps only a short idle pre-roll and retains audio after sp
   assert.match(ui,/const audioBlob=chunks\.length\?new Blob\(chunks/);
 });
 
-test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);
+test('local browser Diba STT avoids redundant server inference and uses ready Diba only as fallback',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && !q && serverSttConfiguredRef\.current === true/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/info\.serverSttProvider==='diba'/);
   assert.match(ui,/info\.serverSttReady===true/);
-  assert.match(ui,/دایبا تنظیم نشده؛ متن زنده مرورگر/);
+  assert.match(ui,/loadDibaSttModel\(\)/);
   assert.match(ui,/serverSttConfiguredRef=useRef\(false\)/);
   assert.match(ui,/تشخیص گفتار: \{serverSttLabel\}/);
 });
