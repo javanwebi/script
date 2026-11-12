@@ -161,6 +161,20 @@ test('assistant subtitles replace the customer bubble on the first SSE text chun
     'switch to the assistant bubble before waiting for audio playback');
 });
 
+test('the completed FORZA answer remains visible until the next customer transcript',()=>{
+  assert.match(ui,/setStatus\('listening'\);\s*setTurn\('ai'\);\s*startListening\(true\);/);
+  assert.match(ui,/setUserText\(transcript\);setIsUserSpeaking\(true\);setTurn\('user'\)/);
+  assert.match(ui,/setUserText\(currentSpeech\);\s*setStatus\('listening'\);\s*setTurn\('user'\)/);
+});
+
+test('the original FORZA poster is published before full worker particle preprocessing',()=>{
+  const poster=particleWorker.indexOf("type: 'poster'");
+  const layers=particleWorker.indexOf('buildParticleLayers(pixels, W, H)');
+  assert.ok(poster>=0&&layers>poster,'poster must arrive before the expensive particle buffer build');
+  assert.match(avatar,/loadParticleLayerPayload\(true, showEarlyPoster\)/);
+  assert.match(avatar,/onFormationComplete/);
+});
+
 test('mobile call uses one live message card and removes floating bottom action groups',()=>{
   assert.match(ui,/const showCustomerTranscript = Boolean\(userText\.trim\(\)\)/);
   assert.match(ui,/const showAssistantTranscript = !showCustomerTranscript && Boolean\(displayedAi\)/);
