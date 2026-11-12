@@ -29,7 +29,7 @@ function wav(durationMs=180){
     window.speechSynthesis?.cancel?.();
     // The app must not rely on installed client TTS voices for reply output.
   });
-  await page.route('**/api/runtime',route=>route.fulfill({status:200,contentType:'application/json',
+  await page.route('**/api/runtime*',route=>route.fulfill({status:200,contentType:'application/json',
     body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',route=>route.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
   await page.route('**/api/ai/forza-voice-info',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({voice:'pocket-farsi-v2',incrementalSpeech:false,ready:true})}));
