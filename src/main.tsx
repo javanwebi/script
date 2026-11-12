@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {refreshDurableStorage} from './services/durableStorage';
 import {installDatabaseReferences} from './data/databaseReferences';
 import {installDatabaseProducts} from './data/mockGenerator';
-import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
+import {shouldRemountAfterCatalogHydration, shouldRequestFullCatalogOnBoot} from './utils/forzaBootPolicy';
 import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
 import './index.css';
 import './company-pages.css';
@@ -89,7 +89,7 @@ async function boot(){
       clearRuntimeRetry();
       runtimeRetryAttempt=0;
       installDatabaseReferences();
-      // Lean admin bootstraps intentionally return an empty products array.
+      // Lean admin/FORZA bootstraps intentionally return an empty products array.
       // Only a full catalogue response may replace the browser's live product index.
       if(data.productsIncluded===true && Array.isArray(data.products))installDatabaseProducts(data.products);
       removeRuntimeUnavailable();
@@ -118,8 +118,9 @@ async function boot(){
   rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
   rerenderOnFirstDatabaseHydration();
 
-  const isAdminRoute=/^\/admin(?:\/|$)/.test(window.location.pathname);
-  const runtimeOptions={includeProducts:!isAdminRoute};
+  // Realtime FORZA must not download/parse 10k SKU records while the
+  // microphone and particle engine initialize. Storefront paths still do.
+  const runtimeOptions={includeProducts:shouldRequestFullCatalogOnBoot(window.location.pathname)};
 
   const refreshRuntime=async()=>{
     if(runtimeRefreshInFlight)return;
