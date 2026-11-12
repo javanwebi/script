@@ -2244,7 +2244,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         {/* Turn Status Pill & Mic / Speaker Controls */}
         <div className="forza-status-dock self-end inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/88 border border-white/15 backdrop-blur-xl shadow-lg text-xs pointer-events-auto transition-all forza-persian-label">
           <span className="font-semibold text-white text-[12px] sm:text-[13px] leading-6">
-            {turn === 'user'
+            {status === 'listening' || turn === 'user'
               ? 'فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'
               : greetingPhase === 'needs-permission'
               ? 'برای شروع باید صدای خوشامدگویی پخش شود'
@@ -2268,7 +2268,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           </span>
           <span
             className={`w-2 h-2 rounded-full ${
-              turn === 'user'
+              status === 'listening' || turn === 'user'
                 ? 'bg-white shadow-[0_0_8px_#ffffff]'
                 : status === 'thinking'
                 ? 'bg-[#e06518] shadow-[0_0_8px_#e06518] animate-pulse'
