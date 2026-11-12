@@ -60,7 +60,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {buildForzaConsultSystemMessage, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
+import {buildForzaConsultSystemMessage, configuredXkiroModel, selectForzaTextProvider, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
@@ -5990,11 +5990,16 @@ app.post('/api/ai/consult-stream', async (req, res) => {
   };
 
   sendEvent({ type: 'start', responseId, userTurnId, timestamp: startedAt });
-  // FORZA voice is free-xKiro only. Fail closed before catalog work rather
-  // than silently routing a live call to Gemini, B.AI, or a paid provider.
-  if(lowLatencyVoice&&!configuredXkiroModel(process.env,true)){
-    sendEvent({type:'error',responseId,errorCode:'xkiro_voice_not_configured',
-      message:'مدل رایگان xKiro برای مکالمه فورزا تنظیم نشده است؛ اتصال مدل را بررسی کنید.'});
+  // The private VPS provider selection is authoritative for voice and desk.
+  // In particular, FORZA_VOICE_PROVIDER=avalai must never require xKiro or
+  // silently fall back to another account when AvalAI is unavailable.
+  const selectedText = selectForzaTextProvider(process.env, lowLatencyVoice);
+  if(lowLatencyVoice && (!selectedText.provider || !selectedText.model || !selectedText.apiKey)){
+    sendEvent({type:'error',responseId,
+      errorCode:selectedText.provider==='avalai'?'avalai_not_configured':'forza_voice_provider_not_configured',
+      message:selectedText.provider==='avalai'
+        ? 'اتصال AvalAI برای مکالمه فورزا کامل تنظیم نشده است؛ کلید و مدل را بررسی کنید.'
+        : 'مدل انتخاب‌شده برای مکالمه فورزا تنظیم نشده است؛ اتصال سرویس را بررسی کنید.'});
     return res.end();
   }
   // Skip the expensive catalogue scan for ordinary conversational turns.
@@ -6011,30 +6016,14 @@ app.post('/api/ai/consult-stream', async (req, res) => {
     ' phase=catalog_ready ms='+(Date.now()-startedAt)+
     ' catalogMs='+(Date.now()-catalogStartedAt)+' chars='+catalogContext.length);
 
-  // Optional OpenAI-compatible text-only SSE providers. The browser continues to handle STT/TTS.
-  // AvalAI is an explicitly selected paid provider; its key remains server-only.
-  // xKiro free models use vendor-qualified IDs such as qwen/qwen3.7-flash:free.
-  // B.AI remains available as an alternative. Gemini/Worker below is the existing fallback.
-  const selectedTextProvider = String((lowLatencyVoice ? process.env.FORZA_VOICE_PROVIDER : process.env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
-  const avalaiModel = configuredAvalaiModel(process.env, lowLatencyVoice);
-  const xkiroModel = configuredXkiroModel(process.env, lowLatencyVoice);
-  const baiModel = configuredBaiModel(process.env, lowLatencyVoice);
-  const textProvider = lowLatencyVoice
-    ? (xkiroModel ? 'xkiro' : null)
-    : selectedTextProvider === 'avalai' ? 'avalai' : xkiroModel ? 'xkiro' : baiModel ? 'bai' : null;
-  const textModel = lowLatencyVoice ? xkiroModel : avalaiModel || xkiroModel || baiModel;
+  // Stream text through the exact provider explicitly chosen in private VPS
+  // settings. STT (Diba) and TTS (Nima) remain independent of this selection.
+  const {provider: textProvider, model: textModel, apiKey: textApiKey} = selectedText;
   if(lowLatencyVoice)console.info('[FORZA_TEXT_STAGE] turn='+userTurnId+
-    ' phase=provider_selected provider='+(textProvider|| (getGeminiKey()?'gemini':'worker'))+
-    ' model='+(textModel||'default')+
+    ' phase=provider_selected provider='+(textProvider||'unconfigured')+
+    ' model='+(textModel||'unconfigured')+
     ' elapsedMs='+(Date.now()-startedAt));
-  const textApiKey = lowLatencyVoice
-    ? process.env.XKIRO_API_KEY
-    : textProvider === 'avalai'
-      ? process.env.AVALAI_API_KEY
-      : textProvider === 'xkiro'
-        ? process.env.XKIRO_API_KEY
-        : textProvider === 'bai' ? process.env.BAI_API_KEY : undefined;
-  if (textProvider === 'avalai' && (!avalaiModel || !textApiKey?.trim())) {
+  if (textProvider === 'avalai' && (!textModel || !textApiKey?.trim())) {
     sendEvent({type:'error',responseId,errorCode:'avalai_not_configured',
       message:'اتصال AvalAI برای این بخش کامل تنظیم نشده است. کلید و شناسه مدل را بررسی کنید.'});
     return res.end();
