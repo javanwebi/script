@@ -1057,6 +1057,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const playBackchannel=useCallback(async(bytes:Uint8Array,controller:AbortController):Promise<void>=>{
     if(callClosedRef.current||controller.signal.aborted||speakerMutedRef.current)return;
+    // A pre-recorded acknowledgement is ALSO microphone playback. Announce
+    // the exact spoken phrase to the echo guard before scheduling its WAV,
+    // otherwise FORZA can hear its own "آهان، متوجه شدم" and self-interrupt.
+    heardSpeechEchoRef.current='آهان، متوجه شدم.';
+    playbackEchoHistoryRef.current.record('آهان، متوجه شدم.');
+    lastForzaPlaybackAtRef.current=Date.now();
     let player=continuousVoiceRef.current;
     const ownsPlayer=!player;
     if(!player){
