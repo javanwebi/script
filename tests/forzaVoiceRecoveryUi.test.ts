@@ -36,7 +36,7 @@ test('particle identity loads after first paint and adapts density to the availa
   assert.match(ui,/const \[quality, setQuality\] = useState<'balanced' \| 'low'>/);
   assert.match(ui,/slowFpsSamplesRef\.current >= 2/);
   assert.match(avatar,/await import\('\.\/pixels'\)/);
-  assert.match(avatar,/buildLayers\(data, W, H, qualityMode\)/);
+  assert.match(avatar,/buildLayers\(decode\(B64\), W, H, qualityMode\)/);
   assert.match(avatar,/quality === 'balanced' \? 2/);
   assert.match(avatar,/setClearColor\(0x080402, 0\)/);
   assert.match(avatar,/dt \/ 2\.8/);
