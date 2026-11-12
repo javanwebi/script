@@ -8,6 +8,10 @@ const warmForza=()=>Promise.all([
   import('../../pages/AiForzaPage'),
   import('../forza/AiForzaCallExperience'),
   import('../forza/ParticleAvatar'),
+  // The full humanoid particle silhouette is a separate large chunk.
+  // Warm it in parallel with Three.js instead of waiting for the first
+  // canvas effect to request it after the page has already opened.
+  import('../forza/pixels'),
 ]);
 const loaders: Record<string, () => Promise<unknown>> = {
   '/ai-forza': warmForza,
@@ -39,6 +43,17 @@ export function resolvePreloadKey(pathname: string): string | null {
 const pending = new Map<string, Promise<unknown>>();
 export function RouteIntentPreload() {
   useEffect(() => {
+    // Direct URL visits have no pointer-hover intent. Start the same parallel
+    // warm-up immediately on the FORZA routes so the silhouette is ready when
+    // the voice controller mounts.
+    const currentKey=resolvePreloadKey(window.location.pathname);
+    if(currentKey==='/ai-forza'||currentKey==='/face-to-face'){
+      const task=loaders[currentKey]().catch(()=>{
+        pending.delete(currentKey);
+      });
+      pending.set(currentKey,task);
+    }
+
     const warm = (event: Event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
