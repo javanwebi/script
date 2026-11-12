@@ -40,13 +40,13 @@ workerScope.onmessage = async event => {
     }
 
     const transfer: Transferable[] = [
-      layers.sharp.pos.buffer, layers.sharp.col.buffer, layers.sharp.start.buffer,
-      layers.sharp.seed.buffer, layers.sharp.lum.buffer,
-      layers.glow.pos.buffer, layers.glow.col.buffer, layers.glow.start.buffer,
-      layers.glow.seed.buffer, layers.glow.lum.buffer,
+      layers.sharp.pos.buffer as ArrayBuffer, layers.sharp.col.buffer as ArrayBuffer, layers.sharp.start.buffer as ArrayBuffer,
+      layers.sharp.seed.buffer as ArrayBuffer, layers.sharp.lum.buffer as ArrayBuffer,
+      layers.glow.pos.buffer as ArrayBuffer, layers.glow.col.buffer as ArrayBuffer, layers.glow.start.buffer as ArrayBuffer,
+      layers.glow.seed.buffer as ArrayBuffer, layers.glow.lum.buffer as ArrayBuffer,
     ];
     if (poster) transfer.push(poster);
-    else if (transferablePosterPixels) transfer.push(transferablePosterPixels.buffer);
+    else if (transferablePosterPixels) transfer.push(transferablePosterPixels.buffer as ArrayBuffer);
 
     workerScope.postMessage({
       type: 'ready',
