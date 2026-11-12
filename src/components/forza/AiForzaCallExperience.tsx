@@ -121,8 +121,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  // Start with a GPU-safe scene. Mobile/low-memory devices begin in low mode;
-  // sustained low FPS can step a balanced desktop down without affecting STT.
+  // Mobile/low-memory devices start with a smaller framebuffer. Every device
+  // still receives the same particle map; ParticleAvatar adapts resolution live.
   const [quality] = useState<'balanced' | 'low'>(() => {
     const nav = navigator as Navigator & { deviceMemory?: number };
     const cores = nav.hardwareConcurrency || 4;
