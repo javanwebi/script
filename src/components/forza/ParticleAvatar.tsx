@@ -322,8 +322,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
     }, [restartKey]);
 
     useEffect(() => {
-      const mountEl = mount.current;
-      if (!mountEl) return;
+      const currentMount = mount.current;
+      if (!currentMount) return;
+      const mountEl: HTMLDivElement = currentMount;
       const qualityMode: 'high' | 'balanced' | 'low' = quality === 'high' ? 'high' : quality === 'low' ? 'low' : 'balanced';
       const profile = qualityMode === 'high' ? { pixelRatio: 1.5, embers: 900, tier: 'HIGH' }
         : qualityMode === 'low' ? { pixelRatio: 1, embers: 360, tier: 'LOW' }
