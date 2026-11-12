@@ -269,7 +269,9 @@ function resolveParticlePoster(payload: ParticleLayerPayload): CanvasImageSource
     canvas.height = payload.height;
     const context = canvas.getContext('2d', { alpha: true });
     if (context) {
-      context.putImageData(new ImageData(payload.posterPixels, payload.width, payload.height), 0, 0);
+      const imageData = context.createImageData(payload.width, payload.height);
+      imageData.data.set(payload.posterPixels);
+      context.putImageData(imageData, 0, 0);
       particlePosterSource = canvas;
       payload.posterPixels = null;
       return particlePosterSource;
@@ -436,7 +438,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         }
         fallbackCanvas = canvas;
         fallbackStartedAt = performance.now();
-        fallbackLastFpsTime = fallbackStartedAt;
+        let fallbackLastFpsTime = fallbackStartedAt;
         let canvasWidth = 0;
         let canvasHeight = 0;
         let dpr = 1;
