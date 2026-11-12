@@ -352,162 +352,516 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       const currentMount = mount.current;
       if (!currentMount) return;
       const mountEl: HTMLDivElement = currentMount;
-      const qualityMode: 'high' | 'balanced' | 'low' = quality === 'high' ? 'high' : quality === 'low' ? 'low' : 'balanced';
-      const profile = qualityMode === 'high' ? { pixelRatio: 1.5, embers: 900, tier: 'HIGH' }
-        : qualityMode === 'low' ? { pixelRatio: 1, embers: 360, tier: 'LOW' }
-        : { pixelRatio: 1.2, embers: 600, tier: 'BALANCED' };
-      let renderer: THREE.WebGLRenderer;
-      try {
-        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', depth: false, stencil: false });
-      } catch {
-        props.current.onError?.('شتاب‌دهنده گرافیکی WebGL در دسترس نیست؛ حالت سبک فورزا فعال شد.');
-        props.current.onFormed?.();
-        return;
-      }
-      const pr = Math.min(window.devicePixelRatio || 1, profile.pixelRatio);
-      renderer.setPixelRatio(pr);
-      renderer.setClearColor(0x080402, 0);
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.display = 'block';
-      renderer.domElement.style.background = 'transparent';
-      mountEl.appendChild(renderer.domElement);
+      let renderer: THREE.WebGLRenderer | null = null;
+      let cancelled = false;
+      let contextLost = false;
+      let raf = 0;
+      let fallbackRaf = 0;
+      let fallbackCanvas: HTMLCanvasElement | null = null;
+      let fallbackRender: (() => void) | null = null;
+      let layerPayload: ParticleLayerPayload | null = null;
+      let glowPts: THREE.Points | null = null;
+      let sharpPts: THREE.Points | null = null;
+      let glowMat: THREE.ShaderMaterial | null = null;
+      let sharpMat: THREE.ShaderMaterial | null = null;
+      let scene: THREE.Scene | null = null;
+      let formationReady = false;
+      let formationReported = false;
+      let totalParticleCount = 0;
+      let t = 0;
+      let burst = 0;
+      let speechVal = 0;
+      let last = performance.now();
+      let frameCount = 0;
+      let lastFpsTime = performance.now();
+      let lowFpsSamples = 0;
+      let highFpsSamples = 0;
+      let adaptiveScale = 1;
+      let appliedQuality = props.current.quality === 'low' ? 'low' : 'balanced';
 
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-      const shared = { uTime: { value: 0 }, uProgress: { value: 0 }, uPx: { value: 100 }, uBurst: { value: 0 }, uSpeech: { value: 0 } };
-      // Render a small ember field immediately; defer the 1.68 MB silhouette module until after first paint.
-      const N = profile.embers;
-      const ep = new Float32Array(N * 3), es = new Float32Array(N);
-      for (let i = 0; i < N; i++) {
-        ep[i * 3] = (Math.random() - 0.5) * 7;
-        ep[i * 3 + 1] = (Math.random() - 0.5) * 4.4;
-        ep[i * 3 + 2] = Math.random() * 0.6;
-        es[i] = Math.random();
+      // Every device receives the same particle coordinates and glow layer.
+      // Only framebuffer resolution adapts; the humanoid/logo is never removed.
+      const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.25);
+      let pixelRatio = Math.max(0.65, maxPixelRatio * (appliedQuality === 'low' ? 0.82 : 1));
+      const EMBER_COUNT = 720;
+      const emberPositions = new Float32Array(EMBER_COUNT * 3);
+      const emberSeeds = new Float32Array(EMBER_COUNT);
+      for (let i = 0; i < EMBER_COUNT; i++) {
+        emberPositions[i * 3] = (Math.random() - 0.5) * 7;
+        emberPositions[i * 3 + 1] = (Math.random() - 0.5) * 4.4;
+        emberPositions[i * 3 + 2] = Math.random() * 0.6;
+        emberSeeds[i] = Math.random();
       }
-      const eg = new THREE.BufferGeometry();
-      eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
-      eg.setAttribute('aSeed', new THREE.BufferAttribute(es, 1));
-      const emberMat = new THREE.ShaderMaterial({ vertexShader: emberVert, fragmentShader: emberFrag, uniforms: shared, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-      const emberPts = new THREE.Points(eg, emberMat);
-      emberPts.frustumCulled = false;
-      scene.add(emberPts);
+
+      let fallbackStartedAt = 0;
+      let fallbackTime = 0;
+      let fallbackFrameCount = 0;
+      let fallbackLastFpsTime = performance.now();
+      const fallbackEmbers = Array.from({ length: 220 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        radius: 0.45 + Math.random() * 1.35,
+        speed: 0.008 + Math.random() * 0.025,
+        phase: Math.random() * Math.PI * 2,
+      }));
+
+      const reportFormed = () => {
+        if (formationReported) return;
+        formationReported = true;
+        props.current.onFormed?.();
+      };
+
+      const stopCanvasFallback = () => {
+        if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
+        fallbackRaf = 0;
+        fallbackRender = null;
+        fallbackCanvas?.remove();
+        fallbackCanvas = null;
+      };
+
+      const startCanvasFallback = (source: CanvasImageSource | null, imageWidth: number, imageHeight: number) => {
+        if (cancelled || fallbackCanvas) return;
+        const canvas = document.createElement('canvas');
+        canvas.className = 'forza-canvas-fallback';
+        canvas.dataset.engine = 'canvas2d';
+        canvas.setAttribute('aria-hidden', 'true');
+        mountEl.appendChild(canvas);
+        const context = canvas.getContext('2d', { alpha: true });
+        if (!context) {
+          canvas.remove();
+          console.warn('[FORZA_PARTICLES] canvas_fallback_unavailable');
+          reportFormed();
+          return;
+        }
+        fallbackCanvas = canvas;
+        fallbackStartedAt = performance.now();
+        fallbackLastFpsTime = fallbackStartedAt;
+        let canvasWidth = 0;
+        let canvasHeight = 0;
+        let dpr = 1;
+        let fallbackFrames = 0;
+        let fallbackLast = fallbackStartedAt;
+
+        const resizeFallback = () => {
+          const width = Math.max(1, mountEl.clientWidth);
+          const height = Math.max(1, mountEl.clientHeight);
+          dpr = Math.min(window.devicePixelRatio || 1, 1.15);
+          const targetWidth = Math.round(width * dpr);
+          const targetHeight = Math.round(height * dpr);
+          if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvasWidth = width;
+            canvasHeight = height;
+            context.setTransform(dpr, 0, 0, dpr, 0, 0);
+          }
+        };
+
+        const renderFallback = () => {
+          if (cancelled || !fallbackCanvas || document.hidden) {
+            fallbackRaf = 0;
+            return;
+          }
+          const now = performance.now();
+          const dt = Math.min((now - fallbackLast) / 1000, 0.05);
+          fallbackLast = now;
+          if (!props.current.paused) fallbackTime += dt;
+          resizeFallback();
+          const width = canvasWidth || mountEl.clientWidth;
+          const height = canvasHeight || mountEl.clientHeight;
+          context.clearRect(0, 0, width, height);
+
+          // Recreate the orange ambient dust from the original FORZA scene.
+          context.save();
+          context.globalCompositeOperation = 'lighter';
+          for (const ember of fallbackEmbers) {
+            const x = ((ember.x + Math.sin(fallbackTime * 0.35 + ember.phase) * 0.025) % 1) * width;
+            const y = ((ember.y + fallbackTime * ember.speed * (props.current.backgroundSpeed || 1)) % 1) * height;
+            const alpha = 0.18 + (0.5 + 0.5 * Math.sin(fallbackTime * 1.7 + ember.phase)) * 0.5;
+            context.fillStyle = 'rgba(224,101,24,' + alpha.toFixed(3) + ')';
+            context.beginPath();
+            context.arc(x, y, ember.radius, 0, Math.PI * 2);
+            context.fill();
+          }
+          context.restore();
+
+          const rawProgress = Math.min(1, (now - fallbackStartedAt) / 2800);
+          const progress = rawProgress < 0.5
+            ? 4 * rawProgress * rawProgress * rawProgress
+            : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
+          if (source && imageWidth > 0 && imageHeight > 0) {
+            const drawWidth = width;
+            const drawHeight = drawWidth * imageHeight / imageWidth;
+            const pulse = 1 + Math.min(1, props.current.audioLevel || 0) * 0.006;
+            const dw = drawWidth * pulse;
+            const dh = drawHeight * pulse;
+            const x = (width - dw) / 2;
+            const y = (height - dh) / 2;
+            context.save();
+            context.globalCompositeOperation = 'lighter';
+            context.filter = 'blur(22px)';
+            context.globalAlpha = 0.32 * progress;
+            context.drawImage(source, x, y, dw, dh);
+            context.filter = 'blur(4px)';
+            context.globalAlpha = 0.46 * progress;
+            context.drawImage(source, x, y, dw, dh);
+            context.filter = 'none';
+            context.globalAlpha = progress;
+            context.drawImage(source, x, y, dw, dh);
+            context.restore();
+          } else {
+            // The CSS particle field remains visible if even the poster source
+            // is unavailable; this is deliberately not surfaced as a user error.
+            context.save();
+            context.strokeStyle = 'rgba(224,101,24,' + (0.12 + progress * 0.28) + ')';
+            context.lineWidth = 1;
+            context.beginPath();
+            context.ellipse(width / 2, height / 2, Math.min(width, height) * 0.2, Math.min(width, height) * 0.32, 0, 0, Math.PI * 2);
+            context.stroke();
+            context.restore();
+          }
+
+          if (rawProgress >= 1) reportFormed();
+          fallbackFrames++;
+          if (now - fallbackLastFpsTime >= 1000) {
+            const fps = Math.round(fallbackFrames * 1000 / (now - fallbackLastFpsTime));
+            fallbackFrames = 0;
+            fallbackLastFpsTime = now;
+            props.current.onStats?.({
+              fps,
+              tier: 'CANVAS',
+              renderMs: Math.round((performance.now() - now) * 10) / 10,
+              particles: totalParticleCount || EMBER_COUNT,
+            });
+          }
+          fallbackRaf = requestAnimationFrame(renderFallback);
+        };
+
+        fallbackRender = renderFallback;
+        api.current = {
+          reform: () => { fallbackStartedAt = performance.now(); formationReported = false; },
+          burst: () => { fallbackStartedAt = Math.min(fallbackStartedAt, performance.now() - 1800); },
+          snap: () => {
+            try {
+              const link = document.createElement('a');
+              link.download = 'forza-ai-particles.png';
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+            } catch {}
+          },
+          seek: (seconds: number) => { fallbackTime = Math.max(0, seconds); },
+          getStats: () => ({
+            time: fallbackTime,
+            particles: totalParticleCount,
+            backgroundParticles: EMBER_COUNT,
+            width: mountEl.clientWidth,
+            height: mountEl.clientHeight,
+            frames: fallbackFrameCount,
+          }),
+        };
+        if (!document.hidden) fallbackRaf = requestAnimationFrame(renderFallback);
+      };
+
+      const activateFallback = async () => {
+        try {
+          const payload = layerPayload || await loadParticleLayerPayload();
+          if (cancelled) return;
+          layerPayload = payload;
+          const poster = resolveParticlePoster(payload);
+          startCanvasFallback(poster, payload.width, payload.height);
+        } catch (error) {
+          // Keep the stage alive and let the existing CSS particle field remain
+          // visible; never turn a temporary graphics issue into a red call error.
+          console.warn('[FORZA_PARTICLES] poster_recovery_deferred', error instanceof Error ? error.name : 'load_error');
+          if (!formationReported) reportFormed();
+        }
+      };
 
       let worldH = WORLD_W;
-      function resize() {
-        const w = mountEl.clientWidth, h = mountEl.clientHeight;
-        if (!w || !h) return;
-        renderer.setSize(w, h, false);
-        camera.aspect = w / h;
-        const visH = Math.min(worldH, WORLD_W / camera.aspect);
-        const dist = visH / 2 / Math.tan(THREE.MathUtils.degToRad(15));
-        camera.position.set(0, 0, dist);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+      const shared = {
+        uTime: { value: 0 },
+        uProgress: { value: 0 },
+        uPx: { value: 100 },
+        uBurst: { value: 0 },
+        uSpeech: { value: 0 },
+      };
+      const emberGeometry = new THREE.BufferGeometry();
+      emberGeometry.setAttribute('position', new THREE.BufferAttribute(emberPositions, 3));
+      emberGeometry.setAttribute('aSeed', new THREE.BufferAttribute(emberSeeds, 1));
+      const emberMaterial = new THREE.ShaderMaterial({
+        vertexShader: emberVert,
+        fragmentShader: emberFrag,
+        uniforms: shared,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const emberPoints = new THREE.Points(emberGeometry, emberMaterial);
+      emberPoints.frustumCulled = false;
+      scene.add(emberPoints);
+
+      const resize = () => {
+        if (!renderer) return;
+        const width = mountEl.clientWidth;
+        const height = mountEl.clientHeight;
+        if (!width || !height) return;
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        const visibleHeight = Math.min(worldH, WORLD_W / camera.aspect);
+        const distance = visibleHeight / 2 / Math.tan(THREE.MathUtils.degToRad(15));
+        camera.position.set(0, 0, distance);
         camera.lookAt(0, 0, 0);
         camera.updateProjectionMatrix();
-        shared.uPx.value = (h * pr) / visH;
+        shared.uPx.value = (height * pixelRatio) / visibleHeight;
+      };
+
+      try {
+        renderer = new THREE.WebGLRenderer({
+          antialias: false,
+          alpha: true,
+          preserveDrawingBuffer: false,
+          powerPreference: 'high-performance',
+          depth: false,
+          stencil: false,
+        });
+      } catch {
+        console.info('[FORZA_PARTICLES] webgl_unavailable_canvas_fallback=1');
       }
-      window.addEventListener('resize', resize);
-      resize();
 
-      let glowPts: THREE.Points | null = null, sharpPts: THREE.Points | null = null;
-      let glowMat: THREE.ShaderMaterial | null = null, sharpMat: THREE.ShaderMaterial | null = null;
-      let totalParticleCount = N, formationReady = false, formationReported = false, cancelled = false;
-      let burst = 0, speechVal = 0, last = performance.now(), t = 0, raf = 0, frameCount = 0, lastFpsTime = performance.now();
+      if (!renderer) {
+        void activateFallback();
+      } else {
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setClearColor(0x080402, 0);
+        renderer.domElement.style.width = '100%';
+        renderer.domElement.style.height = '100%';
+        renderer.domElement.style.display = 'block';
+        renderer.domElement.style.background = 'transparent';
+        renderer.domElement.dataset.engine = 'webgl';
+        mountEl.appendChild(renderer.domElement);
 
-      const loop = () => {
-        if (document.hidden) { raf = 0; return; }
-        const now = performance.now(), dt = Math.min((now - last) / 1000, 0.05);
-        last = now;
-        if (!props.current.paused) {
-          t += dt;
-          shared.uTime.value = t;
-          if (formationReady) shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 2.8);
-          if (formationReady && !formationReported && shared.uProgress.value >= 1) {
-            formationReported = true; props.current.onFormed?.();
+        const applyPixelRatio = () => {
+          if (!renderer) return;
+          const baseScale = props.current.quality === 'low' ? 0.82 : 1;
+          const nextRatio = Math.max(0.65, Math.min(maxPixelRatio, maxPixelRatio * baseScale * adaptiveScale));
+          if (Math.abs(nextRatio - pixelRatio) < 0.025) return;
+          pixelRatio = nextRatio;
+          renderer.setPixelRatio(pixelRatio);
+          resize();
+        };
+
+        const setWebglApi = () => {
+          api.current = {
+            reform: () => { shared.uProgress.value = 0; formationReported = false; },
+            burst: () => { burst = 1.35; },
+            snap: () => {
+              try {
+                const link = document.createElement('a');
+                link.download = 'forza-ai-particles.png';
+                link.href = renderer!.domElement.toDataURL('image/png');
+                link.click();
+              } catch {}
+            },
+            seek: (seconds: number) => { t = Math.max(0, seconds); shared.uTime.value = t; },
+            getStats: () => ({
+              time: t,
+              particles: totalParticleCount,
+              backgroundParticles: EMBER_COUNT,
+              width: mountEl.clientWidth,
+              height: mountEl.clientHeight,
+              frames: frameCount,
+            }),
+          };
+        };
+
+        const loop = () => {
+          if (!renderer || cancelled || contextLost || document.hidden) {
+            raf = 0;
+            return;
           }
-          burst *= Math.pow(0.05, dt); shared.uBurst.value = burst;
-          const currentMode = props.current.mode, currentIntensity = props.current.intensity || 1;
-          const audioLvl = props.current.audioLevel !== undefined ? props.current.audioLevel : 0;
-          let targetSpeech = 0, targetGain = 1.55;
-          if (currentMode === 'speak') { targetSpeech = Math.min(1, audioLvl) * currentIntensity; targetGain = 1.6 + audioLvl * 0.45; }
-          else if (currentMode === 'listen') targetGain = 1.5 * currentIntensity + Math.sin(t * 3) * 0.08;
-          speechVal = THREE.MathUtils.lerp(speechVal, targetSpeech, 0.38);
-          if (speechVal < 0.001) speechVal = 0;
-          shared.uSpeech.value = speechVal;
-          if (sharpMat) sharpMat.uniforms.uGain.value = THREE.MathUtils.lerp(sharpMat.uniforms.uGain.value, targetGain, 0.15);
-        }
-        const renderStart = performance.now();
-        renderer.render(scene, camera);
-        const renderMs = performance.now() - renderStart;
-        frameCount++;
-        if (now - lastFpsTime >= 1000) {
-          const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
-          frameCount = 0; lastFpsTime = now;
-          props.current.onStats?.({ fps, tier: profile.tier, renderMs: Math.round(renderMs * 10) / 10, particles: totalParticleCount });
-        }
-        raf = requestAnimationFrame(loop);
-      };
-      const handleVisibilityChange = () => {
-        if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = 0; return; }
-        if (!raf) { last = performance.now(); lastFpsTime = last; raf = requestAnimationFrame(loop); }
-      };
-      const handleContextLost = (event: Event) => {
-        event.preventDefault();
-        props.current.onError?.('شتاب‌دهنده گرافیکی مرورگر متوقف شد؛ فورزا در حالت سبک ادامه می‌دهد.');
-        if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
-      if (!document.hidden) loop();
+          const now = performance.now();
+          const dt = Math.min((now - last) / 1000, 0.05);
+          last = now;
+          if (props.current.quality !== appliedQuality) {
+            appliedQuality = props.current.quality === 'low' ? 'low' : 'balanced';
+            applyPixelRatio();
+          }
+          if (!props.current.paused) {
+            t += dt;
+            shared.uTime.value = t;
+            if (formationReady) shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 2.8);
+            if (formationReady && !formationReported && shared.uProgress.value >= 1) reportFormed();
+            burst *= Math.pow(0.05, dt);
+            shared.uBurst.value = burst;
+            const currentMode = props.current.mode;
+            const currentIntensity = props.current.intensity || 1;
+            const audioLevel = props.current.audioLevel !== undefined ? props.current.audioLevel : 0;
+            let targetSpeech = 0;
+            let targetGain = 1.55;
+            if (currentMode === 'speak') {
+              targetSpeech = Math.min(1, audioLevel) * currentIntensity;
+              targetGain = 1.6 + audioLevel * 0.45;
+            } else if (currentMode === 'listen') {
+              targetGain = 1.5 * currentIntensity + Math.sin(t * 3) * 0.08;
+            }
+            speechVal = THREE.MathUtils.lerp(speechVal, targetSpeech, 0.38);
+            if (speechVal < 0.001) speechVal = 0;
+            shared.uSpeech.value = speechVal;
+            if (sharpMat) sharpMat.uniforms.uGain.value = THREE.MathUtils.lerp(sharpMat.uniforms.uGain.value, targetGain, 0.15);
+          }
+          const renderStart = performance.now();
+          try {
+            renderer.render(scene, camera);
+          } catch (error) {
+            console.warn('[FORZA_PARTICLES] render_recovery', error instanceof Error ? error.name : 'render_error');
+            contextLost = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            void activateFallback();
+            return;
+          }
+          const renderMs = performance.now() - renderStart;
+          frameCount++;
+          if (now - lastFpsTime >= 1000) {
+            const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+            frameCount = 0;
+            lastFpsTime = now;
+            if (fps < 42) {
+              lowFpsSamples++;
+              highFpsSamples = 0;
+              if (lowFpsSamples >= 3 && adaptiveScale > 0.65) {
+                adaptiveScale = Math.max(0.65, adaptiveScale * 0.86);
+                lowFpsSamples = 0;
+                applyPixelRatio();
+              }
+            } else if (fps >= 55) {
+              highFpsSamples++;
+              lowFpsSamples = 0;
+              if (highFpsSamples >= 8 && adaptiveScale < 1) {
+                adaptiveScale = Math.min(1, adaptiveScale + 0.05);
+                highFpsSamples = 0;
+                applyPixelRatio();
+              }
+            } else {
+              lowFpsSamples = 0;
+              highFpsSamples = 0;
+            }
+            props.current.onStats?.({
+              fps,
+              tier: adaptiveScale < 0.9 || appliedQuality === 'low' ? 'ADAPTIVE' : 'ULTRA',
+              renderMs: Math.round(renderMs * 10) / 10,
+              particles: totalParticleCount,
+            });
+          }
+          raf = requestAnimationFrame(loop);
+        };
 
-      api.current = {
-        reform: () => { shared.uProgress.value = 0; formationReported = false; },
-        burst: () => { burst = 1.35; },
-        snap: () => {
-          try { const a = document.createElement('a'); a.download = 'forza-ai-particles.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
-          catch (e) { console.error('Snap download failed:', e); }
-        },
-        seek: (seconds: number) => { t = Math.max(0, seconds); shared.uTime.value = t; },
-        getStats: () => ({ time: t, particles: totalParticleCount, backgroundParticles: N, width: mountEl.clientWidth, height: mountEl.clientHeight, frames: frameCount }),
-      };
+        const handleContextLost = (event: Event) => {
+          event.preventDefault();
+          contextLost = true;
+          if (raf) cancelAnimationFrame(raf);
+          raf = 0;
+          void activateFallback();
+        };
+        const handleContextRestored = () => {
+          if (cancelled || !renderer) return;
+          contextLost = false;
+          stopCanvasFallback();
+          renderer.domElement.style.visibility = 'visible';
+          renderer.resetState();
+          resize();
+          last = performance.now();
+          if (!raf && !document.hidden) raf = requestAnimationFrame(loop);
+          setWebglApi();
+        };
+        const handleVisibilityChange = () => {
+          if (document.hidden) {
+            if (raf) cancelAnimationFrame(raf);
+            if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
+            raf = 0;
+            fallbackRaf = 0;
+            return;
+          }
+          last = performance.now();
+          if (fallbackCanvas && fallbackRender && !fallbackRaf) fallbackRaf = requestAnimationFrame(fallbackRender);
+          else if (!contextLost && !raf) raf = requestAnimationFrame(loop);
+        };
 
-      const loadSilhouette = async () => {
-        try {
-          const { W, H, B64 } = await import('./pixels');
+        window.addEventListener('resize', resize);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+        renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
+        setWebglApi();
+        if (!document.hidden) loop();
+
+        void loadParticleLayerPayload().then(payload => {
           if (cancelled) return;
-          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-          if (cancelled) return;
-          const built = buildLayers(decode(B64), W, H, qualityMode);
-          if (cancelled) return;
+          layerPayload = payload;
+          const poster = resolveParticlePoster(payload);
+          if (!payload.layers) {
+            renderer!.domElement.style.visibility = 'hidden';
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            startCanvasFallback(poster, payload.width, payload.height);
+            return;
+          }
           const uniforms = shared as Record<string, { value: any }>;
-          const glow = makePoints(built.glow, uniforms, (WORLD_W / W) * 4 * 3, 0.1, 1);
-          const sharp = makePoints(built.sharp, uniforms, (WORLD_W / W) * 0.75, 1.55, 0.7);
-          glowPts = glow.pts; glowMat = glow.mat; sharpPts = sharp.pts; sharpMat = sharp.mat;
+          const glow = makePoints(payload.layers.glow, uniforms, (WORLD_W / payload.width) * 4 * 3, 0.1, 1);
+          const sharp = makePoints(payload.layers.sharp, uniforms, (WORLD_W / payload.width) * 0.75, 1.55, 0.7);
+          glowPts = glow.pts;
+          glowMat = glow.mat;
+          sharpPts = sharp.pts;
+          sharpMat = sharp.mat;
           scene.add(glowPts, sharpPts);
-          worldH = WORLD_W * H / W;
-          totalParticleCount = built.totalCount + N;
+          worldH = WORLD_W * payload.height / payload.width;
+          totalParticleCount = payload.layers.totalCount + EMBER_COUNT;
           resize();
           formationReady = true;
-        } catch (error: any) {
-          if (cancelled) return;
-          console.warn('[FORZA_PARTICLES] source_load_failed', error?.name || 'load_error');
-          props.current.onError?.('بارگذاری تصویر پایه ذرات فورزا انجام نشد؛ حالت گرافیکی سبک فعال شد.');
-          if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
+          if (contextLost) startCanvasFallback(poster, payload.width, payload.height);
+        }).catch(error => {
+          console.warn('[FORZA_PARTICLES] layer_load_recovery', error instanceof Error ? error.name : 'load_error');
+          void activateFallback();
+        });
+      }
+
+      const handleFallbackVisibility = () => {
+        if (document.hidden) {
+          if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
+          fallbackRaf = 0;
+        } else if (fallbackCanvas && fallbackRender && !fallbackRaf) {
+          fallbackRaf = requestAnimationFrame(fallbackRender);
         }
       };
-      void loadSilhouette();
+      if (!renderer) document.addEventListener('visibilitychange', handleFallbackVisibility);
 
       return () => {
         cancelled = true;
         if (raf) cancelAnimationFrame(raf);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+        if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
+        document.removeEventListener('visibilitychange', handleFallbackVisibility);
+        document.removeEventListener('visibilitychange', () => {});
         window.removeEventListener('resize', resize);
-        glowPts?.geometry.dispose(); sharpPts?.geometry.dispose(); eg.dispose();
-        scene.clear(); renderer.dispose(); glowMat?.dispose(); sharpMat?.dispose(); emberMat.dispose();
+        if (renderer) {
+          document.removeEventListener('visibilitychange', handleFallbackVisibility);
+          renderer.domElement.removeEventListener('webglcontextlost', () => {});
+          renderer.domElement.removeEventListener('webglcontextrestored', () => {});
+          renderer.dispose();
+        }
+        stopCanvasFallback();
+        glowPts?.geometry.dispose();
+        sharpPts?.geometry.dispose();
+        emberGeometry.dispose();
+        glowMat?.dispose();
+        sharpMat?.dispose();
+        emberMaterial.dispose();
+        scene.clear();
         mountEl.innerHTML = '';
       };
-    }, [quality]);
+    }, []);
 
     return (
       <div
