@@ -30,7 +30,6 @@ import {
 import { flattenCategoryNodes, resolveCategorySlug } from '../data/categories';
 import type { EnhancedCategory } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
-import { resolveNavigationCategoriesAndGroups } from '../services/catalogTaxonomyResolver';
 import { STORE_ASSETS } from '../assets/images';
 import { toPersianDigits } from '../utils/formatters';
 import './all-categories-premium.css';
@@ -135,29 +134,24 @@ const categoryHref = (slug: string, subcategory?: string) => {
 export const AllCategoriesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
-  const initialTaxonomy = useMemo(() => resolveNavigationCategoriesAndGroups(), []);
   const [catalogueCategories, setCatalogueCategories] = useState<EnhancedCategory[]>([]);
-  const [catalogueGroups, setCatalogueGroups] = useState<MenuGroup[]>(initialTaxonomy.groups);
-  const [source, setSource] = useState<CatalogueSource>('database');
+  const [catalogueGroups, setCatalogueGroups] = useState<MenuGroup[]>([]);
+  const [source, setSource] = useState<CatalogueSource>('loading');
   const [retryCount, setRetryCount] = useState(0);
   const [activeGroupFilter, setActiveGroupFilter] = useState<string>('all');
-  const activeCatalogueCategories = catalogueCategories.length > 0 ? catalogueCategories : initialTaxonomy.categories;
+  const activeCatalogueCategories = catalogueCategories;
 
   const location = useLocation();
   const currentHash = location.hash || '#menu-group-excel-v2-1';
 
   useEffect(() => {
-    if (source !== 'database') return;
-    const target = (location.hash || '#menu-group-excel-v2-1').slice(1);
-    if (!target) return;
+    const target = location.hash.slice(1);
+    if (source !== 'database' || !/^menu-group-excel-v2-[0-9]+$/.test(target)) return;
     const frame = window.requestAnimationFrame(() => {
-      const el = document.getElementById(target);
-      if (el) {
-        el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }
+      document.getElementById(target)?.scrollIntoView({ block: 'start', behavior: 'auto' });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [source, catalogueGroups]);
+  }, [source, catalogueGroups, location.hash]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -222,15 +216,7 @@ export const AllCategoriesPage: React.FC = () => {
         setSource('database');
       } catch (error) {
         if (!mounted || (error instanceof Error && error.name === 'AbortError')) return;
-        try {
-          const resolved = resolveNavigationCategoriesAndGroups();
-          if (!mounted) return;
-          setCatalogueCategories(resolved.categories);
-          setCatalogueGroups(resolved.groups);
-          setSource('database');
-        } catch {
-          setSource('error');
-        }
+        setSource('error');
       }
     };
 

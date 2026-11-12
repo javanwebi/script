@@ -55,7 +55,7 @@ const aiForzaDesktopCinematicImg = levitatingOrbitalEngineImg;
 import authIndustrialHeroImg from './mobile/auth_industrial_hero_1791191790536.webp';
 import bannerAuthLoginImg from './mobile/banner_auth_login_1791194148886.webp';
 import bannerAuthRegisterImg from './mobile/banner_auth_register_1791194168672.webp';
-import categoriesSleekWhiteHeroImg from './categories_sleek_white_hero_1794432538666.jpg';
+import categoriesSleekWhiteHeroImg from './mobile/categories_sleek_white_hero_1794432538666.webp';
 import forzaSwrDualBannerImg from './mobile/forza_swr_hero_banner_1791281882552.webp';
 import brandsFullbleedBgImg from './mobile/brands_fullbleed_bg_1791282424638.webp';
 import forzaSubBeltImg from './mobile/forza_sub_belt_1791282448324.webp';
