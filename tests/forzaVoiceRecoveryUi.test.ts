@@ -148,7 +148,7 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
   assert.match(avatar,/document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);
   assert.match(avatar,/if \(document\.hidden\)/);
   assert.match(avatar,/last = performance\.now\(\)/);
-  assert.match(avatar,/document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
+  assert.match(avatar,/if \(visibilityHandler\) document\.removeEventListener\('visibilitychange', visibilityHandler\)/);
 });
 
 
