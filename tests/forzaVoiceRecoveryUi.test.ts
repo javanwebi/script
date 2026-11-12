@@ -134,6 +134,12 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
+test('Diba recording keeps only a short idle pre-roll and retains audio after speech starts',()=>{
+  assert.match(ui,/const maxChunks=hasSpeechSoundRef\.current\?180:8/);
+  assert.match(ui,/hasSpeechSoundRef\.current = true/);
+  assert.match(ui,/const audioBlob=chunks\.length\?new Blob\(chunks/);
+});
+
 test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
   assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);
   assert.match(ui,/transcribeOnly:true/);
