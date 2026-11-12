@@ -848,9 +848,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             let targetGain = 1.55;
             if (currentMode === 'speak') {
               targetSpeech = Math.min(1, audioLevel) * currentIntensity;
-              targetGain = 1.6 + audioLevel * 0.45;
+              targetGain = 1.55; // Speech moves particles without brightening the reference silhouette.
             } else if (currentMode === 'listen') {
-              targetGain = 1.5 * currentIntensity + Math.sin(t * 3) * 0.08;
+              targetGain = 1.55;
             }
             speechVal = THREE.MathUtils.lerp(speechVal, targetSpeech, 0.38);
             if (speechVal < 0.001) speechVal = 0;
