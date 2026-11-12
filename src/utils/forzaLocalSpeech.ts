@@ -1,5 +1,6 @@
-/** Browser-based Persian STT fallback for FORZA.
- * Text-to-speech is exclusively Pocket Farsi v2 on /api/ai/forza-speech.
+/** On-device Persian Diba/Vosk streaming STT for FORZA.
+ * It runs in the visitor's browser; server Diba remains a fallback only.
+ * Text-to-speech is exclusively private Piper Nima on /api/ai/forza-speech.
  * The former unused Piper/Amir browser TTS was removed because the VPS
  * build cannot resolve its optional, intentionally uninstalled dependency.
  * Keeping it here silently bundled a second, unwanted voice engine.
