@@ -190,7 +190,7 @@ function decodeBase64(value: string): Uint8Array {
 }
 
 /** The 1.68 MB source image and CPU particle construction never block React's main thread. */
-function loadParticleLayerPayload(): Promise<ParticleLayerPayload> {
+function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPayload> {
   if (!particleLayerPayloadPromise) {
     particleLayerPayloadPromise = new Promise<ParticleLayerPayload>((resolve, reject) => {
       if (typeof Worker === 'undefined') {
@@ -234,7 +234,7 @@ function loadParticleLayerPayload(): Promise<ParticleLayerPayload> {
         finish();
         reject(new Error('particle_worker_load_failed'));
       };
-      worker.postMessage({ type: 'build' });
+      worker.postMessage({ type: 'build', includeLayers });
     }).catch(async () => {
       // Compatibility path for older browsers that cannot start module workers.
       // Only the static poster is built here; WebGL is not allowed to block the
@@ -570,7 +570,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
       const activateFallback = async () => {
         try {
-          const payload = layerPayload || await loadParticleLayerPayload();
+          const payload = layerPayload || await loadParticleLayerPayload(Boolean(renderer));
           if (cancelled) return;
           layerPayload = payload;
           const poster = resolveParticlePoster(payload);
