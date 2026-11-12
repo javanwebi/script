@@ -26,7 +26,7 @@ import { ForzaIncrementalSpeechText } from '../../utils/forzaIncrementalSpeechTe
 import { ForzaCallPlainText, forzaSpokenPlainText } from '../../utils/forzaCallPlainText';
 import { ForzaStopAcknowledgement } from '../../utils/forzaStopAcknowledgement';
 import { ForzaPlaybackEchoHistory, forzaTurnIntent, shouldIgnoreForzaSpeakerEcho } from '../../utils/forzaBargeIn';
-import { getForzaAudioContext } from '../../utils/forzaAudioUnlock';
+import { getForzaAudioContext, unlockForzaAudioFromGesture } from '../../utils/forzaAudioUnlock';
 const AiVisualPartSearchModal = lazy(() => import('../search/AiVisualPartSearchModal').then(module=>({default:module.AiVisualPartSearchModal})));
 type LazyParticleAvatarProps = ParticleAvatarProps & { ref?: React.Ref<ParticleAvatarRef> };
 const ParticleAvatar = lazy(async () => {
@@ -121,10 +121,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [revision, setRevision] = useState(0);
   const [speed, setSpeed] = useState<number>(2);
   const [clean, setClean] = useState(false);
-  // Keep the original high-fidelity silhouette and particle density.
-  // Microphone VAD now runs independently of Three.js, so a low render FPS
-  // must never silently replace the avatar with a sparse/different design.
-  const [quality] = useState<'high'>('high');
+  // Start with a GPU-safe scene. Mobile/low-memory devices begin in low mode;
+  // sustained low FPS can step a balanced desktop down without affecting STT.
+  const [quality, setQuality] = useState<'balanced' | 'low'>(() => {
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const cores = nav.hardwareConcurrency || 4;
+    const memory = nav.deviceMemory || 4;
+    const compact = window.matchMedia('(max-width: 767px)').matches;
+    return compact || cores <= 4 || memory <= 4 ? 'low' : 'balanced';
+  });
+  const slowFpsSamplesRef = useRef(0);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [consultationImage,setConsultationImage]=useState('');
@@ -174,7 +180,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const [stats, setStats] = useState<{ fps: number | null; tier: string; renderMs: number; particles?: number }>({
     fps: null,
-    tier: 'ULTRA',
+    tier: quality.toUpperCase(),
     renderMs: 0,
     particles: 0,
   });
@@ -252,6 +258,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatusState(s);
   }, []);
 
+  const onParticleStats = useCallback((next: { fps: number | null; tier: string; renderMs: number; particles?: number }) => {
+    setStats(previous => ({ ...previous, ...next }));
+    if (next.fps !== null && next.fps < 18) {
+      slowFpsSamplesRef.current += 1;
+      if (slowFpsSamplesRef.current >= 2) setQuality('low');
+    } else if (next.fps !== null && next.fps >= 24) {
+      slowFpsSamplesRef.current = 0;
+    }
+  }, []);
+
   // Download the small offline greeting while the particles form, not after.
   useEffect(() => {
     const audio = new Audio('/forza-greeting-bootstrap.wav');
@@ -301,7 +317,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        if(!vadRef.current.heardSpeech &&
+        const vadReady = Boolean(streamRef.current?.active && micAnalyserRef.current &&
+          ctxRef.current?.state === 'running');
+        if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=diba rejected=below_near_field_vad');
           return;
@@ -431,9 +449,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(ctxRef.current?.state==='suspended'){
         if(!micContextWarningRef.current){
           micContextWarningRef.current=true;
-          setMicrophoneError('مرورگر پردازش صدا را متوقف کرده است. برای فعال‌سازی روی «تلاش مجدد میکروفون» بزنید.');
+          setMicrophoneError('پردازش صدای میکروفون متوقف است؛ یک بار داخل صفحه کلیک کنید تا دوباره فعال شود.');
         }
         return;
+      }
+      if(micContextWarningRef.current){
+        micContextWarningRef.current=false;
+        setMicrophoneError(current=>current?.includes('پردازش صدای میکروفون')?null:current);
       }
       try {
         // getByteTimeDomainData() writes only fftSize samples. A longer
@@ -621,6 +643,22 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       void ctxRef.current.resume().catch(()=>{});
     }
     return ctxRef.current;
+  }, []);
+
+  const resumeAudioFromGesture = useCallback(() => {
+    // This handler is attached to the stage's capture-phase pointer event so
+    // AudioContext.resume() runs inside the real user activation, not on mount.
+    unlockForzaAudioFromGesture();
+    const context = ctxRef.current ?? getForzaAudioContext();
+    ctxRef.current = context;
+    if (context?.state === 'suspended') {
+      void context.resume().then(() => {
+        micContextWarningRef.current = false;
+        setMicrophoneError(current => current?.includes('پردازش صدای میکروفون') ? null : current);
+      }).catch(() => {});
+    } else if (context?.state === 'running') {
+      micContextWarningRef.current = false;
+    }
   }, []);
 
   const stopAudio = useCallback(() => {
@@ -1684,7 +1722,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ' interim='+Number(recognized.hasInterim));
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
-        if(!vadRef.current.heardSpeech &&
+        // Web Speech can still work while WebAudio is suspended by autoplay policy.
+        // Enforce near-field RMS only when the microphone analyser is actually running.
+        const vadReady = Boolean(streamRef.current?.active && micAnalyserRef.current &&
+          ctxRef.current?.state === 'running');
+        if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=browser rejected=below_near_field_vad');
           return;
@@ -1850,7 +1892,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // suspend it until a user gesture and otherwise block mic acquisition.
       const ctx=ensureCtx();
       const stream=await navigator.mediaDevices.getUserMedia({audio:{
-        echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,
+        echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:{ideal:1},
       }});
       if(callClosedRef.current || microphoneGeneration!==microphoneGenerationRef.current){
         stream.getTracks().forEach(track=>track.stop());
@@ -1938,6 +1980,20 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     micAutoStartedRef.current = true;
     void initializeMicrophone();
   }, [initializeMicrophone]);
+
+  // Never leave the call in a permanent black/loading state if WebGL or the
+  // large silhouette chunk fails. The CSS ember fallback remains visible and
+  // the voice conversation is allowed to start after a bounded wait.
+  useEffect(() => {
+    if (particlesFormed) return;
+    const timer = window.setTimeout(() => {
+      if (callClosedRef.current || greetingStartedRef.current) return;
+      console.warn('[FORZA_PARTICLES] formation_watchdog_fallback=1');
+      setErrorNotice('موتور گرافیکی فورزا دیر آماده شد؛ مکالمه در حالت سبک ادامه پیدا می‌کند.');
+      setParticlesFormed(true);
+    }, 7000);
+    return () => window.clearTimeout(timer);
+  }, [particlesFormed]);
 
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
@@ -2080,6 +2136,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       ref={shell}
       className="forza-stage"
       dir="ltr"
+      onPointerDownCapture={resumeAudioFromGesture}
       onClick={() => {
         if (autoplayBlocked) {
           unlockAudio();
@@ -2102,7 +2159,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           backgroundSpeed={speed}
           restartKey={revision}
           onError={message => setErrorNotice(message)}
-          onStats={s => setStats(prev => ({ ...prev, ...s }))}
+          onStats={onParticleStats}
           onFormed={() => setParticlesFormed(true)}
         />
       </Suspense>
