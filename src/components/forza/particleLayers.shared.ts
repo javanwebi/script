@@ -102,3 +102,34 @@ export function buildParticlePosterPixels(data: Uint8Array): Uint8ClampedArray {
   }
   return rgba;
 }
+
+/**
+ * Compatibility poster builder for browsers where module workers are blocked.
+ * Yield in small chunks so decoding the fallback never monopolizes the UI thread.
+ */
+export async function buildParticlePosterPixelsAsync(
+  data: Uint8Array,
+  chunkPixels = 65536,
+): Promise<Uint8ClampedArray> {
+  const pixelCount = Math.floor(data.length / 3);
+  const rgba = new Uint8ClampedArray(pixelCount * 4);
+  const safeChunk = Math.max(4096, Math.floor(chunkPixels));
+
+  for (let start = 0; start < pixelCount; start += safeChunk) {
+    const end = Math.min(pixelCount, start + safeChunk);
+    for (let pixel = start; pixel < end; pixel++) {
+      const src = pixel * 3;
+      const dst = pixel * 4;
+      const r = data[src], g = data[src + 1], b = data[src + 2];
+      const l = Math.max(r, g, b);
+      rgba[dst] = r;
+      rgba[dst + 1] = g;
+      rgba[dst + 2] = b;
+      rgba[dst + 3] = l < 12 ? 0 : Math.min(255, Math.round(l * 1.2));
+    }
+    if (end < pixelCount) {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
+  }
+  return rgba;
+}
