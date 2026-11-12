@@ -15,6 +15,8 @@ on:
       - src/components/forza/AiForzaCallExperience.tsx
       - src/utils/forzaIncrementalSpeechText.ts
       - src/utils/forzaNimaBufferedSpeech.ts
+      - src/utils/forzaConversation.ts
+      - tests/forzaConversation.test.ts
       - src/utils/forzaBargeIn.ts
       - src/utils/forzaContinuousWav.ts
       - tests/forzaBargeIn.test.ts
@@ -66,7 +68,7 @@ jobs:
       - name: Test incremental SSE speech planner
         run: node --import tsx --test tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
       - name: Validate Persian smart end-of-turn recognition
-        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
+        run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts tests/forzaConversation.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition
         run: node --import tsx --test tests/forza-stt-provider.test.ts
       - name: Typecheck website and voice endpoints
