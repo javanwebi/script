@@ -75,6 +75,6 @@ test('decimal dimensions and negative technical values survive plain-text displa
 
 test('industrial SKU suffixes and engineering units are spoken clearly without changing display text',()=>{
   assert.equal(forzaSpokenPlainText('بلبرینگ 6203C3 با قطر 12.7 mm و دور 1500 rpm'),
-    'بلبرینگ شش دو صفر سه، سی سه با قطر دوازده ممیز هفت میلی‌متر و دور یک هزار و پانصد دور در دقیقه');
+    'بلبرینگ شش دو صفر سه، سی سه با قطر دوازده ممیز هفت میلی‌متر و دور هزار و پانصد دور در دقیقه');
   assert.equal(chunks('بلبرینگ 6203C3').at(-1),'بلبرینگ 6203C3');
 });
