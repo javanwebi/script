@@ -473,6 +473,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
         if(!isAiSpeakingRef.current)setAudioLevel(current.level);
+        if(activeTranscriptRef.current.trim())maybeBackchannelRef.current(activeTranscriptRef.current,false);
         if(current.speechStarted){
           hasSpeechSoundRef.current=true;
           // During TTS this is only a VAD *candidate*. WebSpeech/local STT
@@ -1064,9 +1065,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   // Only acknowledge a genuine mid-thought pause, not every completed sentence.
   // The cached Nima phrase is cancelled immediately if the customer resumes.
-  maybeBackchannelRef.current=(transcript,isFinal)=>{
+  maybeBackchannelRef.current=(transcript,_isFinal)=>{
     const text=String(transcript||'').trim();
-    if(!isFinal||text.length<12||text.split(/\\s+/u).length<4||
+    const stableMs=Date.now()-lastTranscriptChangedAtRef.current;
+    if(text.length<12||text.split(/\\s+/u).length<4||stableMs<320||
        callClosedRef.current||micMutedRef.current||isProcessingTurnRef.current||
        isAiSpeakingRef.current||isManualReplayPendingRef.current||
        forzaTurnIntent(text)!=='question')return;
@@ -1269,7 +1271,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             playbackEchoHistoryRef.current.record('بله، بفرما.');
             lastForzaPlaybackAtRef.current=Date.now();
             isAiSpeakingRef.current=true;setStatus('speaking');setTurn('ai');
-          });
+          },undefined,undefined,undefined,level=>setAudioLevel(previous=>
+            Math.abs(previous-level)<0.025?previous:level));
           continuousVoiceRef.current=player;
           const cancel=()=>player.cancel();
           controller.signal.addEventListener('abort',cancel,{once:true});
@@ -1505,6 +1508,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         // never forces its own neural WAV or an avoidable gap. Stream tokens
         // to subtitles immediately and keep the Pocket fallback unchanged.
         const useNima=voiceModeRef.current==='piper-nima-gyro-medium';
+        if(useNima&&backchannelRef.current&&
+           Date.now()-lastBackchannelAtRef.current>9000){
+          thinkingAcknowledgementTimerRef.current=window.setTimeout(()=>{
+            thinkingAcknowledgementTimerRef.current=null;
+            if(activeTurnRef.current?.generation!==generation||pocketAbort.signal.aborted||
+               firstTextDelivered||reply.trim()||speakerMutedRef.current)return;
+            const acknowledgement=backchannelRef.current;
+            const requested=acknowledgement?.request(async(bytes,controller)=>{
+              // If the first model delta won the race, do not speak a stale
+              // filler phrase. Otherwise queue it before Nima's first answer
+              // on the same AudioContext clock so the two never overlap.
+              if(activeTurnRef.current?.generation!==generation||pocketAbort.signal.aborted||
+                 firstTextDelivered||reply.trim())return;
+              await playBackchannelRef.current(bytes,controller);
+            },180);
+            if(requested)lastBackchannelAtRef.current=Date.now();
+          },650);
+        }
         const phrasePlanner=new ForzaIncrementalSpeechText();
         const callPlainText=new ForzaCallPlainText();
         // Text updates are displayed immediately. Piper gets its first small,
@@ -1789,8 +1810,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
 
-          // Preserve the live browser interim, but also send this exact
-          // utterance to the server Diba recognizer for a final transcript.
+          // Preserve the live client transcript. Server Diba is only a
+          // fallback when no client-side transcript was produced.
           const currentTranscript=(pendingTranscriptRef.current||activeTranscriptRef.current||'').trim();
           pendingTranscriptRef.current='';
           if (currentTranscript) {
@@ -1908,10 +1929,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           interruptRequestRef.current();
         }
         if(!recognized.hasInterim&&forzaTurnIntent(currentSpeech)==='stop'){
+          backchannelRef.current?.cancel();
           void handleUserFinishedSpeaking(currentSpeech);
           return;
         }
         stopAcknowledgementRef.current?.cancel();
+        backchannelRef.current?.cancel();
         if (currentSpeech) {
           if(currentSpeech!==activeTranscriptRef.current ||
              speechInterimRef.current!==recognized.hasInterim){
@@ -1924,6 +1947,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setStatus('listening');
           setTurn('user');
           setIsUserSpeaking(true);
+          maybeBackchannelRef.current(currentSpeech,!recognized.hasInterim);
 
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           const tryFinalize=()=>{
@@ -2084,9 +2108,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       webSpeechFailedRef.current=false;
       isRecognitionActiveRef.current=false;
       recognitionRef.current=initSpeechRecognition();
-      if(!recognitionRef.current&&!localSttRecognizerRef.current){
+      if(!recognitionRef.current&&!localSttRecognizerRef.current&&!localSttModelRef.current){
         recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
-        setMicrophoneError('تشخیص گفتار در این مرورگر راه‌اندازی نشد؛ با Chrome و مجوز میکروفون دوباره امتحان کنید.');
+        setMicrophoneError('موتور تشخیص گفتار محلی در حال آماده‌سازی است؛ لطفاً چند لحظه صبر کنید.');
       }
       if(greetingFinishedRef.current && !micMutedRef.current) startListening();
     } catch(error:any) {
@@ -2099,8 +2123,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
 
-  // STT uses the existing browser recognizer with the current server-side
-  // fallback. No Diba model download or browser-side model startup occurs.
+  // Diba/Vosk is loaded in the background and is preferred for live partials;
+  // Web Speech remains only a compatibility fallback for browsers that cannot
+  // download or execute the local model.
 
   // Warm the Persian Diba/Vosk recognizer in the visitor's browser while the
   // avatar forms. This avoids relying on a cloud browser speech service and
