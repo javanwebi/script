@@ -123,14 +123,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [clean, setClean] = useState(false);
   // Start with a GPU-safe scene. Mobile/low-memory devices begin in low mode;
   // sustained low FPS can step a balanced desktop down without affecting STT.
-  const [quality, setQuality] = useState<'balanced' | 'low'>(() => {
+  const [quality] = useState<'balanced' | 'low'>(() => {
     const nav = navigator as Navigator & { deviceMemory?: number };
     const cores = nav.hardwareConcurrency || 4;
     const memory = nav.deviceMemory || 4;
     const compact = window.matchMedia('(max-width: 767px)').matches;
     return compact || cores <= 4 || memory <= 4 ? 'low' : 'balanced';
   });
-  const slowFpsSamplesRef = useRef(0);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [consultationImage,setConsultationImage]=useState('');
@@ -258,14 +257,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     setStatusState(s);
   }, []);
 
+  // ParticleAvatar adapts framebuffer resolution internally without remounting
+  // or changing the shared particle silhouette. React only displays telemetry.
   const onParticleStats = useCallback((next: { fps: number | null; tier: string; renderMs: number; particles?: number }) => {
     setStats(previous => ({ ...previous, ...next }));
-    if (next.fps !== null && next.fps < 18) {
-      slowFpsSamplesRef.current += 1;
-      if (slowFpsSamplesRef.current >= 2) setQuality('low');
-    } else if (next.fps !== null && next.fps >= 24) {
-      slowFpsSamplesRef.current = 0;
-    }
   }, []);
 
   // Download the small offline greeting while the particles form, not after.
@@ -1976,20 +1971,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     micAutoStartedRef.current = true;
     void initializeMicrophone();
   }, [initializeMicrophone]);
-
-  // Never leave the call in a permanent black/loading state if WebGL or the
-  // large silhouette chunk fails. The CSS ember fallback remains visible and
-  // the voice conversation is allowed to start after a bounded wait.
-  useEffect(() => {
-    if (particlesFormed) return;
-    const timer = window.setTimeout(() => {
-      if (callClosedRef.current || greetingStartedRef.current) return;
-      console.warn('[FORZA_PARTICLES] formation_watchdog_fallback=1');
-      setErrorNotice('موتور گرافیکی فورزا دیر آماده شد؛ مکالمه در حالت سبک ادامه پیدا می‌کند.');
-      setParticlesFormed(true);
-    }, 7000);
-    return () => window.clearTimeout(timer);
-  }, [particlesFormed]);
 
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
