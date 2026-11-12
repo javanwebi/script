@@ -82,10 +82,10 @@ void main() {
     float audioKick = uSpeech;
 
     // Controlled, natural gentle up-and-down acoustic wave on hair (subtle, elegant, no extreme upward flinging):
-    target.y += isHair * (hairBob + strandRipple) * audioKick * 0.016;
+    target.y += isHair * (hairBob + strandRipple) * audioKick * 0.04;
 
     // Subtle organic lateral resonance during speech:
-    target.x += isHair * sin(uTime * 6.0 + target.y * 3.0 + aSeed * 16.0) * audioKick * 0.005;
+    target.x += isHair * sin(uTime * 6.0 + target.y * 3.0 + aSeed * 16.0) * audioKick * 0.008;
   }
 
   vec3 pos = mix(aStart, target, p);
