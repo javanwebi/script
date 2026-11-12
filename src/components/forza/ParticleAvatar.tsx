@@ -364,7 +364,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let sharpPts: THREE.Points | null = null;
       let glowMat: THREE.ShaderMaterial | null = null;
       let sharpMat: THREE.ShaderMaterial | null = null;
-      let scene: THREE.Scene | null = null;
+      let visibilityHandler: (() => void) | null = null;
+      let contextLostHandler: ((event: Event) => void) | null = null;
+      let contextRestoredHandler: (() => void) | null = null;
       let formationReady = false;
       let formationReported = false;
       let totalParticleCount = 0;
@@ -396,7 +398,6 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let fallbackStartedAt = 0;
       let fallbackTime = 0;
       let fallbackFrameCount = 0;
-      let fallbackLastFpsTime = performance.now();
       const fallbackEmbers = Array.from({ length: 220 }, () => ({
         x: Math.random(),
         y: Math.random(),
@@ -525,6 +526,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
           if (rawProgress >= 1) reportFormed();
           fallbackFrames++;
+          fallbackFrameCount++;
           if (now - fallbackLastFpsTime >= 1000) {
             const fps = Math.round(fallbackFrames * 1000 / (now - fallbackLastFpsTime));
             fallbackFrames = 0;
@@ -778,7 +780,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           if (!raf && !document.hidden) raf = requestAnimationFrame(loop);
           setWebglApi();
         };
-        const handleVisibilityChange = () => {
+          const handleVisibilityChange = () => {
           if (document.hidden) {
             if (raf) cancelAnimationFrame(raf);
             if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
@@ -792,6 +794,9 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         };
 
         window.addEventListener('resize', resize);
+        visibilityHandler = handleVisibilityChange;
+        contextLostHandler = handleContextLost;
+        contextRestoredHandler = handleContextRestored;
         document.addEventListener('visibilitychange', handleVisibilityChange);
         renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
         renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
@@ -836,19 +841,20 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           fallbackRaf = requestAnimationFrame(fallbackRender);
         }
       };
-      if (!renderer) document.addEventListener('visibilitychange', handleFallbackVisibility);
+      if (!renderer) {
+        visibilityHandler = handleFallbackVisibility;
+        document.addEventListener('visibilitychange', handleFallbackVisibility);
+      }
 
       return () => {
         cancelled = true;
         if (raf) cancelAnimationFrame(raf);
         if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
-        document.removeEventListener('visibilitychange', handleFallbackVisibility);
-        document.removeEventListener('visibilitychange', () => {});
+        if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
         window.removeEventListener('resize', resize);
         if (renderer) {
-          document.removeEventListener('visibilitychange', handleFallbackVisibility);
-          renderer.domElement.removeEventListener('webglcontextlost', () => {});
-          renderer.domElement.removeEventListener('webglcontextrestored', () => {});
+          if (contextLostHandler) renderer.domElement.removeEventListener('webglcontextlost', contextLostHandler);
+          if (contextRestoredHandler) renderer.domElement.removeEventListener('webglcontextrestored', contextRestoredHandler);
           renderer.dispose();
         }
         stopCanvasFallback();
