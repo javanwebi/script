@@ -103,8 +103,9 @@ async function stubApis(page){
     // A context that exists but renders at single-digit FPS (SwiftShader /
     // software GPU) must be released and switched to the same Canvas poster.
     const slowGpu=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-    const slowGpuErrors=[];
+    const slowGpuErrors=[],slowGpuFallbackLogs=[];
     slowGpu.on('pageerror',e=>slowGpuErrors.push(e.message));
+    slowGpu.on('console',msg=>{if(msg.text().includes('[FORZA_PARTICLES] canvas_fallback=1'))slowGpuFallbackLogs.push(msg.text());});
     await stubApis(slowGpu);
     await slowGpu.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
     await slowGpu.locator('canvas[data-engine="webgl"]').waitFor({timeout:20000});
@@ -121,6 +122,7 @@ async function stubApis(page){
     assert.ok(slowGpuResult.width>0&&slowGpuResult.height>0);
     assert.ok(slowGpuResult.visible>100,'single-digit software GPU must recover to visible Canvas poster');
     assert.equal(await slowGpu.locator('canvas[data-engine="webgl"]').count(),0,'slow WebGL context must be released');
+    assert.ok(slowGpuFallbackLogs.some(line=>line.includes('reason=slow_gpu')),'slow software GPU must trigger the FPS-based fallback');
     assert.deepEqual(slowGpuErrors,[]);
     console.log('FORZA_PARTICLE_ENGINE_BROWSER_PASS webgl=1 context_recovery=1 no_webgl=1 software_gpu_recovery=1 visible_pixels='+slowGpuResult.visible);
     await slowGpu.close();
