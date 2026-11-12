@@ -283,7 +283,21 @@ async function clearMobileFilters(page) {
         await applyMobileFilter(page, 'Test Brand');
       } else {
         const brandLabel = page.locator('.excel-category-filter-panel label').filter({ hasText: 'Test Brand' }).first();
-        await brandLabel.locator('input').check();
+        const brandInput = brandLabel.locator('input');
+        console.log('DESKTOP_BRAND_FILTER_BEFORE', viewport.width, JSON.stringify({
+          url: page.url(),
+          checked: await brandInput.isChecked(),
+          labelText: await brandLabel.innerText(),
+          labels: await page.locator('.excel-category-filter-panel label').allInnerTexts(),
+        }));
+        await brandLabel.locator('span').click();
+        await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
+        await page.waitForFunction(() => {
+          const input = Array.from(document.querySelectorAll('.excel-category-filter-panel input[type="checkbox"]'))
+            .find(element => element.closest('label')?.innerText.includes('Test Brand'));
+          return input instanceof HTMLInputElement && input.checked;
+        }, null, { timeout: 10000 });
+        console.log('DESKTOP_BRAND_FILTER_AFTER', viewport.width, page.url(), await brandInput.isChecked());
       }
       await expectProductCount(page, 2, 'brand filter should return the two matching families');
       await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
