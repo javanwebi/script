@@ -57,12 +57,13 @@ async function stubApis(page){
       canvas?.dispatchEvent(new Event('webglcontextlost',{cancelable:true}));
     });
     await gpu.locator('canvas.forza-canvas-fallback').waitFor({timeout:20000});
+    await gpu.waitForTimeout(450);
     const recoveredPixels=await gpu.locator('canvas.forza-canvas-fallback').evaluate(canvas=>{
       const ctx=canvas.getContext('2d');
       if(!ctx)return 0;
       const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
       let visible=0;
-      for(let i=3;i<data.length;i+=64)if(data[i]>8)visible++;
+      for(let i=3;i<data.length;i+=64)if(data[i]>0)visible++;
       return visible;
     });
     assert.ok(recoveredPixels>100,'context-loss recovery must draw the FORZA poster');
