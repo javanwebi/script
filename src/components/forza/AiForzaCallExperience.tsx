@@ -368,6 +368,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       }
     }
 
+    // Prefer Chrome only as a compatibility fallback after checking whether
+    // on-device Diba/Vosk partial recognition is available.
     // Prefer on-device Diba/Vosk partials. Chrome SpeechRecognition is only
     // a compatibility fallback while the local model is loading/unavailable.
     const localReady=startDibaTurn();
