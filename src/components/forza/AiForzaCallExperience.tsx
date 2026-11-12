@@ -2024,19 +2024,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     void initializeMicrophone();
   }, [initializeMicrophone]);
 
-  // Never leave the call in a permanent black/loading state if WebGL or the
-  // large silhouette chunk fails. The CSS ember fallback remains visible and
-  // the voice conversation is allowed to start after a bounded wait.
-  useEffect(() => {
-    if (particlesFormed) return;
-    const timer = window.setTimeout(() => {
-      if (callClosedRef.current || greetingStartedRef.current) return;
-      console.warn('[FORZA_PARTICLES] formation_watchdog_fallback=1');
-      setErrorNotice('موتور گرافیکی فورزا دیر آماده شد؛ مکالمه در حالت سبک ادامه پیدا می‌کند.');
-      setParticlesFormed(true);
-    }, 7000);
-    return () => window.clearTimeout(timer);
-  }, [particlesFormed]);
+  // Do not force the scene into a fake "formed" state on a fixed timer.
+  // RouteIntentPreload warms the full silhouette alongside Three.js, and
+  // ParticleAvatar retries transient asset/context failures. The greeting
+  // begins only after the original particle identity actually reaches 100%.
 
   // Start only after the avatar confirms 100% of particles have formed.
   // Never listen to the introduction or silently skip an autoplay denial.
