@@ -109,7 +109,7 @@ async function stubApis(page){
     await slowGpu.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
     await slowGpu.locator('canvas[data-engine="webgl"]').waitFor({timeout:20000});
     await slowGpu.locator('canvas.forza-canvas-fallback').waitFor({timeout:30000});
-    await slowGpu.waitForFunction(()=>document.body.innerText.includes('CANVAS'),null,{timeout:15000});
+    await slowGpu.waitForFunction(()=>document.body.innerText.includes('ADAPTIVE'),null,{timeout:15000});
     const slowGpuResult=await slowGpu.locator('canvas.forza-canvas-fallback').evaluate(canvas=>{
       const ctx=canvas.getContext('2d');
       if(!ctx)return {width:canvas.width,height:canvas.height,visible:0};
