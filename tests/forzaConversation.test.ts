@@ -54,3 +54,16 @@ test('stop yields promptly but a correction beginning with stop retains its sent
   assert.equal(forzaEndOfTurnPauseMs('صبر کن',true),500);
   assert.ok(forzaEndOfTurnPauseMs('صبر کن منظورم',true)>1500);
 });
+
+test('local recognizer failure releases failed worker and recovers once, ignoring stale errors',()=>{
+  const body=source.split("      recognizer.on('error',()=>{")[1].split('\n      });')[0];
+  let removed=0,recovered=0;
+  const recognizer={remove(){removed++;}};
+  const active={current:recognizer as any}, model={current:{} as any};
+  const run=new Function('recognizer','localSttRecognizerRef','localSttModelRef','setLocalSttStatus','recoverBrowserSttRef',body);
+  const recover={current(){recovered++;}};
+  run(recognizer,active,model,()=>{},recover);
+  run(recognizer,active,model,()=>{},recover);
+  assert.equal(removed,1);assert.equal(recovered,1);
+  assert.equal(active.current,null);assert.equal(model.current,null);
+});

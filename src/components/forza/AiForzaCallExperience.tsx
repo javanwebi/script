@@ -179,6 +179,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const speechSegmentStartedRef = useRef(false);
   const localSttModelRef=useRef<LocalSttModel|null>(null);
   const loadingLocalSttRef=useRef(false);
+  const recoverBrowserSttRef=useRef<()=>void>(()=>{});
   const startLocalSttRecoveryRef=useRef<()=>void>(()=>{});
   const browserNetworkFailuresRef=useRef(0);
   const localSttRecognizerRef=useRef<LocalRecognizer|null>(null);
@@ -318,7 +319,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(localSttRecognizerRef.current)return true;
     try{
       const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
-      localSttFinalRef.current='';
+      localSttFinalRef.current=activeTranscriptRef.current.trim();
       const update=(value:string,isFinal:boolean)=>{
         if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
            (statusRef.current!=='listening'&&!isProcessingTurnRef.current &&
@@ -366,7 +367,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
-      recognizer.on('error',()=>setLocalSttStatus('fallback'));
+      recognizer.on('error',()=>{
+        if(localSttRecognizerRef.current!==recognizer)return;
+        localSttRecognizerRef.current=null;
+        try{recognizer.remove?.();}catch{}
+        localSttModelRef.current=null;
+        setLocalSttStatus('fallback');
+        recoverBrowserSttRef.current();
+      });
       localSttRecognizerRef.current=recognizer;
       return true;
     }catch(error){console.warn('[FORZA Diba] Recognizer failed',error);setLocalSttStatus('fallback');return false;}
@@ -1055,7 +1063,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   useEffect(()=>{
     if(greetingPhase!=='complete'||voiceModeRef.current!=='piper-nima-gyro-medium')return;
     const acknowledgement=new ForzaStopAcknowledgement(signal=>
-      requestPocketAudio('بله، بفرما.',signal,'call-'+callIdRef.current+'-stop-ack'));
+      requestPocketAudio('بله، بفرمایید، منتظرم.',signal,'call-'+callIdRef.current+'-stop-ack'));
     stopAcknowledgementRef.current=acknowledgement;
     void acknowledgement.warm();
     return ()=>{
@@ -1332,15 +1340,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         localSttFinalRef.current='';
         lastTranscriptChangedAtRef.current=0;
         vadRef.current.reset();
-        setAiText('بله، بفرما.');setDisplayedAi('بله، بفرما.');
+        setAiText('بله، بفرمایید، منتظرم.');setDisplayedAi('بله، بفرمایید، منتظرم.');
         stopAcknowledgementRef.current?.request(async(bytes,controller)=>{
           if(callClosedRef.current||activeTranscriptRef.current.trim()||isProcessingTurnRef.current||speakerMutedRef.current)return;
           manualReplayAbortRef.current=controller;
           isManualReplayPendingRef.current=true;
           const player=new ForzaContinuousWav(ensureCtx,()=>{
             if(controller.signal.aborted||callClosedRef.current)return;
-            heardSpeechEchoRef.current='بله، بفرما.';
-            playbackEchoHistoryRef.current.record('بله، بفرما.');
+            heardSpeechEchoRef.current='بله، بفرمایید، منتظرم.';
+            playbackEchoHistoryRef.current.record('بله، بفرمایید، منتظرم.');
             lastForzaPlaybackAtRef.current=Date.now();
             isAiSpeakingRef.current=true;setStatus('speaking');setTurn('ai');
           },undefined,undefined,undefined,level=>setAudioLevel(previous=>
@@ -2153,6 +2161,27 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       return null;
     }
   }, [handleUserFinishedSpeaking, isCallActive, isMicMuted, setStatus,startDibaTurn]);
+
+  recoverBrowserSttRef.current=()=>{
+    if(callClosedRef.current||micMutedRef.current||!greetingFinishedRef.current)return;
+    const previous=recognitionRef.current;
+    if(previous){
+      previous.onresult=null;previous.onerror=null;previous.onend=null;
+      try{previous.abort();}catch{}
+    }
+    isRecognitionActiveRef.current=false;
+    const replacement=initSpeechRecognition();
+    recognitionRef.current=replacement;
+    recognitionFailedRef.current=false;
+    if(replacement){
+      try{replacement.start();return;}catch{}
+    }
+    recognitionFailedRef.current=true;
+    webSpeechFailedRef.current=true;
+    setMicrophoneError(serverSttConfiguredRef.current
+      ? 'تشخیص زنده موقتاً قطع است؛ ضبط صدا برای تشخیص سروری ادامه دارد.'
+      : 'تشخیص گفتار موقتاً قطع است؛ میکروفون را دوباره متصل کنید یا پیام را تایپ کنید.');
+  };
 
   // Request mic access on entry; only start active transcription after greeting.
   const initializeMicrophone = useCallback(async () => {
