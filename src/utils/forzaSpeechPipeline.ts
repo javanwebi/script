@@ -1,3 +1,4 @@
+import { forzaTurnIntent } from './forzaBargeIn';
 import { analyzePersianSentenceCompletion } from './silenceDetector';
 
 export interface BrowserSpeechAlternative {
@@ -114,6 +115,8 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
  * No fixed 2.3s delay after every recognition event.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
+  // Pure stop commands release the floor without waiting for a full sentence.
+  if (forzaTurnIntent(text) === 'stop') return hasInterim ? 500 : 350;
   const analysis = analyzePersianSentenceCompletion(text);
   // A provisional browser hypothesis can still gain another word or SKU.
   if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);

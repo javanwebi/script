@@ -82,6 +82,10 @@ function wav(){
   await page.waitForFunction(n=>window.__forzaRecognitionStarts===n+1,starts,{timeout:2500});
   await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[Object.assign([{transcript:'برای بررسی کد قطعه اطلاعات می‌خواهم'}],{isFinal:false})]}));
   await page.getByText('برای بررسی کد قطعه اطلاعات می‌خواهم',{exact:false}).waitFor({timeout:1000});
+  await page.getByText('می خواهم مشخصات تسمه صنعتی را برای بررسی کد قطعه اطلاعات می‌خواهم',{exact:false}).waitFor({timeout:1000});
+  // Revisions within the new connection replace its hypothesis, not the prefix.
+  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[Object.assign([{transcript:'برای موتور 6203ZZ می‌خواهم'}],{isFinal:false})]}));
+  await page.getByText('می خواهم مشخصات تسمه صنعتی را برای موتور 6203ZZ می‌خواهم',{exact:false}).waitFor({timeout:1000});
   const recoveredStarts=await page.evaluate(()=>window.__forzaRecognitionStarts);
   await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');
