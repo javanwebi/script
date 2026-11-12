@@ -27,8 +27,8 @@ function wav(){
     // partials model a real nearby speaker rather than a silent fake device.
     const analyser=window.AnalyserNode?.prototype;
     if(analyser?.getByteTimeDomainData){
-      // Uint8 PCM is centered at 128; 132 yields a stable near-field RMS.
-      analyser.getByteTimeDomainData=function(samples){samples.fill(132);};
+      // Uint8 PCM is centered at 128; 130 models a quiet but close microphone signal.
+      analyser.getByteTimeDomainData=function(samples){samples.fill(130);};
     }
     class FakePersianRecognition{
       start(){window.__forzaRecognitionStarts=(window.__forzaRecognitionStarts||0)+1;window.__forzaMockRecognition=this;this.onstart?.();}
