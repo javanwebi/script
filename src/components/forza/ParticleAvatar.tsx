@@ -592,7 +592,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             }
             props.current.onStats?.({
               fps,
-              tier: 'CANVAS',
+              tier: 'ADAPTIVE',
               renderMs: Math.round((performance.now() - now) * 10) / 10,
               particles: totalParticleCount,
             });
