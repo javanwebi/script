@@ -34,7 +34,7 @@ test('inline backticks, titles and standalone URLs cannot be voiced',()=>{
 
 test('spoken dimension operator is meaningful, while original technical codes are unchanged',()=>{
   assert.equal(forzaSpokenPlainText('ابعاد ۱۰×۲۰ و کد SPA 1250 و 6202ZZ و C3'),
-    'ابعاد ده در بیست و کد SPA 1250 و 6202ZZ و C3');
+    'ابعاد ده در بیست و کد اِس پی اِی هزار و دویست و پنجاه و شش دو صفر دو، زِد زِد و سی سه');
   assert.equal(chunks('ابعاد 10*20').at(-1),'ابعاد 10×20');
 });
 
@@ -69,5 +69,12 @@ test('decimal dimensions and negative technical values survive plain-text displa
   const project=new ForzaCallPlainText();
   assert.equal(project.complete('3.25×20 و -5'),'3.25×20 و -5');
   assert.equal(forzaSpokenPlainText('ابعاد 100×200 و 3.25×20'),
-    'ابعاد 100 در 200 و 3.25 در بیست');
+    'ابعاد صد در دویست و سه ممیز دو پنج در بیست');
+});
+
+
+test('industrial SKU suffixes and engineering units are spoken clearly without changing display text',()=>{
+  assert.equal(forzaSpokenPlainText('بلبرینگ 6203C3 با قطر 12.7 mm و دور 1500 rpm'),
+    'بلبرینگ شش دو صفر سه، سی سه با قطر دوازده ممیز هفت میلی‌متر و دور هزار و پانصد دور در دقیقه');
+  assert.equal(chunks('بلبرینگ 6203C3').at(-1),'بلبرینگ 6203C3');
 });

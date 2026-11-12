@@ -50,6 +50,8 @@ export class ForzaContinuousWav {
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private meterTimer: ReturnType<typeof setInterval> | null = null;
   private muted = false;
   private underflows = 0;
   constructor(
@@ -58,7 +60,36 @@ export class ForzaContinuousWav {
     private readonly onUnderrun?: (ms:number) => void,
     private readonly onIdle?: () => void,
     private readonly onStage?: (stage:string, elapsedMs:number) => void,
+    private readonly onAudioLevel?: (level:number) => void,
   ) {}
+
+  private startMeter(ctx:AudioContext):void {
+    if(!this.analyser || this.meterTimer!==null)return;
+    const samples=new Float32Array(this.analyser.fftSize);
+    this.meterTimer=setInterval(()=>{
+      if(this.closed || !this.sources.size){
+        this.stopMeter();
+        return;
+      }
+      if(ctx.state!=='running'){
+        this.onAudioLevel?.(0);
+        return;
+      }
+      const analyser=this.analyser;
+      if(!analyser)return;
+      analyser.getFloatTimeDomainData(samples);
+      let sum=0;
+      for(let i=0;i<samples.length;i++)sum+=samples[i]*samples[i];
+      const rms=Math.sqrt(sum/Math.max(1,samples.length));
+      this.onAudioLevel?.(Math.min(1,rms*9));
+    },33);
+  }
+
+  private stopMeter():void {
+    if(this.meterTimer!==null)clearInterval(this.meterTimer);
+    this.meterTimer=null;
+    this.onAudioLevel?.(0);
+  }
 
   /** Decode a server frame immediately, in parallel with the previous frame.
    * Only sample-accurate scheduling is serialized, so network/decode latency
@@ -142,7 +173,14 @@ export class ForzaContinuousWav {
       if(!this.gain){
         this.gain=ctx.createGain();
         this.gain.gain.value=this.muted?0:1;
-        this.gain.connect(ctx.destination);
+        if(typeof ctx.createAnalyser==='function'){
+          this.analyser=ctx.createAnalyser();
+          this.analyser.fftSize=256;
+          this.gain.connect(this.analyser);
+          this.analyser.connect(ctx.destination);
+        }else{
+          this.gain.connect(ctx.destination);
+        }
       }
       source.connect(this.gain);
       this.sources.add(source);
@@ -180,6 +218,7 @@ export class ForzaContinuousWav {
         this.startedSources.delete(source);
         this.sources.delete(source);
         this.progress.delete(source);
+        if(!this.sources.size)this.stopMeter();
         if(!this.closed)progress.onProgress?.({phase:'finished',
           playedMs:progress.durationMs,durationMs:progress.durationMs});
         source.disconnect();
@@ -191,6 +230,7 @@ export class ForzaContinuousWav {
         }
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
+      this.startMeter(ctx);
       this.onStage?.('audio_scheduled',Math.round((startAt-ctx.currentTime)*1000));
       // Scheduling a future WebAudio source is NOT evidence that it started.
       // Start status follows its AudioContext clock time, not fetch/decode.
@@ -222,6 +262,7 @@ export class ForzaContinuousWav {
     if(this.closed)return;
     this.closed=true;
     this.nextStart=0;
+    this.stopMeter();
     for(const timer of this.startTimers)clearTimeout(timer);
     this.startTimers.clear();
     for(const monitor of this.contextMonitors)clearInterval(monitor);
@@ -242,7 +283,9 @@ export class ForzaContinuousWav {
     this.sources.clear();
     this.progress.clear();
     try{this.gain?.disconnect();}catch{}
+    try{this.analyser?.disconnect();}catch{}
     this.gain=null;
+    this.analyser=null;
     for(const resolve of [...this.pending])resolve();
     this.pending.clear();
   }
