@@ -39,10 +39,12 @@ test('the original FORZA silhouette is identical across device tiers; only rende
   assert.match(avatar,/new Worker\(new URL\('\.\/particleLayers\.worker\.ts', import\.meta\.url\)/);
   assert.match(avatar,/adaptiveScale/);
   assert.match(avatar,/renderer\.setPixelRatio\(pixelRatio\)/);
+  assert.match(avatar,/const maxPixelRatio = Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/);
+  assert.match(avatar,/const EMBER_COUNT = 900/);
   assert.match(avatar,/fps < 42/);
   assert.match(avatar,/dt \/ 2\.8/);
   assert.match(avatar,/setClearColor\(0x080402, 0\)/);
-  assert.match(particleLayers,/const stride = 2/);
+  assert.match(particleLayers,/const stride = 1/);
   assert.match(particleLayers,/const glowStep = 4/);
   assert.match(particleWorker,/import \{ W, H, B64 \} from '\.\/pixels'/);
   assert.match(particleWorker,/buildParticleLayers\(pixels, W, H\)/);
@@ -59,7 +61,7 @@ test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette w
   assert.match(avatar,/glowContext\.filter = 'blur\(22px\)'/);
   assert.match(avatar,/context\.drawImage\(glowCanvas, 0, 0, width, height\)/);
   assert.match(avatar,/fallbackTargetFrameMs = 1000 \/ 30/);
-  assert.match(avatar,/fps < 18/);
+  assert.match(avatar,/fps < 22/);
   assert.match(avatar,/switchToCanvasForPerformance\(fps\)/);
   assert.match(avatar,/software_gpu_canvas_fallback=1/);
   assert.match(avatar,/activeRenderer\.forceContextLoss/);
