@@ -35,3 +35,15 @@ test('near-field VAD closes a turn after sustained silence', () => {
   assert.equal(silence.speaking, false);
   assert.ok(silence.silenceMs >= 700);
 });
+
+test('near-field VAD can detect a quiet close speaker after the room-noise floor settles', () => {
+  const vad = new ForzaVoiceActivity();
+  for (let i = 0; i < 100; i += 1) vad.sample(0.002, i * 20);
+  let started = false;
+  for (let i = 100; i < 108; i += 1) {
+    const result = vad.sample(0.012, i * 20);
+    started = started || result.speechStarted;
+  }
+  assert.equal(started, true);
+  assert.equal(vad.heardSpeech, true);
+});
