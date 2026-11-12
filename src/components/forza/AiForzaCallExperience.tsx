@@ -330,7 +330,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           lastTranscriptChangedAtRef.current=Date.now();
         }
         activeTranscriptRef.current=transcript;speechInterimRef.current=!isFinal;
-        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);
+        hasSpeechSoundRef.current=true;setUserText(transcript);setIsUserSpeaking(true);setTurn('user');
       };
       recognizer.on('partialresult',msg=>update(String(msg?.result?.partial||''),false));
       recognizer.on('result',msg=>update(String(msg?.result?.text||''),true));
@@ -1588,9 +1588,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         isAiSpeakingRef.current=false;
         setVoicePending(false);
         isProcessingTurnRef.current = false;
+        // Keep the completed assistant answer in the single live message
+        // card. The next actual transcript switches it back to the customer.
         setStatus('listening');
-        setTurn('user');
-        startListening();
+        setTurn('ai');
+        startListening(true);
       }
     },
     [setStatus, startListening, stopListening,interruptCurrentTurn,playPocketFullAnswer,requestPocketAudio,ensureCtx,isSpeakerMuted,ensureVoiceMode]
