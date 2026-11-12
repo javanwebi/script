@@ -601,6 +601,24 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             }
             context.globalAlpha = progress;
             context.drawImage(source, x, y, dw, dh);
+            // Low-GPU Canvas fallback keeps the same hair response as WebGL.
+            // The crop matches the avatar's upper-head hair mask; a small,
+            // audio-driven vertical offset makes the strands visibly rise/fall.
+            const speechLevel=props.current.mode==='speak'
+              ?Math.min(1,props.current.audioLevel||0):0;
+            if(speechLevel>0.015){
+              const sx=imageWidth*0.394,sy=imageHeight*0.234;
+              const sw=imageWidth*0.2125,sh=imageHeight*0.188;
+              const bob=Math.sin(fallbackTime*19)*speechLevel*height*0.009;
+              context.save();
+              context.globalCompositeOperation='lighter';
+              context.globalAlpha=progress*Math.min(0.3,0.1+speechLevel*0.18);
+              context.filter='blur(0.25px)';
+              context.drawImage(source,sx,sy,sw,sh,
+                x+sx*coverScale,y+sy*coverScale+bob,
+                sw*coverScale,sh*coverScale);
+              context.restore();
+            }
             context.restore();
           } else {
             // The CSS particle field remains visible if even the poster source
