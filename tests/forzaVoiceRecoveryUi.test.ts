@@ -64,7 +64,7 @@ test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette w
   assert.match(avatar,/await shared\.buildParticlePosterPixelsAsync\(pixels\)/);
   assert.match(avatar,/particleFullPayloadPromise/);
   assert.match(avatar,/particlePosterOnlyPromise/);
-  assert.match(avatar,/targetFrameMs <= 0\.7/);
+  assert.match(avatar,/adaptiveScale <= 0\.7/);
   assert.match(avatar,/1000 \/ 45/);
   assert.match(avatar,/1000 \/ 30/);
   assert.doesNotMatch(avatar,/شتاب‌دهنده گرافیکی WebGL در دسترس نیست/);
