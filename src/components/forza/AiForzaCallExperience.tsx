@@ -318,9 +318,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        // New customer speech cancels a pending/playing backchannel before
-        // the microphone transcript is forwarded to the assistant.
-        backchannelRef.current?.cancel();
         const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
         if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
@@ -335,6 +332,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
           interruptRequestRef.current();
         }
+        // Cancel only after near-field and speaker-echo guards pass. Otherwise
+        // FORZA could cut off its own short acknowledgement when the mic hears it.
+        backchannelRef.current?.cancel();
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
