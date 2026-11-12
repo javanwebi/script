@@ -317,8 +317,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        const vadReady = Boolean(streamRef.current?.active && micAnalyserRef.current &&
-          ctxRef.current?.state === 'running');
+        const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
         if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=diba rejected=below_near_field_vad');
@@ -1722,8 +1721,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(!currentSpeech.trim())return;
         // Web Speech can still work while WebAudio is suspended by autoplay policy.
         // Enforce near-field RMS only when the microphone analyser is actually running.
-        const vadReady = Boolean(streamRef.current?.active && micAnalyserRef.current &&
-          ctxRef.current?.state === 'running');
+        const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
         if(vadReady && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=browser rejected=below_near_field_vad');
