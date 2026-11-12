@@ -34,7 +34,7 @@ test('legacy AI_FORZA_API_KEY and ai-forza cannot silently enable Gemini STT',()
     FORZA_STT_PROVIDER:'gemini',
     AI_FORZA_API_KEY:'unrelated-key',
     'ai-forza':'other-key',
-  }),{provider:'none',reason:'missing_gemini_key'});
+  }),{provider:'none',reason:'unsupported_provider'});
 });
 
 test('Diba Persian STT is the local default only when the server model is bundled',()=>{
