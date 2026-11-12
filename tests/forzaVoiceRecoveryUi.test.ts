@@ -62,8 +62,9 @@ test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette w
   assert.match(avatar,/context\.drawImage\(glowCanvas, 0, 0, width, height\)/);
   assert.match(avatar,/fallbackTargetFrameMs = 1000 \/ 30/);
   assert.match(avatar,/fps < 22/);
-  assert.match(avatar,/switchToCanvasForPerformance\(fps\)/);
-  assert.match(avatar,/software_gpu_canvas_fallback=1/);
+  assert.match(avatar,/switchToCanvasFallback\('slow_gpu', fps\)/);
+  assert.match(avatar,/switchToCanvasFallback\('worker_unavailable'\)/);
+  assert.match(avatar,/canvas_fallback=1 reason=/);
   assert.match(avatar,/activeRenderer\.forceContextLoss/);
   assert.match(avatar,/webglcontextlost/);
   assert.match(avatar,/webglcontextrestored/);
