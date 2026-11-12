@@ -170,6 +170,11 @@ export function forzaSpokenPlainText(text: string): string {
   return verbalizeForzaTechnicalTerms(profiled)
     .replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
       (_whole,a:string,b:string)=>spokenMeasurement(a)+' در '+spokenMeasurement(b))
+    .replace(/([0-9۰-۹]{1,5}(?:[.٫][0-9۰-۹]+)?)\s*(mm|cm|rpm|Hz|kW|Nm)\b/gi,
+      (_whole,number:string,unit:string)=>spokenMeasurement(number)+' '+({
+        mm:'میلی‌متر',cm:'سانتی‌متر',rpm:'دور در دقیقه',hz:'هرتز',
+        kw:'کیلووات',nm:'نیوتن‌متر',
+      } as Record<string,string>)[unit.toLowerCase()])
     .replace(/\bmm\b/gi,'میلی‌متر')
     .replace(/\bcm\b/gi,'سانتی‌متر')
     .replace(/\brpm\b/gi,'دور در دقیقه')
@@ -178,7 +183,3 @@ export function forzaSpokenPlainText(text: string): string {
     .replace(/\bNm\b/gi,'نیوتن‌متر');
 }
 /** Spoken only. Do not alter the display or product/engineering codes. */
-export function forzaSpokenPlainText(text: string): string {
-  return text.replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
-    (_whole, a: string, b: string) => spokenNumber(a) + ' در ' + spokenNumber(b));
-}
