@@ -190,8 +190,11 @@ function decodeBase64(value: string): Uint8Array {
   return bytes;
 }
 
-/** The 1.68 MB source image and CPU particle construction never block React's main thread. */
-function createParticleLayerPayload(includeLayers: boolean): Promise<ParticleLayerPayload> {
+/** The source pixels and CPU particle construction never block React's main thread. */
+function createParticleLayerPayload(
+  includeLayers: boolean,
+  onPoster?: (payload: ParticleLayerPayload) => void,
+): Promise<ParticleLayerPayload> {
   return new Promise<ParticleLayerPayload>((resolve, reject) => {
       if (typeof Worker === 'undefined') {
         reject(new Error('module_worker_unavailable'));
@@ -207,63 +210,100 @@ function createParticleLayerPayload(includeLayers: boolean): Promise<ParticleLay
         reject(error);
         return;
       }
-      const timeout = window.setTimeout(() => {
-        worker.terminate();
-        reject(new Error('particle_worker_timeout'));
-      }, 20000);
+      let earlyPoster: ParticleLayerPayload | null = null;
+      let settled = false;
       const finish = () => {
+        if (settled) return;
+        settled = true;
         window.clearTimeout(timeout);
         worker.terminate();
       };
-      worker.onmessage = event => {
+      const resolvePosterOnly = () => {
+        if (!earlyPoster || settled) return false;
         finish();
-        if (event.data?.type !== 'ready') {
-          reject(new Error(event.data?.message || 'particle_worker_failed'));
+        resolve(earlyPoster);
+        return true;
+      };
+      const timeout = window.setTimeout(() => {
+        if (resolvePosterOnly()) return;
+        finish();
+        reject(new Error('particle_worker_timeout'));
+      }, 20000);
+
+      worker.onmessage = event => {
+        const data = event.data;
+        if (data?.type === 'poster') {
+          earlyPoster = {
+            width: data.width,
+            height: data.height,
+            layers: null,
+            poster: data.poster || null,
+            posterPixels: data.posterPixels || null,
+          };
+          onPoster?.(earlyPoster);
           return;
         }
-        resolve({
-          width: event.data.width,
-          height: event.data.height,
-          layers: event.data.layers || null,
-          poster: event.data.poster || null,
-          posterPixels: event.data.posterPixels || null,
-        });
+        if (data?.type === 'ready') {
+          finish();
+          resolve({
+            width: data.width || earlyPoster?.width || 0,
+            height: data.height || earlyPoster?.height || 0,
+            layers: data.layers || null,
+            poster: earlyPoster?.poster || data.poster || null,
+            posterPixels: earlyPoster?.posterPixels || data.posterPixels || null,
+          });
+          return;
+        }
+        if (resolvePosterOnly()) return;
+        finish();
+        reject(new Error(data?.message || 'particle_worker_failed'));
       };
       worker.onerror = event => {
         event.preventDefault();
+        if (resolvePosterOnly()) return;
         finish();
         reject(new Error('particle_worker_load_failed'));
       };
-      worker.postMessage({ type: 'build', includeLayers });
+      try {
+        worker.postMessage({ type: 'build', includeLayers });
+      } catch (error) {
+        finish();
+        reject(error);
+      }
   }).catch(async () => {
       // Compatibility path for older browsers that cannot start module workers.
-      // Only the static poster is built here; WebGL is not allowed to block the
-      // main thread with a second full particle preprocessing pass.
+      // Only the poster is built here, in small yielding chunks; the expensive
+      // point-cloud preprocessing is never moved onto the UI thread.
       const [{ W, H, B64 }, shared] = await Promise.all([
         import('./pixels'),
         import('./particleLayers.shared'),
       ]);
       await new Promise<void>(resolve => window.setTimeout(resolve, 0));
       const pixels = decodeBase64(B64);
-      return {
+      const payload: ParticleLayerPayload = {
         width: W,
         height: H,
         layers: null,
         poster: null,
         posterPixels: await shared.buildParticlePosterPixelsAsync(pixels),
       };
+      onPoster?.(payload);
+      return payload;
   });
 }
 
-function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPayload> {
+function loadParticleLayerPayload(
+  includeLayers = true,
+  onPoster?: (payload: ParticleLayerPayload) => void,
+): Promise<ParticleLayerPayload> {
   if (includeLayers) {
-    if (!particleFullPayloadPromise) particleFullPayloadPromise = createParticleLayerPayload(true);
+    if (!particleFullPayloadPromise) particleFullPayloadPromise = createParticleLayerPayload(true, onPoster);
     return particleFullPayloadPromise;
   }
   // A poster-only request is enough when WebGL is unavailable. If another
   // avatar later mounts with WebGL, it still gets a full independent payload.
   if (particleFullPayloadPromise) return particleFullPayloadPromise;
-  if (!particlePosterOnlyPromise) particlePosterOnlyPromise = createParticleLayerPayload(false);
+  if (!particlePosterOnlyPromise) particlePosterOnlyPromise = createParticleLayerPayload(false, onPoster);
   return particlePosterOnlyPromise;
 }
 
@@ -420,11 +460,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         phase: Math.random() * Math.PI * 2,
       }));
 
-      const reportFormed = () => {
-        if (formationReported) return;
-        formationReported = true;
-        props.current.onFormed?.();
-      };
+      let onFormationComplete = () => {};
 
       const stopCanvasFallback = () => {
         if (fallbackRaf) cancelAnimationFrame(fallbackRaf);
@@ -432,6 +468,13 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         fallbackRender = null;
         fallbackCanvas?.remove();
         fallbackCanvas = null;
+      };
+
+      const reportFormed = () => {
+        if (formationReported) return;
+        formationReported = true;
+        props.current.onFormed?.();
+        onFormationComplete();
       };
 
       const startCanvasFallback = (source: CanvasImageSource | null, imageWidth: number, imageHeight: number) => {
@@ -625,9 +668,16 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         if (!document.hidden) fallbackRaf = requestAnimationFrame(renderFallback);
       };
 
+      const showEarlyPoster = (payload: ParticleLayerPayload) => {
+        if (cancelled) return;
+        layerPayload = payload;
+        const poster = resolveParticlePoster(payload);
+        startCanvasFallback(poster, payload.width, payload.height);
+      };
+
       const activateFallback = async () => {
         try {
-          const payload = layerPayload || await loadParticleLayerPayload(Boolean(renderer));
+          const payload = layerPayload || await loadParticleLayerPayload(Boolean(renderer), showEarlyPoster);
           if (cancelled) return;
           layerPayload = payload;
           // If WebGL recovered while the poster was loading, keep the restored
@@ -652,6 +702,13 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         uPx: { value: 100 },
         uBurst: { value: 0 },
         uSpeech: { value: 0 },
+      };
+      onFormationComplete = () => {
+        if (renderer && layerPayload?.layers && !contextLost) {
+          formationReady = true;
+          shared.uProgress.value = 1;
+          stopCanvasFallback();
+        }
       };
       const emberGeometry = new THREE.BufferGeometry();
       emberGeometry.setAttribute('position', new THREE.BufferAttribute(emberPositions, 3));
@@ -854,6 +911,10 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           if (cancelled || !renderer) return;
           contextLost = false;
           stopCanvasFallback();
+          if (formationReported) {
+            formationReady = true;
+            shared.uProgress.value = 1;
+          }
           renderer.domElement.style.visibility = 'visible';
           renderer.resetState();
           resize();
@@ -934,7 +995,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         setWebglApi();
         if (!document.hidden) loop();
 
-        void loadParticleLayerPayload().then(payload => {
+        void loadParticleLayerPayload(true, showEarlyPoster).then(payload => {
           if (cancelled) return;
           layerPayload = payload;
           const poster = resolveParticlePoster(payload);
@@ -954,7 +1015,12 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           totalParticleCount = payload.layers.totalCount + EMBER_COUNT;
           resize();
           formationReady = true;
-          if (contextLost) startCanvasFallback(poster, payload.width, payload.height);
+          if (contextLost) {
+            startCanvasFallback(poster, payload.width, payload.height);
+          } else if (formationReported) {
+            shared.uProgress.value = 1;
+            stopCanvasFallback();
+          }
         }).catch(error => {
           console.warn('[FORZA_PARTICLES] layer_load_recovery', error instanceof Error ? error.name : 'load_error');
           void activateFallback();
