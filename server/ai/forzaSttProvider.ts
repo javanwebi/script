@@ -1,11 +1,10 @@
-/** FORZA STT is independent from text/chat and Piper TTS providers.
- * The default production recognizer is the local Persian Diba/Vosk model.
- * Gemini remains an explicit compatibility option; xKiro is never an STT key.
+/** FORZA STT is independent from the xKiro text model and Piper Nima TTS.
+ * Production speech recognition uses only the local Persian Diba/Vosk model.
+ * Cloud/Gemini STT is deliberately unsupported for the live FORZA call.
  */
 export type ForzaSttSelection =
   | {provider:'diba';modelPath:string;reason:'configured'}
-  | {provider:'gemini';key:string;reason:'configured'}
-  | {provider:'none';reason:'disabled'|'not_configured'|'unsupported_provider'|'missing_gemini_key'|'model_missing'};
+  | {provider:'none';reason:'disabled'|'not_configured'|'unsupported_provider'|'model_missing'};
 
 export function selectForzaSttProvider(env:Record<string,string|undefined>):ForzaSttSelection{
   const setting=String(env.FORZA_STT_PROVIDER||'').trim().toLowerCase();
