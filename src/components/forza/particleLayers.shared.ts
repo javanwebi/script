@@ -32,7 +32,7 @@ function vortex(): [number, number, number] {
  * in the renderer's pixel ratio, never by deleting the character on phones.
  */
 export function buildParticleLayers(data: Uint8Array, width: number, height: number): CachedLayers {
-  const stride = 2;
+  const stride = 1;
   const glowStep = 4;
   const sharpPos: number[] = [], sharpCol: number[] = [], sharpStart: number[] = [], sharpSeed: number[] = [], sharpLum: number[] = [];
 
