@@ -179,7 +179,8 @@ interface ParticleLayerPayload {
   posterPixels: Uint8ClampedArray | null;
 }
 
-let particleLayerPayloadPromise: Promise<ParticleLayerPayload> | null = null;
+let particleFullPayloadPromise: Promise<ParticleLayerPayload> | null = null;
+let particlePosterOnlyPromise: Promise<ParticleLayerPayload> | null = null;
 let particlePosterSource: CanvasImageSource | null = null;
 
 function decodeBase64(value: string): Uint8Array {
@@ -190,9 +191,8 @@ function decodeBase64(value: string): Uint8Array {
 }
 
 /** The 1.68 MB source image and CPU particle construction never block React's main thread. */
-function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPayload> {
-  if (!particleLayerPayloadPromise) {
-    particleLayerPayloadPromise = new Promise<ParticleLayerPayload>((resolve, reject) => {
+function createParticleLayerPayload(includeLayers: boolean): Promise<ParticleLayerPayload> {
+  return new Promise<ParticleLayerPayload>((resolve, reject) => {
       if (typeof Worker === 'undefined') {
         reject(new Error('module_worker_unavailable'));
         return;
@@ -235,7 +235,7 @@ function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPa
         reject(new Error('particle_worker_load_failed'));
       };
       worker.postMessage({ type: 'build', includeLayers });
-    }).catch(async () => {
+  }).catch(async () => {
       // Compatibility path for older browsers that cannot start module workers.
       // Only the static poster is built here; WebGL is not allowed to block the
       // main thread with a second full particle preprocessing pass.
@@ -250,11 +250,21 @@ function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPa
         height: H,
         layers: null,
         poster: null,
-        posterPixels: shared.buildParticlePosterPixels(pixels),
+        posterPixels: await shared.buildParticlePosterPixelsAsync(pixels),
       };
-    });
+  });
+}
+
+function loadParticleLayerPayload(includeLayers = true): Promise<ParticleLayerPayload> {
+  if (includeLayers) {
+    if (!particleFullPayloadPromise) particleFullPayloadPromise = createParticleLayerPayload(true);
+    return particleFullPayloadPromise;
   }
-  return particleLayerPayloadPromise;
+  // A poster-only request is enough when WebGL is unavailable. If another
+  // avatar later mounts with WebGL, it still gets a full independent payload.
+  if (particleFullPayloadPromise) return particleFullPayloadPromise;
+  if (!particlePosterOnlyPromise) particlePosterOnlyPromise = createParticleLayerPayload(false);
+  return particlePosterOnlyPromise;
 }
 
 function resolveParticlePoster(payload: ParticleLayerPayload): CanvasImageSource | null {
@@ -381,6 +391,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let lowFpsSamples = 0;
       let highFpsSamples = 0;
       let adaptiveScale = 1;
+      let lastRenderedAt = 0;
       let appliedQuality = props.current.quality === 'low' ? 'low' : 'balanced';
 
       // Every device receives the same particle coordinates and glow layer.
@@ -717,6 +728,16 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             shared.uSpeech.value = speechVal;
             if (sharpMat) sharpMat.uniforms.uGain.value = THREE.MathUtils.lerp(sharpMat.uniforms.uGain.value, targetGain, 0.15);
           }
+          // On constrained GPUs, keep the same complete particle scene but
+          // reduce render submissions to a stable 45/30 FPS instead of dropping
+          // points or rebuilding a simplified avatar.
+          const targetFrameMs = adaptiveScale <= 0.7 ? 1000 / 30
+            : adaptiveScale < 0.95 ? 1000 / 45 : 0;
+          if (targetFrameMs > 0 && now - lastRenderedAt < targetFrameMs) {
+            raf = requestAnimationFrame(loop);
+            return;
+          }
+          lastRenderedAt = now;
           const renderStart = performance.now();
           try {
             renderer.render(scene, camera);
@@ -791,6 +812,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             return;
           }
           last = performance.now();
+          lastRenderedAt = last;
           if (fallbackCanvas && fallbackRender && !fallbackRaf) fallbackRaf = requestAnimationFrame(fallbackRender);
           else if (!contextLost && !raf) raf = requestAnimationFrame(loop);
         };
