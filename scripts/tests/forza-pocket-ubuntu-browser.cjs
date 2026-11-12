@@ -19,8 +19,11 @@ function wav(durationMs=180){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-  const errors=[],fullVoiceCalls=[],streamCalls=[],unexpectedProgressiveCalls=[];
+  const errors=[],consoleErrors=[],failedRequests=[],responses=[],fullVoiceCalls=[],streamCalls=[],unexpectedProgressiveCalls=[];
   page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text());});
+  page.on('requestfailed',request=>failedRequests.push({url:request.url(),failure:request.failure()?.errorText||'unknown'}));
+  page.on('response',response=>{if(/consult-stream|forza-speech/.test(response.url()))responses.push({url:response.url(),status:response.status()});});
   await page.addInitScript(()=>{
     window.__speechSynthesisCalls=0;
     window.speechSynthesis?.cancel?.();
@@ -61,7 +64,15 @@ function wav(durationMs=180){
   const firstRequest=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream')&&request.postDataJSON()?.query==='تسمه SPA چیست؟',{timeout:12000});
   await page.getByTitle('ارسال به هوش مصنوعی').click();
   await firstRequest;
-  await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
+  try{
+    await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
+  }catch(error){
+    console.error('[FORZA_POCKET_DIAG] first_answer_not_visible',JSON.stringify({
+      body:(await page.locator('body').innerText()).slice(-2600),
+      streamCalls,fullVoiceCalls,unexpectedProgressiveCalls,responses,errors,consoleErrors,failedRequests
+    }));
+    throw error;
+  }
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
   const answer='سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.';
