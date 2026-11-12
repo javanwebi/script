@@ -1420,6 +1420,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           reply=callPlainText.push(fullText);
           if(!firstTextDelivered&&reply.trim()){
             firstTextDelivered=true;
+            // Switch the single live message card to the assistant as soon as
+            // text exists; never wait for a WebAudio source to begin playing.
+            setTurn('ai');
             console.info('[FORZA_LATENCY] phase=first-text turn='+generation+
               ' clientMs='+Math.round(performance.now()-turnStartedAt));
             setVoicePending(true);
