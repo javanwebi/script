@@ -19,9 +19,10 @@ function wav(durationMs=180){
  ]});
  try{
   const page=await browser.newPage({permissions:['microphone'],viewport:{width:1100,height:780}});
-  const errors=[],consoleErrors=[],failedRequests=[],responses=[],fullVoiceCalls=[],streamCalls=[],unexpectedProgressiveCalls=[];
+  const errors=[],consoleErrors=[],failedRequests=[],responses=[],requestLog=[],fullVoiceCalls=[],streamCalls=[],unexpectedProgressiveCalls=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',msg=>{if(msg.type()==='error')consoleErrors.push(msg.text());});
+  page.on('request',request=>{if(/consult-stream|forza-speech/.test(request.url()))requestLog.push({url:request.url(),method:request.method(),body:request.postData()});});
   page.on('requestfailed',request=>failedRequests.push({url:request.url(),failure:request.failure()?.errorText||'unknown'}));
   page.on('response',response=>{if(/consult-stream|forza-speech/.test(response.url()))responses.push({url:response.url(),status:response.status()});});
   await page.addInitScript(()=>{
@@ -63,7 +64,17 @@ function wav(durationMs=180){
   await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').fill('تسمه SPA چیست؟');
   const firstRequest=page.waitForRequest(request=>request.url().includes('/api/ai/consult-stream')&&request.postDataJSON()?.query==='تسمه SPA چیست؟',{timeout:12000});
   await page.getByTitle('ارسال به هوش مصنوعی').click();
-  await firstRequest;
+  try{
+    await firstRequest;
+  }catch(error){
+    console.error('[FORZA_POCKET_DIAG] consult_request_not_sent',JSON.stringify({
+      body:(await page.locator('body').innerText()).slice(-2600),
+      sendButtonDisabled:await page.getByTitle('ارسال به هوش مصنوعی').isDisabled().catch(()=>null),
+      inputValue:await page.getByPlaceholder('سؤال فنی خود را تایپ کنید...').inputValue().catch(()=>null),
+      streamCalls,requestLog,responses,errors,consoleErrors,failedRequests
+    }));
+    throw error;
+  }
   try{
     await page.waitForFunction(()=>document.body.innerText.includes('کد نوشته‌شده روی قطعه'),null,{timeout:12000});
   }catch(error){
