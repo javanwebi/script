@@ -1,6 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
-import { W as PW, H as PH, B64 } from './pixels';
 
 export interface ParticleAvatarRef {
   replay: () => void;
@@ -34,7 +33,6 @@ export interface ParticleAvatarProps {
 }
 
 const WORLD_W = 6.4;
-const CELL = WORLD_W / PW;
 
 const vert = /* glsl */ `
 uniform float uTime;
@@ -145,9 +143,9 @@ function decode(b64: string): Uint8Array {
   return d;
 }
 
-const toWorld = (x: number, y: number): [number, number] => [
-  (x - PW / 2) * CELL,
-  -(y - PH / 2) * CELL,
+const toWorld = (x: number, y: number, width: number, height: number, cell: number): [number, number] => [
+  (x - width / 2) * cell,
+  -(y - height / 2) * cell,
 ];
 
 const vortex = (): [number, number, number] => {
@@ -171,95 +169,52 @@ interface CachedLayers {
   totalCount: number;
 }
 
-let cachedLayers: CachedLayers | null = null;
+const cachedLayersByQuality = new Map<'high' | 'balanced' | 'low', CachedLayers>();
 
-function buildLayers(data: Uint8Array): CachedLayers {
-  if (cachedLayers) return cachedLayers;
-
-  const sharpPos: number[] = [];
-  const sharpCol: number[] = [];
-  const sharpStart: number[] = [];
-  const sharpSeed: number[] = [];
-  const sharpLum: number[] = [];
-
-  for (let y = 0; y < PH; y++) {
-    for (let x = 0; x < PW; x++) {
-      const i = (y * PW + x) * 3;
-      const r = data[i] / 255;
-      const g = data[i + 1] / 255;
-      const b = data[i + 2] / 255;
+function buildLayers(data: Uint8Array, width: number, height: number, quality: 'high' | 'balanced' | 'low'): CachedLayers {
+  const cached = cachedLayersByQuality.get(quality);
+  if (cached) return cached;
+  const stride = quality === 'high' ? 1 : quality === 'balanced' ? 2 : 3;
+  const glowStep = quality === 'high' ? 4 : quality === 'balanced' ? 6 : 8;
+  const cell = WORLD_W / width;
+  const sharpPos: number[] = [], sharpCol: number[] = [], sharpStart: number[] = [], sharpSeed: number[] = [], sharpLum: number[] = [];
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
+      const i = (y * width + x) * 3;
+      const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
       const l = Math.max(r, g * 1.1, b);
-      if (l < 0.06) continue;
-      if (Math.random() > Math.pow(Math.min(1, l * 1.5), 1.6)) continue;
-
-      const [wx, wy] = toWorld(x + (Math.random() - 0.5) * 0.3, y + (Math.random() - 0.5) * 0.3);
-      sharpPos.push(wx, wy, l * 0.03);
-      sharpCol.push(r, g, b);
-      const v = vortex();
-      sharpStart.push(v[0], v[1], v[2]);
-      sharpSeed.push(Math.random());
-      sharpLum.push(l);
+      if (l < 0.06 || Math.random() > Math.pow(Math.min(1, l * 1.5), 1.6)) continue;
+      const [wx, wy] = toWorld(x + (Math.random() - 0.5) * stride, y + (Math.random() - 0.5) * stride, width, height, cell);
+      sharpPos.push(wx, wy, l * 0.03); sharpCol.push(r, g, b);
+      const v = vortex(); sharpStart.push(v[0], v[1], v[2]); sharpSeed.push(Math.random()); sharpLum.push(l);
     }
   }
-
-  const glowPos: number[] = [];
-  const glowCol: number[] = [];
-  const glowStart: number[] = [];
-  const glowSeed: number[] = [];
-  const glowLum: number[] = [];
-  const S = 4;
-
-  for (let y = 0; y < PH; y += S) {
-    for (let x = 0; x < PW; x += S) {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      for (let yy = 0; yy < S; yy++) {
-        for (let xx = 0; xx < S; xx++) {
-          const i = ((y + yy) * PW + x + xx) * 3;
-          if (i >= data.length) continue;
-          r += data[i];
-          g += data[i + 1];
-          b += data[i + 2];
+  const glowPos: number[] = [], glowCol: number[] = [], glowStart: number[] = [], glowSeed: number[] = [], glowLum: number[] = [];
+  for (let y = 0; y < height; y += glowStep) {
+    for (let x = 0; x < width; x += glowStep) {
+      let r = 0, g = 0, b = 0, samples = 0;
+      for (let yy = 0; yy < glowStep && y + yy < height; yy++) {
+        for (let xx = 0; xx < glowStep && x + xx < width; xx++) {
+          const i = ((y + yy) * width + x + xx) * 3;
+          r += data[i]; g += data[i + 1]; b += data[i + 2]; samples++;
         }
       }
-      r /= S * S * 255;
-      g /= S * S * 255;
-      b /= S * S * 255;
+      if (!samples) continue;
+      r /= samples * 255; g /= samples * 255; b /= samples * 255;
       const l = Math.max(r, g, b);
       if (l < 0.25) continue;
-
-      const [wx, wy] = toWorld(x + S / 2, y + S / 2);
-      glowPos.push(wx, wy, -0.02);
-      glowCol.push(r, g * 0.85, b * 0.6);
-      const v = vortex();
-      glowStart.push(v[0], v[1], v[2]);
-      glowSeed.push(Math.random());
-      glowLum.push(l);
+      const [wx, wy] = toWorld(x + glowStep / 2, y + glowStep / 2, width, height, cell);
+      glowPos.push(wx, wy, -0.02); glowCol.push(r, g * 0.85, b * 0.6);
+      const v = vortex(); glowStart.push(v[0], v[1], v[2]); glowSeed.push(Math.random()); glowLum.push(l);
     }
   }
-
-  cachedLayers = {
-    sharp: {
-      pos: new Float32Array(sharpPos),
-      col: new Float32Array(sharpCol),
-      start: new Float32Array(sharpStart),
-      seed: new Float32Array(sharpSeed),
-      lum: new Float32Array(sharpLum),
-      count: sharpSeed.length,
-    },
-    glow: {
-      pos: new Float32Array(glowPos),
-      col: new Float32Array(glowCol),
-      start: new Float32Array(glowStart),
-      seed: new Float32Array(glowSeed),
-      lum: new Float32Array(glowLum),
-      count: glowSeed.length,
-    },
+  const result: CachedLayers = {
+    sharp: { pos: new Float32Array(sharpPos), col: new Float32Array(sharpCol), start: new Float32Array(sharpStart), seed: new Float32Array(sharpSeed), lum: new Float32Array(sharpLum), count: sharpSeed.length },
+    glow: { pos: new Float32Array(glowPos), col: new Float32Array(glowCol), start: new Float32Array(glowStart), seed: new Float32Array(glowSeed), lum: new Float32Array(glowLum), count: glowSeed.length },
     totalCount: sharpSeed.length + glowSeed.length,
   };
-
-  return cachedLayers;
+  cachedLayersByQuality.set(quality, result);
+  return result;
 }
 
 function makePoints(
@@ -369,51 +324,33 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
     useEffect(() => {
       const el = mount.current;
       if (!el) return;
-
+      const qualityMode: 'high' | 'balanced' | 'low' = quality === 'high' ? 'high' : quality === 'low' ? 'low' : 'balanced';
+      const profile = qualityMode === 'high' ? { pixelRatio: 1.5, embers: 900, tier: 'HIGH' }
+        : qualityMode === 'low' ? { pixelRatio: 1, embers: 360, tier: 'LOW' }
+        : { pixelRatio: 1.2, embers: 600, tier: 'BALANCED' };
       let renderer: THREE.WebGLRenderer;
       try {
-        renderer = new THREE.WebGLRenderer({
-          antialias: false,
-          preserveDrawingBuffer: false,
-          powerPreference: 'high-performance',
-          depth: false,
-          stencil: false,
-        });
-      } catch (e: any) {
-        props.current.onError?.('برای اجرای موتور ذرات FORZA شتاب‌دهی WebGL فعال نیاز است.');
-        // Missing WebGL must not prevent an accessible voice conversation.
+        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', depth: false, stencil: false });
+      } catch {
+        props.current.onError?.('شتاب‌دهنده گرافیکی WebGL در دسترس نیست؛ حالت سبک فورزا فعال شد.');
         props.current.onFormed?.();
         return;
       }
-
-      const pr = Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1.5);
+      const pr = Math.min(window.devicePixelRatio || 1, profile.pixelRatio);
       renderer.setPixelRatio(pr);
-      renderer.setClearColor(0x080402, 1);
+      renderer.setClearColor(0x080402, 0);
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
+      renderer.domElement.style.background = 'transparent';
       el.appendChild(renderer.domElement);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-
-      const shared = {
-        uTime: { value: 0 },
-        uProgress: { value: 0 },
-        uPx: { value: 100 },
-        uBurst: { value: 0 },
-        uSpeech: { value: 0 },
-      };
-
-      const layers = buildLayers(decode(B64));
-      const { pts: glowPts, mat: glowMat } = makePoints(layers.glow, shared, CELL * 4 * 3.0, 0.1, 1);
-      const { pts: sharpPts, mat: sharpMat } = makePoints(layers.sharp, shared, CELL * 0.75, 1.55, 0.7);
-      scene.add(glowPts, sharpPts);
-
-      // Embers floating layer
-      const N = 900;
-      const ep = new Float32Array(N * 3);
-      const es = new Float32Array(N);
+      const shared = { uTime: { value: 0 }, uProgress: { value: 0 }, uPx: { value: 100 }, uBurst: { value: 0 }, uSpeech: { value: 0 } };
+      // Render a small ember field immediately; defer the 1.68 MB silhouette module until after first paint.
+      const N = profile.embers;
+      const ep = new Float32Array(N * 3), es = new Float32Array(N);
       for (let i = 0; i < N; i++) {
         ep[i * 3] = (Math.random() - 0.5) * 7;
         ep[i * 3 + 1] = (Math.random() - 0.5) * 4.4;
@@ -423,27 +360,17 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
       eg.setAttribute('aSeed', new THREE.BufferAttribute(es, 1));
-      const emberMat = new THREE.ShaderMaterial({
-        vertexShader: emberVert,
-        fragmentShader: emberFrag,
-        uniforms: shared,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      });
+      const emberMat = new THREE.ShaderMaterial({ vertexShader: emberVert, fragmentShader: emberFrag, uniforms: shared, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
       const emberPts = new THREE.Points(eg, emberMat);
       emberPts.frustumCulled = false;
       scene.add(emberPts);
 
-      const worldH = (WORLD_W * PH) / PW;
+      let worldH = WORLD_W;
       function resize() {
-        if (!el) return;
-        const w = el.clientWidth;
-        const h = el.clientHeight;
-        if (w === 0 || h === 0) return;
+        const w = el.clientWidth, h = el.clientHeight;
+        if (!w || !h) return;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
-        // Cover screen like original artwork
         const visH = Math.min(worldH, WORLD_W / camera.aspect);
         const dist = visH / 2 / Math.tan(THREE.MathUtils.degToRad(15));
         camera.position.set(0, 0, dist);
@@ -454,142 +381,102 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       window.addEventListener('resize', resize);
       resize();
 
-      let burst = 0;
-      let formationReported = false;
-      let speechVal = 0;
-      let last = performance.now();
-      let t = 0;
-      let raf = 0;
-      let frameCount = 0;
-      let lastFpsTime = performance.now();
+      let glowPts: THREE.Points | null = null, sharpPts: THREE.Points | null = null;
+      let glowMat: THREE.ShaderMaterial | null = null, sharpMat: THREE.ShaderMaterial | null = null;
+      let totalParticleCount = N, formationReady = false, formationReported = false, cancelled = false;
+      let burst = 0, speechVal = 0, last = performance.now(), t = 0, raf = 0, frameCount = 0, lastFpsTime = performance.now();
 
       const loop = () => {
-        if (document.hidden) {
-          raf = 0;
-          return;
-        }
-        const now = performance.now();
-        const dt = Math.min((now - last) / 1000, 0.05);
+        if (document.hidden) { raf = 0; return; }
+        const now = performance.now(), dt = Math.min((now - last) / 1000, 0.05);
         last = now;
-
         if (!props.current.paused) {
           t += dt;
           shared.uTime.value = t;
-          shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 1.4);
-          // Notify only after the actual particle formation reaches 100%.
-          if (!formationReported && shared.uProgress.value >= 1) {
-            formationReported = true;
-            props.current.onFormed?.();
+          if (formationReady) shared.uProgress.value = Math.min(1, shared.uProgress.value + dt / 2.8);
+          if (formationReady && !formationReported && shared.uProgress.value >= 1) {
+            formationReported = true; props.current.onFormed?.();
           }
-          burst *= Math.pow(0.05, dt);
-          shared.uBurst.value = burst;
-
-          // Vocal resonance & speech wave for hair movement directly proportional to audio level & noise
-          const currentMode = props.current.mode;
-          const currentIntensity = props.current.intensity || 1;
+          burst *= Math.pow(0.05, dt); shared.uBurst.value = burst;
+          const currentMode = props.current.mode, currentIntensity = props.current.intensity || 1;
           const audioLvl = props.current.audioLevel !== undefined ? props.current.audioLevel : 0;
-
-          let targetSpeech = 0;
-          let targetGain = 1.55;
-          if (currentMode === 'speak') {
-            // When speaking, hair movement directly tracks audio sound & noise amplitude with natural responsiveness
-            targetSpeech = Math.min(1.0, audioLvl * 1.0) * currentIntensity;
-            targetGain = 1.6 + audioLvl * 0.45;
-          } else {
-            targetSpeech = 0;
-            if (currentMode === 'listen') {
-              targetGain = 1.5 * currentIntensity + Math.sin(t * 3.0) * 0.08;
-            }
-          }
-
+          let targetSpeech = 0, targetGain = 1.55;
+          if (currentMode === 'speak') { targetSpeech = Math.min(1, audioLvl) * currentIntensity; targetGain = 1.6 + audioLvl * 0.45; }
+          else if (currentMode === 'listen') targetGain = 1.5 * currentIntensity + Math.sin(t * 3) * 0.08;
           speechVal = THREE.MathUtils.lerp(speechVal, targetSpeech, 0.38);
           if (speechVal < 0.001) speechVal = 0;
           shared.uSpeech.value = speechVal;
-
-          sharpMat.uniforms.uGain.value = THREE.MathUtils.lerp(
-            sharpMat.uniforms.uGain.value,
-            targetGain,
-            0.15
-          );
+          if (sharpMat) sharpMat.uniforms.uGain.value = THREE.MathUtils.lerp(sharpMat.uniforms.uGain.value, targetGain, 0.15);
         }
-
         const renderStart = performance.now();
         renderer.render(scene, camera);
         const renderMs = performance.now() - renderStart;
-
         frameCount++;
         if (now - lastFpsTime >= 1000) {
-          const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
-          frameCount = 0;
-          lastFpsTime = now;
-          props.current.onStats?.({
-            fps,
-            tier: 'ULTRA',
-            renderMs: Math.round(renderMs * 10) / 10,
-            particles: layers.totalCount + N,
-          });
+          const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+          frameCount = 0; lastFpsTime = now;
+          props.current.onStats?.({ fps, tier: profile.tier, renderMs: Math.round(renderMs * 10) / 10, particles: totalParticleCount });
         }
-
         raf = requestAnimationFrame(loop);
       };
       const handleVisibilityChange = () => {
-        if (document.hidden) {
-          if (raf) cancelAnimationFrame(raf);
-          raf = 0;
-          return;
-        }
-        if (!raf) {
-          last = performance.now();
-          lastFpsTime = last;
-          raf = requestAnimationFrame(loop);
-        }
+        if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = 0; return; }
+        if (!raf) { last = performance.now(); lastFpsTime = last; raf = requestAnimationFrame(loop); }
+      };
+      const handleContextLost = (event: Event) => {
+        event.preventDefault();
+        props.current.onError?.('شتاب‌دهنده گرافیکی مرورگر متوقف شد؛ فورزا در حالت سبک ادامه می‌دهد.');
+        if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
       if (!document.hidden) loop();
 
       api.current = {
-        reform: () => {
-          shared.uProgress.value = 0;
-        },
-        burst: () => {
-          burst = 1.35;
-        },
+        reform: () => { shared.uProgress.value = 0; formationReported = false; },
+        burst: () => { burst = 1.35; },
         snap: () => {
-          try {
-            const a = document.createElement('a');
-            a.download = 'forza-ai-particles.png';
-            a.href = renderer.domElement.toDataURL('image/png');
-            a.click();
-          } catch (e) {
-            console.error('Snap download failed:', e);
-          }
+          try { const a = document.createElement('a'); a.download = 'forza-ai-particles.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
+          catch (e) { console.error('Snap download failed:', e); }
         },
-        seek: (seconds: number) => {
-          t = Math.max(0, seconds);
-          shared.uTime.value = t;
-        },
-        getStats: () => ({
-          time: t,
-          particles: layers.totalCount + N,
-          backgroundParticles: N,
-          width: el.clientWidth,
-          height: el.clientHeight,
-          frames: frameCount,
-        }),
+        seek: (seconds: number) => { t = Math.max(0, seconds); shared.uTime.value = t; },
+        getStats: () => ({ time: t, particles: totalParticleCount, backgroundParticles: N, width: el.clientWidth, height: el.clientHeight, frames: frameCount }),
       };
 
+      const loadSilhouette = async () => {
+        try {
+          const { W, H, B64 } = await import('./pixels');
+          if (cancelled) return;
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          if (cancelled) return;
+          const built = buildLayers(decode(B64), W, H, qualityMode);
+          if (cancelled) return;
+          const uniforms = shared as Record<string, { value: any }>;
+          const glow = makePoints(built.glow, uniforms, (WORLD_W / W) * 4 * 3, 0.1, 1);
+          const sharp = makePoints(built.sharp, uniforms, (WORLD_W / W) * 0.75, 1.55, 0.7);
+          glowPts = glow.pts; glowMat = glow.mat; sharpPts = sharp.pts; sharpMat = sharp.mat;
+          scene.add(glowPts, sharpPts);
+          worldH = WORLD_W * H / W;
+          totalParticleCount = built.totalCount + N;
+          resize();
+          formationReady = true;
+        } catch (error: any) {
+          if (cancelled) return;
+          console.warn('[FORZA_PARTICLES] source_load_failed', error?.name || 'load_error');
+          props.current.onError?.('بارگذاری تصویر پایه ذرات فورزا انجام نشد؛ حالت گرافیکی سبک فعال شد.');
+          if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
+        }
+      };
+      void loadSilhouette();
+
       return () => {
+        cancelled = true;
         if (raf) cancelAnimationFrame(raf);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
         window.removeEventListener('resize', resize);
-        glowPts.geometry.dispose();
-        sharpPts.geometry.dispose();
-        eg.dispose();
-        scene.clear();
-        renderer.dispose();
-        glowMat.dispose();
-        sharpMat.dispose();
-        emberMat.dispose();
+        glowPts?.geometry.dispose(); sharpPts?.geometry.dispose(); eg.dispose();
+        scene.clear(); renderer.dispose(); glowMat?.dispose(); sharpMat?.dispose(); emberMat.dispose();
         el.innerHTML = '';
       };
     }, [quality]);
@@ -597,8 +484,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
     return (
       <div
         ref={mount}
-        className={`avatar-surface absolute inset-0 w-full h-full overflow-hidden bg-[#080402] ${className}`}
-        style={{ background: '#080402' }}
+        className={`avatar-surface absolute inset-0 w-full h-full overflow-hidden ${className}`}
       />
     );
   }
