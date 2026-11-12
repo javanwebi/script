@@ -25,12 +25,63 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(14, 84, 111, .20), transparent 34%),
+    radial-gradient(ellipse at 50% 58%, rgba(224, 101, 24, .12), transparent 48%),
+    linear-gradient(145deg, #090604 0%, #080b0e 52%, #080402 100%);
+}
+
+.avatar-surface::before,
+.forza-avatar-fallback::before,
+.forza-entry-fallback::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(52, 193, 231, .22) 0 1px, transparent 2px),
+    radial-gradient(circle at 46% 54%, rgba(224, 101, 24, .18) 0 1px, transparent 2px);
+  background-size: 31px 31px, 47px 47px;
+  mask-image: radial-gradient(ellipse at center, #000 0%, transparent 68%);
+  opacity: .38;
+  animation: forza-particle-drift 18s linear infinite;
+}
+
+.avatar-surface::after,
+.forza-avatar-fallback::after,
+.forza-entry-fallback::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(48vw, 560px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(53, 184, 222, .12);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 80px rgba(15, 115, 148, .10), inset 0 0 70px rgba(224, 101, 24, .06);
+  pointer-events: none;
+  animation: forza-fallback-pulse 4s ease-in-out infinite;
 }
 
 .avatar-surface canvas {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: block;
+  background: transparent;
+}
+
+@keyframes forza-particle-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 93px -62px, -94px 47px; }
+}
+
+@keyframes forza-fallback-pulse {
+  0%, 100% { opacity: .35; scale: .96; }
+  50% { opacity: .85; scale: 1.04; }
 }
 
 /* HUD Overlay: pure CSS, virtually zero overhead */
@@ -520,12 +571,46 @@
 }
 
 
-/* Fast call entry fallback and one-card live transcript. */
-.forza-avatar-fallback {
+/* Fast call entry fallback: never expose an empty black screen while
+   the Three.js chunk and 1.68 MB particle silhouette are loading. */
+.forza-avatar-fallback,
+.forza-entry-fallback {
   position: absolute;
   inset: 0;
-  background: #080402;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: rgba(220, 240, 247, .78);
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(14, 84, 111, .20), transparent 34%),
+    radial-gradient(ellipse at 50% 58%, rgba(224, 101, 24, .12), transparent 48%),
+    linear-gradient(145deg, #090604 0%, #080b0e 52%, #080402 100%);
   pointer-events: none;
+}
+
+.forza-entry-fallback__label {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border: 1px solid rgba(57, 183, 219, .24);
+  border-radius: 999px;
+  background: rgba(4, 9, 12, .72);
+  color: rgba(224, 241, 247, .78);
+  font: 600 12px/1.6 'Vazirmatn', Tahoma, sans-serif;
+  letter-spacing: 0;
+  box-shadow: 0 0 32px rgba(15, 115, 148, .12);
+}
+
+.forza-entry-fallback__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e06518;
+  box-shadow: 0 0 12px rgba(224, 101, 24, .9);
+  animation: forza-fallback-pulse 1.2s ease-in-out infinite;
 }
 .forza-message-card {
   width: 100%;
