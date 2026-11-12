@@ -23,6 +23,8 @@ test('FORZA voice and its alias use lean runtime and never remount during hydrat
   assert.equal(shouldRequestFullCatalogOnBoot('/admin/catalog'),false);
   const main=readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');
   assert.match(main,/includeProducts:shouldRequestFullCatalogOnBoot\(window\.location\.pathname\)/);
+  const portal=readFileSync(new URL('../src/services/portalRepository.ts',import.meta.url),'utf8');
+  assert.match(portal,/includeProducts=shouldRequestFullCatalogOnBoot\(pathname\)/);
 });
 
 test('FORZA renders live SSE words and sends complete Nima word groups to the existing private voice',()=>{
