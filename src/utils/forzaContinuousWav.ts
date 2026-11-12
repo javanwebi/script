@@ -67,8 +67,12 @@ export class ForzaContinuousWav {
     if(!this.analyser || this.meterTimer!==null)return;
     const samples=new Float32Array(this.analyser.fftSize);
     this.meterTimer=setInterval(()=>{
-      if(this.closed || !this.sources.size || ctx.state!=='running'){
+      if(this.closed || !this.sources.size){
         this.stopMeter();
+        return;
+      }
+      if(ctx.state!=='running'){
+        this.onAudioLevel?.(0);
         return;
       }
       const analyser=this.analyser;
