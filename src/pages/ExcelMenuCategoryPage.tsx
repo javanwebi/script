@@ -87,19 +87,32 @@ const getCategoryArtwork = (category: MenuCategory): string | undefined => {
 const matchesSelection = (family: MenuFamily, selection: string) =>
   !selection || family.submenu === selection || family.leaf === selection;
 
-const hasCatalogImage = (product?: Product) => Boolean(product && (
-  product.images?.some(Boolean) ||
-  product.image ||
-  product.galleryImages?.some(image => Boolean(image.url)) ||
-  product.variants?.some(variant => variant.images?.some(Boolean))
-));
+function productPreview(product?: Product) {
+  if (!product) return undefined;
+  const familyGalleryImage = product.galleryImages?.find(image => image.scope === 'family' && image.url);
+  if (familyGalleryImage) return { url: familyGalleryImage.url, scope: 'family' as const };
+  const canUseLegacyFamilyImage = !product.galleryImages?.length &&
+    product.imageScope !== 'sku-verified' && product.imageScope !== 'mixed';
+  const legacyFamilyImage = canUseLegacyFamilyImage
+    ? product.images?.find(Boolean) || product.image
+    : undefined;
+  if (legacyFamilyImage) return { url: legacyFamilyImage, scope: 'family' as const };
+  const galleryVariantImage = product.galleryImages?.find(image => image.scope === 'variant' && image.url);
+  if (galleryVariantImage) return {
+    url: galleryVariantImage.url,
+    scope: 'variant' as const,
+    variantCode: galleryVariantImage.variantCode,
+  };
+  const skuVariantWithImage = product.variants?.find(variant => variant.images?.some(Boolean));
+  const skuImage = skuVariantWithImage?.images?.find(Boolean);
+  return skuImage ? {
+    url: skuImage,
+    scope: 'variant' as const,
+    variantCode: skuVariantWithImage?.code,
+  } : undefined;
+}
 
-const productPreviewImage = (product?: Product) =>
-  product?.images?.find(Boolean) ||
-  product?.image ||
-  product?.galleryImages?.find(image => image.scope === 'family')?.url ||
-  product?.galleryImages?.find(image => image.url)?.url ||
-  product?.variants?.find(variant => variant.images?.some(Boolean))?.images?.find(Boolean);
+const hasCatalogImage = (product?: Product) => Boolean(productPreview(product));
 
 const normalizeSpecValue = (value: string) =>
   normalizeSearch(value).replace(/[×*]/g, 'x').replace(/\s+/g, '').replace(/,/g, '.');
@@ -333,7 +346,11 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const activeFilterCount = selectedBrands.length + Number(inStockOnly) + Number(imageOnly) + Number(Boolean(selection)) + Number(Boolean(specKey || specValue));
   const featuredFamily = families.find(family => hasCatalogImage(products.get(family.code)));
   const featuredProduct = featuredFamily ? products.get(featuredFamily.code) : undefined;
-  const featuredImage = productPreviewImage(featuredProduct);
+  const featuredPreview = productPreview(featuredProduct);
+  const featuredImage = featuredPreview?.url;
+  const featuredImageLabel = featuredPreview?.variantCode
+    ? `نمونه تصویر کد ${featuredPreview.variantCode}`
+    : 'نمونه تصویر یک کد فنی';
 
   const compareFamilies = compareCodes
     .map(code => families.find(family => family.code === code))
@@ -469,8 +486,6 @@ export const ExcelMenuCategoryPage: React.FC = () => {
           </div>
         </section>
 
-        <DirectSkuProducts categorySlug={slug} selectedSub={selection || 'all'} />
-
         <section className="excel-category-toolbar" aria-label="جستجو و مرتب‌سازی خانواده‌ها">
           <label className="excel-category-search">
             <Search size={18} />
@@ -570,11 +585,9 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               <div className="excel-category-product-grid">
                 {pageFamilies.map(family => {
                   const product = products.get(family.code);
-                  const previewImage = productPreviewImage(product);
-                  const cardProduct = product ? {
-                    ...product,
-                    images: product.images?.some(Boolean) ? product.images : previewImage ? [previewImage] : [],
-                  } : undefined;
+                  // ProductCard resolves family and SKU-scoped images itself so
+                  // a variant image can never silently masquerade as a family image.
+                  const cardProduct = product;
                   const selected = isSelectedForCompare(family.code);
                   return (
                     <div className="excel-category-product-shell" key={family.code}>
@@ -617,7 +630,15 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               <>
                 <span className="excel-category-featured-eyebrow"><CheckCircle2 size={14} /> نمونه از کاتالوگ این گروه</span>
                 <div className="excel-category-featured-image">
-                  <ProductImage src={featuredImage} alt={featuredProduct.name} loading="lazy" decoding="async" />
+                  <ProductImage
+                    src={featuredImage}
+                    alt={featuredPreview?.scope === 'variant' ? `${featuredProduct.name} — ${featuredImageLabel}` : featuredProduct.name}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {featuredPreview?.scope === 'variant' && (
+                    <span className="excel-category-featured-image-scope">{featuredImageLabel}</span>
+                  )}
                 </div>
                 <span className="excel-category-featured-brand">{featuredFamily.brand || 'قطعه صنعتی'}</span>
                 <h3>{featuredFamily.name}</h3>
@@ -640,6 +661,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
             </div>
           </aside>
         </div>
+
+        <DirectSkuProducts categorySlug={slug} selectedSub={selection || 'all'} />
       </div>
 
       {compareCodes.length > 0 && (

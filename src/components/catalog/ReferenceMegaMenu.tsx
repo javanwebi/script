@@ -293,9 +293,14 @@ export function ReferenceMegaMenu({
             </div>
           )}
         </div>
-        <Link className="reference-menu-all-categories" to="/categories" onClick={onNavigate}>
-          همه دسته‌بندی‌ها <ArrowLeft size={15} />
-        </Link>
+        <div className="reference-menu-rail-actions">
+          <Link className="reference-menu-all-products" to="/products" onClick={onNavigate}>
+            کاتالوگ همه محصولات <ArrowLeft size={15} />
+          </Link>
+          <Link className="reference-menu-all-categories" to="/categories" onClick={onNavigate}>
+            همه دسته‌بندی‌ها <ArrowLeft size={15} />
+          </Link>
+        </div>
       </aside>
 
       <section className="reference-menu-main" aria-live="polite">

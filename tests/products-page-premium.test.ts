@@ -11,6 +11,8 @@ test('products page keeps its canonical route and the homepage/customer panels r
   assert.match(routes, /<Route path="\/" element={<HomePage \/>} \/>/);
   assert.match(routes, /path="\/consumer-dashboard/);
   assert.match(routes, /path="\/account/);
+  assert.match(routes, /path="\/catalog"[\s\S]*?Navigate to="\/products"/);
+  assert.match(routes, /<Route path="\/knowledge" element={<KnowledgePage \/>} \/>/);
 });
 
 test('catalogue hero uses an existing industrial asset and real catalogue counts', () => {
@@ -41,11 +43,16 @@ test('mobile filter sheet exposes a modal dialog, escape handling and focus cont
   assert.match(page, /document\.body\.style\.overflow = "hidden"/);
 });
 
-test('category controls expose selected state and use local category artwork where available', () => {
-  assert.match(page, /aria-pressed=\{isSelected\}/);
-  assert.match(page, /getManagedCategories\(\)/);
+test('all-products quick links use only approved Excel categories and open the canonical category route', () => {
+  assert.match(page, /getManagedCategories\(\)[\s\S]*?category\.active !== false && \/\^excel-v2-\[0-9\]\+-\[0-9\]\+\$\//);
+  assert.match(page, /to=\{\`\/category\/\$\{encodeURIComponent\(cat\.slug\)\}\`\}/);
+  assert.match(page, /navigate\(\`\/category\/\$\{encodeURIComponent\(categoryParam\)\}/);
+  assert.match(page, /\["sub", "q", "brand", "stock", "image", "sort"\]/);
+  assert.match(page, /searchParams\.getAll\(key\)/);
+  assert.match(page, /to="\/categories" className="catalogue-all-categories-link"/);
   assert.match(page, /cat\.image \|\| CATEGORY_ARTWORK\[cat\.name\]/);
   assert.match(page, /loading="lazy" decoding="async"/);
+  assert.doesNotMatch(page, /aria-pressed=\{isSelected\}/);
 });
 
 test('catalogue styling has deliberate desktop, tablet, mobile and reduced-motion rules', () => {

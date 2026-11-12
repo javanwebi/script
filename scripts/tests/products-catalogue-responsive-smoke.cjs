@@ -6,6 +6,19 @@ const { chromium } = require('playwright');
 const baseUrl = process.env.PRODUCTS_PREVIEW_URL || 'http://127.0.0.1:4173';
 const categorySlug = 'بلبرینگ-و-یاتاقان';
 const categoryName = 'بلبرینگ و یاتاقان';
+const approvedCategorySlug = 'excel-v2-13-1';
+const approvedCategory = {
+  slug: approvedCategorySlug,
+  name: categoryName,
+  description: 'خانواده‌ها و کدهای فنی بلبرینگ و یاتاقان.',
+  image: null,
+  children: [{ name: 'بلبرینگ', children: [{ name: 'بلبرینگ شیار عمیق' }] }],
+};
+const assignedFamilies = [
+  { code: 'TEST-BRG-001', name: 'بلبرینگ آزمایشی شیار عمیق 6205', brand: 'Test Bearing', submenu: 'بلبرینگ', leaf: 'بلبرینگ شیار عمیق', skuCount: 1 },
+  { code: 'TEST-BRG-002', name: 'بلبرینگ آزمایشی شیار عمیق 6206', brand: 'Test Bearing', submenu: 'بلبرینگ', leaf: 'بلبرینگ شیار عمیق', skuCount: 1 },
+  { code: 'TEST-BRG-003', name: 'یاتاقان آزمایشی صنعتی', brand: 'Test Motion', submenu: 'یاتاقان', leaf: 'یاتاقان', skuCount: 1 },
+];
 const products = [
   {
     code: 'TEST-BRG-001',
@@ -71,6 +84,19 @@ const products = [
     active: true,
   },
 ];
+const directSku = {
+  skuCode: 'SKU-BRG-001',
+  name: 'کد مستقل بلبرینگ آزمایشی',
+  categorySlug: approvedCategorySlug,
+  categoryName,
+  submenu: 'بلبرینگ',
+  subcategory: 'بلبرینگ شیار عمیق',
+  brand: 'Standalone Brand',
+  imageUrl: null,
+  technicalSpecs: [{ key: 'قطر داخلی', value: '25 mm' }],
+  priceSnapshot: {},
+  active: true,
+};
 const runtimeFixture = {
   success: true,
   database: true,
@@ -78,7 +104,7 @@ const runtimeFixture = {
   values: {
     atlas_admin_categories_v1: [{
       id: 1,
-      slug: categorySlug,
+      slug: approvedCategorySlug,
       name: categoryName,
       nameEn: 'Bearings & Bushings',
       description: 'بلبرینگ و یاتاقان',
@@ -123,6 +149,12 @@ const viewports = [
         if (url.includes('/api/runtime')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(runtimeFixture) });
         }
+        if (url.includes('/api/catalog/menu-category/')) {
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, category: approvedCategory, families: assignedFamilies }) });
+        }
+        if (url.includes('/api/catalog/direct-skus')) {
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: [directSku] }) });
+        }
         if (url.includes('/api/catalog/overrides')) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) });
         }
@@ -163,10 +195,16 @@ const viewports = [
       assert.equal(await page.locator('.store-product-card').count(), products.length, 'clearing search should restore the result set');
 
       const categoryTile = page.locator('.catalogue-category-tile:not(.catalogue-category-tile--all)').first();
+      assert.equal(await categoryTile.getAttribute('href'), '/category/' + approvedCategorySlug, 'approved category quick links should use the canonical assigned-family route');
       await categoryTile.click();
-      assert.ok(new URL(page.url()).searchParams.has('category'), 'category selection should be linkable');
-      assert.equal(await page.locator('.store-product-card').count(), products.length, 'the selected category should retain its products');
-      await page.locator('.catalogue-category-tile--all').click();
+      await page.locator('.excel-category-page').waitFor();
+      await page.getByRole('heading', { name: categoryName }).waitFor();
+      assert.ok(page.url().endsWith('/category/' + approvedCategorySlug), 'category tile should open the approved category page');
+      assert.ok(await page.locator('.excel-category-product-shell .store-product-card').count() > 0, 'category route should render assigned real families');
+      await page.goBack({ waitUntil: 'domcontentloaded' });
+      await page.locator('.catalogue-premium-page').waitFor();
+      await page.locator('.store-product-card').first().waitFor();
+      assert.equal(await page.locator('.store-product-card').count(), products.length, 'returning from a category should restore the all-products catalogue');
 
       if (viewport.width <= 640) {
         const filterTrigger = page.locator('.catalogue-mobile-filter-trigger');
@@ -233,6 +271,24 @@ const viewports = [
 
       const productHref = await page.locator('.store-product-title').first().getAttribute('href');
       assert.equal(productHref, '/product/TEST-BRG-001', 'product card should retain the canonical product detail destination');
+
+      await page.goto(baseUrl + '/products', { waitUntil: 'domcontentloaded' });
+      await page.locator('.direct-sku-product-card').first().waitFor();
+      assert.equal(await page.locator('.direct-sku-product-card').first().getAttribute('href'), '/direct-product/SKU-BRG-001', 'all-products catalogue should include standalone SKU detail routes');
+      if (viewport.width <= 640) {
+        await page.locator('.catalogue-mobile-filter-trigger').click();
+        assert.equal(await page.locator('.catalogue-filter-sheet select option[value="Standalone Brand"]').count(), 1, 'mobile brand filter should include brands found only on standalone SKUs');
+        await page.locator('.catalogue-sheet-clear').click();
+        await page.locator('.catalogue-sheet-apply').click();
+      } else {
+        assert.equal(await page.locator('.catalogue-filter-brand select option[value="Standalone Brand"]').count(), 1, 'desktop brand filter should include brands found only on standalone SKUs');
+      }
+
+      await page.goto(baseUrl + '/search?q=SKU-BRG-001', { waitUntil: 'domcontentloaded' });
+      await page.locator('.direct-sku-product-card').first().waitFor();
+      assert.equal(await page.locator('.store-product-card').count(), 0, 'search should not fabricate a family match for a standalone SKU');
+      assert.equal(await page.locator('.direct-sku-product-card').count(), 1, 'search should include standalone SKU records');
+      assert.equal(await page.locator('.direct-sku-product-card').first().getAttribute('href'), '/direct-product/SKU-BRG-001', 'standalone SKU search result should open its direct detail route');
 
       await page.screenshot({
         path: '/tmp/products-catalogue-' + viewport.width + 'x' + viewport.height + '.png',

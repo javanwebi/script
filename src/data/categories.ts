@@ -5,7 +5,7 @@ import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProduct
 
 export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
-  children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
+  children: CategoryNode[]; image?: string; sortOrder?: number; topModels?: string[]; brands?: string[]; featuredBadge?: string;
   /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
   familyCount?: number; skuCount?: number;
 }

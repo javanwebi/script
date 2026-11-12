@@ -194,9 +194,10 @@ export default function App() {
                       path="/knowledge/:slug"
                       element={<KnowledgePage />}
                     />
+                    {/* Legacy product-catalog alias; knowledge remains at /knowledge. */}
                     <Route
                       path="/catalog"
-                      element={<Navigate to="/knowledge" replace />}
+                      element={<Navigate to="/products" replace />}
                     />
                     <Route
                       path="/consumer-dashboard/product/:code"

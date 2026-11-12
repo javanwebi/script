@@ -11,10 +11,11 @@ import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
+import { isDatabaseCatalogHydrated } from '../services/durableStorage';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
-import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
+import { findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
 import { getProductsByCategory } from '../data/mockGenerator';
@@ -78,8 +79,26 @@ const PulleyCategoryRoute: React.FC = () => {
 
 const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [catalogVersion, setCatalogVersion] = useState(0);
+  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
 
-  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
+  useEffect(() => {
+    const refresh = () => {
+      setCatalogVersion(version => version + 1);
+      setCatalogReady(isDatabaseCatalogHydrated());
+    };
+    const unsubscribe = subscribeCatalogChanges(refresh);
+    window.addEventListener('atlas-categories-updated', refresh);
+    window.addEventListener('atlas-catalog-updated', refresh);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('atlas-categories-updated', refresh);
+      window.removeEventListener('atlas-catalog-updated', refresh);
+    };
+  }, []);
+
+  const category = useMemo(() => findCatalogCategory(slug || ''), [slug, catalogVersion]);
+  const categorySlug = category?.slug || slug || '';
   const [searchParams, setSearchParams] = useSearchParams();
   const subParam = searchParams.get('sub') || 'all';
 
@@ -104,8 +123,8 @@ const LegacyCategoryPage: React.FC = () => {
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [mobileFiltersOpen]);
-  const isBeltCategory = category.name === 'تسمه و انتقال نیرو';
-  const isClassicBelt = category.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
+  const isBeltCategory = category?.name === 'تسمه و انتقال نیرو';
+  const isClassicBelt = category?.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
   const beltProfiles = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'];
   const beltLength = (product: { technicalSpecs: {key:string;value:string}[] }): number | null => {
     const entry = product.technicalSpecs?.find(spec => /طول|length/i.test(spec.key));
@@ -118,16 +137,17 @@ const LegacyCategoryPage: React.FC = () => {
   };
   const [inStockOnly, setInStockOnly] = useState(false);
   const [inquiryOnlyFilter, setInquiryOnlyFilter] = useState(false);
-  const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'code'>('default');
+  const [sortBy, setSortBy] = useState<'default' | 'code'>('default');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
   const productsSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!category) return;
     setSelectedSubcat(subParam);
     setSelectedProfile('all');
     setPage(1);
-  }, [category.slug, subParam]);
+  }, [category?.slug, subParam]);
   const selectSubcategory = (name: string) => {
     const params = new URLSearchParams(searchParams);
     if (name === 'all') params.delete('sub');
@@ -141,8 +161,8 @@ const LegacyCategoryPage: React.FC = () => {
   };
 
   const rawData = useMemo(() => {
-    return getProductsByCategory(category.slug, 1000, 0);
-  }, [category.slug]);
+    return category ? getProductsByCategory(category.slug, 1000, 0) : { products: [] };
+  }, [categorySlug, catalogVersion]);
 
   // Extract unique brands for filtering
   const availableBrands = useMemo(() => {
@@ -168,7 +188,7 @@ const LegacyCategoryPage: React.FC = () => {
     }
 
     if (selectedSubcat !== 'all') {
-      list = list.filter(p => matchesCatalogCategory(p, category.slug, selectedSubcat));
+      list = list.filter(p => matchesCatalogCategory(p, categorySlug, selectedSubcat));
     }
     if (isClassicBelt && selectedProfile !== 'all') {
       const pattern = new RegExp('^' + selectedProfile + '[-\\s]?\\d', 'i');
@@ -187,22 +207,18 @@ const LegacyCategoryPage: React.FC = () => {
       list = list.filter(p => p.brand === selectedBrand);
     }
     if (inStockOnly) {
-      list = list.filter(p => p.stock > 0 && !p.inquiryOnly);
+      list = list.filter(p => p.stockKnown === true && p.stock > 0 && !p.inquiryOnly);
     }
     if (inquiryOnlyFilter) {
       list = list.filter(p => p.inquiryOnly);
     }
 
-    if (sortBy === 'price_asc') {
-      list.sort((a, b) => a.prices.retail - b.prices.retail);
-    } else if (sortBy === 'price_desc') {
-      list.sort((a, b) => b.prices.retail - a.prices.retail);
-    } else if (sortBy === 'code') {
+    if (sortBy === 'code') {
       list.sort((a, b) => a.code.localeCompare(b.code));
     }
 
     return list;
-  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
+  }, [rawData, categorySlug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
 
   const paginated = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
@@ -223,9 +239,35 @@ const LegacyCategoryPage: React.FC = () => {
 
   const hasActiveFilters = searchQuery !== '' || selectedSubcat !== 'all' || selectedBrand !== 'all' || selectedBrands.length > 0 || inStockOnly || inquiryOnlyFilter || selectedProfile !== 'all' || minLength !== '' || maxLength !== '';
 
+  if (!catalogReady) {
+    return (
+      <main className="category-showcase min-h-[50vh] flex items-center justify-center" dir="rtl">
+        <div className="rounded-2xl border border-slate-200 bg-white px-8 py-10 text-center" role="status" aria-live="polite">
+          <span className="mx-auto mb-3 block h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#E06518]" />
+          <strong className="text-sm text-slate-700">در حال دریافت دسته‌بندی و کاتالوگ...</strong>
+        </div>
+      </main>
+    );
+  }
+
+  if (!category) {
+    return (
+      <main className="min-h-[55vh] bg-[#f7f8fa] px-4 py-16" dir="rtl">
+        <section className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <Package className="mx-auto mb-4 h-10 w-10 text-[#E06518]" />
+          <h1 className="text-xl font-black text-slate-800">این دسته‌بندی در کاتالوگ فعال نیست</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-500">ممکن است نشانی قدیمی باشد یا این دسته از کاتالوگ فعال خارج شده باشد. از فهرست رسمی دسته‌بندی‌ها مسیر درست را انتخاب کنید.</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link to="/categories" className="rounded-xl bg-[#E06518] px-5 py-3 text-sm font-bold text-white">مشاهده دسته‌بندی‌ها</Link>
+            <Link to="/products" className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700">مشاهده همه محصولات</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="category-showcase space-y-8 text-right pb-16" dir="rtl">
-      <DirectSkuProducts categorySlug={category.slug} selectedSub={selectedSubcat}/>
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
         <Link to="/" className="hover:text-[#E06518] transition-colors">
@@ -484,7 +526,7 @@ const LegacyCategoryPage: React.FC = () => {
 
         {/* Product Grid Column */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="category-product-headline"><div><strong>انتخاب قطعات انتقال نیرو</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
+          <div className="category-product-headline"><div><strong>محصولات {category.name}</strong><p>خانواده‌ها، کدهای فنی و مشخصات مرتبط با {category.name} در کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
           <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
             <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
@@ -567,6 +609,7 @@ const LegacyCategoryPage: React.FC = () => {
           )}
         </div>
       </div>
+      <DirectSkuProducts categorySlug={category.slug} selectedSub={selectedSubcat}/>
       {isBeltCategory && (
         <>
           <section className="category-showcase-guide rounded-2xl bg-[#fff8f3] p-6 md:p-9">

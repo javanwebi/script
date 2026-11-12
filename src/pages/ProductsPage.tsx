@@ -1,5 +1,6 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
+import { DirectSkuProducts, useDirectSkus } from "../components/catalog/DirectSkuProducts";
 import {
   matchesProductSearch,
   CATALOGUE_SKU_COUNT,
@@ -84,6 +85,7 @@ export const ProductsPage: React.FC = () => {
   const { currentUser, openAuthModal } = useAuth();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const directSkus = useDirectSkus();
 
   // URL-driven or local state
   const categoryParam = resolveCategorySlug(
@@ -163,8 +165,13 @@ export const ProductsPage: React.FC = () => {
     };
   }, [mobileFiltersOpen]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  // The all-products page only exposes the approved Excel taxonomy as category
+  // destinations. Legacy categories remain routable for old URLs but are not
+  // mixed into this rail, where their IDs do not match the approved assignments.
   const managedCategories = useMemo(
-    () => getManagedCategories().filter((category) => category.active !== false),
+    () => getManagedCategories()
+      .filter(category => category.active !== false && /^excel-v2-[0-9]+-[0-9]+$/.test(category.slug))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
     [catalogVersion],
   );
 
@@ -184,6 +191,18 @@ export const ProductsPage: React.FC = () => {
     setCurrentPage(1);
   }, [categoryParam, subParam, queryParam, brandParam, stockParam, imageParam]);
 
+  // Approved Excel categories have their own family-assignment page. Never
+  // filter the legacy product.categorySlug field with an Excel category ID.
+  useEffect(() => {
+    if (!/^excel-v2-[0-9]+-[0-9]+$/.test(categoryParam)) return;
+    const destinationParams = new URLSearchParams();
+    ["sub", "q", "brand", "stock", "image", "sort"].forEach(key => {
+      searchParams.getAll(key).forEach(value => destinationParams.append(key, value));
+    });
+    const query = destinationParams.toString();
+    navigate(`/category/${encodeURIComponent(categoryParam)}${query ? `?${query}` : ""}`, { replace: true });
+  }, [categoryParam, searchParams, navigate]);
+
   // Legacy category-query URLs for belts should land on the dedicated, canonical belt page.
   useEffect(() => {
     if (categoryParam !== BELT_CATEGORY_SLUG) return;
@@ -197,9 +216,10 @@ export const ProductsPage: React.FC = () => {
   // Available brands in the entire catalog
   const allBrands = useMemo(() => {
     const bSet = new Set<string>();
-    allProducts.forEach((p) => bSet.add(p.brand));
+    allProducts.forEach((p) => { if (p.brand) bSet.add(p.brand); });
+    directSkus.forEach((item) => { if (item.brand) bSet.add(item.brand); });
     return Array.from(bSet).sort();
-  }, [allProducts]);
+  }, [allProducts, directSkus]);
 
   // Active category object
   const activeCategoryObj = useMemo(() => {
@@ -380,8 +400,8 @@ export const ProductsPage: React.FC = () => {
             صفحه اصلی
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-800 font-bold">
-            محصولات و کاتالوگ صنعتی
+          <span className="text-slate-800 font-bold" aria-current="page">
+            همه محصولات
           </span>
           {activeCategoryObj && (
             <>
@@ -423,7 +443,10 @@ export const ProductsPage: React.FC = () => {
 
         {/* Minimal Category Selector Tabs */}
         <section className="catalogue-category-rail">
-          <div className="catalogue-section-heading"><div><span>دسته‌بندی کاتالوگ</span><h2>از کدام گروه شروع می‌کنید؟</h2></div><small>انتخاب دسته، فهرست کالاها را محدود می‌کند</small></div>
+          <div className="catalogue-section-heading">
+            <div><span>مسیرهای رسمی کاتالوگ</span><h2>ورود به دسته‌بندی تخصصی</h2></div>
+            <Link to="/categories" className="catalogue-all-categories-link">مشاهده همه دسته‌بندی‌ها <ChevronLeft size={15}/></Link>
+          </div>
           <div
             className="catalogue-category-track flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none"
             style={{ scrollbarWidth: "none" }}
@@ -445,30 +468,23 @@ export const ProductsPage: React.FC = () => {
             </button>
 
             {managedCategories.map((cat) => {
-              const isSelected = selectedCategory === cat.slug;
-              const icon = CATEGORY_ICONS[cat.name] || (
-                <Layers className="w-4 h-4" />
-              );
+              const icon = CATEGORY_ICONS[cat.name] || <Layers className="w-4 h-4" />;
               const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
               return (
-                <button
+                <Link
                   key={cat.slug}
-                  onClick={() => handleCategorySelect(cat.slug)}
-                  aria-pressed={isSelected}
-                  className={`catalogue-category-tile flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-orange-500 text-white shadow-md"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
+                  to={`/category/${encodeURIComponent(cat.slug)}`}
+                  aria-label={`مشاهده محصولات دسته ${cat.name}`}
+                  className="catalogue-category-tile flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-700"
                 >
                   <span className="catalogue-category-art">
                     {artwork ? <img src={artwork} alt="" loading="lazy" decoding="async" /> : icon}
                   </span>
                   <span className="catalogue-category-name">{cat.name}</span>
                   <span className="catalogue-category-count">
-                    {toPersianDigits(cat.count)}
+                    {toPersianDigits(cat.familyCount ?? cat.count)}
                   </span>
-                </button>
+                </Link>
               );
             })}
             {managedCategories.length === 0 && !catalogReady && (
@@ -713,7 +729,7 @@ export const ProductsPage: React.FC = () => {
             <span className="font-bold text-orange-600 font-mono">
               {toPersianDigits(filteredProducts.length)}
             </span>{" "}
-            کالا
+            خانواده
             {selectedCategory !== "all" && (
               <span>
                 {" "}
@@ -749,11 +765,10 @@ export const ProductsPage: React.FC = () => {
               <Package className="w-8 h-8" />
             </div>
             <h3 className="text-base font-black text-slate-800">
-              هیچ محصولی با معیارهای انتخابی شما یافت نشد
+              در میان خانواده‌های محصول نتیجه‌ای پیدا نشد
             </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              لطفاً فیلترها را تغییر داده یا واژه جستجوی دیگری را وارد کنید.
-              برای مشاهده همه محصولات دکمه زیر را لمس نمایید.
+              فیلترها را تغییر دهید یا جستجوی دیگری انجام دهید. کالاهای مستقلِ بدون خانواده در بخش جداگانه پایین صفحه و بر اساس فیلترهای قابل اعمال بررسی می‌شوند.
             </p>
             <button
               onClick={handleResetFilters}
@@ -856,6 +871,19 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        <DirectSkuProducts
+          items={directSkus}
+          categorySlug={selectedCategory === "all" || selectedCategory === "swr-forza-exclusive" ? "all" : selectedCategory}
+          selectedSub={selectedSubcategory}
+          searchQuery={searchQuery}
+          selectedBrand={selectedBrand}
+          imageOnly={hasCatalogueImageFilter}
+          inStockOnly={inStockOnly}
+          exclusiveBrandsOnly={selectedCategory === "swr-forza-exclusive"}
+          title="کالاهای مستقیم بدون خانواده"
+          description="این کالاها به‌صورت مستقل در کاتالوگ ثبت شده‌اند و بدون وابستگی به خانواده‌های محصول، صفحه مشخصات اختصاصی دارند."
+        />
       </div>
     </div>
   );

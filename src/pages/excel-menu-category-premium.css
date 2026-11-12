@@ -938,6 +938,7 @@
 }
 
 .excel-category-featured-image {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1.05;
@@ -946,6 +947,22 @@
   border: 1px solid #eee8e0;
   border-radius: 12px;
   background: #faf9f6;
+}
+.excel-category-featured-image-scope {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  max-width: calc(100% - 18px);
+  overflow: hidden;
+  padding: 5px 8px;
+  border: 1px solid rgba(224, 101, 24, .18);
+  border-radius: 8px;
+  color: #a84e17;
+  background: rgba(255, 250, 246, .95);
+  font-size: 9px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .excel-category-featured-image img {

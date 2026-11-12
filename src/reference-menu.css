@@ -573,3 +573,33 @@
     min-width: 42px;
   }
 }
+
+/* Separate the full product catalogue from the category directory. */
+.reference-menu-rail-actions {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 7px;
+  margin-top: 8px;
+}
+.reference-menu-rail-actions .reference-menu-all-categories {
+  margin-top: 0;
+}
+.reference-menu-all-products {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #e56b1e;
+  border-radius: 10px;
+  color: #fff !important;
+  background: #e56b1e;
+  font-size: 11px;
+  font-weight: 900;
+  transition: background .16s ease, border-color .16s ease;
+}
+.reference-menu-all-products:hover {
+  border-color: #c65310;
+  background: #c65310;
+}

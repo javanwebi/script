@@ -1221,3 +1221,38 @@
     grid-template-columns: 94px minmax(0, 1fr);
   }
 }
+
+.catalogue-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+.catalogue-all-categories-link {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid #ead5c6;
+  border-radius: 9px;
+  color: #b75518;
+  background: #fffaf6;
+  font-size: 10px;
+  font-weight: 850;
+}
+.catalogue-all-categories-link:hover {
+  border-color: #e56b1e;
+  background: #fff3e9;
+}
+@media (max-width: 520px) {
+  .catalogue-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .catalogue-all-categories-link {
+    align-self: flex-start;
+  }
+}

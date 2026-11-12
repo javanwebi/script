@@ -753,34 +753,51 @@ export const Header: React.FC = () => {
               }}
               onMouseLeave={() => setIsMegaMenuOpen(false)}
             >
-              <button
-                type="button"
-                aria-haspopup="true"
-                aria-expanded={isMegaMenuOpen}
-                onClick={() => {
-                  setIsMegaMenuOpen(true);
-                  setActiveDropdown(null);
-                }}
-                onMouseEnter={() => {
-                  setActiveDropdown(null);
-                  setIsMegaMenuOpen(true);
-                }}
-                onFocus={() => {
-                  setActiveDropdown(null);
-                  setIsMegaMenuOpen(true);
-                }}
-                className={`flex items-center gap-1.5 py-3 px-2 xl:px-2.5 whitespace-nowrap rounded-lg hover:bg-white/5 transition-colors cursor-pointer group ${
-                  isMegaMenuOpen ? 'text-[#E06518] bg-white/5' : 'text-white hover:text-[#E06518]'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4 text-[#E06518] shrink-0" />
-                <span className="font-bold">همه محصولات</span>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 group-hover:text-[#E06518] transition-transform duration-200 ${
-                    isMegaMenuOpen ? 'rotate-180 text-[#E06518]' : ''
-                  }`}
-                />
-              </button>
+              <div className={`flex items-center gap-0.5 py-2 px-2 xl:px-2.5 whitespace-nowrap rounded-lg hover:bg-white/5 transition-colors group ${
+                isMegaMenuOpen ? 'text-[#E06518] bg-white/5' : 'text-white hover:text-[#E06518]'
+              }`}>
+                <Link
+                  to="/products"
+                  onClick={() => {
+                    setIsMegaMenuOpen(false);
+                    setActiveDropdown(null);
+                  }}
+                  onFocus={() => {
+                    setActiveDropdown(null);
+                    setIsMegaMenuOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 py-1 font-bold"
+                  aria-label="مشاهده کاتالوگ همه محصولات"
+                >
+                  <LayoutGrid className="w-4 h-4 text-[#E06518] shrink-0" />
+                  <span>همه محصولات</span>
+                </Link>
+                <button
+                  type="button"
+                  aria-label="باز کردن دسته‌بندی محصولات"
+                  aria-haspopup="true"
+                  aria-expanded={isMegaMenuOpen}
+                  onClick={() => {
+                    setIsMegaMenuOpen(true);
+                    setActiveDropdown(null);
+                  }}
+                  onMouseEnter={() => {
+                    setActiveDropdown(null);
+                    setIsMegaMenuOpen(true);
+                  }}
+                  onFocus={() => {
+                    setActiveDropdown(null);
+                    setIsMegaMenuOpen(true);
+                  }}
+                  className="rounded-md p-1 text-slate-400 transition-colors hover:text-[#E06518]"
+                >
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                      isMegaMenuOpen ? 'rotate-180 text-[#E06518]' : ''
+                    }`}
+                  />
+                </button>
+              </div>
 
               {/* Industrial MegaMenu Dropdown */}
               {isMegaMenuOpen && <ReferenceMegaMenu topOffset={navBarRef.current?.getBoundingClientRect().bottom ?? 128} onNavigate={()=>setIsMegaMenuOpen(false)}/>}

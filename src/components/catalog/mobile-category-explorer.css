@@ -350,3 +350,40 @@
   .storefront .sanat-mobile-category-explorer *::before,
   .storefront .sanat-mobile-category-explorer *::after { transition:none!important;animation:none!important; }
 }
+
+/* Keep the full product catalogue and the category directory as separate destinations. */
+.storefront .sanat-mobile-category-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+.storefront .sanat-mobile-category-actions > a {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 0;
+  padding: 9px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  text-align: center;
+}
+.storefront .sanat-mobile-category-actions .sanat-mobile-category-products {
+  border: 1px solid #e56b1e;
+  color: #fff;
+  background: #e56b1e;
+}
+.storefront .sanat-mobile-category-actions .sanat-mobile-category-browse {
+  border: 1px solid #efc5a6;
+  color: #c15715;
+  background: #fff7f0;
+}
+@media (max-width: 375px) {
+  .storefront .sanat-mobile-category-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

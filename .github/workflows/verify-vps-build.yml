@@ -10,10 +10,28 @@ on:
       - "src/pages/BeltCategoryExperience.tsx"
       - "src/pages/BeltCategoryExperience.css"
       - "src/pages/ProductsPage.tsx"
+      - "src/pages/SearchPage.tsx"
       - "src/pages/products-page-premium.css"
+      - "src/pages/CategoryPage.tsx"
+      - "src/category-showcase.css"
+      - "src/components/product/ProductCard.tsx"
+      - "src/components/catalog/DirectSkuProducts.tsx"
+      - "src/components/layout/Header.tsx"
+      - "src/components/layout/Footer.tsx"
+      - "src/components/catalog/ReferenceMegaMenu.tsx"
+      - "src/components/catalog/MobileCategoryExplorer.tsx"
+      - "src/components/catalog/mobile-category-explorer.css"
+      - "src/reference-menu.css"
+      - "src/storefront.css"
+      - "src/data/categories.ts"
+      - "src/App.tsx"
       - "tests/products-page-premium.test.ts"
+      - "tests/customer-pricing-visibility.test.ts"
+      - "tests/storefront-product-route-integrity.test.ts"
       - "scripts/tests/products-catalogue-responsive-smoke.cjs"
+      - "scripts/tests/legacy-category-responsive-smoke.cjs"
       - "src/pages/ProductDetailPage.tsx"
+      - "server/catalogNavigationApi.ts"
       - "src/pages/product-detail-premium.css"
       - "tests/product-detail-premium.test.ts"
       - "scripts/tests/product-detail-responsive-smoke.cjs"
@@ -64,6 +82,8 @@ jobs:
         run: npm run lint
       - name: Products catalogue regression suite
         run: node --import tsx --test tests/products-page-premium.test.ts
+      - name: Storefront product route and category integrity
+        run: node --import tsx --test tests/storefront-product-route-integrity.test.ts tests/customer-pricing-visibility.test.ts
       - name: Product detail regression suite
         run: node --import tsx --test tests/product-detail-premium.test.ts
       - name: All categories regression suite
@@ -101,6 +121,8 @@ jobs:
         run: node scripts/tests/belt-category-responsive-smoke.cjs
       - name: Verify products catalogue desktop and mobile interactions
         run: node scripts/tests/products-catalogue-responsive-smoke.cjs
+      - name: Verify legacy category desktop and mobile interactions
+        run: node scripts/tests/legacy-category-responsive-smoke.cjs
       - name: Verify product detail desktop and mobile interactions
         run: node scripts/tests/product-detail-responsive-smoke.cjs
       - name: Verify all categories desktop and mobile interactions
@@ -116,6 +138,7 @@ jobs:
           path: |
             /tmp/belt-category-*.png
             /tmp/products-catalogue-*.png
+            /tmp/legacy-category-*.png
             /tmp/product-detail-*.png
             /tmp/all-categories-*.png
             /tmp/excel-category-*.png

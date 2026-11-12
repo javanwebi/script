@@ -15,6 +15,7 @@ import {
 } from "react-router-dom";
 import {
   getProductByCode,
+  getAllProducts,
   getSimilarProducts,
   buildDefaultGalleryImages,
   subscribeCatalogChanges,
@@ -106,6 +107,76 @@ export const ProductDetailPage: React.FC = () => {
         : undefined,
     [decodedCode, isPreviewMode, catalogTick],
   );
+
+  const [familyMenuRoute, setFamilyMenuRoute] = useState<{
+    familyCode: string;
+    assignment: { categorySlug: string; categoryName: string; submenu: string; leaf: string | null } | null;
+    relatedFamilyCodes: string[];
+    resolved: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!product?.code) {
+      setFamilyMenuRoute(null);
+      return;
+    }
+    const familyCode = product.code;
+    const controller = new AbortController();
+    setFamilyMenuRoute({ familyCode, assignment: null, relatedFamilyCodes: [], resolved: false });
+    fetch('/api/catalog/menu-family-route/' + encodeURIComponent(familyCode), {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (controller.signal.aborted) return;
+        const assignment = data?.success && data.assignment &&
+          typeof data.assignment.categorySlug === 'string'
+          ? data.assignment
+          : null;
+        setFamilyMenuRoute({
+          familyCode,
+          assignment,
+          relatedFamilyCodes: Array.isArray(data?.relatedFamilyCodes)
+            ? data.relatedFamilyCodes.filter((code: unknown): code is string => typeof code === 'string')
+            : [],
+          resolved: true,
+        });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFamilyMenuRoute({ familyCode, assignment: null, relatedFamilyCodes: [], resolved: true });
+        }
+      });
+    return () => controller.abort();
+  }, [product?.code]);
+
+  const activeFamilyMenuRoute = familyMenuRoute?.familyCode === product?.code
+    ? familyMenuRoute
+    : null;
+  const categoryRouteSlug = activeFamilyMenuRoute?.resolved
+    ? activeFamilyMenuRoute.assignment?.categorySlug || product?.categorySlug || ''
+    : '';
+  const categoryRouteHref = categoryRouteSlug
+    ? `/category/${encodeURIComponent(categoryRouteSlug)}`
+    : '/categories';
+
+  const similarProducts = useMemo(() => {
+    if (!product) return [];
+    if (activeFamilyMenuRoute && !activeFamilyMenuRoute.resolved) return [];
+    if (activeFamilyMenuRoute?.assignment) {
+      const productsByCode = new Map(getAllProducts().map(candidate => [candidate.code, candidate] as const));
+      return activeFamilyMenuRoute.relatedFamilyCodes
+        .filter(code => code !== product.code)
+        .flatMap(code => {
+          const candidate = productsByCode.get(code);
+          return candidate ? [candidate] : [];
+        })
+        .slice(0, 4);
+    }
+    return getSimilarProducts(product, 4);
+  }, [product, activeFamilyMenuRoute, catalogTick]);
 
   // Visible variants (filter out inactive unless in preview mode)
   const visibleVariants = useMemo(() => {
@@ -377,7 +448,6 @@ export const ProductDetailPage: React.FC = () => {
       };
 
   const isFavorited = isInWishlist(product.code);
-  const similarProducts = getSimilarProducts(product, 4);
   const currentGalleryImage =
     galleryImages[activeImageIndex];
 
@@ -530,10 +600,10 @@ export const ProductDetailPage: React.FC = () => {
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <Link
-            to={`/category/${encodeURIComponent(product.categorySlug)}`}
+            to={categoryRouteHref}
             className="hover:text-[#E06518] transition-colors shrink-0 max-w-[140px] sm:max-w-none truncate"
           >
-            {product.categoryName}
+            {activeFamilyMenuRoute?.assignment?.categoryName || product.categoryName}
           </Link>
           <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span className="text-[#55565A] font-bold shrink-0">
@@ -1499,7 +1569,7 @@ export const ProductDetailPage: React.FC = () => {
               محصولات مشابه در این دسته‌بندی
             </h2>
             <Link
-              to={`/category/${encodeURIComponent(product.categorySlug)}`}
+              to={categoryRouteHref}
               className="text-xs font-bold text-[#E06518] hover:text-[#C95210] flex items-center gap-1 transition-colors"
             >
               <span>مشاهده تمام قطعات</span>
@@ -1581,7 +1651,7 @@ export const ProductDetailPage: React.FC = () => {
             </p>
             <p className="text-xs text-slate-500 mt-1">
               خانواده: {product.name} | برند: {activeBrand} | دسته‌بندی:{" "}
-              {product.categoryName}
+              {activeFamilyMenuRoute?.assignment?.categoryName || product.categoryName}
             </p>
           </div>
 
