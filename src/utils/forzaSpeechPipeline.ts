@@ -118,7 +118,9 @@ export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number
   // A provisional browser hypothesis can still gain another word or SKU.
   if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
   if (analysis.isComplete && analysis.confidence >= 0.9) {
-    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
+    // Stable, acoustically complete questions hand off quickly. Mid-thought
+    // fragments still retain the longer 1.9s decision window above.
+    return hasInterim ? 850 : Math.max(420, Math.min(620, analysis.recommendedPauseMs - 250));
   }
   if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
   return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
