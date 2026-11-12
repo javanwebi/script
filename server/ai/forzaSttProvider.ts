@@ -12,13 +12,10 @@ export function selectForzaSttProvider(env:Record<string,string|undefined>):Forz
   if(setting==='disabled'||setting==='none'||setting==='browser')
     return {provider:'none',reason:'disabled'};
 
-  if(setting==='gemini'){
-    const key=String(env.FORZA_STT_GEMINI_API_KEY||env.GEMINI_API_KEY||'')
-      .trim().replace(/^['"]|['"]$/g,'');
-    if(!key || /^(MY_|YOUR_|PASTE_|SET_)/.test(key))
-      return {provider:'none',reason:'missing_gemini_key'};
-    return {provider:'gemini',key,reason:'configured'};
-  }
+  // FORZA speech recognition is local Diba/Vosk only. A Gemini setting is
+  // rejected rather than silently enabling a cloud speech provider.
+  if(setting==='gemini')
+    return {provider:'none',reason:'unsupported_provider'};
 
   // Diba is the default only when its model is included in the production image.
   // Local development can keep using browser recognition without downloading it.
