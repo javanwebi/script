@@ -578,10 +578,11 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           }
           context.restore();
 
-          const rawProgress = Math.min(1, (now - fallbackStartedAt) / 2800);
-          const progress = rawProgress < 0.5
-            ? 4 * rawProgress * rawProgress * rawProgress
-            : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
+          // The original orange silhouette must be fully visible as soon as
+          // its first poster frame decodes. No 2.8-second black fade on mobile.
+          // Formation is a readiness signal, not a blocking visual animation.
+          const rawProgress = source ? 1 : Math.min(1,(now-fallbackStartedAt)/250);
+          const progress = rawProgress;
           if (source && imageWidth > 0 && imageHeight > 0) {
             // Match the WebGL camera's aspect-aware crop on both wide
             // desktops and tall phones (cover, never stretch or letterbox).
@@ -691,6 +692,10 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         layerPayload = payload;
         const poster = resolveParticlePoster(payload);
         startCanvasFallback(poster, payload.width, payload.height);
+        // As soon as a real poster is available, remove the old 2.8s
+        // wait-before-welcome. WebGL later takes over at full silhouette
+        // progress without rebuilding or flashing black.
+        if(poster)reportFormed();
       };
 
       const activateFallback = async () => {
@@ -1035,10 +1040,13 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           totalParticleCount = payload.layers.totalCount + EMBER_COUNT;
           resize();
           formationReady = true;
+          // Avoid a rapid assembly burst or a second empty-forming period.
+          // Keep the exact original particle geometry fully assembled.
+          shared.uProgress.value = 1;
+          if(!formationReported)reportFormed();
           if (contextLost) {
             startCanvasFallback(poster, payload.width, payload.height);
-          } else if (formationReported) {
-            shared.uProgress.value = 1;
+          } else {
             stopCanvasFallback();
           }
         }).catch(error => {
