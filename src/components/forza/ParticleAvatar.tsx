@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
+import type { CachedLayers, LayerArrays } from './particleLayers.shared';
 
 export interface ParticleAvatarRef {
   replay: () => void;
@@ -136,87 +137,6 @@ void main() {
 }
 `;
 
-function decode(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const d = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) d[i] = bin.charCodeAt(i);
-  return d;
-}
-
-const toWorld = (x: number, y: number, width: number, height: number, cell: number): [number, number] => [
-  (x - width / 2) * cell,
-  -(y - height / 2) * cell,
-];
-
-const vortex = (): [number, number, number] => {
-  const a = Math.random() * 6.2831853;
-  const r = 3 + Math.random() * 4;
-  return [Math.cos(a) * r, (Math.random() - 0.5) * 5, Math.sin(a) * r - 1];
-};
-
-interface LayerArrays {
-  pos: Float32Array;
-  col: Float32Array;
-  start: Float32Array;
-  seed: Float32Array;
-  lum: Float32Array;
-  count: number;
-}
-
-interface CachedLayers {
-  sharp: LayerArrays;
-  glow: LayerArrays;
-  totalCount: number;
-}
-
-const cachedLayersByQuality = new Map<'high' | 'balanced' | 'low', CachedLayers>();
-
-function buildLayers(data: Uint8Array, width: number, height: number, quality: 'high' | 'balanced' | 'low'): CachedLayers {
-  const cached = cachedLayersByQuality.get(quality);
-  if (cached) return cached;
-  const stride = quality === 'high' ? 1 : quality === 'balanced' ? 2 : 3;
-  const glowStep = quality === 'high' ? 4 : quality === 'balanced' ? 6 : 8;
-  const cell = WORLD_W / width;
-  const sharpPos: number[] = [], sharpCol: number[] = [], sharpStart: number[] = [], sharpSeed: number[] = [], sharpLum: number[] = [];
-  for (let y = 0; y < height; y += stride) {
-    for (let x = 0; x < width; x += stride) {
-      const i = (y * width + x) * 3;
-      const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
-      const l = Math.max(r, g * 1.1, b);
-      if (l < 0.06 || Math.random() > Math.pow(Math.min(1, l * 1.5), 1.6)) continue;
-      const [wx, wy] = toWorld(x + (Math.random() - 0.5) * stride, y + (Math.random() - 0.5) * stride, width, height, cell);
-      sharpPos.push(wx, wy, l * 0.03); sharpCol.push(r, g, b);
-      const v = vortex(); sharpStart.push(v[0], v[1], v[2]); sharpSeed.push(Math.random()); sharpLum.push(l);
-    }
-  }
-  const glowPos: number[] = [], glowCol: number[] = [], glowStart: number[] = [], glowSeed: number[] = [], glowLum: number[] = [];
-  for (let y = 0; y < height; y += glowStep) {
-    for (let x = 0; x < width; x += glowStep) {
-      let r = 0, g = 0, b = 0, samples = 0;
-      for (let yy = 0; yy < glowStep && y + yy < height; yy++) {
-        for (let xx = 0; xx < glowStep && x + xx < width; xx++) {
-          const i = ((y + yy) * width + x + xx) * 3;
-          r += data[i]; g += data[i + 1]; b += data[i + 2]; samples++;
-        }
-      }
-      if (!samples) continue;
-      r /= samples * 255; g /= samples * 255; b /= samples * 255;
-      const l = Math.max(r, g, b);
-      if (l < 0.25) continue;
-      const [wx, wy] = toWorld(x + glowStep / 2, y + glowStep / 2, width, height, cell);
-      glowPos.push(wx, wy, -0.02); glowCol.push(r, g * 0.85, b * 0.6);
-      const v = vortex(); glowStart.push(v[0], v[1], v[2]); glowSeed.push(Math.random()); glowLum.push(l);
-    }
-  }
-  const result: CachedLayers = {
-    sharp: { pos: new Float32Array(sharpPos), col: new Float32Array(sharpCol), start: new Float32Array(sharpStart), seed: new Float32Array(sharpSeed), lum: new Float32Array(sharpLum), count: sharpSeed.length },
-    glow: { pos: new Float32Array(glowPos), col: new Float32Array(glowCol), start: new Float32Array(glowStart), seed: new Float32Array(glowSeed), lum: new Float32Array(glowLum), count: glowSeed.length },
-    totalCount: sharpSeed.length + glowSeed.length,
-  };
-  cachedLayersByQuality.set(quality, result);
-  return result;
-}
-
 function makePoints(
   L: LayerArrays,
   uniforms: Record<string, { value: any }>,
@@ -249,6 +169,113 @@ function makePoints(
   const pts = new THREE.Points(g, m);
   pts.frustumCulled = false;
   return { pts, mat: m };
+}
+
+interface ParticleLayerPayload {
+  width: number;
+  height: number;
+  layers: CachedLayers | null;
+  poster: ImageBitmap | null;
+  posterPixels: Uint8ClampedArray | null;
+}
+
+let particleLayerPayloadPromise: Promise<ParticleLayerPayload> | null = null;
+let particlePosterSource: CanvasImageSource | null = null;
+
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** The 1.68 MB source image and CPU particle construction never block React's main thread. */
+function loadParticleLayerPayload(): Promise<ParticleLayerPayload> {
+  if (!particleLayerPayloadPromise) {
+    particleLayerPayloadPromise = new Promise<ParticleLayerPayload>((resolve, reject) => {
+      if (typeof Worker === 'undefined') {
+        reject(new Error('module_worker_unavailable'));
+        return;
+      }
+      let worker: Worker;
+      try {
+        worker = new Worker(new URL('./particleLayers.worker.ts', import.meta.url), {
+          type: 'module',
+          name: 'forza-particle-builder',
+        });
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      const timeout = window.setTimeout(() => {
+        worker.terminate();
+        reject(new Error('particle_worker_timeout'));
+      }, 20000);
+      const finish = () => {
+        window.clearTimeout(timeout);
+        worker.terminate();
+      };
+      worker.onmessage = event => {
+        finish();
+        if (event.data?.type !== 'ready') {
+          reject(new Error(event.data?.message || 'particle_worker_failed'));
+          return;
+        }
+        resolve({
+          width: event.data.width,
+          height: event.data.height,
+          layers: event.data.layers || null,
+          poster: event.data.poster || null,
+          posterPixels: event.data.posterPixels || null,
+        });
+      };
+      worker.onerror = event => {
+        event.preventDefault();
+        finish();
+        reject(new Error('particle_worker_load_failed'));
+      };
+      worker.postMessage({ type: 'build' });
+    }).catch(async () => {
+      // Compatibility path for older browsers that cannot start module workers.
+      // Only the static poster is built here; WebGL is not allowed to block the
+      // main thread with a second full particle preprocessing pass.
+      const [{ W, H, B64 }, shared] = await Promise.all([
+        import('./pixels'),
+        import('./particleLayers.shared'),
+      ]);
+      await new Promise<void>(resolve => window.setTimeout(resolve, 0));
+      const pixels = decodeBase64(B64);
+      return {
+        width: W,
+        height: H,
+        layers: null,
+        poster: null,
+        posterPixels: shared.buildParticlePosterPixels(pixels),
+      };
+    });
+  }
+  return particleLayerPayloadPromise;
+}
+
+function resolveParticlePoster(payload: ParticleLayerPayload): CanvasImageSource | null {
+  if (particlePosterSource) return particlePosterSource;
+  if (payload.poster) {
+    particlePosterSource = payload.poster;
+    return particlePosterSource;
+  }
+  if (payload.posterPixels) {
+    const canvas = document.createElement('canvas');
+    canvas.width = payload.width;
+    canvas.height = payload.height;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (context) {
+      context.putImageData(new ImageData(payload.posterPixels, payload.width, payload.height), 0, 0);
+      particlePosterSource = canvas;
+      payload.posterPixels = null;
+      return particlePosterSource;
+    }
+  }
+  return null;
 }
 
 export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>(
