@@ -51,6 +51,29 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
 }
 
 /**
+ * The configured surface is authoritative. An AvalAI voice/desk session must
+ * never be redirected to xKiro because that gateway also has credentials.
+ * Return an unconfigured explicit provider as-is so the endpoint fails closed.
+ */
+export function selectForzaTextProvider(env: NodeJS.ProcessEnv, voice: boolean): {
+  provider: 'avalai' | 'xkiro' | 'bai' | null;
+  model: string | null;
+  apiKey: string | null;
+} {
+  const requested = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
+  if (requested === 'avalai') {
+    return {provider: 'avalai', model: configuredAvalaiModel(env, voice), apiKey: env.AVALAI_API_KEY?.trim() || null};
+  }
+  if (requested === 'xkiro') {
+    return {provider: 'xkiro', model: configuredXkiroModel(env, voice), apiKey: env.XKIRO_API_KEY?.trim() || null};
+  }
+  if (requested === 'bai') {
+    return {provider: 'bai', model: configuredBaiModel(env, voice), apiKey: env.BAI_API_KEY?.trim() || null};
+  }
+  return {provider: null, model: null, apiKey: null};
+}
+
+/**
  * xKiro's free gateway has exhibited >10s time-to-first-token on the VPS.
  * Keep B.AI budgets unchanged. xKiro uses a short stream budget followed by
  * at most one same-model, free-tier completion verification.
