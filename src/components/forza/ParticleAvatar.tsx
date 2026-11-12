@@ -390,6 +390,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       let lastFpsTime = performance.now();
       let lowFpsSamples = 0;
       let highFpsSamples = 0;
+      let severeFpsSamples = 0;
       let adaptiveScale = 1;
       let lastRenderedAt = 0;
       let appliedQuality = props.current.quality === 'low' ? 'low' : 'balanced';
@@ -800,6 +801,15 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
             frameCount = 0;
             lastFpsTime = now;
+            if (fps < 18) {
+              severeFpsSamples++;
+              if (severeFpsSamples >= 2) {
+                switchToCanvasForPerformance(fps);
+                return;
+              }
+            } else {
+              severeFpsSamples = 0;
+            }
             if (fps < 42) {
               lowFpsSamples++;
               highFpsSamples = 0;
@@ -860,6 +870,41 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           lastRenderedAt = last;
           if (fallbackCanvas && fallbackRender && !fallbackRaf) fallbackRaf = requestAnimationFrame(fallbackRender);
           else if (!contextLost && !raf) raf = requestAnimationFrame(loop);
+        };
+
+        // SwiftShader and very weak integrated GPUs can technically create a
+        // WebGL context yet render the full scene at single-digit FPS. After
+        // two consecutive severe samples, release WebGL and draw the same
+        // silhouette poster with the lightweight Canvas2D engine.
+        const switchToCanvasForPerformance = (fps: number) => {
+          if (!renderer || cancelled) return;
+          console.info('[FORZA_PARTICLES] software_gpu_canvas_fallback=1 fps=' + fps);
+          contextLost = true;
+          if (raf) cancelAnimationFrame(raf);
+          raf = 0;
+          const activeRenderer = renderer;
+          if (contextLostHandler) activeRenderer.domElement.removeEventListener('webglcontextlost', contextLostHandler);
+          if (contextRestoredHandler) activeRenderer.domElement.removeEventListener('webglcontextrestored', contextRestoredHandler);
+          contextLostHandler = null;
+          contextRestoredHandler = null;
+          window.removeEventListener('resize', resize);
+          activeRenderer.domElement.style.visibility = 'hidden';
+          activeRenderer.dispose();
+          try { activeRenderer.forceContextLoss(); } catch {}
+          activeRenderer.domElement.remove();
+          renderer = null;
+          glowPts?.geometry.dispose();
+          sharpPts?.geometry.dispose();
+          glowMat?.dispose();
+          sharpMat?.dispose();
+          glowPts = null;
+          sharpPts = null;
+          glowMat = null;
+          sharpMat = null;
+          emberGeometry.dispose();
+          emberMaterial.dispose();
+          scene.clear();
+          void activateFallback();
         };
 
         window.addEventListener('resize', resize);
