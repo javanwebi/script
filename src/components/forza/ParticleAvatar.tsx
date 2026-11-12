@@ -329,11 +329,25 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       const profile = qualityMode === 'high' ? { pixelRatio: 1.5, embers: 900, tier: 'HIGH' }
         : qualityMode === 'low' ? { pixelRatio: 1, embers: 360, tier: 'LOW' }
         : { pixelRatio: 1.2, embers: 600, tier: 'BALANCED' };
-      let renderer: THREE.WebGLRenderer;
-      try {
-        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', depth: false, stencil: false });
-      } catch {
-        props.current.onError?.('شتاب‌دهنده گرافیکی WebGL در دسترس نیست؛ حالت سبک فورزا فعال شد.');
+      // Some Windows/Chrome drivers reject the high-performance context
+      // hint while still supporting WebGL with the browser's default adapter.
+      // Retry context creation before allowing the CSS-only visual fallback.
+      let renderer: THREE.WebGLRenderer | null = null;
+      const contextOptions: WebGLContextAttributes[] = [
+        { antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', depth: false, stencil: false },
+        { antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'default', depth: false, stencil: false },
+        { antialias: false, alpha: true, preserveDrawingBuffer: false, powerPreference: 'low-power', depth: false, stencil: false },
+      ];
+      for (const options of contextOptions) {
+        try {
+          renderer = new THREE.WebGLRenderer(options);
+          break;
+        } catch (error) {
+          console.warn('[FORZA_PARTICLES] webgl_context_retry', error instanceof Error ? error.name : 'context_error');
+        }
+      }
+      if (!renderer) {
+        console.warn('[FORZA_PARTICLES] webgl_unavailable_after_context_retries');
         props.current.onFormed?.();
         return;
       }
@@ -426,11 +440,22 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
       };
       const handleContextLost = (event: Event) => {
         event.preventDefault();
-        props.current.onError?.('شتاب‌دهنده گرافیکی مرورگر متوقف شد؛ فورزا در حالت سبک ادامه می‌دهد.');
-        if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        console.warn('[FORZA_PARTICLES] webgl_context_lost; waiting_for_browser_restore=1');
+      };
+      const handleContextRestored = () => {
+        console.info('[FORZA_PARTICLES] webgl_context_restored=1');
+        renderer.resetState();
+        resize();
+        if (!document.hidden && !raf) {
+          last = performance.now();
+          lastFpsTime = last;
+          raf = requestAnimationFrame(loop);
+        }
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
       renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
       if (!document.hidden) loop();
 
       api.current = {
@@ -446,11 +471,35 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
 
       const loadSilhouette = async () => {
         try {
-          const { W, H, B64 } = await import('./pixels');
+          let pixelModule: typeof import('./pixels') | null = null;
+          let lastLoadError: unknown = null;
+          // A transient failed chunk request must not permanently replace the
+          // humanoid identity with the 360-ember loading layer.
+          for (let attempt = 0; attempt < 3 && !pixelModule; attempt++) {
+            try {
+              pixelModule = await import('./pixels');
+            } catch (error) {
+              lastLoadError = error;
+              if (attempt < 2) {
+                console.warn('[FORZA_PARTICLES] silhouette_chunk_retry=' + (attempt + 1));
+                await new Promise<void>(resolve => window.setTimeout(resolve, 300 * (attempt + 1)));
+              }
+            }
+          }
+          if (!pixelModule) throw lastLoadError || new Error('silhouette_chunk_unavailable');
           if (cancelled) return;
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           if (cancelled) return;
-          const built = buildLayers(decode(B64), W, H, qualityMode);
+          const { W, H, B64 } = pixelModule;
+          const decoded = decode(B64);
+          let built: CachedLayers;
+          try {
+            built = buildLayers(decoded, W, H, qualityMode);
+          } catch (error) {
+            if (qualityMode === 'low') throw error;
+            console.warn('[FORZA_PARTICLES] silhouette_quality_retry=low');
+            built = buildLayers(decoded, W, H, 'low');
+          }
           if (cancelled) return;
           const uniforms = shared as Record<string, { value: any }>;
           const glow = makePoints(built.glow, uniforms, (WORLD_W / W) * 4 * 3, 0.1, 1);
@@ -461,10 +510,12 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
           totalParticleCount = built.totalCount + N;
           resize();
           formationReady = true;
+          console.info('[FORZA_PARTICLES] full_silhouette_ready particles=' + totalParticleCount);
         } catch (error: any) {
           if (cancelled) return;
-          console.warn('[FORZA_PARTICLES] source_load_failed', error?.name || 'load_error');
-          props.current.onError?.('بارگذاری تصویر پایه ذرات فورزا انجام نشد؛ حالت گرافیکی سبک فعال شد.');
+          // Keep the voice experience usable, but never label a delayed load as
+          // a successful lightweight engine or surface a red false alarm.
+          console.warn('[FORZA_PARTICLES] silhouette_load_failed_after_retries', error?.name || 'load_error');
           if (!formationReported) { formationReported = true; props.current.onFormed?.(); }
         }
       };
@@ -475,6 +526,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
         if (raf) cancelAnimationFrame(raf);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+        renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
         window.removeEventListener('resize', resize);
         glowPts?.geometry.dispose(); sharpPts?.geometry.dispose(); eg.dispose();
         scene.clear(); renderer.dispose(); glowMat?.dispose(); sharpMat?.dispose(); emberMat.dispose();
