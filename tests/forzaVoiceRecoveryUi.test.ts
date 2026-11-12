@@ -32,17 +32,19 @@ test('text correction can stop a pending/playing answer and does not block on UI
   assert.match(ui,/voiceStage === 'playing'/);
 });
 
-test('restored original full-density particle identity and classic FORZA HUD',()=>{
-  assert.match(ui,/const \[quality\] = useState<'high'>\('high'\)/);
-  assert.match(avatar,/const layers = buildLayers\(decode\(B64\)\)/);
-  assert.match(avatar,/tier: 'ULTRA'/);
-  assert.doesNotMatch(avatar,/stride>1|const thinning=|Math\.random\(\)>=1\/stride/);
-  assert.doesNotMatch(ui,/setQuality\(|poorFpsSamplesRef/);
+test('particle identity loads after first paint and adapts density to the available GPU',()=>{
+  assert.match(ui,/const \[quality, setQuality\] = useState<'balanced' \| 'low'>/);
+  assert.match(ui,/slowFpsSamplesRef\.current >= 2/);
+  assert.match(avatar,/await import\('\.\/pixels'\)/);
+  assert.match(avatar,/buildLayers\(decode\(B64\), W, H, qualityMode\)/);
+  assert.match(avatar,/quality === 'balanced' \? 2/);
+  assert.match(avatar,/setClearColor\(0x080402, 0\)/);
+  assert.match(avatar,/dt \/ 2\.8/);
   assert.match(ui,/PROCEDURAL IDENTITY/);
   assert.match(ui,/PARTICLE MESH · REALTIME GPU/);
   assert.match(ui,/SYNC <b className="text-white">—<\/b>/);
   assert.match(ui,/AI FORZA در حال صحبت/);
-  assert.doesNotMatch(ui,/99\.4%|200K\+ PARTICLES|:'60 FPS'/);
+  assert.doesNotMatch(ui,/const \[quality\] = useState<'high'>/);
 });
 
 test('stop remains accessible but does not expand the original status pill',()=>{
@@ -77,10 +79,14 @@ test('mic VAD is independent of WebGL animation frame rate',()=>{
   assert.match(vad,/window\.clearInterval\(micPoll\)/);
   assert.match(vad,/lastMicActivityRef\.current=micNow/);
   assert.doesNotMatch(vad,/requestAnimationFrame|cancelAnimationFrame/);
-  assert.match(ui,/autoGainControl:false/);
+  assert.match(ui,/autoGainControl:true/);
   assert.match(ui,/source=diba rejected=below_near_field_vad/);
   assert.match(ui,/source=browser rejected=below_near_field_vad/);
   assert.match(ui,/Date\.now\(\)-lastMicActivityRef\.current>3500/);
+  assert.match(ui,/onPointerDownCapture=\{resumeAudioFromGesture\}/);
+  assert.match(ui,/unlockForzaAudioFromGesture\(\)/);
+  assert.match(ui,/ctxRef\.current\?\.state === 'running'/);
+  assert.match(ui,/formation_watchdog_fallback=1/);
 });
 
 test('a pure stop consumes cumulative Chrome finals instead of replaying the same command',()=>{
@@ -127,6 +133,12 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
   assert.match(avatar,/document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
 });
 
+
+test('Diba recording keeps only a short idle pre-roll and retains audio after speech starts',()=>{
+  assert.match(ui,/const maxChunks=hasSpeechSoundRef\.current\?180:8/);
+  assert.match(ui,/hasSpeechSoundRef\.current = true/);
+  assert.match(ui,/const audioBlob=chunks\.length\?new Blob\(chunks/);
+});
 
 test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
   assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);

@@ -24,6 +24,7 @@ on:
       - 'server.ts'
       - 'scripts/tests/forza-amir-real-browser.cjs'
       - 'scripts/tests/forza-browser-voice-mock.cjs'
+      - 'scripts/tests/forza-live-stt-browser.cjs'
       - 'src/main.tsx'
       - 'scripts/tests/forza-audio-chunks.cjs'
       - 'scripts/tests/forza-voice-outage.cjs'
@@ -82,6 +83,8 @@ jobs:
           cat /tmp/forza-preview.log
           exit 1
       - run: node scripts/tests/forza-audio-chunks.cjs
+      - name: Verify quiet Persian microphone speech and WebSpeech recovery
+        run: node scripts/tests/forza-live-stt-browser.cjs
       - run: node scripts/tests/forza-voice-outage.cjs
       - run: node scripts/tests/forza-greeting-fallback.cjs
       - run: node scripts/tests/forza-streaming-turn-recovery.cjs

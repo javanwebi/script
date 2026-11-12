@@ -18,7 +18,8 @@ export class ForzaVoiceActivity {
     level: number;
   } {
     const energy = Number.isFinite(rms) ? Math.max(0, Math.min(1, rms)) : 0;
-    const threshold = Math.max(0.012, this.floor * 3.5);
+    // Lower quiet-speech floor while remaining above steady low-level room noise.
+    const threshold = Math.max(0.008, this.floor * 2.5);
     const audible = energy > threshold;
     if (!audible && !this.detected) {
       this.floor = this.floor * 0.97 + energy * 0.03;

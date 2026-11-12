@@ -65,6 +65,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
   isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(Date.now()),
+  micAnalyserRef:ref(null),ctxRef:ref({state:'suspended'}),
   likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
  };
  const run=new Function(...Object.keys(scope),'event',body);
