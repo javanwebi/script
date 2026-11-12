@@ -165,6 +165,8 @@ test('the completed FORZA answer remains visible until the next customer transcr
   assert.match(ui,/setStatus\('listening'\);\s*setTurn\('ai'\);\s*startListening\(true\);/);
   assert.match(ui,/setUserText\(transcript\);setIsUserSpeaking\(true\);setTurn\('user'\)/);
   assert.match(ui,/setUserText\(currentSpeech\);\s*setStatus\('listening'\);\s*setTurn\('user'\)/);
+  assert.match(ui,/status === 'listening' \|\| turn === 'user'/,
+    'the status pill must still show that the microphone is listening');
 });
 
 test('the original FORZA poster is published before full worker particle preprocessing',()=>{
