@@ -1605,12 +1605,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
-            // 2-second in-RAM pre-roll while FORZA is responding. No disk
-            // persistence; preserve the first user syllables after barge-in.
-            // Hard RAM cap also while the customer leaves the microphone
-            // open for hours. Keep 45s for optional post-recording STT and a
-            // 2s tail during model speech to reduce memory and self-echo.
-            const maxChunks=isProcessingTurnRef.current?8:180;
+            // Keep only a 2-second RAM-only pre-roll while idle or while
+            // FORZA speaks. Once near-field speech is detected, retain the
+            // utterance (up to 45s) for the final local Diba transcription.
+            const maxChunks=hasSpeechSoundRef.current?180:8;
             if(audioChunksRef.current.length>maxChunks)
               audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
           }
