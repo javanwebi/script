@@ -594,8 +594,8 @@ interface CatalogOverridesDb {
 let CATALOG_OVERRIDES_CACHE: CatalogOverridesDb | null = null;
 
 function loadCatalogOverridesDb(): CatalogOverridesDb {
-  if (!databaseEnabled() || !CATALOG_OVERRIDES_CACHE) throw new Error('PostgreSQL catalog state is not hydrated');
-  return CATALOG_OVERRIDES_CACHE;
+  if (CATALOG_OVERRIDES_CACHE) return CATALOG_OVERRIDES_CACHE;
+  return { version: 1, updatedAt: '', deletedCodes: [], families: {} };
 }
 
 async function saveCatalogOverridesDb(db: CatalogOverridesDb, transferSku?: {skuCode:string;sourceFamilyCode:string;targetFamilyCode:string}): Promise<void> {
