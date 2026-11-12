@@ -230,6 +230,7 @@ export class ForzaContinuousWav {
         }
       };
       source.start(startAt,trimmed.offset,trimmed.duration);
+      this.startMeter(ctx);
       this.onStage?.('audio_scheduled',Math.round((startAt-ctx.currentTime)*1000));
       // Scheduling a future WebAudio source is NOT evidence that it started.
       // Start status follows its AudioContext clock time, not fetch/decode.
