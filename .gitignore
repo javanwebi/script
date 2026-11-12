@@ -36,3 +36,5 @@ __pycache__/
 
 # Runtime release stages and deployment metadata stay on the VPS only.
 /.deploy/
+temp_repo/
+
