@@ -1,5 +1,4 @@
 import {durableStorage,databaseStorageEnabled,refreshDurableStorage,hydrateMemory,flushDurableChanges} from "./durableStorage";
-import {shouldRequestFullCatalogOnBoot} from "../utils/forzaBootPolicy";
 // Browser storage is a rendering cache. Authorization and durable data live in /api/portal.
 export const PORTAL_CACHE_KEYS = [
   "atlas_admin_inquiries_v1",
@@ -77,9 +76,7 @@ async function loadPortal() {
   if (saveError) throw saveError;
   const pathname=typeof window!=="undefined" ? window.location?.pathname || "" : "";
   const isAdminRoute=/^\/admin(?:\/|$)/.test(pathname);
-  // A call may initialize while the global shell is hydrating; do not let
-  // the auth provider initiate a second full 10k-SKU runtime request.
-  const includeProducts=shouldRequestFullCatalogOnBoot(pathname);
+  const includeProducts=!isAdminRoute;
   // The admin shell must wait for runtime authorization/data before rendering.
   // Public/customer routes retain their non-blocking bootstrap when the app-shell
   // runtime request has not completed yet.

@@ -9,8 +9,6 @@ export class ForzaVoiceActivity {
   private floor = 0.004;
   private voicedFrames = 0;
   private detected = false;
-  private onsetAt: number | null = null;
-  private previousSampleAt: number | null = null;
   private lastSpeechAt = 0;
 
   sample(rms: number, timestampMs: number): {
@@ -20,32 +18,22 @@ export class ForzaVoiceActivity {
     level: number;
   } {
     const energy = Number.isFinite(rms) ? Math.max(0, Math.min(1, rms)) : 0;
-    // Lower quiet-speech floor while remaining above steady low-level room noise.
-    const threshold = Math.max(0.008, this.floor * 2.5);
+    const threshold = Math.max(0.012, this.floor * 3.5);
     const audible = energy > threshold;
     if (!audible && !this.detected) {
       this.floor = this.floor * 0.97 + energy * 0.03;
     }
-    // Use elapsed sound time: six frames at the production 55ms poll used
-    // to reject short words even though tests sampled at 20ms.
-    if (this.previousSampleAt !== null && timestampMs - this.previousSampleAt > 150) {
-      this.voicedFrames = 0;
-      this.onsetAt = null;
-    }
-    this.previousSampleAt = timestampMs;
     let speechStarted = false;
     if (audible) {
       // Once a turn has started, even a short resumed syllable postpones its end.
       if (this.detected) this.lastSpeechAt = timestampMs;
-      if (this.onsetAt === null) this.onsetAt = timestampMs;
       this.voicedFrames = Math.min(this.voicedFrames + 1, 12);
-      if (this.voicedFrames >= 3 && timestampMs - this.onsetAt >= 100) {
+      if (this.voicedFrames >= 6) {
         speechStarted = !this.detected;
         this.detected = true;
         this.lastSpeechAt = timestampMs;
       }
     } else {
-      this.onsetAt = null;
       this.voicedFrames = 0;
     }
     const speaking = this.detected && audible;
@@ -65,8 +53,6 @@ export class ForzaVoiceActivity {
     this.detected = false;
     this.voicedFrames = 0;
     this.lastSpeechAt = 0;
-    this.onsetAt = null;
-    this.previousSampleAt = null;
   }
 
   get heardSpeech() { return this.detected; }

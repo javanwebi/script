@@ -11,12 +11,7 @@ import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const identificationOpen = useIdentificationOverlayOpen();
-  // Preserve the shared route-eligibility check for full-screen identification.
-  const routeAllowsStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
-  // The approved About page uses a full editorial composition; keep the fixed
-  // storefront dock and floating assistant from covering its mobile hero/content.
-  const isAboutEditorialPage = ["/about", "/about-us", "/history", "/licenses", "/awards"].includes(location.pathname);
-  const showStorefrontDock = routeAllowsStorefrontDock && !isAboutEditorialPage;
+  const showStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
 
   // Full-screen dedicated AI experiences (AI FORZA Voice & Cognivo AI Workspace)
   const isDedicatedAiWorkspace =
@@ -51,7 +46,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     );
   }
 
-  const isEditorial=["/industries","/brands","/knowledge","/about","/categories"].some(p=>location.pathname.startsWith(p));
+  const isEditorial = [
+    "/industries",
+    "/brands",
+    "/knowledge",
+    "/about",
+    "/services",
+    "/contact",
+    "/factory-address",
+    "/address",
+    "/categories",
+  ].some((p) => location.pathname.startsWith(p));
   const isHomePage = location.pathname === '/';
   const isCategoryPage = location.pathname.startsWith('/category/');
   const isTextileReferencePage = location.pathname.startsWith('/industries/textile');

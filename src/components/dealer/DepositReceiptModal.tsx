@@ -21,7 +21,7 @@ export const DepositReceiptModal: React.FC<DepositReceiptModalProps> = ({
   const [paymentDate, setPaymentDate] = useState('۱۴۰۳/۰۶/۲۲');
   const [notes, setNotes] = useState('تسویه فاکتور و افزایش اعتبار خرید');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [receiptImage, setReceiptImage] = useState<string>('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=300&q=80');
+  const [receiptImage, setReceiptImage] = useState<string>('/images/mock/commercial-document.webp');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

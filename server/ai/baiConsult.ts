@@ -18,21 +18,6 @@ export type BaiConsultOptions = {
   onDelta: (delta: string, textSoFar: string) => void;
 };
 
-/** Bound context by content as well as turns, keeping recent corrections and
- * interrupted-answer notes together instead of dropping everything after six entries. */
-export function buildForzaConversationHistory(history: NonNullable<BaiConsultOptions['history']>) {
-  const messages: Array<{role: string; content: string}> = [];
-  let remaining = 12000;
-  for (const item of history.slice(-24).reverse()) {
-    if (typeof item?.text !== 'string' || !item.text.trim()) continue;
-    const content = item.text.trim().slice(0, 3000);
-    if (content.length > remaining) break;
-    messages.unshift({role: item.role === 'user' || item.sender === 'user' ? 'user' : 'assistant', content});
-    remaining -= content.length;
-  }
-  return messages;
-}
-
 export class BaiConsultError extends Error {
   constructor(public readonly code: string, public readonly retryAfterMs?: number) {
     super(code);
@@ -63,29 +48,6 @@ export function configuredXkiroModel(env: NodeJS.ProcessEnv, voice: boolean): st
   // on the tested Flash model; the public catalog still verifies its free tier
   // before any generation request is sent.
   return 'qwen/qwen3.5-flash:free';
-}
-
-/**
- * The configured surface is authoritative. An AvalAI voice/desk session must
- * never be redirected to xKiro because that gateway also has credentials.
- * Return an unconfigured explicit provider as-is so the endpoint fails closed.
- */
-export function selectForzaTextProvider(env: NodeJS.ProcessEnv, voice: boolean): {
-  provider: 'avalai' | 'xkiro' | 'bai' | null;
-  model: string | null;
-  apiKey: string | null;
-} {
-  const requested = String((voice ? env.FORZA_VOICE_PROVIDER : env.FORZA_DESK_PROVIDER) || '').trim().toLowerCase();
-  if (requested === 'avalai') {
-    return {provider: 'avalai', model: configuredAvalaiModel(env, voice), apiKey: env.AVALAI_API_KEY?.trim() || null};
-  }
-  if (requested === 'xkiro') {
-    return {provider: 'xkiro', model: configuredXkiroModel(env, voice), apiKey: env.XKIRO_API_KEY?.trim() || null};
-  }
-  if (requested === 'bai') {
-    return {provider: 'bai', model: configuredBaiModel(env, voice), apiKey: env.BAI_API_KEY?.trim() || null};
-  }
-  return {provider: null, model: null, apiKey: null};
 }
 
 /**
@@ -134,7 +96,7 @@ export function buildForzaConsultSystemMessage(voice: boolean): string {
 
 `;
   return common + (voice
-    ? 'پاسخ برای مکالمه صوتی است: اصلاح تازه مشتری را بر برداشت قبلی مقدم بدانید. عبارت‌هایی مثل «همان»، «این یکی» و «ادامه بده» را به سابقه همین مکالمه ارجاع دهید؛ اگر مرجع روشن نیست یک سؤال کوتاه بپرسید. بعد از قطع پاسخ، توضیح تازه کاربر را با درخواست قبلی ترکیب کنید؛ متن نشنیده را تکرارشده فرض نکنید. اگر نیاز روشن شد طبیعی بگویید «بله، متوجه شدم» و بلافاصله پاسخ مرتبط بدهید؛ اگر مبهم است ادعای فهم کامل نکنید. اگر پیام نشان می‌دهد هنوز توضیحش تمام نشده، فقط کوتاه بگویید گوش می‌کنم و پاسخ فنی را شروع نکنید. فقط وقتی واقعاً نیاز را از متن فهمیده‌اید با یک بازگویی کوتاه تأیید کنید؛ تأیید تکراری در ابتدای همه پاسخ‌ها ندهید. در ابهام فقط یک سؤال روشن بپرسید و جزئیات نامفهوم را حدس نزنید. جمله اول کوتاه، کامل و مستقیم باشد؛ در هر نوبت پاسخ مختصر و طبیعی بدهید. فقط متن ساده فارسی؛ بدون ستاره، Markdown، جدول، backtick، URL خام یا علامت تزئینی. کدهای فنی را واضح و بدون تغییر تلفظ‌پذیر نگه دارید. '
+    ? 'پاسخ برای مکالمه صوتی است: جمله اول کوتاه، کامل و مستقیم باشد؛ در هر نوبت پاسخ مختصر و طبیعی بدهید. فقط متن ساده فارسی؛ بدون ستاره، Markdown، جدول، backtick، URL خام یا علامت تزئینی. کدهای فنی را واضح و بدون تغییر تلفظ‌پذیر نگه دارید. '
     : 'پاسخ برای میزکار متنی است: نتیجه را ابتدا بگویید، سپس فقط تحلیل لازم را با ساختار روشن ارائه کنید. از جدول فقط وقتی واقعاً به مقایسه کمک می‌کند استفاده کنید؛ از توضیح عمومی و تکراری پرهیز کنید. ')
     + '\nداده مرجع کاتالوگ (ممکن است خالی باشد):\n';
 }
@@ -166,7 +128,12 @@ async function streamOpenAiCompatible(options: BaiConsultOptions, endpoint: stri
   let lastTokenMs = -1;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let idleAfterDelta = false;
-  const historyMessages = buildForzaConversationHistory(history);
+  const historyMessages = history.slice(-6)
+    .filter(item => typeof item?.text === 'string' && !!item.text.trim())
+    .map(item => ({
+      role: item.role === 'user' || item.sender === 'user' ? 'user' : 'assistant',
+      content: String(item.text).slice(0, 3000),
+    }));
   const systemMessage = buildForzaConsultSystemMessage(voice);
 
   const parseData = (raw: string) => {
@@ -344,7 +311,12 @@ export async function completeXkiroConsult(
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(new Error('xkiro_nonstream_timeout')),timeoutMs);
   const requestSignal=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
-  const historyMessages = buildForzaConversationHistory(history);
+  const historyMessages=history.slice(-6)
+    .filter(item=>typeof item?.text==='string'&&!!item.text.trim())
+    .map(item=>({
+      role:item.role==='user'||item.sender==='user'?'user':'assistant',
+      content:String(item.text).slice(0,3000),
+    }));
   const systemMessage = buildForzaConsultSystemMessage(voice);
   try{
     const response=await fetchImpl('https://api.xkiro.com/v1/chat/completions',{

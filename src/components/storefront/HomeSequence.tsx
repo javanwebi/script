@@ -21,6 +21,7 @@ import { homeCategories } from "../../services/homeFirstPaint";
 import { ProductImage } from "../product/ProductImage";
 import { STORE_ASSETS as A } from "../../assets/images";
 import { getProductImageUrl } from "../../assets/imagesproducts";
+import { resolveExcelCategoryArtwork } from "../../utils/excelCategoryCatalog";
 
 // The homepage cards represent the top-level mega-menu groups, NOT child categories.
 const HOMEPAGE_CATEGORY_CARD_COUNT = 6;
@@ -28,12 +29,6 @@ const validGroup = (group:ApprovedMenuGroup) =>
   group.active !== false && /^excel-v2-[0-9]+$/.test(group.id) && Boolean(group.title?.trim());
 const displayedGroups = (groups:ApprovedMenuGroup[]) =>
   groups.filter(validGroup).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,HOMEPAGE_CATEGORY_CARD_COUNT);
-const groupArt:Record<number,string> = {
-  1:A.categories.belts, 2:A.categories.conveyor,
-  3:A.categories.conveyor, 4:A.categories.pulleys,
-  9:A.categories.chains, 13:A.categories.bearings
-};
-const groupNumber = (id:string) => Number(/^excel-v2-([0-9]+)$/.exec(id)?.[1] || 0);
 
 export function HomeCategoryStrip() {
   const [groups,setGroups]=React.useState<ApprovedMenuGroup[]>(()=>displayedGroups([...APPROVED_MENU_GROUPS]));
@@ -82,9 +77,8 @@ export function HomeCategoryStrip() {
           <span>مشاهده همه گروه‌ها <ArrowLeft size={15}/></span>
         </Link>
         {groups.map(group=>{
-          const image=group.imageUrl ||
-            group.categorySlugs.map(slug=>categoryBySlug.get(slug)?.image).find(Boolean) ||
-            groupArt[groupNumber(group.id)];
+          const firstCategoryImage = group.categorySlugs.map(slug=>categoryBySlug.get(slug)?.image).find(Boolean);
+          const image = group.imageUrl || resolveExcelCategoryArtwork(group.id, group.title, firstCategoryImage);
           return (
             <Link className="home-category-item home-category-group" key={group.id}
               to={`/categories#menu-group-${group.id}`} title={group.title}>

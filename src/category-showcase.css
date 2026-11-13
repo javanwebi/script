@@ -76,7 +76,7 @@
 .category-showcase .category-showcase-products article a {font-size:12px;}
 }
 
-.category-showcase { --industry-orange:#e06518; background:linear-gradient(180deg,#f8f9fb 0,#fff 38%); }
+.category-showcase { --industry-orange:#e06518; background:#ffffff; }
 .category-showcase .category-showcase-hero {border:1px solid #303437;box-shadow:0 18px 38px #10131830; }
 .category-showcase .category-showcase-hero:before {content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 18%,#00000015 55%,#171b1fee 98%);z-index:1;pointer-events:none;}
 .category-showcase .category-showcase-hero > .relative {align-items:flex-start;}
@@ -117,7 +117,7 @@
 .category-industry-tile>div {padding:12px;}
 }
 /* Premium industrial merchandising system — category routes only */
-.category-showcase {--cp-orange:#e06518;--cp-dark:#1d242c;--cp-border:#e3e7eb;--cp-muted:#697483;row-gap:24px;background:#f7f8fa;padding-bottom:75px!important;}
+.category-showcase {--cp-orange:#e06518;--cp-dark:#1d242c;--cp-border:#e3e7eb;--cp-muted:#697483;row-gap:24px;background:#ffffff;padding-bottom:75px!important;}
 .category-showcase>nav {padding:18px 2px 0;font-size:12px;}
 .category-showcase .category-showcase-hero {min-height:480px;border:0;border-radius:20px;box-shadow:0 25px 60px rgba(19,28,38,.24);isolation:isolate;}
 .category-showcase .category-showcase-hero>div.relative {min-height:480px;max-width:850px;gap:17px!important;align-items:stretch!important;}

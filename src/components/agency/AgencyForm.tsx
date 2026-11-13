@@ -83,9 +83,9 @@ export const AgencyForm: React.FC<AgencyFormProps> = ({ onSuccess }) => {
     fileSize: string;
     previewUrl?: string;
   } | null>({
-    fileName: 'parvaneh_kasb_sample.jpg',
-    fileSize: '۱.۸ مگابایت',
-    previewUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80',
+    fileName: 'parvaneh_kasb_sample.webp',
+    fileSize: '۱۲۴ کیلوبایت',
+    previewUrl: '/images/mock/commercial-document.webp',
   });
 
   // Mock OTP verification

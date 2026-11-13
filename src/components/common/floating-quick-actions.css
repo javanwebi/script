@@ -1,4 +1,4 @@
-/* The floating help action sits above the FORZA button; it is never a dock tab. */
+/* Floating FORZA workspace launcher */
 .storefront .store-ai-quick-actions {
   position: fixed;
   inset-inline-end: 24px;
@@ -15,24 +15,6 @@
   margin: 0;
   min-height: 50px;
 }
-.storefront .store-ai-quick-actions > .store-help-launcher {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #ebba98;
-  border-radius: 50%;
-  background: #fff;
-  color: #c95210;
-  box-shadow: 0 8px 23px rgba(32,40,53,.14);
-  cursor: pointer;
-  transition: transform .2s ease, background-color .2s ease;
-}
-.storefront .store-ai-quick-actions > .store-help-launcher:hover {
-  background: #fff4eb;
-  transform: translateY(-2px);
-}
 .storefront .store-ai-quick-actions > :is(button):focus-visible {
   outline: 3px solid #e06518;
   outline-offset: 3px;
@@ -40,8 +22,8 @@
 @media (max-width: 1023px) {
   .storefront .store-ai-quick-actions {
     inset-inline-end: calc(12px + env(safe-area-inset-left));
-    inset-block-end: calc(106px + env(safe-area-inset-bottom));
-    gap: 10px;
+    inset-block-end: calc(88px + env(safe-area-inset-bottom));
+    gap: 8px;
   }
   .storefront .store-ai-quick-actions > .unified-ai-launcher {
     width: 49px;
@@ -53,10 +35,6 @@
     border-radius: 50%;
   }
   .storefront .store-ai-quick-actions > .unified-ai-launcher span { display: none; }
-  .storefront .store-ai-quick-actions > .store-help-launcher { width: 46px; height: 46px; flex-basis: 46px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .storefront .store-ai-quick-actions > .store-help-launcher { transition: none; }
 }
 
 /* FORZA mobile consultation is a real half-height bottom sheet.
@@ -255,6 +233,3 @@
   .sp-forza-contact__arrow {animation:none;opacity:1;color:#ffab64;transform:none;filter:none;}
 }
 
-@media (min-width: 1024px) {
-  .storefront .store-ai-quick-actions > .store-help-launcher { display: none; }
-}

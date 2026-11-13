@@ -747,23 +747,16 @@ export const Header: React.FC = () => {
             <div
               className="relative"
               ref={megaMenuRef}
-              onMouseEnter={() => {
-                setActiveDropdown(null);
-                setIsMegaMenuOpen(true);
-              }}
               onMouseLeave={() => setIsMegaMenuOpen(false)}
             >
               <button
                 type="button"
                 aria-haspopup="true"
                 aria-expanded={isMegaMenuOpen}
-                onClick={() => {
-                  setIsMegaMenuOpen(true);
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsMegaMenuOpen(!isMegaMenuOpen);
                   setActiveDropdown(null);
-                }}
-                onMouseEnter={() => {
-                  setActiveDropdown(null);
-                  setIsMegaMenuOpen(true);
                 }}
                 onFocus={() => {
                   setActiveDropdown(null);

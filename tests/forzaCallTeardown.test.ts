@@ -13,7 +13,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  const recorder={state:'recording',onstop:()=>{},ondataavailable:()=>{},onerror:()=>{},stop(){assert.equal(this.onstop,null);calls.push('recorder');}};
  const track={onended:()=>{},stop(){assert.equal(this.onended,null);calls.push('track');}};
  const values:Record<string,any>={
-  playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),backchannelRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
+  playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
   activeTurnRef:ref({abort:{abort(){calls.push('request');}}}),
   silenceTimerRef:ref(null),recognitionRetryTimerRef:ref(null),
   recognitionRef:ref(recognition),isRecognitionActiveRef:ref(true),

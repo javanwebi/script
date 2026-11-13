@@ -1,83 +1,117 @@
-// Export all generated industrial assets for Atlas Trading Storefront
-import heroBannerImg from './mobile/industrial_hero_banner_1789372743298.webp';
-import atlasHeroPulleyImg from './mobile/atlas_hero_pulley_1789379687558.webp';
-import heroSteelCoilsImg from './mobile/hero_steel_coils_1789642667373.webp';
+// All storefront, company, industry, brand, and editorial assets served directly from `public/images/`
+const heroBannerImg = '/images/hero/hero-banner.webp';
+const atlasHeroPulleyImg = '/images/hero/hero-pulley.webp';
+const heroSteelCoilsImg = '/images/hero/hero-steel-coils.webp';
+const refineryDuskWideImg = '/images/hero/refinery-dusk-wide.webp';
+const footerConveyorImg = '/images/hero/footer-conveyor.webp';
+const ctaConsultBannerImg = '/images/hero/cta-consult-banner.webp';
+const authIndustrialHeroImg = '/images/hero/auth-industrial-hero.webp';
+const bannerAuthLoginImg = '/images/hero/banner-auth-login.webp';
+const bannerAuthRegisterImg = '/images/hero/banner-auth-register.webp';
+const forzaSwrDualBannerImg = '/images/hero/forza-swr-dual-banner.webp';
+const brandsFullbleedBgImg = '/images/hero/brands-fullbleed-bg.webp';
+const bannerForzaImg = '/images/hero/banner-forza.webp';
+const bannerSwrImg = '/images/hero/banner-swr.webp';
 
-import catBeltsImg from './mobile/cat_belts_1789372769676.webp';
-import catPulleysImg from './mobile/cat_pulleys_1789372787444.webp';
-import catBearingsImg from './mobile/cat_bearings_1789372803159.webp';
-import catConveyorImg from './mobile/cat_conveyor_1789372820961.webp';
-import catCeramicImg from './mobile/cat_ceramic_1789372839717.webp';
-import catTextileImg from './mobile/cat_textile_1789372856221.webp';
-import catTransmissionImg from './mobile/cat_trans_1789372871923.webp';
-import catChainsSprocketsImg from './mobile/cat_chains_sprockets_1789379751306.webp';
+const catBeltsImg = '/images/categories/belts.webp';
+const catPulleysImg = '/images/categories/pulleys.webp';
+const catBearingsImg = '/images/categories/bearings.webp';
+const catChainsSprocketsImg = '/images/categories/chains.webp';
+const catConveyorImg = '/images/categories/conveyor.webp';
+const catCeramicImg = '/images/categories/ceramic.webp';
+const catTextileImg = '/images/categories/textile.webp';
+const catTransmissionImg = '/images/categories/transmission.webp';
 
-import bannerForzaImg from './mobile/banner_forza_1789372945728.webp';
-import bannerSwrImg from './mobile/banner_swr_1789372963559.webp';
+const indCeramicImg = '/images/industries/ceramic.webp';
+const indTextileImg = '/images/industries/textile.webp';
+const indFactoryImg = '/images/industries/manufacturing.webp';
+const indCementPlantImg = '/images/industries/cement.webp';
+const indFoodBeltImg = '/images/industries/food.webp';
+const indFoodBottlesImg = '/images/industries/food-bottles.webp';
+const indMiningTruckImg = '/images/industries/mining-truck.webp';
+const indPowerCoolingImg = '/images/industries/power-cooling.webp';
+const indRobotArmImg = '/images/industries/robot-arm.webp';
+const indBgPlantImg = '/images/industries/bg-plant.webp';
+const indRubberPlantImg = '/images/industries/rubber.webp';
 
-import indCeramicImg from './mobile/ind_ceramic_1789372889504.webp';
-import indTextileImg from './mobile/ind_textile_1789372911510.webp';
-import indFactoryImg from './mobile/ind_factory_1789372929899.webp';
-import indCementPlantImg from './mobile/ind_cement_plant_1789379772744.webp';
-import indFoodBeltImg from './mobile/ind_food_belt_1789640443445.webp';
-import indBgPlantImg from './mobile/ind_bg_plant_1789640602049.webp';
-import indFoodBottlesImg from './mobile/ind_food_bottles_1789640622505.webp';
-import indMiningTruckImg from './mobile/ind_mining_truck_1789640639445.webp';
-import indPowerCoolingImg from './mobile/ind_power_cooling_1789640659745.webp';
-import indRobotArmImg from './mobile/ind_robot_arm_1789640675729.webp';
-
-import aiConsultRobotImg from './mobile/ai_consult_robot_1789379706342.webp';
-import aiSearchMobileImg from './mobile/ai_search_mobile_1789379723502.webp';
-import engineerWhyAtlasImg from './mobile/engineer_why_atlas_1789379790899.webp';
-import ctaConsultBannerImg from './mobile/cta_consult_banner_1789637852056.webp';
-
-import prodCerPartsImg from './mobile/prod_cer_parts_1789373001819.webp';
-import prodAluPulleyImg from './mobile/prod_alu_pulley_1789373016576.webp';
-import prodPvcBeltImg from './mobile/prod_pvc_belt_1789373040329.webp';
-import prodBearingImg from './mobile/prod_bearing_1789373059455.webp';
-import prodForzaBeltImg from './mobile/prod_forza_belt_1789373077648.webp';
-import prodCerRollerImg from './mobile/prod_cer_roller_1789373093705.webp';
-import prodFlangeImg from './mobile/prod_flange_1789639958727.webp';
-import prodPipesImg from './mobile/prod_pipes_1789639975465.webp';
-import prodValveImg from './mobile/prod_valve_1789639989306.webp';
-import prodPumpImg from './mobile/prod_pump_1789640002577.webp';
-import prodMotorImg from './mobile/prod_motor_1789640017545.webp';
-import prodBearingNskImg from './mobile/prod_bearing_nsk_1789640036345.webp';
-import footerConveyorImg from './mobile/footer_conveyor_1789463035125.webp';
-import forzaAiRobotHaloImg from '../IMAGESITE/mobile/Futuristic FORZA AI Robot Halo.webp';
-import levitatingOrbitalEngineImg from '../IMAGESITE/mobile/Levitating Orbital Engine Assembly (1).webp';
-import refineryDuskWideImg from './mobile/refinery_dusk_wide_1790695808002.webp';
+const aiConsultRobotImg = '/images/company/ai-consult-robot.webp';
+const aiSearchMobileImg = '/images/company/ai-search-mobile.webp';
+const engineerWhyAtlasImg = '/images/company/engineer-why-atlas.webp';
+const forzaAiRobotHaloImg = '/images/company/forza-ai-robot-halo.webp';
+const levitatingOrbitalEngineImg = '/images/company/levitating-orbital-engine.webp';
 
 const atlasAiCyborgImg = forzaAiRobotHaloImg;
 const aiForzaCyborgImg = forzaAiRobotHaloImg;
 const chatGptForzaImg = forzaAiRobotHaloImg;
 const aiForzaDesktopCinematicImg = levitatingOrbitalEngineImg;
-import authIndustrialHeroImg from './mobile/auth_industrial_hero_1791191790536.webp';
-import bannerAuthLoginImg from './mobile/banner_auth_login_1791194148886.webp';
-import bannerAuthRegisterImg from './mobile/banner_auth_register_1791194168672.webp';
-import categoriesSleekWhiteHeroImg from './mobile/categories_sleek_white_hero_1794432538666.webp';
-import forzaSwrDualBannerImg from './mobile/forza_swr_hero_banner_1791281882552.webp';
-import brandsFullbleedBgImg from './mobile/brands_fullbleed_bg_1791282424638.webp';
-import forzaSubBeltImg from './mobile/forza_sub_belt_1791282448324.webp';
-import forzaSubBearingImg from './mobile/forza_sub_bearing_1791282461295.webp';
-import forzaSubCouplingImg from './mobile/forza_sub_coupling_1791281900189.webp';
-import forzaSubFittingsImg from './mobile/forza_sub_fittings_1791281915503.webp';
-import swrSubValveImg from './mobile/swr_sub_valve_1791282471297.webp';
-import swrSubElbowImg from './mobile/swr_sub_elbow_1791281933503.webp';
-import swrSubPipesImg from './mobile/swr_sub_pipes_1791282482892.webp';
-import swrSubFlangesImg from './mobile/swr_sub_flanges_1791282491635.webp';
-import whySanatQcImg from './mobile/why_sanat_qc_inspection_1791287685522.webp';
-import whySanatDirectFactoryImg from './mobile/why_sanat_direct_factory_1791287695290.webp';
-import whySanatCadEngineeringImg from './mobile/why_sanat_cad_engineering_1791287704948.webp';
-import whySanatExpressDeliveryImg from './mobile/why_sanat_express_delivery_1791287714873.webp';
-import partsWarehouseVaultImg from './mobile/parts_warehouse_vault_1791289671081.webp';
-import reverseEngineeringLabImg from './mobile/reverse_engineering_lab_1791289687614.webp';
-import predictiveMaintenanceSensorImg from './mobile/predictive_maintenance_sensor_1791289700113.webp';
-import forzaEmblemImg from '../Futuristic RZA FORZA Energy Emblem.png';
-import logoForzaImg from '../logo-forza.png';
-import swrLogoImg from '../SWR-LOGO.png';
-import sanatPishLogoImg from '../logo.png';
-import atlasLogoImg from '../atlas.png';
+
+const forzaSubBeltImg = '/images/subcategories/forza-sub-belt.webp';
+const forzaSubBearingImg = '/images/subcategories/forza-sub-bearing.webp';
+const forzaSubCouplingImg = '/images/subcategories/forza-sub-coupling.webp';
+const forzaSubFittingsImg = '/images/subcategories/forza-sub-fittings.webp';
+const swrSubValveImg = '/images/subcategories/swr-sub-valve.webp';
+const swrSubElbowImg = '/images/subcategories/swr-sub-elbow.webp';
+const swrSubPipesImg = '/images/subcategories/swr-sub-pipes.webp';
+const swrSubFlangesImg = '/images/subcategories/swr-sub-flanges.webp';
+
+const whySanatQcImg = '/images/company/why-sanat-qc.webp';
+const whySanatDirectFactoryImg = '/images/company/why-sanat-direct-factory.webp';
+const whySanatCadEngineeringImg = '/images/company/why-sanat-cad-engineering.webp';
+const whySanatExpressDeliveryImg = '/images/company/why-sanat-express-delivery.webp';
+const partsWarehouseVaultImg = '/images/company/parts-warehouse-vault.webp';
+const reverseEngineeringLabImg = '/images/company/reverse-engineering-lab.webp';
+const predictiveMaintenanceSensorImg = '/images/company/predictive-maintenance-sensor.webp';
+
+const heroTimingBeltStudioImg = '/images/subcategories/timing-belt-hero.webp';
+const heroVbeltRibbedStudioImg = '/images/subcategories/vbelt-ribbed-hero.webp';
+const heroPuWeldedRoundBeltImg = '/images/subcategories/pu-welded-belt-hero.webp';
+const heroRollerConveyorPartsImg = '/images/subcategories/roller-conveyor-hero.webp';
+const heroPolymerSealsBrushesImg = '/images/subcategories/polymer-seals-hero.webp';
+const subIndustrialBrushesImg = '/images/subcategories/industrial-brushes.jpg';
+const subGuideRailsProfilesImg = '/images/subcategories/guide-rails-profiles.jpg';
+const subRefractoryPtfeCordImg = '/images/subcategories/refractory-ptfe-cord.jpg';
+const subWireMeshScreensImg = '/images/subcategories/wire-mesh-screens.jpg';
+const subCeramicGlazeRotaryImg = '/images/subcategories/ceramic-glaze-rotary.jpg';
+const subSpongesFoamScourersImg = '/images/subcategories/sponges-foam-scourers.jpg';
+const subFlatBeltsWelderImg = '/images/subcategories/flat-belts-welder.jpg';
+
+const aboutHeroGearsImg = '/images/company/about-hero.webp';
+const aboutAtlasWarehouseImg = '/images/company/about-warehouse.webp';
+const aboutSanatpishShowroomImg = '/images/company/about-sanatpish-showroom.jpg';
+const servicesCncInspectionImg = '/images/company/services-hero.webp';
+const servicesEngineeringConsultImg = '/images/company/services-engineering-consult.webp';
+const servicesOrderDispatchImg = '/images/company/services-order-dispatch.webp';
+const industriesAutomatedLineImg = '/images/company/industries-hero.webp';
+const brandsPartsStudioImg = '/images/company/brands-hero.webp';
+const knowledgeCaliperGuideImg = '/images/company/knowledge-hero.webp';
+const contactShowroomImg = '/images/company/contact-showroom.webp';
+const contactVisitCounterImg = '/images/company/contact-visit-counter.webp';
+const yazdRegionMapImg = '/images/company/yazd-region-osm.webp';
+
+const articleIdentifyBeltImg = '/images/articles/identify-belt.webp';
+const articlePartPhotoImg = '/images/articles/part-photo.webp';
+const articleCustomPartImg = '/images/articles/custom-part.webp';
+const articleMaintenanceImg = '/images/articles/maintenance.webp';
+
+const prodCerPartsImg = '/images/products/ceramic-parts.webp';
+const prodAluPulleyImg = '/images/products/alu-pulley.webp';
+const prodPvcBeltImg = '/images/products/pvc-belt.webp';
+const prodBearingImg = '/images/products/bearing.webp';
+const prodForzaBeltImg = '/images/products/forza-belt.webp';
+const prodCerRollerImg = '/images/products/ceramic-roller.webp';
+const prodFlangeImg = '/images/products/flange.webp';
+const prodPipesImg = '/images/products/pipes.webp';
+const prodValveImg = '/images/products/valve.webp';
+const prodPumpImg = '/images/products/pump.webp';
+const prodMotorImg = '/images/products/motor.webp';
+const prodBearingNskImg = '/images/products/bearing-nsk.webp';
+
+const forzaEmblemImg = '/images/brand/forza-emblem.webp';
+const logoForzaImg = '/images/brand/logo-forza.webp';
+const swrLogoImg = '/images/brand/swr-logo.webp';
+const sanatPishLogoImg = '/images/brand/sanatpish-logo.webp';
+const atlasLogoImg = '/images/brand/atlas-logo.webp';
+const mockCommercialDocumentImg = '/images/mock/commercial-document.webp';
 
 export const STORE_ASSETS = {
   sanatPishLogo: sanatPishLogoImg,
@@ -85,6 +119,25 @@ export const STORE_ASSETS = {
   swrLogo: swrLogoImg,
   atlasLogo: atlasLogoImg,
   forzaEmblem: forzaEmblemImg,
+  mockCommercialDocument: mockCommercialDocumentImg,
+  companyPages: {
+    aboutHero: aboutHeroGearsImg,
+    aboutWarehouse: aboutAtlasWarehouseImg,
+    aboutSanatpishShowroom: aboutSanatpishShowroomImg,
+    servicesHero: servicesCncInspectionImg,
+    servicesEngineeringConsult: servicesEngineeringConsultImg,
+    servicesOrderDispatch: servicesOrderDispatchImg,
+    industriesHero: industriesAutomatedLineImg,
+    brandsHero: brandsPartsStudioImg,
+    knowledgeHero: knowledgeCaliperGuideImg,
+    contactShowroom: contactShowroomImg,
+    contactVisitCounter: contactVisitCounterImg,
+    yazdRegionMap: yazdRegionMapImg,
+    articleIdentifyBelt: articleIdentifyBeltImg,
+    articlePartPhoto: articlePartPhotoImg,
+    articleCustomPart: articleCustomPartImg,
+    articleMaintenance: articleMaintenanceImg,
+  },
   partsWarehouseVault: partsWarehouseVaultImg,
   reverseEngineeringLab: reverseEngineeringLabImg,
   predictiveMaintenanceSensor: predictiveMaintenanceSensorImg,
@@ -105,7 +158,6 @@ export const STORE_ASSETS = {
   authIndustrialHero: authIndustrialHeroImg,
   bannerAuthLogin: bannerAuthLoginImg,
   bannerAuthRegister: bannerAuthRegisterImg,
-  categoriesSleekWhiteHero: categoriesSleekWhiteHeroImg,
   heroBanner: heroBannerImg,
   heroPulley: atlasHeroPulleyImg,
   heroSteelCoils: heroSteelCoilsImg,
@@ -121,6 +173,20 @@ export const STORE_ASSETS = {
   aiSearchMobile: aiSearchMobileImg,
   engineerWhyAtlas: engineerWhyAtlasImg,
   ctaConsultBanner: ctaConsultBannerImg,
+  subcategories: {
+    timingBeltHero: heroTimingBeltStudioImg,
+    vbeltRibbedHero: heroVbeltRibbedStudioImg,
+    puWeldedBeltHero: heroPuWeldedRoundBeltImg,
+    rollerConveyorHero: heroRollerConveyorPartsImg,
+    polymerSealsHero: heroPolymerSealsBrushesImg,
+    industrialBrushes: subIndustrialBrushesImg,
+    guideRailsProfiles: subGuideRailsProfilesImg,
+    refractoryPtfeCord: subRefractoryPtfeCordImg,
+    wireMeshScreens: subWireMeshScreensImg,
+    ceramicGlazeRotary: subCeramicGlazeRotaryImg,
+    spongesFoamScourers: subSpongesFoamScourersImg,
+    flatBeltsWelder: subFlatBeltsWelderImg,
+  },
   categories: {
     belts: catBeltsImg,
     pulleys: catPulleysImg,
@@ -146,6 +212,7 @@ export const STORE_ASSETS = {
     powerCooling: indPowerCoolingImg,
     robotArm: indRobotArmImg,
     bgPlant: indBgPlantImg,
+    rubber: indRubberPlantImg,
   },
   products: {
     ceramicParts: prodCerPartsImg,
@@ -165,4 +232,3 @@ export const STORE_ASSETS = {
 
 export const IMAGES = STORE_ASSETS;
 export default STORE_ASSETS;
-

@@ -8,6 +8,7 @@ import {
 import { ProductImage } from "../components/product/ProductImage";
 import { STORE_ASSETS } from "../assets/images";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
+import { resolveExcelCategoryArtwork } from "../utils/excelCategoryCatalog";
 import "./products-page-premium.css";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -112,6 +113,8 @@ export const ProductsPage: React.FC = () => {
   const mobileFilterCloseRef = useRef<HTMLButtonElement>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [addedItemCode, setAddedItemCode] = useState<string | null>(null);
+  const [compareCodes, setCompareCodes] = useState<string[]>([]);
+  const [compareModalOpen, setCompareModalOpen] = useState<boolean>(false);
   const resultsSectionRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 24;
@@ -125,7 +128,7 @@ export const ProductsPage: React.FC = () => {
     setCatalogReady(isDatabaseCatalogHydrated());
   }), []);
   useEffect(() => {
-    if (!mobileFiltersOpen) return;
+    if (!mobileFiltersOpen && !compareModalOpen) return;
     const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
@@ -135,9 +138,10 @@ export const ProductsPage: React.FC = () => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMobileFiltersOpen(false);
+        setCompareModalOpen(false);
         return;
       }
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || !mobileFiltersOpen) return;
       const items = focusableElements();
       if (!items.length) {
         event.preventDefault();
@@ -155,13 +159,13 @@ export const ProductsPage: React.FC = () => {
       }
     };
     window.addEventListener("keydown", closeOnEscape);
-    mobileFilterCloseRef.current?.focus();
+    if (mobileFiltersOpen) mobileFilterCloseRef.current?.focus();
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
       previousFocus?.focus();
     };
-  }, [mobileFiltersOpen]);
+  }, [mobileFiltersOpen, compareModalOpen]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
   const managedCategories = useMemo(
     () => getManagedCategories().filter((category) => category.active !== false),
@@ -397,13 +401,16 @@ export const ProductsPage: React.FC = () => {
         <section className="catalogue-intro catalogue-hero">
           <div className="catalogue-hero-copy">
             <span className="store-eyebrow">کاتالوگ تخصصی صنعت پیش</span>
-            <h1>قطعه مناسب خط تولید را دقیق‌تر پیدا کنید</h1>
+            <h1>مرجع تأمین و انتخاب دقیق قطعات صنعتی</h1>
             <p>
-              از خانواده و برند تا کد فنی و مشخصات؛ محصولات را در کاتالوگ واقعی
-              صنعت پیش جست‌وجو و مقایسه کنید.
+              از خانواده و برند تا کد فنی و مشخصات مهندسی؛ قطعات خطوط تولید را در
+              کاتالوگ صنعت پیش سریع فیلتر، مقایسه و انتخاب کنید.
             </p>
             <div className="catalogue-hero-actions">
-              <Link to="/identify-part" className="catalogue-hero-primary">
+              <a href="#catalog-products-results" className="catalogue-hero-primary">
+                مشاهده فهرست کالاها
+              </a>
+              <Link to="/identify-part" className="catalogue-hero-secondary">
                 شناسایی تصویری قطعه
               </Link>
               <Link to="/ai-consult" className="catalogue-hero-secondary">
@@ -413,17 +420,26 @@ export const ProductsPage: React.FC = () => {
             <div className="catalogue-hero-metrics" aria-label="آمار کاتالوگ">
               <span><strong>{catalogReady ? toPersianDigits(allProducts.length) : "—"}</strong><small>خانواده محصول</small></span>
               <span><strong>{catalogReady ? toPersianDigits(CATALOGUE_SKU_COUNT) : "—"}</strong><small>کد فنی کالا</small></span>
+              <span><strong>{toPersianDigits(managedCategories.length || 14)}</strong><small>دسته تخصصی</small></span>
             </div>
           </div>
           <div className="catalogue-hero-art" aria-hidden="true">
             <img src={STORE_ASSETS.heroBanner} alt="" loading="eager" fetchPriority="high" decoding="async" />
-            <span className="catalogue-hero-art-label">تأمین هوشمند قطعات صنعتی</span>
+            <span className="catalogue-hero-art-label">تأمین مستقیم قطعات خطوط تولید</span>
           </div>
         </section>
 
         {/* Minimal Category Selector Tabs */}
         <section className="catalogue-category-rail">
-          <div className="catalogue-section-heading"><div><span>دسته‌بندی کاتالوگ</span><h2>از کدام گروه شروع می‌کنید؟</h2></div><small>انتخاب دسته، فهرست کالاها را محدود می‌کند</small></div>
+          <div className="catalogue-section-heading">
+            <div>
+              <span>دسته‌بندی کاتالوگ</span>
+              <h2>انتخاب سریع گروه کالایی</h2>
+            </div>
+            <Link to="/categories" className="catalogue-all-categories-link">
+              مشاهده صفحه دسته‌بندی‌ها <ChevronLeft className="w-3.5 h-3.5" />
+            </Link>
+          </div>
           <div
             className="catalogue-category-track flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none"
             style={{ scrollbarWidth: "none" }}
@@ -449,7 +465,9 @@ export const ProductsPage: React.FC = () => {
               const icon = CATEGORY_ICONS[cat.name] || (
                 <Layers className="w-4 h-4" />
               );
-              const artwork = cat.image || CATEGORY_ARTWORK[cat.name];
+              const artwork =
+                resolveExcelCategoryArtwork(cat.slug, cat.name, cat.image) ||
+                CATEGORY_ARTWORK[cat.name];
               return (
                 <button
                   key={cat.slug}
@@ -479,7 +497,7 @@ export const ProductsPage: React.FC = () => {
 
         {/* Search, Secondary Filters & View Controls Bar */}
         <section className="catalogue-toolbar bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          <div className="catalogue-toolbar-main flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Search Input */}
             <div className="catalogue-search-field relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -495,7 +513,7 @@ export const ProductsPage: React.FC = () => {
                   else nextParams.delete("q");
                   setSearchParams(nextParams, { replace: true });
                 }}
-                placeholder="جستجو در کد فنی قطعه (مثلاً AT-E045)، نام قطعه، برند یا مشخصات..."
+                placeholder="جستجوی کد فنی (مثلاً 8M-1200 یا AT-E045)، نام قطعه یا برند..."
                 className="w-full pr-10 pl-24 h-10 bg-slate-50 text-xs text-slate-800 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all shadow-inner"
               />
               {searchQuery && (
@@ -512,13 +530,24 @@ export const ProductsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Filter Dropdowns & Sorting */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="catalogue-mobile-filter-trigger" onClick={() => setMobileFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={mobileFiltersOpen}>
-                <SlidersHorizontal className="w-4 h-4" /> فیلترها {activeFiltersCount > 0 && <span>{toPersianDigits(activeFiltersCount)}</span>}
-              </button>
+            {/* Quick Accessible Filter Strip (Mobile horizontal pills + Desktop inline controls) */}
+            <div className="catalogue-quick-filters-bar">
+              {/* Sort Dropdown */}
+              <div className="catalogue-filter-control catalogue-filter-sort relative">
+                <select
+                  aria-label="مرتب‌سازی محصولات"
+                  value={sortBy}
+                  onChange={(e) => { setSortBy(e.target.value as any); setCurrentPage(1); }}
+                  className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
+                >
+                  <option value="code_asc">⇅ مرتب‌سازی: کد فنی</option>
+                  <option value="name_asc">⇅ نام قطعه (الفبا)</option>
+                  <option value="rating_desc">⇅ بیشترین امتیاز</option>
+                  <option value="stock_desc">⇅ بیشترین موجودی</option>
+                </select>
+              </div>
 
-              {/* Brand Filter */}
+              {/* Brand Filter (Accessible on both Mobile & Desktop!) */}
               <div className="catalogue-filter-control catalogue-filter-brand relative">
                 <select
                   value={selectedBrand}
@@ -531,7 +560,7 @@ export const ProductsPage: React.FC = () => {
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
                   <option value="all">
-                    همه برندها ({toPersianDigits(allBrands.length)})
+                    برندها ({toPersianDigits(allBrands.length)})
                   </option>
                   {allBrands.map((b) => (
                     <option key={b} value={b}>
@@ -541,24 +570,26 @@ export const ProductsPage: React.FC = () => {
                 </select>
               </div>
 
-              {/* Sort Dropdown */}
-              <div className="catalogue-filter-control catalogue-filter-sort relative">
+              {/* Category Quick Select on Mobile/Toolbar */}
+              <div className="catalogue-filter-control catalogue-filter-category relative">
                 <select
-                  aria-label="مرتب‌سازی محصولات"
-                  value={sortBy}
-                  onChange={(e) => { setSortBy(e.target.value as any); setCurrentPage(1); }}
+                  value={selectedCategory}
+                  aria-label="انتخاب سریع دسته‌بندی"
+                  onChange={(e) => handleCategorySelect(e.target.value)}
                   className="h-10 px-3 bg-slate-50 text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-orange-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
                 >
-                  <option value="code_asc">مرتب‌سازی: کد فنی (صعودی)</option>
-                  <option value="name_asc">مرتب‌سازی: نام قطعه (الفبا)</option>
-                  <option value="rating_desc">مرتب‌سازی: بیشترین امتیاز</option>
-                  <option value="stock_desc">مرتب‌سازی: بیشترین موجودی ثبت‌شده</option>
+                  <option value="all">همه دسته‌بندی‌ها</option>
+                  {managedCategories.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <label className={`catalogue-desktop-stock-filter flex items-center gap-2 h-10 px-3 rounded-xl border cursor-pointer text-xs font-bold select-none transition-all ${inStockOnly ? "is-active" : ""}`}>
                 <input type="checkbox" checked={inStockOnly} onChange={(e) => { setInStockOnly(e.target.checked); setCurrentPage(1); updateSearchParam("stock", e.target.checked ? "1" : null); }} />
-                <span>فقط موجودی تأییدشده</span>
+                <span>فقط موجود</span>
               </label>
 
               {/* Official Catalogue Image Toggle */}
@@ -581,9 +612,13 @@ export const ProductsPage: React.FC = () => {
                 />
                 <ImageIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
-                  دارای تصویر خانواده ({toPersianDigits(countWithImages)})
+                  دارای تصویر ({toPersianDigits(countWithImages)})
                 </span>
               </label>
+
+              <button type="button" className="catalogue-mobile-filter-trigger" onClick={() => setMobileFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={mobileFiltersOpen}>
+                <SlidersHorizontal className="w-4 h-4" /> فیلترها {activeFiltersCount > 0 && <span>{toPersianDigits(activeFiltersCount)}</span>}
+              </button>
 
               {/* View Mode Toggle (Grid vs List) */}
               <div className="catalogue-view-toggle flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
@@ -620,10 +655,10 @@ export const ProductsPage: React.FC = () => {
                 <button
                   onClick={handleResetFilters}
                   title="بازنشانی فیلترها"
-                  className="flex items-center gap-1 h-10 px-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  className="catalogue-reset-btn flex items-center gap-1 h-10 px-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>پاکسازی فیلترها</span>
+                  <span>پاکسازی</span>
                 </button>
               )}
             </div>
@@ -698,6 +733,87 @@ export const ProductsPage: React.FC = () => {
           </div>
         )}
 
+        {/* Active Filter Summary Chips */}
+        {activeFiltersCount > 0 && (
+          <div className="catalogue-active-chips flex flex-wrap items-center gap-2 px-1" aria-label="فیلترهای فعال">
+            {selectedCategory !== "all" && (
+              <button
+                type="button"
+                onClick={() => handleCategorySelect("all")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#c65617] hover:bg-orange-100"
+              >
+                <span>دسته: {activeCategoryObj?.name || selectedCategory}</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {selectedSubcategory !== "all" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSubcategory("all");
+                  updateSearchParam("sub", null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#c65617] hover:bg-orange-100"
+              >
+                <span>زیرگروه: {selectedSubcategory}</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {selectedBrand !== "all" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBrand("all");
+                  updateSearchParam("brand", null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-[#c65617] hover:bg-orange-100"
+              >
+                <span>برند: {selectedBrand}</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {inStockOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInStockOnly(false);
+                  updateSearchParam("stock", null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
+              >
+                <span>فقط موجودی تأییدشده</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {hasCatalogueImageFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHasCatalogueImageFilter(false);
+                  updateSearchParam("image", null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
+              >
+                <span>دارای تصویر خانواده</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {searchQuery.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  updateSearchParam("q", null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200"
+              >
+                <span>جستجو: «{searchQuery}»</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Results Count & Active Status */}
         <div
           ref={resultsSectionRef}
@@ -769,9 +885,34 @@ export const ProductsPage: React.FC = () => {
               viewMode === "grid" ? "store-product-grid catalogue-products-grid" : "store-product-list catalogue-products-list"
             }
           >
-            {paginatedProducts.map((product) => (
-              <ProductCard key={product.code} product={product} />
-            ))}
+            {paginatedProducts.map((product) => {
+              const isSelectedForCompare = compareCodes.includes(product.code);
+              return (
+                <div key={product.code} className="catalogue-product-item-wrap">
+                  <ProductCard product={product} />
+                  <button
+                    type="button"
+                    aria-pressed={isSelectedForCompare}
+                    onClick={() => {
+                      setCompareCodes((prev) => {
+                        if (prev.includes(product.code)) {
+                          return prev.filter((code) => code !== product.code);
+                        }
+                        if (prev.length >= 4) {
+                          return [...prev.slice(1), product.code];
+                        }
+                        return [...prev, product.code];
+                      });
+                    }}
+                    className={`catalogue-compare-toggle ${isSelectedForCompare ? "is-selected" : ""}`}
+                    title="افزودن به جدول مقایسه فنی"
+                  >
+                    {isSelectedForCompare ? <Check className="w-3.5 h-3.5" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+                    <span>{isSelectedForCompare ? "در لیست مقایسه" : "مقایسه فنی"}</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -857,6 +998,165 @@ export const ProductsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Compare Dock */}
+      {compareCodes.length > 0 && (() => {
+        const comparedItems = compareCodes
+          .map((code) => allProducts.find((p) => p.code === code))
+          .filter((item): item is Product => Boolean(item));
+        const specKeys = Array.from(
+          new Set(
+            comparedItems.flatMap((item) =>
+              (item.technicalSpecs || []).map((s) => s.key).filter(Boolean),
+            ),
+          ),
+        ).slice(0, 10);
+
+        return (
+          <>
+            <div className="catalogue-compare-dock" role="region" aria-label="نوار مقایسه فنی محصولات">
+              <div className="catalogue-compare-dock-info">
+                <strong>
+                  مقایسه فنی کالاها <span>{toPersianDigits(comparedItems.length)}/۴</span>
+                </strong>
+                <div className="catalogue-compare-dock-pills">
+                  {comparedItems.map((item) => (
+                    <span key={item.code}>
+                      <b dir="ltr">{item.code}</b>
+                      <button
+                        type="button"
+                        aria-label={`حذف ${item.code} از مقایسه`}
+                        onClick={() =>
+                          setCompareCodes((prev) => prev.filter((c) => c !== item.code))
+                        }
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="catalogue-compare-dock-actions">
+                <button
+                  type="button"
+                  className="catalogue-compare-clear"
+                  onClick={() => setCompareCodes([])}
+                >
+                  پاک کردن
+                </button>
+                <button
+                  type="button"
+                  className="catalogue-compare-open"
+                  onClick={() => setCompareModalOpen(true)}
+                >
+                  جدول مقایسه ({toPersianDigits(comparedItems.length)})
+                </button>
+              </div>
+            </div>
+
+            {compareModalOpen && (
+              <div
+                className="catalogue-compare-modal-backdrop"
+                onMouseDown={() => setCompareModalOpen(false)}
+              >
+                <section
+                  className="catalogue-compare-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="مقایسه مشخصات فنی محصولات"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <header>
+                    <div>
+                      <span>مقایسه مهندسی کاتالوگ صنعت پیش</span>
+                      <h2>مقایسه مشخصات فنی ({toPersianDigits(comparedItems.length)} محصول)</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCompareModalOpen(false)}
+                      aria-label="بستن پنجره مقایسه"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </header>
+                  <div className="catalogue-compare-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>مشخصه فنی</th>
+                          {comparedItems.map((item) => (
+                            <th key={item.code}>
+                              <div className="catalogue-compare-th-card">
+                                <div className="catalogue-compare-th-img">
+                                  <ProductImage
+                                    src={item.images?.[0] || item.image}
+                                    alt={item.name}
+                                    thumbnail
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <code dir="ltr">{item.code}</code>
+                                <Link to={`/product/${encodeURIComponent(item.code)}`}>
+                                  {item.name}
+                                </Link>
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <th>برند سازنده</th>
+                          {comparedItems.map((item) => (
+                            <td key={item.code}>{item.brand || "—"}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <th>دسته‌بندی و زیرگروه</th>
+                          {comparedItems.map((item) => (
+                            <td key={item.code}>
+                              {item.categoryName} {item.subcategory ? `› ${item.subcategory}` : ""}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <th>تعداد مدل / سایز (SKU)</th>
+                          {comparedItems.map((item) => (
+                            <td key={item.code}>
+                              {toPersianDigits(item.variants?.length || 1)} کد
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <th>وضعیت موجودی</th>
+                          {comparedItems.map((item) => (
+                            <td key={item.code}>
+                              {item.stockKnown && item.stock > 0 && !item.inquiryOnly
+                                ? `موجودی تأییدشده (${toPersianDigits(item.stock)})`
+                                : "استعلام موجودی و قیمت"}
+                            </td>
+                          ))}
+                        </tr>
+                        {specKeys.map((key) => (
+                          <tr key={key}>
+                            <th>{key}</th>
+                            {comparedItems.map((item) => {
+                              const found = (item.technicalSpecs || []).find(
+                                (s) => s.key === key,
+                              );
+                              return <td key={item.code}>{found?.value || "—"}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };

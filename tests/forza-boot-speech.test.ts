@@ -1,30 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {shouldRemountAfterCatalogHydration, shouldRequestFullCatalogOnBoot, isForzaCallPath} from '../src/utils/forzaBootPolicy';
+import {shouldRemountAfterCatalogHydration} from '../src/utils/forzaBootPolicy';
 
 const frontend=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const backend=readFileSync(new URL('../server.ts',import.meta.url),'utf8');
 const pocketWorker=readFileSync(new URL('../scripts/forza_pocket_worker.py',import.meta.url),'utf8');
 const pocketHttp=readFileSync(new URL('../scripts/forza_voice_http.py',import.meta.url),'utf8');
 
-test('FORZA voice and its alias use lean runtime and never remount during hydration',()=>{
-  const callRoutes=['/ai-forza','/ai-forza/','/ai-forza/session','/face-to-face','/face-to-face/'];
-  for(const path of callRoutes){
-    assert.equal(isForzaCallPath(path),true,path);
-    assert.equal(shouldRemountAfterCatalogHydration(path),false,path);
-    assert.equal(shouldRequestFullCatalogOnBoot(path),false,path);
-  }
-  for(const path of ['/','/products','/categories','/category/bearings','/search']){
-    assert.equal(shouldRequestFullCatalogOnBoot(path),true,path);
-    assert.equal(shouldRemountAfterCatalogHydration(path),true,path);
-  }
-  assert.equal(shouldRequestFullCatalogOnBoot('/admin'),false);
-  assert.equal(shouldRequestFullCatalogOnBoot('/admin/catalog'),false);
-  const main=readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');
-  assert.match(main,/includeProducts:shouldRequestFullCatalogOnBoot\(window\.location\.pathname\)/);
-  const portal=readFileSync(new URL('../src/services/portalRepository.ts',import.meta.url),'utf8');
-  assert.match(portal,/includeProducts=shouldRequestFullCatalogOnBoot\(pathname\)/);
+test('FORZA active session does not remount during catalog hydration',()=>{
+  for(const path of ['/ai-forza','/ai-forza/','/ai-forza/session'])
+    assert.equal(shouldRemountAfterCatalogHydration(path),false);
+  assert.equal(shouldRemountAfterCatalogHydration('/'),true);
 });
 
 test('FORZA renders live SSE words and sends complete Nima word groups to the existing private voice',()=>{

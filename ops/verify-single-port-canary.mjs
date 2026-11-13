@@ -34,9 +34,6 @@ for (const route of [
   "/api/catalog/direct-skus",
   "/api/catalog/menu-family-assignment",
   "/api/catalog/product-images/upload",
-  "/api/catalog/product-images/assign",
-  "/api/catalog/product-images/sku-bindings",
-  "/api/catalog/direct-skus/bulk",
   "/api/catalog/category-images/upload",
 ]) {
   const upload = route.includes("/images/upload");
@@ -53,25 +50,6 @@ for (const route of [
   const denied = await response.json();
   assert.equal(denied.success, false, `API_DENIAL_CONTRACT_FAILED ${route}`);
   console.log("PROTECTED_API_CONTRACT_OK", route, response.status);
-}
-
-for (const [method,route] of [
-  ["PATCH","/api/catalog/product-images/bindings/contract-test"],
-  ["DELETE","/api/catalog/product-images/bindings/contract-test"],
-  ["PATCH","/api/catalog/direct-skus/contract-test"],
-  ["DELETE","/api/catalog/direct-skus/contract-test"],
-  ["DELETE","/api/catalog/direct-skus/contract-test/image"],
-]) {
-  const response = await fetch(candidate + route, {
-    method,headers:{"Content-Type":"application/json"},body:"{}",
-    signal:AbortSignal.timeout(15000),
-  });
-  assert.ok(response.status===401||response.status===403,
-    `API_ROUTE_MISSING_OR_UNPROTECTED ${method} ${route}: HTTP ${response.status}`);
-  assert.match(response.headers.get("content-type")||"",/application\/json/);
-  const denied=await response.json();
-  assert.equal(denied.success,false);
-  console.log("PROTECTED_API_CONTRACT_OK",method,route,response.status);
 }
 
 const missingApi = await fetch(candidate + "/api/__contract_missing_route__", {

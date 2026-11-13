@@ -111,7 +111,11 @@ test('mobile filter and comparison dialogs support Escape, focus containment and
 });
 
 test('category detail styling covers desktop, tablet, mobile, narrow phones and reduced motion', () => {
-  assert.match(styles, /grid-template-columns: minmax\(218px, \.76fr\) minmax\(0, 1\.7fr\) minmax\(220px, \.78fr\)/);
+  assert.match(styles, /grid-template-columns: 280px minmax\(0, 1fr\)/);
+  assert.match(styles, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.excel-subcard/);
+  assert.match(styles, /\.excel-view-switcher/);
+  assert.match(styles, /\.excel-page-num\.is-active/);
   assert.match(styles, /@media \(max-width: 1180px\)/);
   assert.match(styles, /@media \(max-width: 900px\)/);
   assert.match(styles, /@media \(max-width: 640px\)/);
@@ -126,3 +130,17 @@ test('category detail CSS is isolated from shared storefront and portal componen
   assert.doesNotMatch(styles, /(^|\n)body\s*\{/);
   assert.doesNotMatch(styles, /(^|\n)\.store-product-card\s*\{/);
 });
+
+test('V-Belt category includes data-driven profile matrix, structure and top-width filters, and brand resolution', () => {
+  assert.match(page, /VBELT_PROFILE_GROUPS/);
+  assert.match(page, /VBELT_TOP_WIDTH_OPTIONS/);
+  assert.match(page, /VBELT_STRUCTURE_OPTIONS/);
+  assert.match(page, /const matchesExactBeltProfile =/);
+  assert.match(page, /const matchesBeltStructure =/);
+  assert.match(page, /const matchesBeltTopWidth =/);
+  assert.match(page, /resolveDisplayBrand/);
+  assert.match(page, /className="excel-vbelt-matrix"/);
+  assert.match(styles, /\.excel-vbelt-matrix/);
+  assert.match(styles, /\.excel-vbelt-groups-grid/);
+});
+

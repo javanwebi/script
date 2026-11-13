@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { hashStringSync } from '../utils/cryptoUtils';
 import type { Product } from '../types';
 import {getProductImageUrl} from '../assets/imagesproducts';
 
@@ -31,7 +31,7 @@ export function buildCatalogImageCorpus(products:Product[], revision=''):Catalog
     label:headings.get(item.file_name) || item.observed_description || item.file_name,revision:item.sha256 || revision,bindings:[]});
   const add=(url:string,binding:ImageBinding,label:string)=>{
     if(!url || /^blob:/i.test(url))return;
-    const key=officialImageFile(url) || `upload-${createHash('sha256').update(url).digest('hex').slice(0,24)}`;
+    const key=officialImageFile(url) || `upload-${hashStringSync(url).slice(0,24)}`;
     let image=images.get(key);
     if(!image){image={id:key,url,label,revision,bindings:[]};images.set(key,image);}
     if(!image.bindings.some(b=>b.familyCode===binding.familyCode && b.code===binding.code))image.bindings.push(binding);
@@ -51,5 +51,6 @@ export function buildCatalogImageCorpus(products:Product[], revision=''):Catalog
   return [...images.values()];
 }
 export function corpusFingerprint(images:CatalogImageRecord[]) {
-  return createHash('sha256').update(JSON.stringify(images)).digest('hex');
+  return hashStringSync(JSON.stringify(images));
 }
+

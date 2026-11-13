@@ -139,7 +139,7 @@ export const INDUSTRIES = [
     slug: "rubber",
     title: "لاستیک و پلاستیک",
     eyebrow: "مقاومت، حرکت و آب‌بندی",
-    image: A.industries.bgPlant,
+    image: A.industries.rubber,
     description:
       "سایش، حرارت و مواد در تماس با قطعه، در انتخاب اجزای خطوط لاستیک و پلاستیک نقش دارند. جنس و شرایط بهره‌برداری را همراه ابعاد ثبت کنید.",
     steps: [
@@ -169,7 +169,7 @@ export const ARTICLES = [
     category: "انتقال قدرت",
     title: "برای شناسایی تسمه چه اطلاعاتی لازم است؟",
     summary: "کد روی تسمه، پروفیل، طول و عرض را کنار هم بررسی کنید.",
-    image: A.categories.belts,
+    image: A.companyPages.articleIdentifyBelt,
     minutes: "۴",
     sections: [
       [
@@ -192,7 +192,7 @@ export const ARTICLES = [
     category: "راهنمای هوشمند",
     title: "چطور از قطعه عکس بگیریم تا بهتر شناسایی شود؟",
     summary: "چند نمای روشن و یک مرجع اندازه، بررسی را دقیق‌تر می‌کند.",
-    image: A.aiSearchMobile,
+    image: A.companyPages.articlePartPhoto,
     minutes: "۳",
     sections: [
       [
@@ -215,7 +215,7 @@ export const ARTICLES = [
     category: "ساخت و تأمین",
     title: "چک‌لیست درخواست ساخت قطعه صنعتی",
     summary: "اطلاعاتی که بررسی نمونه یا نقشه را سریع‌تر می‌کند.",
-    image: A.whySanatCadEngineering,
+    image: A.companyPages.articleCustomPart,
     minutes: "۵",
     sections: [
       [
@@ -238,7 +238,7 @@ export const ARTICLES = [
     category: "نگهداری خط تولید",
     title: "پیش از سفارش قطعه جایگزین چه چیزهایی را بررسی کنیم؟",
     summary: "تعویض قطعه بدون بررسی علت خرابی می‌تواند مشکل را تکرار کند.",
-    image: A.whySanatQc,
+    image: A.companyPages.articleMaintenance,
     minutes: "۴",
     sections: [
       [

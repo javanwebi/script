@@ -1,5 +1,4 @@
 import React, { lazy, Suspense } from 'react';
-import '../components/forza/style.css';
 import { useNavigate } from 'react-router-dom';
 
 const AiForzaCallExperience = lazy(() =>
@@ -13,14 +12,7 @@ export const AiForzaPage: React.FC = () => {
 
   return (
     <div className="w-screen h-screen min-h-[100svh] max-h-[100dvh] overflow-hidden bg-[#080402] p-0 m-0">
-      <Suspense fallback={
-        <div className="forza-entry-fallback" role="status" aria-label="در حال آماده‌سازی تماس FORZA">
-          <div className="forza-entry-fallback__label">
-            <span className="forza-entry-fallback__dot" />
-            <span>در حال آماده‌سازی محیط هوشمند فورزا...</span>
-          </div>
-        </div>
-      }>
+      <Suspense fallback={<div className="w-full h-full min-h-[100svh] bg-[#080402]" aria-label="در حال آماده‌سازی تماس FORZA" />}>
         <AiForzaCallExperience onClose={() => navigate('/')} />
       </Suspense>
     </div>

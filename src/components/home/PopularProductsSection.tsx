@@ -19,6 +19,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { Modal } from '../ui/Modal';
 import { Product } from '../../types';
+import { resolveSiteProductImage } from '../../utils/siteProductImages';
 
 export const PopularProductsSection: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -184,6 +185,7 @@ export const PopularProductsSection: React.FC = () => {
                 >
                   <ProductImage
                     src={product.images[0]}
+                    fallbackSrc={resolveSiteProductImage(product)}
                     thumbnail
                     decoding="async"
                     alt={product.name}
@@ -298,6 +300,7 @@ export const PopularProductsSection: React.FC = () => {
               <div className="flex items-center gap-3 p-3 bg-[#DEE2E5] rounded-xl border border-[#CBD2D8]">
                 <ProductImage
                   src={selectedProduct.images[0]}
+                  fallbackSrc={resolveSiteProductImage(selectedProduct)}
                   alt={selectedProduct.name}
                   className="w-14 h-14 object-contain bg-white rounded-lg p-1 border border-[#CBD2D8]"
                 />

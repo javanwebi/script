@@ -18,6 +18,6 @@ export function SanatPishLogo({ className = "", alt = "لوگوی صنعت پی�
 export function SanatPishFooterLogo({ className = "" }: { className?: string }) {
   const [fallback, setFallback] = useState(false);
   return <img src={fallback ? STORE_ASSETS.sanatPishLogo : "/logo2.png"}
-    alt="لوگوی صنعت پیش" className={className} decoding="async" loading="lazy"
+    alt="لوگوی صنعت پیش" className={className} decoding="async" loading="eager"
     onError={() => setFallback(true)} />;
 }

@@ -60,19 +60,16 @@ test("mobile capsule has four destinations, a detached camera, and no support do
   assert.match(css, /border-radius: 50%/);
 });
 
-test("support icon above the FORZA button reuses the original help sheet", () => {
+test("FORZA button is the sole lowered floating launcher on mobile without an upper popup above it", () => {
   const floating = source("src/components/common/AiFloatingButton.tsx");
-  const nav = source("src/components/layout/MobileBottomBar.tsx");
   const layout = source("src/components/layout/Layout.tsx");
   const styles = source("src/components/common/floating-quick-actions.css");
-  assert.match(floating, /open-mobile-support/);
-  assert.match(floating, /className="store-help-launcher"/);
-  assert.match(nav, /addEventListener\("open-mobile-support"/);
-  assert.match(nav, /setSheet\("support"\)/);
-  assert.match(nav, /راهنمای خرید و پشتیبانی/);
+  assert.doesNotMatch(floating, /store-help-launcher/);
+  assert.doesNotMatch(floating, /open-mobile-support/);
+  assert.match(floating, /className="[^"]*unified-ai-launcher[^"]*"/);
   assert.match(layout, /<AiFloatingButton showAssistant=/);
   assert.match(styles, /flex-direction: column/);
-  assert.match(styles, /inset-block-end: calc\(106px/);
+  assert.match(styles, /inset-block-end: calc\(88px/);
 });
 
 test("RTL pill items follow home, categories, cart, account, camera; active colors follow orange brand", () => {

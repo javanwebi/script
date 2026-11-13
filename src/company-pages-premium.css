@@ -1,0 +1,786 @@
+/* Bespoke industrial editorial styling for About, Services, Industries, Brands, Knowledge, and Hub Navigation. */
+
+.sp-about-approved {
+  --sp-orange: #e06518;
+  --sp-orange-deep: #c5520f;
+  --sp-steel: #16232f;
+  --sp-steel-mid: #233342;
+  --sp-paper: #f6f6f3;
+  --sp-line: #dfe4ea;
+  --sp-muted: #5a6675;
+}
+
+/* Integrated Services Strip inside About Capabilities */
+.sp-about-services-strip {
+  margin-top: 22px;
+  padding: 20px 22px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(13, 24, 34, .78);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.sp-about-services-strip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sp-about-services-strip-copy strong {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.sp-about-services-strip-copy p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.sp-about-services-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sp-about-services-chips > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .06);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Ecosystem Section on /about: Partner Brands + Covered Industries */
+.sp-about-ecosystem {
+  padding: clamp(42px, 5vw, 68px) 0;
+  background: #ffffff;
+  border-top: 1px solid var(--sp-line);
+  border-bottom: 1px solid var(--sp-line);
+}
+
+.sp-about-ecosystem-block + .sp-about-ecosystem-block {
+  margin-top: 44px;
+  padding-top: 40px;
+  border-top: 1px solid #eceff3;
+}
+
+.sp-about-eco-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.sp-about-eco-head h2 {
+  margin: 8px 0 6px;
+  color: var(--sp-steel);
+  font-size: clamp(22px, 2.3vw, 31px);
+  font-weight: 950;
+  line-height: 1.45;
+}
+
+.sp-about-eco-head p {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 13px;
+  line-height: 2;
+  max-width: 620px;
+}
+
+.sp-about-eco-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #d5dde6;
+  background: #f8fafc;
+  color: var(--sp-steel);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+
+.sp-about-eco-link:hover {
+  border-color: var(--sp-orange);
+  color: var(--sp-orange);
+  background: #fff7f1;
+}
+
+.sp-about-brands-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sp-about-brand-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--sp-line);
+  background: #f8fafc;
+  color: var(--sp-steel);
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.sp-about-brand-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--sp-orange);
+  background: #ffffff;
+}
+
+.sp-about-brand-logo {
+  height: 62px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #e7ecf2;
+  background: #ffffff;
+}
+
+.sp-about-brand-logo img {
+  max-width: 100%;
+  max-height: 44px;
+  object-fit: contain;
+}
+
+.sp-about-brand-logo span {
+  font-size: 18px;
+  font-weight: 950;
+  color: var(--sp-orange);
+}
+
+.sp-about-brand-meta strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--sp-steel);
+}
+
+.sp-about-brand-meta small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--sp-muted);
+}
+
+.sp-about-industries-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sp-about-industry-card {
+  position: relative;
+  min-height: 165px;
+  border-radius: 15px;
+  overflow: hidden;
+  border: 1px solid #dce2e9;
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+  color: #ffffff;
+  background: var(--sp-steel);
+  isolation: isolate;
+}
+
+.sp-about-industry-card img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .35s ease;
+}
+
+.sp-about-industry-card:hover img {
+  transform: scale(1.05);
+}
+
+.sp-about-industry-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(0deg, rgba(7, 14, 22, .98) 0%, rgba(10, 19, 28, .86) 58%, rgba(10, 19, 28, .28) 100%);
+}
+
+.sp-about-industry-card > div {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .75);
+}
+
+.sp-about-industry-card span {
+  display: block;
+  color: #ffc396;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.sp-about-industry-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+/* Integrated Contact & Visit Coordination Section on /about */
+.sp-about-contact-hub {
+  padding: clamp(42px, 5vw, 66px) 0;
+  background: var(--sp-paper);
+  border-top: 1px solid var(--sp-line);
+}
+
+.sp-about-contact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: 24px;
+  align-items: stretch;
+  padding: clamp(20px, 3vw, 32px);
+  border-radius: 22px;
+  border: 1px solid var(--sp-line);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(22, 35, 47, .05);
+}
+
+.sp-about-contact-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sp-about-contact-info h2 {
+  margin: 8px 0 8px;
+  color: var(--sp-steel);
+  font-size: clamp(22px, 2.3vw, 32px);
+  font-weight: 950;
+}
+
+.sp-about-contact-info > div > p {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 13px;
+  line-height: 2;
+}
+
+.sp-about-branch-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sp-about-branch-tabs button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #d9e0e7;
+  background: #f8fafc;
+  color: #465465;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+
+.sp-about-branch-tabs button[aria-pressed="true"] {
+  border-color: var(--sp-orange);
+  background: var(--sp-orange);
+  color: #ffffff;
+}
+
+.sp-about-branch-card {
+  padding: 18px;
+  border-radius: 15px;
+  border: 1px solid #e4e9ef;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sp-about-branch-card strong {
+  color: var(--sp-steel);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.sp-about-branch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #4b5968;
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+
+.sp-about-branch-row svg {
+  color: var(--sp-orange);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.sp-about-contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sp-about-contact-actions .sp-about-btn--primary {
+  min-height: 44px;
+}
+
+.sp-about-contact-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #d5dde6;
+  background: #ffffff;
+  color: var(--sp-steel);
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.sp-about-contact-copy-btn:hover {
+  border-color: var(--sp-orange);
+  color: var(--sp-orange);
+}
+
+.sp-about-map-box {
+  position: relative;
+  min-height: 310px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #dbe2ea;
+  background: #eef2f6;
+}
+
+.sp-about-map-box iframe,
+.sp-about-map-box > img {
+  width: 100%;
+  height: 100%;
+  min-height: 310px;
+  border: 0;
+  object-fit: cover;
+}
+
+/* Header AboutNavigation Dropdown Refinement (Image 3 layout polish) */
+.about-navigation {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  border-radius: 0 0 20px 20px;
+  border: 1px solid #dfe4ea;
+  box-shadow: 0 24px 52px rgba(17, 29, 41, .16);
+  padding: 24px;
+}
+
+.about-navigation-links {
+  gap: 8px;
+}
+
+.about-navigation-links > a {
+  min-height: 46px;
+  padding: 10px 11px;
+  border: 1px solid #eaedf1;
+  background: #f8fafc;
+  color: #1f2b37;
+  font-size: 11.5px;
+  font-weight: 850;
+  white-space: nowrap;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+.about-navigation-links > a:hover,
+.about-navigation-links > a.is-current {
+  border-color: #f3b58d;
+  background: #fff5ec;
+  color: #c5520f;
+}
+
+.about-navigation-link-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.about-navigation-link-label svg {
+  color: #e06518;
+  flex-shrink: 0;
+}
+
+/* Unified Sub-pages Upgrades: Services, Industries, Brands, Knowledge */
+.sp-services-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 34px 0 22px;
+}
+
+.sp-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sp-filter-tabs button {
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 10px;
+  border: 1px solid #dce2e9;
+  background: #ffffff;
+  color: #4b5968;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+
+.sp-filter-tabs button[aria-pressed="true"] {
+  border-color: #e06518;
+  background: #e06518;
+  color: #ffffff;
+}
+
+.sp-service-card-num {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(15, 25, 36, .82);
+  color: #ffb27a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-service-inputs {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f9fb;
+  border: 1px solid #eaedf1;
+  color: #546272;
+  font-size: 11.5px;
+  line-height: 1.8;
+}
+
+.sp-service-inputs strong {
+  color: #1f2b37;
+  font-weight: 900;
+}
+
+/* Knowledge Center Redesign */
+.sp-knowledge-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: clamp(22px, 3.6vw, 50px);
+  align-items: center;
+  padding: clamp(24px, 4vw, 48px);
+  border-radius: 26px;
+  border: 1px solid #e1e6ec;
+  background: linear-gradient(125deg, #ffffff 0%, #f6f8fa 65%, #fff5ec 100%);
+  box-shadow: 0 16px 42px rgba(22, 34, 48, .06);
+}
+
+.sp-knowledge-hero h1 {
+  margin: 10px 0 14px;
+  color: #192430;
+  font-size: clamp(28px, 3.6vw, 48px);
+  font-weight: 950;
+  line-height: 1.42;
+  text-wrap: balance;
+}
+
+.sp-knowledge-hero h1 em {
+  color: #e06518;
+  font-style: normal;
+}
+
+.sp-knowledge-hero p {
+  margin: 0 0 20px;
+  color: #596777;
+  font-size: 14px;
+  line-height: 2.1;
+  max-width: 580px;
+}
+
+.sp-knowledge-featured {
+  position: relative;
+  min-height: 290px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #d9e0e7;
+  display: flex;
+  align-items: flex-end;
+  padding: 24px;
+  color: #ffffff;
+  background: #172530;
+  isolation: isolate;
+}
+
+.sp-knowledge-featured img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sp-knowledge-featured-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(0deg, rgba(12, 22, 31, .95) 8%, rgba(12, 22, 31, .2) 100%);
+}
+
+.sp-knowledge-featured-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sp-knowledge-featured-copy span {
+  color: #ffb27a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sp-knowledge-featured-copy strong {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.55;
+}
+
+.sp-knowledge-featured-copy b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffb27a;
+  font-size: 12px;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+.sp-knowledge-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 34px 0 22px;
+}
+
+.sp-knowledge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sp-knowledge-card {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #dfe5ec;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(22, 34, 48, .045);
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.sp-knowledge-card:hover {
+  transform: translateY(-3px);
+  border-color: #e06518;
+}
+
+.sp-knowledge-card-media {
+  position: relative;
+  min-height: 205px;
+  background: #eef2f6;
+}
+
+.sp-knowledge-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sp-knowledge-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sp-knowledge-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #c5520f;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sp-knowledge-card-body h3 {
+  margin: 0;
+  color: #1c2733;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.6;
+}
+
+.sp-knowledge-card-body p {
+  margin: 0;
+  color: #5c6978;
+  font-size: 12.5px;
+  line-height: 2;
+  flex: 1;
+}
+
+.sp-knowledge-card-body b {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  color: #e06518;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sp-knowledge-article-hero {
+  background: #172530;
+  color: #ffffff;
+  border-radius: 24px;
+  padding: clamp(26px, 4vw, 48px);
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.sp-knowledge-article-hero h1 {
+  margin: 12px 0 12px;
+  color: #ffffff;
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 950;
+  line-height: 1.5;
+}
+
+.sp-knowledge-article-hero p {
+  margin: 0;
+  color: #d2dbe4;
+  font-size: 14px;
+  line-height: 2.1;
+}
+
+.sp-knowledge-article-cover {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .18);
+  height: 270px;
+}
+
+.sp-knowledge-article-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 1080px) {
+  .sp-about-brands-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sp-about-industries-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sp-about-contact-grid {
+    grid-template-columns: 1fr;
+  }
+  .sp-knowledge-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .sp-about-services-strip {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .sp-about-eco-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sp-about-brands-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .sp-about-industries-row {
+    grid-template-columns: 1fr;
+  }
+  .sp-about-contact-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sp-knowledge-hero,
+  .sp-knowledge-article-hero {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .sp-knowledge-card {
+    grid-template-columns: 1fr;
+  }
+  .sp-about-branch-tabs button,
+  .sp-filter-tabs button {
+    min-height: 44px;
+  }
+  .sp-knowledge-card-media {
+    min-height: 175px;
+    height: 175px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-about-brand-tile,
+  .sp-about-industry-card img,
+  .sp-knowledge-card {
+    transition: none;
+  }
+}

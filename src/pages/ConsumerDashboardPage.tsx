@@ -1,6 +1,6 @@
 import { PortalShell } from "../components/portal/PortalShell";
 import { ParcelArt, InvoiceArt, LocationArt } from "../components/portal/ConsumerReferenceArt";
-import forzaBrandImage from "../assets/logo-forza.png";
+import { STORE_ASSETS } from "../assets/images";
 import { ConsumerOrderTimeline, orderStatusLabels } from "../components/portal/ConsumerOrderTimeline";
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue, Suspense } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -668,7 +668,7 @@ export const ConsumerDashboardPage: React.FC = () => {
                 </div>
               )}
               <section className="consumer-forza-card">
-                <div className="consumer-forza-emblem" aria-hidden="true"><img src={forzaBrandImage} alt="" loading="lazy" decoding="async" /></div>
+                <div className="consumer-forza-emblem" aria-hidden="true"><img src={STORE_ASSETS.logoForza} alt="" loading="lazy" decoding="async" /></div>
                 <div>
                   <span>مشاور هوشمند صنعت پیش</span>
                   <h2>FORZA کنار شماست</h2>

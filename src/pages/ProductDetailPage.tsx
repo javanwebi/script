@@ -53,6 +53,7 @@ import { ProductCard } from "../components/product/ProductCard";
 import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
+import { resolveSiteProductImage } from "../utils/siteProductImages";
 import "./product-detail-premium.css";
 
 export const ProductDetailPage: React.FC = () => {
@@ -586,6 +587,17 @@ export const ProductDetailPage: React.FC = () => {
             <div className="product-detail-image relative w-full pt-[82%] bg-gradient-to-b from-slate-50/70 to-white border border-slate-200/90 rounded-2xl overflow-hidden group flex items-center justify-center">
               <ProductImage
                 src={currentGalleryImage?.url}
+                fallbackSrc={resolveSiteProductImage(
+                  product,
+                  [
+                    product.subcategory,
+                    product.submenu,
+                    product.categoryName,
+                    selectedVariant?.name,
+                  ]
+                    .filter(Boolean)
+                    .join(" "),
+                )}
                 alt={currentGalleryImage?.title || requestedProduct.name}
                 className="absolute inset-0 w-full h-full object-contain p-6 sm:p-8 group-hover:scale-105 transition-transform duration-300"
               />
@@ -698,6 +710,17 @@ export const ProductDetailPage: React.FC = () => {
                       >
                         <ProductImage
                           src={img.url}
+                          fallbackSrc={resolveSiteProductImage(
+                            product,
+                            [
+                              product.subcategory,
+                              product.submenu,
+                              product.categoryName,
+                              selectedVariant?.name,
+                            ]
+                              .filter(Boolean)
+                              .join(" "),
+                          )}
                           alt=""
                           loading="lazy"
                           className="absolute inset-0 w-full h-full object-contain p-2 pb-5"
@@ -827,6 +850,34 @@ export const ProductDetailPage: React.FC = () => {
                     </span>
                   </div>
                 )}
+              </div>
+
+              {/* Brand, Category & Family Summary Strip */}
+              <div className="product-detail-brand-card grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-2xl border border-slate-200/80 bg-[#fbfaf8] p-3 text-xs">
+                <div className="flex items-center justify-between sm:justify-start gap-2 border-b sm:border-b-0 sm:border-l border-slate-200/70 pb-2 sm:pb-0 sm:pl-3">
+                  <span className="text-slate-500">برند سازنده:</span>
+                  <Link
+                    to={`/products?brand=${encodeURIComponent(activeBrand)}`}
+                    className="font-black text-[#37383b] hover:text-[#E06518] transition-colors"
+                  >
+                    {activeBrand}
+                  </Link>
+                </div>
+                <div className="flex items-center justify-between sm:justify-start gap-2 border-b sm:border-b-0 sm:border-l border-slate-200/70 pb-2 sm:pb-0 sm:pl-3">
+                  <span className="text-slate-500">گروه فنی:</span>
+                  <Link
+                    to={`/category/${encodeURIComponent(product.categorySlug)}`}
+                    className="font-bold text-slate-700 hover:text-[#E06518] truncate transition-colors"
+                  >
+                    {product.subcategory || product.categoryName}
+                  </Link>
+                </div>
+                <div className="flex items-center justify-between sm:justify-start gap-2">
+                  <span className="text-slate-500">تنوع سایز / مدل:</span>
+                  <strong className="font-black text-[#E06518]">
+                    {toPersianDigits(Math.max(1, visibleVariants.length))} کد فنی
+                  </strong>
+                </div>
               </div>
 
               {/* Quick Variant Chips */}

@@ -5,9 +5,9 @@ import { ChevronDown, ChevronLeft, Layers, Search, Factory, Cog, Package, Disc3,
 import { CategoryNavigation } from "./CategoryNavigation";
 import type { EnhancedCategory } from "../../data/categories";
 import { resolveCategorySlug } from "../../data/categories";
-import { STORE_ASSETS } from "../../assets/images";
 import { toPersianDigits } from "../../utils/formatters";
 import { getManagedCatalogProducts, subscribeCatalogChanges } from "../../data/mockGenerator";
+import { resolveExcelCategoryArtwork } from "../../utils/excelCategoryCatalog";
 
 type GroupSection = {
   id: string;
@@ -16,16 +16,8 @@ type GroupSection = {
   categories: EnhancedCategory[];
 };
 
-const imageForCategory = (category: EnhancedCategory): string => {
-  if (typeof category.image === "string" && category.image.trim()) return category.image;
-  const name = category.name || "";
-  if (/تسمه|وی.?بلت|تایمینگ|انتقال نیرو/i.test(name)) return STORE_ASSETS.categories.belts;
-  if (/پولی|فولی/i.test(name)) return STORE_ASSETS.categories.pulleys;
-  if (/زنجیر/i.test(name)) return STORE_ASSETS.categories.chains;
-  if (/نقاله|رولر|غلتک/i.test(name)) return STORE_ASSETS.categories.conveyor;
-  if (/بلبرینگ|یاتاقان/i.test(name)) return STORE_ASSETS.categories.bearings;
-  return STORE_ASSETS.categories.transmission;
-};
+const imageForCategory = (category: EnhancedCategory): string =>
+  resolveExcelCategoryArtwork(category.slug, category.name, category.image);
 
 const iconForGroup = (title: string) => {
   if (/تسمه|نقاله|زنجیر/i.test(title)) return Layers;

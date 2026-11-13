@@ -1,5 +1,3 @@
-import { verbalizeForzaTechnicalTerms } from './forzaSpeechPipeline';
-
 /**
  * Plain-text projection exclusively for the live FORZA call.
  * Consumes cumulative SSE text character-by-character; an incomplete token,
@@ -119,67 +117,17 @@ export class ForzaCallPlainText {
 
 const smallNumbers = [
   'صفر','یک','دو','سه','چهار','پنج','شش','هفت','هشت','نه','ده',
-  'یازده','دوازده','سیزده','چهارده','پانزده','شانزده','هفده','هجده','نوزده'
+  'یازده','دوازده','سیزده','چهارده','پانزده','شانزده','هفده','هجده','نوزده','بیست'
 ];
-const tens = ['','','بیست','سی','چهل','پنجاه','شصت','هفتاد','هشتاد','نود'];
-const hundreds = ['','صد','دویست','سیصد','چهارصد','پانصد','ششصد','هفتصد','هشتصد','نهصد'];
-const digitNames:Readonly<Record<string,string>>={
-  '0':'صفر','1':'یک','2':'دو','3':'سه','4':'چهار',
-  '5':'پنج','6':'شش','7':'هفت','8':'هشت','9':'نه',
-};
-function asciiDigits(value:string):string{
-  return value.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
-}
 function spokenNumber(value: string): string {
-  const ascii=asciiDigits(value);
-  const n=Number(ascii);
-  if(!Number.isInteger(n)||n<0||n>9999)return value;
-  if(n<=19)return smallNumbers[n];
-  const parts:string[]=[];
-  const thousands=Math.floor(n/1000);
-  const remainder=n%1000;
-  if(thousands)parts.push(thousands===1?'هزار':smallNumbers[thousands]+' هزار');
-  const hundred=Math.floor(remainder/100);
-  const rest=remainder%100;
-  if(hundred)parts.push(hundreds[hundred]);
-  if(rest<=19&&rest>0)parts.push(smallNumbers[rest]);
-  else if(rest>=20){
-    const ten=Math.floor(rest/10);
-    const unit=rest%10;
-    parts.push(unit?tens[ten]+' و '+smallNumbers[unit]:tens[ten]);
-  }
-  return parts.join(' و ')||'صفر';
-}
-function spokenMeasurement(value:string):string{
-  const parts=value.split(/[.٫]/);
-  const whole=spokenNumber(parts[0]);
-  if(parts.length<2)return whole;
-  const decimals=asciiDigits(parts[1]).split('').map(d=>digitNames[d]||d).join(' ');
-  return whole+' ممیز '+decimals;
-}
-const spokenProfiles:Readonly<Record<string,string>>={
-  SPA:'اِس پی اِی',SPB:'اِس پی بی',SPC:'اِس پی سی',SPZ:'اِس پی زِد',
-  XPA:'ایکس پی اِی',XPB:'ایکس پی بی',XPC:'ایکس پی سی',HTD:'اِچ تی دی',
-};
-/** Spoken only. Keep the visible SKU and engineering notation unchanged. */
-export function forzaSpokenPlainText(text: string): string {
-  const profiled=String(text||'').replace(
-    /\b(SPA|SPB|SPC|SPZ|XPA|XPB|XPC|HTD)\s*([0-9۰-۹]{2,5})\b/gi,
-    (_whole,profile:string,number:string)=>(spokenProfiles[profile.toUpperCase()]||profile)+' '+spokenNumber(number),
-  );
-  return verbalizeForzaTechnicalTerms(profiled)
-    .replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
-      (_whole,a:string,b:string)=>spokenMeasurement(a)+' در '+spokenMeasurement(b))
-    .replace(/([0-9۰-۹]{1,5}(?:[.٫][0-9۰-۹]+)?)\s*(mm|cm|rpm|Hz|kW|Nm)\b/gi,
-      (_whole,number:string,unit:string)=>spokenMeasurement(number)+' '+({
-        mm:'میلی‌متر',cm:'سانتی‌متر',rpm:'دور در دقیقه',hz:'هرتز',
-        kw:'کیلووات',nm:'نیوتن‌متر',
-      } as Record<string,string>)[unit.toLowerCase()])
-    .replace(/\bmm\b/gi,'میلی‌متر')
-    .replace(/\bcm\b/gi,'سانتی‌متر')
-    .replace(/\brpm\b/gi,'دور در دقیقه')
-    .replace(/\bHz\b/gi,'هرتز')
-    .replace(/\bkW\b/gi,'کیلووات')
-    .replace(/\bNm\b/gi,'نیوتن‌متر');
+  const n = Number(value.replace(/[۰-۹]/g, ch => String(ch.charCodeAt(0)-1776)));
+  if (!Number.isInteger(n) || n < 0 || n > 99) return value;
+  if (n <= 20) return smallNumbers[n];
+  const tens = ['','','بیست','سی','چهل','پنجاه','شصت','هفتاد','هشتاد','نود'];
+  return n % 10 ? tens[Math.floor(n/10)] + ' و ' + smallNumbers[n%10] : tens[Math.floor(n/10)];
 }
 /** Spoken only. Do not alter the display or product/engineering codes. */
+export function forzaSpokenPlainText(text: string): string {
+  return text.replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
+    (_whole, a: string, b: string) => spokenNumber(a) + ' در ' + spokenNumber(b));
+}

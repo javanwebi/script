@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {createHash,randomUUID} from 'node:crypto';
+import {hashStringSync, generateUUID} from '../utils/cryptoUtils';
 import sharp from 'sharp';
 import type {CatalogImageRecord} from './catalogImageCorpus';
 
@@ -9,7 +9,7 @@ type Entry={signature:string;vector:number[]};
 export interface VisualIndexPersistence { loadEntries():Promise<Record<string,Entry>>; saveEntries(rows:Array<{id:string;signature:string;vector:number[]}>):Promise<void>; }
 export interface VisualIndexOptions {model:string;dimensions:number;batchSize?:number;concurrency?:number;imageSize?:number;}
 const defaults:VisualIndexOptions={model:'gemini-embedding-2:768',dimensions:768,batchSize:6,concurrency:3,imageSize:768};
-const signature=(row:CatalogImageRecord)=>createHash('sha256').update(JSON.stringify([row.url,row.revision])).digest('hex');
+const signature=(row:CatalogImageRecord)=>hashStringSync(JSON.stringify([row.url,row.revision]));
 function normalized(value:unknown,dimensions:number):number[] {
  if(!Array.isArray(value)||value.length!==dimensions||!value.every(n=>typeof n==='number'&&Number.isFinite(n)))throw new Error('Invalid visual embedding');
  const norm=Math.hypot(...value);if(norm<1e-10)throw new Error('Empty visual embedding');
@@ -63,7 +63,7 @@ export class CatalogVisualIndex {
       const merged=new Map(this.entries);
       for(const entry of entries)merged.set(entry.id,{signature:entry.signature,vector:entry.vector});
       await fs.mkdir(path.dirname(this.file),{recursive:true});
-      const temp=this.file+'.'+randomUUID()+'.tmp';
+      const temp=this.file+'.'+generateUUID()+'.tmp';
       await fs.writeFile(temp,JSON.stringify({model:this.options.model,entries:Object.fromEntries(merged)}),{mode:0o600});
       await fs.rename(temp,this.file);
      }

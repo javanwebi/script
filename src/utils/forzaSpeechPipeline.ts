@@ -1,4 +1,3 @@
-import { forzaTurnIntent } from './forzaBargeIn';
 import { analyzePersianSentenceCompletion } from './silenceDetector';
 
 export interface BrowserSpeechAlternative {
@@ -115,15 +114,11 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
  * No fixed 2.3s delay after every recognition event.
  */
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
-  // Pure stop commands release the floor without waiting for a full sentence.
-  if (forzaTurnIntent(text) === 'stop') return hasInterim ? 500 : 350;
   const analysis = analyzePersianSentenceCompletion(text);
   // A provisional browser hypothesis can still gain another word or SKU.
   if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
   if (analysis.isComplete && analysis.confidence >= 0.9) {
-    // Stable, acoustically complete questions hand off quickly. Mid-thought
-    // fragments still retain the longer 1.9s decision window above.
-    return hasInterim ? 850 : Math.max(420, Math.min(620, analysis.recommendedPauseMs - 250));
+    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
   }
   if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
   return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
@@ -171,32 +166,13 @@ const spokenTechnicalCodes: Readonly<Record<string, string>> = {
   'PJ': 'پی جِی',
   'PL': 'پی اِل',
   'GT': 'جی تی',
-  'SPA': 'اِس پی اِی',
-  'SPB': 'اِس پی بی',
-  'SPC': 'اِس پی سی',
-  'SPZ': 'اِس پی زِد',
-  'HTD': 'اِچ تی دی',
-  'AT5': 'اِی تی پنج',
-  'T5': 'تی پنج',
   'XPA': 'ایکس پی اِی',
   'XPB': 'ایکس پی بی',
   'XPC': 'ایکس پی سی',
 };
-const spokenCodeDigits:Readonly<Record<string,string>>={
-  '0':'صفر','1':'یک','2':'دو','3':'سه','4':'چهار',
-  '5':'پنج','6':'شش','7':'هفت','8':'هشت','9':'نه',
-};
 export function verbalizeForzaTechnicalTerms(text: string): string {
-  const suffixes=String(text||'').replace(
-    /(^|[^A-Za-z0-9])([0-9۰-۹]{3,6})\s*(2RS|RS|ZZ|C3|C4|2Z|LLU|LLB)(?=$|[^A-Za-z0-9])/giu,
-    (_whole,prefix:string,digits:string,suffix:string)=>{
-      const ascii=digits.replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
-      const spoken=ascii.split('').map(d=>spokenCodeDigits[d]||d).join(' ');
-      return prefix+spoken+'، '+(spokenTechnicalCodes[suffix.toUpperCase()]||suffix);
-    },
-  );
-  return suffixes.replace(
-    /\b(?:2RS|RS|ZZ|C3|C4|DIN|ISO|SWR|PK|PJ|PL|GT|SPA|SPB|SPC|SPZ|HTD|AT5|T5|XPA|XPB|XPC)\b/gi,
+  return String(text || '').replace(
+    /\b(?:2RS|RS|ZZ|C3|C4|DIN|ISO|SWR|PK|PJ|PL|GT|XPA|XPB|XPC)\b/gi,
     code => spokenTechnicalCodes[code.toUpperCase()] || code,
   );
 }

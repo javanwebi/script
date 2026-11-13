@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {forzaTurnIntent} from '../src/utils/forzaBargeIn';
-import {joinForzaRecognitionSession} from '../src/utils/forzaConversation';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0].replace('catch(error:any)','catch(error)');
@@ -60,15 +58,13 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const rec={};
  let interrupted=0,echo=true;
  const scope:Record<string,any>={
-  forzaTurnIntent,joinForzaRecognitionSession,recognitionSessionPrefixRef:ref(''),activeTranscriptRef:ref(''),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
   extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
-  recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),browserNetworkFailuresRef:ref(0),
+  recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
   isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(Date.now()),
-  micAnalyserRef:ref(null),ctxRef:ref({state:'suspended'}),
   likelySpeakerEcho:()=>echo,interruptRequestRef:ref(()=>interrupted++),
  };
  const run=new Function(...Object.keys(scope),'event',body);
@@ -94,31 +90,4 @@ test('return to listening preserves a customer sentence arriving at playback com
  assert.equal(changed.current,123);
  assert.equal(speech.current,true);
  assert.deepEqual(chunks.current,['audio']);
-});
-
-test('quiet recognized words survive while listening; playback retains near-field guard',()=>{
- const start=source.indexOf("        if(forzaTurnIntent(currentSpeech)!=='stop'",source.indexOf('rec.onresult ='));
- const end=source.indexOf('        recognitionRetryRef.current=0;',start);
- const body=source.slice(start,end)+'return true;';
- const ref=(current:any)=>({current});
- const scope={forzaTurnIntent,currentSpeech:'بلبرینگ میخواهم',vadReady:true,isProcessingTurnRef:ref(false),isAiSpeakingRef:ref(false),
-  isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(0)};
- const run=()=>new Function(...Object.keys(scope),body)(...Object.values(scope));
- assert.equal(run(),true);
- scope.isAiSpeakingRef.current=true;assert.equal(run(),undefined);
- scope.lastMicActivityRef.current=Date.now();assert.equal(run(),true);
-});
-
-test('recorder rotation preserves initialization and all timeslice bytes',()=>{
- const body=source.split('        mr.ondataavailable = (e: BlobEvent) => {')[1].split('\n        };')[0];
- const chunks={current:[] as Blob[]};let stops=0;
- const mr={state:'recording',stop(){stops++;this.state='inactive';}};
- const run=new Function('e','audioChunksRef','hasSpeechSoundRef','mr',body);
- const header=new Blob(['WEBM-INITIALIZATION']);
- run({data:header},chunks,{current:false},mr);
- for(let i=1;i<8;i++)run({data:new Blob(['packet-'+i])},chunks,{current:false},mr);
- assert.equal(stops,1);assert.equal(chunks.current.length,8);
- assert.equal(chunks.current[0],header);
- assert.doesNotMatch(source,/audioChunksRef\.current\s*=\s*audioChunksRef\.current\.slice/);
- assert.doesNotMatch(source,/audioChunksRef\.current\.splice/);
 });

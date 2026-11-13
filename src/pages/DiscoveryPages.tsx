@@ -2,9 +2,8 @@ import { IndustryTools } from "../components/storefront/IndustryTools";
 const TileCeramicIndustryPage = React.lazy(() => import("./TileCeramicIndustryPage").then(m => ({default:m.TileCeramicIndustryPage})));
 const TextileIndustryPage = React.lazy(() => import("./TextileIndustryPage").then(m => ({ default: m.TextileIndustryPage })));
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
-import yazdRegionMap from "../assets/images/yazd-region-osm.png";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   ArrowUpLeft,
   ArrowLeft,
@@ -31,6 +30,8 @@ import {
   Users,
   Zap,
   Tag,
+  Building2,
+  Copy,
 } from "lucide-react";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { getManagedBrands } from "../data/brands";
@@ -77,7 +78,7 @@ export function MapCard({ compact = false }: { compact?: boolean }) {
         ) : (
           <>
             <img
-              src={yazdRegionMap}
+              src={A.companyPages.yazdRegionMap}
               alt="نقشه منطقه‌ای یزد از OpenStreetMap"
               className="location-map-preview"
             />
@@ -368,9 +369,19 @@ export function IndustryPage() {
   );
 }
 export function IndustriesPage() {
+  const [query, setQuery] = useState("");
   useEffect(() => title("صنایع تحت پوشش"), []);
+
+  const filteredIndustries = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
+    if (!q) return INDUSTRIES;
+    return INDUSTRIES.filter((ind) =>
+      `${ind.title} ${ind.eyebrow} ${ind.description} ${ind.parts.join(" ")}`.toLocaleLowerCase().includes(q),
+    );
+  }, [query]);
+
   return (
-    <div className="company-page company-page--industries" dir="rtl">
+    <main className="company-page company-page--industries" dir="rtl">
       <section className="company-hero company-hero--industries">
         <div className="company-hero-copy">
           <span className="company-kicker">صنایع تحت پوشش</span>
@@ -387,15 +398,18 @@ export function IndustriesPage() {
             <Link to="/products" className="company-button company-button--secondary">
               جستجو در کاتالوگ <Search size={18} />
             </Link>
+            <Link to="/about" className="company-button company-button--secondary">
+              درباره صنعت پیش
+            </Link>
           </div>
         </div>
         <div className="company-hero-visual">
-          <img src={A.industries.bgPlant} alt="نمای یک مجموعه صنعتی و خطوط تولید" fetchPriority="high" />
+          <img src={A.companyPages.industriesHero} alt="خطوط تولید مکانیزه و نوار نقاله‌های صنعتی" fetchPriority="high" />
           <div className="company-hero-visual-shade" />
           <div className="company-hero-visual-caption">
             <span>صنعت پیش</span>
             <strong>تأمین متناسب با کاربرد</strong>
-            <small>از شناخت نیاز تا بررسی قطعه</small>
+            <small>از شناخت نیاز تا بررسی قطعه در خطوط تولید</small>
           </div>
         </div>
       </section>
@@ -406,26 +420,47 @@ export function IndustriesPage() {
           <h2>صفحه اختصاصی هر صنعت را ببینید</h2>
           <p>در هر صفحه، گروه‌های قطعه و معیارهای فنی مرتبط با همان حوزه معرفی می‌شوند؛ پیشنهاد محصول نیز از کاتالوگ واقعی و خانواده‌های فعال انتخاب می‌شود.</p>
         </div>
-        <span className="company-industry-count">{INDUSTRIES.length.toLocaleString("fa-IR")} حوزه تخصصی</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="company-brand-search">
+            <Search size={18} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="جستجوی صنعت یا قطعه خط تولید…"
+              aria-label="جستجوی صنایع"
+            />
+          </label>
+          <span className="company-industry-count tabular-nums">
+            {filteredIndustries.length.toLocaleString("fa-IR")} حوزه تخصصی
+          </span>
+        </div>
       </section>
 
-      <section className="company-industry-grid">
-        {INDUSTRIES.map((industry) => (
-          <Link to={`/industries/${industry.slug}`} key={industry.slug} className="company-industry-card">
-            <img src={industry.image} alt={`خط تولید ${industry.title}`} loading="lazy" />
-            <div className="company-industry-card-shade" />
-            <div className="company-industry-card-copy">
-              <span>{industry.eyebrow}</span>
-              <h2>{industry.title}</h2>
-              <p>{industry.description}</p>
-              <div className="company-industry-tags">
-                {industry.parts.slice(0, 3).map((part) => <small key={part}>{part}</small>)}
+      {filteredIndustries.length > 0 ? (
+        <section className="company-industry-grid" aria-live="polite">
+          {filteredIndustries.map((industry) => (
+            <Link to={`/industries/${industry.slug}`} key={industry.slug} className="company-industry-card">
+              <img src={industry.image} alt={`خط تولید ${industry.title}`} loading="lazy" />
+              <div className="company-industry-card-shade" />
+              <div className="company-industry-card-copy">
+                <span>{industry.eyebrow}</span>
+                <h2>{industry.title}</h2>
+                <p>{industry.description}</p>
+                <div className="company-industry-tags">
+                  {industry.parts.slice(0, 3).map((part) => <small key={part}>{part}</small>)}
+                </div>
+                <b>ورود به صفحه این صنعت <ArrowUpLeft size={18} /></b>
               </div>
-              <b>ورود به صفحه این صنعت <ArrowUpLeft size={18} /></b>
-            </div>
-          </Link>
-        ))}
-      </section>
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <div className="company-empty-state" role="status">
+          <strong>صنعتی با این عبارت پیدا نشد.</strong>
+          <p>عبارت جستجو را تغییر دهید یا از فهرست کامل کاتالوگ قطعه را جستجو کنید.</p>
+        </div>
+      )}
+
       <section className="company-bottom-cta">
         <div>
           <span className="company-kicker">نیاز خط تولید شما</span>
@@ -434,7 +469,7 @@ export function IndustriesPage() {
         </div>
         <Link to="/contact" className="company-button company-button--primary">تماس و هماهنگی <ArrowLeft size={18} /></Link>
       </section>
-    </div>
+    </main>
   );
 }
 export function BrandsPage() {
@@ -487,15 +522,16 @@ export function BrandsPage() {
           <div className="company-hero-actions">
             <a href="#brand-directory" className="company-button company-button--primary">کاوش برندها <ArrowLeft size={18} /></a>
             <Link to="/products" className="company-button company-button--secondary">کاتالوگ قطعات <Layers size={18} /></Link>
+            <Link to="/services" className="company-button company-button--secondary">توانمندی‌ها و خدمات</Link>
           </div>
         </div>
         <div className="company-hero-visual">
-          <img src={A.brandsFullbleedBg} alt="برندها و قطعات صنعتی" fetchPriority="high" />
+          <img src={A.companyPages.brandsHero} alt="قطعات انتقال قدرت، شیرآلات و بلبرینگ‌های برندهای معتبر صنعتی" fetchPriority="high" />
           <div className="company-hero-visual-shade" />
           <div className="company-hero-visual-caption">
             <span>انتخاب آگاهانه</span>
             <strong>برند، کد فنی، مشخصات</strong>
-            <small>اطلاعات برندهای منتشرشده در کاتالوگ</small>
+            <small>اطلاعات برندهای منتشرشده در کاتالوگ صنعت پیش</small>
           </div>
         </div>
       </section>
@@ -503,7 +539,7 @@ export function BrandsPage() {
       <section className="company-brand-toolbar" id="brand-directory">
         <div>
           <span className="company-kicker">فهرست برندها</span>
-          <h2>برندهای ثبت‌شده در کاتالوگ صنعت پیش</h2>
+          <h2>برندهای ثبت‌شده در کاتالوگ صنعت پیش ({brands.length.toLocaleString("fa-IR")} برند)</h2>
         </div>
         <label className="company-brand-search">
           <Search size={19} />
@@ -568,39 +604,66 @@ export function BrandsPage() {
       <p className="company-brand-disclaimer">
         نمایش نام یک برند به‌تنهایی به معنی موجودی همه محصولات یا تأیید نمایندگی رسمی آن نیست؛ وضعیت هر کالا و شرایط تأمین باید در صفحه محصول یا از طریق استعلام بررسی شود.
       </p>
+
+      <section className="company-bottom-cta">
+        <div>
+          <span className="company-kicker">استعلام مستقیم و مشاوره</span>
+          <h2>برای تأمین کد فنی خاص از برند موردنظر با ما در ارتباط باشید.</h2>
+          <p>کد فنی یا تصویر قطعه را ارسال کنید تا موجودی و مسیر تأمین بررسی شود.</p>
+        </div>
+        <Link to="/contact" className="company-button company-button--primary">تماس و هماهنگی <ArrowLeft size={18} /></Link>
+      </section>
     </main>
   );
 }
 export function KnowledgePage() {
   const { slug } = useParams();
   const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const article = ARTICLES.find((a) => a.slug === slug);
-  useEffect(() => title(article?.title || "دانشنامه صنعت پیش"), [article]);
-  if (slug && !article)
+  useEffect(() => title(article?.title || "دانشنامه کاربردی صنعت پیش"), [article]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(ARTICLES.map((item) => item.category))),
+    [],
+  );
+
+  if (slug && !article) {
     return (
-      <div className="editorial editorial-wrap">
-        <h1>این راهنما پیدا نشد</h1>
-        <Link to="/knowledge">بازگشت به دانشنامه</Link>
-      </div>
+      <main className="company-page" dir="rtl">
+        <div className="company-empty-state">
+          <strong>این راهنما پیدا نشد</strong>
+          <p>ممکن است نشانی راهنما تغییر کرده باشد. از فهرست دانشنامه مورد بعدی را انتخاب کنید.</p>
+          <div className="mt-4 flex justify-center">
+            <Link to="/knowledge" className="company-button company-button--primary">
+              بازگشت به دانشنامه کاربردی <ArrowLeft size={17} />
+            </Link>
+          </div>
+        </div>
+      </main>
     );
-  if (article)
+  }
+
+  if (article) {
     return (
-      <article className="editorial knowledge-article">
-        <header className="editorial-wrap">
-          <Link to="/knowledge" className="editorial-text-link">
-            دانشنامه صنعت پیش <ArrowLeft size={17} />
-          </Link>
-          <span className="store-eyebrow">
-            {article.category} · {article.minutes} دقیقه مطالعه
-          </span>
-          <h1>{article.title}</h1>
-          <p>{article.summary}</p>
+      <main className="company-page editorial knowledge-article" dir="rtl">
+        <header className="sp-knowledge-article-hero">
+          <div>
+            <Link to="/knowledge" className="inline-flex items-center gap-2 text-xs font-bold text-[#ffb27a] hover:text-white mb-4">
+              <ArrowLeft size={16} className="rotate-180" />
+              بازگشت به دانشنامه صنعت پیش
+            </Link>
+            <div className="text-xs font-extrabold text-[#ffb27a]">
+              {article.category} · {article.minutes} دقیقه مطالعه
+            </div>
+            <h1>{article.title}</h1>
+            <p>{article.summary}</p>
+          </div>
+          <div className="sp-knowledge-article-cover">
+            <img src={article.image} alt={article.title} />
+          </div>
         </header>
-        <img
-          className="knowledge-cover"
-          src={article.image}
-          alt={article.title}
-        />
+
         <div className="knowledge-reading">
           <aside>
             <strong>در این راهنما</strong>
@@ -634,44 +697,109 @@ export function KnowledgePage() {
             </div>
           </div>
         </div>
-      </article>
+      </main>
     );
-  const list = ARTICLES.filter((a) =>
-    `${a.title} ${a.category}`.includes(query),
-  );
+  }
+
+  const featuredArticle = ARTICLES[0];
+  const list = ARTICLES.filter((a) => {
+    const q = query.trim().toLocaleLowerCase();
+    const matchesQuery = !q || `${a.title} ${a.category} ${a.summary}`.toLocaleLowerCase().includes(q);
+    const matchesCategory = !selectedCategory || a.category === selectedCategory;
+    return matchesQuery && matchesCategory;
+  });
+
   return (
-    <div className="editorial editorial-wrap">
-      <section className="knowledge-intro">
+    <main className="company-page company-page--knowledge" dir="rtl">
+      <section className="sp-knowledge-hero">
         <div>
-          <span className="store-eyebrow">دانشنامه صنعت پیش</span>
+          <span className="company-kicker">دانشنامه کاربردی</span>
           <h1>
-            شناخت بهتر قطعه،
-            <br />
-            <em>انتخاب مطمئن‌تر.</em>
+            شناخت بهتر قطعه، <em>انتخاب مطمئن‌تر.</em>
           </h1>
           <p>
-            راهنماهای کوتاه و کاربردی برای شناسایی، انتخاب و درخواست ساخت قطعات
-            صنعتی.
+            راهنماهای کوتاه و کاربردی برای اندازه‌گیری، عکاسی فنی، تطبیق کد و
+            آماده‌سازی اطلاعات پیش از سفارش یا درخواست ساخت قطعات صنعتی.
           </p>
-          <label className="editorial-search">
-            <Search size={18} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="جستجوی دانشنامه"
-              placeholder="دنبال چه راهنمایی هستید؟"
-            />
-          </label>
+          <div className="company-hero-actions">
+            <Link to="/identify-part" className="company-button company-button--primary">
+              شناسایی تصویری قطعه <ScanLine size={18} />
+            </Link>
+            <Link to="/ai-consult" className="company-button company-button--secondary">
+              مشاوره تخصصی FORZA
+            </Link>
+          </div>
         </div>
-        <BookOpen size={120} strokeWidth={1} />
+
+        <Link to={`/knowledge/${featuredArticle.slug}`} className="sp-knowledge-featured">
+          <img src={featuredArticle.image} alt={featuredArticle.title} fetchPriority="high" />
+          <div className="sp-knowledge-featured-shade" />
+          <div className="sp-knowledge-featured-copy">
+            <span>راهنمای منتخب · {featuredArticle.category}</span>
+            <strong>{featuredArticle.title}</strong>
+            <b>
+              مطالعه کامل راهنما <ArrowUpLeft size={16} />
+            </b>
+          </div>
+        </Link>
       </section>
-      <div className="knowledge-grid">
-        {list.map((a) => (
-          <KnowledgeCard key={a.slug} article={a} />
-        ))}
+
+      <div className="sp-knowledge-toolbar">
+        <div className="sp-filter-tabs" role="group" aria-label="فیلتر موضوع دانشنامه">
+          <button
+            type="button"
+            aria-pressed={!selectedCategory}
+            onClick={() => setSelectedCategory("")}
+          >
+            همه راهنماها
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              aria-pressed={selectedCategory === cat}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <label className="company-brand-search">
+          <Search size={18} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="جستجوی دانشنامه"
+            placeholder="دنبال چه راهنمایی هستید؟"
+          />
+        </label>
       </div>
-      {!list.length && <p role="status">راهنمایی با این عبارت پیدا نشد.</p>}
-    </div>
+
+      {list.length > 0 ? (
+        <div className="sp-knowledge-grid" aria-live="polite">
+          {list.map((a) => (
+            <KnowledgeCard key={a.slug} article={a} />
+          ))}
+        </div>
+      ) : (
+        <div className="company-empty-state" role="status">
+          <strong>راهنمایی با این عبارت پیدا نشد.</strong>
+          <p>موضوع دیگری را انتخاب کنید یا عبارت جستجو را کوتاه‌تر بنویسید.</p>
+        </div>
+      )}
+
+      <section className="company-bottom-cta">
+        <div>
+          <span className="company-kicker">پاسخ اختصاصی به مسئله خط شما</span>
+          <h2>اگر پاسخ موردنظر در راهنماها نبود، مستقیماً از کارشناس یا FORZA بپرسید.</h2>
+          <p>عکس قطعه یا کد فنی را بفرستید تا راهنمایی متناسب ارائه شود.</p>
+        </div>
+        <Link to="/contact" className="company-button company-button--primary">
+          تماس و هماهنگی <ArrowLeft size={18} />
+        </Link>
+      </section>
+    </main>
   );
 }
 export function KnowledgeCard({
@@ -680,12 +808,16 @@ export function KnowledgeCard({
   article: (typeof ARTICLES)[number];
 }) {
   return (
-    <Link to={`/knowledge/${a.slug}`} className="knowledge-card">
-      <img src={a.image} alt="" loading="lazy" />
-      <div>
-        <span>
-          {a.category} · {a.minutes} دقیقه مطالعه
-        </span>
+    <Link to={`/knowledge/${a.slug}`} className="sp-knowledge-card">
+      <div className="sp-knowledge-card-media">
+        <img src={a.image} alt={a.title} loading="lazy" />
+      </div>
+      <div className="sp-knowledge-card-body">
+        <div className="sp-knowledge-card-meta">
+          <span>{a.category}</span>
+          <span>·</span>
+          <span>{a.minutes} دقیقه مطالعه</span>
+        </div>
         <h3>{a.title}</h3>
         <p>{a.summary}</p>
         <b>
@@ -700,28 +832,28 @@ export function HomeKnowledge() {
 
   const featuredArticles = [
     {
-      slug: "belt-selection",
-      title: "نقش قطعات باکیفیت در افزایش بهره‌وری خطوط تولید",
+      slug: "maintenance",
+      title: "پیش از سفارش قطعه جایگزین چه چیزهایی را بررسی کنیم؟",
       date: "۱۴۰۳/۰۲/۱۸",
-      image: A.whySanatQc,
+      image: A.companyPages.articleMaintenance,
     },
     {
-      slug: "roller-wear",
-      title: "اهمیت نگهداری و تعویض به‌موقع قطعات انتقال نیرو",
+      slug: "custom-part",
+      title: "چک‌لیست درخواست ساخت قطعه صنعتی",
       date: "۱۴۰۳/۰۲/۲۰",
-      image: A.heroPulley,
+      image: A.companyPages.articleCustomPart,
     },
     {
-      slug: "visual-inquiry",
-      title: "بررسی مشکلات رایج در نقاله‌های کاشی و سرامیک",
+      slug: "part-photo",
+      title: "چطور از قطعه عکس بگیریم تا بهتر شناسایی شود؟",
       date: "۱۴۰۳/۰۲/۲۴",
-      image: A.industries.ceramic,
+      image: A.companyPages.articlePartPhoto,
     },
     {
-      slug: "belt-selection",
-      title: "راهنمای انتخاب تسمه مناسب برای خط تولید کاشی",
+      slug: "identify-belt",
+      title: "برای شناسایی تسمه چه اطلاعاتی لازم است؟",
       date: "۱۴۰۳/۰۲/۲۵",
-      image: A.categories.belts,
+      image: A.companyPages.articleIdentifyBelt,
     },
   ];
 
@@ -915,23 +1047,34 @@ export function HomeKnowledge() {
   );
 }
 export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
+  const { pathname } = useLocation();
+  const navItems = [
+    { to: "/about", text: "آشنایی با صنعت پیش", Icon: Building2 },
+    { to: "/services", text: "توانمندی‌ها و خدمات", Icon: Wrench },
+    { to: "/industries", text: "صنایع تحت پوشش", Icon: Factory },
+    { to: "/brands", text: "برندها و محصولات", Icon: Tag },
+    { to: "/knowledge", text: "دانشنامه کاربردی", Icon: BookOpen },
+    { to: "/contact", text: "تماس و هماهنگی مراجعه", Icon: Phone },
+  ];
+
   return (
-    <div className="about-navigation">
+    <div className="about-navigation" dir="rtl">
       <div>
         <span className="store-eyebrow">با صنعت پیش، هوشمندانه پیش بروید</span>
         <h3>تجربه صنعتی، مسیر خرید هوشمند</h3>
         <p>از تأمین و ساخت قطعه تا انتخاب آگاهانه و پیگیری سفارش.</p>
         <div className="about-navigation-links">
-          {[
-            ["/about", "آشنایی با صنعت پیش"],
-            ["/services", "توانمندی‌ها و خدمات"],
-            ["/industries", "صنایع تحت پوشش"],
-            ["/brands", "برندها و محصولات"],
-            ["/knowledge", "دانشنامه کاربردی"],
-            ["/contact", "تماس و هماهنگی مراجعه"],
-          ].map(([to, text]) => (
-            <Link key={to} to={to} onClick={onNavigate}>
-              {text}
+          {navItems.map(({ to, text, Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={onNavigate}
+              className={pathname === to ? "is-current" : undefined}
+            >
+              <span className="about-navigation-link-label">
+                <Icon size={15} />
+                <span>{text}</span>
+              </span>
               <ArrowUpLeft size={15} />
             </Link>
           ))}
@@ -941,6 +1084,46 @@ export function AboutNavigation({ onNavigate }: { onNavigate: () => void }) {
     </div>
   );
 }
+
+const ABOUT_BRANCHES = [
+  {
+    id: "yazd" as const,
+    tab: "فروشگاه و دفتر مرکزی یزد",
+    title: "صنعت پیش (بازرگانی اطلس) — شعبه مرکزی یزد",
+    address: "یزد، بلوار جمهوری، بعد از بیمارستان افشار، جنب بانک سپه، بازرگانی اطلس",
+    phone: "۰۳۵-۳۵۲۵۴۷۰۳",
+    phoneRaw: "03535254703",
+    hours: "شنبه تا پنجشنبه ۸:۰۰ تا ۲۰:۰۰",
+    bbox: "54.3318%2C31.9164%2C54.3518%2C31.9304",
+    lat: 31.9234,
+    lng: 54.3418,
+  },
+  {
+    id: "meybod" as const,
+    tab: "مجتمع لجستیک و انبار میبد",
+    title: "انبار مرکزی و کارگاه ساخت قطعات میبد",
+    address: "استان یزد، میبد، کیلومتر ۳ جاده سنتو، روبروی شهرک صنعتی جهان‌آباد",
+    phone: "۰۹۹۰۳۴۲۷۰۲۷",
+    phoneRaw: "09903427027",
+    hours: "پشتیبانی خطوط تولید و سفارشات فوری",
+    bbox: "54.0050%2C32.2150%2C54.0320%2C32.2360",
+    lat: 32.2256,
+    lng: 54.0185,
+  },
+  {
+    id: "tehran" as const,
+    tab: "دفتر بازرگانی تهران",
+    title: "دفتر بازرگانی و فروش سازمانی تهران",
+    address: "تهران، خیابان سعدی جنوبی، روبروی بانک تجارت، پاساژ صدوقی، طبقه ۲، واحد ۲۴",
+    phone: "۰۲۱-۳۳۹۲۸۴۵۰",
+    phoneRaw: "02133928450",
+    hours: "شنبه تا چهارشنبه ۸:۳۰ تا ۱۷:۳۰ | پنجشنبه ۸:۳۰ تا ۱۳:۳۰",
+    bbox: "51.4150%2C35.6790%2C51.4310%2C35.6910",
+    lat: 35.6852,
+    lng: 51.4231,
+  },
+];
+
 export function AboutPage() {
   useEffect(() => title("درباره صنعت پیش"), []);
 
@@ -951,6 +1134,12 @@ export function AboutPage() {
     families: 0,
     industries: INDUSTRIES.length,
   });
+  const [featuredBrands, setFeaturedBrands] = useState<Brand[]>(() =>
+    getManagedBrands().filter((brand) => brand.active !== false).slice(0, 6),
+  );
+  const [selectedBranchId, setSelectedBranchId] = useState<"yazd" | "meybod" | "tehran">("yazd");
+  const [mapActive, setMapActive] = useState(false);
+  const [copiedBranchAddress, setCopiedBranchAddress] = useState(false);
 
   useEffect(() => {
     const refreshStats = () => {
@@ -962,13 +1151,16 @@ export function AboutPage() {
           families: 0,
           industries: INDUSTRIES.length,
         });
+        setFeaturedBrands([]);
         return;
       }
 
+      const activeBrands = getManagedBrands().filter((brand) => brand.active !== false);
       const activeFamilies = getAllProducts().filter((product) => product.active !== false);
+      setFeaturedBrands(activeBrands.slice(0, 6));
       setCatalogStats({
         ready: true,
-        brands: getManagedBrands().filter((brand) => brand.active !== false).length,
+        brands: activeBrands.length,
         categories: getManagedCategories().filter((category) => category.active !== false).length,
         families: activeFamilies.length,
         industries: INDUSTRIES.length,
@@ -992,13 +1184,21 @@ export function AboutPage() {
   }, []);
 
   const formatCount = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
+  const activeBranch =
+    ABOUT_BRANCHES.find((branch) => branch.id === selectedBranchId) || ABOUT_BRANCHES[0];
+
+  const handleCopyBranchAddress = () => {
+    navigator.clipboard.writeText(activeBranch.address);
+    setCopiedBranchAddress(true);
+    window.setTimeout(() => setCopiedBranchAddress(false), 2400);
+  };
 
   const pathways = [
     {
       to: "/services",
       title: "خدمات و توانمندی‌ها",
       text: "از تأمین قطعات و مشاوره فنی تا شناسایی تصویری و مهندسی معکوس.",
-      image: A.whySanatCadEngineering,
+      image: A.companyPages.servicesHero,
       Icon: Wrench,
       action: "مشاهده خدمات",
     },
@@ -1006,7 +1206,7 @@ export function AboutPage() {
       to: "/industries",
       title: "صنایع تحت پوشش",
       text: "مسیرهای تخصصی برای شناخت نیاز خطوط تولید در صنایع مختلف.",
-      image: A.industries.bgPlant,
+      image: A.companyPages.industriesHero,
       Icon: Factory,
       action: "انتخاب صنعت",
     },
@@ -1014,7 +1214,7 @@ export function AboutPage() {
       to: "/brands",
       title: "برندهای صنعتی",
       text: "آشنایی با برندهای ثبت‌شده و دسترسی به محصولات مرتبط.",
-      image: A.brandsFullbleedBg,
+      image: A.companyPages.brandsHero,
       Icon: Tag,
       action: "مشاهده برندها",
     },
@@ -1022,7 +1222,7 @@ export function AboutPage() {
       to: "/knowledge",
       title: "دانشنامه تخصصی",
       text: "راهنماها و محتوای فنی برای شناخت و انتخاب آگاهانه قطعات.",
-      image: A.aiSearchMobile,
+      image: A.companyPages.knowledgeHero,
       Icon: BookOpen,
       action: "مطالعه دانشنامه",
     },
@@ -1030,7 +1230,7 @@ export function AboutPage() {
       to: "/contact",
       title: "ارتباط با کارشناسان",
       text: "برای پیگیری نیازهای صنعتی و هماهنگی مشاوره با ما در ارتباط باشید.",
-      image: A.ctaConsultBanner,
+      image: A.companyPages.contactShowroom,
       Icon: Headphones,
       action: "تماس با ما",
     },
@@ -1046,19 +1246,19 @@ export function AboutPage() {
     {
       title: "مشاوره تخصصی",
       text: "راهنمایی برای بررسی مشخصات و انتخاب متناسب با کاربرد قطعه.",
-      image: A.engineerWhyAtlas,
+      image: A.companyPages.servicesEngineeringConsult,
       Icon: Headphones,
     },
     {
       title: "شناسایی هوشمند قطعه",
       text: "کمک به یافتن قطعات مشابه از طریق تصویر و اطلاعات فنی.",
-      image: A.reverseEngineeringLab,
+      image: A.aiSearchMobile,
       Icon: ScanLine,
     },
     {
       title: "پشتیبانی صنایع",
       text: "همراهی در تأمین نیاز خطوط تولید، پاسخگویی سریع و پیگیری مسیر سفارش.",
-      image: A.industries.bgPlant,
+      image: A.companyPages.industriesHero,
       Icon: Factory,
     },
   ];
@@ -1115,27 +1315,27 @@ export function AboutPage() {
           </h1>
           <p>
             صنعت پیش، یک بازار آنلاین جامع برای تأمین، جستجو و خرید انواع قطعات و
-            تجهیزات صنعتی است؛ با تکیه بر تجربه و اعتبار بازرگانی تسمه اطلس.
+            تجهیزات صنعتی است؛ با تکیه بر تجربه و اعتبار بازرگانی تسمه اطلس از سال ۱۳۶۶.
           </p>
           <div className="sp-about-hero-actions">
             <Link to="/products" className="sp-about-btn sp-about-btn--primary">
               <ShoppingCart size={17} />
               ورود به بازار قطعات
             </Link>
-            <a href="#sp-about-story" className="sp-about-btn sp-about-btn--outline">
-              آشنایی با ما
+            <Link to="/services" className="sp-about-btn sp-about-btn--outline">
+              توانمندی‌ها و خدمات
               <ArrowLeft size={17} />
-            </a>
+            </Link>
           </div>
           <div className="sp-about-hero-note">
             <span>یک مسیر تخصصی برای نیازهای صنعت</span>
-            <strong>قطعات · برندها · مشخصات فنی · استعلام و خرید</strong>
+            <strong>قطعات · برندها · مشخصات فنی · مشاوره · استعلام و خرید</strong>
           </div>
         </div>
         <div className="sp-about-hero-visual">
           <img
-            src={A.partsWarehouseVault}
-            alt="نمای نزدیک مجموعه چرخ‌دنده‌های صنعتی در محیط کارخانه"
+            src={A.companyPages.aboutHero}
+            alt="چرخ‌دنده‌های دقیق صنعتی، تسمه تایمینگ و کوپلینگ‌های برنزی در کارگاه مهندسی صنعت پیش"
             fetchPriority="high"
           />
           <div className="sp-about-hero-image-shade" />
@@ -1151,14 +1351,14 @@ export function AboutPage() {
       <section className="sp-about-story" id="sp-about-story">
         <div className="sp-about-story-visual">
           <img
-            src={A.industries.cement}
-            alt="نمایی از مجموعه صنعتی و تأسیسات تولید"
+            src={A.companyPages.aboutWarehouse}
+            alt="مرکز لجستیک، قفسه‌بندی صنعتی و دپوی قطعات بازرگانی تسمه اطلس"
             loading="lazy"
           />
           <div className="sp-about-story-image-frame" aria-hidden="true" />
           <div className="sp-about-atlas-mark">
             <img src={A.atlasLogo} alt="نشان بازرگانی تسمه اطلس" />
-            <span>پشتوانه تجربه صنعتی</span>
+            <span>پشتوانه تجربه صنعتی از ۱۳۶۶</span>
           </div>
           <div className="sp-about-story-image-caption">
             <span>داستان ما</span>
@@ -1209,19 +1409,19 @@ export function AboutPage() {
         </div>
       </section>
 
-      <section className="sp-about-capabilities">
+      <section className="sp-about-capabilities" id="about-capabilities">
         <img className="sp-about-capabilities-bg" src={A.refineryDuskWide} alt="" loading="lazy" />
         <div className="sp-about-capabilities-overlay" />
         <div className="sp-about-section-inner">
           <div className="sp-about-centered-heading">
-            <span className="sp-about-eyebrow">توانمندی‌ها و ارزش‌های ما</span>
+            <span className="sp-about-eyebrow">توانمندی‌ها و خدمات ما</span>
             <h2>آنچه <em>صنعت پیش</em> را متمایز می‌کند</h2>
-            <p>از پیدا کردن قطعه تا انتخاب، مشاوره و پیگیری مسیر تأمین</p>
+            <p>از پیدا کردن قطعه تا انتخاب، مشاوره مهندسی، شناسایی هوشمند و پیگیری مسیر تأمین</p>
           </div>
           <div className="sp-about-capability-grid">
             {capabilities.map(({ title: itemTitle, text, image, Icon }, index) => (
               <article className="sp-about-capability" key={itemTitle}>
-                <img src={image} alt="" loading="lazy" />
+                <img src={image} alt={itemTitle} loading="lazy" />
                 <div className="sp-about-capability-shade" />
                 <span className="sp-about-capability-icon"><Icon size={24} strokeWidth={1.8} /></span>
                 <div className="sp-about-capability-copy">
@@ -1231,6 +1431,25 @@ export function AboutPage() {
                 <span className="sp-about-capability-index">۰{index + 1}</span>
               </article>
             ))}
+          </div>
+
+          <div className="sp-about-services-strip">
+            <div className="sp-about-services-strip-copy">
+              <strong>مسیر جامع توانمندی‌ها و خدمات فنی صنعت پیش</strong>
+              <p>
+                از جستجوی کد فنی و مشاوره FORZA تا بررسی ساخت و مهندسی معکوس قطعات سفارشی و صدور پیش‌فاکتور رسمی.
+              </p>
+              <div className="sp-about-services-chips">
+                <span><Boxes size={13} /> تأمین خطوط تولید</span>
+                <span><ScanLine size={13} /> شناسایی تصویری FORZA</span>
+                <span><Wrench size={13} /> مهندسی معکوس و ساخت</span>
+                <span><Clock size={13} /> پیگیری سفارش و استعلام</span>
+              </div>
+            </div>
+            <Link to="/services" className="sp-about-btn sp-about-btn--primary">
+              مشاهده صفحه توانمندی‌ها و خدمات
+              <ArrowLeft size={16} />
+            </Link>
           </div>
         </div>
       </section>
@@ -1254,14 +1473,107 @@ export function AboutPage() {
         </div>
       </section>
 
+      <section className="sp-about-ecosystem" aria-label="برندها و صنایع مرتبط در صنعت پیش">
+        <div className="sp-about-section-inner">
+          <div className="sp-about-ecosystem-block">
+            <div className="sp-about-eco-head">
+              <div>
+                <span className="sp-about-eyebrow sp-about-eyebrow--light">برندها و محصولات</span>
+                <h2>برندهای فعال در کاتالوگ صنعت پیش</h2>
+                <p>
+                  برای بررسی محصولات و کدهای فنی هر برند، روی برند موردنظر کلیک کنید یا وارد فهرست کامل برندها شوید.
+                </p>
+              </div>
+              <Link to="/brands" className="sp-about-eco-link">
+                مشاهده همه برندها و محصولات
+                <ArrowLeft size={15} />
+              </Link>
+            </div>
+
+            {featuredBrands.length > 0 ? (
+              <div className="sp-about-brands-row">
+                {featuredBrands.map((brand) => {
+                  const logo =
+                    brand.id === "forza"
+                      ? A.logoForza
+                      : brand.id === "swr"
+                        ? A.swrLogo
+                        : brand.image || brand.logo;
+                  return (
+                    <Link
+                      key={brand.id}
+                      to={`/products?q=${encodeURIComponent(brand.nameEn || brand.name)}`}
+                      className="sp-about-brand-tile"
+                    >
+                      <div className="sp-about-brand-logo">
+                        {logo ? (
+                          <img src={logo} alt={brand.nameEn || brand.name} loading="lazy" />
+                        ) : (
+                          <span>{(brand.nameEn || brand.name).slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="sp-about-brand-meta">
+                        <strong>{brand.name}</strong>
+                        <small>{brand.country || "برند صنعتی"}</small>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="company-empty-state" role="status">
+                <strong>برندهای فعال پس از دریافت اطلاعات کاتالوگ نمایش داده می‌شوند.</strong>
+                <p>می‌توانید مستقیماً وارد صفحه برندها و محصولات شوید.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="sp-about-ecosystem-block">
+            <div className="sp-about-eco-head">
+              <div>
+                <span className="sp-about-eyebrow sp-about-eyebrow--light">صنایع تحت پوشش</span>
+                <h2>مسیرهای تخصصی برای خطوط تولید کشور</h2>
+                <p>
+                  نیاز هر صنعت با توجه به دما، سرعت، بار خط و نوع قطعه متفاوت است؛ صنعت موردنظر خود را انتخاب کنید.
+                </p>
+              </div>
+              <Link to="/industries" className="sp-about-eco-link">
+                مشاهده همه صنایع
+                <ArrowLeft size={15} />
+              </Link>
+            </div>
+
+            <div className="sp-about-industries-row">
+              {INDUSTRIES.map((industry) => (
+                <Link
+                  key={industry.slug}
+                  to={`/industries/${industry.slug}`}
+                  className="sp-about-industry-card"
+                >
+                  <img src={industry.image} alt={industry.title} loading="lazy" />
+                  <div className="sp-about-industry-shade" />
+                  <div>
+                    <div>
+                      <span>{industry.eyebrow}</span>
+                      <strong>{industry.title}</strong>
+                    </div>
+                    <ArrowUpLeft size={18} />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="sp-about-destinations">
         <div className="sp-about-section-inner">
           <div className="sp-about-destinations-heading">
             <div>
               <span className="sp-about-eyebrow sp-about-eyebrow--light">مسیرهای بیشتر در صنعت پیش</span>
-              <h2>بخش‌های دیگر را کشف کنید</h2>
+              <h2>بخش‌های مرتبط را مستقیم باز کنید</h2>
             </div>
-            <p>برای آشنایی بیشتر با صنعت پیش، وارد بخش تخصصی موردنیاز خود شوید.</p>
+            <p>تمامی بخش‌های تخصصی توانمندی‌ها، صنایع، برندها، دانشنامه و تماس در دسترس شماست.</p>
           </div>
           <div className="sp-about-destination-grid">
             {pathways.map(({ to, title: itemTitle, text, image, Icon, action }) => (
@@ -1276,6 +1588,114 @@ export function AboutPage() {
                 </span>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sp-about-contact-hub" aria-labelledby="sp-about-contact-title">
+        <div className="sp-about-section-inner">
+          <div className="sp-about-contact-grid">
+            <div className="sp-about-contact-info">
+              <div>
+                <span className="sp-about-eyebrow sp-about-eyebrow--light">ارتباط مستقیم و هماهنگی مراجعه</span>
+                <h2 id="sp-about-contact-title">تماس با شعب و هماهنگی بازدید یا تحویل نمونه</h2>
+                <p>
+                  پیش از مراجعه حضوری به فروشگاه مرکزی یزد، انبار و کارگاه میبد یا دفتر بازرگانی تهران،
+                  ساعت حضور و نشانی شعبه را بررسی و هماهنگ کنید.
+                </p>
+              </div>
+
+              <div className="sp-about-branch-tabs" role="group" aria-label="انتخاب شعبه صنعت پیش">
+                {ABOUT_BRANCHES.map((branch) => (
+                  <button
+                    key={branch.id}
+                    type="button"
+                    aria-pressed={activeBranch.id === branch.id}
+                    onClick={() => {
+                      setSelectedBranchId(branch.id);
+                      setCopiedBranchAddress(false);
+                    }}
+                  >
+                    {branch.tab}
+                  </button>
+                ))}
+              </div>
+
+              <div className="sp-about-branch-card">
+                <strong>{activeBranch.title}</strong>
+                <div className="sp-about-branch-row">
+                  <MapPin size={16} />
+                  <span>{activeBranch.address}</span>
+                </div>
+                <div className="sp-about-branch-row">
+                  <Phone size={16} />
+                  <a href={`tel:${activeBranch.phoneRaw}`} dir="ltr" className="font-mono font-bold text-[#16232f] hover:text-[#e06518]">
+                    {activeBranch.phone}
+                  </a>
+                </div>
+                <div className="sp-about-branch-row">
+                  <Clock size={16} />
+                  <span>{activeBranch.hours}</span>
+                </div>
+              </div>
+
+              <div className="sp-about-contact-actions">
+                <Link to="/contact" className="sp-about-btn sp-about-btn--primary">
+                  ثبت پیام و هماهنگی مراجعه <ArrowLeft size={16} />
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleCopyBranchAddress}
+                  className="sp-about-contact-copy-btn"
+                >
+                  {copiedBranchAddress ? (
+                    <>
+                      <Check size={15} />
+                      نشانی کپی شد
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={15} />
+                      کپی نشانی شعبه
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="sp-about-map-box">
+              {mapActive ? (
+                <iframe
+                  key={activeBranch.id}
+                  title={`نقشه ${activeBranch.title}`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${activeBranch.bbox}&layer=mapnik&marker=${activeBranch.lat}%2C${activeBranch.lng}`}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <>
+                  <img
+                    src={A.companyPages.yazdRegionMap}
+                    alt="نقشه منطقه‌ای یزد و میبد از OpenStreetMap"
+                    loading="lazy"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMapActive(true)}
+                    className="location-map-activate"
+                  >
+                    فعال کردن نقشه تعاملی <Compass size={15} />
+                  </button>
+                </>
+              )}
+              <a
+                className="map-attribution"
+                href="https://www.openstreetmap.org/copyright"
+                target="_blank"
+                rel="noreferrer"
+              >
+                © OpenStreetMap
+              </a>
+            </div>
           </div>
         </div>
       </section>

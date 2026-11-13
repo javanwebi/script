@@ -17,14 +17,12 @@ test("mobile auth and visual search suppress floating navigation", () => {
   assert.match(css, /body\.sanat-product-detail-open \.store-ai-quick-actions/);
 });
 
-test("mobile hero removes the under-banner marketing copy and provides direct page links", () => {
+test("mobile hero renders mobileHeroSlides carousel and direct quick-action controls", () => {
   const home = source("src/pages/HomePage.tsx");
-  assert.match(home, /sanatpish-mobile-hero\.webp/);
-  assert.match(home, /ورود سریع به بخش‌های صنعت پیش/);
-  assert.match(home, /to=\"\/products\"/);
-  assert.match(home, /to=\"\/categories\"/);
-  assert.match(home, /to=\"\/ai-consult\"/);
-  assert.match(home, /to=\"\/consumer-dashboard\"/);
+  assert.match(home, /mobileHeroSlides/);
+  assert.match(home, /mobile-hero-actions/);
+  assert.match(home, /setIsVisualSearchOpen\(true\)/);
+  assert.match(home, /to="\/contact"/);
   assert.doesNotMatch(home, /Mobile Text & Information Block/);
 });
 

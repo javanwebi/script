@@ -119,7 +119,7 @@ export function loadFallbackCatalog(): Product[] {
     installCatalogImageMetadata(
       review.items.map(r => ({
         file_name: r.file,
-        image_url: `https://raw.githubusercontent.com/javanweb/imagesatlas/main/${r.file}`,
+        image_url: getProductImageUrl(r.file),
         sha256: r.sha256,
         observed_description: r.observed
       })),

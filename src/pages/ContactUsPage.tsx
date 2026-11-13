@@ -29,7 +29,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { STORE_ASSETS } from '../assets/images';
-import yazdRegionMap from '../assets/images/yazd-region-osm.png';
 
 interface ContactUsPageProps {
   defaultTab?: 'all' | 'factory' | 'offices';
@@ -163,7 +162,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
   const mapSectionRef = useRef<HTMLDivElement>(null);
 
   const [selectedBranchId, setSelectedBranchId] = useState<BranchLocation['id']>(
-    defaultTab === 'factory' ? 'yazd_shop' : 'yazd_shop'
+    defaultTab === 'factory' ? 'meybod_warehouse' : 'yazd_shop'
   );
   const [isMapInteractive, setIsMapInteractive] = useState(true);
   const [mapZoomOffset, setMapZoomOffset] = useState(0);
@@ -192,6 +191,17 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
       setSelectedBranchId('meybod_warehouse');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!isVisitModalOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsVisitModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isVisitModalOpen]);
 
   const activeBranch =
     BRANCH_LOCATIONS.find((b) => b.id === selectedBranchId) || BRANCH_LOCATIONS[0];
@@ -260,133 +270,61 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
         {/* DESKTOP ARCHITECTURAL BACKGROUND (lg+) */}
         <div className="hidden lg:block absolute inset-0 z-0">
           <img
-            src={STORE_ASSETS.whySanatDirectFactory}
-            alt="مجتمع و دفتر مرکزی صنعت پیش"
+            src={STORE_ASSETS.companyPages.contactShowroom}
+            alt="نمایشگاه و دفتر مهندسی فروش صنعت پیش"
             className="w-full h-full object-cover object-center brightness-[0.82] contrast-[1.05]"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1E242B]/90 via-[#2B313A]/35 to-[#1E242B]/88" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1E242B]/90 via-transparent to-[#1E242B]/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1E242B]/92 via-[#2B313A]/45 to-[#1E242B]/90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1E242B]/92 via-transparent to-[#1E242B]/40" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-12 pb-6 sm:pb-8 lg:pb-16">
-          {/* ================================================================= */}
-          {/* MOBILE VIEW (< lg): CREATIVE, DEDICATED MOBILE HERO               */}
-          {/* ================================================================= */}
-          <div className="lg:hidden space-y-4">
-            <div className="relative aspect-[16/10] sm:aspect-[16/9] min-h-[210px] max-h-[275px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-[#2B313A]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-center lg:min-h-[380px]">
+            {/* MOBILE VISUAL HEADER CARD (< lg) */}
+            <div className="lg:hidden relative aspect-[16/10] sm:aspect-[16/9] min-h-[210px] max-h-[275px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-[#2B313A]">
               <img
-                src={STORE_ASSETS.whySanatDirectFactory}
-                alt="ساختمان و فروشگاه مرکزی صنعت پیش"
+                src={STORE_ASSETS.companyPages.contactShowroom}
+                alt="ساختمان و نمایشگاه مرکزی صنعت پیش"
                 className="w-full h-full object-cover object-center"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/22 to-black/20" />
 
               <div className="absolute top-3 right-3 z-20">
-                <span className="px-3 py-1 rounded-full bg-[#E06518] text-white text-[11px] font-bold shadow-md inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  <span>پاسخگویی سریع مهندسی</span>
+                <span className="px-3 py-1 rounded-lg bg-[#E06518] text-white text-[11px] font-bold shadow-md inline-flex items-center">
+                  پاسخگویی مستقیم مهندسی
                 </span>
               </div>
 
               <a
                 href="tel:03535254703"
-                className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white font-mono text-[10px] font-bold border border-white/20 flex items-center gap-1"
+                className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-white font-mono text-[10px] font-bold border border-white/20 flex items-center gap-1"
                 dir="ltr"
               >
                 <PhoneCall className="w-3 h-3 text-[#E06518]" />
                 <span>035-35254703</span>
               </a>
 
-              <div className="absolute bottom-2.5 right-2.5 left-2.5 z-20 grid grid-cols-3 gap-1.5 bg-[#2B313A]/90 backdrop-blur-md p-2 rounded-xl border border-white/15">
+              <div className="absolute bottom-2 right-2 left-2 z-20 grid grid-cols-3 gap-1 bg-[#1E242B]/92 backdrop-blur-md p-2 rounded-xl border border-white/15">
                 {HERO_RIGHT_FEATURES.map(({ id, title, subtitle, Icon }) => (
                   <div
                     key={id}
-                    className="flex items-center gap-1.5 text-right border-l last:border-l-0 border-white/10 pl-1"
+                    className="flex flex-col items-center text-center gap-0.5 border-l last:border-l-0 border-white/12 px-1"
                   >
-                    <span className="w-6 h-6 rounded-full bg-[#E06518]/20 border border-[#E06518]/60 flex items-center justify-center text-[#E06518] shrink-0">
-                      <Icon className="w-3 h-3" />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="text-[10px] font-black text-white truncate">{title}</div>
-                      <div className="text-[8px] text-slate-300 truncate">{subtitle}</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <Icon className="w-3 h-3 text-[#E06518] shrink-0" />
+                      <div className="text-[10px] font-black text-white leading-tight">{title}</div>
                     </div>
+                    <div className="text-[9px] text-slate-300 leading-tight">{subtitle}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2.5 text-right pt-0.5">
-              <div className="flex items-center gap-1.5 justify-start text-[11px] font-bold text-[#E06518]">
-                <span className="w-2 h-2 rounded-full bg-[#E06518]" />
-                <span>ارتباط مستقیم با فروشگاه مرکزی یزد و واحد مهندسی</span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl font-black text-[#55565A] leading-snug">
-                <span>تماس با </span>
-                <span className="text-[#E06518]">صنعت پیش</span>
-              </h1>
-
-              <p className="text-xs text-[#74757c] leading-relaxed">
-                همیشه آماده شنیدن نظرات، پیشنهادها و همکاری‌های شما هستیم. با ما در مسیر توسعه
-                صنایع ایران همراه باشید.
-              </p>
-
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {HERO_PILLARS.map(({ id, title, subjectValue, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => handleSelectTopicAndScroll(subjectValue)}
-                    className="group bg-[#f6f7f9] hover:bg-[#fff0e5] border border-[#e5e7eb] hover:border-[#E06518] rounded-xl p-2.5 flex flex-col items-center justify-center gap-1.5 text-center transition-all active:scale-95 cursor-pointer shadow-2xs"
-                  >
-                    <span className="w-8 h-8 rounded-lg bg-white border border-[#e5e7eb] group-hover:border-[#E06518]/40 text-[#E06518] flex items-center justify-center shadow-2xs">
-                      <Icon className="w-4 h-4" />
-                    </span>
-                    <span className="text-[11px] font-black text-[#55565A] group-hover:text-[#c95c17]">
-                      {title}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-1.5 grid grid-cols-3 gap-2">
-                <a
-                  href="tel:03535254703"
-                  className="h-10 px-2 bg-gradient-to-r from-[#C95210] to-[#E06518] text-white font-black text-[11px] rounded-xl shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                >
-                  <PhoneCall className="w-3.5 h-3.5 shrink-0" />
-                  <span>تماس با مغازه</span>
-                </a>
-                <a
-                  href="https://wa.me/989903427027"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-10 px-2 bg-white border border-[#e5e7eb] text-[#55565A] hover:border-[#E06518] font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-2xs"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 text-[#E06518] shrink-0" />
-                  <span>واتساپ فنی</span>
-                </a>
-                <a
-                  href={BRANCH_LOCATIONS[0].googleMapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-10 px-2 bg-white border border-[#e5e7eb] text-[#55565A] hover:border-[#E06518] font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-2xs"
-                >
-                  <Navigation className="w-3.5 h-3.5 text-[#E06518] shrink-0" />
-                  <span>لوکیشن مغازه</span>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* ================================================================= */}
-          {/* DESKTOP VIEW (lg+): EXACT REFERENCE IMAGE 3-ZONE HERO COMPOSITION */}
-          {/* ================================================================= */}
-          <div className="hidden lg:grid lg:grid-cols-12 gap-8 items-center min-h-[380px]">
-            <div className="lg:col-span-4">
-              <div className="bg-[#1E242B]/75 backdrop-blur-md border border-white/15 rounded-2xl p-6 divide-y divide-white/10 shadow-2xl max-w-[330px]">
+            {/* DESKTOP LEFT FEATURE CARD (lg+) */}
+            <div className="hidden lg:block lg:col-span-4 lg:order-1">
+              <div className="bg-[#1E242B]/78 backdrop-blur-md border border-white/15 rounded-2xl p-6 divide-y divide-white/10 shadow-2xl max-w-[330px]">
                 {HERO_RIGHT_FEATURES.map(({ id, title, subtitle, Icon }) => (
                   <div
                     key={id}
@@ -404,8 +342,9 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
               </div>
             </div>
 
-            <div className="lg:col-span-3 flex flex-col items-center justify-center text-center pointer-events-none">
-              <div className="bg-[#1E242B]/80 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3.5">
+            {/* DESKTOP CENTER BRAND CARD (lg+) */}
+            <div className="hidden lg:flex lg:col-span-3 lg:order-2 flex-col items-center justify-center text-center pointer-events-none">
+              <div className="bg-[#1E242B]/84 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#E06518] to-[#C95210] flex items-center justify-center text-white shadow-md">
                   <Building2 className="w-6 h-6" />
                 </div>
@@ -418,33 +357,67 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
               </div>
             </div>
 
-            <div className="lg:col-span-5 space-y-5 text-right">
-              <div className="space-y-2">
-                <h1 className="text-4xl xl:text-[52px] font-black leading-[1.18] tracking-tight text-white drop-shadow-md">
-                  <span className="block">تماس با</span>
-                  <span className="block text-[#E06518] pt-1">صنعت پیش</span>
-                </h1>
-                <div className="w-10 h-1 rounded-full bg-[#E06518]" />
+            {/* UNIFIED SINGLE H1 + PILLARS + MOBILE DIRECT CTAs */}
+            <div className="lg:col-span-5 lg:order-3 space-y-3 lg:space-y-5 text-right">
+              <div className="flex items-center gap-2 justify-start text-[11px] font-bold text-[#E06518]">
+                <span className="w-5 h-0.5 rounded-full bg-[#E06518]" aria-hidden="true" />
+                <span>ارتباط مستقیم با فروشگاه مرکزی یزد و واحد مهندسی</span>
               </div>
 
-              <p className="text-sm xl:text-[15px] text-slate-100 leading-[2.1] font-medium max-w-md">
-                همیشه آماده شنیدن نظرات، پیشنهادها و همکاری‌های شما هستیم.
-                <br />
-                با ما در مسیر توسعه صنایع ایران همراه باشید.
+              <div className="space-y-2">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[52px] font-black leading-[1.22] tracking-tight text-[#1E242B] lg:text-white lg:drop-shadow-md">
+                  <span>تماس با </span>
+                  <span className="text-[#E06518] lg:block lg:pt-1">صنعت پیش</span>
+                </h1>
+              </div>
+
+              <p className="text-xs sm:text-sm xl:text-[15px] text-[#55565A] lg:text-slate-100 leading-[2] font-medium max-w-md">
+                همیشه آماده شنیدن نظرات، پیشنهادها و همکاری‌های شما هستیم. با ما در مسیر توسعه
+                صنایع ایران همراه باشید.
               </p>
 
-              <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="grid grid-cols-3 gap-2 lg:gap-3 pt-1 lg:pt-2">
                 {HERO_PILLARS.map(({ id, title, subjectValue, Icon }) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => handleSelectTopicAndScroll(subjectValue)}
-                    className="group bg-white/12 hover:bg-white/22 backdrop-blur-md border border-white/20 hover:border-[#E06518] rounded-2xl p-4 flex flex-col items-center justify-center gap-2.5 text-center transition-all cursor-pointer shadow-lg active:scale-95"
+                    className="group bg-[#f6f7f9] lg:bg-white/12 hover:bg-[#fff0e5] lg:hover:bg-white/22 lg:backdrop-blur-md border border-[#e5e7eb] lg:border-white/20 hover:border-[#E06518] rounded-xl lg:rounded-2xl p-2.5 lg:p-4 min-h-[76px] flex flex-col items-center justify-center gap-1.5 lg:gap-2.5 text-center transition-all cursor-pointer shadow-2xs lg:shadow-lg active:scale-95"
                   >
-                    <Icon className="w-7 h-7 text-[#E06518] group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-black text-white">{title}</span>
+                    <Icon className="w-5 h-5 lg:w-7 lg:h-7 text-[#E06518] group-hover:scale-110 transition-transform" />
+                    <span className="text-[11px] lg:text-xs font-black text-[#1E242B] lg:text-white">
+                      {title}
+                    </span>
                   </button>
                 ))}
+              </div>
+
+              <div className="lg:hidden pt-1 grid grid-cols-3 gap-2">
+                <a
+                  href="tel:03535254703"
+                  className="h-11 px-2 bg-gradient-to-r from-[#C95210] to-[#E06518] text-white font-black text-[11px] rounded-xl shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <PhoneCall className="w-3.5 h-3.5 shrink-0" />
+                  <span>تماس با مغازه</span>
+                </a>
+                <a
+                  href="https://wa.me/989903427027"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-11 px-2 bg-white border border-[#e5e7eb] text-[#1E242B] hover:border-[#E06518] font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-[#E06518] shrink-0" />
+                  <span>واتساپ فنی</span>
+                </a>
+                <a
+                  href={BRANCH_LOCATIONS[0].googleMapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-11 px-2 bg-white border border-[#e5e7eb] text-[#1E242B] hover:border-[#E06518] font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-[#E06518] shrink-0" />
+                  <span>لوکیشن مغازه</span>
+                </a>
               </div>
             </div>
           </div>
@@ -606,7 +579,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                     <span className="text-[#E06518]">{activeBranch.shortLabel}</span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-[#f6f7f9] border border-[#e5e7eb] rounded-xl p-1">
+                  <div className="flex flex-wrap items-center gap-1.5 bg-[#f6f7f9] border border-[#e5e7eb] rounded-xl p-1">
                     {BRANCH_LOCATIONS.map((branch) => {
                       const isCurrent = branch.id === activeBranch.id;
                       return (
@@ -620,14 +593,14 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                               scrollToSectionElement(mapSectionRef.current, { behavior: 'smooth' });
                             });
                           }}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`min-h-[38px] px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
                             isCurrent
                               ? 'bg-[#E06518] text-white shadow-2xs'
                               : 'text-[#55565A] hover:bg-white'
                           }`}
                         >
                           {branch.id === 'yazd_shop'
-                            ? 'فروشگاه یزد (بلوار جمهوری)'
+                            ? 'فروشگاه یزد'
                             : branch.id === 'meybod_warehouse'
                               ? 'انبار میبد'
                               : 'دفتر تهران'}
@@ -649,7 +622,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
                     />
                   ) : (
                     <img
-                      src={yazdRegionMap}
+                      src={STORE_ASSETS.companyPages.yazdRegionMap}
                       alt="نقشه فروشگاه مرکزی صنعت پیش در بلوار جمهوری یزد"
                       className="w-full h-full object-cover"
                     />
@@ -762,7 +735,7 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
 
                 <div className="sm:col-span-6 relative min-h-[165px] sm:min-h-[185px] bg-[#2B313A] order-1 sm:order-2 overflow-hidden">
                   <img
-                    src={STORE_ASSETS.partsWarehouseVault}
+                    src={STORE_ASSETS.companyPages.contactVisitCounter}
                     alt="نمایشگاه و فروشگاه حضوری صنعت پیش"
                     className="w-full h-full object-cover object-center"
                     referrerPolicy="no-referrer"
@@ -1006,9 +979,12 @@ export const ContactUsPage: React.FC<ContactUsPageProps> = ({ defaultTab = 'all'
           role="dialog"
           aria-modal="true"
           aria-labelledby="visit-modal-title"
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsVisitModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
         >
-          <div className="bg-white rounded-3xl border border-[#e5e7eb] shadow-2xl max-w-md w-full p-6 space-y-4 text-right animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl border border-[#e5e7eb] shadow-2xl max-w-md w-full p-5 sm:p-6 pb-[calc(24px+env(safe-area-inset-bottom))] sm:pb-6 space-y-4 text-right animate-in fade-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-3">
               <div className="flex items-center gap-2">
                 <span className="w-8 h-8 rounded-xl bg-[#fff0e5] text-[#E06518] flex items-center justify-center">

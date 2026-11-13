@@ -1,19 +1,45 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {test} from 'node:test';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { test } from 'node:test';
 
 const read=(file:string)=>readFileSync(file,'utf8');
 
-test('marketing photograph imports use generated WebP derivatives',()=>{
+test('storefront & company images are served locally from public/images as lightweight WebP with zero CDN URLs',()=>{
  const assets=read('src/assets/images/index.ts');
+ const clients=read('src/assets/moshtariAssets.ts');
  const optim=read('scripts/optimize-images.mjs');
  const imports=assets.split('\n').filter(line=>line.startsWith('import '));
- assert.equal(imports.filter(line=>line.endsWith(".jpg';")).length,0);
- assert.ok(assets.includes('brands_fullbleed_bg_1791282424638.webp'));
- assert.ok(assets.includes('parts_warehouse_vault_1791289671081.webp'));
- assert.ok(assets.includes('IMAGESITE/mobile/Futuristic FORZA AI Robot Halo.webp'));
- assert.ok(optim.includes('src/assets/IMAGESITE'));
- assert.ok(optim.includes('only.includes(e.name)'));
+ assert.equal(imports.length, 0);
+ assert.equal(clients.split('\n').filter(line=>line.startsWith('import ')).length, 0);
+ assert.ok(optim.includes('public/images/'));
+
+ const imagePaths=[
+  ...(assets.match(/\/images\/[a-zA-Z0-9/_-]+\.webp/g)||[]),
+  ...(clients.match(/\/images\/[a-zA-Z0-9/_-]+\.webp/g)||[]),
+ ];
+ assert.ok(imagePaths.length >= 90);
+ for(const rel of new Set(imagePaths)){
+  const full=join(process.cwd(),'public',rel.replace(/^\//,''));
+  assert.ok(existsSync(full),`missing optimized asset in public: ${full}`);
+  assert.ok(statSync(full).size < 350*1024,`asset too heavy (>350KB): ${rel}`);
+ }
+
+ for(const file of [
+  'src/services/adminService.ts',
+  'src/components/agency/AgencyForm.tsx',
+  'src/components/dealer/DepositReceiptModal.tsx',
+  'src/pages/ServicesPage.tsx',
+  'src/pages/DiscoveryPages.tsx',
+  'src/pages/ContactUsPage.tsx',
+  'src/pages/BeltCategoryExperience.tsx',
+  'src/pages/CategoryPage.tsx',
+  'src/pages/ConsumerDashboardPage.tsx',
+ ]){
+  const src=read(file);
+  assert.ok(!src.includes('images.unsplash.com'),`Unsplash CDN reference found in ${file}`);
+  assert.ok(!/import\s+.+assets\/.*\.(png|jpg|jpeg|webp)['"]/.test(src),`Heavy raw image ES import found in ${file}`);
+ }
 });
 
 test('desktop hero remains image-prioritized and mobile hero is a large four-slide image carousel with embedded copy and two CTAs',()=>{

@@ -1,7 +1,7 @@
 import {photoFingerprint,sameCatalogPhotograph,type PhotoFingerprint} from './catalogPhotoIdentity';
 import {picksSchema,comparisonsSchema} from './recognitionSchemas';
 import sharp, {type OverlayOptions} from 'sharp';
-import { createHash } from 'node:crypto';
+import { hashStringSync } from '../utils/cryptoUtils';
 import type { CatalogImageRecord } from './catalogImageCorpus';
 
 export interface ScanProgress {stage:'preparing'|'scanning'|'verifying'|'complete';total:number;compared:number;failed:number;}
@@ -56,7 +56,7 @@ export async function scanEveryCatalogImage(input:{
  await boundedWork(Math.ceil(input.images.length/size),concurrency,()=>providerAvailable,async batchIndex=>{
   const offset=batchIndex*size;
   const rows=input.images.slice(offset,offset+size);
-  const key=createHash('sha256').update(JSON.stringify([detectDuplicates,rows.map(r=>[r.id,r.url,r.revision])])).digest('hex');
+  const key=hashStringSync(JSON.stringify([detectDuplicates,rows.map(r=>[r.id,r.url,r.revision])]));
   if(!prepared.has(key))prepared.set(key,(async()=>{
     const loaded:(Buffer|null)[]=new Array(rows.length).fill(null);const fingerprints=new Map<string,PhotoFingerprint>();
     let next=0;

@@ -1838,7 +1838,6 @@
 
 .textile-hero-grid {
   display: grid;
-  direction: rtl;
   grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
   align-items: stretch;
   gap: 0;

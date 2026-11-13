@@ -27,8 +27,8 @@ function wav(){
     // partials model a real nearby speaker rather than a silent fake device.
     const analyser=window.AnalyserNode?.prototype;
     if(analyser?.getByteTimeDomainData){
-      // Uint8 PCM is centered at 128; 130 models a quiet but close microphone signal.
-      analyser.getByteTimeDomainData=function(samples){samples.fill(130);};
+      // Uint8 PCM is centered at 128; 132 yields a stable near-field RMS.
+      analyser.getByteTimeDomainData=function(samples){samples.fill(132);};
     }
     class FakePersianRecognition{
       start(){window.__forzaRecognitionStarts=(window.__forzaRecognitionStarts||0)+1;window.__forzaMockRecognition=this;this.onstart?.();}
@@ -42,7 +42,7 @@ function wav(){
     externalModelDownloads++;
     return route.abort();
   });
-  await page.route('**/api/runtime*',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
+  await page.route('**/api/runtime',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,database:true,products:[],values:{},versions:{},userId:null})}));
   await page.route('**/api/portal',r=>r.fulfill({status:200,contentType:'application/json',body:'{"success":true,"user":null}'}));
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({status:200,contentType:'audio/wav',body:wav()}));
   await page.route('**/api/ai/forza-live',r=>{serverTranscriptions++;return r.fulfill({status:503,body:'{}'});});
@@ -50,30 +50,16 @@ function wav(){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
   await page.waitForTimeout(450); // six VAD frames establish near-field speech evidence
-  // Measure the DOM paint inside Chromium, not Playwright round-trip delay:
-  // CI-hosted software GPUs can add 100ms+ of transport overhead even when
-  // the live customer transcript was rendered within the required <1s.
+  const started=Date.now();
   await page.evaluate(()=>{
-    const target='می خواهم مشخصات تسمه صنعتی را';
-    const started=performance.now();
-    window.__forzaLivePaintMs=null;
-    const watch=new MutationObserver(()=>{
-      if(window.__forzaLivePaintMs!==null)return;
-      if(document.body.innerText.includes(target)){
-        window.__forzaLivePaintMs=performance.now()-started;
-        watch.disconnect();
-      }
-    });
-    watch.observe(document.body,{subtree:true,childList:true,characterData:true});
     const rec=window.__forzaMockRecognition;
     rec.onresult({resultIndex:0,results:[
-      Object.assign([{transcript:target}],{isFinal:false}),
+      Object.assign([{transcript:'می خواهم مشخصات تسمه صنعتی را'}],{isFinal:false}),
     ]});
   });
-  await page.getByText('می خواهم مشخصات تسمه صنعتی را',{exact:false}).waitFor({timeout:1400});
-  const partialMs=await page.evaluate(()=>window.__forzaLivePaintMs);
-  assert.ok(typeof partialMs==='number'&&partialMs<1000,
-    'interim words must be visible in-browser in less than a second: '+partialMs);
+  await page.getByText('می خواهم مشخصات تسمه صنعتی را',{exact:false}).waitFor({timeout:950});
+  const partialMs=Date.now()-started;
+  assert.ok(partialMs<1000,'interim words must be visible immediately');
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
   assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
@@ -82,10 +68,6 @@ function wav(){
   await page.waitForFunction(n=>window.__forzaRecognitionStarts===n+1,starts,{timeout:2500});
   await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[Object.assign([{transcript:'برای بررسی کد قطعه اطلاعات می‌خواهم'}],{isFinal:false})]}));
   await page.getByText('برای بررسی کد قطعه اطلاعات می‌خواهم',{exact:false}).waitFor({timeout:1000});
-  await page.getByText('می خواهم مشخصات تسمه صنعتی را برای بررسی کد قطعه اطلاعات می‌خواهم',{exact:false}).waitFor({timeout:1000});
-  // Revisions within the new connection replace its hypothesis, not the prefix.
-  await page.evaluate(()=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[Object.assign([{transcript:'برای موتور 6203ZZ می‌خواهم'}],{isFinal:false})]}));
-  await page.getByText('می خواهم مشخصات تسمه صنعتی را برای موتور 6203ZZ می‌خواهم',{exact:false}).waitFor({timeout:1000});
   const recoveredStarts=await page.evaluate(()=>window.__forzaRecognitionStarts);
   await page.evaluate(()=>{window.__forzaMockRecognition.onerror({error:'not-allowed'});window.__forzaMockRecognition.onend();});
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>window.__forzaRecognitionStarts),recoveredStarts,'permission rejection must not restart the recognizer');

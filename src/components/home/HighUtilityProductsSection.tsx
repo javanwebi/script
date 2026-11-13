@@ -22,6 +22,7 @@ import { Product } from '../../types';
 import type { HomePreviewProduct } from '../../utils/homeCatalogPreview';
 import {selectHomePreviewProducts} from '../../utils/homeCatalogPreview';
 import {homeProducts} from '../../services/homeFirstPaint';
+import { resolveSiteProductImage } from '../../utils/siteProductImages';
 
 export const HighUtilityProductsSection: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -207,8 +208,15 @@ export const HighUtilityProductsSection: React.FC = () => {
                 </div>
                 <Link to={detailUrl} aria-label={`مشاهده مشخصات ${product.name}`}
                   className="aspect-square rounded-xl bg-[#F8F9FA] border border-slate-100 p-2 block">
-                  <ProductImage src={product.images[0]} thumbnail decoding="async"
-                    alt={product.name} loading="lazy" className="w-full h-full object-contain" />
+                  <ProductImage
+                    src={product.images[0]}
+                    fallbackSrc={resolveSiteProductImage(product)}
+                    thumbnail
+                    decoding="async"
+                    alt={product.name}
+                    loading="lazy"
+                    className="w-full h-full object-contain"
+                  />
                 </Link>
                 <div className="flex flex-col gap-1 min-h-[3.5rem]">
                   <Link to={detailUrl} className="text-xs sm:text-sm font-bold line-clamp-2 text-[#55565A] hover:text-[#E06518]">
@@ -283,6 +291,7 @@ export const HighUtilityProductsSection: React.FC = () => {
               <div className="flex items-center gap-3 p-3 bg-[#DEE2E5] rounded-xl border border-[#CBD2D8]">
                 <ProductImage
                   src={selectedProduct.images[0]}
+                  fallbackSrc={resolveSiteProductImage(selectedProduct)}
                   alt={selectedProduct.name}
                   className="w-14 h-14 object-contain bg-white rounded-lg p-1 border border-[#CBD2D8]"
                 />

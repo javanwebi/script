@@ -1083,33 +1083,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             }],images:[...(previous.images||[]),url]};
           });
         }}
-        onAssignDirectSkus={async input=>{
-          if(forbid('edit'))throw new Error('مجوز ثبت کدهای مستقیم وجود ندارد؛ هیچ اتصالی ثبت نشد.');
-          const response=await fetch('/api/catalog/direct-skus/bulk',{
+        onAssignDirectSku={async input=>{
+          if(forbid('edit'))return;
+          const response=await fetch('/api/catalog/direct-skus',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(input),signal:AbortSignal.timeout(30000)
+            body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
           });
-          const result=await requireAdminApiJson<{skuCodes?:string[];count?:number}>(response,'ثبت گروهی کدهای مستقیم');
-          if(!Array.isArray(result.skuCodes)||result.skuCodes.length!==input.skuCodes.length)throw new Error('تأیید ثبت همه کدهای مستقیم از دیتابیس دریافت نشد.');
-          setSaveFeedback(result.skuCodes.length+' کد مستقیم در زیرمنو ثبت شد و تصویر مشترک به همه متصل شد.');
+          await requireAdminApiJson(response,'ثبت کد کالا بدون خانواده');
+          setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
-        onAssignSkus={async input=>{
-          if(forbid('images'))throw new Error('مجوز اتصال تصویر به کدهای کالا وجود ندارد؛ هیچ اتصالی ثبت نشده است.');
-          const response=await fetch('/api/catalog/product-images/sku-bindings',{
-            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-            signal:AbortSignal.timeout(30000),body:JSON.stringify(input)
-          });
-          const result=await requireAdminApiJson<{bindings?:{skuCode:string}[];created?:number;alreadyLinked?:number}>(response,'اتصال تصویر به چند کد کالا');
-          if(!Array.isArray(result.bindings)||result.bindings.length!==input.skuCodes.length)
-            throw new Error('تأیید کامل اتصال همه کدها از دیتابیس دریافت نشد.');
-          await syncCatalogFromServer();
-          refreshProducts();
-          setSaveFeedback('تصویر به '+result.bindings.length+' کد کالا متصل شد؛ '+(result.created||0)+' اتصال جدید و '+(result.alreadyLinked||0)+' اتصال از قبل موجود بود.');
-          window.setTimeout(()=>setSaveFeedback(null),4500);
-        }}
         onAssignSku={async input=>{
-          if(forbid('sku_move'))throw new Error('مجوز انتقال واقعی کد به خانواده دیگر وجود ندارد؛ هیچ اطلاعاتی جابه‌جا نشد.');
+          if(forbid('sku_move'))return;
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             signal:AbortSignal.timeout(60000),body:JSON.stringify(input)
@@ -1136,37 +1121,13 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           setDraftFamily(previous=>{
             if(!previous)return previous;
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url&&image.scope===(skuCode?'variant':'family')&&(!skuCode||image.variantCode===skuCode)))return previous;
+            if(gallery.some(image=>image.url===url))return previous;
             return {...previous,galleryImages:[...gallery,{
               id:persistedId||`review-${file}`,url,fileName:file,
               scope:skuCode?'variant':'family',variantCode:skuCode,
               identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
             }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
           });
-          // The image is already committed on the server at this point.
-          // Reflect that confirmed binding in the audit list immediately,
-          // without forcing another save of a full family/10k-SKU catalogue.
-          if(!skuCode){
-            const persistedUrl=imageUrl||getProductImageUrl(file);
-            if(persistedUrl)setProducts(previous=>previous.map(item=>{
-              if(item.code!==code)return item;
-              const gallery=item.galleryImages||[];
-              const index=gallery.findIndex(image=>image.scope==='family'&&image.url===persistedUrl);
-              const entry={
-                id:persistedId||`review-${file}`,url:persistedUrl,fileName:file,
-                scope:'family' as const,identityVerified:false,
-                title:imageTitle?.trim()||'تصویر متصل به خانواده',
-                order:index>=0?(gallery[index].order||index+1):gallery.length+1
-              };
-              const updated=[...gallery];
-              if(index>=0)updated[index]={...updated[index],...entry};
-              else updated.push(entry);
-              return {...item,galleryImages:updated,
-                images:Array.from(new Set([...(item.images||[]),persistedUrl])),
-                hasCatalogueImage:true};
-            }));
-          }
-          setSaveFeedback('اتصال تصویر در دیتابیس ثبت شد؛ برای تغییر مشخصات فنی از فرم ویرایش استفاده کنید.');
         }}
       />
 

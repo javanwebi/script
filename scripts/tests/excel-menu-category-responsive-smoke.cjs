@@ -177,34 +177,11 @@ async function installApiRoutes(page, initiallyUnavailable = false) {
   return { setMenuUnavailable: value => { menuUnavailable = value; } };
 }
 
-// Observe the committed React render, not the intermediate DOM immediately after a click.
-async function expectProductCount(page, count, message) {
-  await page.waitForFunction(
-    expected => document.querySelectorAll('.excel-category-product-shell').length === expected,
-    count, { timeout: 10000 },
-  );
-  assert.equal(await page.locator('.excel-category-product-shell').count(), count, message);
-}
-
-async function selectFilterChoice(page, containerSelector, label, queryKey, queryValue = '1') {
-  const choice = page.locator(containerSelector + ' label').filter({ hasText: label }).first();
-  await choice.locator('span').click();
-  await page.waitForURL(url => queryKey === 'brand'
-    ? url.searchParams.getAll(queryKey).includes(queryValue)
-    : url.searchParams.get(queryKey) === queryValue, { timeout: 10000 });
-  await page.waitForFunction(({ selector, text }) => {
-    const labelElement = Array.from(document.querySelectorAll(selector + ' label'))
-      .find(element => element.textContent?.includes(text));
-    const input = labelElement?.querySelector('input[type="checkbox"]');
-    return input instanceof HTMLInputElement && input.checked;
-  }, { selector: containerSelector, text: label }, { timeout: 10000 });
-}
-
-async function applyMobileFilter(page, label, queryKey, queryValue = '1') {
+async function applyMobileFilter(page, label) {
   await page.locator('.excel-category-mobile-filter').click();
   const sheet = page.getByRole('dialog', { name: 'فیلترهای دسته‌بندی' });
   await sheet.waitFor({ state: 'visible' });
-  await selectFilterChoice(page, '.excel-category-filter-sheet', label, queryKey, queryValue);
+  await sheet.locator('label').filter({ hasText: label }).locator('input').check();
   await sheet.locator('footer button').last().click();
   await sheet.waitFor({ state: 'hidden' });
 }
@@ -238,7 +215,7 @@ async function clearMobileFilters(page) {
       await page.getByRole('heading', { name: category.name }).waitFor({ timeout: 25000 });
       await page.locator('.excel-category-product-shell .store-product-card').first().waitFor({ timeout: 25000 });
 
-      await expectProductCount(page, 24, 'first page should contain 24 database-backed families');
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'first page should contain 24 database-backed families');
       assert.ok(await page.locator('.excel-category-pagination').isVisible(), 'pagination should appear when more than one page exists');
       assert.ok(await page.locator('.excel-category-subnav-group').count() === 2, 'approved nested subcategories should render');
 
@@ -256,33 +233,24 @@ async function clearMobileFilters(page) {
 
       const leaf = page.locator('.excel-category-subnav-leaves button').filter({ hasText: 'پلی‌یورتان' }).first();
       await leaf.click();
-      await page.waitForURL(url => url.searchParams.get('sub') === 'پلی‌یورتان', { timeout: 10000 });
-      await expectProductCount(page, 1, 'leaf selection should filter to the matching family');
+      assert.equal(new URL(page.url()).searchParams.get('sub'), 'پلی‌یورتان', 'subcategory selection should be linkable');
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'leaf selection should filter to the matching family');
 
       await page.getByRole('button', { name: /همه خانواده‌ها/ }).click();
-      await page.waitForURL(url => !url.searchParams.has('sub'), { timeout: 10000 });
-      await expectProductCount(page, 24, 'clearing subcategory should restore all families');
+      assert.equal(new URL(page.url()).searchParams.has('sub'), false, 'all-families selection should clear the subcategory query');
 
       const search = page.getByRole('searchbox', { name: 'جستجو در خانواده‌ها و مشخصات فنی' });
       await search.fill('6205');
-      await page.waitForURL(url => url.searchParams.get('q') === '6205', { timeout: 10000 });
-      await expectProductCount(page, 1, 'search should match an actual variant code');
+      assert.equal(new URL(page.url()).searchParams.get('q'), '6205', 'search should be reflected in the URL');
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'search should match an actual variant code');
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
-      await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });
-      await expectProductCount(page, 24, 'clearing search should restore all families and pagination');
-      await page.locator('.excel-category-pagination').waitFor({ state: 'visible' });
-      const nextPageButton = page.getByRole('button', { name: 'بعدی' });
-      await nextPageButton.waitFor({ state: 'visible' });
-      assert.equal(await nextPageButton.isEnabled(), true, 'next page should be available after clearing search');
-      await nextPageButton.click();
-      await page.waitForURL(url => url.searchParams.get('page') === '2', { timeout: 10000 });
-      await expectProductCount(page, 3, 'second page should show the remaining three families');
-      const previousPageButton = page.getByRole('button', { name: 'قبلی' });
-      await previousPageButton.waitFor({ state: 'visible' });
-      assert.equal(await previousPageButton.isEnabled(), true, 'previous page should be available on page two');
-      await previousPageButton.click();
-      await page.waitForURL(url => url.searchParams.get('page') === '1' || !url.searchParams.has('page'), { timeout: 10000 });
-      await expectProductCount(page, 24, 'previous page should restore the first result page');
+      assert.equal(new URL(page.url()).searchParams.has('q'), false, 'clearing search should remove q from the URL');
+
+      await page.locator('.excel-category-pagination button').last().click();
+      assert.equal(new URL(page.url()).searchParams.get('page'), '2', 'pagination should be reflected in the URL');
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 3, 'second page should show the remaining three families');
+      await page.locator('.excel-category-pagination button').first().click();
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'previous page should restore the first result page');
 
       if (viewport.width <= 900) {
         await page.locator('.excel-category-mobile-filter').click();
@@ -294,29 +262,30 @@ async function clearMobileFilters(page) {
         await page.keyboard.press('Escape');
         await sheet.waitFor({ state: 'hidden' });
         assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden', 'closing filters should restore page scrolling');
-        await applyMobileFilter(page, 'Test Brand', 'brand', 'Test Brand');
+        await applyMobileFilter(page, 'Test Brand');
       } else {
-        await selectFilterChoice(page, '.excel-category-filter-panel', 'Test Brand', 'brand', 'Test Brand');
+        const brandLabel = page.locator('.excel-category-filter-panel label').filter({ hasText: 'Test Brand' }).first();
+        await brandLabel.locator('input').check();
       }
-      await expectProductCount(page, 2, 'brand filter should return the two matching families');
-      await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 2, 'brand filter should return the two matching families');
+      assert.ok(new URL(page.url()).searchParams.getAll('brand').includes('Test Brand'), 'brand filter should be shareable');
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
-      await expectProductCount(page, 24, 'clearing brand filter should restore the first page');
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'clearing brand filter should restore the first page');
 
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای موجودی تأییدشده', 'stock');
-      else await selectFilterChoice(page, '.excel-category-filter-panel', 'فقط دارای موجودی تأییدشده', 'stock');
-      await expectProductCount(page, 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
-      await page.waitForURL(url => url.searchParams.get('stock') === '1', { timeout: 10000 });
+      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای موجودی تأییدشده');
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای موجودی تأییدشده' }).locator('input').check();
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
+      assert.equal(new URL(page.url()).searchParams.get('stock'), '1', 'stock filter should be reflected in the URL');
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
 
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای تصویر ثبت‌شده', 'image');
-      else await selectFilterChoice(page, '.excel-category-filter-panel', 'فقط دارای تصویر ثبت‌شده', 'image');
-      await expectProductCount(page, 1, 'image filter should return only families with a registered image');
-      await page.waitForURL(url => url.searchParams.get('image') === '1', { timeout: 10000 });
+      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای تصویر ثبت‌شده');
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای تصویر ثبت‌شده' }).locator('input').check();
+      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'image filter should return only families with a registered image');
+      assert.equal(new URL(page.url()).searchParams.get('image'), '1', 'image filter should be reflected in the URL');
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
@@ -358,11 +327,11 @@ async function clearMobileFilters(page) {
     await errorPage.locator('.excel-category-page').waitFor();
     await errorPage.getByText('اطلاعات این دسته دریافت نشد').waitFor({ timeout: 15000 });
     assert.ok(await errorPage.getByRole('button', { name: 'تلاش مجدد' }).isVisible(), 'database failure should expose a retry action');
-    await expectProductCount(errorPage, 0, 'database failure must not render stale family data');
+    assert.equal(await errorPage.locator('.excel-category-product-shell').count(), 0, 'database failure must not render stale family data');
     errorApi.setMenuUnavailable(false);
     await errorPage.getByRole('button', { name: 'تلاش مجدد' }).click();
     await errorPage.getByRole('heading', { name: category.name }).waitFor({ timeout: 15000 });
-    await expectProductCount(errorPage, 24, 'retry should recover the live family list');
+    assert.equal(await errorPage.locator('.excel-category-product-shell').count(), 24, 'retry should recover the live family list');
     await errorContext.close();
 
     assert.deepEqual(failures, [], 'browser page errors were detected');

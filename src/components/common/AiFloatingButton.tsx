@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ChevronUp, Instagram, LifeBuoy, MessageCircle, Phone, Send, X } from "lucide-react";
+import { ChevronUp, Instagram, MessageCircle, Phone, Send, X } from "lucide-react";
 import "./floating-quick-actions.css";
 import forzaWorkspaceMark from "../../assets/forza-workspace-mark.svg";
 
@@ -57,10 +57,6 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   };
 
   const handleLauncherClick = () => navigate("/ai-consult");
-
-  const openMobileSupport = (event: React.MouseEvent<HTMLButtonElement>) => {
-    window.dispatchEvent(new CustomEvent("open-mobile-support", { detail: { opener: event.currentTarget } }));
-  };
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -129,12 +125,8 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
   ];
   return (
     <>
-    <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به راهنمای خرید و FORZA">
-      <button type="button" className="store-help-launcher" onClick={openMobileSupport}
-        aria-label="راهنمای خرید و پشتیبانی" aria-haspopup="dialog">
-        <LifeBuoy size={21} strokeWidth={1.9}/>
-      </button>
-      {showAssistant && (
+    {showAssistant && (
+      <div className="store-ai-quick-actions" role="group" aria-label="دسترسی سریع به میزکار FORZA">
         <button
           type="button"
           className="store-assistant unified-ai-launcher"
@@ -147,8 +139,8 @@ export const AiFloatingButton: React.FC<{ showAssistant?: boolean }> = ({ showAs
           <CognivoGeometricLogo size={29} />
           <span>میزکار FORZA</span>
         </button>
-      )}
-    </div>
+      </div>
+    )}
     {showAssistant && sheetOpen && createPortal(
       <div className="sp-forza-contact" dir="rtl">
         <div className="sp-forza-contact__backdrop" onClick={() => setSheetOpen(false)} aria-hidden="true" />

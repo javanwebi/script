@@ -9,6 +9,7 @@ import { STORE_ASSETS as A } from "../../assets/images";
 import { CategoryNavigation } from "./CategoryNavigation";
 import { MobileCategoryExplorer } from "./MobileCategoryExplorer";
 import { toPersianDigits } from "../../utils/formatters";
+import { resolveExcelCategoryArtwork } from "../../utils/excelCategoryCatalog";
 import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from "../../data/approvedMenuFallback";
 
 type SavedNavigationGroup = {
@@ -47,21 +48,12 @@ const categoryMatches = (category: EnhancedCategory, query: string) => {
     .some(value => String(value || "").toLocaleLowerCase().includes(term));
 };
 
-const categoryArtwork = (category: EnhancedCategory): string => {
-  const name = category.name || "";
-  if (/تسمه|انتقال نیرو|انتقال قدرت/i.test(name)) return A.categories.belts;
-  if (/پولی/i.test(name)) return A.categories.pulleys;
-  if (/زنجیر/i.test(name)) return A.categories.chains;
-  if (/نقاله|رولر/i.test(name)) return A.categories.conveyor;
-  if (/بلبرینگ|یاتاقان/i.test(name)) return A.categories.bearings;
-  if (/سرامیک|کاشی/i.test(name)) return A.categories.ceramic;
-  if (/نساجی|پارچه/i.test(name)) return A.categories.textile;
-  return A.categories.transmission;
-};
+const categoryArtwork = (category: EnhancedCategory): string =>
+  resolveExcelCategoryArtwork(category.slug, category.name, category.image);
 
 function CategoryThumbnail({ category, FallbackIcon }: { category: EnhancedCategory; FallbackIcon: typeof Layers }) {
   const [failed, setFailed] = useState(false);
-  const src = typeof category.image === "string" ? category.image.trim() : "";
+  const src = resolveExcelCategoryArtwork(category.slug, category.name, category.image);
   useEffect(() => setFailed(false), [src]);
   return (
     <span className="reference-menu-category-thumb" aria-hidden="true">

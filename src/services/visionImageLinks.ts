@@ -1,4 +1,4 @@
-import {createHash,randomUUID} from 'node:crypto';
+import {hashStringSync, generateUUID} from '../utils/cryptoUtils';
 import {mkdir,writeFile,readdir,stat,unlink} from 'node:fs/promises';
 import path from 'node:path';
 export type ImagePublisher=(buffer:Buffer,mimeType:string)=>Promise<string>;
@@ -10,9 +10,9 @@ export function createVisionImagePublisher(directory:string,publicOrigin:string)
  return async(buffer,mimeType)=>{
   if(origin.protocol!=='https:')throw new Error('برای دسترسی ورکر به تصویر، APP_URL یا PUBLIC_APP_URL را با آدرس HTTPS عمومی سرور تنظیم کنید.');
   const extension=extensions[mimeType];if(!extension || !buffer.length || buffer.length>10*1024*1024)throw new Error('Invalid vision image');
-  const key=createHash('sha256').update(mimeType).update(buffer).digest('hex');
+  const key=hashStringSync(mimeType + buffer.toString('binary'));
   if(!saved.has(key))saved.set(key,(async()=>{
-   await mkdir(directory,{recursive:true});const fileName=`vision-${randomUUID()}.${extension}`;
+   await mkdir(directory,{recursive:true});const fileName=`vision-${generateUUID()}.${extension}`;
    await writeFile(path.join(directory,fileName),buffer,{mode:0o600});
    return `${origin.origin}/imageai/${encodeURIComponent(fileName)}`;
   })());

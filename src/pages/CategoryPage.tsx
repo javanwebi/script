@@ -1,11 +1,5 @@
-import industryCeramic from '../assets/images/ind_ceramic_1789372889504.jpg';
-import industryTextile from '../assets/images/ind_textile_1789372911510.jpg';
-import industryFood from '../assets/images/ind_food_bottles_1789640622505.jpg';
-import industryPackaging from '../assets/images/ind_factory_1789372929899.jpg';
-import aiRobot from '../assets/images/ai_consult_robot_1789379706342.jpg';
-import aiScan from '../assets/images/ai_search_mobile_1789379723502.jpg';
-import beltHero from '../assets/images/forza_sub_belt_1791282448324.jpg';
 import '../category-showcase.css';
+import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch, categorySlugFor } from '../data/userProducts';
 import { BeltCategoryExperience } from './BeltCategoryExperience';
 import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
@@ -78,6 +72,8 @@ const PulleyCategoryRoute: React.FC = () => {
 
 const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(value => value + 1)), []);
 
   const category = findCatalogCategory(slug || '') || CATEGORIES[0];
   const [searchParams, setSearchParams] = useSearchParams();
@@ -91,19 +87,26 @@ const LegacyCategoryPage: React.FC = () => {
   const [minLength, setMinLength] = useState('');
   const [maxLength, setMaxLength] = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [compareCodes, setCompareCodes] = useState<string[]>([]);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
+
   useEffect(() => {
-    if (!mobileFiltersOpen) return;
+    if (!mobileFiltersOpen && !compareModalOpen) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileFiltersOpen(false);
+      if (event.key === 'Escape') {
+        setMobileFiltersOpen(false);
+        setCompareModalOpen(false);
+      }
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', closeOnEscape);
     };
-  }, [mobileFiltersOpen]);
+  }, [mobileFiltersOpen, compareModalOpen]);
+
   const isBeltCategory = category.name === 'تسمه و انتقال نیرو';
   const isClassicBelt = category.name === 'تسمه و انتقال نیرو' && /کلاسیک/.test(selectedSubcat);
   const beltProfiles = ['A', 'B', 'C', 'D', 'E', 'Z', 'M'];
@@ -141,8 +144,9 @@ const LegacyCategoryPage: React.FC = () => {
   };
 
   const rawData = useMemo(() => {
+    void catalogRevision;
     return getProductsByCategory(category.slug, 1000, 0);
-  }, [category.slug]);
+  }, [category.slug, catalogRevision]);
 
   // Extract unique brands for filtering
   const availableBrands = useMemo(() => {
@@ -152,6 +156,47 @@ const LegacyCategoryPage: React.FC = () => {
     });
     return Array.from(brandsSet);
   }, [rawData]);
+
+  // Visual subcategory cards with representative image and item count
+  const visualSubcategories = useMemo(() => {
+    const nodes = (category.children || []).filter(node => node.hidden !== true);
+    return nodes.slice(0, 8).map(node => {
+      const value = node.value || node.name;
+      const matching = rawData.products.filter(p => matchesCatalogCategory(p, category.slug, value));
+      const sampleImage = matching.find(p => p.images?.length)?.images?.[0] || category.image;
+      return {
+        name: node.name,
+        value,
+        count: matching.length,
+        image: sampleImage,
+      };
+    });
+  }, [category, rawData.products]);
+
+  const toggleCompareProduct = (code: string) => {
+    setCompareCodes(prev => {
+      if (prev.includes(code)) return prev.filter(item => item !== code);
+      if (prev.length >= 4) return [...prev.slice(1), code];
+      return [...prev, code];
+    });
+  };
+
+  const comparedProducts = useMemo(
+    () => compareCodes
+      .map(code => rawData.products.find(p => p.code === code))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [compareCodes, rawData.products],
+  );
+
+  const comparedSpecKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const p of comparedProducts) {
+      for (const spec of p.technicalSpecs || []) {
+        if (spec.key && !keys.includes(spec.key)) keys.push(spec.key);
+      }
+    }
+    return keys.slice(0, 10);
+  }, [comparedProducts]);
 
   // Filter and sort
   const filteredProducts = useMemo(() => {
@@ -243,7 +288,7 @@ const LegacyCategoryPage: React.FC = () => {
       {isBeltCategory ? (
         <>
           <section className="category-showcase-hero relative isolate min-h-[360px] overflow-hidden rounded-2xl bg-[#222529] text-white md:min-h-[440px]">
-            <img src={beltHero} alt="تسمه‌های صنعتی و انتقال نیرو" className="category-showcase-hero-image absolute inset-0 h-full w-full object-cover opacity-80" />
+            <img src={STORE_ASSETS.forzaSubBelt} alt="تسمه‌های صنعتی و انتقال نیرو" className="category-showcase-hero-image absolute inset-0 h-full w-full object-cover opacity-80" />
             <div className="absolute inset-0 bg-gradient-to-l from-[#202225] via-[#202225]/95 to-[#202225]/20"/>
             <div className="absolute left-[27%] top-0 h-full w-[12%] -skew-x-[25deg] bg-[#E06518]/75"/>
             <div className="relative z-10 flex min-h-[360px] flex-col justify-center gap-5 p-7 md:min-h-[440px] md:p-14">
@@ -266,7 +311,7 @@ const LegacyCategoryPage: React.FC = () => {
               {label:'شیاری',value:'تسمه شیاری',matcher:/شیاری/},
               {label:'گرد پلی‌یورتان',value:'تسمه گرد پلی اورتان',matcher:/گرد/},
               {label:'CRC پنج‌ضلعی',value:'تسمه CRC پنج ضلعی',matcher:/CRC/},
-            ].map((item,index) => {
+            ].map((item) => {
               const image = rawData.products.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
               return <button type="button" key={item.value} aria-pressed={selectedSubcat === item.value}
                 onClick={()=>selectSubcategory(item.value)} className={`flex h-20 items-center justify-between gap-1 overflow-hidden rounded-xl border px-3 text-xs font-extrabold transition-colors md:h-24 ${selectedSubcat===item.value ? 'border-[#E06518] bg-orange-50 text-[#E06518]' : 'border-slate-100 bg-[#f5f6f7] hover:border-orange-300'}`}>
@@ -286,11 +331,156 @@ const LegacyCategoryPage: React.FC = () => {
           </div>}
         </>
       ) : (
-        <section className="relative overflow-hidden rounded-2xl bg-[#303337] p-8 text-white min-h-48 flex items-center justify-between gap-6">
-          <div className="relative z-10 max-w-2xl"><h1 className="text-3xl font-black">{category.name}</h1>
-          <p className="mt-3 text-sm text-slate-200 leading-7">{category.description}</p></div>
-          {category.image && <img src={category.image} alt={category.name} className="relative z-10 w-32 h-32 md:w-48 md:h-40 rounded-2xl object-contain bg-white/95 p-3 shrink-0" />}
-        </section>
+        <>
+          <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 md:p-10 text-[#23262B] shadow-sm">
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+              <div className="max-w-2xl space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3.5 py-1 text-[11px] font-extrabold text-[#c85612]">
+                  <Layers className="w-3.5 h-3.5 text-[#E56B1E]" />
+                  <span>کاتالوگ تخصصی صنعت پیش</span>
+                  {category.nameEn && <span dir="ltr" className="text-slate-500">· {category.nameEn}</span>}
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-[#23262B]">{category.name}</h1>
+                <p className="text-xs sm:text-sm text-[#55565A] leading-7">
+                  {category.description || 'بررسی مشخصات فنی، زیرشاخه‌های تخصصی، برندهای معتبر و استعلام مستقیم از کاتالوگ صنعت پیش.'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-[#F8FAFC] p-3 text-[11px] font-bold text-slate-700">
+                  <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-[#E56B1E]" /> تنوع سایز و کد فنی</span>
+                  <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-[#E56B1E]" /> تضمین اصالت و استاندارد</span>
+                  <span className="flex items-center gap-1.5"><Headphones className="w-3.5 h-3.5 text-[#E56B1E]" /> مشاوره فنی تخصصی</span>
+                  <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-[#E56B1E]" /> تأمین مستقیم خطوط تولید</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => scrollToSectionElement(productsSectionRef.current, { behavior: 'smooth' })}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#E56B1E] hover:bg-[#c95612] px-4 py-2.5 text-xs font-black text-white shadow-sm transition-colors"
+                  >
+                    مشاهده فهرست کالاها
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <Link
+                    to="/ai-consult"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-[#F8FAFC] hover:border-[#E56B1E] hover:text-[#E56B1E] px-4 py-2.5 text-xs font-extrabold text-[#55565A] transition-colors"
+                  >
+                    مشاوره فنی FORZA
+                    <Sparkles className="w-3.5 h-3.5 text-[#E56B1E]" />
+                  </Link>
+                  <Link
+                    to="/identify-part"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white hover:border-[#E56B1E] hover:text-[#E56B1E] px-3.5 py-2.5 text-xs font-bold text-[#55565A] transition-colors"
+                  >
+                    شناسایی با تصویر
+                    <Camera className="w-3.5 h-3.5 text-[#E56B1E]" />
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 self-start lg:self-center">
+                <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3.5">
+                  <div className="px-2.5 text-center border-l border-slate-200">
+                    <div className="text-lg md:text-xl font-black text-[#E56B1E]">{toPersianDigits(rawData.products.length)}</div>
+                    <div className="text-[10px] font-bold text-slate-500">کالا / خانواده</div>
+                  </div>
+                  <div className="px-2.5 text-center border-l border-slate-200">
+                    <div className="text-lg md:text-xl font-black text-[#23262B]">{toPersianDigits(visualSubcategories.length)}</div>
+                    <div className="text-[10px] font-bold text-slate-500">زیرگروه</div>
+                  </div>
+                  <div className="px-2.5 text-center">
+                    <div className="text-lg md:text-xl font-black text-emerald-700">{toPersianDigits(availableBrands.length)}</div>
+                    <div className="text-[10px] font-bold text-slate-500">برند ثبت‌شده</div>
+                  </div>
+                </div>
+                {category.image && (
+                  <img
+                    src={category.image}
+                    alt={category.name}
+                    className="hidden sm:block w-28 h-28 md:w-36 md:h-32 rounded-2xl object-contain border border-slate-200 bg-[#F8FAFC] p-3 shrink-0 shadow-xs"
+                  />
+                )}
+              </div>
+            </div>
+          </section>
+
+          {visualSubcategories.length > 0 && (
+            <section className="space-y-3" aria-label="زیرگروه‌های تصویری">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div>
+                  <span className="text-[11px] font-black text-[#E06518]">انتخاب سریع زیرشاخه</span>
+                  <h2 className="text-sm sm:text-base font-black text-slate-800">زیرگروه‌های تخصصی {category.name}</h2>
+                </div>
+                {selectedSubcat !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => selectSubcategory('all')}
+                    className="text-xs font-extrabold text-[#E06518] hover:underline"
+                  >
+                    نمایش همه زیرگروه‌ها
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {visualSubcategories.map(sub => {
+                  const active = selectedSubcat === sub.value || selectedSubcat === sub.name;
+                  return (
+                    <button
+                      type="button"
+                      key={sub.value}
+                      aria-pressed={active}
+                      onClick={() => selectSubcategory(active ? 'all' : sub.value)}
+                      className={`group flex items-center justify-between gap-3 rounded-2xl border p-3 text-right transition-all ${
+                        active
+                          ? 'border-[#E06518] bg-orange-50/90 text-[#E06518] shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-orange-300 hover:shadow-xs'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <strong className="block truncate text-xs font-black text-slate-800 group-hover:text-[#E06518]">
+                          {sub.name}
+                        </strong>
+                        <span className="mt-1 inline-block text-[10px] font-bold text-slate-500">
+                          {sub.count > 0 ? `${toPersianDigits(sub.count)} کالا در کاتالوگ` : 'مشاهده زیرگروه'}
+                        </span>
+                      </div>
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-1">
+                        {sub.image ? (
+                          <img src={sub.image} alt="" loading="lazy" className="h-full w-full object-contain" />
+                        ) : (
+                          <Layers className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {availableBrands.length > 0 && (
+            <section className="category-brand-ribbon" aria-label="برندهای موجود در کاتالوگ">
+              <strong>فیلتر سریع برندهای این دسته</strong>
+              <div>
+                {availableBrands.slice(0, 10).map(brand => (
+                  <button
+                    key={brand}
+                    type="button"
+                    aria-pressed={selectedBrands.includes(brand)}
+                    onClick={() => {
+                      setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [brand]);
+                      setPage(1);
+                      scrollToSectionElement(productsSectionRef.current, { behavior: 'smooth' });
+                    }}
+                  >
+                    {brand}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => { setSelectedBrands([]); setSelectedBrand('all'); setPage(1); }}>
+                همه برندها
+              </button>
+            </section>
+          )}
+        </>
       )}
       {!isBeltCategory && category.subcategories?.length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -484,7 +674,7 @@ const LegacyCategoryPage: React.FC = () => {
 
         {/* Product Grid Column */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="category-product-headline"><div><strong>انتخاب قطعات انتقال نیرو</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
+          <div className="category-product-headline"><div><strong>انتخاب قطعات {category.name}</strong><p>اطلاعات فنی و تصاویر برگرفته از کاتالوگ صنعت پیش</p></div><span>{toPersianDigits(filteredProducts.length)} کالای مرتبط</span></div>
           <div aria-live="polite" className="flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>{toPersianDigits(filteredProducts.length)} محصول مطابق فیلترها</span>
             <span>{toPersianDigits(paginated.length)} محصول در این صفحه</span>
@@ -500,21 +690,31 @@ const LegacyCategoryPage: React.FC = () => {
                   با فیلترها یا عبارت جستجوی فعلی، محصولی پیدا نشد. لطفاً عبارت دیگری جستجو کنید یا فیلترها را حذف کنید.
                 </p>
               </div>
-              {hasActiveFilters && (
-                <button
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-2 bg-[#E06518] hover:bg-[#C95210] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors"
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-2 bg-[#E06518] hover:bg-[#C95210] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>پاکسازی همه فیلترها</span>
+                  </button>
+                )}
+                <Link
+                  to="/ai-consult"
+                  className="inline-flex items-center gap-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>پاکسازی همه فیلترها</span>
-                </button>
-              )}
+                  <Sparkles className="w-3.5 h-3.5 text-[#E06518]" />
+                  <span>استعلام فنی از مهندسان</span>
+                </Link>
+              </div>
             </div>
           ) : (
             <>
               <div className="category-showcase-products grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {paginated.map(product => (
-                  isBeltCategory ? (
+                {paginated.map(product => {
+                  const isCompared = compareCodes.includes(product.code);
+                  return isBeltCategory ? (
                     <article key={product.code} className="category-premium-card flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
                       <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
                         <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
@@ -527,10 +727,38 @@ const LegacyCategoryPage: React.FC = () => {
                         {!product.technicalSpecs?.length && <div><dt>دسته</dt><dd>{product.subcategory}</dd></div>}
                       </dl>
                       <div className="category-sku-status"><span className={product.stockKnown && product.stock > 0 ? 'available' : 'unconfirmed'}></span>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'استعلام موجودی و قیمت'}</div>
-                      <div className="category-sku-actions"><Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link><Link to={`/product/${encodeURIComponent(product.code)}`} aria-label={`اطلاعات فنی ${product.code}`} className="category-sku-secondary"><Ruler size={18}/></Link></div>
+                      <div className="category-sku-actions">
+                        <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link>
+                        <button
+                          type="button"
+                          aria-pressed={isCompared}
+                          onClick={() => toggleCompareProduct(product.code)}
+                          title="افزودن به مقایسه فنی"
+                          className={`category-sku-secondary ${isCompared ? 'border-[#E06518] bg-orange-50 text-[#E06518]' : ''}`}
+                        >
+                          {isCompared ? <Check size={16} /> : <Ruler size={16} />}
+                        </button>
+                      </div>
                     </article>
-                  ) : <ProductCard key={product.code} product={product}/>
-                ))}
+                  ) : (
+                    <div key={product.code} className="relative flex flex-col">
+                      <ProductCard product={product}/>
+                      <button
+                        type="button"
+                        aria-pressed={isCompared}
+                        onClick={() => toggleCompareProduct(product.code)}
+                        className={`mt-1.5 inline-flex items-center justify-center gap-1.5 rounded-xl border py-1.5 px-3 text-[11px] font-bold transition-colors ${
+                          isCompared
+                            ? 'border-[#E06518] bg-orange-50 text-[#E06518]'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:text-[#E06518]'
+                        }`}
+                      >
+                        {isCompared ? <Check className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
+                        <span>{isCompared ? 'انتخاب‌شده برای مقایسه' : 'افزودن به مقایسه فنی'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Pagination Controls */}
@@ -567,6 +795,137 @@ const LegacyCategoryPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Floating Compare Dock */}
+      {comparedProducts.length > 0 && (
+        <div className="fixed bottom-4 inset-x-4 z-40 mx-auto max-w-4xl rounded-2xl border border-orange-200 bg-[#23272c]/95 p-3.5 text-white shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#E06518] px-2.5 py-1 text-xs font-black">
+              {toPersianDigits(comparedProducts.length)} کالا برای مقایسه
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {comparedProducts.map(item => (
+                <span key={item.code} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-bold">
+                  <span dir="ltr">{item.code}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCompareProduct(item.code)}
+                    aria-label={`حذف ${item.code} از مقایسه`}
+                    className="text-slate-300 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCompareCodes([])}
+              className="rounded-xl border border-white/20 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-white/10"
+            >
+              پاک کردن
+            </button>
+            <button
+              type="button"
+              onClick={() => setCompareModalOpen(true)}
+              className="rounded-xl bg-[#E06518] hover:bg-[#c95512] px-4 py-1.5 text-xs font-black text-white shadow-sm"
+            >
+              مشاهده جدول مقایسه فنی
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Technical Comparison Modal */}
+      {compareModalOpen && comparedProducts.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onMouseDown={() => setCompareModalOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="جدول مقایسه فنی محصولات"
+            onMouseDown={e => e.stopPropagation()}
+            className="max-h-[88vh] w-full max-w-5xl overflow-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[11px] font-bold text-[#E06518]">مقایسه مشخصات کاتالوگ</span>
+                <h3 className="text-base font-black text-slate-800">مقایسه فنی کالاهای انتخاب‌شده ({toPersianDigits(comparedProducts.length)})</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompareModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                بستن ✕
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] border-collapse text-right text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="p-3 font-black text-slate-600 w-40">مشخصه</th>
+                    {comparedProducts.map(item => (
+                      <th key={item.code} className="p-3 font-black text-slate-800">
+                        <div className="flex flex-col gap-1.5">
+                          <span dir="ltr" className="text-[#E06518] font-mono text-xs">{item.code}</span>
+                          <Link to={`/product/${encodeURIComponent(item.code)}`} className="hover:underline line-clamp-2">
+                            {item.name}
+                          </Link>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="p-3 font-bold text-slate-500">برند سازنده</td>
+                    {comparedProducts.map(item => (
+                      <td key={item.code} className="p-3 font-bold text-slate-800">{item.brand || '—'}</td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold text-slate-500">زیرگروه</td>
+                    {comparedProducts.map(item => (
+                      <td key={item.code} className="p-3 text-slate-700">{item.subcategory || '—'}</td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-bold text-slate-500">وضعیت تأمین</td>
+                    {comparedProducts.map(item => (
+                      <td key={item.code} className="p-3 font-bold">
+                        {item.stockKnown && item.stock > 0 && !item.inquiryOnly ? (
+                          <span className="text-emerald-700">موجودی ثبت‌شده ({toPersianDigits(item.stock)})</span>
+                        ) : (
+                          <span className="text-amber-700">استعلام موجودی و قیمت</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  {comparedSpecKeys.map(specKey => (
+                    <tr key={specKey}>
+                      <td className="p-3 font-bold text-slate-500">{specKey}</td>
+                      {comparedProducts.map(item => {
+                        const found = (item.technicalSpecs || []).find(s => s.key === specKey);
+                        return (
+                          <td key={item.code} className="p-3 text-slate-700 font-medium">
+                            {found?.value || '—'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
+
       {isBeltCategory && (
         <>
           <section className="category-showcase-guide rounded-2xl bg-[#fff8f3] p-6 md:p-9">
@@ -585,18 +944,18 @@ const LegacyCategoryPage: React.FC = () => {
             <h2 className="mb-3 text-lg font-black">کاربردها در صنایع مختلف</h2>
             <div className="category-showcase-industries grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[
-                {name:'کاشی و سرامیک',image:industryCeramic,path:'/industries/ceramic',description:'انتقال نیرو در خطوط تولید'},
-                {name:'نساجی و پارچه',image:industryTextile,path:'/industries/textile',description:'تجهیزات بافندگی و ریسندگی'},
-                {name:'بسته‌بندی و کارتن‌سازی',image:industryPackaging,path:'/industries/packaging',description:'ماشین‌آلات بسته‌بندی'},
-                {name:'غذایی و نوشیدنی',image:industryFood,path:'/industries/food',description:'خطوط تولید مواد غذایی'},
+                {name:'کاشی و سرامیک',image:STORE_ASSETS.industries.ceramic,path:'/industries/ceramic',description:'انتقال نیرو در خطوط تولید'},
+                {name:'نساجی و پارچه',image:STORE_ASSETS.industries.textile,path:'/industries/textile',description:'تجهیزات بافندگی و ریسندگی'},
+                {name:'بسته‌بندی و کارتن‌سازی',image:STORE_ASSETS.industries.manufacturing,path:'/industries/packaging',description:'ماشین‌آلات بسته‌بندی'},
+                {name:'غذایی و نوشیدنی',image:STORE_ASSETS.industries.foodBottles,path:'/industries/food',description:'خطوط تولید مواد غذایی'},
               ].map(item=><Link key={item.name} to={item.path} className="category-industry-tile">
                 <img src={item.image} loading="lazy" alt={item.name}/><div><strong>{item.name}</strong><small>{item.description}</small><ChevronLeft size={22}/></div>
               </Link>)}
             </div>
           </section>
           <div className="category-showcase-actions grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Link to="/identify-part" className="category-action-scan rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><img src={aiScan} alt="" loading="lazy"/><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
-            <Link to="/ai-consult" className="category-action-consult rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><img src={aiRobot} alt="" loading="lazy"/><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
+            <Link to="/identify-part" className="category-action-scan rounded-xl bg-orange-50 p-5 hover:bg-orange-100"><img src={STORE_ASSETS.aiSearchMobile} alt="" loading="lazy"/><div className="flex items-center gap-3"><Camera className="text-[#E06518]"/><strong>شناسایی قطعه با تصویر</strong></div><p className="mt-2 text-xs text-slate-600">با ارسال تصویر، قطعه صنعتی خود را شناسایی کنید.</p></Link>
+            <Link to="/ai-consult" className="category-action-consult rounded-xl bg-slate-100 p-5 hover:bg-slate-200"><img src={STORE_ASSETS.aiConsultRobot} alt="" loading="lazy"/><div className="flex items-center gap-3"><MessageCircle className="text-[#E06518]"/><strong>مشاوره هوشمند</strong></div><p className="mt-2 text-xs text-slate-600">برای انتخاب تسمه مناسب راهنمایی بگیرید.</p></Link>
           </div>
         </>
       )}

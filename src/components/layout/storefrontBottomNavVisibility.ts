@@ -13,6 +13,7 @@ const SHOPPING_SECTION_PREFIXES = [
   "/industry",
   "/brands",
   "/knowledge",
+  "/services",
   "/about",
   "/about-us",
   "/history",

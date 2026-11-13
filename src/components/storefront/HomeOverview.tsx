@@ -80,31 +80,31 @@ export function HomeAssist({
  * - Dedicated responsive mobile layout
  */
 export function HomeAboutSection() {
-  const highlights = [
-    { Icon: ShieldCheck, title: "پشتوانه اطلس", text: "تجربه بازرگانی و شناخت قطعات صنعتی" },
-    { Icon: Layers, title: "کاتالوگ تخصصی", text: "جستجو با نام، برند و کد فنی" },
-    { Icon: Cpu, title: "ابزارهای هوشمند", text: "شناسایی تصویری و راهنمایی FORZA" },
-  ];
   return (
     <section className="home-about-preview" aria-labelledby="home-about-preview-title" dir="rtl">
-      <div className="home-about-preview__visual">
+      <div className="home-about-preview__visual" aria-label="نمای داخلی انبار و نمایشگاه تخصصی قطعات صنعتی صنعت پیش و بازرگانی تسمه اطلس">
         <img
-          src={STORE_ASSETS.whySanatDirectFactory}
-          alt="محیط صنعتی و زنجیره تأمین قطعات"
+          src={STORE_ASSETS.companyPages.aboutSanatpishShowroom}
+          alt="نمای داخلی مجموعه صنعتی و انبار تخصصی صنعت پیش و بازرگانی تسمه اطلس"
+          className="home-about-preview__photo"
           loading="lazy"
           decoding="async"
           fetchPriority="low"
         />
-        <div className="home-about-preview__shade" />
+        <div className="home-about-preview__scrim" aria-hidden="true" />
+
         <div className="home-about-preview__atlas">
-          <img src={STORE_ASSETS.atlasLogo} alt="لوگوی اطلس" loading="lazy" decoding="async" fetchPriority="low" />
+          <img
+            src={STORE_ASSETS.atlasLogo}
+            alt="لوگوی بازرگانی تسمه اطلس"
+            loading="lazy"
+            decoding="async"
+            fetchPriority="low"
+          />
           <span>با پشتوانه بازرگانی تسمه اطلس از سال ۱۳۶۶</span>
         </div>
-        <div className="home-about-preview__visual-caption">
-          <span>صنعت پیش</span>
-          <strong>بازار تخصصی قطعات صنعتی</strong>
-        </div>
       </div>
+
       <div className="home-about-preview__copy">
         <span className="home-about-preview__eyebrow">درباره صنعت پیش</span>
         <h2 id="home-about-preview-title">
@@ -112,29 +112,23 @@ export function HomeAboutSection() {
           <em> بازار جامع قطعات صنعتی</em>
         </h2>
         <p>
-          صنعت پیش با پشتوانه بازرگانی تسمه اطلس شکل گرفته است تا مسیر پراکنده
-          تأمین قطعات را به تجربه‌ای تخصصی و آنلاین تبدیل کند. هدف ما گردآوری
-          قطعات و برندهای صنعتی در یک بستر واحد است؛ جایی برای جستجو، بررسی
-          مشخصات، مقایسه، دریافت مشاوره، استعلام و خرید.
+          صنعت پیش با پشتوانه بیش از سه دهه تجربه بازرگانی تسمه اطلس (تأسیس ۱۳۶۶) شکل
+          گرفته است تا مسیر پراکنده تأمین قطعات کارخانجات را به یک سامانه تخصصی، دقیق و
+          آنلاین تبدیل کند. ما قطعات انتقال قدرت، تجهیزات خطوط کاشی و سرامیک، نساجی و
+          صنایع مادر را با کد فنی، برند و مشخصات مستند در یک بستر واحد گردآوری کرده‌ایم.
         </p>
         <p>
-          این بازار برای نیازهای واقعی کارخانه‌ها و فعالان صنعت طراحی می‌شود؛
-          نه یک فروشگاه عمومی، بلکه مقصدی تخصصی برای قطعات و تجهیزات صنعتی.
+          از جستجوی کاتالوگ و شناسایی تصویری قطعه با هوش مصنوعی FORZA تا بررسی ساخت سفارشی،
+          مشاوره مهندسی و هماهنگی ارسال، همراه مطمئن خطوط تولید هستیم. برای آشنایی کامل با
+          پیشینه، توانمندی‌ها و خدمات، برندهای همکار و راه‌های ارتباط با ما، روی دکمه زیر کلیک
+          کنید و وارد صفحه درباره ما شوید.
         </p>
-        <div className="home-about-preview__highlights">
-          {highlights.map(({ Icon, title, text }) => (
-            <div key={title}>
-              <span><Icon size={21} strokeWidth={1.8} /></span>
-              <div><strong>{title}</strong><small>{text}</small></div>
-            </div>
-          ))}
-        </div>
         <div className="home-about-preview__actions">
           <Link to="/about" className="home-about-preview__primary">
-            آشنایی با صنعت پیش <ArrowLeft size={18} />
+            آشنایی کامل و ورود به صفحه درباره ما <ArrowLeft size={18} />
           </Link>
-          <Link to="/products" className="home-about-preview__secondary">
-            مشاهده کاتالوگ محصولات
+          <Link to="/services" className="home-about-preview__secondary">
+            مشاهده توانمندی‌ها و خدمات
           </Link>
         </div>
       </div>

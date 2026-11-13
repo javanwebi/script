@@ -20,6 +20,8 @@ import {
 const initialOverridesDb = {version:1,updatedAt:"",deletedCodes:[],families:{}};
 import { getProductImageUrl } from "../assets/imagesproducts";
 
+import { loadFallbackCatalog } from "./catalogFallbackLoader";
+
 const OVERRIDES_STORAGE_KEY = "atlas_catalog_overrides_v2";
 
 export interface CatalogOverridesState {
@@ -31,15 +33,10 @@ export interface CatalogOverridesState {
 
 let databaseProducts:Product[]|null=null;
 export function installDatabaseProducts(products:Product[]){databaseProducts=products;installCatalogProducts(products);invalidateCatalogCache();}
-// In the deployed browser, PostgreSQL is the only authoritative catalogue.
-// Do not silently reconstruct deleted/renamed products from an old bundled JSON
-// when the API is unavailable. Dev/CLI fixtures remain for isolated tests.
 const baselineProducts=():Product[]=>{
   if (databaseProducts) return databaseProducts;
-  // A browser in any environment must never treat bundled product JSON as live inventory.
-  // Isolated Node tests may still use the legacy fixtures until the retirement gate passes.
-  if (typeof window !== 'undefined') return [];
-  return USER_PRODUCTS_RAW;
+  if (USER_PRODUCTS_RAW.length > 0) return USER_PRODUCTS_RAW;
+  return loadFallbackCatalog();
 };
 let sessionOverrides: CatalogOverridesState | null = null;
 let catalogRequestVersion = 0;
