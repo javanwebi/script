@@ -1083,14 +1083,15 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
             }],images:[...(previous.images||[]),url]};
           });
         }}
-        onAssignDirectSku={async input=>{
-          if(forbid('edit'))throw new Error('مجوز ثبت کد مستقیم وجود ندارد؛ اتصال تصویر ذخیره نشده است.');
-          const response=await fetch('/api/catalog/direct-skus',{
+        onAssignDirectSkus={async input=>{
+          if(forbid('edit'))throw new Error('مجوز ثبت کدهای مستقیم وجود ندارد؛ هیچ اتصالی ثبت نشد.');
+          const response=await fetch('/api/catalog/direct-skus/bulk',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
+            body:JSON.stringify(input),signal:AbortSignal.timeout(30000)
           });
-          await requireAdminApiJson(response,'ثبت کد کالا بدون خانواده');
-          setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
+          const result=await requireAdminApiJson<{skuCodes?:string[];count?:number}>(response,'ثبت گروهی کدهای مستقیم');
+          if(!Array.isArray(result.skuCodes)||result.skuCodes.length!==input.skuCodes.length)throw new Error('تأیید ثبت همه کدهای مستقیم از دیتابیس دریافت نشد.');
+          setSaveFeedback(result.skuCodes.length+' کد مستقیم در زیرمنو ثبت شد و تصویر مشترک به همه متصل شد.');
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
         onAssignSkus={async input=>{
