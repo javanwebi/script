@@ -511,7 +511,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true -e SANATPISH_DISABLE_LOCAL_VISION_WARMUP=1 \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -555,19 +555,46 @@ fi
 docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
 
 if [[ -f "$APP/.local-vision-enabled" ]]; then
- echo '===== WAIT FOR COMPLETE LOCAL IMAGE INDEX BEFORE PROMOTION ====='
- VISION_INDEX_READY=0
- for _ in $(seq 1 120); do
-  if docker exec "$CANARY_NAME" node -e '
-   fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(5000)})
-    .then(async r=>{const d=await r.json(); console.log("LOCAL_INDEX",d.indexed,"/",d.total); process.exit(r.ok&&d.enabled&&d.ready&&d.total>0?0:1)})
-    .catch(()=>process.exit(1))'; then
-   VISION_INDEX_READY=1
-   break
-  fi
-  sleep 5
- done
- test "$VISION_INDEX_READY" = 1
+ echo '===== VERIFY PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='
+ # Canary warmup is disabled above: a release must reuse the existing
+ # model-specific PostgreSQL index, never rebuild 869 embeddings per deploy.
+ LIVE_VISION_STATUS="$(docker exec "$OLD" node -e '
+   fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
+    .then(async r=>{if(!r.ok)throw new Error("LIVE_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
+    .catch(e=>{console.error(e.message);process.exit(1)})')"
+ CANARY_VISION_STATUS="$(docker exec "$CANARY_NAME" node -e '
+   fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
+    .then(async r=>{if(!r.ok)throw new Error("CANARY_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
+    .catch(e=>{console.error(e.message);process.exit(1)})')"
+ printf '%s\n' "$LIVE_VISION_STATUS" | node -e '
+  let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+   const d=JSON.parse(s);
+   console.log("LIVE_INDEX",d.indexed,"/",d.total,"ready="+d.ready,"model="+d.model);
+  });'
+ printf '%s\n' "$CANARY_VISION_STATUS" | node -e '
+  let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+   const d=JSON.parse(s);
+   console.log("CANARY_INDEX",d.indexed,"/",d.total,"stored="+d.storedEntries,
+     "missing="+d.missing,"changed="+d.signatureChanged,
+     "persistence="+d.persistence,"namespace="+d.namespace);
+  });'
+ node -e '
+  const live=JSON.parse(process.argv[1]), next=JSON.parse(process.argv[2]);
+  const fail=message=>{console.error("LOCAL_VISION_PERSISTENCE_GATE_FAILED "+message);process.exit(1)};
+  if(!next.enabled || !next.ready || next.total<1 || next.indexed!==next.total)
+    fail("CANARY_INDEX_NOT_READY");
+  if(next.persistence!=="postgres")
+    fail("CANARY_INDEX_NOT_POSTGRES_PERSISTED");
+  if(!next.namespace || next.namespace!=="catalog_visual_"+next.model)
+    fail("CANARY_INDEX_NAMESPACE_MISMATCH");
+  if(next.storedEntries<next.indexed)
+    fail("CANARY_PERSISTED_ROW_COUNT_INVALID");
+  if(live.enabled && live.ready && live.indexed===live.total){
+    for(const key of ["model","pipeline","total","indexed"])
+      if(live[key]!==next[key])fail("LIVE_CANARY_MISMATCH_"+key);
+  }
+  console.log("LOCAL_VISION_PERSISTED_INDEX_REUSED_OK",next.indexed,"/",next.total);
+ ' "$LIVE_VISION_STATUS" "$CANARY_VISION_STATUS"
 fi
 
 echo '===== PROMOTE ON SAME FIXED PORT (BRIEF RESTART) ====='
