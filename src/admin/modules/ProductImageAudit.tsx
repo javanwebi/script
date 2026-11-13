@@ -1,6 +1,6 @@
 import React, {useEffect,useMemo,useState} from 'react';
 import { requireAdminApiJson } from '../../utils/adminApiResponse';
-import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info} from 'lucide-react';
+import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info,Trash2,Save} from 'lucide-react';
 import type {Product, Category} from '../../types';
 import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
@@ -17,7 +17,7 @@ const fa=(n:number)=>n.toLocaleString('fa-IR');
 const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
-export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignSku,onAssignDirectSku}:{
+export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignSku,onAssignSkus,onAssignDirectSku}:{
   products:Product[];
   categories:Category[];
   onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string,persistedId?:string)=>void;
@@ -28,6 +28,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   onEditFamily:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
   onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
   onAssignSku:(input:{targetFamilyCode:string;skuCode:string;imageUrl:string;fileName:string;title?:string;persistedId?:string})=>Promise<void>;
+  onAssignSkus:(input:{skuCodes:string[];imageUrl:string;fileName:string;title?:string})=>Promise<void>;
   onAssignDirectSku:(input:{skuCode:string;categorySlug:string;submenu:string;subcategory:string;imageUrl:string})=>Promise<void>;
 }){
   const [records,setRecords]=useState<DbImageAuditRow[]>([]);
@@ -72,6 +73,15 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [directMode,setDirectMode]=useState(false);
   const [sku,setSku]=useState('');
   const [skuSearch,setSkuSearch]=useState('');
+  const [selectedSkuCodes,setSelectedSkuCodes]=useState<string[]>([]);
+  const [bindingEditId,setBindingEditId]=useState('');
+  const [bindingEditSku,setBindingEditSku]=useState('');
+  const [bindingEditFamily,setBindingEditFamily]=useState('');
+  const [bindingEditSearch,setBindingEditSearch]=useState('');
+  const [moveSkuCode,setMoveSkuCode]=useState('');
+  const [moveTargetFamily,setMoveTargetFamily]=useState('');
+  const [directEditSku,setDirectEditSku]=useState('');
+  const [bindingActionPending,setBindingActionPending]=useState(false);
   const [placement,setPlacement]=useState<StorageChoice>('family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
@@ -135,12 +145,23 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   })).sort((a,b)=>a.variant.code.localeCompare(b.variant.code,'en',{numeric:true,sensitivity:'base'})),[products]);
   const matchingSkus=useMemo(()=>{
     const query=normalizeCatalogueText(skuSearch.trim());
-    const matches=query?allSkuChoices.filter(({family:owner,variant})=>normalizeCatalogueText([
-      variant.code,variant.name,variant.size,variant.model,owner.code,owner.name,owner.categoryName,owner.submenu,owner.subcategory
-    ].filter(Boolean).join(' ')).includes(query)):allSkuChoices;
+    const matches=allSkuChoices.filter(({family:owner,variant})=>{
+      const matchesFamily=directMode||searchAllFamilies||!familyCode||owner.code===familyCode;
+      const matchesQuery=!query||normalizeCatalogueText([
+        variant.code,variant.name,variant.size,variant.model,owner.code,owner.name,owner.categoryName,owner.submenu,owner.subcategory
+      ].filter(Boolean).join(' ')).includes(query);
+      return matchesFamily&&matchesQuery;
+    });
     return matches.slice(0,30);
-  },[allSkuChoices,skuSearch]);
+  },[allSkuChoices,skuSearch,familyCode,searchAllFamilies,directMode]);
   const selectedSkuChoice=allSkuChoices.find(choice=>choice.variant.code===sku);
+  const selectedSkuChoices=allSkuChoices.filter(choice=>selectedSkuCodes.includes(choice.variant.code));
+  const bindingEditChoices=useMemo(()=>{
+    const query=normalizeCatalogueText(bindingEditSearch.trim());
+    return allSkuChoices.filter(({family:owner,variant})=>!query||normalizeCatalogueText([
+      variant.code,variant.name,owner.code,owner.name,owner.categoryName
+    ].filter(Boolean).join(' ')).includes(query)).slice(0,20);
+  },[allSkuChoices,bindingEditSearch]);
   const filtered=useMemo(()=>audit.filter(r=>{
     if(filter!=='all'&&(filter==='catalogue-photo'?!r.ownerCatalogue:r.status!==filter))return false;
     if(familyFilter==='none'&&r.families.length)return false;
@@ -154,9 +175,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle(found?.observed||'');
-    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -176,9 +197,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     }
     setFile(resolved.split('/').pop()||'تصویر');setUrl(resolved);setTitle('');setSourceError('');
   };
-  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('')};
+  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('')};
   const chooseFamily=(code:string)=>{
-    setFamilyCode(code);setSku('');
+    setFamilyCode(code);setSku('');setSelectedSkuCodes([]);
     const assigned=taxonomy.byFamily.get(code);
     if(assigned){
       setCategory(assigned.categorySlug);
