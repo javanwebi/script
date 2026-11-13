@@ -33,6 +33,17 @@ else
 fi
 test -f "$CONF1" && test -f "$CONF2" && test -f "$CONF_DOMAIN"
 test "$CONF1" != "$CONF2" && test "$CONF1" != "$CONF_DOMAIN" && test "$CONF2" != "$CONF_DOMAIN"
+# Refuse malformed/ballooned Nginx files before nginx -T or Python reads them.
+# Normal vhost files are only a few KB; 256 KiB is a generous safety ceiling.
+MAX_NGINX_CONFIG_BYTES=262144
+for nginx_conf in "$CONF1" "$CONF2" "$CONF_DOMAIN"; do
+  nginx_conf_bytes="$(stat -c '%s' "$nginx_conf")"
+  if (( nginx_conf_bytes > MAX_NGINX_CONFIG_BYTES )); then
+    echo "NGINX_CONFIG_SIZE_INVALID path=$nginx_conf bytes=$nginx_conf_bytes max=$MAX_NGINX_CONFIG_BYTES" >&2
+    echo "Restore the verified vhost backup before retrying deployment." >&2
+    exit 1
+  fi
+done
 grep -Eq 'server_name[[:space:]]+sanatpish\.com[[:space:]]+www\.sanatpish\.com;' "$CONF_DOMAIN"
 nginx -t
 echo '===== READ LIVE NGINX TARGET ====='
