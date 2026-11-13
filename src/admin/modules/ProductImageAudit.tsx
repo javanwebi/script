@@ -175,7 +175,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle(found?.observed||'');
-    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSelectedSkuCodes([]);setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
   };
   const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
@@ -675,29 +675,39 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                   <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={placement==='sku'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">کد دقیق کالا</strong><span className="mt-1 block text-[10px] text-slate-500">فقط یک SKU مشخص</span></button>
                 </div>}
                 {(directMode||placement==='sku')&&<div className="space-y-3">
-                  <label className="block text-xs font-bold text-[#55565A]">جستجو در تمام کدهای کالا
+                  <label className="block text-xs font-bold text-[#55565A]">جستجو در کدهای کالا
                     <input type="search" value={skuSearch} onChange={e=>{setSkuSearch(e.target.value);setSku('')}} placeholder="کد، نام کالا، خانواده یا دسته‌بندی را جستجو کنید…" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3 font-normal outline-none focus:border-[#E06518]"/>
                   </label>
-                  <p className="text-[10px] text-slate-500">جستجو در {fa(allSkuChoices.length)} کد کالای ثبت‌شده در تمام خانواده‌ها؛ حداکثر ۳۰ نتیجه نمایش داده می‌شود.</p>
-                  <div role="listbox" aria-label="نتایج جستجوی سراسری کد کالا" className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
-                    {matchingSkus.map(choice=><button key={choice.variant.code} type="button" role="option" aria-selected={sku===choice.variant.code} onClick={()=>{setSku(choice.variant.code);setSkuSearch(choice.variant.code)}} className={sku===choice.variant.code?"flex w-full items-center gap-3 rounded-lg border border-[#E06518] bg-[#FFF2E8] p-2.5 text-right":"flex w-full items-center gap-3 rounded-lg border border-transparent bg-white p-2.5 text-right hover:border-slate-200 hover:bg-slate-50"}>
-                      {choice.imageUrl?<ProductImage src={choice.imageUrl} alt={choice.variant.name} className="h-12 w-12 shrink-0 rounded-md bg-white object-contain"/>:<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100"><FileImage size={17} className="text-slate-400"/></div>}
-                      <span className="min-w-0 flex-1">
-                        <span dir="ltr" className="block truncate text-xs font-black text-[#55565A]">{choice.variant.code}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-slate-700">{choice.variant.name}</span>
-                        <span className="mt-0.5 block truncate text-[10px] text-slate-500">{choice.family.name} · {choice.family.categoryName}</span>
-                      </span>
-                      <span className={choice.family.code!==familyCode?"shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[9px] font-bold text-amber-700":"shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700"}>{directMode?'کد بدون خانواده':choice.family.code!==familyCode?'انتقال از خانواده دیگر':'همین خانواده'}</span>
-                    </button>)}
+                  <p className="text-[10px] text-slate-500">{searchAllFamilies||directMode?'جستجو در همه خانواده‌ها':'نمایش کدهای خانواده انتخاب‌شده'} · {fa(allSkuChoices.length)} کد فعال؛ حداکثر ۳۰ نتیجه نمایش داده می‌شود.</p>
+                  <div role="listbox" aria-multiselectable={!directMode} aria-label="نتایج جستجوی کد کالا" className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
+                    {matchingSkus.map(choice=>{
+                      const isSelected=directMode?sku===choice.variant.code:selectedSkuCodes.includes(choice.variant.code);
+                      return <button key={choice.variant.code} type="button" role="option" aria-selected={isSelected} onClick={()=>{
+                        if(directMode){setSku(choice.variant.code);setSkuSearch(choice.variant.code);}
+                        else setSelectedSkuCodes(previous=>previous.includes(choice.variant.code)?previous.filter(code=>code!==choice.variant.code):[...previous,choice.variant.code]);
+                      }} className={isSelected?"flex w-full items-center gap-3 rounded-lg border border-[#E06518] bg-[#FFF2E8] p-2.5 text-right":"flex w-full items-center gap-3 rounded-lg border border-transparent bg-white p-2.5 text-right hover:border-slate-200 hover:bg-slate-50"}>
+                        {choice.imageUrl?<ProductImage src={choice.imageUrl} alt={choice.variant.name} className="h-12 w-12 shrink-0 rounded-md bg-white object-contain"/>:<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100"><FileImage size={17} className="text-slate-400"/></div>}
+                        <span className="min-w-0 flex-1">
+                          <span dir="ltr" className="block truncate text-xs font-black text-[#55565A]">{choice.variant.code}</span>
+                          <span className="mt-0.5 block truncate text-[11px] text-slate-700">{choice.variant.name}</span>
+                          <span className="mt-0.5 block truncate text-[10px] text-slate-500">{choice.family.name} · {choice.family.categoryName}</span>
+                        </span>
+                        <span className={isSelected?"shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700":"shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-600"}>{directMode?'انتخاب کد مستقیم':isSelected?'انتخاب شده':'اتصال در خانواده فعلی'}</span>
+                      </button>;
+                    })}
                     {!matchingSkus.length&&<p className="px-3 py-6 text-center text-xs text-slate-500">کدی با این عبارت پیدا نشد؛ کد یا نام دیگری جستجو کنید.</p>}
                   </div>
-                  {selectedSkuChoice&&<div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                    {selectedSkuChoice.imageUrl?<ProductImage src={selectedSkuChoice.imageUrl} alt={selectedSkuChoice.variant.name} className="h-16 w-16 shrink-0 rounded-lg bg-slate-50 object-contain"/>:<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-50"><FileImage size={20} className="text-slate-400"/></div>}
-                    <div className="min-w-0 flex-1">
-                      <p dir="ltr" className="text-xs font-black text-[#55565A]">{selectedSkuChoice.variant.code}</p>
-                      <p className="mt-1 text-xs text-slate-700">{selectedSkuChoice.variant.name}</p>
-                      {directMode?<p className="mt-1.5 text-[10px] leading-5 text-orange-700">این کد مستقیماً زیرمنوی مقصد را دریافت می‌کند؛ تصویر مستقل آن ثبت می‌شود.</p>:selectedSkuChoice.family.code!==familyCode?<p className="mt-1.5 flex items-center gap-1 text-[10px] leading-5 text-amber-700"><ArrowLeftRight size={13}/> از «{selectedSkuChoice.family.name}» در دسته «{selectedSkuChoice.family.categoryName}» به خانواده مقصد منتقل می‌شود؛ قیمت و مشخصات کد حفظ می‌شوند.</p>:<p className="mt-1.5 text-[10px] leading-5 text-emerald-700">این کد از قبل در خانواده مقصد قرار دارد؛ تصویر به همین کد متصل می‌شود.</p>}
+                  {directMode&&selectedSkuChoice&&<div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p dir="ltr" className="text-xs font-black text-[#55565A]">{selectedSkuChoice.variant.code}</p>
+                    <p className="mt-1 text-xs text-slate-700">{selectedSkuChoice.variant.name}</p>
+                    <p className="mt-1.5 text-[10px] leading-5 text-orange-700">این کد مستقیماً زیرمنوی مقصد را دریافت می‌کند؛ رکورد اصلی کالا و خانواده آن حذف یا جابه‌جا نمی‌شود.</p>
+                  </div>}
+                  {!directMode&&selectedSkuChoices.length>0&&<div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-black text-emerald-900">{fa(selectedSkuChoices.length)} کد برای اتصال انتخاب شده</p><button type="button" onClick={()=>setSelectedSkuCodes([])} className="text-[10px] font-bold text-rose-700">پاک‌کردن انتخاب‌ها</button></div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSkuChoices.map(choice=><button key={choice.variant.code} type="button" onClick={()=>setSelectedSkuCodes(previous=>previous.filter(code=>code!==choice.variant.code))} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-[10px] text-emerald-900"><span dir="ltr" className="font-bold">{choice.variant.code}</span><X size={11}/></button>)}
                     </div>
+                    <p className="mt-2 text-[10px] leading-5 text-emerald-800">هر کد در خانواده فعلی خودش متصل می‌شود؛ انتخاب کد از خانواده دیگر آن را جابه‌جا نمی‌کند.</p>
                   </div>}
                 </div>}
               </div>}
