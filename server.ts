@@ -409,11 +409,6 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
           case when jsonb_typeof(v.images)='array' then v.images else '[]'::jsonb end
         ) as image(url)
         where image.url<>''
-          and not exists (
-            select 1 from gallery_bindings g
-            where g.family_code=v.family_code
-              and g.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
-          )
       ),
       family_bindings as materialized (
         select distinct
@@ -449,7 +444,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
             'familyCode',binding.family_code,
             'familyName',family.name,
             'categoryName',family.category_name,
-            'skuCode',binding.sku_code,
+            'skuCode',variant.code,
             'skuName',variant.name
           ) order by binding.family_code,binding.sku_code) as bindings
         from all_bindings binding
