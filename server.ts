@@ -457,14 +457,27 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         left join public.catalog_variants variant
           on variant.code=binding.sku_code and variant.family_code=binding.family_code
         group by binding.file_key
+      ),
+      direct_skus_by_image as (
+        select lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/','')) as file_key,
+          jsonb_agg(jsonb_build_object(
+            'skuCode',d.sku_code,
+            'skuName',d.name,
+            'categoryName',d.category_name
+          ) order by d.sku_code) as direct_skus
+        from public.catalog_direct_skus d
+        where d.is_active=true and coalesce(d.image_url,'')<>''
+        group by lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/',''))
       )
       select a.file_name,a.sha256,a.observed_description,a.reason,
         a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
         p.catalogue_group,p.pdf_page,p.match_ratio,
-        coalesce(bindings_by_image.bindings,'[]'::jsonb) as bindings
+        coalesce(bindings_by_image.bindings,'[]'::jsonb) as bindings,
+        coalesce(direct_skus_by_image.direct_skus,'[]'::jsonb) as direct_skus
       from public.catalog_image_audits a
       left join public.owner_catalogue_photos p on p.file_name=a.file_name
       left join bindings_by_image on bindings_by_image.file_key=lower(a.file_name)
+      left join direct_skus_by_image on direct_skus_by_image.file_key=lower(a.file_name)
       order by a.file_name
     `);
     const rows=result.rows.map(row=>({
@@ -492,7 +505,12 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         categoryName:String(binding.categoryName||''),
         skuCode:binding.skuCode?String(binding.skuCode):null,
         skuName:binding.skuName?String(binding.skuName):null
-      })).filter((binding:any)=>binding.familyCode):[]
+      })).filter((binding:any)=>binding.familyCode):[],
+      directSkus:Array.isArray(row.direct_skus)?row.direct_skus.map((item:any)=>({
+        skuCode:String(item.skuCode||''),
+        skuName:String(item.skuName||''),
+        categoryName:String(item.categoryName||'')
+      })).filter((item:any)=>item.skuCode):[]
     }));
     return res.json({success:true,rows});
   }catch(e:any){
