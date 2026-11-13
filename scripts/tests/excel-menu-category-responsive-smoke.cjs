@@ -217,7 +217,8 @@ async function clearMobileFilters(page) {
 
       assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'first page should contain 24 database-backed families');
       assert.ok(await page.locator('.excel-category-pagination').isVisible(), 'pagination should appear when more than one page exists');
-      assert.ok(await page.locator('.excel-category-subnav-group').count() === 2, 'approved nested subcategories should render');
+      assert.ok(await page.locator('.excel-category-subnav').count() === 1 && await page.locator('.excel-subcard').count() >= 2, 'approved subcategory card strip should render');
+      assert.ok(await page.locator('.excel-subleaf-strip').count() === 1, 'nested leaf selector should render');
 
       const heroImage = page.locator('.excel-category-hero-visual img');
       await heroImage.waitFor({ state: 'visible' });
@@ -231,7 +232,7 @@ async function clearMobileFilters(page) {
         assert.ok(await featuredImage.evaluate(image => image.complete && image.naturalWidth > 0), 'real catalogue family image should load in the featured panel');
       }
 
-      const leaf = page.locator('.excel-category-subnav-leaves button').filter({ hasText: 'پلی‌یورتان' }).first();
+      const leaf = page.locator('.excel-subleaf-list button').filter({ hasText: 'پلی‌یورتان' }).first();
       await leaf.click();
       assert.equal(new URL(page.url()).searchParams.get('sub'), 'پلی‌یورتان', 'subcategory selection should be linkable');
       assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'leaf selection should filter to the matching family');
