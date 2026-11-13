@@ -27,7 +27,7 @@ test('a partial embedding batch cannot be reported as a complete catalogue index
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-failure-'));
  const index=new CatalogVisualIndex(path.join(dir,'index.json'));const rows=[row('missing')];
  await index.update(rows,async()=>null,async()=>[]);
- assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
+ assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false,storedEntries:0,missing:1,signatureChanged:0});
  await fs.rm(dir,{recursive:true});
 });
 test('local 384-dimensional index isolates model versions, returns scores and invalidates edited photos',async()=>{
@@ -88,10 +88,10 @@ test('an unreadable catalogue image does not block later rows and is resumed on 
   const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
   const rows=[row('unavailable-first'),row('available-second')];
   await index.update(rows,async item=>item.id==='unavailable-first'?null:image,async buffers=>buffers.map(()=>[1,0]));
-  assert.deepEqual(index.coverage(rows),{total:2,indexed:1,ready:false});
+  assert.deepEqual(index.coverage(rows),{total:2,indexed:1,ready:false,storedEntries:1,missing:1,signatureChanged:0});
   assert.equal(await index.rankVectors([[1,0]],rows),null);
   await index.update(rows,async()=>image,async buffers=>buffers.map(()=>[0,1]));
-  assert.deepEqual(index.coverage(rows),{total:2,indexed:2,ready:true});
+  assert.deepEqual(index.coverage(rows),{total:2,indexed:2,ready:true,storedEntries:2,missing:0,signatureChanged:0});
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
 
@@ -107,8 +107,8 @@ test('a failed durable write never reports an in-memory-only index as ready',asy
   const image=await sharp({create:{width:20,height:20,channels:3,background:'white'}}).jpeg().toBuffer();
   const rows=[row('persisted')];
   await assert.rejects(index.update(rows,async()=>image,async()=>[[1,0]]),/simulated persistence failure/);
-  assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false});
+  assert.deepEqual(index.coverage(rows),{total:1,indexed:0,ready:false,storedEntries:0,missing:1,signatureChanged:0});
   await index.update(rows,async()=>image,async()=>[[1,0]]);
-  assert.deepEqual(index.coverage(rows),{total:1,indexed:1,ready:true});
+  assert.deepEqual(index.coverage(rows),{total:1,indexed:1,ready:true,storedEntries:1,missing:0,signatureChanged:0});
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
