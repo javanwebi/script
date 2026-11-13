@@ -61,6 +61,15 @@ test('PostgreSQL bindings override stale browser product snapshots in both direc
  }])[0];
  assert.equal(familyOnly.status,'family-example');
 });
+test('direct SKU image connection is visible without inventing a parent family',()=>{
+ const row=getImageAssignmentAudit([],[
+  {...fixtures[0],bindings:[],directSkus:[{skuCode:'TEST-SKU-1',skuName:'قطعه تست'}]}
+ ])[0];
+ assert.equal(row.status,'sku-linked');
+ assert.equal(row.families.length,0);
+ assert.equal(row.directSkus[0].skuCode,'TEST-SKU-1');
+ assert.equal(row.requiresCodeEvidence,false);
+});
 test('filename parsing handles encoded URLs but does not accept legacy product IDs',()=>{
  assert.equal(imageFileName('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e%28383%29.png'),'e(383).png');
  assert.equal(imageFileName('/storage/products/catalog/e(383).png'),'e(383).png');
