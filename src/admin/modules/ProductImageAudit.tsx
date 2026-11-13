@@ -513,6 +513,79 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
               </div>}
             </div>
             <div className="min-h-0 space-y-4 p-3 sm:p-5 lg:overflow-y-auto">
+              {selectedRow&&(selectedRow.bindingRows?.length||selectedRow.directSkus.length)>0&&<section className="space-y-3 rounded-xl border border-[#E8C7AE] bg-[#FFFCF9] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><h4 className="text-sm font-black text-[#55565A]">مدیریت اتصال‌های فعلی تصویر</h4><p className="mt-1 text-[10px] leading-5 text-slate-500">هر اتصال جداگانه قابل ویرایش یا حذف است؛ حذف اتصال، فایل و اطلاعات اصلی کالا را پاک نمی‌کند.</p></div>
+                  <span className="rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#C65A16]">{fa((selectedRow.bindingRows?.length||0)+selectedRow.directSkus.length)} اتصال</span>
+                </div>
+                {!!selectedRow.bindingRows?.length&&<div className="space-y-2">
+                  {selectedRow.bindingRows.map(binding=>{
+                    const owner=allFamilies.find(item=>item.code===binding.familyCode);
+                    const variant=owner?.variants?.find(item=>item.code===binding.skuCode);
+                    return <div key={binding.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[#55565A]">{binding.scope==='variant'?'اتصال به کد کالا':'تصویر عمومی خانواده'}</p>
+                          <p className="mt-1 text-[11px] text-slate-700">{owner?.name||binding.familyCode}</p>
+                          <p dir="ltr" className="mt-1 text-[10px] text-slate-500">{binding.skuCode||binding.familyCode}</p>
+                          {variant&&<p className="mt-1 text-[10px] text-slate-500">{variant.name} · {variant.size||'سایز ثبت نشده'}</p>}
+                          {binding.title&&<p className="mt-1 text-[10px] text-slate-400">{binding.title}</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button type="button" disabled={bindingActionPending} onClick={()=>beginBindingEdit(binding)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-700"><Edit3 size={12}/> ویرایش اتصال</button>
+                          <button type="button" disabled={bindingActionPending} onClick={()=>void removeBinding(binding.id)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-700"><Trash2 size={12}/> حذف اتصال</button>
+                        </div>
+                      </div>
+                      {bindingEditId===binding.id&&<div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
+                        {binding.scope==='variant'?<>
+                          <label className="block text-[11px] font-bold text-slate-700">کد کالای جدید برای همین تصویر
+                            <input value={bindingEditSearch} onChange={e=>setBindingEditSearch(e.target.value)} placeholder="جستجوی کد یا نام کالا…" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs font-normal"/>
+                          </label>
+                          <div className="max-h-36 space-y-1 overflow-y-auto">
+                            {bindingEditChoices.map(choice=><button key={choice.variant.code} type="button" onClick={()=>{setBindingEditSku(choice.variant.code);setBindingEditSearch(choice.variant.code)}} className={bindingEditSku===choice.variant.code?"flex w-full items-center justify-between rounded-md border border-[#E06518] bg-orange-50 p-2 text-right":"flex w-full items-center justify-between rounded-md border border-slate-200 bg-white p-2 text-right"}>
+                              <span><b dir="ltr" className="block text-[10px]">{choice.variant.code}</b><span className="text-[10px] text-slate-500">{choice.family.name}</span></span>
+                              {bindingEditSku===choice.variant.code&&<Check size={14} className="text-[#E06518]"/>}
+                            </button>)}
+                          </div>
+                        </>:<>
+                          <label className="block text-[11px] font-bold text-slate-700">خانواده مقصد
+                            <select value={bindingEditFamily} onChange={e=>setBindingEditFamily(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs font-normal">
+                              <option value="">انتخاب خانواده</option>{allFamilies.map(item=><option key={item.code} value={item.code}>{item.name} — {item.code}</option>)}
+                            </select>
+                          </label>
+                        </>}
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={bindingActionPending} onClick={()=>void saveBindingEdit(binding)} className="inline-flex items-center gap-1 rounded-lg bg-[#E06518] px-3 py-2 text-[10px] font-bold text-white"><Save size={12}/> ذخیره ویرایش</button>
+                          <button type="button" onClick={()=>setBindingEditId('')} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600">انصراف</button>
+                        </div>
+                      </div>}
+                      {binding.scope==='variant'&&binding.skuCode&&<div className="mt-2 border-t border-slate-100 pt-2">
+                        <button type="button" onClick={()=>{setMoveSkuCode(moveSkuCode===binding.skuCode?'':binding.skuCode||'');setMoveTargetFamily('')}} className="text-[10px] font-bold text-amber-800">انتقال واقعی کد به خانواده دیگر…</button>
+                        {moveSkuCode===binding.skuCode&&<div className="mt-2 space-y-2 rounded-lg bg-amber-50 p-2.5">
+                          <p className="text-[10px] leading-5 text-amber-900">این عملیات خود کد کالا را از خانواده فعلی به خانواده جدید منتقل می‌کند؛ برخلاف ویرایش اتصال تصویر.</p>
+                          <select value={moveTargetFamily} onChange={e=>setMoveTargetFamily(e.target.value)} className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs">
+                            <option value="">انتخاب خانواده مقصد</option>{allFamilies.filter(item=>item.code!==binding.familyCode).map(item=><option key={item.code} value={item.code}>{item.name} — {item.code}</option>)}
+                          </select>
+                          <button type="button" disabled={!moveTargetFamily||bindingActionPending} onClick={()=>void moveBoundSku(binding)} className="rounded-lg bg-amber-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-40">تأیید انتقال کد و حفظ اطلاعات</button>
+                        </div>}
+                      </div>}
+                    </div>;
+                  })}
+                </div>}
+                {!!selectedRow.directSkus.length&&<div className="space-y-2">
+                  {selectedRow.directSkus.map(item=><div key={item.skuCode} className="rounded-lg border border-emerald-100 bg-white p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div><p dir="ltr" className="text-xs font-black text-emerald-800">{item.skuCode}</p><p className="mt-1 text-[10px] text-slate-600">{item.skuName||'کد مستقیم'} · {item.categoryName||''}</p><p className="mt-1 text-[10px] text-slate-500">{item.submenu||''}{item.subcategory?' · '+item.subcategory:''}</p></div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button type="button" onClick={()=>beginDirectEdit(item)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-700"><Edit3 size={12} className="inline"/> ویرایش مسیر</button>
+                        <button type="button" disabled={bindingActionPending} onClick={()=>void removeDirectImage(item.skuCode)} className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-bold text-amber-800">حذف تصویر</button>
+                        <button type="button" disabled={bindingActionPending} onClick={()=>void deactivateDirectSku(item.skuCode)} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-700">حذف از زیرمنو</button>
+                      </div>
+                    </div>
+                  </div>)}
+                </div>}
+                {!selectedRow.bindingRows?.length&&selectedRow.families.length>0&&<p className="text-[10px] leading-5 text-amber-800">بعضی اتصال‌های قدیمی از آرایه‌های تاریخی کالا خوانده شده‌اند و شناسه گالری ندارند؛ برای تغییر آن‌ها ابتدا از مسیر اتصال جدید استفاده کنید.</p>}
+              </section>}
               <div className="flex flex-wrap gap-2" role="group" aria-label="منبع تصویر">
                 {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','لینک تصویر ذخیره‌شده']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setSelectedUpload(null);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
               </div>
