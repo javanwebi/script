@@ -68,7 +68,7 @@ for (const [method,route] of [
   });
   assert.ok(response.status===401||response.status===403,
     `API_ROUTE_MISSING_OR_UNPROTECTED ${method} ${route}: HTTP ${response.status}`);
-  assert.match(response.headers.get("content-type")||"",/application\\/json/);
+  assert.match(response.headers.get("content-type")||"",/application\/json/);
   const denied=await response.json();
   assert.equal(denied.success,false);
   console.log("PROTECTED_API_CONTRACT_OK",method,route,response.status);
