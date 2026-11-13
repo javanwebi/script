@@ -4594,7 +4594,7 @@ app.get('/api/ai/local-vision-status', async (_req,res)=>{
  try{
   await catalogVisualIndex.load();
   const images=buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt);
-  return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
+  return res.json({enabled:true,model:localProfile.model,pipeline:localProfile.pipeline,namespace:VISUAL_INDEX_NAMESPACE,persistence:databaseEnabled()?'postgres':'file',...catalogVisualIndex.coverage(images),ready:images.length>0 && catalogVisualIndex.coverage(images).ready});
  }catch{return res.status(503).json({enabled:true,ready:false});}
 });
 
@@ -7952,7 +7952,7 @@ async function start() {
       ? 'SET'
       : 'MISSING - AI features will use offline fallback until GEMINI_API_KEY is set in .env';
     console.log(`Server running on http://localhost:${PORT}`);
-    if(localVisionEnabled)warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
+    if(localVisionEnabled && process.env.SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1')warmCatalogVisualIndex(buildCatalogImageCorpus(recognitionProducts(),loadCatalogOverridesDb().updatedAt),localImagePublisher);
     console.log(`[Server] Gemini Live Audio WebSocket ready on /api/live`);
     console.log(`[Server] Gemini key: ${keyStatus}`);
     void (internalForzaVoiceUrl?privateServiceGreeting():getForzaGreeting()).catch(()=>{});
