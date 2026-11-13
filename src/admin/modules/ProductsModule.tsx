@@ -1084,7 +1084,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           });
         }}
         onAssignDirectSku={async input=>{
-          if(forbid('edit'))return;
+          if(forbid('edit'))throw new Error('مجوز ثبت کد مستقیم وجود ندارد؛ اتصال تصویر ذخیره نشده است.');
           const response=await fetch('/api/catalog/direct-skus',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
@@ -1094,7 +1094,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
         onAssignSku={async input=>{
-          if(forbid('sku_move'))return;
+          if(forbid('sku_move'))throw new Error('مجوز اتصال تصویر به کد کالا وجود ندارد؛ هیچ اتصالی ثبت نشده است.');
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             signal:AbortSignal.timeout(60000),body:JSON.stringify(input)
