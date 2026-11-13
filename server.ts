@@ -393,9 +393,63 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
     const result=await database().query(`
       select a.file_name,a.sha256,a.observed_description,a.reason,
         a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
-        p.catalogue_group,p.pdf_page,p.match_ratio
+        p.catalogue_group,p.pdf_page,p.match_ratio,
+        coalesce(live_bindings.bindings,'[]'::jsonb) as bindings
       from public.catalog_image_audits a
       left join public.owner_catalogue_photos p on p.file_name=a.file_name
+      left join lateral (
+        select coalesce(jsonb_agg(jsonb_build_object(
+          'familyCode',linked.family_code,
+          'familyName',family.name,
+          'categoryName',family.category_name,
+          'skuCode',linked.sku_code,
+          'skuName',variant.name
+        ) order by linked.family_code,linked.sku_code),'[]'::jsonb) as bindings
+        from (
+          select distinct gallery.family_code,
+            case when gallery.scope::text='variant' then gallery.variant_code else null end as sku_code
+          from public.catalog_gallery_images gallery
+          where lower(coalesce(nullif(gallery.file_name,''),
+            regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/',''))) = lower(a.file_name)
+          union
+          select variant.family_code,variant.code
+          from public.catalog_variants variant
+          cross join lateral jsonb_array_elements_text(
+            case when jsonb_typeof(variant.images)='array' then variant.images else '[]'::jsonb end
+          ) as variant_image(url)
+          where lower(regexp_replace(split_part(split_part(variant_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
+            and not exists (
+              select 1 from public.catalog_gallery_images gallery
+              where gallery.family_code=variant.family_code
+                and lower(coalesce(nullif(gallery.file_name,''),
+                  regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/','')))=lower(a.file_name)
+            )
+          union
+          select family_row.code,null::text
+          from public.catalog_families family_row
+          cross join lateral jsonb_array_elements_text(
+            case when jsonb_typeof(family_row.images)='array' then family_row.images else '[]'::jsonb end
+          ) as family_image(url)
+          where lower(regexp_replace(split_part(split_part(family_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
+            and not exists (
+              select 1 from public.catalog_gallery_images gallery
+              where gallery.family_code=family_row.code
+                and lower(coalesce(nullif(gallery.file_name,''),
+                  regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/','')))=lower(a.file_name)
+            )
+            and not exists (
+              select 1 from public.catalog_variants variant
+              cross join lateral jsonb_array_elements_text(
+                case when jsonb_typeof(variant.images)='array' then variant.images else '[]'::jsonb end
+              ) as variant_image(url)
+              where variant.family_code=family_row.code
+                and lower(regexp_replace(split_part(split_part(variant_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
+            )
+        ) linked
+        join public.catalog_families family on family.code=linked.family_code
+        left join public.catalog_variants variant
+          on variant.code=linked.sku_code and variant.family_code=linked.family_code
+      ) live_bindings on true
       order by a.file_name
     `);
     const rows=result.rows.map(row=>({
@@ -416,7 +470,14 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         page:row.pdf_page,
         pdfPage:row.pdf_page,
         matchRatio:Number(row.match_ratio||0)
-      }:undefined
+      }:undefined,
+      bindings:Array.isArray(row.bindings)?row.bindings.map((binding:any)=>({
+        familyCode:String(binding.familyCode||''),
+        familyName:String(binding.familyName||''),
+        categoryName:String(binding.categoryName||''),
+        skuCode:binding.skuCode?String(binding.skuCode):null,
+        skuName:binding.skuName?String(binding.skuName):null
+      })).filter((binding:any)=>binding.familyCode):[]
     }));
     return res.json({success:true,rows});
   }catch(e:any){
