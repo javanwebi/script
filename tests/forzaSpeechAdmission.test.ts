@@ -92,3 +92,15 @@ test('continuing speech survives the transition out of playback',()=>{
  gate.sample(0.06,1450,false);
  assert.equal(gate.decide('وایسا منظورم 6203',false,false,1450),'accept');
 });
+
+
+test('slow rendering does not turn consecutive voiced samples into silence',()=>{
+ const gate=calibrated(true);
+ for(const t of [1100,1275,1450])gate.sample(0.06,t,true);
+ assert.equal(gate.decide('وایسا',true,true,1450),'accept');
+ const sparse=calibrated(true);
+ sparse.sample(0.06,1100,true);sparse.sample(0.06,1300,true);
+ assert.notEqual(sparse.decide('وایسا',true,true,1300),'accept','two sparse peaks are insufficient');
+ sparse.sample(0.06,1700,true);
+ assert.notEqual(sparse.decide('وایسا',true,true,1700),'accept','a long sampling stall resets evidence');
+});

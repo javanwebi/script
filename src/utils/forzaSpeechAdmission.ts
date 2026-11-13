@@ -12,6 +12,7 @@ export class ForzaSpeechAdmission {
   private onset:number|null=null;
   private lastStrong=-Infinity;
   private duration=0;
+  private strongFrames=0;
   private mode=false;
   private calibrated=false;
 
@@ -19,7 +20,7 @@ export class ForzaSpeechAdmission {
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
     const value=Math.max(0,Math.min(1,rms));
     if((playback&&!this.mode)||now-this.lastSample>250||now<this.lastSample){
-      this.onset=null;this.duration=0;this.lastStrong=-Infinity;
+      this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
     }
     this.mode=playback;this.lastSample=now;
     this.levels=this.levels.filter(s=>now-s.at<=2400);
@@ -36,7 +37,10 @@ export class ForzaSpeechAdmission {
     }
     const threshold=Math.max(playback?0.014:0.009,this.floor*(playback?3.5:2.7));
     if(this.calibrated&&value>threshold){
-      if(this.onset===null||now-this.lastStrong>100)this.onset=now;
+      // A late main-thread tick is not an observed silent frame. The separate
+      // 250ms discontinuity guard above rejects genuinely stale sampling.
+      if(this.onset===null){this.onset=now;this.strongFrames=0;}
+      this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
     }else if(now-this.lastStrong>100){
@@ -52,15 +56,15 @@ export class ForzaSpeechAdmission {
     // much fresher evidence; an old loud syllable must not admit a bystander.
     const fresh=now-this.lastStrong<=(final?900:300);
     if(!fresh)return 'reject';
-    if(this.duration<needed)return this.onset!==null?'wait':'reject';
+    if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
     return 'accept';
   }
 
-  get acousticSpeech(){return this.onset!==null&&this.duration>=160;}
+  get acousticSpeech(){return this.onset!==null&&this.duration>=160&&this.strongFrames>=3;}
   reset(){
     this.levels=[];this.floor=0.003;this.lastSample=-Infinity;this.onset=null;
-    this.lastStrong=-Infinity;this.duration=0;this.mode=false;this.calibrated=false;
+    this.lastStrong=-Infinity;this.duration=0;this.strongFrames=0;this.mode=false;this.calibrated=false;
   }
 }
 
