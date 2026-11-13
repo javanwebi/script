@@ -576,6 +576,7 @@ app.use('/api/catalog', (req, res, next) => {
   void (async()=>{
     const identity=await getPortalIdentity(req);
     let [section,action]=catalogMutationPermission(req.path);
+    if(req.method==='DELETE' && req.path.startsWith('/direct-skus/') && !req.path.endsWith('/image'))action='delete';
     if(identity.staff && req.path.endsWith('/overrides/family')){
       const candidate=req.body?.family;
       const code=String(candidate?.code||'').trim();
