@@ -1683,7 +1683,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
         const admitted=admission.filter(event.results,(words,final)=>{
           if(likelySpeakerEcho(words))return 'reject';
-          return speechAdmissionRef.current.decide(words,final,playback,Date.now());
+          const decision=speechAdmissionRef.current.decide(words,final,playback,Date.now());
+          if(new URLSearchParams(window.location.search).get('forzaVoiceDiagnostics')==='1')
+            console.info('[FORZA_ADMISSION]',decision,JSON.stringify(speechAdmissionRef.current.diagnostics(Date.now())));
+          return decision;
         });
         if(admitted.rejected)rejectedRecordingRef.current=true;
         event={...event,results:admitted.results};

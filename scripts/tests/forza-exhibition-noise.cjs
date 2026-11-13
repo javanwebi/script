@@ -38,7 +38,7 @@ function wav(seconds){
    const frame=v=>'data: '+JSON.stringify(v)+'\n\n';
    return r.fulfill({contentType:'text/event-stream',body:frame({type:'start'})+frame({type:'text_chunk',chunk:text,textSoFar:text})+frame({type:'done',fullText:text})});
   });
-  await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded'});
+  await page.goto('http://127.0.0.1:4173/ai-forza?forzaVoiceDiagnostics=1',{waitUntil:'domcontentloaded'});
   const listening=page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید');
   await listening.waitFor({timeout:25000});await page.waitForFunction(()=>!!window.__recognition);
   await page.waitForTimeout(500);

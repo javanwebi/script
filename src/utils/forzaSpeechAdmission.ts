@@ -61,6 +61,12 @@ export class ForzaSpeechAdmission {
     return 'accept';
   }
 
+  diagnostics(now:number){
+    return {sampleAgeMs:now-this.lastSample,speechAgeMs:now-this.lastStrong,
+      durationMs:this.duration,frames:this.strongFrames,floor:this.floor,
+      calibrated:this.calibrated,playback:this.mode};
+  }
+
   get acousticSpeech(){return this.onset!==null&&this.duration>=160&&this.strongFrames>=3;}
   reset(){
     this.levels=[];this.floor=0.003;this.lastSample=-Infinity;this.onset=null;

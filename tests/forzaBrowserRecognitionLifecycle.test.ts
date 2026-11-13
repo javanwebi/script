@@ -59,6 +59,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const rec={};
  let interrupted=0,echo=true;
  const scope:Record<string,any>={
+  window:{location:{search:''}},
   admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
