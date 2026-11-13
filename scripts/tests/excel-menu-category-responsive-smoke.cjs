@@ -181,7 +181,7 @@ async function applyMobileFilter(page, label) {
   await page.locator('.excel-category-mobile-filter').click();
   const sheet = page.getByRole('dialog', { name: 'فیلترهای دسته‌بندی' });
   await sheet.waitFor({ state: 'visible' });
-  await sheet.locator('label').filter({ hasText: label }).locator('input').check();
+  await sheet.locator('label').filter({ hasText: label }).locator('.excel-filter-check-title').click();
   await sheet.locator('footer button').last().click();
   await sheet.waitFor({ state: 'hidden' });
 }
@@ -192,6 +192,15 @@ async function clearMobileFilters(page) {
   await sheet.waitFor({ state: 'visible' });
   await sheet.locator('footer button').first().click();
   await sheet.waitFor({ state: 'hidden' });
+}
+
+async function expectProductCount(page, expected, message) {
+  await page.waitForFunction(
+    ({ selector, count }) => document.querySelectorAll(selector).length === count,
+    { selector: '.excel-category-product-shell', count: expected },
+    { timeout: 15000 },
+  );
+  assert.equal(await page.locator('.excel-category-product-shell').count(), expected, message);
 }
 
 (async () => {
@@ -210,47 +219,49 @@ async function clearMobileFilters(page) {
       page.setDefaultTimeout(15000);
       page.on('pageerror', error => pageErrors.push(error.message));
       await installApiRoutes(page);
-      await page.goto(baseUrl + '/category/' + slug, { waitUntil: 'domcontentloaded' });
+      await page.goto(baseUrl + '/category/' + slug + '?perPage=24', { waitUntil: 'domcontentloaded' });
       await page.locator('.excel-category-page').waitFor();
       await page.getByRole('heading', { name: category.name }).waitFor({ timeout: 25000 });
-      await page.locator('.excel-category-product-shell .store-product-card').first().waitFor({ timeout: 25000 });
+      await page.locator('.excel-category-product-shell .excel-card').first().waitFor({ timeout: 25000 });
 
       assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'first page should contain 24 database-backed families');
       assert.ok(await page.locator('.excel-category-pagination').isVisible(), 'pagination should appear when more than one page exists');
-      assert.ok(await page.locator('.excel-category-subnav-group').count() === 2, 'approved nested subcategories should render');
+      assert.ok(await page.locator('.excel-category-subnav').count() === 1 && await page.locator('.excel-subcard').count() >= 2, 'approved subcategory card strip should render');
+      assert.ok(await page.locator('.excel-subleaf-strip').count() === 1, 'nested leaf selector should render');
 
       const heroImage = page.locator('.excel-category-hero-visual img');
       await heroImage.waitFor({ state: 'visible' });
       await heroImage.evaluate(image => image.decode());
       assert.ok(await heroImage.evaluate(image => image.complete && image.naturalWidth > 0), 'category hero image should load');
 
-      const featuredImage = page.locator('.excel-category-featured-image img');
-      if (viewport.width > 1180) {
-        await featuredImage.waitFor({ state: 'visible' });
-        await featuredImage.evaluate(image => image.decode());
-        assert.ok(await featuredImage.evaluate(image => image.complete && image.naturalWidth > 0), 'real catalogue family image should load in the featured panel');
-      }
+      const subcategoryImage = page.locator('.excel-subcard-media img').first();
+      await subcategoryImage.waitFor({ state: 'visible' });
+      await subcategoryImage.evaluate(image => image.decode());
+      assert.ok(await subcategoryImage.evaluate(image => image.complete && image.naturalWidth > 0), 'subcategory navigation image should load');
 
-      const leaf = page.locator('.excel-category-subnav-leaves button').filter({ hasText: 'پلی‌یورتان' }).first();
+      const leaf = page.locator('.excel-subleaf-list button').filter({ hasText: 'پلی‌یورتان' }).first();
       await leaf.click();
-      assert.equal(new URL(page.url()).searchParams.get('sub'), 'پلی‌یورتان', 'subcategory selection should be linkable');
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'leaf selection should filter to the matching family');
+      await page.waitForURL(url => url.searchParams.get('sub') === 'پلی‌یورتان', { timeout: 10000 });
+      await expectProductCount(page, 1, 'leaf selection should filter to the matching family');
 
-      await page.getByRole('button', { name: /همه خانواده‌ها/ }).click();
-      assert.equal(new URL(page.url()).searchParams.has('sub'), false, 'all-families selection should clear the subcategory query');
+      await page.locator('.excel-subcard').filter({ hasText: 'همه تسمه تایمینگ صنعتی' }).click();
+      await page.waitForURL(url => !url.searchParams.has('sub'), { timeout: 10000 });
+      await expectProductCount(page, 24, 'all-families selection should restore the first page');
 
-      const search = page.getByRole('searchbox', { name: 'جستجو در خانواده‌ها و مشخصات فنی' });
+      const search = page.getByRole('searchbox', { name: 'جستجو در محصولات این دسته' });
       await search.fill('6205');
-      assert.equal(new URL(page.url()).searchParams.get('q'), '6205', 'search should be reflected in the URL');
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'search should match an actual variant code');
+      await page.waitForURL(url => url.searchParams.get('q') === '6205', { timeout: 10000 });
+      await expectProductCount(page, 1, 'search should match an actual variant code');
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
-      assert.equal(new URL(page.url()).searchParams.has('q'), false, 'clearing search should remove q from the URL');
+      await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });
+      await expectProductCount(page, 24, 'clearing search should restore the first page');
 
       await page.locator('.excel-category-pagination button').last().click();
-      assert.equal(new URL(page.url()).searchParams.get('page'), '2', 'pagination should be reflected in the URL');
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 3, 'second page should show the remaining three families');
+      await page.waitForURL(url => url.searchParams.get('page') === '2', { timeout: 10000 });
+      await expectProductCount(page, 3, 'second page should show the remaining three families');
       await page.locator('.excel-category-pagination button').first().click();
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'previous page should restore the first result page');
+      await page.waitForURL(url => url.searchParams.get('page') === '1' || !url.searchParams.has('page'), { timeout: 10000 });
+      await expectProductCount(page, 24, 'previous page should restore the first result page');
 
       if (viewport.width <= 900) {
         await page.locator('.excel-category-mobile-filter').click();
@@ -265,33 +276,33 @@ async function clearMobileFilters(page) {
         await applyMobileFilter(page, 'Test Brand');
       } else {
         const brandLabel = page.locator('.excel-category-filter-panel label').filter({ hasText: 'Test Brand' }).first();
-        await brandLabel.locator('input').check();
+        await brandLabel.locator('.excel-filter-check-title').click();
       }
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 2, 'brand filter should return the two matching families');
-      assert.ok(new URL(page.url()).searchParams.getAll('brand').includes('Test Brand'), 'brand filter should be shareable');
+      await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
+      await expectProductCount(page, 2, 'brand filter should return the two matching families');
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'clearing brand filter should restore the first page');
+      await expectProductCount(page, 24, 'clearing brand filter should restore the first page');
 
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای موجودی تأییدشده');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای موجودی تأییدشده' }).locator('input').check();
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
-      assert.equal(new URL(page.url()).searchParams.get('stock'), '1', 'stock filter should be reflected in the URL');
-
-      if (viewport.width <= 900) await clearMobileFilters(page);
-      else await page.locator('.excel-category-filter-heading button').click();
-
-      if (viewport.width <= 900) await applyMobileFilter(page, 'فقط دارای تصویر ثبت‌شده');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'فقط دارای تصویر ثبت‌شده' }).locator('input').check();
-      assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'image filter should return only families with a registered image');
-      assert.equal(new URL(page.url()).searchParams.get('image'), '1', 'image filter should be reflected in the URL');
+      if (viewport.width <= 900) await applyMobileFilter(page, 'موجود در انبار');
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'موجود در انبار' }).locator('.excel-filter-check-title').click();
+      await page.waitForURL(url => url.searchParams.get('stock') === '1', { timeout: 10000 });
+      await expectProductCount(page, 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
 
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
 
-      await page.locator('.excel-category-product-shell .excel-category-compare-toggle').nth(0).click();
-      await page.locator('.excel-category-product-shell .excel-category-compare-toggle').nth(1).click();
+      if (viewport.width <= 900) await applyMobileFilter(page, 'دارای تصویر ثبت‌شده');
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'دارای تصویر ثبت‌شده' }).locator('.excel-filter-check-title').click();
+      await page.waitForURL(url => url.searchParams.get('image') === '1', { timeout: 10000 });
+      await expectProductCount(page, 1, 'image filter should return only families with a registered image');
+
+      if (viewport.width <= 900) await clearMobileFilters(page);
+      else await page.locator('.excel-category-filter-heading button').click();
+
+      await page.locator('.excel-category-product-shell .excel-card-compare-check input').nth(0).check();
+      await page.locator('.excel-category-product-shell .excel-card-compare-check input').nth(1).check();
       const compareDock = page.locator('.excel-category-compare-dock');
       await compareDock.waitFor({ state: 'visible' });
       await compareDock.locator('.excel-category-compare-open').click();
@@ -323,7 +334,7 @@ async function clearMobileFilters(page) {
     const errorContext = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'fa-IR', reducedMotion: 'reduce' });
     const errorPage = await errorContext.newPage();
     const errorApi = await installApiRoutes(errorPage, true);
-    await errorPage.goto(baseUrl + '/category/' + slug, { waitUntil: 'domcontentloaded' });
+    await errorPage.goto(baseUrl + '/category/' + slug + '?perPage=24', { waitUntil: 'domcontentloaded' });
     await errorPage.locator('.excel-category-page').waitFor();
     await errorPage.getByText('اطلاعات این دسته دریافت نشد').waitFor({ timeout: 15000 });
     assert.ok(await errorPage.getByRole('button', { name: 'تلاش مجدد' }).isVisible(), 'database failure should expose a retry action');
@@ -331,7 +342,7 @@ async function clearMobileFilters(page) {
     errorApi.setMenuUnavailable(false);
     await errorPage.getByRole('button', { name: 'تلاش مجدد' }).click();
     await errorPage.getByRole('heading', { name: category.name }).waitFor({ timeout: 15000 });
-    assert.equal(await errorPage.locator('.excel-category-product-shell').count(), 24, 'retry should recover the live family list');
+    await expectProductCount(errorPage, 24, 'retry should recover the live family list');
     await errorContext.close();
 
     assert.deepEqual(failures, [], 'browser page errors were detected');

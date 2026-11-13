@@ -174,7 +174,7 @@ async function installApiRoutes(page, fallbackMode = false) {
 
       const search = page.getByRole('searchbox', { name: 'جستجو در دسته‌بندی و زیرگروه‌ها' });
       await search.fill('تایمینگ');
-      assert.ok(new URL(page.url()).searchParams.get('q') === 'تایمینگ', 'search should be shareable in the URL');
+      await page.waitForURL(url => url.searchParams.get('q') === 'تایمینگ', { timeout: 10000 });
       // The URL update is synchronous, while React Router's derived category
       // sections commit on the next render. Wait for the filtered DOM instead
       // of asserting against the pre-render card list.
@@ -189,15 +189,19 @@ async function installApiRoutes(page, fallbackMode = false) {
       assert.equal(categoryHref, '/category/excel-v2-1-1', 'category title should use the canonical Excel taxonomy route');
 
       await page.getByRole('button', { name: 'پاک کردن جستجو' }).click();
-      assert.equal(new URL(page.url()).searchParams.has('q'), false, 'clearing search should remove q from the URL');
+      await page.waitForURL(url => !url.searchParams.has('q'), { timeout: 10000 });
+      await page.waitForFunction(
+        () => document.querySelectorAll('.all-categories-card').length === 3,
+        null, { timeout: 10000 },
+      );
       assert.equal(await page.locator('.all-categories-card').count(), 3, 'clearing search should restore all categories');
 
       const subcategoryLink = page.locator('.all-categories-subcategory-links a').filter({ hasText: 'سیم‌دار فابریک' }).first();
       assert.ok((await subcategoryLink.getAttribute('href')).includes('sub='), 'subcategory quick links should preserve the selected taxonomy value');
       const nestedTree = page.locator('.all-categories-card').filter({ hasText: 'تسمه تایمینگ' }).locator('.all-categories-tree');
-      await nestedTree.locator('summary').click();
+      await nestedTree.locator('summary').first().click();
       const firstSubgroup = nestedTree.locator('ul > li details').first();
-      await firstSubgroup.locator('summary').click();
+      await firstSubgroup.locator('summary').first().click();
       await firstSubgroup.getByRole('link', { name: 'پلی‌یورتان' }).waitFor();
 
       await page.locator('.all-categories-group-nav a').filter({ hasText: 'نوارهای نقاله و انتقال مواد' }).click();

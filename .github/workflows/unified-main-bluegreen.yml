@@ -68,4 +68,4 @@ jobs:
           grep -RlF 'sp-vision-analysis__viewer' dist/assets --include='*.css' >/dev/null
           test -s dist/images/scan-industrial-generated.webp
           test -s dist/images/precision-scan-technical-overlay.svg
-          test "$(find dist/assets -maxdepth 1 -type f -name '*.webp' | wc -l)" -ge 21
+          test "$(find dist/images -type f -name '*.webp' | wc -l)" -ge 21

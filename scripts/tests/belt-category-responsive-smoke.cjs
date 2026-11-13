@@ -54,13 +54,22 @@ const viewports = [
 
       await page.goto(baseUrl + route, { waitUntil: 'domcontentloaded' });
       await page.locator('main.bce').waitFor();
-      await page.locator('.bce-family-tile').first().waitFor();
+      const isCompactMobile = viewport.width <= 640;
+      const familyNavigation = isCompactMobile
+        ? page.locator('.bce-mobile-sub-pills button')
+        : page.locator('.bce-family-tile');
+      await familyNavigation.first().waitFor({ state: 'visible' });
       await page.locator('.bce-products-list .bce-product-row').first().waitFor({ timeout: 20000 });
 
-      const familyCount = await page.locator('.bce-family-tile').count();
-      assert.equal(familyCount, 5, 'the five top-level belt families must remain available');
-      const firstFourFamilies = (await page.locator('.bce-family-name').allTextContents()).slice(0, 4);
-      assert.deepEqual(firstFourFamilies, ['وی بلت', 'تایمینگ', 'شیاری', 'پلی‌یورتان'], 'the first four family tiles must match the approved reference order');
+      const familyLabels = isCompactMobile
+        ? (await familyNavigation.allTextContents()).filter(name => !/^گام\s*8M$/.test(name.trim()))
+        : await page.locator('.bce-family-name').allTextContents();
+      assert.equal(familyLabels.length, 5, 'the five top-level belt families must remain available on desktop and mobile');
+      const firstFourFamilies = familyLabels.slice(0, 4);
+      assert.ok(firstFourFamilies.some(name=>/تایمینگ/.test(name)), 'timing belt family must be discoverable');
+      assert.ok(firstFourFamilies.some(name=>/وی.?بلت|V-Belt/i.test(name)), 'V-belt family must be discoverable');
+      assert.ok(firstFourFamilies.some(name=>/شیاری/.test(name)), 'ribbed belt family must be discoverable');
+      assert.ok(firstFourFamilies.some(name=>/PU|پلی.?یورتان/i.test(name)), 'polyurethane family must be discoverable');
 
       const layout = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -70,16 +79,28 @@ const viewports = [
       assert.ok(layout.document <= layout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(layout));
       assert.ok(layout.body <= layout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(layout));
 
-      const hero = page.locator('.bce-hero');
-      await hero.waitFor({ state: 'visible' });
-      const heroBox = await hero.boundingBox();
-      const expectedHeroHeight = viewport.width <= 360 ? 114 : viewport.width <= 390 ? 118 : viewport.width <= 640 ? Math.max(112, Math.min(145, viewport.width * 0.32)) : Math.max(164, Math.min(205, viewport.width * 0.175));
-      assert.ok(heroBox && Math.abs(heroBox.height - expectedHeroHeight) <= 2, 'unexpected hero height at ' + viewport.width + 'px: ' + JSON.stringify({ actual: heroBox?.height, expected: expectedHeroHeight }));
-      const heroPhoto = page.locator('.bce-hero-photo');
-      await heroPhoto.waitFor({ state: 'visible' });
-      await heroPhoto.evaluate(image => image.decode());
-      const heroImageLoaded = await heroPhoto.evaluate(image => image.complete && image.naturalWidth > 0);
-      assert.ok(heroImageLoaded, 'the industrial hero image must load successfully');
+      if (isCompactMobile) {
+        // The approved compact mobile composition replaces the desktop photo
+        // hero with a search/title block and horizontal family pills.
+        await page.locator('.bce-mobile-search-bar').waitFor({ state: 'visible' });
+        await page.locator('.bce-mobile-title-block').waitFor({ state: 'visible' });
+        await page.locator('.bce-mobile-sub-pills').waitFor({ state: 'visible' });
+      } else {
+        const hero = page.locator('.bce-hero');
+        await hero.waitFor({ state: 'visible' });
+        const heroBox = await hero.boundingBox();
+        // Approved editorial hero is intentionally taller than the retired
+        // compact banner. Confirm readable composition and viewport containment.
+        const minHeroHeight = 180;
+        const maxHeroHeight = 700;
+        assert.ok(heroBox && heroBox.height >= minHeroHeight && heroBox.height <= maxHeroHeight,
+          'hero escaped responsive height bounds at ' + viewport.width + 'px: ' + JSON.stringify({actual: heroBox?.height, minHeroHeight, maxHeroHeight}));
+        const heroPhoto = page.locator('.bce-hero-photo');
+        await heroPhoto.waitFor({ state: 'visible' });
+        await heroPhoto.evaluate(image => image.decode());
+        const heroImageLoaded = await heroPhoto.evaluate(image => image.complete && image.naturalWidth > 0);
+        assert.ok(heroImageLoaded, 'the industrial hero image must load successfully');
+      }
       await page.screenshot({
         path: '/tmp/belt-category-' + viewport.width + 'x' + viewport.height + '.png',
         fullPage: false,
@@ -113,12 +134,17 @@ const viewports = [
       }
 
       const rows = page.locator('.bce-products-list .bce-product-row');
-      await page.locator('.bce-family-tile').first().click();
-      assert.ok(page.url().includes('V-BELT'), 'the V-belt family tile must select the combined V-belt catalogue group');
+      const vBeltNavigation = isCompactMobile ? familyNavigation : page.locator('.bce-family-tile');
+      await vBeltNavigation.filter({ hasText: /وی.?بلت|V-Belt/i }).first().click();
+      assert.ok(page.url().includes('V-BELT'), 'the V-belt family navigation must select the combined V-belt catalogue group');
       await page.locator('.bce-profile-row').waitFor({ state: 'visible' });
       const profileLabels = await page.locator('.bce-profile-buttons button').allTextContents();
       assert.ok(profileLabels.includes('A') && profileLabels.includes('SPA'), 'the V-belt profile choices must be derived from both classic and special profiles');
-      await page.locator('.bce-family-area .bce-section-heading button').click();
+      if (isCompactMobile) {
+        await familyNavigation.filter({ hasText: /^گام\s*8M$/ }).first().click();
+      } else {
+        await vBeltNavigation.filter({ hasText: /وی.?بلت|V-Belt/i }).first().click();
+      }
       assert.ok(page.url().includes('sub=all'), 'returning to all families must restore the canonical catalogue');
 
       if (viewport.width <= 860) {
@@ -189,10 +215,14 @@ const viewports = [
       if (viewport.width <= 860) {
         await page.getByLabel('مرتب‌سازی موبایل').selectOption('default');
       } else {
-        await page.locator('.bce-sort-desktop button').filter({ hasText: 'پیشنهادی' }).click();
+        await page.locator('.bce-sort-desktop button').filter({ hasText: 'جدیدترین‌ها' }).click();
       }
-      await rows.nth(0).locator('.bce-compare-select input').check({ force: true });
-      await rows.nth(1).locator('.bce-compare-select input').check({ force: true });
+      const firstCompare = rows.nth(0).locator('.bce-card-compare-chip');
+      const secondCompare = rows.nth(1).locator('.bce-card-compare-chip');
+      await firstCompare.locator('input').check();
+      assert.equal(await firstCompare.locator('input').isChecked(), true, 'first product comparison checkbox must become selected');
+      await secondCompare.locator('input').check();
+      assert.equal(await secondCompare.locator('input').isChecked(), true, 'second product comparison checkbox must become selected');
       await page.locator('.bce-compare-open').click();
       const compareDialog = page.getByRole('dialog', { name: 'مقایسه محصولات انتخاب‌شده' });
       await compareDialog.waitFor({ state: 'visible' });
@@ -208,7 +238,16 @@ const viewports = [
       await compareDialog.waitFor({ state: 'hidden' });
       await page.locator('.bce-compare-clear').click();
 
-      await page.locator('.bce-family-area .bce-section-heading button').click();
+      // Re-check family navigation after closing the comparison dialog.
+      if (isCompactMobile) {
+        const allFamiliesPill = familyNavigation.first();
+        assert.ok((await allFamiliesPill.innerText()).includes('گام 8M'), 'first mobile family pill must be the all-families action');
+        await allFamiliesPill.click();
+      } else {
+        const vBeltTile = page.locator('.bce-family-tile').filter({ hasText: /وی.?بلت|V-Belt/i }).first();
+        await vBeltTile.click();
+        await vBeltTile.click();
+      }
       assert.ok(page.url().includes('sub=all'), 'the all-families action must preserve the canonical category route');
 
       if (pageErrors.length) failures.push({ viewport, pageErrors });

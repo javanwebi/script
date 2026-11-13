@@ -11,7 +11,7 @@ const pages = [
   { path: "/industries", selector: ".company-page--industries", heading: /هر صنعت، نیاز فنی خودش را دارد/ },
   { path: "/industries/textile", selector: ".textile-page .textile-hero", heading: /نساجی/ },
   { path: "/brands", selector: ".company-page--brands", heading: /برند را بشناسید/ },
-  { path: "/knowledge", selector: ".knowledge-intro", heading: /شناخت بهتر قطعه/ },
+  { path: "/knowledge", selector: ".company-page--knowledge .sp-knowledge-hero", heading: /شناخت بهتر قطعه/ },
   { path: "/contact", selector: "#contact-workspace-main", heading: /تماس با/ },
 ];
 
