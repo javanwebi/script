@@ -453,30 +453,66 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
           on variant.code=binding.sku_code and variant.family_code=binding.family_code
         group by binding.file_key
       ),
+      gallery_rows_by_image as (
+        select lower(regexp_replace(split_part(split_part(coalesce(nullif(g.file_name,''),g.url),'?',1),'#',1),'^.*/','')) as file_key,
+          jsonb_agg(jsonb_build_object(
+            'id',g.id,'familyCode',g.family_code,'skuCode',g.variant_code,
+            'scope',g.scope,'title',g.title,'url',g.url,'identityVerified',g.identity_verified
+          ) order by g.family_code,g.variant_code,g.sort_order,g.id) as binding_rows
+        from public.catalog_gallery_images g
+        group by lower(regexp_replace(split_part(split_part(coalesce(nullif(g.file_name,''),g.url),'?',1),'#',1),'^.*/',''))
+      ),
       direct_skus_by_image as (
         select lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/','')) as file_key,
           jsonb_agg(jsonb_build_object(
-            'skuCode',d.sku_code,
-            'skuName',d.name,
-            'categoryName',d.category_name
+            'skuCode',d.sku_code,'skuName',d.name,'categoryName',d.category_name,
+            'categorySlug',d.category_slug,'submenu',d.submenu,'subcategory',d.subcategory,
+            'imageUrl',d.image_url,'sourceFamilyCode',d.source_family_code
           ) order by d.sku_code) as direct_skus
         from public.catalog_direct_skus d
         where d.is_active=true and coalesce(d.image_url,'')<>''
         group by lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/',''))
+      ),
+      extra_image_files as (
+        select distinct g.url as display_file,
+          lower(regexp_replace(split_part(split_part(g.url,'?',1),'#',1),'^.*/','')) as file_key
+        from public.catalog_gallery_images g
+        where coalesce(g.url,'')<>''
+        union
+        select distinct d.image_url as display_file,
+          lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/','')) as file_key
+        from public.catalog_direct_skus d
+        where d.is_active=true and coalesce(d.image_url,'')<>''
+      ),
+      image_library as (
+        select a.file_name as display_file,lower(a.file_name) as file_key,a.sha256,
+          a.observed_description,a.reason,a.visual_type,a.visible_features,a.required_checks,
+          a.exact_sku,a.standard_status
+        from public.catalog_image_audits a
+        union all
+        select extra.display_file,extra.file_key,''::text as sha256,
+          'تصویر ذخیره‌شده در گالری محصولات'::text as observed_description,
+          'اتصال ثبت‌شده در PostgreSQL'::text as reason,
+          ''::text as visual_type,'[]'::jsonb as visible_features,'[]'::jsonb as required_checks,
+          null::text as exact_sku,'not-established'::text as standard_status
+        from extra_image_files extra
+        where not exists(select 1 from public.catalog_image_audits a where lower(a.file_name)=extra.file_key)
       )
-      select a.file_name,a.sha256,a.observed_description,a.reason,
+      select a.display_file as file,a.sha256,a.observed_description,a.reason,
         a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
         p.catalogue_group,p.pdf_page,p.match_ratio,
         coalesce(bindings_by_image.bindings,'[]'::jsonb) as bindings,
+        coalesce(gallery_rows_by_image.binding_rows,'[]'::jsonb) as binding_rows,
         coalesce(direct_skus_by_image.direct_skus,'[]'::jsonb) as direct_skus
-      from public.catalog_image_audits a
-      left join public.owner_catalogue_photos p on p.file_name=a.file_name
-      left join bindings_by_image on bindings_by_image.file_key=lower(a.file_name)
-      left join direct_skus_by_image on direct_skus_by_image.file_key=lower(a.file_name)
-      order by a.file_name
+      from image_library a
+      left join public.owner_catalogue_photos p on lower(p.file_name)=a.file_key
+      left join bindings_by_image on bindings_by_image.file_key=a.file_key
+      left join gallery_rows_by_image on gallery_rows_by_image.file_key=a.file_key
+      left join direct_skus_by_image on direct_skus_by_image.file_key=a.file_key
+      order by a.file_key
     `);
     const rows=result.rows.map(row=>({
-      file:row.file_name,
+      file:row.file,
       sha256:row.sha256 || '',
       observed:row.observed_description || '',
       reason:row.reason || '',
@@ -501,10 +537,20 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         skuCode:binding.skuCode?String(binding.skuCode):null,
         skuName:binding.skuName?String(binding.skuName):null
       })).filter((binding:any)=>binding.familyCode):[],
+      bindingRows:Array.isArray(row.binding_rows)?row.binding_rows.map((item:any)=>({
+        id:String(item.id||''),familyCode:String(item.familyCode||''),
+        skuCode:item.skuCode?String(item.skuCode):null,scope:String(item.scope||'family'),
+        title:String(item.title||''),url:String(item.url||''),identityVerified:item.identityVerified===true
+      })).filter((item:any)=>item.id&&item.familyCode):[],
       directSkus:Array.isArray(row.direct_skus)?row.direct_skus.map((item:any)=>({
         skuCode:String(item.skuCode||''),
         skuName:String(item.skuName||''),
-        categoryName:String(item.categoryName||'')
+        categoryName:String(item.categoryName||''),
+        categorySlug:String(item.categorySlug||''),
+        submenu:String(item.submenu||''),
+        subcategory:String(item.subcategory||''),
+        imageUrl:String(item.imageUrl||''),
+        sourceFamilyCode:String(item.sourceFamilyCode||'')
       })).filter((item:any)=>item.skuCode):[]
     }));
     return res.json({success:true,rows});
@@ -530,6 +576,7 @@ app.use('/api/catalog', (req, res, next) => {
   void (async()=>{
     const identity=await getPortalIdentity(req);
     let [section,action]=catalogMutationPermission(req.path);
+    if(req.method==='DELETE' && req.path.startsWith('/direct-skus/') && !req.path.endsWith('/image'))action='delete';
     if(identity.staff && req.path.endsWith('/overrides/family')){
       const candidate=req.body?.family;
       const code=String(candidate?.code||'').trim();

@@ -1,6 +1,6 @@
 import React, {useEffect,useMemo,useState} from 'react';
 import { requireAdminApiJson } from '../../utils/adminApiResponse';
-import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info} from 'lucide-react';
+import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info,Trash2,Save} from 'lucide-react';
 import type {Product, Category} from '../../types';
 import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
@@ -17,7 +17,7 @@ const fa=(n:number)=>n.toLocaleString('fa-IR');
 const statusLabel=(r:AuditRow)=>r.status==='sku-linked'?'کد متصل':r.status==='family-example'?'فقط خانواده':'بدون اتصال';
 const statusColor=(r:AuditRow)=>r.status==='sku-linked'?'bg-emerald-50 text-emerald-700':r.status==='family-example'?'bg-amber-50 text-amber-700':'bg-rose-50 text-rose-700';
 const card='rounded-xl border border-[#E7E8EA] bg-white';
-export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignSku,onAssignDirectSku}:{
+export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onCreateCategory,onEditCategory,onEditFamily,onCreateSku,onAssignSku,onAssignSkus,onAssignDirectSkus}:{
   products:Product[];
   categories:Category[];
   onEdit:(familyCode:string,file:string,skuCode?:string,imageUrl?:string,imageTitle?:string,persistedId?:string)=>void;
@@ -28,7 +28,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   onEditFamily:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string,upload?:File)=>void;
   onCreateSku:(familyCode:string,file:string,imageUrl?:string,imageTitle?:string)=>void;
   onAssignSku:(input:{targetFamilyCode:string;skuCode:string;imageUrl:string;fileName:string;title?:string;persistedId?:string})=>Promise<void>;
-  onAssignDirectSku:(input:{skuCode:string;categorySlug:string;submenu:string;subcategory:string;imageUrl:string})=>Promise<void>;
+  onAssignSkus:(input:{skuCodes:string[];imageUrl:string;fileName:string;title?:string})=>Promise<void>;
+  onAssignDirectSkus:(input:{skuCodes:string[];categorySlug:string;submenu:string;subcategory:string;imageUrl:string})=>Promise<void>;
 }){
   const [records,setRecords]=useState<DbImageAuditRow[]>([]);
   const [loading,setLoading]=useState(true);
@@ -72,6 +73,15 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [directMode,setDirectMode]=useState(false);
   const [sku,setSku]=useState('');
   const [skuSearch,setSkuSearch]=useState('');
+  const [selectedSkuCodes,setSelectedSkuCodes]=useState<string[]>([]);
+  const [bindingEditId,setBindingEditId]=useState('');
+  const [bindingEditSku,setBindingEditSku]=useState('');
+  const [bindingEditFamily,setBindingEditFamily]=useState('');
+  const [bindingEditSearch,setBindingEditSearch]=useState('');
+  const [moveSkuCode,setMoveSkuCode]=useState('');
+  const [moveTargetFamily,setMoveTargetFamily]=useState('');
+  const [directEditSku,setDirectEditSku]=useState('');
+  const [bindingActionPending,setBindingActionPending]=useState(false);
   const [placement,setPlacement]=useState<StorageChoice>('family');
   const [showEvidence,setShowEvidence]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
@@ -135,12 +145,23 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   })).sort((a,b)=>a.variant.code.localeCompare(b.variant.code,'en',{numeric:true,sensitivity:'base'})),[products]);
   const matchingSkus=useMemo(()=>{
     const query=normalizeCatalogueText(skuSearch.trim());
-    const matches=query?allSkuChoices.filter(({family:owner,variant})=>normalizeCatalogueText([
-      variant.code,variant.name,variant.size,variant.model,owner.code,owner.name,owner.categoryName,owner.submenu,owner.subcategory
-    ].filter(Boolean).join(' ')).includes(query)):allSkuChoices;
+    const matches=allSkuChoices.filter(({family:owner,variant})=>{
+      const matchesFamily=directMode||searchAllFamilies||!familyCode||owner.code===familyCode;
+      const matchesQuery=!query||normalizeCatalogueText([
+        variant.code,variant.name,variant.size,variant.model,owner.code,owner.name,owner.categoryName,owner.submenu,owner.subcategory
+      ].filter(Boolean).join(' ')).includes(query);
+      return matchesFamily&&matchesQuery;
+    });
     return matches.slice(0,30);
-  },[allSkuChoices,skuSearch]);
+  },[allSkuChoices,skuSearch,familyCode,searchAllFamilies,directMode]);
   const selectedSkuChoice=allSkuChoices.find(choice=>choice.variant.code===sku);
+  const selectedSkuChoices=allSkuChoices.filter(choice=>selectedSkuCodes.includes(choice.variant.code));
+  const bindingEditChoices=useMemo(()=>{
+    const query=normalizeCatalogueText(bindingEditSearch.trim());
+    return allSkuChoices.filter(({family:owner,variant})=>!query||normalizeCatalogueText([
+      variant.code,variant.name,owner.code,owner.name,owner.categoryName
+    ].filter(Boolean).join(' ')).includes(query)).slice(0,20);
+  },[allSkuChoices,bindingEditSearch]);
   const filtered=useMemo(()=>audit.filter(r=>{
     if(filter!=='all'&&(filter==='catalogue-photo'?!r.ownerCatalogue:r.status!==filter))return false;
     if(familyFilter==='none'&&r.families.length)return false;
@@ -154,9 +175,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
     setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle(found?.observed||'');
-    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
+    setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSelectedSkuCodes([]);setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -176,9 +197,9 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     }
     setFile(resolved.split('/').pop()||'تصویر');setUrl(resolved);setTitle('');setSourceError('');
   };
-  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('')};
+  const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('');setSelectedSkuCodes([]);setBindingEditId('');setMoveSkuCode('');setDirectEditSku('')};
   const chooseFamily=(code:string)=>{
-    setFamilyCode(code);setSku('');
+    setFamilyCode(code);setSku('');setSelectedSkuCodes([]);
     const assigned=taxonomy.byFamily.get(code);
     if(assigned){
       setCategory(assigned.categorySlug);
@@ -196,7 +217,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     taxonomy.refresh();
   };
   const apply=async()=>{
-    if(!file||!url||(!directMode&&!familyCode)||((directMode||placement==='sku')&&!sku)||savingUpload)return;
+    if(!file||!url||(!directMode&&!familyCode)|| (directMode&&!directEditSku&&!selectedSkuCodes.length) ||
+      (!directMode&&placement==='sku'&&!selectedSkuCodes.length)||savingUpload)return;
     if(directMode){
       const destination=approvedCategories.find(item=>item.slug===category);
       if(!destination||!submenu){setSourceError('برای کد بدون خانواده، دسته و زیرمنو را انتخاب کنید.');return;}
@@ -210,41 +232,50 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           if(!payload.url)throw new Error('آپلود تصویر: آدرس فایل در پاسخ سرور وجود ندارد.');
           imageUrl=payload.url;
         }
-        await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
+        if(directEditSku){
+          const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(directEditSku),{
+            method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({categorySlug:destination.slug,submenu,subcategory,imageUrl})
+          });
+          await requireAdminApiJson(response,'ویرایش کد مستقیم');
+          setSaveNotice('مسیر دسته‌بندی کد مستقیم اصلاح شد؛ اطلاعات فنی و تجاری حفظ شدند.');
+          setDirectEditSku('');
+        }else{
+          await onAssignDirectSkus({skuCodes:selectedSkuCodes,categorySlug:destination.slug,submenu,subcategory,imageUrl});
+        }
         setAuditRevision(value=>value+1);
         closeSelection();
-      }catch(error:any){setSourceError(error.message||'ثبت کد مستقیم انجام نشد.');}
+      }catch(error:any){setSourceError(error.message||'ثبت یا ویرایش کد مستقیم انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
     }
     if(placement==='sku'){
-      if(!selectedSkuChoice){setSourceError('ابتدا یک کد کالا از فهرست سراسری انتخاب کنید.');return;}
+      const chosen=allSkuChoices.filter(choice=>selectedSkuCodes.includes(choice.variant.code));
+      if(!chosen.length||chosen.length!==selectedSkuCodes.length){setSourceError('کدهای انتخاب‌شده دیگر در کاتالوگ فعال نیستند؛ فهرست را تازه کنید.');return;}
       setSavingUpload(true);setSourceError('');
-      let persistedId:string|undefined;
-      let imageConnected=false;
+      let firstUploadBound=false;
       try{
         let assignedUrl=url,assignedFile=file;
         if(source==='upload'){
           if(!selectedUpload)throw new Error('ابتدا فایل تصویر را انتخاب کنید.');
-          // Upload into the destination family first; the transfer endpoint then
-          // atomically changes this persisted gallery row to the selected SKU.
-          const saved=await uploadProductImage(selectedUpload,{familyCode,title:title||selectedUpload.name});
-          assignedUrl=saved.url;assignedFile=saved.fileName;persistedId=saved.id;
+          // Upload once against the first real SKU. The batch endpoint then
+          // idempotently binds the same physical file to every selected SKU.
+          const first=chosen[0];
+          const saved=await uploadProductImage(selectedUpload,{
+            familyCode:first.family.code,variantCode:first.variant.code,title:title||selectedUpload.name
+          });
+          assignedUrl=saved.url;assignedFile=saved.fileName;firstUploadBound=true;
         }
-        await onAssignSku({
-          targetFamilyCode:familyCode,skuCode:sku,imageUrl:assignedUrl,
-          fileName:assignedFile,title:title||undefined,persistedId
+        await onAssignSkus({
+          skuCodes:selectedSkuCodes,imageUrl:assignedUrl,fileName:assignedFile,title:title||undefined
         });
-        imageConnected=true;
-        await saveSelectedPath(familyCode);
+        setSaveNotice('تصویر به '+fa(chosen.length)+' کد کالا متصل شد. فایل اصلی مشترک است و هر اتصال جداگانه قابل ویرایش یا حذف است. مسیر دسته‌بندی خانواده از دکمه مستقل خودش قابل اصلاح است.');
         setAuditRevision(value=>value+1);
         closeSelection();
       }catch(error:any){
-        setSourceError((imageConnected
-          ? 'اتصال تصویر به کد کالا ذخیره شد، اما دسته‌بندی خانواده تکمیل نشد. از ثبت تکراری خودداری کنید. '
-          : persistedId
-            ? 'آپلود تصویر ذخیره شد، اما اتصال به کد کالا تأیید نشد؛ قبل از تکرار وضعیت تصویر را بررسی کنید. '
-            : 'اتصال تصویر به کد کالا انجام نشد. ') +
+        setSourceError((firstUploadBound
+          ? 'تصویر بارگذاری شد و حداقل به کد اول متصل است؛ نتیجه سایر اتصال‌ها را قبل از تکرار بررسی کنید. '
+          : 'اتصال گروهی تصویر انجام نشد. ') +
           (error instanceof Error ? error.message : 'خطای ارتباط با سرور'));
       }
       finally{setSavingUpload(false);}
@@ -290,6 +321,89 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     }catch(error){
       setSourceError(error instanceof Error?error.message:'اتصال تصویر ذخیره نشد.');
     }finally{setSavingUpload(false);}
+  };
+  const removeBinding=async(id:string)=>{
+    if(!id||bindingActionPending)return;
+    if(!window.confirm('فقط اتصال این تصویر حذف می‌شود؛ خود فایل، کد کالا، قیمت، موجودی و مشخصات فنی باقی می‌مانند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/product-images/bindings/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin',signal:AbortSignal.timeout(20000)});
+      await requireAdminApiJson(response,'حذف اتصال تصویر');
+      setBindingEditId('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'حذف اتصال انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const beginBindingEdit=(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    setBindingEditId(binding.id);
+    if(binding.scope==='variant'){
+      setBindingEditSku(binding.skuCode||'');
+      setBindingEditSearch(binding.skuCode||'');
+      setBindingEditFamily('');
+    }else{
+      setBindingEditFamily(binding.familyCode);
+      setBindingEditSku('');
+      setBindingEditSearch('');
+    }
+  };
+  const saveBindingEdit=async(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    if(bindingActionPending)return;
+    const payload=binding.scope==='variant'?{skuCode:bindingEditSku}:{familyCode:bindingEditFamily};
+    if(binding.scope==='variant'&&!bindingEditSku){setSourceError('کد مقصد را انتخاب کنید.');return;}
+    if(binding.scope!=='variant'&&!bindingEditFamily){setSourceError('خانواده مقصد را انتخاب کنید.');return;}
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/product-images/bindings/'+encodeURIComponent(binding.id),{
+        method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),signal:AbortSignal.timeout(20000)
+      });
+      await requireAdminApiJson(response,'ویرایش اتصال تصویر');
+      setBindingEditId('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'ویرایش اتصال انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const moveBoundSku=async(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    if(!binding.skuCode||!moveTargetFamily||bindingActionPending)return;
+    if(moveTargetFamily===binding.familyCode){setSourceError('خانواده مقصد با خانواده فعلی یکسان است.');return;}
+    if(!window.confirm('کد '+binding.skuCode+' به‌صورت واقعی از خانواده فعلی به خانواده مقصد منتقل شود؟ قیمت، موجودی و مشخصات فنی حفظ می‌شوند؛ این کار با تغییر اتصال تصویر فرق دارد.'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      await onAssignSku({
+        targetFamilyCode:moveTargetFamily,skuCode:binding.skuCode,
+        imageUrl:binding.url||url,fileName:(binding.url||url).split('/').pop()||file,
+        title:binding.title||undefined
+      });
+      setMoveSkuCode('');setMoveTargetFamily('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'انتقال کد به خانواده مقصد انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const removeDirectImage=async(skuCode:string)=>{
+    if(bindingActionPending)return;
+    if(!window.confirm('فقط تصویر از این کد مستقیم جدا می‌شود؛ ثبت کد در زیرمنو باقی می‌ماند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(skuCode)+'/image',{method:'DELETE',credentials:'same-origin'});
+      await requireAdminApiJson(response,'حذف تصویر کد مستقیم');
+      setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'حذف تصویر کد مستقیم انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const deactivateDirectSku=async(skuCode:string)=>{
+    if(bindingActionPending)return;
+    if(!window.confirm('این کد از زیرمنوی فروشگاه غیرفعال می‌شود؛ رکورد اصلی کالا، سفارش‌ها، قیمت و مشخصات فنی حذف نمی‌شوند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(skuCode),{method:'DELETE',credentials:'same-origin'});
+      await requireAdminApiJson(response,'غیرفعال‌سازی کد مستقیم');
+      setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'غیرفعال‌سازی کد مستقیم انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const beginDirectEdit=(item:NonNullable<AuditRow['directSkus']>[number])=>{
+    setDirectEditSku(item.skuCode);setDirectMode(true);setFamilyCode('');
+    setCategory(item.categorySlug||'');
+    setMenuGroup(approvedGroups.find(group=>group.categorySlugs.includes(item.categorySlug||''))?.id||'');
+    setSubmenu(item.submenu||'');setSubcategory(item.subcategory||'');
+    setSku(item.skuCode);setSelectedSkuCodes([]);setSourceError('');
   };
   const exportAudit=()=>{
     const blob=new Blob([JSON.stringify(audit,null,2)],{type:'application/json;charset=utf-8'});
@@ -398,6 +512,79 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
               </div>}
             </div>
             <div className="min-h-0 space-y-4 p-3 sm:p-5 lg:overflow-y-auto">
+              {selectedRow&&(selectedRow.bindingRows?.length||selectedRow.directSkus.length)>0&&<section className="space-y-3 rounded-xl border border-[#E8C7AE] bg-[#FFFCF9] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><h4 className="text-sm font-black text-[#55565A]">مدیریت اتصال‌های فعلی تصویر</h4><p className="mt-1 text-[10px] leading-5 text-slate-500">هر اتصال جداگانه قابل ویرایش یا حذف است؛ حذف اتصال، فایل و اطلاعات اصلی کالا را پاک نمی‌کند.</p></div>
+                  <span className="rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-bold text-[#C65A16]">{fa((selectedRow.bindingRows?.length||0)+selectedRow.directSkus.length)} اتصال</span>
+                </div>
+                {!!selectedRow.bindingRows?.length&&<div className="space-y-2">
+                  {selectedRow.bindingRows.map(binding=>{
+                    const owner=allFamilies.find(item=>item.code===binding.familyCode);
+                    const variant=owner?.variants?.find(item=>item.code===binding.skuCode);
+                    return <div key={binding.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[#55565A]">{binding.scope==='variant'?'اتصال به کد کالا':'تصویر عمومی خانواده'}</p>
+                          <p className="mt-1 text-[11px] text-slate-700">{owner?.name||binding.familyCode}</p>
+                          <p dir="ltr" className="mt-1 text-[10px] text-slate-500">{binding.skuCode||binding.familyCode}</p>
+                          {variant&&<p className="mt-1 text-[10px] text-slate-500">{variant.name} · {variant.size||'سایز ثبت نشده'}</p>}
+                          {binding.title&&<p className="mt-1 text-[10px] text-slate-400">{binding.title}</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button type="button" disabled={bindingActionPending} onClick={()=>beginBindingEdit(binding)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-700"><Edit3 size={12}/> ویرایش اتصال</button>
+                          <button type="button" disabled={bindingActionPending} onClick={()=>void removeBinding(binding.id)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-700"><Trash2 size={12}/> حذف اتصال</button>
+                        </div>
+                      </div>
+                      {bindingEditId===binding.id&&<div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
+                        {binding.scope==='variant'?<>
+                          <label className="block text-[11px] font-bold text-slate-700">کد کالای جدید برای همین تصویر
+                            <input value={bindingEditSearch} onChange={e=>setBindingEditSearch(e.target.value)} placeholder="جستجوی کد یا نام کالا…" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs font-normal"/>
+                          </label>
+                          <div className="max-h-36 space-y-1 overflow-y-auto">
+                            {bindingEditChoices.map(choice=><button key={choice.variant.code} type="button" onClick={()=>{setBindingEditSku(choice.variant.code);setBindingEditSearch(choice.variant.code)}} className={bindingEditSku===choice.variant.code?"flex w-full items-center justify-between rounded-md border border-[#E06518] bg-orange-50 p-2 text-right":"flex w-full items-center justify-between rounded-md border border-slate-200 bg-white p-2 text-right"}>
+                              <span><b dir="ltr" className="block text-[10px]">{choice.variant.code}</b><span className="text-[10px] text-slate-500">{choice.family.name}</span></span>
+                              {bindingEditSku===choice.variant.code&&<Check size={14} className="text-[#E06518]"/>}
+                            </button>)}
+                          </div>
+                        </>:<>
+                          <label className="block text-[11px] font-bold text-slate-700">خانواده مقصد
+                            <select value={bindingEditFamily} onChange={e=>setBindingEditFamily(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs font-normal">
+                              <option value="">انتخاب خانواده</option>{allFamilies.map(item=><option key={item.code} value={item.code}>{item.name} — {item.code}</option>)}
+                            </select>
+                          </label>
+                        </>}
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={bindingActionPending} onClick={()=>void saveBindingEdit(binding)} className="inline-flex items-center gap-1 rounded-lg bg-[#E06518] px-3 py-2 text-[10px] font-bold text-white"><Save size={12}/> ذخیره ویرایش</button>
+                          <button type="button" onClick={()=>setBindingEditId('')} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600">انصراف</button>
+                        </div>
+                      </div>}
+                      {binding.scope==='variant'&&binding.skuCode&&<div className="mt-2 border-t border-slate-100 pt-2">
+                        <button type="button" onClick={()=>{setMoveSkuCode(moveSkuCode===binding.skuCode?'':binding.skuCode||'');setMoveTargetFamily('')}} className="text-[10px] font-bold text-amber-800">انتقال واقعی کد به خانواده دیگر…</button>
+                        {moveSkuCode===binding.skuCode&&<div className="mt-2 space-y-2 rounded-lg bg-amber-50 p-2.5">
+                          <p className="text-[10px] leading-5 text-amber-900">این عملیات خود کد کالا را از خانواده فعلی به خانواده جدید منتقل می‌کند؛ برخلاف ویرایش اتصال تصویر.</p>
+                          <select value={moveTargetFamily} onChange={e=>setMoveTargetFamily(e.target.value)} className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs">
+                            <option value="">انتخاب خانواده مقصد</option>{allFamilies.filter(item=>item.code!==binding.familyCode).map(item=><option key={item.code} value={item.code}>{item.name} — {item.code}</option>)}
+                          </select>
+                          <button type="button" disabled={!moveTargetFamily||bindingActionPending} onClick={()=>void moveBoundSku(binding)} className="rounded-lg bg-amber-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-40">تأیید انتقال کد و حفظ اطلاعات</button>
+                        </div>}
+                      </div>}
+                    </div>;
+                  })}
+                </div>}
+                {!!selectedRow.directSkus.length&&<div className="space-y-2">
+                  {selectedRow.directSkus.map(item=><div key={item.skuCode} className="rounded-lg border border-emerald-100 bg-white p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div><p dir="ltr" className="text-xs font-black text-emerald-800">{item.skuCode}</p><p className="mt-1 text-[10px] text-slate-600">{item.skuName||'کد مستقیم'} · {item.categoryName||''}</p><p className="mt-1 text-[10px] text-slate-500">{item.submenu||''}{item.subcategory?' · '+item.subcategory:''}</p></div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button type="button" onClick={()=>beginDirectEdit(item)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-700"><Edit3 size={12} className="inline"/> ویرایش مسیر</button>
+                        <button type="button" disabled={bindingActionPending} onClick={()=>void removeDirectImage(item.skuCode)} className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-bold text-amber-800">حذف تصویر</button>
+                        <button type="button" disabled={bindingActionPending} onClick={()=>void deactivateDirectSku(item.skuCode)} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-700">حذف از زیرمنو</button>
+                      </div>
+                    </div>
+                  </div>)}
+                </div>}
+                {!selectedRow.bindingRows?.length&&selectedRow.families.length>0&&<p className="text-[10px] leading-5 text-amber-800">بعضی اتصال‌های قدیمی از آرایه‌های تاریخی کالا خوانده شده‌اند و شناسه گالری ندارند؛ برای تغییر آن‌ها ابتدا از مسیر اتصال جدید استفاده کنید.</p>}
+              </section>}
               <div className="flex flex-wrap gap-2" role="group" aria-label="منبع تصویر">
                 {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','لینک تصویر ذخیره‌شده']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setSelectedUpload(null);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
               </div>
@@ -487,36 +674,46 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                   <button type="button" aria-pressed={placement==='sku'} onClick={()=>setPlacement('sku')} className={placement==='sku'?"rounded-xl border border-[#E06518] bg-[#FFF2E8] p-3 text-right":"rounded-xl border border-slate-200 p-3 text-right hover:bg-slate-50"}><strong className="block text-xs text-[#55565A]">کد دقیق کالا</strong><span className="mt-1 block text-[10px] text-slate-500">فقط یک SKU مشخص</span></button>
                 </div>}
                 {(directMode||placement==='sku')&&<div className="space-y-3">
-                  <label className="block text-xs font-bold text-[#55565A]">جستجو در تمام کدهای کالا
+                  <label className="block text-xs font-bold text-[#55565A]">جستجو در کدهای کالا
                     <input type="search" value={skuSearch} onChange={e=>{setSkuSearch(e.target.value);setSku('')}} placeholder="کد، نام کالا، خانواده یا دسته‌بندی را جستجو کنید…" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white p-3 font-normal outline-none focus:border-[#E06518]"/>
                   </label>
-                  <p className="text-[10px] text-slate-500">جستجو در {fa(allSkuChoices.length)} کد کالای ثبت‌شده در تمام خانواده‌ها؛ حداکثر ۳۰ نتیجه نمایش داده می‌شود.</p>
-                  <div role="listbox" aria-label="نتایج جستجوی سراسری کد کالا" className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
-                    {matchingSkus.map(choice=><button key={choice.variant.code} type="button" role="option" aria-selected={sku===choice.variant.code} onClick={()=>{setSku(choice.variant.code);setSkuSearch(choice.variant.code)}} className={sku===choice.variant.code?"flex w-full items-center gap-3 rounded-lg border border-[#E06518] bg-[#FFF2E8] p-2.5 text-right":"flex w-full items-center gap-3 rounded-lg border border-transparent bg-white p-2.5 text-right hover:border-slate-200 hover:bg-slate-50"}>
-                      {choice.imageUrl?<ProductImage src={choice.imageUrl} alt={choice.variant.name} className="h-12 w-12 shrink-0 rounded-md bg-white object-contain"/>:<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100"><FileImage size={17} className="text-slate-400"/></div>}
-                      <span className="min-w-0 flex-1">
-                        <span dir="ltr" className="block truncate text-xs font-black text-[#55565A]">{choice.variant.code}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-slate-700">{choice.variant.name}</span>
-                        <span className="mt-0.5 block truncate text-[10px] text-slate-500">{choice.family.name} · {choice.family.categoryName}</span>
-                      </span>
-                      <span className={choice.family.code!==familyCode?"shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[9px] font-bold text-amber-700":"shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700"}>{directMode?'کد بدون خانواده':choice.family.code!==familyCode?'انتقال از خانواده دیگر':'همین خانواده'}</span>
-                    </button>)}
+                  <p className="text-[10px] text-slate-500">{searchAllFamilies||directMode?'جستجو در همه خانواده‌ها':'نمایش کدهای خانواده انتخاب‌شده'} · {fa(allSkuChoices.length)} کد فعال؛ حداکثر ۳۰ نتیجه نمایش داده می‌شود.</p>
+                  <div role="listbox" aria-multiselectable={!directMode} aria-label="نتایج جستجوی کد کالا" className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
+                    {matchingSkus.map(choice=>{
+                      const isSelected=directMode?(directEditSku?sku===choice.variant.code:selectedSkuCodes.includes(choice.variant.code)):selectedSkuCodes.includes(choice.variant.code);
+                      return <button key={choice.variant.code} type="button" role="option" aria-selected={isSelected} onClick={()=>{
+                        if(directMode&&!directEditSku)setSelectedSkuCodes(previous=>previous.includes(choice.variant.code)?previous.filter(code=>code!==choice.variant.code):[...previous,choice.variant.code]);
+                        else if(!directMode)setSelectedSkuCodes(previous=>previous.includes(choice.variant.code)?previous.filter(code=>code!==choice.variant.code):[...previous,choice.variant.code]);
+                      }} className={isSelected?"flex w-full items-center gap-3 rounded-lg border border-[#E06518] bg-[#FFF2E8] p-2.5 text-right":"flex w-full items-center gap-3 rounded-lg border border-transparent bg-white p-2.5 text-right hover:border-slate-200 hover:bg-slate-50"}>
+                        {choice.imageUrl?<ProductImage src={choice.imageUrl} alt={choice.variant.name} className="h-12 w-12 shrink-0 rounded-md bg-white object-contain"/>:<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100"><FileImage size={17} className="text-slate-400"/></div>}
+                        <span className="min-w-0 flex-1">
+                          <span dir="ltr" className="block truncate text-xs font-black text-[#55565A]">{choice.variant.code}</span>
+                          <span className="mt-0.5 block truncate text-[11px] text-slate-700">{choice.variant.name}</span>
+                          <span className="mt-0.5 block truncate text-[10px] text-slate-500">{choice.family.name} · {choice.family.categoryName}</span>
+                        </span>
+                        <span className={isSelected?"shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700":"shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-600"}>{directMode?'انتخاب کد مستقیم':isSelected?'انتخاب شده':'اتصال در خانواده فعلی'}</span>
+                      </button>;
+                    })}
                     {!matchingSkus.length&&<p className="px-3 py-6 text-center text-xs text-slate-500">کدی با این عبارت پیدا نشد؛ کد یا نام دیگری جستجو کنید.</p>}
                   </div>
-                  {selectedSkuChoice&&<div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                    {selectedSkuChoice.imageUrl?<ProductImage src={selectedSkuChoice.imageUrl} alt={selectedSkuChoice.variant.name} className="h-16 w-16 shrink-0 rounded-lg bg-slate-50 object-contain"/>:<div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-50"><FileImage size={20} className="text-slate-400"/></div>}
-                    <div className="min-w-0 flex-1">
-                      <p dir="ltr" className="text-xs font-black text-[#55565A]">{selectedSkuChoice.variant.code}</p>
-                      <p className="mt-1 text-xs text-slate-700">{selectedSkuChoice.variant.name}</p>
-                      {directMode?<p className="mt-1.5 text-[10px] leading-5 text-orange-700">این کد مستقیماً زیرمنوی مقصد را دریافت می‌کند؛ تصویر مستقل آن ثبت می‌شود.</p>:selectedSkuChoice.family.code!==familyCode?<p className="mt-1.5 flex items-center gap-1 text-[10px] leading-5 text-amber-700"><ArrowLeftRight size={13}/> از «{selectedSkuChoice.family.name}» در دسته «{selectedSkuChoice.family.categoryName}» به خانواده مقصد منتقل می‌شود؛ قیمت و مشخصات کد حفظ می‌شوند.</p>:<p className="mt-1.5 text-[10px] leading-5 text-emerald-700">این کد از قبل در خانواده مقصد قرار دارد؛ تصویر به همین کد متصل می‌شود.</p>}
+                  {directMode&&directEditSku&&selectedSkuChoice&&<div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p dir="ltr" className="text-xs font-black text-[#55565A]">{selectedSkuChoice.variant.code}</p>
+                    <p className="mt-1 text-xs text-slate-700">{selectedSkuChoice.variant.name}</p>
+                    <p className="mt-1.5 text-[10px] leading-5 text-orange-700">این کد مستقیماً زیرمنوی مقصد را دریافت می‌کند؛ رکورد اصلی کالا و خانواده آن حذف یا جابه‌جا نمی‌شود.</p>
+                  </div>}
+                  {selectedSkuChoices.length>0&&<div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-black text-emerald-900">{fa(selectedSkuChoices.length)} کد برای اتصال انتخاب شده</p><button type="button" onClick={()=>setSelectedSkuCodes([])} className="text-[10px] font-bold text-rose-700">پاک‌کردن انتخاب‌ها</button></div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSkuChoices.map(choice=><button key={choice.variant.code} type="button" onClick={()=>setSelectedSkuCodes(previous=>previous.filter(code=>code!==choice.variant.code))} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-[10px] text-emerald-900"><span dir="ltr" className="font-bold">{choice.variant.code}</span><X size={11}/></button>)}
                     </div>
+                    <p className="mt-2 text-[10px] leading-5 text-emerald-800">{directMode?'کدها به‌صورت مستقل در همین زیرمنو ثبت می‌شوند و فایل تصویر مشترک می‌ماند.':'هر کد در خانواده فعلی خودش متصل می‌شود؛ انتخاب کد از خانواده دیگر آن را جابه‌جا نمی‌کند.'}</p>
                   </div>}
                 </div>}
               </div>}
               {url&&<p className="rounded-xl bg-amber-50 p-3 text-[11px] leading-6 text-amber-800">اتصال تصویر به‌تنهایی هویت فنی قطعه را تأیید نمی‌کند. مشخصات فنی کد کالا باید در فرم ویرایش همان محصول بررسی شود. فایل جدید تا ذخیره در فضای دائمی، آماده انتشار نیست.</p>}
               <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
                 <button type="button" onClick={closeSelection} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-[#55565A]">انصراف</button>
-                {url&&<button type="button" disabled={savingUpload||(!directMode&&!familyCode)||((directMode||placement==='sku')&&!sku)|| (directMode&&(!category||!submenu))} onClick={()=>{void apply()}} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> {savingUpload?(directMode?'در حال ثبت کد مستقیم…':placement==='sku'?'در حال انتقال کد و ذخیره تصویر…':'در حال ذخیره روی سرور…'):directMode?'ثبت مستقیم کد در زیرمنو':placement==='sku'?'انتقال کد و اتصال تصویر به خانواده مقصد':source==='upload'?'ذخیره در Storage و اتصال به کالا':'ذخیره اتصال و ادامه تکمیل مشخصات'}</button>}
+                {url&&<button type="button" disabled={savingUpload||(!directMode&&!familyCode)||(directMode&&!directEditSku&&!selectedSkuCodes.length)||(!directMode&&placement==='sku'&&!selectedSkuCodes.length)||(directMode&&(!category||!submenu))} onClick={()=>{void apply()}} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06518] px-5 py-3 text-xs font-bold text-white hover:bg-[#c95814] disabled:cursor-not-allowed disabled:opacity-40"><Check size={16}/> {savingUpload?(directMode?(directEditSku?'در حال ذخیره ویرایش کد…':'در حال ثبت کد مستقیم…'):placement==='sku'?'در حال اتصال تصویر به کدها…':'در حال ذخیره روی سرور…'):directMode?(directEditSku?'ذخیره ویرایش مسیر کد مستقیم':'ثبت '+fa(selectedSkuCodes.length)+' کد مستقیم در زیرمنو'):placement==='sku'?'اتصال تصویر به '+fa(selectedSkuCodes.length)+' کد کالا':source==='upload'?'ذخیره در Storage و اتصال به کالا':'ذخیره اتصال و ادامه تکمیل مشخصات'}</button>}
               </div>
             </div>
           </div>

@@ -22,8 +22,10 @@ export interface DbImageBindingRow {
 export interface DbImageAuditRow {
   /** Live associations queried from PostgreSQL; [] is authoritative when present. */
   bindings?: DbImageBindingRow[];
+  /** Persisted gallery relation rows expose stable IDs for safe edit/delete actions. */
+  bindingRows?: {id:string;familyCode:string;skuCode?:string|null;scope:'family'|'variant'|string;title?:string;url?:string;identityVerified?:boolean}[];
   /** Direct SKU records explicitly have no parent family. */
-  directSkus?: {skuCode:string;skuName?:string;categoryName?:string}[];
+  directSkus?: {skuCode:string;skuName?:string;categoryName?:string;categorySlug?:string;submenu?:string;subcategory?:string;imageUrl?:string;sourceFamilyCode?:string}[];
   file: string;
   sha256: string;
   observed: string;
@@ -100,7 +102,7 @@ export function getImageAssignmentAudit(products: Product[], records: DbImageAud
     const research=item.research;
     return {file:item.file,observed:ownerCatalogue?.catalogueGroup||item.observed,reason:item.reason,sha256:item.sha256,
       research:research&&ownerCatalogue?{...research,visualType:ownerCatalogue.catalogueGroup}:research,
-      ownerCatalogue,directSkus,
+      ownerCatalogue,directSkus,bindingRows:item.bindingRows||[],
       status:codeCount ? 'sku-linked' as const : linked.length ? 'family-example' as const : 'unassigned' as const,
       families:linked.map(({family,codes})=>({code:family.code,name:family.name,category:family.categoryName,
         skus:codes.map(code=>family.variants?.find(v=>v.code===code) || ({code,name:item.bindings?.find(binding=>binding.familyCode===family.code&&binding.skuCode===code)?.skuName||code} as NonNullable<Product['variants']>[number])),

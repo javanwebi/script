@@ -76,6 +76,9 @@ test('server and pre-promotion canary reject HTML or missing CRM/SKU mutation AP
     '/api/catalog/sku-transfer',
     '/api/catalog/product-images/upload',
     '/api/catalog/product-images/assign',
+    '/api/catalog/product-images/sku-bindings',
+    '/api/catalog/product-images/bindings/',
+    '/api/catalog/direct-skus/bulk',
     '/api/catalog/category-images/upload',
     '/api/catalog/menu-family-assignment',
   ]) {
@@ -109,4 +112,30 @@ test('reviewed catalogue images are persisted before the family editor opens', (
   assert.match(storage,/public\.catalog_gallery_images/);
   assert.match(storage,/public\.catalog_family_menu_assignments/);
   assert.match(permissions,/path\.includes\('\/product-images\/assign'\)/);
+});
+
+
+test('catalog image relations support multi-SKU attach, edit, detach and safe direct SKU lifecycle',()=>{
+  const storage=readFileSync('server/productImageStorage.ts','utf8');
+  const navigation=readFileSync('server/catalogNavigationApi.ts','utf8');
+  const server=readFileSync('server.ts','utf8');
+  const audit=readFileSync('src/admin/modules/ProductImageAudit.tsx','utf8');
+  const assignments=readFileSync('src/data/imageAssignments.ts','utf8');
+  assert.match(storage,/app\.post\('\/api\/catalog\/product-images\/sku-bindings'/);
+  assert.match(storage,/skuCodes/);
+  assert.match(storage,/app\.patch\('\/api\/catalog\/product-images\/bindings\/:id'/);
+  assert.match(storage,/app\.delete\('\/api\/catalog\/product-images\/bindings\/:id'/);
+  assert.match(storage,/removeManagedBinding/);
+  assert.match(storage,/catalog_variants/);
+  assert.match(storage,/catalog_families/);
+  assert.match(navigation,/app\.post\('\/api\/catalog\/direct-skus\/bulk'/);
+  assert.match(navigation,/app\.patch\('\/api\/catalog\/direct-skus\/:skuCode'/);
+  assert.match(navigation,/is_active=false/);
+  assert.match(server,/binding_rows/);
+  assert.match(server,/gallery_rows_by_image/);
+  assert.match(audit,/selectedSkuCodes/);
+  assert.match(audit,/removeBinding/);
+  assert.match(audit,/saveBindingEdit/);
+  assert.match(audit,/moveBoundSku/);
+  assert.match(assignments,/bindingRows:item\.bindingRows/);
 });
