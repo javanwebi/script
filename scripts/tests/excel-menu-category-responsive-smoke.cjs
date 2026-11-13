@@ -235,7 +235,7 @@ async function clearMobileFilters(page) {
       assert.equal(new URL(page.url()).searchParams.get('sub'), 'پلی‌یورتان', 'subcategory selection should be linkable');
       assert.equal(await page.locator('.excel-category-product-shell').count(), 1, 'leaf selection should filter to the matching family');
 
-      await page.getByRole('button', { name: /همه خانواده‌ها/ }).click();
+      await page.locator('.excel-subcard').filter({ hasText: 'همه تسمه تایمینگ صنعتی' }).click();
       assert.equal(new URL(page.url()).searchParams.has('sub'), false, 'all-families selection should clear the subcategory query');
 
       const search = page.getByRole('searchbox', { name: 'جستجو در خانواده‌ها و مشخصات فنی' });
