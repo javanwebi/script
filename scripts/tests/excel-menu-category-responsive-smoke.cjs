@@ -301,8 +301,8 @@ async function expectProductCount(page, expected, message) {
       if (viewport.width <= 900) await clearMobileFilters(page);
       else await page.locator('.excel-category-filter-heading button').click();
 
-      await page.locator('.excel-category-product-shell .excel-category-compare-toggle').nth(0).click();
-      await page.locator('.excel-category-product-shell .excel-category-compare-toggle').nth(1).click();
+      await page.locator('.excel-category-product-shell .excel-card-compare-check input').nth(0).check();
+      await page.locator('.excel-category-product-shell .excel-card-compare-check input').nth(1).check();
       const compareDock = page.locator('.excel-category-compare-dock');
       await compareDock.waitFor({ state: 'visible' });
       await compareDock.locator('.excel-category-compare-open').click();
