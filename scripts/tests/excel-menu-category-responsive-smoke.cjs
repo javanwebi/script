@@ -286,7 +286,7 @@ async function expectProductCount(page, expected, message) {
       await expectProductCount(page, 24, 'clearing brand filter should restore the first page');
 
       if (viewport.width <= 900) await applyMobileFilter(page, 'موجود در انبار');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'موجود در انبار' }).locator('input').check();
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'موجود در انبار' }).locator('.excel-filter-check-title').click();
       await page.waitForURL(url => url.searchParams.get('stock') === '1', { timeout: 10000 });
       await expectProductCount(page, 1, 'confirmed-stock filter must exclude unknown and inquiry-only families');
 
@@ -294,7 +294,7 @@ async function expectProductCount(page, expected, message) {
       else await page.locator('.excel-category-filter-heading button').click();
 
       if (viewport.width <= 900) await applyMobileFilter(page, 'دارای تصویر ثبت‌شده');
-      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'دارای تصویر ثبت‌شده' }).locator('input').check();
+      else await page.locator('.excel-category-filter-panel label').filter({ hasText: 'دارای تصویر ثبت‌شده' }).locator('.excel-filter-check-title').click();
       await page.waitForURL(url => url.searchParams.get('image') === '1', { timeout: 10000 });
       await expectProductCount(page, 1, 'image filter should return only families with a registered image');
 
