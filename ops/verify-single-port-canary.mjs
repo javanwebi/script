@@ -34,6 +34,7 @@ for (const route of [
   "/api/catalog/direct-skus",
   "/api/catalog/menu-family-assignment",
   "/api/catalog/product-images/upload",
+  "/api/catalog/product-images/assign",
   "/api/catalog/category-images/upload",
 ]) {
   const upload = route.includes("/images/upload");
