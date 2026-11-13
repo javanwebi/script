@@ -107,3 +107,17 @@ test('quiet recognized words survive while listening; playback retains near-fiel
  scope.isAiSpeakingRef.current=true;assert.equal(run(),undefined);
  scope.lastMicActivityRef.current=Date.now();assert.equal(run(),true);
 });
+
+test('recorder rotation preserves initialization and all timeslice bytes',()=>{
+ const body=source.split('        mr.ondataavailable = (e: BlobEvent) => {')[1].split('\n        };')[0];
+ const chunks={current:[] as Blob[]};let stops=0;
+ const mr={state:'recording',stop(){stops++;this.state='inactive';}};
+ const run=new Function('e','audioChunksRef','hasSpeechSoundRef','mr',body);
+ const header=new Blob(['WEBM-INITIALIZATION']);
+ run({data:header},chunks,{current:false},mr);
+ for(let i=1;i<8;i++)run({data:new Blob(['packet-'+i])},chunks,{current:false},mr);
+ assert.equal(stops,1);assert.equal(chunks.current.length,8);
+ assert.equal(chunks.current[0],header);
+ assert.doesNotMatch(source,/audioChunksRef\.current\s*=\s*audioChunksRef\.current\.slice/);
+ assert.doesNotMatch(source,/audioChunksRef\.current\.splice/);
+});

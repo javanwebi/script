@@ -787,9 +787,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
-    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
-    // first syllables; older chunks may contain FORZA's own speaker output.
-    audioChunksRef.current=audioChunksRef.current.slice(-2);
+    // Preserve decodable in-RAM microphone audio across barge-in.
+    // Idle recording rotates in complete segments to bound pre-roll.
+    // Keep the complete container: slicing drops WebM/Ogg initialization bytes.
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1870,12 +1870,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
-            // Keep only a 2-second RAM-only pre-roll while idle or while
-            // FORZA speaks. Once near-field speech is detected, retain the
-            // utterance (up to 45s) for the final local Diba transcription.
+            // Rotate complete RAM-only containers every 2s while idle and
+            // at 45s during speech; every submitted segment retains its header.
             const maxChunks=hasSpeechSoundRef.current?180:8;
-            if(audioChunksRef.current.length>maxChunks)
-              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
+            // Timeslice blobs are not independent files. Rotate the recorder,
+            // never splice away the initialization header needed by ffmpeg.
+            if(audioChunksRef.current.length>=maxChunks && mr.state==='recording')mr.stop();
           }
         };
 
@@ -1918,6 +1918,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           // Retain browser recognition and restart only the RAM recorder.
           if(serverSttConfiguredRef.current===false){
             vadRef.current.reset();
+            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
+            return;
+          }
+          if(!hadSpeech){
             if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
               try{mr.start(250);}catch{}
             }
