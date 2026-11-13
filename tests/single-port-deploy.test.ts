@@ -206,13 +206,25 @@ test("owner-managed untracked mobile assets are copied into the isolated release
   assert.ok(stage.includes('PRESERVED_OWNER_MANAGED_MOBILE_ASSETS=YES'));
 });
 
-test("local encoder is integrated in the executed fixed-port path and full indexing gates promotion", () => {
+test("local vision canary reuses the persisted PostgreSQL index and never re-embeds during deployment", () => {
   const prepare = one.indexOf('# Optional local vision sidecar:');
   const privateCanary = one.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='");
-  const indexGate = one.indexOf('===== WAIT FOR COMPLETE LOCAL IMAGE INDEX BEFORE PROMOTION =====');
+  const indexGate = one.indexOf('===== VERIFY PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION =====');
   const promotion = one.indexOf("echo '===== PROMOTE ON SAME FIXED PORT");
+  const gate = one.slice(indexGate, promotion);
   assert.ok(prepare >= 0 && prepare < privateCanary);
   assert.ok(indexGate > privateCanary && indexGate < promotion);
-  assert.match(one.slice(indexGate, promotion), /docker exec "\$CANARY_NAME"/);
-  assert.match(one.slice(indexGate, promotion), /test "\$VISION_INDEX_READY" = 1/);
+  assert.match(one.slice(privateCanary, indexGate), /SANATPISH_DISABLE_LOCAL_VISION_WARMUP=1/);
+  assert.match(gate, /LIVE_VISION_STATUS=/);
+  assert.match(gate, /CANARY_VISION_STATUS=/);
+  assert.match(gate, /CANARY_INDEX_NOT_READY/);
+  assert.match(gate, /CANARY_INDEX_NOT_POSTGRES_PERSISTED/);
+  assert.match(gate, /LIVE_CANARY_MISMATCH_/);
+  assert.match(gate, /LOCAL_VISION_PERSISTED_INDEX_REUSED_OK/);
+  assert.doesNotMatch(gate, /seq 1 120/);
+  const backend = file("server.ts");
+  assert.match(backend, /SANATPISH_DISABLE_LOCAL_VISION_WARMUP!=='1'/);
+  assert.match(backend, /persistence:databaseEnabled\(\)\?'postgres':'file'/);
+  const index = file("src/services/catalogVisualIndex.ts");
+  assert.match(index, /storedEntries:this\.entries\.size,missing,signatureChanged/);
 });
