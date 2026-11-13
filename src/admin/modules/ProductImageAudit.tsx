@@ -681,7 +681,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                   <p className="text-[10px] text-slate-500">{searchAllFamilies||directMode?'جستجو در همه خانواده‌ها':'نمایش کدهای خانواده انتخاب‌شده'} · {fa(allSkuChoices.length)} کد فعال؛ حداکثر ۳۰ نتیجه نمایش داده می‌شود.</p>
                   <div role="listbox" aria-multiselectable={!directMode} aria-label="نتایج جستجوی کد کالا" className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5">
                     {matchingSkus.map(choice=>{
-                      const isSelected=directMode?sku===choice.variant.code:selectedSkuCodes.includes(choice.variant.code);
+                      const isSelected=directMode?(directEditSku?sku===choice.variant.code:selectedSkuCodes.includes(choice.variant.code)):selectedSkuCodes.includes(choice.variant.code);
                       return <button key={choice.variant.code} type="button" role="option" aria-selected={isSelected} onClick={()=>{
                         if(directMode&&!directEditSku)setSelectedSkuCodes(previous=>previous.includes(choice.variant.code)?previous.filter(code=>code!==choice.variant.code):[...previous,choice.variant.code]);
                         else if(!directMode)setSelectedSkuCodes(previous=>previous.includes(choice.variant.code)?previous.filter(code=>code!==choice.variant.code):[...previous,choice.variant.code]);
