@@ -181,7 +181,7 @@ async function applyMobileFilter(page, label) {
   await page.locator('.excel-category-mobile-filter').click();
   const sheet = page.getByRole('dialog', { name: 'فیلترهای دسته‌بندی' });
   await sheet.waitFor({ state: 'visible' });
-  await sheet.locator('label').filter({ hasText: label }).locator('input').check();
+  await sheet.locator('label').filter({ hasText: label }).locator('.excel-filter-check-title').click();
   await sheet.locator('footer button').last().click();
   await sheet.waitFor({ state: 'hidden' });
 }
@@ -276,7 +276,7 @@ async function expectProductCount(page, expected, message) {
         await applyMobileFilter(page, 'Test Brand');
       } else {
         const brandLabel = page.locator('.excel-category-filter-panel label').filter({ hasText: 'Test Brand' }).first();
-        await brandLabel.locator('input').check();
+        await brandLabel.locator('.excel-filter-check-title').click();
       }
       await page.waitForURL(url => url.searchParams.getAll('brand').includes('Test Brand'), { timeout: 10000 });
       await expectProductCount(page, 2, 'brand filter should return the two matching families');
