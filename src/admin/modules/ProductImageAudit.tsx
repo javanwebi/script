@@ -323,6 +323,89 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       setSourceError(error instanceof Error?error.message:'اتصال تصویر ذخیره نشد.');
     }finally{setSavingUpload(false);}
   };
+  const removeBinding=async(id:string)=>{
+    if(!id||bindingActionPending)return;
+    if(!window.confirm('فقط اتصال این تصویر حذف می‌شود؛ خود فایل، کد کالا، قیمت، موجودی و مشخصات فنی باقی می‌مانند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/product-images/bindings/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin',signal:AbortSignal.timeout(20000)});
+      await requireAdminApiJson(response,'حذف اتصال تصویر');
+      setBindingEditId('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'حذف اتصال انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const beginBindingEdit=(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    setBindingEditId(binding.id);
+    if(binding.scope==='variant'){
+      setBindingEditSku(binding.skuCode||'');
+      setBindingEditSearch(binding.skuCode||'');
+      setBindingEditFamily('');
+    }else{
+      setBindingEditFamily(binding.familyCode);
+      setBindingEditSku('');
+      setBindingEditSearch('');
+    }
+  };
+  const saveBindingEdit=async(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    if(bindingActionPending)return;
+    const payload=binding.scope==='variant'?{skuCode:bindingEditSku}:{familyCode:bindingEditFamily};
+    if(binding.scope==='variant'&&!bindingEditSku){setSourceError('کد مقصد را انتخاب کنید.');return;}
+    if(binding.scope!=='variant'&&!bindingEditFamily){setSourceError('خانواده مقصد را انتخاب کنید.');return;}
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/product-images/bindings/'+encodeURIComponent(binding.id),{
+        method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),signal:AbortSignal.timeout(20000)
+      });
+      await requireAdminApiJson(response,'ویرایش اتصال تصویر');
+      setBindingEditId('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'ویرایش اتصال انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const moveBoundSku=async(binding:NonNullable<AuditRow['bindingRows']>[number])=>{
+    if(!binding.skuCode||!moveTargetFamily||bindingActionPending)return;
+    if(moveTargetFamily===binding.familyCode){setSourceError('خانواده مقصد با خانواده فعلی یکسان است.');return;}
+    if(!window.confirm('کد '+binding.skuCode+' به‌صورت واقعی از خانواده فعلی به خانواده مقصد منتقل شود؟ قیمت، موجودی و مشخصات فنی حفظ می‌شوند؛ این کار با تغییر اتصال تصویر فرق دارد.'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      await onAssignSku({
+        targetFamilyCode:moveTargetFamily,skuCode:binding.skuCode,
+        imageUrl:binding.url||url,fileName:(binding.url||url).split('/').pop()||file,
+        title:binding.title||undefined
+      });
+      setMoveSkuCode('');setMoveTargetFamily('');setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'انتقال کد به خانواده مقصد انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const removeDirectImage=async(skuCode:string)=>{
+    if(bindingActionPending)return;
+    if(!window.confirm('فقط تصویر از این کد مستقیم جدا می‌شود؛ ثبت کد در زیرمنو باقی می‌ماند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(skuCode)+'/image',{method:'DELETE',credentials:'same-origin'});
+      await requireAdminApiJson(response,'حذف تصویر کد مستقیم');
+      setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'حذف تصویر کد مستقیم انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const deactivateDirectSku=async(skuCode:string)=>{
+    if(bindingActionPending)return;
+    if(!window.confirm('این کد از زیرمنوی فروشگاه غیرفعال می‌شود؛ رکورد اصلی کالا، سفارش‌ها، قیمت و مشخصات فنی حذف نمی‌شوند. ادامه می‌دهید؟'))return;
+    setBindingActionPending(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(skuCode),{method:'DELETE',credentials:'same-origin'});
+      await requireAdminApiJson(response,'غیرفعال‌سازی کد مستقیم');
+      setAuditRevision(value=>value+1);
+    }catch(error){setSourceError(error instanceof Error?error.message:'غیرفعال‌سازی کد مستقیم انجام نشد.');}
+    finally{setBindingActionPending(false);}
+  };
+  const beginDirectEdit=(item:NonNullable<AuditRow['directSkus']>[number])=>{
+    setDirectEditSku(item.skuCode);setDirectMode(true);setFamilyCode('');
+    setCategory(item.categorySlug||'');
+    setMenuGroup(approvedGroups.find(group=>group.categorySlugs.includes(item.categorySlug||''))?.id||'');
+    setSubmenu(item.submenu||'');setSubcategory(item.subcategory||'');
+    setSku(item.skuCode);setSourceError('');
+  };
   const exportAudit=()=>{
     const blob=new Blob([JSON.stringify(audit,null,2)],{type:'application/json;charset=utf-8'});
     const href=URL.createObjectURL(blob),el=document.createElement('a');
