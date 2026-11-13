@@ -1128,6 +1128,30 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
             }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
           });
+          // The image is already committed on the server at this point.
+          // Reflect that confirmed binding in the audit list immediately,
+          // without forcing another save of a full family/10k-SKU catalogue.
+          if(!skuCode){
+            const persistedUrl=imageUrl||getProductImageUrl(file);
+            if(persistedUrl)setProducts(previous=>previous.map(item=>{
+              if(item.code!==code)return item;
+              const gallery=item.galleryImages||[];
+              const index=gallery.findIndex(image=>image.scope==='family'&&image.url===persistedUrl);
+              const entry={
+                id:persistedId||`review-${file}`,url:persistedUrl,fileName:file,
+                scope:'family' as const,identityVerified:false,
+                title:imageTitle?.trim()||'تصویر متصل به خانواده',
+                order:index>=0?(gallery[index].order||index+1):gallery.length+1
+              };
+              const updated=[...gallery];
+              if(index>=0)updated[index]={...updated[index],...entry};
+              else updated.push(entry);
+              return {...item,galleryImages:updated,
+                images:Array.from(new Set([...(item.images||[]),persistedUrl])),
+                hasCatalogueImage:true};
+            }));
+          }
+          setSaveFeedback('اتصال تصویر در دیتابیس ثبت شد؛ برای تغییر مشخصات فنی از فرم ویرایش استفاده کنید.');
         }}
       />
 
