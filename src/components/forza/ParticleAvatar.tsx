@@ -520,28 +520,8 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             canvasHeight = height;
             context.setTransform(dpr, 0, 0, dpr, 0, 0);
             glowCanvas = null;
-            if (source && imageWidth > 0 && imageHeight > 0) {
-              const glow = document.createElement('canvas');
-              glow.width = targetWidth;
-              glow.height = targetHeight;
-              const glowContext = glow.getContext('2d');
-              if (glowContext) {
-                const scale = Math.max(targetWidth / imageWidth, targetHeight / imageHeight);
-                const drawWidth = imageWidth * scale;
-                const drawHeight = imageHeight * scale;
-                const x = (targetWidth - drawWidth) / 2;
-                const y = (targetHeight - drawHeight) / 2;
-                glowContext.globalCompositeOperation = 'lighter';
-                glowContext.filter = 'blur(22px)';
-                glowContext.globalAlpha = 0.32;
-                glowContext.drawImage(source, x, y, drawWidth, drawHeight);
-                glowContext.filter = 'blur(4px)';
-                glowContext.globalAlpha = 0.46;
-                glowContext.drawImage(source, x, y, drawWidth, drawHeight);
-                glowContext.filter = 'none';
-                glowCanvas = glow;
-              }
-            }
+            // The loading poster must not add blurred light over the face.
+            // The same unlit particle source is used until WebGL is ready.
           }
         };
 
@@ -595,11 +575,7 @@ export const ParticleAvatar = forwardRef<ParticleAvatarRef, ParticleAvatarProps>
             const x = (width - dw) / 2;
             const y = (height - dh) / 2;
             context.save();
-            context.globalCompositeOperation = 'lighter';
-            if (glowCanvas) {
-              context.globalAlpha = progress;
-              context.drawImage(glowCanvas, 0, 0, width, height);
-            }
+            context.globalCompositeOperation = 'source-over';
             context.globalAlpha = progress;
             context.drawImage(source, x, y, dw, dh);
             // Low-GPU Canvas fallback keeps the same hair response as WebGL.
