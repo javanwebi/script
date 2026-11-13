@@ -248,7 +248,7 @@ async function expectProductCount(page, expected, message) {
       await page.waitForURL(url => !url.searchParams.has('sub'), { timeout: 10000 });
       await expectProductCount(page, 24, 'all-families selection should restore the first page');
 
-      const search = page.getByRole('searchbox', { name: 'جستجو در خانواده‌ها و مشخصات فنی' });
+      const search = page.getByRole('searchbox', { name: 'جستجو در محصولات این دسته' });
       await search.fill('6205');
       await page.waitForURL(url => url.searchParams.get('q') === '6205', { timeout: 10000 });
       await expectProductCount(page, 1, 'search should match an actual variant code');
