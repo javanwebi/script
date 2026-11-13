@@ -692,6 +692,7 @@ for index,(filename,source) in enumerate(zip(files,contents)):
   roots=list(root_pattern.finditer(source))
   assert len(roots)==1,("ROOT_LOCATION_CHANGED",filename,len(roots))
   indent=roots[0].group(1)
+  assert len(indent) <= 16, ("NGINX_ROOT_INDENT_UNSAFE",filename,len(indent))
   if index==1:
    lines=(
     f"{indent}{marker}",
