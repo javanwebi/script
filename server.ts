@@ -391,11 +391,88 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
     if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز بررسی تصاویر کاتالوگ لازم است.'});
     if(!databaseEnabled())return res.status(503).json({success:false,message:'اطلاعات تصاویر باید از دیتابیس بارگذاری شوند.'});
     const result=await database().query(`
+      with gallery_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(coalesce(nullif(g.file_name,''),g.url),'?',1),'#',1),'^.*/','')) as file_key,
+          g.family_code,
+          case when g.scope::text='variant' then g.variant_code else null end as sku_code
+        from public.catalog_gallery_images g
+        where coalesce(nullif(g.file_name,''),g.url,'')<>''
+      ),
+      variant_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/','')) as file_key,
+          v.family_code,
+          v.code as sku_code
+        from public.catalog_variants v
+        cross join lateral jsonb_array_elements_text(
+          case when jsonb_typeof(v.images)='array' then v.images else '[]'::jsonb end
+        ) as image(url)
+        where image.url<>''
+      ),
+      family_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/','')) as file_key,
+          f.code as family_code,
+          null::text as sku_code
+        from public.catalog_families f
+        cross join lateral jsonb_array_elements_text(
+          case when jsonb_typeof(f.images)='array' then f.images else '[]'::jsonb end
+        ) as image(url)
+        where image.url<>''
+          and not exists (
+            select 1 from gallery_bindings g
+            where g.family_code=f.code
+              and g.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
+          )
+          and not exists (
+            select 1 from variant_bindings v
+            where v.family_code=f.code
+              and v.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
+          )
+      ),
+      all_bindings as (
+        select file_key,family_code,sku_code from gallery_bindings
+        union
+        select file_key,family_code,sku_code from variant_bindings
+        union
+        select file_key,family_code,sku_code from family_bindings
+      ),
+      bindings_by_image as (
+        select binding.file_key,
+          jsonb_agg(jsonb_build_object(
+            'familyCode',binding.family_code,
+            'familyName',family.name,
+            'categoryName',family.category_name,
+            'skuCode',variant.code,
+            'skuName',variant.name
+          ) order by binding.family_code,binding.sku_code) as bindings
+        from all_bindings binding
+        join public.catalog_families family on family.code=binding.family_code
+        left join public.catalog_variants variant
+          on variant.code=binding.sku_code and variant.family_code=binding.family_code
+        group by binding.file_key
+      ),
+      direct_skus_by_image as (
+        select lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/','')) as file_key,
+          jsonb_agg(jsonb_build_object(
+            'skuCode',d.sku_code,
+            'skuName',d.name,
+            'categoryName',d.category_name
+          ) order by d.sku_code) as direct_skus
+        from public.catalog_direct_skus d
+        where d.is_active=true and coalesce(d.image_url,'')<>''
+        group by lower(regexp_replace(split_part(split_part(d.image_url,'?',1),'#',1),'^.*/',''))
+      )
       select a.file_name,a.sha256,a.observed_description,a.reason,
         a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
-        p.catalogue_group,p.pdf_page,p.match_ratio
+        p.catalogue_group,p.pdf_page,p.match_ratio,
+        coalesce(bindings_by_image.bindings,'[]'::jsonb) as bindings,
+        coalesce(direct_skus_by_image.direct_skus,'[]'::jsonb) as direct_skus
       from public.catalog_image_audits a
       left join public.owner_catalogue_photos p on p.file_name=a.file_name
+      left join bindings_by_image on bindings_by_image.file_key=lower(a.file_name)
+      left join direct_skus_by_image on direct_skus_by_image.file_key=lower(a.file_name)
       order by a.file_name
     `);
     const rows=result.rows.map(row=>({
@@ -416,7 +493,19 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         page:row.pdf_page,
         pdfPage:row.pdf_page,
         matchRatio:Number(row.match_ratio||0)
-      }:undefined
+      }:undefined,
+      bindings:Array.isArray(row.bindings)?row.bindings.map((binding:any)=>({
+        familyCode:String(binding.familyCode||''),
+        familyName:String(binding.familyName||''),
+        categoryName:String(binding.categoryName||''),
+        skuCode:binding.skuCode?String(binding.skuCode):null,
+        skuName:binding.skuName?String(binding.skuName):null
+      })).filter((binding:any)=>binding.familyCode):[],
+      directSkus:Array.isArray(row.direct_skus)?row.direct_skus.map((item:any)=>({
+        skuCode:String(item.skuCode||''),
+        skuName:String(item.skuName||''),
+        categoryName:String(item.categoryName||'')
+      })).filter((item:any)=>item.skuCode):[]
     }));
     return res.json({success:true,rows});
   }catch(e:any){

@@ -86,6 +86,18 @@ test('server and pre-promotion canary reject HTML or missing CRM/SKU mutation AP
 });
 
 
+test('image audit reads current family and SKU bindings from PostgreSQL',()=>{
+  const server=readFileSync('server.ts','utf8');
+  const assignments=readFileSync('src/data/imageAssignments.ts','utf8');
+  const audit=readFileSync('src/admin/modules/ProductImageAudit.tsx','utf8');
+  const route=server.slice(server.indexOf("app.get('/api/admin/catalog-image-audits'"),server.indexOf("app.get('/api/",server.indexOf("app.get('/api/admin/catalog-image-audits'")+20));
+  assert.match(route,/public\.catalog_gallery_images/);
+  assert.match(route,/public\.catalog_variants/);
+  assert.match(route,/as bindings/);
+  assert.match(assignments,/item\.bindings!==undefined/);
+  assert.match(audit,/setAuditRevision\(value=>value\+1\)/);
+  assert.match(audit,/\},\[auditRevision\]\)/);
+});
 test('reviewed catalogue images are persisted before the family editor opens', () => {
   const audit=readFileSync('src/admin/modules/ProductImageAudit.tsx','utf8');
   const storage=readFileSync('server/productImageStorage.ts','utf8');
