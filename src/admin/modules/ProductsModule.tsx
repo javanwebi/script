@@ -1093,8 +1093,22 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           setSaveFeedback('کد '+input.skuCode+' بدون نیاز به خانواده در زیرمنو ثبت شد.');
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
+        onAssignSkus={async input=>{
+          if(forbid('images'))throw new Error('مجوز اتصال تصویر به کدهای کالا وجود ندارد؛ هیچ اتصالی ثبت نشده است.');
+          const response=await fetch('/api/catalog/product-images/sku-bindings',{
+            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            signal:AbortSignal.timeout(30000),body:JSON.stringify(input)
+          });
+          const result=await requireAdminApiJson<{bindings?:{skuCode:string}[];created?:number;alreadyLinked?:number}>(response,'اتصال تصویر به چند کد کالا');
+          if(!Array.isArray(result.bindings)||result.bindings.length!==input.skuCodes.length)
+            throw new Error('تأیید کامل اتصال همه کدها از دیتابیس دریافت نشد.');
+          await syncCatalogFromServer();
+          refreshProducts();
+          setSaveFeedback('تصویر به '+result.bindings.length+' کد کالا متصل شد؛ '+(result.created||0)+' اتصال جدید و '+(result.alreadyLinked||0)+' اتصال از قبل موجود بود.');
+          window.setTimeout(()=>setSaveFeedback(null),4500);
+        }}
         onAssignSku={async input=>{
-          if(forbid('sku_move'))throw new Error('مجوز اتصال تصویر به کد کالا وجود ندارد؛ هیچ اتصالی ثبت نشده است.');
+          if(forbid('sku_move'))throw new Error('مجوز انتقال واقعی کد به خانواده دیگر وجود ندارد؛ هیچ اطلاعاتی جابه‌جا نشد.');
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             signal:AbortSignal.timeout(60000),body:JSON.stringify(input)
