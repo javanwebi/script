@@ -68,7 +68,7 @@ test('desktop hero remains image-prioritized and mobile hero is a large four-sli
 
 test('category marketing artwork bypasses catalog-only product URL resolver',()=>{
  const source=read('src/components/storefront/HomeSequence.tsx');
- assert.ok(source.includes('const image=group.imageUrl ||'));
+ assert.match(source,/const image\s*=\s*group\.imageUrl \|\| resolveExcelCategoryArtwork\(/);
  assert.ok(source.includes('group.categorySlugs.map(slug=>categoryBySlug.get(slug)?.image)'));
  assert.ok(source.includes('src={image}'));
  assert.ok(!source.includes('A.categories.transmission}'));
