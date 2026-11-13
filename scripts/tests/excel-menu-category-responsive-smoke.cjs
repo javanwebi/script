@@ -194,6 +194,15 @@ async function clearMobileFilters(page) {
   await sheet.waitFor({ state: 'hidden' });
 }
 
+async function expectProductCount(page, expected, message) {
+  await page.waitForFunction(
+    ({ selector, count }) => document.querySelectorAll(selector).length === count,
+    { selector: '.excel-category-product-shell', count: expected },
+    { timeout: 15000 },
+  );
+  assert.equal(await page.locator('.excel-category-product-shell').count(), expected, message);
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
