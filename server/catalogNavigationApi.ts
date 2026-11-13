@@ -261,4 +261,61 @@ export function registerCatalogNavigationApi(app:Express){
       return res.json({success:true,skuCode,categorySlug});
     }catch(error){return fail(res,error);}
   });
+
+  // Direct SKU edits are deliberately scoped to placement fields. Prices,
+  // technical specifications and source-family provenance are preserved.
+  app.patch('/api/catalog/direct-skus/:skuCode',async(req,res)=>{
+    try{
+      const identity=await getPortalIdentity(req);
+      if(!canStaff(identity,'products','edit'))return res.status(403).json({success:false,message:'مجوز ویرایش کد مستقیم لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'دیتابیس متصل نیست.'});
+      const skuCode=clean(req.params.skuCode,128);
+      if(!skuCode)return res.status(400).json({success:false,message:'کد کالا معتبر نیست.'});
+      const existing=(await database().query('select * from public.catalog_direct_skus where sku_code=$1 and is_active=true for update',[skuCode])).rows[0];
+      if(!existing)return res.status(404).json({success:false,message:'کد مستقیم فعال پیدا نشد.'});
+      const categorySlug=req.body?.categorySlug===undefined?existing.category_slug:clean(req.body.categorySlug,180);
+      const submenu=req.body?.submenu===undefined?existing.submenu:clean(req.body.submenu,180);
+      const subcategory=req.body?.subcategory===undefined?existing.subcategory:clean(req.body.subcategory,250);
+      const imageUrl=req.body?.imageUrl===undefined?existing.image_url:clean(req.body.imageUrl,2000);
+      const changedPath=categorySlug!==existing.category_slug||submenu!==existing.submenu||subcategory!==existing.subcategory;
+      if(changedPath&&!canStaff(identity,'products','categories'))return res.status(403).json({success:false,message:'برای تغییر دسته‌بندی کد مستقیم مجوز دسته‌بندی لازم است.'});
+      if(!/^excel-v2-[0-9]+-[0-9]+$/.test(categorySlug)||!submenu||!imageAllowed(imageUrl||''))
+        return res.status(400).json({success:false,message:'دسته، زیرمنو یا تصویر مقصد معتبر نیست.'});
+      const category=await database().query("select name,metadata from public.catalog_categories where slug=$1 and is_active=true and metadata->>'source'='industrial_megamenu_hierarchy_v2' limit 1",[categorySlug]);
+      if(!category.rows.length)return res.status(404).json({success:false,message:'دسته مصوب مقصد پیدا نشد.'});
+      const nodes=Array.isArray(category.rows[0].metadata?.children)?category.rows[0].metadata.children:[];
+      const node=nodes.find((item:any)=>item.name===submenu);
+      if(!node||(subcategory&&(!Array.isArray(node.children)||!node.children.some((item:any)=>item.name===subcategory))))
+        return res.status(400).json({success:false,message:'زیرمنو یا ریزقلم با دسته مقصد مطابقت ندارد.'});
+      await database().query('update public.catalog_direct_skus set category_slug=$2,category_name=$3,submenu=$4,subcategory=$5,image_url=$6,updated_at=now() where sku_code=$1',
+        [skuCode,categorySlug,category.rows[0].name,submenu,subcategory,imageUrl||null]);
+      return res.json({success:true,skuCode,categorySlug,submenu,subcategory,imageUrl:imageUrl||null});
+    }catch(error){return fail(res,error);}
+  });
+
+  // Removing an image from a direct SKU does not remove its menu placement.
+  app.delete('/api/catalog/direct-skus/:skuCode/image',async(req,res)=>{
+    try{
+      if(!canStaff(await getPortalIdentity(req),'products','images'))return res.status(403).json({success:false,message:'مجوز حذف اتصال تصویر لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'دیتابیس متصل نیست.'});
+      const skuCode=clean(req.params.skuCode,128);
+      const result=await database().query('update public.catalog_direct_skus set image_url=null,updated_at=now() where sku_code=$1 and is_active=true returning sku_code',[skuCode]);
+      if(!result.rows.length)return res.status(404).json({success:false,message:'کد مستقیم فعال پیدا نشد.'});
+      return res.json({success:true,skuCode,imageRemoved:true});
+    }catch(error){return fail(res,error);}
+  });
+
+  // Removing a direct SKU from the menu is a soft delete. The real catalogue
+  // SKU, its stock, prices, orders and technical records are never deleted.
+  app.delete('/api/catalog/direct-skus/:skuCode',async(req,res)=>{
+    try{
+      if(!canStaff(await getPortalIdentity(req),'products','delete'))return res.status(403).json({success:false,message:'مجوز حذف کد مستقیم لازم است.'});
+      if(!databaseEnabled())return res.status(503).json({success:false,message:'دیتابیس متصل نیست.'});
+      const skuCode=clean(req.params.skuCode,128);
+      const result=await database().query('update public.catalog_direct_skus set is_active=false,updated_at=now() where sku_code=$1 and is_active=true returning sku_code',[skuCode]);
+      if(!result.rows.length)return res.status(404).json({success:false,message:'کد مستقیم فعال پیدا نشد.'});
+      return res.json({success:true,skuCode,deactivated:true});
+    }catch(error){return fail(res,error);}
+  });
+
 }
