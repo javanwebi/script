@@ -145,7 +145,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     if(filter!=='all'&&(filter==='catalogue-photo'?!r.ownerCatalogue:r.status!==filter))return false;
     if(familyFilter==='none'&&r.families.length)return false;
     if(familyFilter!=='all'&&familyFilter!=='none'&&!r.families.some(f=>f.code===familyFilter))return false;
-    return normalizeCatalogueText([r.file,r.observed,r.research?.visualType,r.ownerCatalogue?.catalogueGroup,...r.families.flatMap(f=>[f.code,f.name,...f.skus.map(s=>s.code)])].join(' ')).includes(normalizeCatalogueText(search.trim()));
+    return normalizeCatalogueText([r.file,r.observed,r.research?.visualType,r.ownerCatalogue?.catalogueGroup,...r.families.flatMap(f=>[f.code,f.name,...f.skus.map(s=>s.code)]),...r.directSkus.map(s=>[s.skuCode,s.skuName||'']).flat()].join(' ')).includes(normalizeCatalogueText(search.trim()));
   }),[audit,filter,familyFilter,search]);
   const totals=useMemo(()=>({unassigned:audit.filter(x=>x.status==='unassigned').length,family:audit.filter(x=>x.status==='family-example').length,sku:audit.filter(x=>x.status==='sku-linked').length,catalogue:audit.filter(x=>!!x.ownerCatalogue).length}),[audit]);
   const pages=Math.max(1,Math.ceil(filtered.length/24));
@@ -362,7 +362,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                     <p dir="ltr" className="text-[10px] text-slate-500">{f.code}{f.skus.length?" · "+f.skus.length.toLocaleString('fa-IR')+" کد کالا":""}</p>
                   </div>)}
                   {row.families.length>2&&<p className="text-[10px] text-slate-500">و {fa(row.families.length-2)} خانواده دیگر</p>}
-                </div>:<p className="text-[11px] leading-6 text-slate-500">خانواده و کد کالا هنوز تأیید نشده است.</p>}
+                </div>:row.directSkus.length>0?<p className="text-[11px] leading-6 font-bold text-emerald-700">اتصال مستقیم به کد کالا (بدون خانواده)</p>:<p className="text-[11px] leading-6 text-slate-500">خانواده و کد کالا هنوز تأیید نشده است.</p>}
+                {row.directSkus.length>0&&<div className="mt-2 space-y-1 border-t border-slate-200 pt-2">{row.directSkus.slice(0,3).map(item=><p key={item.skuCode} className="text-[11px] text-emerald-800">کد کالا: <span dir="ltr" className="font-bold">{item.skuCode}</span>{item.skuName?' · '+item.skuName:''}</p>)}</div>}
                 {row.ownerCatalogue&&<p className="mt-2 border-t border-slate-200 pt-2 text-[10px] leading-5 text-slate-500">شاهد کاتالوگ: {row.ownerCatalogue.catalogueGroup} · صفحه {fa(row.ownerCatalogue.page)}</p>}
               </div>
               <button type="button" onClick={()=>choose(row.file)} className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E06518] bg-white px-3 py-2.5 text-xs font-bold text-[#C65A16] transition hover:bg-[#FFF2E8]"><FileImage size={15}/> بررسی و اتصال به خانواده / کد</button>
