@@ -33,6 +33,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [records,setRecords]=useState<DbImageAuditRow[]>([]);
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState('');
+  const [auditRevision,setAuditRevision]=useState(0);
   useEffect(()=>{
     const controller=new AbortController();
     setLoading(true);setLoadError('');
@@ -45,7 +46,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       .then(rows=>{setRecords(rows);setLoading(false);})
       .catch(error=>{if(!controller.signal.aborted){setLoadError(error.message||'ارتباط با دیتابیس برقرار نشد.');setLoading(false);}});
     return ()=>controller.abort();
-  },[]);
+  },[auditRevision]);
   const audit=useMemo(()=>getImageAssignmentAudit(products,records),[products,records]);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState<Filter>('all');
@@ -210,6 +211,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           imageUrl=payload.url;
         }
         await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
+        setAuditRevision(value=>value+1);
         closeSelection();
       }catch(error:any){setSourceError(error.message||'ثبت کد مستقیم انجام نشد.');}
       finally{setSavingUpload(false);}
@@ -235,6 +237,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         });
         imageConnected=true;
         await saveSelectedPath(familyCode);
+        setAuditRevision(value=>value+1);
         closeSelection();
       }catch(error:any){
         setSourceError((imageConnected
@@ -258,6 +261,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           familyCode,title:title||selectedUpload.name
         });
         setSaveNotice('تصویر در فضای دائمی و دیتابیس ذخیره شد. ویرایش مشخصات خانواده اختیاری است.');
+        setAuditRevision(value=>value+1);
         onEdit(familyCode,saved.fileName,undefined,saved.url,title,saved.id);
         closeSelection();
       }catch(error:any){setSourceError(error.message||'ثبت مسیر یا تصویر در دیتابیس انجام نشد.');}
@@ -280,6 +284,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       if(!result.image?.id||!result.image.url)throw new Error('تأیید ثبت تصویر از سرور دریافت نشد.');
       taxonomy.refresh();
       setSaveNotice('تصویر و مسیر انتخاب‌شده در PostgreSQL ذخیره شدند. اکنون می‌توانید مشخصات کالا را تکمیل کنید.');
+      setAuditRevision(value=>value+1);
       onEdit(familyCode,result.image.fileName||file,undefined,result.image.url,title,result.image.id);
       closeSelection();
     }catch(error){
