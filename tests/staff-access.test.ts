@@ -29,6 +29,10 @@ test('catalog create/edit/delete endpoint actions are distinct',()=>{
  assert.deepEqual(catalogMutationPermission('/api/catalog/overrides/family/f1'),['products','delete']);
  assert.deepEqual(catalogMutationPermission('/overrides/bulk'),['bulk_import','import']);
  assert.deepEqual(catalogMutationPermission('/sku-transfer'),['products','sku_move']);
+ assert.deepEqual(catalogMutationPermission('/product-images/sku-bindings'),['products','images']);
+ assert.deepEqual(catalogMutationPermission('/product-images/bindings/abc'),['products','images']);
+ assert.deepEqual(catalogMutationPermission('/direct-skus/bulk'),['products','edit']);
+ assert.deepEqual(catalogMutationPermission('/direct-skus/ABC/image'),['products','images']);
  assert.deepEqual(catalogMutationPermission('/unrecognized-write'),['__forbidden__','__forbidden__']);
 });
 test('catalog editor cannot edit commercial data without price permission',()=>{
