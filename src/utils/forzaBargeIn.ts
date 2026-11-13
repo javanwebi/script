@@ -48,7 +48,7 @@ export function forzaTurnIntent(transcript:string):'stop'|'continue'|'correction
   const words=normalize(transcript);
   // A *pure* command may be repeated while the microphone remains open.
   // Do not treat "صبر کن، منظورم 6203ZZ بود" as a stop command.
-  if(/^(?:(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت شو)(?:\s+|$))+$/u.test(words))
+  if(/^(?:(?:وایسا|وایستا|وایست|صبر کن|صبر کنید|صبر کنین|بس کن|بس کنید|بس کنین|یه لحظه|یک لحظه|توقف|بسه|ساکت|ساکت شو)(?:\s+|$))+$/u.test(words))
     return 'stop';
   if(/^(?:ادامه بده|ادامه بدید|ادامه|بقیه را بگو|بقیه رو بگو)$/.test(words))
     return 'continue';

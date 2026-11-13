@@ -16,6 +16,7 @@ import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
 import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
+import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/forzaSpeechAdmission';
 import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
@@ -157,6 +158,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionRetryRef=useRef(0);
   const recognitionRetryTimerRef=useRef<number|null>(null);
   const vadRef = useRef(new ForzaVoiceActivity());
+  const speechAdmissionRef=useRef(new ForzaSpeechAdmission());
+  const rejectedRecordingRef=useRef(false);
   const micContextWarningRef = useRef(false);
   const lastMicActivityRef = useRef(0);
   const detectedSpeechEndAtRef=useRef(0);
@@ -293,27 +296,24 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       localSttRecognizerRef.current?.remove?.();
       const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
       localSttFinalRef.current='';
+      const admission=new ForzaRecognitionAdmission();
       const update=(value:string,isFinal:boolean)=>{
         if(localSttRecognizerRef.current!==recognizer||micMutedRef.current||
            (statusRef.current!=='listening'&&!isProcessingTurnRef.current &&
             !isAiSpeakingRef.current&&!isManualReplayPendingRef.current))return;
         const words=value.trim();
-        if(isFinal&&words)localSttFinalRef.current=[localSttFinalRef.current,words].filter(Boolean).join(' ');
-        const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
+        const slot={0:{transcript:words},isFinal};
+        const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
+        const admitted=admission.filter([slot],(text,final)=>likelySpeakerEcho(text)?'reject':
+          speechAdmissionRef.current.decide(text,final,playback,Date.now()));
+        if(isFinal)admission.reset();
+        if(admitted.rejected)rejectedRecordingRef.current=true;
+        if(!admitted.changed)return;
+        const recognized=extractPersianSpeechSince(admitted.results,0);
+        if(isFinal&&recognized.text)localSttFinalRef.current=[localSttFinalRef.current,recognized.text].filter(Boolean).join(' ');
+        const transcript=[localSttFinalRef.current,isFinal?'':recognized.text].filter(Boolean).join(' ').trim();
         if(!transcript)return;
-        if(!vadRef.current.heardSpeech &&
-           (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
-          console.info('[FORZA_STT] source=diba rejected=below_near_field_vad');
-          return;
-        }
-        if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
-          if(!vadRef.current.heardSpeech)return;
-          if(likelySpeakerEcho(transcript)){
-            console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
-            return;
-          }
-          interruptRequestRef.current();
-        }
+        if(playback)interruptRequestRef.current();
         if (transcript!==activeTranscriptRef.current || speechInterimRef.current===isFinal) {
           lastTranscriptChangedAtRef.current=Date.now();
         }
@@ -414,6 +414,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // browsers may throttle background-tab timers.
     const check=()=>{
       if(!active)return;
+      const evidenceAnalyser=micAnalyserRef.current;
+      if(evidenceAnalyser&&streamRef.current?.active&&ctxRef.current?.state==='running'&&!micMutedRef.current){
+        if(samples.length!==evidenceAnalyser.fftSize)samples=new Uint8Array(evidenceAnalyser.fftSize);
+        evidenceAnalyser.getByteTimeDomainData(samples);
+        speechAdmissionRef.current.sample(rootMeanSquareFromTimeDomain(samples),Date.now(),
+          isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
+      }else speechAdmissionRef.current.reset();
       if(!greetingFinishedRef.current || micMutedRef.current ||
          (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
           !isAiSpeakingRef.current&&!isManualReplayPendingRef.current)){
@@ -442,12 +449,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         analyser.getByteTimeDomainData(samples);
         const rms=rootMeanSquareFromTimeDomain(samples);
         const micNow=Date.now();
-        const current=vadRef.current.sample(rms,micNow);
+        const current=vadRef.current.sample(speechAdmissionRef.current.acousticSpeech?rms:0,micNow);
         // Keep the last near-field VAD timestamp briefly so delayed final STT
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
         setAudioLevel(current.level);
-        if(current.speechStarted){
+        if(current.speechStarted && speechAdmissionRef.current.acousticSpeech){
           hasSpeechSoundRef.current=true;
           // During TTS this is only a VAD *candidate*. WebSpeech/local STT
           // must provide non-echo words before cancelling the AI response.
@@ -460,7 +467,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
         }
-        if(current.speaking){
+        if(current.speaking && speechAdmissionRef.current.acousticSpeech){
           if(silenceTimerRef.current){
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current=null;
@@ -1584,6 +1591,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
           const hadSpeech = hasSpeechSoundRef.current;
+          const rejectedSpeech=rejectedRecordingRef.current;
+          rejectedRecordingRef.current=false;
           hasSpeechSoundRef.current = false;
 
           if (isProcessingTurnRef.current || isAiSpeakingRef.current || statusRef.current === 'thinking') {
@@ -1603,7 +1612,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             activeTranscriptRef.current='';
             const finalMime=mr.mimeType||mimeType||'audio/webm';
             const audioBlob=chunks.length?new Blob(chunks,{type:finalMime}):null;
-            if(audioBlob&&audioBlob.size>1200){
+            if(audioBlob&&audioBlob.size>1200&&!rejectedSpeech){
               void handleUserFinishedSpeaking(currentTranscript,audioBlob,finalMime);
             }else{
               hasSpeechSoundRef.current=false;
@@ -1614,7 +1623,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
           // With no server ASR, empty VAD segments are not failed requests.
           // Retain browser recognition and restart only the RAM recorder.
-          if(serverSttConfiguredRef.current===false){
+          if(serverSttConfiguredRef.current===false||rejectedSpeech){
             vadRef.current.reset();
             if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
               try{mr.start(250);}catch{}
@@ -1647,6 +1656,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     try {
       const rec = new SpeechRec();
+      const admission=new ForzaRecognitionAdmission();
       rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'fa-IR';
@@ -1661,6 +1671,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setMicrophoneError(null);
         isRecognitionActiveRef.current = true;
         console.info('[FORZA_STT_LIFECYCLE] event=start');
+        admission.reset();
         recognitionConsumedInterimRef.current={};
         recognitionCheckpointRef.current={count:0,interim:{}};
         recognitionResultCountRef.current=0;
@@ -1669,6 +1680,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
       rec.onresult = (event: any) => {
         if(callClosedRef.current||micMutedRef.current||recognitionRef.current!==rec)return;
+        const playback=isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current;
+        const admitted=admission.filter(event.results,(words,final)=>{
+          if(likelySpeakerEcho(words))return 'reject';
+          return speechAdmissionRef.current.decide(words,final,playback,Date.now());
+        });
+        if(admitted.rejected)rejectedRecordingRef.current=true;
+        event={...event,results:admitted.results};
         // Chrome's results include earlier FINAL words on every event.
         // Rebuild all segments; processing only resultIndex loses sentences.
         const total=Number(event.results?.length||0);
@@ -1684,11 +1702,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           ' interim='+Number(recognized.hasInterim));
         const currentSpeech = recognized.text;
         if(!currentSpeech.trim())return;
-        if(!vadRef.current.heardSpeech &&
-           (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
-          console.info('[FORZA_STT] source=browser rejected=below_near_field_vad');
-          return;
-        }
+        if(!admitted.changed)return;
         recognitionRetryRef.current=0;
         recognitionFailedRef.current=false;
         webSpeechFailedRef.current=false;
@@ -1859,6 +1873,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       streamRef.current?.getTracks().forEach(track=>{track.onended=null;track.stop();});
       streamRef.current=stream;
       micContextWarningRef.current=false;
+      speechAdmissionRef.current.reset();rejectedRecordingRef.current=false;
       vadRef.current.reset();
       lastMicActivityRef.current=0;
       for (const track of stream.getAudioTracks()) {

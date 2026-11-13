@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {ForzaRecognitionAdmission} from '../src/utils/forzaSpeechAdmission';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/components/forza/AiForzaCallExperience.tsx',import.meta.url),'utf8');
 const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0].replace('catch(error:any)','catch(error)');
@@ -58,6 +59,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const rec={};
  let interrupted=0,echo=true;
  const scope:Record<string,any>={
+  admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),
   extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
@@ -72,7 +74,8 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const fire=(results:any[])=>run(...Object.values(scope),{results});
  fire([result('بلبرینگ مناسب موتور')]);
  assert.equal(interrupted,0);
- assert.equal(scope.recognitionConsumedCountRef.current,1);
+ assert.equal(scope.recognitionCheckpointRef.current.count,1);
+ assert.equal(scope.rejectedRecordingRef.current,true);
  echo=false;
  fire([result('بلبرینگ مناسب موتور'),result('صبر کن منظورم شش هزار و دویست و سه بود',false)]);
  assert.equal(interrupted,1);
