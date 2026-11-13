@@ -213,7 +213,7 @@ async function clearMobileFilters(page) {
       await page.goto(baseUrl + '/category/' + slug + '?perPage=24', { waitUntil: 'domcontentloaded' });
       await page.locator('.excel-category-page').waitFor();
       await page.getByRole('heading', { name: category.name }).waitFor({ timeout: 25000 });
-      await page.locator('.excel-category-product-shell .store-product-card').first().waitFor({ timeout: 25000 });
+      await page.locator('.excel-category-product-shell .excel-card').first().waitFor({ timeout: 25000 });
 
       assert.equal(await page.locator('.excel-category-product-shell').count(), 24, 'first page should contain 24 database-backed families');
       assert.ok(await page.locator('.excel-category-pagination').isVisible(), 'pagination should appear when more than one page exists');
