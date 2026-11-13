@@ -141,16 +141,50 @@ const viewports = [
       assert.equal(await page.locator('.store-product-card').count(), products.length, 'all database-fixture product families should render');
       assert.equal(await page.locator('.catalogue-category-tile:not(.catalogue-category-tile--all)').count(), 1, 'the PostgreSQL-backed category rail should render the active category');
 
-      const heroImage = page.locator('.catalogue-hero-art img');
-      await heroImage.waitFor({ state: 'visible' });
-      await heroImage.evaluate(image => image.decode());
-      assert.ok(await heroImage.evaluate(image => image.complete && image.naturalWidth > 0), 'industrial hero image should load');
+      const hero = page.locator('.catalogue-hero');
+      await hero.waitFor({ state: 'visible' });
+      if (viewport.width <= 640) {
+        // Compact mobile layout keeps the editorial hero copy and intentionally
+        // hides the large desktop artwork to preserve the first-screen space.
+        await page.locator('.catalogue-hero-copy').waitFor({ state: 'visible' });
+        assert.equal(await page.locator('.catalogue-hero-art').isVisible(), false,
+          'large desktop hero artwork should stay collapsed in compact mobile layout');
+      } else {
+        const heroImage = page.locator('.catalogue-hero-art img');
+        await heroImage.waitFor({ state: 'visible' });
+        await heroImage.evaluate(image => image.decode());
+        assert.ok(await heroImage.evaluate(image => image.complete && image.naturalWidth > 0), 'industrial hero image should load');
+      }
 
-      const layout = await page.evaluate(() => ({
-        viewport: window.innerWidth,
-        document: document.documentElement.scrollWidth,
-        body: document.body.scrollWidth,
-      }));
+      const layout = await page.evaluate(() => {
+        const offenders = [...document.querySelectorAll('body *')].map(element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            tag: element.tagName,
+            id: element.id,
+            className: typeof element.className === 'string' ? element.className.slice(0, 120) : '',
+            left: Math.round(rect.left * 10) / 10,
+            right: Math.round(rect.right * 10) / 10,
+            width: Math.round(rect.width * 10) / 10,
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            overflowX: style.overflowX,
+          };
+        }).filter(item => item.width > 0 && (item.left < -1 || item.right > window.innerWidth + 1))
+          .sort((a, b) => (b.right - window.innerWidth) - (a.right - window.innerWidth))
+          .slice(0, 18);
+        return {
+          viewport: window.innerWidth,
+          document: document.documentElement.scrollWidth,
+          body: document.body.scrollWidth,
+          offenders,
+        };
+      });
+      if (layout.document > layout.viewport + 1 || layout.body > layout.viewport + 1) {
+        console.log('PRODUCTS_CATALOGUE_OVERFLOW', JSON.stringify(layout));
+        await page.screenshot({ path: '/tmp/products-catalogue-overflow-' + viewport.width + '.png', fullPage: true });
+      }
       assert.ok(layout.document <= layout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(layout));
       assert.ok(layout.body <= layout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(layout));
 

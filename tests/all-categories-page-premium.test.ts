@@ -45,10 +45,11 @@ test('database outage never falls back to checked-in taxonomy and exposes retry'
 });
 
 test('category cards reuse registered industrial assets and retain nested subcategory navigation', () => {
-  assert.match(page, /category\.image\) return category\.image/);
-  assert.match(page, /STORE_ASSETS\.categories\.belts/);
-  assert.match(page, /STORE_ASSETS\.categories\.bearings/);
-  assert.match(page, /STORE_ASSETS\.reverseEngineeringLab/);
+  assert.match(page, /resolveExcelCategoryArtwork\(category\.slug, category\.name, category\.image\)/);
+  const artwork = source('src/utils/excelCategoryCatalog.ts');
+  assert.match(artwork, /STORE_ASSETS\.categories\.belts/);
+  assert.match(artwork, /STORE_ASSETS\.products\.bearingNsk/);
+  assert.match(artwork, /STORE_ASSETS\.reverseEngineeringLab/);
   assert.match(page, /CategoryNavigation nodes=/);
   assert.match(page, /categoryHref\(category\.slug, node\.value \|\| node\.name\)/);
 });

@@ -2815,6 +2815,17 @@
   font-weight: 800;
   color: #475569;
 }
+/* Keep the comparison control above the product-image link and fully clickable. */
+.bce .bce-card-compare-chip {
+  z-index: 5;
+  pointer-events: auto;
+}
+.bce .bce-card-compare-chip input {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
 
 .bce .bce-row-content {
   display: flex !important;
@@ -3340,3 +3351,35 @@
   }
 }
 
+
+/* Preserve the approved industrial catalogue's three practical desktop zones:
+   filter controls on the right, products in the center, a featured product
+   on the left. The newer decorative stylesheet had hidden this last zone. */
+@media (min-width: 981px) {
+  .bce .bce-catalog {
+    display: grid !important;
+    grid-template-columns: minmax(235px, 270px) minmax(0, 1fr) minmax(185px, 215px) !important;
+    gap: clamp(10px, 1.1vw, 18px) !important;
+    align-items: start !important;
+  }
+
+  .bce .bce-sidebar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .bce .bce-results {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .bce .bce-featured-card {
+    display: flex !important;
+    grid-column: 3;
+    grid-row: 1;
+    position: sticky;
+    top: 84px;
+    min-width: 0;
+  }
+}
