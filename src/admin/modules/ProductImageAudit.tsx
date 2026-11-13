@@ -269,8 +269,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
         await onAssignSkus({
           skuCodes:selectedSkuCodes,imageUrl:assignedUrl,fileName:assignedFile,title:title||undefined
         });
-        if(chosen.every(choice=>choice.family.code===familyCode))await saveSelectedPath(familyCode);
-        setSaveNotice('تصویر به '+fa(chosen.length)+' کد کالا متصل شد. فایل اصلی مشترک است و هر اتصال جداگانه قابل ویرایش یا حذف است.');
+        setSaveNotice('تصویر به '+fa(chosen.length)+' کد کالا متصل شد. فایل اصلی مشترک است و هر اتصال جداگانه قابل ویرایش یا حذف است. مسیر دسته‌بندی خانواده از دکمه مستقل خودش قابل اصلاح است.');
         setAuditRevision(value=>value+1);
         closeSelection();
       }catch(error:any){
