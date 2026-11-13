@@ -68,7 +68,7 @@ export function namespacePermission(identity:StaffIdentity,domain:string,write=f
 }
 export function catalogMutationPermission(path:string):[string,string]{
   if(path.includes('/overrides/bulk'))return ['bulk_import','import'];
-  if(path.includes('/category-images/upload') || path.includes('/product-images/upload') || path.includes('/product-images/assign'))return ['products','images'];
+  if(path.includes('/category-images/upload') || path.includes('/product-images/upload') || path.includes('/product-images/assign') || path.includes('/product-images/sku-bindings') || path.includes('/product-images/bindings') || path.endsWith('/direct-skus/') || path.endsWith('/image'))return ['products','images'];
   if(path.includes('/menu-family-assignment') || path.includes('/navigation-groups'))return ['products','categories'];
   if(path.includes('/sku-transfer'))return ['products','sku_move'];
   if(path.includes('/overrides/reset-family') || path.includes('/overrides/family/'))return ['products','delete'];
