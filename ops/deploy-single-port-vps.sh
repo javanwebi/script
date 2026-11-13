@@ -266,7 +266,7 @@ grep -RlF 'sp-vision-analysis__viewer' "$STAGE/dist/assets" --include='*.css' >/
 grep -RlF 'sanat-camera-experience__stage' "$STAGE/dist/assets" --include='*.css' >/dev/null
 test -s "$STAGE/dist/images/scan-industrial-generated.webp"
 test -s "$STAGE/dist/images/precision-scan-technical-overlay.svg"
-WEBPS="$(find "$STAGE/dist/assets" -maxdepth 1 -type f -name '*.webp' | wc -l)"
+WEBPS="$(find "$STAGE/dist/images" -type f -name '*.webp' | wc -l)"
 test "$WEBPS" -ge 21
 echo "CAMERA_AND_WEBP_BUILD_OK count=$WEBPS"
 
