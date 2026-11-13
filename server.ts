@@ -397,7 +397,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
           g.family_code,
           case when g.scope::text='variant' then g.variant_code else null end as sku_code
         from public.catalog_gallery_images g
-        where coalesce(g.file_name,g.url,'')<>''
+        where coalesce(nullif(g.file_name,''),g.url,'')<>''
       ),
       variant_bindings as materialized (
         select distinct
