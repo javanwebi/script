@@ -1,3 +1,4 @@
+import { connectForzaDibaStream } from './server/ai/forzaDibaStream';
 import {visionPublicOrigin} from './src/utils/visionPublicOrigin';
 import {loadLocalVisionConfig} from './server/localVisionConfig';
 import {prepareLocalQuery,validImageRegion} from './src/services/localQueryImage';
@@ -7270,6 +7271,10 @@ app.post('/api/ai/transcribe', async (req, res) => {
 });
 
 // Public, credential-free diagnostics; never expose provider credentials.
+app.get('/api/ai/forza-stt-stream-info',(_req,res)=>{
+  res.setHeader('Cache-Control','no-store');
+  res.json({available:selectForzaSttProvider(process.env).provider==='diba'&&hasForzaDibaSttModel(),sampleRate:16000});
+});
 app.get('/api/ai/forza-stt-info',async(_req,res)=>{
   res.setHeader('Cache-Control','no-store');
   const choice=selectForzaSttProvider(process.env);
@@ -7581,6 +7586,8 @@ app.post('/api/ai/forza-live', async (req, res) => {
 // WebSocket Server for Real-Time Native Audio Gemini Live Session
 function setupGeminiLiveWebSocket(server: http.Server) {
   const wss = new WebSocketServer({ noServer: true });
+  const dibaWss = new WebSocketServer({noServer:true,maxPayload:8192});
+  dibaWss.on('connection',connectForzaDibaStream);
 
   server.on('upgrade', (request, socket, head) => {
     try {
@@ -7593,8 +7600,9 @@ function setupGeminiLiveWebSocket(server: http.Server) {
           socket.destroy();
           return;
         }
-        wss.handleUpgrade(request, socket, head, (ws) => {
-          wss.emit('connection', ws, request);
+        const target=url.searchParams.get('stt')==='diba'?dibaWss:wss;
+        target.handleUpgrade(request, socket, head, (ws) => {
+          target.emit('connection', ws, request);
         });
       }
     } catch {

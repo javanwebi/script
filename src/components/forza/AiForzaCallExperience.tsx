@@ -1,3 +1,4 @@
+import { ForzaDibaRecognition } from '../../utils/forzaDibaRecognition';
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -332,14 +333,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const transcript=[localSttFinalRef.current,isFinal?'':words].filter(Boolean).join(' ').trim();
         if(!transcript)return;
         const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
-        if(vadReady && (isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current) && !vadRef.current.heardSpeech &&
+        if(forzaTurnIntent(transcript)!=='stop' && vadReady && (isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current) && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=diba rejected=below_near_field_vad');
           return;
         }
         if(transcript===activeTranscriptRef.current&&isManualReplayPendingRef.current)return;
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
-          if(!vadRef.current.heardSpeech)return;
+          if(!vadRef.current.heardSpeech&&forzaTurnIntent(transcript)!=='stop')return;
           if(likelySpeakerEcho(transcript)){
             console.info('[FORZA_STT] source=local echo_candidate_ignored=1');
             return;
@@ -592,6 +593,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             console.info('[FORZA_LATENCY] phase=vad_end_detected silenceMs='+
               Math.round(acousticSilence));
             if(candidate){
+              if(speechInterimRef.current && recognitionRef.current?.requestFinal?.())return;
               pendingTranscriptRef.current=candidate;
               activeTranscriptRef.current='';
               recognitionSessionPrefixRef.current='';
@@ -1308,6 +1310,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const q = (textToSend || '').trim();
       if(callClosedRef.current)return;
       if (!q && !audioBlob) return;
+      if(!q && recognitionRef.current?.isServerStream){recognitionRef.current.requestFinal();startListening(true);return;}
       // No recognized words does not establish a failed user turn. VAD can
       // detect noise or residual speaker audio while WebSpeech is reconnecting.
       // Never start an unavailable server fallback or clear the last valid text.
@@ -1951,10 +1954,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
   const initSpeechRecognition = useCallback(() => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRec) return null;
+    if (!SpeechRec && (!ctxRef.current?.audioWorklet || !micSourceNodeRef.current)) return null;
 
     try {
-      const rec = new SpeechRec();
+      const rec = ctxRef.current?.audioWorklet && micSourceNodeRef.current
+        ? new ForzaDibaRecognition(ctxRef.current,micSourceNodeRef.current,provider=>{
+            setServerSttLabel(provider==='diba'?'دایبا سرور؛ تبدیل زنده گفتار':'تشخیص مرورگر؛ مسیر جایگزین');
+          },SpeechRec)
+        : new SpeechRec();
       rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'fa-IR';
@@ -1991,13 +1998,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.info('[FORZA_STT_LIFECYCLE] event=result total='+total+
           ' consumed='+recognitionConsumedCountRef.current+' chars='+recognized.text.length+
           ' interim='+Number(recognized.hasInterim));
-        if(!recognized.text.trim())return;
+        if(!recognized.text.trim()){
+          if(rec.isServerStream&&!recognized.hasInterim){
+            activeTranscriptRef.current='';speechInterimRef.current=false;
+            hasSpeechSoundRef.current=false;vadRef.current.reset();setIsUserSpeaking(false);
+          }
+          return;
+        }
         const currentSpeech = joinForzaRecognitionSession(recognitionSessionPrefixRef.current,recognized.text);
         if(!currentSpeech.trim())return;
         // Web Speech can still work while WebAudio is suspended by autoplay policy.
         // Enforce near-field RMS only when the microphone analyser is actually running.
         const vadReady = Boolean(micAnalyserRef.current && ctxRef.current?.state === 'running');
-        if(vadReady && (isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current) && !vadRef.current.heardSpeech &&
+        if(forzaTurnIntent(currentSpeech)!=='stop' && vadReady && (isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current) && !vadRef.current.heardSpeech &&
            (!lastMicActivityRef.current||Date.now()-lastMicActivityRef.current>3500)){
           console.info('[FORZA_STT] source=browser rejected=below_near_field_vad');
           return;
@@ -2071,6 +2084,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
               silenceTimerRef.current=window.setTimeout(tryFinalize,Math.max(80,wait));
               return;
             }
+            if(speechInterimRef.current && recognitionRef.current?.requestFinal?.())return;
             detectedSpeechEndAtRef.current=vadRef.current.heardSpeech
               ? performance.now()-vadRef.current.silenceDuration(Date.now()) : 0;
             console.info('[FORZA_LATENCY] phase=browser_stt_turn_end chars='+candidate.length+
@@ -2100,6 +2114,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       rec.onerror = (e: any) => {
         if(callClosedRef.current||recognitionRef.current!==rec)return;
         const error = e?.error;
+        if(rec instanceof ForzaDibaRecognition && rec.hasPendingServerFinal){
+          // A broken stream must never promote its unconfirmed partial to a turn.
+          activeTranscriptRef.current='';recognitionSessionPrefixRef.current='';
+          pendingTranscriptRef.current='';speechInterimRef.current=false;
+          hasSpeechSoundRef.current=false;setIsUserSpeaking(false);
+          if(silenceTimerRef.current)clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current=null;vadRef.current.reset();
+        }
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
         if(error==='network' && ++browserNetworkFailuresRef.current>=3)
           startLocalSttRecoveryRef.current();

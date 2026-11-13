@@ -58,8 +58,9 @@ test('the original FORZA silhouette is identical across device tiers; only rende
 test('WebGL loss or unsupported hardware recovers to the same FORZA silhouette without a red error',()=>{
   assert.match(avatar,/startCanvasFallback/);
   assert.match(avatar,/const coverScale = Math\.max\(width \/ imageWidth, height \/ imageHeight\)/);
-  assert.match(avatar,/glowContext\.filter = 'blur\(22px\)'/);
-  assert.match(avatar,/context\.drawImage\(glowCanvas, 0, 0, width, height\)/);
+  assert.doesNotMatch(avatar,/glowContext\.filter = 'blur\(22px\)'/);
+  assert.doesNotMatch(avatar,/context\.drawImage\(glowCanvas, 0, 0, width, height\)/);
+  assert.match(avatar,/context\.drawImage\(source, x, y, dw, dh\)/);
   assert.match(avatar,/fallbackTargetFrameMs = 1000 \/ 30/);
   assert.match(avatar,/fps < 22/);
   assert.match(avatar,/switchToCanvasFallback\('slow_gpu', fps\)/);
