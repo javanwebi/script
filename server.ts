@@ -493,7 +493,7 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
         select extra.display_file,extra.file_key,''::text as sha256,
           'تصویر ذخیره‌شده در گالری محصولات'::text as observed_description,
           'اتصال ثبت‌شده در PostgreSQL'::text as reason,
-          ''::text as visual_type,' '::text as visible_features,'[]'::jsonb as required_checks,
+          ''::text as visual_type,'[]'::jsonb as visible_features,'[]'::jsonb as required_checks,
           null::text as exact_sku,'not-established'::text as standard_status
         from extra_image_files extra
         where not exists(select 1 from public.catalog_image_audits a where lower(a.file_name)=extra.file_key)
