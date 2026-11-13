@@ -59,6 +59,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const [savingUpload,setSavingUpload]=useState(false);
   const [urlInput,setUrlInput]=useState('');
   const [sourceError,setSourceError]=useState('');
+  const [saveNotice,setSaveNotice]=useState('');
   const [title,setTitle]=useState('');
   const [menuGroup,setMenuGroup]=useState('');
   const [category,setCategory]=useState('');
@@ -151,10 +152,10 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
   const visible=filtered.slice(currentPage*24,(currentPage+1)*24);
   const choose=(f:string)=>{
     const found=audit.find(x=>x.file===f);
-    setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setTitle(found?.observed||'');
+    setFile(f);setUrl(getProductImageUrl(f));setSource('existing');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle(found?.observed||'');
     setFamilySearch('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setSku('');setSkuSearch('');setPlacement('family');setDirectMode(false);setShowEvidence(false);setMobileEditor(true);
   };
-  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
+  const create=()=>{setFile('');setUrl('');setSource('upload');setSelectedUpload(null);setSourceError('');setSaveNotice('');setTitle('');setMenuGroup('');setCategory('');setSubmenu('');setSubcategory('');setFamilyCode('');setFamilySearch('');setSku('');setSkuSearch('');setPlacement('family');setShowEvidence(false);setMobileEditor(true)};
   const chooseFile=(upload?:File)=>{
     if(!upload)return;
     if(!['image/png','image/jpeg','image/webp'].includes(upload.type)){setSourceError('فقط PNG، JPG یا WebP مجاز است.');return}
@@ -166,8 +167,13 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     setTitle(upload.name);setSourceError('');
   };
   const chooseUrl=()=>{
-    try{const value=new URL(urlInput.trim());if(!['https:','http:'].includes(value.protocol))throw Error('invalid');setFile(value.pathname.split('/').pop()||'تصویر جدید');setUrl(value.href);setTitle('');setSourceError('')}
-    catch{setSourceError('لینک معتبر تصویر با https یا http وارد کنید.')}
+    const input=urlInput.trim();
+    const resolved=getProductImageUrl(input);
+    if(!resolved||!resolved.startsWith('/storage/products/')){
+      setSourceError('فقط تصویر ثبت‌شده در فضای ذخیره‌سازی صنعت پیش قابل اتصال است. فایل خارجی را از «بارگذاری تصویر جدید» آپلود کنید.');
+      return;
+    }
+    setFile(resolved.split('/').pop()||'تصویر');setUrl(resolved);setTitle('');setSourceError('');
   };
   const closeSelection=()=>{if(url.startsWith('blob:'))URL.revokeObjectURL(url);setMobileEditor(false);setFile('');setUrl('');setSource('existing');setSelectedUpload(null);setSku('');setSkuSearch('')};
   const chooseFamily=(code:string)=>{
@@ -242,20 +248,40 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
       if(!selectedUpload){setSourceError('ابتدا فایل تصویر را انتخاب کنید.');return;}
       setSavingUpload(true);setSourceError('');
       try{
+        // Verify the destination before uploading; do not create an orphan
+        // image when the user lacks category-assignment permission.
+        await saveSelectedPath(familyCode);
         const saved=await uploadProductImage(selectedUpload,{
           familyCode,title:title||selectedUpload.name
         });
-        await saveSelectedPath(familyCode);
+        setSaveNotice('تصویر در فضای دائمی و دیتابیس ذخیره شد. ویرایش مشخصات خانواده اختیاری است.');
         onEdit(familyCode,saved.fileName,undefined,saved.url,title,saved.id);
         closeSelection();
-      }catch(error:any){setSourceError(error.message||'ثبت تصویر در Storage ممکن نشد.');}
+      }catch(error:any){setSourceError(error.message||'ثبت مسیر یا تصویر در دیتابیس انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
     }
-    try {await saveSelectedPath(familyCode);}
-    catch(error){setSourceError(error instanceof Error?error.message:'مسیر خانواده در دیتابیس ثبت نشد.');return;}
-    onEdit(familyCode,file,undefined,url,title);
-    closeSelection();
+    // Existing images and links must be persisted now, not merely staged in
+    // a second, easy-to-close family editor.
+    setSavingUpload(true);setSourceError('');
+    try{
+      const response=await fetch('/api/catalog/product-images/assign',{
+        method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        signal:AbortSignal.timeout(20000),
+        body:JSON.stringify({familyCode,imageUrl:url,title,fileName:file,
+          categorySlug:category||undefined,submenu:submenu||undefined,leaf:subcategory||undefined})
+      });
+      const result=await requireAdminApiJson<{image?:{id:string;url:string;fileName:string}}>(
+        response,'ذخیره اتصال تصویر و دسته‌بندی');
+      if(!result.image?.id||!result.image.url)throw new Error('تأیید ثبت تصویر از سرور دریافت نشد.');
+      taxonomy.refresh();
+      setSaveNotice('تصویر و مسیر انتخاب‌شده در PostgreSQL ذخیره شدند. اکنون می‌توانید مشخصات کالا را تکمیل کنید.');
+      onEdit(familyCode,result.image.fileName||file,undefined,result.image.url,title,result.image.id);
+      closeSelection();
+    }catch(error){
+      setSourceError(error instanceof Error?error.message:'اتصال تصویر ذخیره نشد.');
+    }finally{setSavingUpload(false);}
   };
   const exportAudit=()=>{
     const blob=new Blob([JSON.stringify(audit,null,2)],{type:'application/json;charset=utf-8'});
@@ -278,6 +304,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           <button type="button" onClick={exportAudit} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#55565A] hover:bg-slate-50"><Download size={15}/> خروجی بررسی</button>
         </div>
       </header>
+      {saveNotice&&<div role="status" className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">{saveNotice}</div>}
 
       <div className="space-y-3 border-b border-slate-200 bg-white p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(220px,1fr)_190px_auto]">
@@ -366,7 +393,7 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
                 {([['existing','بازگشت به بانک تصاویر'],['upload','بارگذاری تصویر جدید'],['url','استفاده از لینک']] as const).map(([key,label])=><button key={key} type="button" aria-pressed={source===key} onClick={()=>{if(key==='existing'){closeSelection();return;}setSource(key);setSelectedUpload(null);setUrl('');setFile('');setSourceError('')}} className={source===key?"rounded-lg border border-[#E06518] bg-[#FFF2E8] px-3 py-2 text-[11px] font-bold text-[#C65A16]":"rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"}>{label}</button>)}
               </div>
               {source==='upload'&&<label className="block rounded-xl border border-dashed border-[#E7B995] bg-[#FFFAF6] p-4 text-xs font-bold text-[#55565A]">انتخاب تصویر از دستگاه<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>chooseFile(e.target.files?.[0])} className="mt-2 block w-full text-xs"/></label>}
-              {source==='url'&&<div className="flex flex-col gap-2 sm:flex-row"><input type="url" value={urlInput} onChange={e=>setUrlInput(e.target.value)} dir="ltr" placeholder="https://example.com/image.png" className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-xs"/><button type="button" onClick={chooseUrl} className="rounded-lg bg-[#55565A] px-4 py-3 text-xs font-bold text-white">بارگذاری لینک</button></div>}
+              {source==='url'&&<div className="flex flex-col gap-2 sm:flex-row"><input type="url" value={urlInput} onChange={e=>setUrlInput(e.target.value)} dir="ltr" placeholder="/storage/products/catalog/e(1).png" className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-xs"/><button type="button" onClick={chooseUrl} className="rounded-lg bg-[#55565A] px-4 py-3 text-xs font-bold text-white">بارگذاری لینک</button></div>}
               {sourceError&&<p role="alert" className="text-xs text-rose-600">{sourceError}</p>}
               {url&&<label className="block text-xs font-bold text-[#55565A]">نام یا توضیح تصویر<input value={title} onChange={e=>setTitle(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 p-3 font-normal" placeholder="نام قطعه یا توضیحی که در تصویر دیده می‌شود"/></label>}
               {url&&<div className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
