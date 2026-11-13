@@ -75,6 +75,7 @@ test('server and pre-promotion canary reject HTML or missing CRM/SKU mutation AP
     '/api/admin/crm/customers',
     '/api/catalog/sku-transfer',
     '/api/catalog/product-images/upload',
+    '/api/catalog/product-images/assign',
     '/api/catalog/category-images/upload',
     '/api/catalog/menu-family-assignment',
   ]) {
@@ -82,4 +83,18 @@ test('server and pre-promotion canary reject HTML or missing CRM/SKU mutation AP
   }
   assert.match(canary,/API_ROUTE_MISSING_OR_UNPROTECTED/);
   assert.match(canary,/API_NOT_FOUND_JSON_CONTRACT_OK/);
+});
+
+
+test('reviewed catalogue images are persisted before the family editor opens', () => {
+  const audit=readFileSync('src/admin/modules/ProductImageAudit.tsx','utf8');
+  const storage=readFileSync('server/productImageStorage.ts','utf8');
+  const permissions=readFileSync('server/db/staffPermissions.ts','utf8');
+  assert.match(audit,/fetch\('\/api\/catalog\/product-images\/assign'/);
+  assert.match(audit,/requireAdminApiJson.*\{image\?:/s);
+  assert.match(storage,/app\.post\('\/api\/catalog\/product-images\/assign'/);
+  assert.match(storage,/await transaction\(async client=>/);
+  assert.match(storage,/public\.catalog_gallery_images/);
+  assert.match(storage,/public\.catalog_family_menu_assignments/);
+  assert.match(permissions,/path\.includes\('\/product-images\/assign'\)/);
 });

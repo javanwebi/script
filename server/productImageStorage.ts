@@ -153,6 +153,88 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
    }finally{if(temporary)await fs.unlink(temporary).catch(()=>{});}
   });
 
+
+ // Attach a reviewed existing catalogue image to one family AND optionally its
+ // approved menu path in one PostgreSQL transaction. A draft editor is not a save.
+ app.post('/api/catalog/product-images/assign',async(req:Request,res:Response)=>{
+  try{
+   const identity=await getPortalIdentity(req);
+   if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز اتصال تصویر محصول لازم است.'});
+   if(!databaseEnabled())return res.status(503).json({success:false,message:'اتصال به PostgreSQL برقرار نیست.'});
+   const familyCode=cleanCode(req.body?.familyCode);
+   const imageUrl=typeof req.body?.imageUrl==='string'?req.body.imageUrl.trim():'';
+   const title=typeof req.body?.title==='string'?req.body.title.trim().slice(0,180):'';
+   const categorySlug=typeof req.body?.categorySlug==='string'?req.body.categorySlug.trim():'';
+   const submenu=typeof req.body?.submenu==='string'?req.body.submenu.trim():'';
+   const leaf=typeof req.body?.leaf==='string'?req.body.leaf.trim():'';
+   const original=/^\/storage\/products\/catalog\/e\(([1-9]\d{0,3})\)\.png$/.exec(imageUrl);
+   const stored=/^\/storage\/products\/([a-f0-9-]{36}\.webp)$/.exec(imageUrl);
+   const legacy=/^\/storage\/products\/legacy-jpg\/images\/e\(([1-9]\d{0,3})\)\.jpg$/.exec(imageUrl);
+   if(!familyCode||(!original&&!stored&&!legacy)|| (original&&Number(original[1])>869))
+    return res.status(400).json({success:false,message:'تصویر باید از بانک تصاویر معتبر یا فضای ذخیره‌سازی صنعت پیش انتخاب شود؛ لینک خارجی را ابتدا آپلود کنید.'});
+   if(categorySlug&&(!/^excel-v2-[0-9]+-[0-9]+$/.test(categorySlug)||!submenu||submenu.length>180||leaf.length>250))
+    return res.status(400).json({success:false,message:'دسته و زیرمنوی مصوب باید به‌درستی انتخاب شوند.'});
+   const diskPath=path.join(root,imageUrl.slice('/storage/products/'.length));
+   if(!await fs.stat(diskPath).then(stat=>stat.isFile()).catch(()=>false))
+    return res.status(404).json({success:false,message:'فایل تصویر در فضای ذخیره‌سازی اصلی موجود نیست.'});
+   const image=await transaction(async client=>{
+    const family=(await client.query('select code,images from public.catalog_families where code=$1 and is_active=true and not is_deleted for update',[familyCode])).rows[0];
+    if(!family)throw fail(404,'خانواده انتخاب‌شده در دیتابیس یافت نشد.');
+    if(categorySlug){
+     const result=await client.query("select metadata from public.catalog_categories where slug=$1 and is_active=true and metadata->>'source'='industrial_megamenu_hierarchy_v2'",[categorySlug]);
+     const nodes=Array.isArray(result.rows[0]?.metadata?.children)?result.rows[0].metadata.children:[];
+     const node=nodes.find((item:any)=>item.name===submenu);
+     if(!node||(leaf&&(!Array.isArray(node.children)||!node.children.some((item:any)=>item.name===leaf))))
+      throw fail(400,'زیرمنو یا ریزقلم با دسته مصوب مطابقت ندارد.');
+     const current=(await client.query('select category_slug,submenu_name,leaf_name from public.catalog_family_menu_assignments where family_code=$1 for update',[familyCode])).rows[0];
+     const changed=!current||current.category_slug!==categorySlug||current.submenu_name!==submenu||(current.leaf_name||'')!==leaf;
+     if(changed&&!canStaff(identity,'products','categories'))throw fail(403,'مجوز تغییر مسیر دسته‌بندی لازم است؛ هیچ اتصال تصویری ثبت نشد.');
+     if(changed)await client.query(
+      "insert into public.catalog_family_menu_assignments(family_code,category_slug,submenu_name,leaf_name,method) values($1,$2,$3,$4,'admin_verified') on conflict(family_code) do update set category_slug=excluded.category_slug,submenu_name=excluded.submenu_name,leaf_name=excluded.leaf_name,method=excluded.method,updated_at=now()",
+      [familyCode,categorySlug,submenu,leaf||null]);
+    }
+    const existing=(await client.query(
+     "select id,file_name,sort_order from public.catalog_gallery_images where family_code=$1 and url=$2 and scope='family' and variant_code is null order by sort_order limit 1 for update",
+     [familyCode,imageUrl])).rows[0];
+    const id=existing?.id||'assigned-'+crypto.randomUUID();
+    const fileName=path.posix.basename(imageUrl);
+    const imageTitle=title||fileName;
+    if(existing){
+     await client.query('update public.catalog_gallery_images set title=$2,updated_at=now() where id=$1',[id,imageTitle]);
+    }else{
+     await client.query(
+      "insert into public.catalog_gallery_images(id,family_code,variant_code,file_name,url,scope,title,sort_order,identity_verified) values($1,$2,null,$3,$4,'family',$5,(select coalesce(max(sort_order),0)+1 from public.catalog_gallery_images where family_code=$2),false)",
+      [id,familyCode,fileName,imageUrl,imageTitle]);
+    }
+    const images=Array.isArray(family.images)?family.images.filter((value:unknown):value is string=>typeof value==='string'):[];
+    if(!images.includes(imageUrl))images.push(imageUrl);
+    await client.query('update public.catalog_families set images=$2::jsonb,updated_at=now() where code=$1',[familyCode,JSON.stringify(images)]);
+    // Keep a pre-existing legacy override in sync, without touching variants,
+    // prices, stock, names, or technical specifications.
+    const stateRow=(await client.query("select value from public.portal_kv_store where key='catalog_overrides_db_v1' for update")).rows[0];
+    const state=stateRow?.value;
+    if(state?.families?.[familyCode]){
+     const previous=state.families[familyCode];
+     const gallery=Array.isArray(previous.galleryImages)?[...previous.galleryImages]:[];
+     const at=gallery.findIndex((entry:any)=>entry.id===id||(entry.scope==='family'&&entry.url===imageUrl));
+     const item={id,url:imageUrl,fileName,scope:'family',title:imageTitle,identityVerified:false,order:at>=0?(gallery[at].order||at+1):gallery.length+1};
+     if(at>=0)gallery[at]=item;else gallery.push(item);
+     state.families[familyCode]={...previous,images:Array.from(new Set([...(Array.isArray(previous.images)?previous.images:[]),imageUrl])),galleryImages:gallery};
+     await client.query("update public.portal_kv_store set value=$2::jsonb where key=$1",['catalog_overrides_db_v1',JSON.stringify(state)]);
+    }
+    return {id,url:imageUrl,fileName,familyCode,variantCode:null,scope:'family',title:imageTitle};
+   });
+   invalidatePublicCatalogCache();
+   res.setHeader('Cache-Control','no-store');
+   res.json({success:true,image});
+   void onCatalogUpdated().catch(error=>console.warn('[Product images] Image assignment saved; refresh failed:',(error as Error)?.name||'unknown'));
+  }catch(error:any){
+   const status=Number(error?.status)||500;
+   if(status>=500)console.error('[Product images] Assignment failed:',String(error?.code||error?.name||'unknown').slice(0,60));
+   return res.status(status).json({success:false,message:status>=500?'اتصال تصویر در PostgreSQL ذخیره نشد؛ تغییرات قبلی حفظ شدند.':error.message});
+  }
+ });
+
  // Immutable random filenames: updating/replacing product images never mutates an old URL.
  app.get('/storage/products/:file',async(req,res)=>{
   const name=String(req.params.file||'');
