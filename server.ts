@@ -391,65 +391,80 @@ app.get('/api/admin/catalog-image-audits',async(req,res)=>{
     if(!canStaff(identity,'products','images'))return res.status(403).json({success:false,message:'مجوز بررسی تصاویر کاتالوگ لازم است.'});
     if(!databaseEnabled())return res.status(503).json({success:false,message:'اطلاعات تصاویر باید از دیتابیس بارگذاری شوند.'});
     const result=await database().query(`
+      with gallery_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(coalesce(nullif(g.file_name,''),g.url),'?',1),'#',1),'^.*/','')) as file_key,
+          g.family_code,
+          case when g.scope::text='variant' then g.variant_code else null end as sku_code
+        from public.catalog_gallery_images g
+        where coalesce(g.file_name,g.url,'')<>''
+      ),
+      variant_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/','')) as file_key,
+          v.family_code,
+          v.code as sku_code
+        from public.catalog_variants v
+        cross join lateral jsonb_array_elements_text(
+          case when jsonb_typeof(v.images)='array' then v.images else '[]'::jsonb end
+        ) as image(url)
+        where image.url<>''
+          and not exists (
+            select 1 from gallery_bindings g
+            where g.family_code=v.family_code
+              and g.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
+          )
+      ),
+      family_bindings as materialized (
+        select distinct
+          lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/','')) as file_key,
+          f.code as family_code,
+          null::text as sku_code
+        from public.catalog_families f
+        cross join lateral jsonb_array_elements_text(
+          case when jsonb_typeof(f.images)='array' then f.images else '[]'::jsonb end
+        ) as image(url)
+        where image.url<>''
+          and not exists (
+            select 1 from gallery_bindings g
+            where g.family_code=f.code
+              and g.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
+          )
+          and not exists (
+            select 1 from variant_bindings v
+            where v.family_code=f.code
+              and v.file_key=lower(regexp_replace(split_part(split_part(image.url,'?',1),'#',1),'^.*/',''))
+          )
+      ),
+      all_bindings as (
+        select file_key,family_code,sku_code from gallery_bindings
+        union
+        select file_key,family_code,sku_code from variant_bindings
+        union
+        select file_key,family_code,sku_code from family_bindings
+      ),
+      bindings_by_image as (
+        select binding.file_key,
+          jsonb_agg(jsonb_build_object(
+            'familyCode',binding.family_code,
+            'familyName',family.name,
+            'categoryName',family.category_name,
+            'skuCode',binding.sku_code,
+            'skuName',variant.name
+          ) order by binding.family_code,binding.sku_code) as bindings
+        from all_bindings binding
+        join public.catalog_families family on family.code=binding.family_code
+        left join public.catalog_variants variant
+          on variant.code=binding.sku_code and variant.family_code=binding.family_code
+        group by binding.file_key
+      )
       select a.file_name,a.sha256,a.observed_description,a.reason,
         a.visual_type,a.visible_features,a.required_checks,a.exact_sku,a.standard_status,
         p.catalogue_group,p.pdf_page,p.match_ratio,
-        coalesce(live_bindings.bindings,'[]'::jsonb) as bindings
+        coalesce(bindings_by_image.bindings,'[]'::jsonb) as bindings
       from public.catalog_image_audits a
       left join public.owner_catalogue_photos p on p.file_name=a.file_name
-      left join lateral (
-        select coalesce(jsonb_agg(jsonb_build_object(
-          'familyCode',linked.family_code,
-          'familyName',family.name,
-          'categoryName',family.category_name,
-          'skuCode',linked.sku_code,
-          'skuName',variant.name
-        ) order by linked.family_code,linked.sku_code),'[]'::jsonb) as bindings
-        from (
-          select distinct gallery.family_code,
-            case when gallery.scope::text='variant' then gallery.variant_code else null end as sku_code
-          from public.catalog_gallery_images gallery
-          where lower(coalesce(nullif(gallery.file_name,''),
-            regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/',''))) = lower(a.file_name)
-          union
-          select variant.family_code,variant.code
-          from public.catalog_variants variant
-          cross join lateral jsonb_array_elements_text(
-            case when jsonb_typeof(variant.images)='array' then variant.images else '[]'::jsonb end
-          ) as variant_image(url)
-          where lower(regexp_replace(split_part(split_part(variant_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
-            and not exists (
-              select 1 from public.catalog_gallery_images gallery
-              where gallery.family_code=variant.family_code
-                and lower(coalesce(nullif(gallery.file_name,''),
-                  regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/','')))=lower(a.file_name)
-            )
-          union
-          select family_row.code,null::text
-          from public.catalog_families family_row
-          cross join lateral jsonb_array_elements_text(
-            case when jsonb_typeof(family_row.images)='array' then family_row.images else '[]'::jsonb end
-          ) as family_image(url)
-          where lower(regexp_replace(split_part(split_part(family_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
-            and not exists (
-              select 1 from public.catalog_gallery_images gallery
-              where gallery.family_code=family_row.code
-                and lower(coalesce(nullif(gallery.file_name,''),
-                  regexp_replace(split_part(split_part(gallery.url,'?',1),'#',1),'^.*/','')))=lower(a.file_name)
-            )
-            and not exists (
-              select 1 from public.catalog_variants variant
-              cross join lateral jsonb_array_elements_text(
-                case when jsonb_typeof(variant.images)='array' then variant.images else '[]'::jsonb end
-              ) as variant_image(url)
-              where variant.family_code=family_row.code
-                and lower(regexp_replace(split_part(split_part(variant_image.url,'?',1),'#',1),'^.*/',''))=lower(a.file_name)
-            )
-        ) linked
-        join public.catalog_families family on family.code=linked.family_code
-        left join public.catalog_variants variant
-          on variant.code=linked.sku_code and variant.family_code=linked.family_code
-      ) live_bindings on true
+      left join bindings_by_image on bindings_by_image.file_key=lower(a.file_name)
       order by a.file_name
     `);
     const rows=result.rows.map(row=>({
