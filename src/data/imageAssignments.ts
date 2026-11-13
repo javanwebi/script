@@ -100,7 +100,7 @@ export function getImageAssignmentAudit(products: Product[], records: DbImageAud
       ownerCatalogue,
       status:codeCount ? 'sku-linked' as const : linked.length ? 'family-example' as const : 'unassigned' as const,
       families:linked.map(({family,codes})=>({code:family.code,name:family.name,category:family.categoryName,
-        skus:codes.map(code=>family.variants?.find(v=>v.code===code) || ({code,name:item.bindings?.find(binding=>binding.familyCode===family.code&&binding.skuCode===code)?.skuName||code} as Product['variants'][number])),
+        skus:codes.map(code=>family.variants?.find(v=>v.code===code) || ({code,name:item.bindings?.find(binding=>binding.familyCode===family.code&&binding.skuCode===code)?.skuName||code} as NonNullable<Product['variants']>[number])),
         candidateSkuCount:family.variants?.length||0})),
       duplicateFiles:(duplicates.get(item.sha256)||[]).filter(file=>file!==item.file),
       requiresCodeEvidence:codeCount===0,
