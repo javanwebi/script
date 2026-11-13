@@ -1121,7 +1121,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           setDraftFamily(previous=>{
             if(!previous)return previous;
             const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url))return previous;
+            if(gallery.some(image=>image.url===url&&image.scope===(skuCode?'variant':'family')&&(!skuCode||image.variantCode===skuCode)))return previous;
             return {...previous,galleryImages:[...gallery,{
               id:persistedId||`review-${file}`,url,fileName:file,
               scope:skuCode?'variant':'family',variantCode:skuCode,
