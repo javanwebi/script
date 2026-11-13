@@ -10,9 +10,11 @@ function wav(seconds){
 }
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
+ let diagnostics=[];
  try{
   const page=await browser.newPage({permissions:['microphone']});const errors=[],queries=[];
   page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',m=>{if(m.text().includes('[FORZA_'))diagnostics.push(m.text());});
   await page.addInitScript(()=>{
    window.__noiseLevel=128;window.__results=[];
    AnalyserNode.prototype.getByteTimeDomainData=function(a){a.fill(window.__noiseLevel);};
@@ -29,7 +31,7 @@ function wav(seconds){
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({contentType:'audio/wav',body:wav(0.2)}));
   await page.route('**/api/ai/forza-stt-info',r=>r.fulfill({json:{serverSttConfigured:false,serverSttReady:false}}));
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}}));
-  await page.route('**/api/ai/forza-speech',r=>r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(12)}));
+  await page.route('**/api/ai/forza-speech',r=>r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:12)}));
   await page.route('**/api/ai/consult-stream',r=>{
    queries.push(r.request().postDataJSON().query);
    const text='برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.';
@@ -54,8 +56,11 @@ function wav(seconds){
   await page.waitForTimeout(250);assert.equal(await speaking.isVisible(),true,'background sentence must not cancel playback');
   assert.equal(await page.getByText('گفتگوی نامرتبط اطراف',{exact:true}).count(),0);
   await page.evaluate(()=>{window.__noiseLevel=136;});await page.waitForTimeout(400);
-  await page.evaluate(()=>window.__emit('وایسا'));
-  await listening.waitFor({timeout:1500});
+  await page.evaluate(()=>{window.__emit('وایسا');window.__noiseLevel=128;});
+  try{await listening.waitFor({timeout:1500});}catch(error){
+   console.error('EXHIBITION_DIAGNOSTICS',JSON.stringify({body:(await page.locator('body').innerText()).slice(-1800),diagnostics}));throw error;
+  }
+  assert.ok(diagnostics.some(v=>v.includes('phase=customer-interrupt')),'close stop must cancel the active turn');
   assert.equal(queries.length,1,'a stop must not make an LLM request');
   await page.evaluate(()=>{window.__noiseLevel=128;});
   assert.deepEqual(errors,[]);
