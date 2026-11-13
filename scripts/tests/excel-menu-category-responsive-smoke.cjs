@@ -334,7 +334,7 @@ async function expectProductCount(page, expected, message) {
     const errorContext = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'fa-IR', reducedMotion: 'reduce' });
     const errorPage = await errorContext.newPage();
     const errorApi = await installApiRoutes(errorPage, true);
-    await errorPage.goto(baseUrl + '/category/' + slug, { waitUntil: 'domcontentloaded' });
+    await errorPage.goto(baseUrl + '/category/' + slug + '?perPage=24', { waitUntil: 'domcontentloaded' });
     await errorPage.locator('.excel-category-page').waitFor();
     await errorPage.getByText('اطلاعات این دسته دریافت نشد').waitFor({ timeout: 15000 });
     assert.ok(await errorPage.getByRole('button', { name: 'تلاش مجدد' }).isVisible(), 'database failure should expose a retry action');
