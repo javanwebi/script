@@ -38,6 +38,29 @@ test('actual valid SKU bindings are reported and unknown SKU references are reje
  const row=getImageAssignmentAudit([product],fixtures)[0];assert.equal(row.status,'sku-linked');assert.equal(row.families[0].skus[0].code,code);
  const invalid={...product,galleryImages:[{...product.galleryImages[0],variantCode:'NOT-IN-FAMILY'}]};assert.equal(getImageAssignmentAudit([invalid],fixtures)[0].status,'family-example');
 });
+test('PostgreSQL bindings override stale browser product snapshots in both directions',()=>{
+ const base=USER_PRODUCTS.find(p=>p.variants?.length)!;
+ const code=base.variants![0].code;
+ const staleWithoutImage={...base,images:[],galleryImages:[],variants:base.variants!.map(v=>({...v,images:[]}))};
+ const connected=getImageAssignmentAudit([staleWithoutImage],[{
+  ...fixtures[0],
+  bindings:[{familyCode:base.code,familyName:base.name,categoryName:base.categoryName,skuCode:code,skuName:base.variants![0].name}]
+ }])[0];
+ assert.equal(connected.status,'sku-linked');
+ assert.equal(connected.families[0].skus[0].code,code);
+ const staleWithImage={...base,galleryImages:[{
+  id:'stale',url:'https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png',
+  scope:'variant' as const,variantCode:code
+ }]};
+ const disconnected=getImageAssignmentAudit([staleWithImage],[{...fixtures[0],bindings:[]}])[0];
+ assert.equal(disconnected.status,'unassigned');
+ assert.equal(disconnected.families.length,0);
+ const familyOnly=getImageAssignmentAudit([staleWithoutImage],[{
+  ...fixtures[0],
+  bindings:[{familyCode:base.code,familyName:base.name,categoryName:base.categoryName,skuCode:null}]
+ }])[0];
+ assert.equal(familyOnly.status,'family-example');
+});
 test('filename parsing handles encoded URLs but does not accept legacy product IDs',()=>{
  assert.equal(imageFileName('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e%28383%29.png'),'e(383).png');
  assert.equal(imageFileName('/storage/products/catalog/e(383).png'),'e(383).png');
