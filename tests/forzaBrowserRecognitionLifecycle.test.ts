@@ -94,3 +94,16 @@ test('return to listening preserves a customer sentence arriving at playback com
  assert.equal(speech.current,true);
  assert.deepEqual(chunks.current,['audio']);
 });
+
+test('quiet recognized words survive while listening; playback retains near-field guard',()=>{
+ const start=source.indexOf('        if(vadReady &&',source.indexOf('rec.onresult ='));
+ const end=source.indexOf('        recognitionRetryRef.current=0;',start);
+ const body=source.slice(start,end)+'return true;';
+ const ref=(current:any)=>({current});
+ const scope={vadReady:true,isProcessingTurnRef:ref(false),isAiSpeakingRef:ref(false),
+  isManualReplayPendingRef:ref(false),vadRef:ref({heardSpeech:false}),lastMicActivityRef:ref(0)};
+ const run=()=>new Function(...Object.keys(scope),body)(...Object.values(scope));
+ assert.equal(run(),true);
+ scope.isAiSpeakingRef.current=true;assert.equal(run(),undefined);
+ scope.lastMicActivityRef.current=Date.now();assert.equal(run(),true);
+});

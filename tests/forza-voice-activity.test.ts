@@ -47,3 +47,16 @@ test('near-field VAD can detect a quiet close speaker after the room-noise floor
   assert.equal(started, true);
   assert.equal(vad.heardSpeech, true);
 });
+
+test('production 55ms polling detects short speech after 110ms rather than 275ms',()=>{
+ const vad=new ForzaVoiceActivity();
+ assert.equal(vad.sample(0.03,0).speechStarted,false);
+ assert.equal(vad.sample(0.03,55).speechStarted,false);
+ assert.equal(vad.sample(0.03,110).speechStarted,true);
+});
+test('a stalled timer cannot turn two isolated noises into sustained speech',()=>{
+ const vad=new ForzaVoiceActivity();
+ vad.sample(0.03,0);vad.sample(0.03,55);
+ assert.equal(vad.sample(0.03,1000).speechStarted,false);
+ assert.equal(vad.heardSpeech,false);
+});
