@@ -217,7 +217,8 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
     taxonomy.refresh();
   };
   const apply=async()=>{
-    if(!file||!url||(!directMode&&!familyCode)||((directMode||placement==='sku')&&!sku)||savingUpload)return;
+    if(!file||!url||(!directMode&&!familyCode)|| (directMode&&!directEditSku&&!sku) ||
+      (!directMode&&placement==='sku'&&!selectedSkuCodes.length)||savingUpload)return;
     if(directMode){
       const destination=approvedCategories.find(item=>item.slug===category);
       if(!destination||!submenu){setSourceError('برای کد بدون خانواده، دسته و زیرمنو را انتخاب کنید.');return;}
@@ -231,41 +232,51 @@ export function ProductImageAudit({products,categories,onEdit,onCreateFamily,onC
           if(!payload.url)throw new Error('آپلود تصویر: آدرس فایل در پاسخ سرور وجود ندارد.');
           imageUrl=payload.url;
         }
-        await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
+        if(directEditSku){
+          const response=await fetch('/api/catalog/direct-skus/'+encodeURIComponent(directEditSku),{
+            method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({categorySlug:destination.slug,submenu,subcategory,imageUrl})
+          });
+          await requireAdminApiJson(response,'ویرایش کد مستقیم');
+          setSaveNotice('مسیر دسته‌بندی کد مستقیم اصلاح شد؛ اطلاعات فنی و تجاری حفظ شدند.');
+          setDirectEditSku('');
+        }else{
+          await onAssignDirectSku({skuCode:sku,categorySlug:destination.slug,submenu,subcategory,imageUrl});
+        }
         setAuditRevision(value=>value+1);
         closeSelection();
-      }catch(error:any){setSourceError(error.message||'ثبت کد مستقیم انجام نشد.');}
+      }catch(error:any){setSourceError(error.message||'ثبت یا ویرایش کد مستقیم انجام نشد.');}
       finally{setSavingUpload(false);}
       return;
     }
     if(placement==='sku'){
-      if(!selectedSkuChoice){setSourceError('ابتدا یک کد کالا از فهرست سراسری انتخاب کنید.');return;}
+      const chosen=allSkuChoices.filter(choice=>selectedSkuCodes.includes(choice.variant.code));
+      if(!chosen.length||chosen.length!==selectedSkuCodes.length){setSourceError('کدهای انتخاب‌شده دیگر در کاتالوگ فعال نیستند؛ فهرست را تازه کنید.');return;}
       setSavingUpload(true);setSourceError('');
-      let persistedId:string|undefined;
-      let imageConnected=false;
+      let firstUploadBound=false;
       try{
         let assignedUrl=url,assignedFile=file;
         if(source==='upload'){
           if(!selectedUpload)throw new Error('ابتدا فایل تصویر را انتخاب کنید.');
-          // Upload into the destination family first; the transfer endpoint then
-          // atomically changes this persisted gallery row to the selected SKU.
-          const saved=await uploadProductImage(selectedUpload,{familyCode,title:title||selectedUpload.name});
-          assignedUrl=saved.url;assignedFile=saved.fileName;persistedId=saved.id;
+          // Upload once against the first real SKU. The batch endpoint then
+          // idempotently binds the same physical file to every selected SKU.
+          const first=chosen[0];
+          const saved=await uploadProductImage(selectedUpload,{
+            familyCode:first.family.code,variantCode:first.variant.code,title:title||selectedUpload.name
+          });
+          assignedUrl=saved.url;assignedFile=saved.fileName;firstUploadBound=true;
         }
-        await onAssignSku({
-          targetFamilyCode:familyCode,skuCode:sku,imageUrl:assignedUrl,
-          fileName:assignedFile,title:title||undefined,persistedId
+        await onAssignSkus({
+          skuCodes:selectedSkuCodes,imageUrl:assignedUrl,fileName:assignedFile,title:title||undefined
         });
-        imageConnected=true;
-        await saveSelectedPath(familyCode);
+        if(chosen.every(choice=>choice.family.code===familyCode))await saveSelectedPath(familyCode);
+        setSaveNotice('تصویر به '+fa(chosen.length)+' کد کالا متصل شد. فایل اصلی مشترک است و هر اتصال جداگانه قابل ویرایش یا حذف است.');
         setAuditRevision(value=>value+1);
         closeSelection();
       }catch(error:any){
-        setSourceError((imageConnected
-          ? 'اتصال تصویر به کد کالا ذخیره شد، اما دسته‌بندی خانواده تکمیل نشد. از ثبت تکراری خودداری کنید. '
-          : persistedId
-            ? 'آپلود تصویر ذخیره شد، اما اتصال به کد کالا تأیید نشد؛ قبل از تکرار وضعیت تصویر را بررسی کنید. '
-            : 'اتصال تصویر به کد کالا انجام نشد. ') +
+        setSourceError((firstUploadBound
+          ? 'تصویر بارگذاری شد و حداقل به کد اول متصل است؛ نتیجه سایر اتصال‌ها را قبل از تکرار بررسی کنید. '
+          : 'اتصال گروهی تصویر انجام نشد. ') +
           (error instanceof Error ? error.message : 'خطای ارتباط با سرور'));
       }
       finally{setSavingUpload(false);}
