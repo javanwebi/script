@@ -30,7 +30,16 @@ export class CatalogVisualIndex {
   this.loaded=true;
   }catch(error){if(this.persistence)throw error;this.loaded=true;}
  }
- coverage(images:CatalogImageRecord[]){const indexed=images.filter(row=>this.entries.get(row.id)?.signature===signature(row)).length;return {total:images.length,indexed,ready:indexed===images.length};}
+ coverage(images:CatalogImageRecord[]){
+  let indexed=0,missing=0,signatureChanged=0;
+  for(const row of images){
+   const entry=this.entries.get(row.id);
+   if(!entry){missing++;continue;}
+   if(entry.signature===signature(row))indexed++;
+   else signatureChanged++;
+  }
+  return {total:images.length,indexed,ready:indexed===images.length,storedEntries:this.entries.size,missing,signatureChanged};
+ }
  async update(images:CatalogImageRecord[],read:(row:CatalogImageRecord)=>Promise<Buffer|null>,embed:EmbedImages){
   await this.load();
   if(this.building){await this.building;if(this.coverage(images).ready)return;}
