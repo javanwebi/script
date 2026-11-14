@@ -337,7 +337,7 @@ test('category APIs and product filters prefer the audited map over legacy conse
 test('the 90-type Excel audit matrix reconciles all source family and SKU totals',()=>{
  const report=readFileSync('docs/catalog-technical-type-audit-2026-11-14.md','utf8');
  const section=report.split('## ماتریس کامل ۹۰ نوع فنی')[1]?.split('## تفسیر و تصمیم‌های ایمنی')[0]||'';
- const rows=section.split(/\\r?\\n/).filter(line=>line.trim().startsWith('|')&&!line.includes('---'));
+ const rows=section.split(/\r?\n/).filter(line=>line.trim().startsWith('|')&&!line.includes('---'));
  const data=rows.slice(1).map(line=>line.split('|').slice(1,-1).map(cell=>cell.trim()));
  const sum=(column:number)=>data.reduce((total,row)=>total+Number(row[column]||0),0);
  assert.equal(data.length,90);
