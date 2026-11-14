@@ -68,7 +68,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  const mainDeploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
- const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\),?$/gm)];
+ const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)[,;]?$/gm)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
   categorySlug:match[2],
