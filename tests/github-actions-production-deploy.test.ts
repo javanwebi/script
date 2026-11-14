@@ -30,24 +30,25 @@ test("deployment is pinned to the exact tested SHA and stale workflow runs canno
   assert.match(entrypoint, /SANATPISH_EXPECTED_MAIN_SHA/);
   assert.match(entrypoint, /DEPLOY_REF_NOT_CURRENT_MAIN/);
   assert.match(entrypoint, /git fetch origin main/);
-  assert.match(entrypoint, /SANATPISH_RELEASE_SHA=\"\$SHA\" bash/);
+  assert.match(entrypoint, /SANATPISH_RELEASE_SHA="\$SHA" bash/);
   assert.ok(entrypoint.indexOf("DEPLOY_REF_NOT_CURRENT_MAIN") < entrypoint.indexOf('SANATPISH_RELEASE_SHA="$SHA" bash "$TEMP"'));
 });
 
 test("SSH forced command accepts only one deploy command with a full lowercase SHA", () => {
   assert.match(gate, /SSH_ORIGINAL_COMMAND/);
-  assert.match(gate, /deploy\[\[:space:\]\]\+\(\[a-f0-9\]\{40\}\)/);
+  assert.match(gate, /deploy\[\[:space:\]\]\(\[a-f0-9\]\{40\}\)/);
   assert.match(gate, /sudo -n \/usr\/local\/sbin\/sanatpish-deploy-main/);
   assert.doesNotMatch(gate, /eval /);
   assert.doesNotMatch(gate, /bash -c/);
 });
 
 test("VPS installer creates a dedicated restricted account and an exact no-argument sudo allowlist", () => {
-  assert.match(installer, /readonly DEPLOY_USER="sanatpish-deploy"/);\n  assert.match(installer, /useradd --create-home/);
-  assert.match(installer, /command=\"\/usr\/local\/sbin\/sanatpish-github-deploy-gate\",restrict/);
-  assert.match(installer, /NOPASSWD: \/usr\/local\/sbin\/sanatpish-deploy-main \"\"/);
+  assert.match(installer, /readonly DEPLOY_USER="sanatpish-deploy"/);
+  assert.match(installer, /useradd --create-home/);
+  assert.match(installer, /command="\/usr\/local\/sbin\/sanatpish-github-deploy-gate",restrict/);
+  assert.match(installer, /NOPASSWD: \/usr\/local\/sbin\/sanatpish-deploy-main ""/);
   assert.match(installer, /visudo -cf \/etc\/sudoers/);
-  assert.match(installer, /env_keep \+= \"SANATPISH_EXPECTED_MAIN_SHA\"/);
+  assert.match(installer, /env_keep \+= "SANATPISH_EXPECTED_MAIN_SHA"/);
   assert.doesNotMatch(installer, /usermod .*docker/);
   assert.doesNotMatch(installer, /DATABASE_URL|SUPABASE_SERVICE_ROLE_KEY/);
 });
