@@ -30,6 +30,7 @@ import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { resolveDisplayBrand } from '../components/product/ProductCard';
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
+import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { MemberAccess } from '../components/storefront/MemberAccess';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
@@ -455,35 +456,20 @@ function CatalogCard({
   compareSelected,
   compareDisabled,
   onToggleCompare,
+  detailPath,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
+  detailPath?: string;
 }) {
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const href = '/product/' + encodeURIComponent(product.code);
+  const href = detailPath || '/product/' + encodeURIComponent(product.code);
   const marked = isInWishlist(product.code);
-  const rawSpecs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value);
-  const derivedPitch =
-    product.code.match(/(?:^|[^A-Z0-9])(\d{1,2}M|T\d+|XL|XH|SPA|SPB|SPC|PK|[A-E])(?=[\s-]?\d)/i)?.[1]?.toUpperCase() ||
-    '8M';
-
-  const cardSpecs = [
-    rawSpecs[0] || { key: 'نوع گام', value: derivedPitch },
-    rawSpecs[1] || {
-      key: 'تعداد دندانه / سایز',
-      value:
-        product.variants && product.variants.length > 1
-          ? `${toPersianDigits(product.variants.length)} سایز`
-          : '۱۵۰ استاندارد',
-    },
-    rawSpecs[2] || { key: 'عرض', value: '۳۰ میلی‌متر' },
-    rawSpecs[3] || {
-      key: 'جنس',
-      value: /پلی|pu/i.test(product.name) ? 'پلی‌یورتان' : 'لاستیکی صنعتی',
-    },
-  ];
+  const cardSpecs = (product.technicalSpecs || [])
+    .filter(spec => spec.key && spec.value)
+    .slice(0, 4);
 
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
@@ -559,23 +545,23 @@ function CatalogCard({
         </Link>
 
         <div className="bce-mobile-spec-pill">
-          <span>گام: {cardSpecs[0].value}</span>
+          <span>{cardSpecs[0] ? `${cardSpecs[0].key}: ${cardSpecs[0].value}` : 'مشخصات فنی ثبت نشده'}</span>
           {brandLabel && <span className="bce-mobile-brand-chip" dir="ltr">{brandLabel}</span>}
         </div>
 
         <div className="bce-product-specs">
-          {cardSpecs.map((spec, idx) => (
+          {cardSpecs.length ? cardSpecs.map((spec, idx) => (
             <div key={`${spec.key}-${idx}`}>
               <span>{spec.key}:</span>
               <strong>{spec.value}</strong>
             </div>
-          ))}
+          )) : <div><span>مشخصات فنی</span><strong>در انتظار تکمیل اطلاعات</strong></div>}
         </div>
 
         <div className="bce-row-meta">
           <div className="bce-product-availability">
-            <span className="dot in-stock" />
-            {product.stockKnown && product.stock > 0 ? 'موجود در انبار' : 'موجود در انبار'}
+            <span className={`dot ${product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'in-stock' : ''}`} />
+            {product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'موجود در انبار' : 'استعلام موجودی'}
           </div>
           <div className="bce-mobile-price-tag">
             {retailPrice ? `${formatPrice(retailPrice)} تومان` : 'استعلام قیمت'}
@@ -606,13 +592,15 @@ function FeaturedProductCard({
   compareSelected,
   compareDisabled,
   onToggleCompare,
+  detailPath,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
+  detailPath?: string;
 }) {
-  const href = '/product/' + encodeURIComponent(product.code);
+  const href = detailPath || '/product/' + encodeURIComponent(product.code);
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
@@ -698,6 +686,7 @@ export const BeltCategoryExperience: React.FC = () => {
   const selectedFamily = searchParams.get('sub') || 'all';
   const isVbelt = selectedFamily === 'تسمه V-BELT';
   const [revision, setRevision] = useState(0);
+  const directSkuRecords = useDirectSkus();
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('default');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -780,6 +769,25 @@ export const BeltCategoryExperience: React.FC = () => {
     () => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)),
     [allProducts, selectedFamily],
   );
+  const directSkuProducts = useMemo(() => {
+    const matchesFamily = (item: { name: string; submenu: string; subcategory: string }) => {
+      if (selectedFamily === 'all') return true;
+      const option = FAMILY_OPTIONS.find(entry => entry.id === selectedFamily);
+      return Boolean(option?.search.test([item.name, item.submenu, item.subcategory].join(' ')));
+    };
+    return directSkuRecords
+      .filter(item => item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug))
+      .filter(matchesFamily)
+      .map(toDirectSkuProduct);
+  }, [directSkuRecords, selectedFamily]);
+  const directSkuCodes = useMemo(
+    () => new Set(directSkuProducts.map(product => product.code)),
+    [directSkuProducts],
+  );
+  const collectionProducts = useMemo(
+    () => [...familyProducts, ...directSkuProducts],
+    [familyProducts, directSkuProducts],
+  );
   const familyCounts = useMemo(() => {
     const counts = new Map<string, number>();
     FAMILY_OPTIONS.forEach(item =>
@@ -791,20 +799,20 @@ export const BeltCategoryExperience: React.FC = () => {
     return counts;
   }, [allProducts]);
   const brands = useMemo(
-    () => Array.from(new Set(familyProducts.flatMap(product => getProductDisplayBrands(product))))
+    () => Array.from(new Set(collectionProducts.flatMap(product => getProductDisplayBrands(product))))
       .sort((a, b) => a.localeCompare(b, 'fa')),
-    [familyProducts],
+    [collectionProducts],
   );
-  const profileOptions = useMemo(() => deriveProfileOptions(familyProducts), [familyProducts]);
+  const profileOptions = useMemo(() => deriveProfileOptions(collectionProducts), [collectionProducts]);
   const showProfileFilter = isVbelt || selectedFamily === 'all' || Boolean(selectedFamily);
-  const hasPrices = familyProducts.some(p => priceOf(p) !== null);
+  const hasPrices = collectionProducts.some(p => priceOf(p) !== null);
 
   const filtered = useMemo(() => {
     const minLength = filters.minimumLength !== '' ? number(filters.minimumLength) : null;
     const maxLength = filters.maximumLength !== '' ? number(filters.maximumLength) : null;
     const minPrice = filters.minimumPrice !== '' ? number(filters.minimumPrice) : null;
     const maxPrice = filters.maximumPrice !== '' ? number(filters.maximumPrice) : null;
-    const selected = familyProducts.filter(product => {
+    const selected = collectionProducts.filter(product => {
       if (search.trim() && !matchesProductSearch(product, search.trim())) return false;
       if (filters.brands.length && !filters.brands.some(brand => productHasDisplayBrand(product, brand))) return false;
       if (filters.profile !== 'all' && !matchesProfile(product, filters.profile)) return false;
@@ -834,22 +842,22 @@ export const BeltCategoryExperience: React.FC = () => {
     if (sortBy === 'price-low') selected.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
     if (sortBy === 'price-high') selected.sort((a, b) => (priceOf(b) ?? -Infinity) - (priceOf(a) ?? -Infinity));
     return selected;
-  }, [familyProducts, filters, search, isVbelt, sortBy]);
+  }, [collectionProducts, filters, search, isVbelt, sortBy]);
 
   const pageSize = 24;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const featuredProduct = useMemo(
-    () => filtered.find(product => product.images?.[0]) || filtered[0] || null,
+    () => filtered.find(product => !directSkuCodes.has(product.code) && product.images?.[0]) || filtered[0] || null,
     [filtered],
   );
   const compareProducts = useMemo(
     () =>
       compareCodes
-        .map(code => allProducts.find(product => product.code === code))
+        .map(code => collectionProducts.find(product => product.code === code))
         .filter((product): product is Product => Boolean(product)),
-    [allProducts, compareCodes],
+    [collectionProducts, compareCodes],
   );
   const comparisonSpecKeys = useMemo(
     () =>
@@ -1010,7 +1018,7 @@ export const BeltCategoryExperience: React.FC = () => {
             value={filters}
             onChange={changeFilters}
             brands={brands}
-            products={familyProducts}
+            products={collectionProducts}
             profiles={profileOptions}
             classic={showProfileFilter}
             hasPrices={hasPrices}
@@ -1394,6 +1402,7 @@ export const BeltCategoryExperience: React.FC = () => {
                   <CatalogCard
                     key={p.code}
                     product={p}
+                    detailPath={directSkuCodes.has(p.code) ? '/direct-product/' + encodeURIComponent(p.code) : undefined}
                     compareSelected={compareCodes.includes(p.code)}
                     compareDisabled={compareCodes.length >= 4}
                     onToggleCompare={toggleCompare}
@@ -1451,6 +1460,7 @@ export const BeltCategoryExperience: React.FC = () => {
 
         {featuredProduct && <FeaturedProductCard
             product={featuredProduct}
+            detailPath={directSkuCodes.has(featuredProduct.code) ? '/direct-product/' + encodeURIComponent(featuredProduct.code) : undefined}
             compareSelected={compareCodes.includes(featuredProduct.code)}
             compareDisabled={compareCodes.length >= 4}
             onToggleCompare={toggleCompare}
@@ -1720,7 +1730,7 @@ export const BeltCategoryExperience: React.FC = () => {
               <FilterFields value={draft}
                 onChange={setDraft}
                 brands={brands}
-                products={familyProducts}
+                products={collectionProducts}
                 profiles={profileOptions}
                 classic={showProfileFilter}
                 hasPrices={hasPrices}
