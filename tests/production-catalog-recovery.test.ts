@@ -215,3 +215,15 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  for(const code of ['FAM-35826','FAM-10105','FAM-52948','FAM-52858']) assert.ok(correction.includes(code));
 });
 
+test('single-port canary accepts an empty approved welded-belt category and checks a populated source-reviewed belt category',()=>{
+ const canary=readFileSync('ops/verify-single-port-canary.mjs','utf8');
+ const welded=Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>item.categorySlug==='excel-v2-1-4');
+ const timing=Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>item.categorySlug==='excel-v2-1-1');
+ assert.equal(welded.length,0,'No source-reviewed family is currently assigned to the welded-belt category');
+ assert.ok(timing.length>0,'Timing belts provide the populated API positive control');
+ assert.match(canary,/BELT_WELDED_CATEGORY_RESPONSE_INVALID/);
+ assert.match(canary,/beltCategory\\.families\\.every/);
+ assert.doesNotMatch(canary,/beltCategory\\.families\\.length\\s*>\\s*0/);
+ assert.match(canary,/BELT_TIMING_CATEGORY_EMPTY/);
+ assert.match(canary,/beltTimingCategory\\.families\\.length\\s*>\\s*0/);
+});
