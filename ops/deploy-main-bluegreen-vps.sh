@@ -205,7 +205,7 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  finally{await closeDatabase()}
 '
 echo '===== APPLY REVIEWED FAMILY MENU ASSIGNMENTS ====='
-# This snapshot contains 832 curated family-to-Excel-category mappings.
+# This snapshot contains all 1,383 canonical family-to-Excel-category mappings.
 # It is additive and idempotent: existing admin-verified assignments win.
 # SQL owns its transaction; any FK/validation error rolls back the whole seed.
 docker exec -i "$OLD" node --import tsx --input-type=module -e '
@@ -219,7 +219,7 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
    "count(*) filter(where method=\x27admin_verified\x27)::int as admin_verified " +
    "from public.catalog_family_menu_assignments");
   const total=Number(result.rows[0].total);
-  if(total<832)throw Error("Expected at least 832 curated family assignments, found "+total);
+  if(total<1383)throw Error("Expected at least 1383 canonical family assignments, found "+total);
   console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total,
     "admin_verified="+result.rows[0].admin_verified);
  }catch(error){
