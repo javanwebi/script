@@ -246,6 +246,18 @@ export const ProductsPage: React.FC = () => {
       });
     return () => { active = false; };
   }, [catalogVersion]);
+  const displayCatalogProducts = useMemo(
+    () => allCatalogProducts.map((product) => {
+      if (directSkuCodeSet.has(product.code)) return product;
+      const assignment = liveFamilyMenuIndex[product.code] || getFamilyMenuAssignment(product);
+      return {
+        ...product,
+        submenu: assignment.submenuName || product.submenu,
+        subcategory: assignment.leafName || assignment.submenuName || product.subcategory,
+      };
+    }),
+    [allCatalogProducts, directSkuCodeSet, liveFamilyMenuIndex],
+  );
   const managedCategories = useMemo(
     () => getManagedCategories().filter((category) => category.active !== false),
     [catalogVersion],
@@ -279,10 +291,10 @@ export const ProductsPage: React.FC = () => {
 
   // First resolve the real category/subcategory scope, then derive its brand facet.
   const categoryScopedProducts = useMemo(
-    () => allCatalogProducts.filter((product) =>
+    () => displayCatalogProducts.filter((product) =>
       matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex),
     ),
-    [allCatalogProducts, selectedCategory, selectedSubcategory, liveFamilyMenuIndex],
+    [displayCatalogProducts, selectedCategory, selectedSubcategory, liveFamilyMenuIndex],
   );
 
   const allBrands = useMemo(() => {
@@ -1081,7 +1093,7 @@ export const ProductsPage: React.FC = () => {
       {/* Floating Compare Dock */}
       {compareCodes.length > 0 && (() => {
         const comparedItems = compareCodes
-          .map((code) => allCatalogProducts.find((p) => p.code === code))
+          .map((code) => displayCatalogProducts.find((p) => p.code === code))
           .filter((item): item is Product => Boolean(item));
         const specKeys = Array.from(
           new Set(
