@@ -1,4 +1,4 @@
-// Auto-generated verified family-to-menu assignments for all 1,383 industrial families
+// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,357 retained).nu assignments for all 1,383 industrial families
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -58,8 +58,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-10105": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-10114": {
     "categorySlug": "excel-v2-9-1",
@@ -1608,8 +1608,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-35826": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-35837": {
     "categorySlug": "excel-v2-6-2",
@@ -3553,8 +3553,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-52948": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-53016": {
     "categorySlug": "excel-v2-1-1",
@@ -4216,11 +4216,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "پولی پلی‌اورتان",
     "leafName": "در سایزها و گام‌های مختلف"
   },
-  "FAM-33416": {
-    "categorySlug": "excel-v2-4-1",
-    "submenuName": "پولی پلی‌اورتان",
-    "leafName": "در سایزها و گام‌های مختلف"
-  },
   "FAM-35935": {
     "categorySlug": "excel-v2-9-3",
     "submenuName": "دستگیره و پیچ فلکه",
@@ -4252,11 +4247,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
   },
   "FAM-35198": {
-    "categorySlug": "excel-v2-9-3",
-    "submenuName": "دستگیره و پیچ فلکه",
-    "leafName": "انواع دستگیره شکل و پیچ فلکه"
-  },
-  "FAM-33126": {
     "categorySlug": "excel-v2-9-3",
     "submenuName": "دستگیره و پیچ فلکه",
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
@@ -4981,81 +4971,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "سیم‌دار فابریک",
     "leafName": "پلی‌یورتان"
   },
-  "FAM-34280": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-54569": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-381961": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-36858": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-39853": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-31520": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-32174": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-39782": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-39852": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-41065": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-41498": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-33163": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-41601": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-38800": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-35310": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
   "FAM-34854": {
     "categorySlug": "excel-v2-1-1",
     "submenuName": "سیم‌دار فابریک",
@@ -5092,11 +5007,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "پلی‌یورتان"
   },
   "FAM-39005": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-80151": {
     "categorySlug": "excel-v2-1-1",
     "submenuName": "سیم‌دار فابریک",
     "leafName": "پلی‌یورتان"
@@ -5192,11 +5102,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "پلی‌یورتان"
   },
   "FAM-52735": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-31929": {
     "categorySlug": "excel-v2-1-1",
     "submenuName": "سیم‌دار فابریک",
     "leafName": "پلی‌یورتان"
@@ -5861,26 +5766,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "مطابق با نقشه فنی",
     "leafName": "طراحی و تولید قطعات بر اساس نقشه یا نمونه فنی شما"
   },
-  "FAM-35743": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "دستگاه‌های تسمه جوشی",
-    "leafName": "دستگاه جوش تسمه صنعتی"
-  },
-  "FAM-33996": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "دستگاه‌های تسمه جوشی",
-    "leafName": "دستگاه جوش تسمه صنعتی"
-  },
-  "FAM-32247": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "دستگاه‌های تسمه جوشی",
-    "leafName": "دستگاه جوش تسمه صنعتی"
-  },
-  "FAM-32246": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "دستگاه‌های تسمه جوشی",
-    "leafName": "دستگاه جوش تسمه صنعتی"
-  },
   "FAM-39194": {
     "categorySlug": "excel-v2-12-1",
     "submenuName": "مطابق با نقشه فنی",
@@ -6072,11 +5957,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
   },
   "FAM-32193": {
-    "categorySlug": "excel-v2-3-2",
-    "submenuName": "فنر سر رول",
-    "leafName": "انواع فنر سر رول"
-  },
-  "FAM-321931": {
     "categorySlug": "excel-v2-3-2",
     "submenuName": "فنر سر رول",
     "leafName": "انواع فنر سر رول"
@@ -6555,16 +6435,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-8-1",
     "submenuName": "برزنتی چسب‌دار",
     "leafName": "(نخ و پارچه) برزنتی در ضخامت مختلف"
-  },
-  "FAM-39114": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
-  },
-  "FAM-40601": {
-    "categorySlug": "excel-v2-1-4",
-    "submenuName": "تسمه بارکش",
-    "leafName": "انواع تسمه بارکش صنعتی"
   },
   "FAM-38353": {
     "categorySlug": "excel-v2-2-2",
