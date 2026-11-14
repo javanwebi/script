@@ -1294,11 +1294,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* DirectSkuProducts margin spacing inside left column */
-.excel-category-results section[class*="rounded-2xl"] {
-  margin-top: 12px;
-}
-
 /* Active Filters Row */
 .excel-category-active-filters {
   display: flex;
