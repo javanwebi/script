@@ -87,6 +87,8 @@ test('production deploy applies every canonical family-menu assignment without o
  assert.match(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
  assert.match(singlePort,/Expected at least 1383 family menu assignments/);
  assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
+ assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
  assert.match(wrapper,/deploy-single-port-vps\.sh/);
  assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
 });
