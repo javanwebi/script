@@ -88,15 +88,6 @@ const FAMILY_ARTWORK: Record<string, string> = {
   'تسمه CRC پنج ضلعی': STORE_ASSETS.subcategories.puWeldedBeltHero,
 };
 
-const HERO_BRAND_LOGOS = [
-  { name: 'Megadyne', tone: 'brand-megadyne' },
-  { name: 'BANDO', tone: 'brand-bando' },
-  { name: 'Continental', tone: 'brand-continental' },
-  { name: 'optibelt', tone: 'brand-optibelt' },
-  { name: 'PowerGrip', tone: 'brand-powergrip' },
-  { name: 'JASON', tone: 'brand-jason' },
-] as const;
-
 const PITCH_GRID_ITEMS = ['8M', '5M', '14M', '3M', 'T10', 'T5', 'XL', 'L', 'H', 'XH', 'A', 'B'] as const;
 
 const referenceArtworkForProduct = (product: Product): string => {
@@ -220,11 +211,12 @@ function FilterFields({
     return combined.length ? combined : [...DEFAULT_PROFILES];
   }, [profiles]);
 
-  const displayBrands = useMemo(() => {
-    const standard = ['Megadyne', 'Bando', 'Continental', 'Optibelt'];
-    const merged = Array.from(new Set([...brands, ...standard]));
-    return merged.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase()));
-  }, [brands, brandSearch]);
+  const displayBrands = useMemo(
+    () => brands.filter(brand =>
+      brand.toLocaleLowerCase('fa-IR').includes(brandSearch.toLocaleLowerCase('fa-IR')),
+    ),
+    [brands, brandSearch],
+  );
 
   return (
     <div className="bce-filter-fields">
@@ -303,7 +295,7 @@ function FilterFields({
         </div>
         <div className="bce-filter-brand-list">
           {displayBrands.slice(0, 10).map(brand => {
-            const count = products.filter(p => p.brand === brand).length;
+            const count = products.filter(product => productHasDisplayBrand(product, brand)).length;
             return (
               <label key={brand}>
                 <span>
@@ -784,6 +776,10 @@ export const BeltCategoryExperience: React.FC = () => {
     () => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)),
     [allProducts, selectedFamily],
   );
+  const familyCodeSet = useMemo(
+    () => new Set(familyProducts.map(product => product.code.trim().toLowerCase())),
+    [familyProducts],
+  );
   const directSkuProducts = useMemo(() => {
     const matchesFamily = (item: { name: string; submenu: string; subcategory: string }) => {
       if (selectedFamily === 'all') return true;
@@ -793,8 +789,9 @@ export const BeltCategoryExperience: React.FC = () => {
     return directSkuRecords
       .filter(item => item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug))
       .filter(matchesFamily)
-      .map(toDirectSkuProduct);
-  }, [directSkuRecords, selectedFamily]);
+      .map(toDirectSkuProduct)
+      .filter(product => !familyCodeSet.has(product.code.trim().toLowerCase()));
+  }, [directSkuRecords, familyCodeSet, selectedFamily]);
   const directSkuCodes = useMemo(
     () => new Set(directSkuProducts.map(product => product.code)),
     [directSkuProducts],
@@ -806,14 +803,16 @@ export const BeltCategoryExperience: React.FC = () => {
   const familyCounts = useMemo(() => {
     const counts = new Map<string, number>();
     FAMILY_OPTIONS.forEach(option => {
-      const familyCount = allProducts.filter(product =>
+      const matchingFamilies = allProducts.filter(product =>
         matchesCatalogCategory(product, BELT_SLUG, option.id),
-      ).length;
+      );
+      const familyCodes = new Set(matchingFamilies.map(product => product.code.trim().toLowerCase()));
       const directSkuCount = directSkuRecords.filter(item =>
         (item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug)) &&
+        !familyCodes.has(String(item.skuCode || '').trim().toLowerCase()) &&
         option.search.test([item.name, item.submenu, item.subcategory].join(' ')),
       ).length;
-      counts.set(option.id, familyCount + directSkuCount);
+      counts.set(option.id, matchingFamilies.length + directSkuCount);
     });
     return counts;
   }, [allProducts, directSkuRecords]);
@@ -1076,19 +1075,22 @@ export const BeltCategoryExperience: React.FC = () => {
               </p>
 
               <div className="bce-hero-brands" aria-label="برندهای منتخب تسمه صنعتی">
-                {HERO_BRAND_LOGOS.map(brand => (
+                {brands.slice(0, 6).map(brand => (
                   <button
-                    key={brand.name}
+                    key={brand}
                     type="button"
-                    className={`bce-hero-brand-chip ${brand.tone}`}
+                    className="bce-hero-brand-chip"
+                    aria-pressed={filters.brands.includes(brand)}
                     onClick={() =>
                       changeFilters({
                         ...filters,
-                        brands: filters.brands.includes(brand.name) ? [] : [brand.name],
+                        brands: filters.brands.includes(brand)
+                          ? filters.brands.filter(item => item !== brand)
+                          : [...filters.brands, brand],
                       })
                     }
                   >
-                    {brand.name}
+                    {brand}
                   </button>
                 ))}
               </div>
