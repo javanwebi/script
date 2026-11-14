@@ -12,6 +12,8 @@ test("brand resolver never promotes placeholders or Sanat Pish into manufacturer
   assert.equal(resolveDisplayBrand("صنعت پیش", "قطعه صنعتی"), "");
   assert.equal(resolveDisplayBrand("SANAT PISH", "قطعه صنعتی"), "");
   assert.equal(resolveDisplayBrand("خارجی", "تسمه صنعتی بدون نام سازنده"), "");
+  assert.equal(resolveDisplayBrand("Other Brand", "قطعه صنعتی"), "");
+  assert.equal(resolveDisplayBrand("ساخت چین", "قطعه صنعتی"), "");
 });
 
 test("brand resolver recognizes only supported manufacturer evidence in brand or product text", () => {
