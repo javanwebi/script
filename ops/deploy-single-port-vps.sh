@@ -332,6 +332,29 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
+echo '===== APPLY VERIFIED FAMILY MENU ASSIGNMENTS ====='
+ASSIGNMENT_SQL="$STAGE/ops/sql/20261101_catalog_family_menu_assignments.sql"
+test -s "$ASSIGNMENT_SQL" || { echo "REQUIRED_FAMILY_MENU_ASSIGNMENT_SQL_MISSING=$ASSIGNMENT_SQL"; exit 1; }
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  await database().query(sql);
+  const result=await database().query(
+   "select count(*)::int as total, " +
+   "count(*) filter(where category_slug=\x27excel-v2-1-4\x27)::int as category_14 " +
+   "from public.catalog_family_menu_assignments");
+  const total=Number(result.rows[0].total);
+  const category14=Number(result.rows[0].category_14);
+  if(total<1383)throw Error("Expected at least 1383 family menu assignments, found "+total);
+  if(category14<21)throw Error("Expected 21 assignments for excel-v2-1-4, found "+category14);
+  console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total);
+  console.log("PRODUCTION_EXCEL_V2_1_4_FAMILY_ASSIGNMENTS_VERIFIED",category14);
+ }catch(error){console.error("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);process.exitCode=1}
+ finally{await closeDatabase()}
+' < "$ASSIGNMENT_SQL"
+
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
   "$STAGE/supabase/adopted/migrations/20261109010000_customer_360_local_vault.sql" \
