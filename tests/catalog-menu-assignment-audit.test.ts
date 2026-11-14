@@ -279,3 +279,9 @@ test('mixed-material families remain at parent level until SKU-level overrides a
   categorySlug:'excel-v2-6-1',submenuName:'بر اساس جنس',leafName:null
  });
 });
+
+test('direct SKU records are filtered into the same Excel category collection as family products',()=>{
+ const source=readFileSync('src/pages/ProductsPage.tsx','utf8');
+ assert.match(source,/directSkuCodeSet\.has\(product\.code\)[\s\S]*?matchesCatalogCategory\(product, selectedCategory, selectedSubcategory\)/);
+ assert.match(source,/matchesProductMenuSelection\(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex, directSkuCodeSet\)/);
+});
