@@ -7,10 +7,16 @@ const css = readFileSync(new URL('../src/pages/BeltCategoryExperience.css', impo
 const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.url), 'utf8');
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
-test('the canonical belt route keeps its existing experience and direct-SKU catalogue section', () => {
-  assert.match(route, /return <><BeltCategoryExperience \/><DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
+test('direct SKU records are rendered in the same belt collection as family cards', () => {
+  assert.match(route, /return <BeltCategoryExperience \/>/);
+  assert.doesNotMatch(route, /DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
+  assert.match(page, /const directSkuRecords = useDirectSkus\(\)/);
+  assert.match(page, /const directSkuProducts = useMemo/);
+  assert.match(page, /const collectionProducts = useMemo/);
+  assert.match(page, /detailPath=\{directSkuCodes\.has\(p\.code\)/);
   assert.match(directSkus, /\/api\/catalog\/direct-skus/);
-  assert.match(directSkus, /قطعات کم‌تعداد بدون الزام به ساخت خانواده/);
+  assert.match(directSkus, /DirectSkuProductCard/);
+  assert.doesNotMatch(directSkus, /قطعات کم‌تعداد بدون الزام به ساخت خانواده/);
 });
 
 test('the belt page defaults to the complete live catalogue and retains real catalogue filters', () => {
@@ -19,10 +25,11 @@ test('the belt page defaults to the complete live catalogue and retains real cat
   assert.match(page, /subscribeCatalogChanges/);
   assert.match(page, /matchesCatalogCategory/);
   assert.match(page, /matchesProductSearch/);
-  assert.match(page, /deriveProfileOptions\(familyProducts\)/);
+  assert.match(page, /deriveProfileOptions\(collectionProducts\)/);
   assert.match(page, /const isVbelt = selectedFamily === 'تسمه V-BELT'/);
   assert.doesNotMatch(page, /isClassic/);
   assert.match(page, /filters\.brands/);
+  assert.match(page, /productHasDisplayBrand\(product, brand\)/);
   assert.match(page, /filters\.minimumLength/);
   assert.match(page, /filters\.maximumLength/);
   assert.match(page, /filters\.minimumPrice/);
@@ -81,4 +88,10 @@ test('the approved cream industrial visual system has explicit desktop, mobile a
     assert.ok(css.includes('max-width: ' + width), 'missing responsive breakpoint ' + width);
   }
   assert.match(css, /prefers-reduced-motion: reduce/);
+});
+
+test('belt product cards do not invent technical dimensions, material or stock claims', () => {
+  assert.match(page, /const cardSpecs = \(product\.technicalSpecs \|\| \[\]\)/);
+  assert.doesNotMatch(page, /'۱۵۰ استاندارد'|'۳۰ میلی‌متر'|'8M'/);
+  assert.match(page, /استعلام موجودی/);
 });
