@@ -9,7 +9,7 @@ import { memberPath } from "../storefront/MemberAccess";
 import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { resolveSiteProductImage } from "../../utils/siteProductImages";
-import { resolveDisplayBrand } from "../../utils/catalogBrands";
+import { getProductDisplayBrands, resolveDisplayBrand } from "../../utils/catalogBrands";
 export { resolveDisplayBrand } from "../../utils/catalogBrands";
 
 export interface ProductCardProps {
@@ -155,7 +155,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
       : unavailablePriceLabel;
 
-  const displayBrand = resolveDisplayBrand(product.brand, product.name);
+  const displayBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || "";
   const specRows = extractCardSpecs(product, hasVariants);
 
   const isInStock = product.stockKnown && product.stock > 0 && !product.inquiryOnly;
@@ -234,7 +234,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <Link to={href}>
           <ProductImage
             src={product.images?.[0] || product.image || resolvedImage}
-            fallbackSrc={product.image || resolvedImage}
+            fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
             thumbnail
             alt={product.name}
             loading="lazy"
