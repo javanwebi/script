@@ -67,8 +67,9 @@ export const CategoryPage: React.FC = () => {
 const PulleyCategoryRoute: React.FC = () => {
   const [, refresh] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => refresh(value => value + 1)), []);
-  const products = getProductsByCategory(categorySlugFor('پولی و انتقال نیرو'), 5000, 0).products;
-  const directSkus = useDirectSkus();
+  const pulleySlug = categorySlugFor('پولی و انتقال نیرو');
+  const products = getProductsByCategory(pulleySlug, 5000, 0).products;
+  const directSkus = useDirectSkus(pulleySlug, 'excel-v2-4-');
   const directSkuProducts = directSkus
     .filter(item => item.categorySlug === categorySlugFor('پولی و انتقال نیرو') || /^excel-v2-4-[0-9]+$/.test(item.categorySlug))
     .map(toDirectSkuProduct);
@@ -78,11 +79,10 @@ const PulleyCategoryRoute: React.FC = () => {
 
 const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const directSkuRecords = useDirectSkus();
+  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
+  const directSkuRecords = useDirectSkus(category.slug);
   const [catalogRevision, setCatalogRevision] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(value => value + 1)), []);
-
-  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
   const [searchParams, setSearchParams] = useSearchParams();
   const subParam = searchParams.get('sub') || 'all';
 
