@@ -1,0 +1,93 @@
+name: Deploy Sanat Pish production after successful main CI
+
+on:
+  workflow_run:
+    workflows:
+      - Unified Sanat Pish main integration
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact current main commit SHA to deploy (manual verification only)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanatpish-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    if: >-
+      ${{
+        vars.SANATPISH_DEPLOY_ENABLED == 'true' &&
+        (
+          (
+            github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.head_branch == 'main'
+          ) ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            github.ref == 'refs/heads/main'
+          )
+        )
+      }}
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate pinned release and production secrets
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SANATPISH_DEPLOY_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SANATPISH_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
+          test -n "$SSH_HOST" || { echo "MISSING_SANATPISH_DEPLOY_HOST"; exit 1; }
+          test -n "$SSH_USER" || { echo "MISSING_SANATPISH_DEPLOY_USER"; exit 1; }
+          test -n "$SSH_PRIVATE_KEY" || { echo "MISSING_SANATPISH_DEPLOY_PRIVATE_KEY"; exit 1; }
+          test -n "$SSH_KNOWN_HOSTS" || { echo "MISSING_SANATPISH_DEPLOY_KNOWN_HOSTS"; exit 1; }
+          echo "PINNED_MAIN_RELEASE=$DEPLOY_SHA"
+          echo "PRODUCTION_DEPLOY_CONFIGURATION_PRESENT"
+
+      - name: Configure pinned SSH identity and host key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SANATPISH_DEPLOY_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SANATPISH_DEPLOY_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          install -m 0700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/sanatpish_deploy_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/sanatpish_deploy_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/sanatpish_deploy_ed25519" >/dev/null
+          ssh-keygen -F "$SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
+
+      - name: Deploy only the exact main commit whose CI passed
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          ssh \
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=90 \
+            "$SSH_USER@$SSH_HOST" "deploy $DEPLOY_SHA"
