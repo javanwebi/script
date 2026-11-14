@@ -368,7 +368,7 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
  try {
   const sql=readFileSync(0,"utf8");
   await database().query(sql);
-  console.log("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED",303);
+  console.log("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED",305);
  }catch(error){
   console.error("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
   process.exitCode=1;
