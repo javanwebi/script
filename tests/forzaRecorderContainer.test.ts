@@ -7,7 +7,7 @@ test('recording reaches its cap with header intact and rotates instead of slicin
  for(const monitoring of [false,true]){
   const chunks:any[]=[];let stops=0;
   const mr={state:'recording',stop(){stops++;this.state='inactive';}};
-  const emit=new Function('audioChunksRef','isProcessingTurnRef','isAiSpeakingRef','hasSpeechSoundRef','mr','e','let rotateCapture=false;'+body+';return rotateCapture;');
+  const emit=new Function('audioChunksRef','isProcessingTurnRef','isAiSpeakingRef','hasSpeechSoundRef','mr','e','let rotateCapture=false;const recordingSafety={observe(){}};const isManualReplayPendingRef={current:false};const lastForzaPlaybackAtRef={current:0};'+body+';return rotateCapture;');
   const cap=monitoring?8:160;
   for(let i=0;i<cap;i++)emit({current:chunks},{current:monitoring},{current:false},{current:true},mr,{data:{size:1,id:i}});
   assert.equal(stops,1);assert.equal(chunks[0].id,0);assert.equal(chunks.length,cap);
