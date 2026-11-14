@@ -53,8 +53,8 @@ test("a real family brand and matching SKU brand are deduplicated", () => {
 
 test("direct SKU brand facets prefer the current active variant manufacturer", () => {
   const api = readFileSync(new URL("../server/catalogNavigationApi.ts", import.meta.url), "utf8");
-  assert.match(api, /left join public\\.catalog_variants v on v\\.code=d\\.sku_code and v\\.active=true/);
-  assert.match(api, /coalesce\\(nullif\\(v\\.brand,''\\),d\\.brand,''\\) as brand/);
+  assert.ok(api.includes("left join public.catalog_variants v on v.code=d.sku_code and v.active=true"));
+  assert.ok(api.includes("coalesce(nullif(v.brand,''),d.brand,'') as brand"));
 });
 
 test("direct SKU product images cannot silently fall back to unrelated inferred artwork", () => {
