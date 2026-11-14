@@ -12,7 +12,7 @@ export interface BrandSource {
 
 const PLACEHOLDER_BRANDS = new Set([
   "ثبت نشده", "نامشخص", "بدون برند", "خارجی", "وارداتی صنعتی",
-  "صنعت پیش", "unknown", "n/a", "na", "-", "عمومی", "بدون نام",
+  "صنعت پیش", "sanat pish", "sanatpish", "sanat-pish", "sanat_pish", "unknown", "n/a", "na", "-", "عمومی", "بدون نام",
 ]);
 
 export function normalizeCatalogBrand(value: string): string {
