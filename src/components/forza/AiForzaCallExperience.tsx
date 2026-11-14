@@ -1187,10 +1187,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // Browser speech is a low-latency live preview only. When the
-        // server Diba recognizer is enabled, its final transcript is verified
-        // on every recorded turn before the AI receives the query.
-        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
+        // An admitted transcript can start the reply immediately. Diba batch
+        // recognition is the recovery path for turns without live words.
+        const needsServerFinal = Boolean(audioBlob) && !q && serverSttConfiguredRef.current === true;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
