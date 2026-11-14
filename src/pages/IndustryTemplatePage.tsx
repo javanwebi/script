@@ -23,7 +23,7 @@ import { STORE_ASSETS as A } from "../assets/images";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { INDUSTRY_PAGE_DETAILS, type IndustryPageSlug } from "../data/industryPageDetails";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
-import { databaseStorageEnabled } from "../services/durableStorage";
+import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 import { rankIndustryProducts } from "../utils/industryCatalog";
 import { ProductCard } from "../components/product/ProductCard";
 import { PartIdentificationLink } from "../components/search/PartIdentificationProvider";
@@ -75,7 +75,7 @@ export function IndustryTemplatePage() {
   const detail = slug ? INDUSTRY_PAGE_DETAILS[slug] : null;
 
   const [catalogVersion, setCatalogVersion] = useState(0);
-  const [catalogReady, setCatalogReady] = useState(() => databaseStorageEnabled());
+  const [catalogReady, setCatalogReady] = useState(() => isDatabaseCatalogHydrated());
   const [activeStageIndex, setActiveStageIndex] = useState(0);
   const [selectedIntentId, setSelectedIntentId] = useState<(typeof INTENTS)[number]["id"]>("supply");
   const [technicalQuery, setTechnicalQuery] = useState("");
@@ -88,7 +88,7 @@ export function IndustryTemplatePage() {
 
   useEffect(() => {
     const refreshCatalog = () => {
-      setCatalogReady(databaseStorageEnabled());
+      setCatalogReady(isDatabaseCatalogHydrated());
       setCatalogVersion(version => version + 1);
     };
     refreshCatalog();
@@ -103,6 +103,7 @@ export function IndustryTemplatePage() {
 
   useEffect(() => {
     if (!slug || !industry || !detail) return;
+    const previousTitle = document.title;
     const title = detail.headline + " | صنعت پیش";
     const description = detail.introduction.slice(0, 155);
     document.title = title;
@@ -127,7 +128,7 @@ export function IndustryTemplatePage() {
     canonical.href = window.location.origin + "/industries/" + slug;
 
     return () => {
-      document.title = "صنعت پیش";
+      document.title = previousTitle;
       if (meta) {
         if (createdMeta) meta.remove();
         else meta.content = previousDescription;
