@@ -204,10 +204,13 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  }catch(error){console.error("PRODUCTION_NAVIGATION_VERIFY_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 '
-echo '===== APPLY REVIEWED FAMILY MENU ASSIGNMENTS ====='
-# This snapshot contains all 1,383 canonical family-to-Excel-category mappings.
-# It is additive and idempotent: existing admin-verified assignments win.
-# SQL owns its transaction; any FK/validation error rolls back the whole seed.
+echo '===== SKIP UNVERIFIED BULK FAMILY MENU SEED ====='
+echo 'The 1,357-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
+echo 'Existing admin_verified assignments remain untouched.'
+
+echo '===== APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS ====='
+CORRECTION_SQL="$STAGE/ops/sql/20261114_catalog_family_menu_audit_corrections.sql"
+test -s "$CORRECTION_SQL" || { echo "REQUIRED_CATALOG_CORRECTION_SQL_MISSING=$CORRECTION_SQL"; exit 1; }
 docker exec -i "$OLD" node --import tsx --input-type=module -e '
  import {readFileSync} from "node:fs";
  import {database,closeDatabase} from "./server/db/connection.ts";
@@ -215,18 +218,17 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const sql=readFileSync(0,"utf8");
   await database().query(sql);
   const result=await database().query(
-   "select count(*)::int as total, " +
-   "count(*) filter(where method=\x27admin_verified\x27)::int as admin_verified " +
-   "from public.catalog_family_menu_assignments");
-  const total=Number(result.rows[0].total);
-  if(total<1383)throw Error("Expected at least 1383 canonical family assignments, found "+total);
-  console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total,
-    "admin_verified="+result.rows[0].admin_verified);
+   "select count(*)::int as total from public.catalog_family_menu_assignments " +
+   "where category_slug=\x27excel-v2-6-2\x27 and submenu_name=\x27نرده استیل\x27 " +
+   "and leaf_name=\x27نرده استیل و متعلقات\x27 " +
+   "and family_code in (\x27FAM-35826\x27,\x27FAM-10105\x27,\x27FAM-52948\x27)");
+  if(Number(result.rows[0].total)<3)throw Error("Expected all 3 source-verified stainless guide families");
+  console.log("PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED",result.rows[0].total);
  }catch(error){
-  console.error("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
+  console.error("PRODUCTION_CATALOG_AUDIT_CORRECTION_FAILED",error.code||"",error.message);
   process.exitCode=1;
  }finally{await closeDatabase()}
-' < "$STAGE/ops/sql/20261101_catalog_family_menu_assignments.sql"
+' < "$CORRECTION_SQL"
 echo '===== CONTINUE BLUE-GREEN DEPLOY ====='
 echo '===== BACK UP NGINX AND COPY LIVE CONTAINER SETTINGS ====='
 mkdir -m 700 -p "$BACKUP"
