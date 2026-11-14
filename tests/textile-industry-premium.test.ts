@@ -33,7 +33,12 @@ test("textile search, identification, FORZA and manufacturing request retain ind
   assert.match(page, /\/identify-part\?industry=/);
   assert.match(page, /CustomPartRequestModal/);
   assert.match(page, /درخواست از صفحه صنعت /);
-  assert.match(page, /rankIndustryProducts/);
+  assert.match(page, /rankIndustryStageProducts/);
+  assert.match(page, /INDUSTRY_STAGE_CATALOG/);
+  const stageCatalog = source("src/data/industryStageCatalog.ts");
+  assert.match(stageCatalog, /تسمه روکش‌دار/);
+  assert.match(stageCatalog, /تسمه صنعتی/);
+  assert.match(stageCatalog, /TEXTILE_NOTICE/);
 });
 
 test("textile layout remains responsive and respects reduced-motion preferences", () => {
