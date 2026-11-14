@@ -10,6 +10,11 @@ test('preloads one shared module for each product and category family', () => {
   assert.equal(resolvePreloadKey('/account/product/6203ZZ'), '/product/:code');
   assert.equal(resolvePreloadKey('/category/تسمه-و-انتقال-نیرو'), '/category/:slug');
   assert.equal(resolvePreloadKey('/category/ceramic-tiles'), '/industry-template');
+  assert.equal(resolvePreloadKey('/category/textile-machinery'), '/industry-template');
+  assert.equal(resolvePreloadKey('/category/packaging-carton'), '/industry-template');
+  assert.equal(resolvePreloadKey('/category/food-beverage'), '/industry-template');
+  assert.equal(resolvePreloadKey('/category/machinery-equipment'), '/industry-template');
+  assert.equal(resolvePreloadKey('/category/rubber-plastics'), '/industry-template');
   assert.equal(resolvePreloadKey('/industries/ceramic'), '/industry-template');
   assert.equal(resolvePreloadKey('/industries/textile'), '/industry-template');
   assert.equal(resolvePreloadKey('/industries/packaging'), '/industry-template');
