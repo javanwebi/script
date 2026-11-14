@@ -102,4 +102,21 @@ ON CONFLICT(family_code) DO UPDATE SET
   updated_at=now()
 WHERE public.catalog_family_menu_assignments.method <> 'admin_verified';
 
+
+DO $
+DECLARE
+  verified_count integer;
+BEGIN
+  SELECT count(*) INTO verified_count
+  FROM public.catalog_family_menu_assignments
+  WHERE family_code IN ('FAM-35826','FAM-10105','FAM-52948')
+    AND category_slug='excel-v2-6-2'
+    AND submenu_name='نرده استیل'
+    AND leaf_name='نرده استیل و متعلقات';
+
+  IF verified_count <> 3 THEN
+    RAISE EXCEPTION 'Expected all 3 stainless guide assignments to be in the approved stainless leaf, found %', verified_count;
+  END IF;
+END $;
+
 COMMIT;
