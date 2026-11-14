@@ -49,14 +49,15 @@ export class ForzaSpeechAdmission {
   }
 
   decide(text:string,final:boolean,playback:boolean,now:number):SpeechAdmission{
-    if((playback&&!this.mode)||now-this.lastSample>250||!this.calibrated)return 'reject';
+    if(playback&&!this.mode)return 'reject';
+    if(now-this.lastSample>250||!this.calibrated)return playback?'reject':'wait';
     const intent=forzaTurnIntent(text);
     const needed=playback&&intent!=='stop'?280:160;
     // A final may arrive slightly after acoustic silence. Interim words need
     // much fresher evidence; an old loud syllable must not admit a bystander.
-    const fresh=now-this.lastStrong<=(final?900:300);
+    const fresh=now-this.lastStrong<=(final?900:playback?300:450);
     if(!fresh)return 'reject';
-    if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
+    if(this.duration<needed||this.strongFrames<3)return this.onset!==null||!playback?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
     return 'accept';
   }

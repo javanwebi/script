@@ -129,5 +129,8 @@ function spokenNumber(value: string): string {
 /** Spoken only. Do not alter the display or product/engineering codes. */
 export function forzaSpokenPlainText(text: string): string {
   return text.replace(/(?<![0-9۰-۹.٫])([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)\s*[×xX]\s*([0-9۰-۹]{1,6}(?:[.٫][0-9۰-۹]+)?)(?![0-9۰-۹])/gu,
-    (_whole, a: string, b: string) => spokenNumber(a) + ' در ' + spokenNumber(b));
+    (_whole, a: string, b: string) => spokenNumber(a) + ' در ' + spokenNumber(b))
+    // Preserve decimal separators and punctuation inside technical identifiers.
+    .replace(/[،؛؟!?…]+|[.,](?=\s|$)/gu, ' ')
+    .replace(/\s+/gu, ' ').trim();
 }
