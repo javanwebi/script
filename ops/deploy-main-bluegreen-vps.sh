@@ -205,7 +205,7 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  finally{await closeDatabase()}
 '
 echo '===== SKIP UNVERIFIED BULK FAMILY MENU SEED ====='
-echo 'The 1,357-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
+echo 'The 1,287-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
 echo 'Existing admin_verified assignments remain untouched.'
 
 echo '===== APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS ====='
@@ -218,12 +218,15 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const sql=readFileSync(0,"utf8");
   await database().query(sql);
   const result=await database().query(
-   "select count(*)::int as total from public.catalog_family_menu_assignments " +
-   "where family_code in (\x27FAM-35826\x27,\x27FAM-10105\x27,\x27FAM-52948\x27) " +
+   "select count(*)::int as total from public.catalog_family_menu_assignments where " +
+   "((family_code in (\x27FAM-35826\x27,\x27FAM-10105\x27,\x27FAM-52948\x27) " +
    "and (method=\x27admin_verified\x27 or (category_slug=\x27excel-v2-6-2\x27 " +
-   "and submenu_name=\x27نرده استیل\x27 and leaf_name=\x27نرده استیل و متعلقات\x27))");
-  if(Number(result.rows[0].total)!==3)throw Error("Expected 3 source-verified or admin-locked stainless guide families");
-  console.log("PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED_OR_ADMIN_LOCKED",result.rows[0].total);
+   "and submenu_name=\x27نرده استیل\x27 and leaf_name=\x27نرده استیل و متعلقات\x27))) " +
+   "or (family_code=\x27FAM-52858\x27 and (method=\x27admin_verified\x27 or " +
+   "(category_slug=\x27excel-v2-2-1\x27 and submenu_name=\x27بر اساس جنس\x27 " +
+   "and leaf_name=\x27نوار نقاله PVC\x27))))");
+  if(Number(result.rows[0].total)!==4)throw Error("Expected 4 source-verified or admin-locked family assignments");
+  console.log("PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED",result.rows[0].total);
  }catch(error){
   console.error("PRODUCTION_CATALOG_AUDIT_CORRECTION_FAILED",error.code||"",error.message);
   process.exitCode=1;
