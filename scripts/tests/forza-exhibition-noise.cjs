@@ -57,8 +57,9 @@ function wav(seconds){
   await speaking.waitFor({timeout:15000});await page.waitForTimeout(1100);
   await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
   await page.waitForTimeout(400);
-  assert.ok(phrases[0],'an actual spoken phrase must exist');
-  await page.evaluate(text=>window.__emit(text),phrases[0]);
+  const spoken=phrases.find(text=>text!=='بله، بفرما.');
+  assert.ok(spoken,'an actual response phrase must exist');
+  await page.evaluate(text=>window.__emit(text),spoken);
   await page.waitForTimeout(300);
   assert.equal(await speaking.isVisible(),true,'recognized AI loudspeaker words must not interrupt: '+JSON.stringify({phrases,diagnostics}));
   assert.equal(queries.length,1,'speaker echo must not make another request');
