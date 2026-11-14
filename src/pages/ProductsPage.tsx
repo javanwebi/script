@@ -1,6 +1,6 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
-import { DirectSkuProductCard, toDirectSkuProduct, useDirectSkus } from "../components/catalog/DirectSkuProducts";
+import { toDirectSkuProduct, useDirectSkus } from "../components/catalog/DirectSkuProducts";
 import { getProductDisplayBrands, productHasDisplayBrand } from "../utils/catalogBrands";
 import { getFamilyMenuAssignment } from "../services/catalogTaxonomyResolver";
 import {
@@ -212,7 +212,7 @@ export const ProductsPage: React.FC = () => {
     () => directSkuRecords.map(toDirectSkuProduct),
     [directSkuRecords],
   );
-  const familyCodeSet = useMemo(() => new Set(allProducts.map((product) => product.code)), [allProducts]);
+  const familyCodeSet = useMemo(() => new Set(allProducts.map((product) => product.code.toLowerCase())), [allProducts]);
   const allCatalogProducts = useMemo(() => {
     const seen = new Set<string>(familyCodeSet);
     const combined = [...allProducts];
@@ -225,7 +225,7 @@ export const ProductsPage: React.FC = () => {
     return combined;
   }, [allProducts, directSkuProducts, familyCodeSet]);
   const directSkuCodeSet = useMemo(
-    () => new Set(directSkuProducts.filter((product) => !familyCodeSet.has(product.code)).map((product) => product.code)),
+    () => new Set(directSkuProducts.filter((product) => !familyCodeSet.has(product.code.toLowerCase())).map((product) => product.code)),
     [directSkuProducts, familyCodeSet],
   );
   const [liveFamilyMenuIndex, setLiveFamilyMenuIndex] = useState<Record<string, LiveFamilyMenuIndexEntry>>({});
