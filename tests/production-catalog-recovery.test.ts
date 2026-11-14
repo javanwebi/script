@@ -67,7 +67,7 @@ test('production deploy applies every canonical family-menu assignment without o
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const wrapper=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
- const rows=[...sql.matchAll(/\\n\\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\\)/g)];
+ const rows=[...sql.matchAll(/\n\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)/g)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
   categorySlug:match[2],
@@ -80,13 +80,13 @@ test('production deploy applies every canonical family-menu assignment without o
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,21);
  assert.match(sql,/BEGIN;/);
- assert.match(sql,/ON CONFLICT\\(family_code\\) DO UPDATE SET/);
- assert.match(sql,/WHERE public\\.catalog_family_menu_assignments\\.method <> 'admin_verified'/);
+ assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
+ assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
  assert.match(sql,/COMMIT;/);
- assert.doesNotMatch(sql,/^\\s*(DROP\\s+|TRUNCATE\\s+|DELETE\\s+FROM\\s+|UPDATE\\s+)/gim);
- assert.match(singlePort,/20261101_catalog_family_menu_assignments\\.sql/);
+ assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
+ assert.match(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
  assert.match(singlePort,/Expected at least 1383 family menu assignments/);
  assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
- assert.match(wrapper,/deploy-single-port-vps\\.sh/);
+ assert.match(wrapper,/deploy-single-port-vps\.sh/);
  assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
 });
