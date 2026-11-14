@@ -332,3 +332,23 @@ test('category APIs and product filters prefer the audited map over legacy conse
  assert.ok(server.includes("row.method==='admin_verified'||row.method==='excel_source_verified'"));
  assert.ok(products.includes("liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified'"));
 });
+
+
+test('the 90-type Excel audit matrix reconciles all source family and SKU totals',()=>{
+ const report=readFileSync('docs/catalog-technical-type-audit-2026-11-14.md','utf8');
+ const section=report.split('## ماتریس کامل ۹۰ نوع فنی')[1]?.split('## تفسیر و تصمیم‌های ایمنی')[0]||'';
+ const rows=section.split(/\\r?\\n/).filter(line=>line.trim().startsWith('|')&&!line.includes('---'));
+ const data=rows.slice(1).map(line=>line.split('|').slice(1,-1).map(cell=>cell.trim()));
+ const sum=(column:number)=>data.reduce((total,row)=>total+Number(row[column]||0),0);
+ assert.equal(data.length,90);
+ assert.equal(new Set(data.map(row=>row[2])).size,90);
+ assert.equal(sum(3),1383);
+ assert.equal(sum(4),10435);
+ assert.equal(sum(5),1286);
+ assert.equal(sum(6),8872);
+ assert.equal(sum(7),97);
+ assert.equal(sum(8),1563);
+ assert.equal(reviewCodes.length,97);
+ assert.equal(new Set(reviewCodes).size,97);
+ assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length+reviewCodes.length,1383);
+});
