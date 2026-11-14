@@ -37,6 +37,8 @@ test("industry stages are grounded in the supplied template and do not expose de
 
 test("catalog cards and stage recommendations come only from the live catalog ranker", () => {
   assert.match(page, /getAllProducts\(\)/);
+  assert.match(page, /isDatabaseCatalogHydrated\(\)/);
+  assert.doesNotMatch(page, /databaseStorageEnabled\(\)/);
   assert.match(page, /subscribeCatalogChanges/);
   assert.match(page, /rankIndustryProducts\(products, industry, 6\)/);
   assert.match(page, /rankIndustryProducts\(products, \{ \.\.\.industry, terms:/);
