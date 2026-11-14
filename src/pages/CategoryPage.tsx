@@ -170,14 +170,20 @@ const LegacyCategoryPage: React.FC = () => {
     [rawData.products, directSkuProducts],
   );
 
-  // Derive facets from real family and SKU manufacturer fields within this category.
+  // Derive brand facets from the currently selected subcategory, not the whole category.
+  const brandFacetProducts = useMemo(
+    () => selectedSubcat === 'all'
+      ? categoryProducts
+      : categoryProducts.filter(product => matchesCatalogCategory(product, category.slug, selectedSubcat)),
+    [categoryProducts, category.slug, selectedSubcat],
+  );
   const availableBrands = useMemo(() => {
     const brands = new Set<string>();
-    categoryProducts.forEach(product =>
+    brandFacetProducts.forEach(product =>
       getProductDisplayBrands(product).forEach(brand => brands.add(brand)),
     );
     return Array.from(brands).sort((a, b) => a.localeCompare(b, 'fa'));
-  }, [categoryProducts]);
+  }, [brandFacetProducts]);
 
   // Visual subcategory cards with representative image and item count
   const visualSubcategories = useMemo(() => {
@@ -663,7 +669,7 @@ const LegacyCategoryPage: React.FC = () => {
               <fieldset className="space-y-3 border-t border-slate-100 pt-3">
                 <legend className="text-xs font-extrabold text-slate-800">برند</legend>
                 {availableBrands.map(brand => <label key={brand} className="flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-700">
-                  <span>{brand} <span className="text-slate-400">({toPersianDigits(categoryProducts.filter(p=>productHasDisplayBrand(p,brand)).length)})</span></span>
+                  <span>{brand} <span className="text-slate-400">({toPersianDigits(brandFacetProducts.filter(p=>productHasDisplayBrand(p,brand)).length)})</span></span>
                   <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={e=>{setSelectedBrands(previous=>e.target.checked?[...previous,brand]:previous.filter(v=>v!==brand));setPage(1);}} className="h-4 w-4 accent-[#E06518]"/>
                 </label>)}
               </fieldset>
