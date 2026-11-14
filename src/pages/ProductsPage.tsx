@@ -459,7 +459,7 @@ export const ProductsPage: React.FC = () => {
     (searchQuery.trim() ? 1 : 0);
 
   if (selectedCategory === "پولی-و-انتقال-نیرو") {
-    return <PulleyCatalogPage products={allCatalogProducts.filter(p => matchesCatalogCategory(p, selectedCategory))} directSkuCodes={directSkuCodeSet} />;
+    return <PulleyCatalogPage products={allCatalogProducts.filter(p => matchesCatalogCategory(p, selectedCategory) || /^excel-v2-4-[0-9]+$/.test(p.categorySlug))} directSkuCodes={directSkuCodeSet} />;
   }
 
   return (
