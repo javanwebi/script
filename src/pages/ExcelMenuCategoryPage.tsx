@@ -687,7 +687,7 @@ const matchesBeltTopWidth = (product: Product | undefined, widthId: string): boo
 
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
-  const directSkus = useDirectSkus();
+  const directSkus = useDirectSkus(slug);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<CatalogueStatus>('loading');
