@@ -72,9 +72,14 @@ function matchesProductMenuSelection(
   selectedCategory: string,
   selectedSubcategory: string,
   liveIndex: Record<string, LiveFamilyMenuIndexEntry>,
+  directSkuCodeSet: Set<string>,
 ): boolean {
   if (selectedCategory === "swr-forza-exclusive") {
     return getProductDisplayBrands(product).some((brand) => brand === "SWR" || brand === "FORZA");
+  }
+
+  if (directSkuCodeSet.has(product.code)) {
+    return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
   }
 
   if (selectedCategory === "all" && selectedSubcategory === "all") return true;
@@ -294,7 +299,7 @@ export const ProductsPage: React.FC = () => {
   // First resolve the real category/subcategory scope, then derive its brand facet.
   const categoryScopedProducts = useMemo(
     () => displayCatalogProducts.filter((product) =>
-      matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex),
+      matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex, directSkuCodeSet),
     ),
     [displayCatalogProducts, selectedCategory, selectedSubcategory, liveFamilyMenuIndex],
   );
