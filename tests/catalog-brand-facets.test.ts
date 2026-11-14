@@ -9,6 +9,7 @@ import {
 test("brand resolver never promotes placeholders or Sanat Pish into manufacturer brands", () => {
   assert.equal(resolveDisplayBrand("ثبت نشده", "قطعه صنعتی عمومی"), "");
   assert.equal(resolveDisplayBrand("صنعت پیش", "قطعه صنعتی"), "");
+  assert.equal(resolveDisplayBrand("SANAT PISH", "قطعه صنعتی"), "");
   assert.equal(resolveDisplayBrand("خارجی", "تسمه صنعتی بدون نام سازنده"), "");
 });
 
