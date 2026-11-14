@@ -28,7 +28,8 @@ export function ensureCatalogFamiliesLoaded(): Product[] {
   if (existing && existing.length > 0) {
     return existing;
   }
-  return loadFallbackCatalog();
+  // Do not infer live catalogue records from bundled fixtures when PostgreSQL is unavailable.
+  return [];
 }
 
 export function resolveProductPreviewImage(product?: Product): string {
