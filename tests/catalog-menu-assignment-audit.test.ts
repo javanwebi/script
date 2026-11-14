@@ -317,7 +317,8 @@ test('family-backed direct SKUs are hidden only while their source family is vis
 test('category pages merge SKU-level records into the same collection as family products',()=>{
  const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
  assert.match(source,/useDirectSkus/);
- assert.match(source,/directSkuProducts/);
+ assert.match(source,/const directSkus = useDirectSkus\(slug\)/);
+ assert.match(source,/filteredDirectSkus\.forEach\(sku => \{[\s\S]*?items\.push\(\{ kind: 'directSku', sku \}\)/);
 });
 
 test('category APIs and product filters prefer the audited map over legacy conservative assignments',()=>{
