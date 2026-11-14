@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,357 retained).nu assignments for all 1,383 industrial families
+// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,357 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
