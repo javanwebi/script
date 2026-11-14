@@ -55,8 +55,8 @@ test("direct SKU brand facets prefer the current active variant manufacturer", (
   const api = readFileSync(new URL("../server/catalogNavigationApi.ts", import.meta.url), "utf8");
   assert.ok(api.includes("left join public.catalog_variants v on v.code=d.sku_code and v.active=true"));
   assert.ok(api.includes("coalesce(nullif(trim(v.brand),''),nullif(trim(d.brand),''),'') as brand"));
-  assert.equal((api.match(/app.get\\('\/api\\/catalog\\/direct-skus'/g) || []).length, 1);
-  assert.equal((api.match(/app.post\\('\/api\\/catalog\\/direct-skus'/g) || []).length, 1);
+  assert.equal(api.split("app.get('/api/catalog/direct-skus'").length - 1, 1);
+  assert.equal(api.split("app.post('/api/catalog/direct-skus'").length - 1, 1);
 });
 
 test("direct SKU product images cannot silently fall back to unrelated inferred artwork", () => {
