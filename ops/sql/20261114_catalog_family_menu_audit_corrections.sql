@@ -49,12 +49,13 @@ BEGIN
   END IF;
 END $$;
 
--- 96 families remain in catalog_families and catalog_variants.
+-- 97 families remain in catalog_families and catalog_variants.
 -- They are omitted from automatic mapping because their source type, material,
 -- family contents, or current approved-menu destination is ambiguous or unsupported.
 DELETE FROM public.catalog_family_menu_assignments
 WHERE family_code IN (
   'FAM-33416',
+  'FAM-35198',
   'FAM-33126',
   'FAM-32711',
   'FAM-34280',
