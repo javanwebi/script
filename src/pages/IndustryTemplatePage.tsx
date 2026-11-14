@@ -64,7 +64,8 @@ const catalogSearchUrl = (query: string) => "/products?q=" + encodeURIComponent(
 const consultUrl = (slug: IndustryPageSlug, query: string) =>
   "/ai-consult?industry=" + slug + "&q=" + encodeURIComponent(query.trim());
 const scrollTo = (id: string) => {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
 };
 
 export function IndustryTemplatePage() {
@@ -290,8 +291,8 @@ export function IndustryTemplatePage() {
 
       <section className="ipt-section ipt-production" id="ipt-production">
         <div className="ipt-section-heading">
-          <span className="ipt-section-kicker">نقشه کاربردی خط تولید</span>
-          <h2>قطعات در کدام مرحله از فرایند شما نقش دارند؟</h2>
+          <span className="ipt-section-kicker">مسیر فرایند تولید</span>
+          <h2>در هر مرحله از خط، چه قطعاتی اهمیت دارند؟</h2>
           <p>ایستگاه را انتخاب کنید تا ملاحظات فنی و خانواده‌های مرتبط از کاتالوگ فعال نمایش داده شوند.</p>
         </div>
         <div className="ipt-production-shell">
@@ -480,7 +481,7 @@ export function IndustryTemplatePage() {
           <div className="ipt-lead-actions">
             <button type="button" className="ipt-button ipt-button--primary" onClick={() => setRequestOpen(true)}><Wrench size={16} /> درخواست بررسی ساخت</button>
             <a href="tel:03535254703" className="ipt-button ipt-button--light"><Phone size={16} /> تماس با فروشگاه</a>
-            <Link to="/contact" className="ipt-button ipt-button--outline"><MapPin size={16} /> نشانی و هماهنگی مراجعه</Link>
+            <Link to="/contact" className="ipt-button ipt-button--outline"><MapPin size={16} /> مشاهده نشانی و تلفن شعب</Link>
           </div>
         </div>
         <div className="ipt-lead-side">
