@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   getProductDisplayBrands,
@@ -46,4 +47,13 @@ test("a real family brand and matching SKU brand are deduplicated", () => {
     variants: [{ code: "OP-1250", name: "Optibelt 1250", brand: "اپتی‌بلت", active: true }],
   };
   assert.deepEqual(getProductDisplayBrands(product), ["Optibelt"]);
+});
+
+test("direct SKU product images cannot silently fall back to unrelated inferred artwork", () => {
+  const image = readFileSync(new URL("../src/components/product/ProductImage.tsx", import.meta.url), "utf8");
+  const card = readFileSync(new URL("../src/components/product/ProductCard.tsx", import.meta.url), "utf8");
+  assert.match(image, /disableFallback\?: boolean/);
+  assert.match(image, /disableFallback \? "" : fallbackSrc \|\| resolveSiteFallbackByText/);
+  assert.match(card, /disableFallback=\{disableSiteFallback\}/);
+  assert.match(card, /getProductDisplayBrands\(product\)\[0\]/);
 });
