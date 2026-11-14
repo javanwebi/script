@@ -56,7 +56,8 @@ const reviewCodes=[
  'FAM-41326',
  'FAM-51279',
  'FAM-52319',
- 'FAM-52735'
+ 'FAM-52735',
+ 'FAM-38906'
 ];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
@@ -138,7 +139,7 @@ test('21 approved menu leaves have no explicit family leaf mapping after this au
  const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
   item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
  ));
- assert.equal(empty.length,21);
+ assert.equal(empty.length,22);
 });
 
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
@@ -175,8 +176,8 @@ test('the polyurethane timing-belt leaf has no families without explicit PU evid
   'FAM-41326',
   'FAM-51279',
   'FAM-52319',
-  'FAM-52735'
-   'FAM-38906',
+  'FAM-52735',
+  'FAM-38906',
 ];
  for(const familyCode of falsePolyurethaneFamilies){
   assert.equal(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],undefined);
