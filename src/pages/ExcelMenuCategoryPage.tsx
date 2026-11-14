@@ -1135,10 +1135,20 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     | { kind: 'family'; family: MenuFamily }
     | { kind: 'directSku'; sku: DirectSku };
   const filteredCollectionItems = useMemo<CollectionItem[]>(() => {
-    const items: CollectionItem[] = [
-      ...filteredFamilies.map(family => ({ kind: 'family' as const, family })),
-      ...filteredDirectSkus.map(sku => ({ kind: 'directSku' as const, sku })),
-    ];
+    const items: CollectionItem[] = [];
+    const seenCodes = new Set<string>();
+    filteredFamilies.forEach(family => {
+      const key = String(family.code || '').trim().toLowerCase();
+      if (!key || seenCodes.has(key)) return;
+      seenCodes.add(key);
+      items.push({ kind: 'family', family });
+    });
+    filteredDirectSkus.forEach(sku => {
+      const key = String(sku.skuCode || '').trim().toLowerCase();
+      if (!key || seenCodes.has(key)) return;
+      seenCodes.add(key);
+      items.push({ kind: 'directSku', sku });
+    });
     const codeOf = (item: CollectionItem) =>
       item.kind === 'family' ? item.family.code : item.sku.skuCode;
     const nameOf = (item: CollectionItem) =>
