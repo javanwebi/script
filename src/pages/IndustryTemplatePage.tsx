@@ -22,9 +22,10 @@ import {
 import { STORE_ASSETS as A } from "../assets/images";
 import { INDUSTRIES, ARTICLES } from "../data/siteContent";
 import { INDUSTRY_PAGE_DETAILS, type IndustryPageSlug } from "../data/industryPageDetails";
+import { INDUSTRY_STAGE_CATALOG } from "../data/industryStageCatalog";
 import { getAllProducts, subscribeCatalogChanges } from "../data/mockGenerator";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
-import { rankIndustryProducts } from "../utils/industryCatalog";
+import { rankIndustryProcessProducts, rankIndustryStageProducts } from "../utils/industryCatalog";
 import { ProductCard } from "../components/product/ProductCard";
 import { PartIdentificationLink } from "../components/search/PartIdentificationProvider";
 import { CustomPartRequestModal } from "../components/home/CustomPartRequestModal";
@@ -154,30 +155,27 @@ export function IndustryTemplatePage() {
 
   const products = useMemo(() => catalogReady ? getAllProducts() : [], [catalogReady, catalogVersion]);
   const stages = detail?.stages || [];
+  const stageCatalogs = slug ? INDUSTRY_STAGE_CATALOG[slug] : [];
   const activeStage = stages[Math.min(activeStageIndex, Math.max(0, stages.length - 1))];
+  const activeStageCatalog = stageCatalogs[Math.min(activeStageIndex, Math.max(0, stageCatalogs.length - 1))];
 
   const industryProducts = useMemo(
-    () => industry ? rankIndustryProducts(products, industry, 6) : [],
-    [products, industry],
+    () => rankIndustryProcessProducts(products, stageCatalogs.map(catalog => ({ catalog })), 6),
+    [products, stageCatalogs],
   );
   const stageProducts = useMemo(
-    () => industry && activeStage
-      ? rankIndustryProducts(products, { ...industry, terms: [...industry.terms, activeStage.title, activeStage.subtitle] }, 3)
-      : [],
-    [products, industry, activeStage],
+    () => rankIndustryStageProducts(products, activeStageCatalog, 3),
+    [products, activeStageCatalog],
   );
   const recommendationProducts = useMemo(() => {
-    if (!showRecommendations || !industry || !activeStage) return [];
-    const terms = [
-      ...industry.terms,
-      activeStage.title,
-      activeStage.subtitle,
-      equipment,
-      condition,
-      operatingNote,
-    ].filter(Boolean);
-    return rankIndustryProducts(products, { ...industry, terms }, 4);
-  }, [showRecommendations, products, industry, activeStage, equipment, condition, operatingNote]);
+    if (!showRecommendations || !activeStageCatalog) return [];
+    return rankIndustryStageProducts(
+      products,
+      activeStageCatalog,
+      4,
+      [equipment, condition, operatingNote].filter(Boolean),
+    );
+  }, [showRecommendations, products, activeStageCatalog, equipment, condition, operatingNote]);
 
   if (!slug || !industry || !detail) return <Navigate to="/industries" replace />;
   if (rawSlug !== slug) return <Navigate to={"/industries/" + slug} replace />;
@@ -293,20 +291,16 @@ export function IndustryTemplatePage() {
         <div className="ipt-section-heading">
           <span className="ipt-section-kicker">مسیر فرایند تولید</span>
           <h2>در هر مرحله از خط، چه قطعاتی اهمیت دارند؟</h2>
-          <p>ایستگاه را انتخاب کنید تا ملاحظات فنی و خانواده‌های مرتبط از کاتالوگ فعال نمایش داده شوند.</p>
+          <p>ترتیب شماره‌ها مسیر متداول تولید را نشان می‌دهد؛ هر ایستگاه را انتخاب کنید تا فقط قطعات منطبق با دسته‌بندی و زیر‌دسته‌های همان مرحله بررسی شوند.</p>
         </div>
         <div className="ipt-production-shell">
           <div className="ipt-production-visual">
-            <img src={industry.image} alt={"نمای خط تولید " + industry.title} loading="lazy" />
+            <img src={industry.image} alt={"نمای خط تولید صنعت " + industry.title} loading="lazy" />
             <div className="ipt-production-overlay" />
-            <div className="ipt-stage-hotspots" style={{ "--ipt-stage-count": stages.length } as React.CSSProperties}>
-              {stages.map((stage, index) => (
-                <button type="button" key={stage.title} aria-pressed={activeStageIndex === index} onClick={() => setActiveStageIndex(index)} aria-label={"انتخاب مرحله " + stage.title}>
-                  <span>{String(index + 1).padStart(2, "0")}</span><small>{stage.title}</small>
-                </button>
-              ))}
+            <div className="ipt-production-caption">
+              <span>نمای خط تولید</span>
+              <strong>{industry.title}</strong>
             </div>
-            <div className="ipt-production-caption"><span>مرحله انتخاب‌شده</span><strong>{activeStage?.title}</strong></div>
           </div>
           <div className="ipt-stage-tabs" role="tablist" aria-label="مراحل خط تولید">
             {stages.map((stage, index) => (
@@ -320,10 +314,11 @@ export function IndustryTemplatePage() {
               <span className="ipt-section-kicker">بررسی ایستگاه {String(activeStageIndex + 1).padStart(2, "0")}</span>
               <h3>{activeStage?.title}</h3>
               <p>{activeStage?.description}</p>
-              <Link to={catalogSearchUrl(industry.terms.join(" ") + " " + (activeStage?.title || ""))} className="ipt-text-link">جست‌وجوی قطعات این مرحله <ArrowLeft size={15} /></Link>
+              <Link to={catalogSearchUrl((activeStageCatalog?.terms || []).join(" ") || [activeStage?.title, activeStage?.subtitle].filter(Boolean).join(" "))} className="ipt-text-link">جست‌وجوی قطعات این مرحله <ArrowLeft size={15} /></Link>
             </div>
             <div className="ipt-stage-products">
               <div className="ipt-mini-heading"><strong>کالاهای مرتبط در کاتالوگ</strong><span>{stageProducts.length.toLocaleString("fa-IR")} نتیجه</span></div>
+              {activeStageCatalog?.notice && <p className="ipt-stage-notice">{activeStageCatalog.notice}</p>}
               {stageProducts.length ? stageProducts.map(product => (
                 <Link key={product.code} to={"/product/" + encodeURIComponent(product.code)} className="ipt-stage-product">
                   <span><PackageSearch size={17} /></span><div><strong>{product.name}</strong><small>{product.categoryName} · {product.subcategory}</small></div><ArrowUpLeft size={16} />
@@ -372,18 +367,19 @@ export function IndustryTemplatePage() {
           <label>نوع تجهیز<select value={equipment} onChange={event => setEquipment(event.target.value)}><option value="">انتخاب نوع تجهیز</option>{detail.equipmentOptions.map(option => <option key={option} value={option}>{option}</option>)}</select></label>
           <label>شرایط غالب کار<select value={condition} onChange={event => setCondition(event.target.value)}><option value="">انتخاب شرایط کاری</option>{detail.conditionOptions.map(option => <option key={option} value={option}>{option}</option>)}</select></label>
           <label className="ipt-recommender-wide">سرعت، دما، فشار یا توضیح تکمیلی<input value={operatingNote} onChange={event => setOperatingNote(event.target.value)} placeholder="شرایط واقعی دستگاه را بنویسید…" /></label>
-          <button type="submit" className="ipt-button ipt-button--primary ipt-recommender-wide">نمایش خانواده‌های مرتبط <Sparkles size={16} /></button>
+          <button type="submit" className="ipt-button ipt-button--primary ipt-recommender-wide">بررسی قطعات همین ایستگاه <Sparkles size={16} /></button>
         </form>
         {showRecommendations && (
           <div className="ipt-recommendation-results">
             <div className="ipt-mini-heading"><strong>نتایج اولیه برای بررسی</strong><span>{recommendationProducts.length.toLocaleString("fa-IR")} مورد</span></div>
+            {activeStageCatalog?.notice && <p className="ipt-stage-notice">{activeStageCatalog.notice}</p>}
             {recommendationProducts.length ? (
               <div className="ipt-products-grid">{recommendationProducts.map(product => <ProductCard key={product.code} product={product} />)}</div>
             ) : (
               <div className="ipt-stage-empty" role="status">
                 <strong>{catalogReady ? "کالای مرتبطی با این معیارها پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
                 <span>می‌توانید جست‌وجوی آزاد انجام دهید یا شرایط را برای مشاوره فنی ارسال کنید.</span>
-                <Link to={catalogSearchUrl(industry.terms.join(" ") + " " + equipment)} className="ipt-text-link">جست‌وجو در کل کاتالوگ <ArrowLeft size={15} /></Link>
+                <Link to={catalogSearchUrl((activeStageCatalog?.terms || []).join(" ") || activeStage?.title || industry.title)} className="ipt-text-link">جست‌وجو در کل کاتالوگ <ArrowLeft size={15} /></Link>
               </div>
             )}
             <Link to={consultUrl(slug, "درخواست بررسی فنی؛ " + recommendationContext)} className="ipt-button ipt-button--light"><Headphones size={16} /> ارسال شرایط برای FORZA</Link>
@@ -409,7 +405,7 @@ export function IndustryTemplatePage() {
         <div className="ipt-section-heading">
           <span className="ipt-section-kicker">کاتالوگ واقعی صنعت پیش</span>
           <h2>قطعات مرتبط با صنعت {industry.title}</h2>
-          <p>این فهرست از کاتالوگ فعال سایت خوانده می‌شود؛ خانواده‌ها، کدهای مستقیم و تنوع‌های هر خانواده در یک مسیر قابل بررسی‌اند.</p>
+          <p>فقط خانواده‌های فعال کاتالوگ که با دسته‌بندی و زیر‌دسته‌های تعریف‌شده برای ایستگاه‌های این خط تطبیق دارند نمایش داده می‌شوند؛ این فهرست به معنی تأیید سازگاری نهایی با دستگاه نیست.</p>
         </div>
         {industryProducts.length ? (
           <div className="ipt-products-grid">{industryProducts.map(product => <ProductCard key={product.code} product={product} />)}</div>
