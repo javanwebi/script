@@ -102,9 +102,9 @@ const reviewCodes=[
   'FAM-37715',
   'FAM-10161',
   'FAM-90308',
-  'FAM-38353'
-
-  'FAM-35198',];
+  'FAM-38353',
+  'FAM-35198',
+];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
  const leafCount=APPROVED_MENU_CATEGORIES.reduce(
