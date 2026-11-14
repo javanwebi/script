@@ -682,7 +682,7 @@
   .industry-template .ipt-hero h1 { margin: 9px 0 9px; font-size: clamp(25px, 7vw, 34px); line-height: 1.5; }
   .industry-template .ipt-hero-copy > p { font-size: 12px; line-height: 1.95; }
   .industry-template .ipt-hero-tags { gap: 6px; margin-top: 13px; }
-  .industry-template .ipt-hero-tags span { padding: 6px 8px; font-size: 9px; }
+  .industry-template .ipt-hero-tags span { padding: 6px 8px; font-size: 10px; }
   .industry-template .ipt-hero-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
   .industry-template .ipt-hero-actions .ipt-button { min-width: 0; padding-inline: 8px; font-size: 10px; white-space: normal; }
   .industry-template .ipt-hero-actions .ipt-button:last-child { grid-column: 1 / -1; }
@@ -702,7 +702,7 @@
   .industry-template .ipt-intent-card:last-child { grid-column: 1 / -1; min-height: 125px; }
   .industry-template .ipt-intent-icon { width: 35px; height: 35px; margin-bottom: 10px; }
   .industry-template .ipt-intent-card strong { font-size: 11px; }
-  .industry-template .ipt-intent-card p { margin: 5px 0 14px; font-size: 9px; line-height: 1.75; }
+  .industry-template .ipt-intent-card p { margin: 5px 0 14px; font-size: 10px; line-height: 1.75; }
   .industry-template .ipt-intent-next { align-items: stretch; flex-direction: column; gap: 10px; padding: 12px; }
   .industry-template .ipt-intent-next span { font-size: 10px; }
   .industry-template .ipt-intent-next .ipt-button { width: 100%; }
@@ -716,8 +716,8 @@
   .industry-template .ipt-stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
   .industry-template .ipt-stage-tabs button { gap: 6px; padding: 8px 7px; }
   .industry-template .ipt-stage-tabs button > b { width: 25px; height: 25px; flex-basis: 25px; font-size: 9px; }
-  .industry-template .ipt-stage-tabs button > span { font-size: 9px; }
-  .industry-template .ipt-stage-tabs button small { font-size: 8px; }
+  .industry-template .ipt-stage-tabs button > span { font-size: 10px; }
+  .industry-template .ipt-stage-tabs button small { font-size: 9px; }
   .industry-template .ipt-stage-tabs button > svg { width: 12px; }
   .industry-template .ipt-stage-panel { grid-template-columns: 1fr; gap: 14px; margin-top: 9px; padding: 13px; }
   .industry-template .ipt-stage-copy h3 { font-size: 16px; }
@@ -751,8 +751,8 @@
   .industry-template .ipt-article-grid { grid-template-columns: 1fr; gap: 9px; }
   .industry-template .ipt-article-card { min-height: 130px; }
   .industry-template .ipt-article-copy { padding: 10px; }
-  .industry-template .ipt-article-copy strong { font-size: 11px; }
-  .industry-template .ipt-article-copy p { font-size: 9px; }
+  .industry-template .ipt-article-copy strong { font-size: 12px; }
+  .industry-template .ipt-article-copy p { font-size: 10px; }
   .industry-template .ipt-why { grid-template-columns: 1fr; gap: 17px; padding-block: 30px; }
   .industry-template .ipt-why-visual { min-height: 210px; }
   .industry-template .ipt-why-copy h2 { font-size: 21px; }
