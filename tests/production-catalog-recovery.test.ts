@@ -65,6 +65,7 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
 test('bulk family-menu seed is withheld from production deploy until the complete taxonomy audit is approved',()=>{
  const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
  const correction=readFileSync('ops/sql/20261114_catalog_family_menu_audit_corrections.sql','utf8');
+ const mainDeploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
  const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\),?$/gm)];
@@ -82,10 +83,11 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
  assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
  assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
+ assert.doesNotMatch(mainDeploy,/20261101_catalog_family_menu_assignments\.sql/);
  assert.doesNotMatch(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
- assert.match(singlePort,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
- assert.match(singlePort,/20261114_catalog_family_menu_audit_corrections\.sql/);
- assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
+ assert.match(mainDeploy,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
+ assert.match(mainDeploy,/20261114_catalog_family_menu_audit_corrections\.sql/);
+ assert.match(mainDeploy,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
  assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
  assert.match(correction,/method <> 'admin_verified'/);
  assert.match(correction,/excel_source_verified/);
