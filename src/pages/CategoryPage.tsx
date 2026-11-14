@@ -333,7 +333,7 @@ const LegacyCategoryPage: React.FC = () => {
               {label:'گرد پلی‌یورتان',value:'تسمه گرد پلی اورتان',matcher:/گرد/},
               {label:'CRC پنج‌ضلعی',value:'تسمه CRC پنج ضلعی',matcher:/CRC/},
             ].map((item) => {
-              const image = rawData.products.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
+              const image = categoryProducts.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
               return <button type="button" key={item.value} aria-pressed={selectedSubcat === item.value}
                 onClick={()=>selectSubcategory(item.value)} className={`flex h-20 items-center justify-between gap-1 overflow-hidden rounded-xl border px-3 text-xs font-extrabold transition-colors md:h-24 ${selectedSubcat===item.value ? 'border-[#E06518] bg-orange-50 text-[#E06518]' : 'border-slate-100 bg-[#f5f6f7] hover:border-orange-300'}`}>
                 <span>{item.label}</span>
@@ -400,7 +400,7 @@ const LegacyCategoryPage: React.FC = () => {
               <div className="flex items-center gap-4 self-start lg:self-center">
                 <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3.5">
                   <div className="px-2.5 text-center border-l border-slate-200">
-                    <div className="text-lg md:text-xl font-black text-[#E56B1E]">{toPersianDigits(rawData.products.length)}</div>
+                    <div className="text-lg md:text-xl font-black text-[#E56B1E]">{toPersianDigits(categoryProducts.length)}</div>
                     <div className="text-[10px] font-bold text-slate-500">کالا / خانواده</div>
                   </div>
                   <div className="px-2.5 text-center border-l border-slate-200">
@@ -663,7 +663,7 @@ const LegacyCategoryPage: React.FC = () => {
               <fieldset className="space-y-3 border-t border-slate-100 pt-3">
                 <legend className="text-xs font-extrabold text-slate-800">برند</legend>
                 {availableBrands.map(brand => <label key={brand} className="flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-700">
-                  <span>{brand} <span className="text-slate-400">({toPersianDigits(rawData.products.filter(p=>p.brand===brand).length)})</span></span>
+                  <span>{brand} <span className="text-slate-400">({toPersianDigits(categoryProducts.filter(p=>productHasDisplayBrand(p,brand)).length)})</span></span>
                   <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={e=>{setSelectedBrands(previous=>e.target.checked?[...previous,brand]:previous.filter(v=>v!==brand));setPage(1);}} className="h-4 w-4 accent-[#E06518]"/>
                 </label>)}
               </fieldset>
