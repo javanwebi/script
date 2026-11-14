@@ -101,7 +101,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
   const brands = useMemo(() => values(brandScopeProducts), [brandScopeProducts]);
   const profileOptions = useMemo(() => Array.from(new Set(products.flatMap(profiles))).sort((a, b) => a.localeCompare(b, "fa")), [products]);
   const pricedCount = useMemo(() => products.filter(p => priceOf(p) > 0).length, [products]);
-  const totalSkus = useMemo(() => products.reduce((s, p) => s + skuCount(p), 0), [products]);
+  const totalSkus = useMemo(() => products.reduce((sum, product) => sum + (skuCount(product) || (directSkuCodes.has(product.code) ? 1 : 0)), 0), [products, directSkuCodes]);
   const imageCount = useMemo(() => products.filter(realImage).length, [products]);
   const knownStockCount = useMemo(() => products.filter(inStock).length, [products]);
   const activeCount = (selectedSubmenu !== "all" ? 1 : 0) + (kind !== "all" ? 1 : 0) + brand.length + (profile ? 1 : 0) + (photoOnly ? 1 : 0) + (availableOnly ? 1 : 0) + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
@@ -197,7 +197,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
           <h1>پولی و <em>انتقال نیرو</em></h1>
           <p>از شناسایی نوع پولی تا انتخاب دقیق کد کالا؛ خانواده‌های واقعی کاتالوگ را با مشخصات فنی مقایسه کنید.</p>
           <div className="pc-hero-actions"><button type="button" onClick={() => setGuideOpen(true)} className="pc-hero-primary">راهنمای انتخاب پولی <ArrowLeft size={18}/></button><button type="button" onClick={scrollToResults} className="pc-hero-secondary">مشاهده محصولات <ArrowUpLeft size={16}/></button></div>
-          <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> خانواده ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> خانواده تصویردار</span></div>
+          <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> مورد ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> خانواده تصویردار</span></div>
         </div>
         <div className="pc-hero-corner"><BadgeCheck size={17}/> خانواده‌ها و کدهای ثبت‌شده در صنعت پیش</div>
       </header>
@@ -208,13 +208,13 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
           <div className="pc-section-heading"><div><span className="pc-eyebrow">راهنمای انتخاب سریع</span><h2>چه نوع پولی نیاز دارید؟</h2><p>بر اساس عنوان واقعی خانواده‌ها انتخاب کنید</p></div><span className="pc-guide-label"><CircleDot size={17}/> {nf(types.length - 1)} گروه قابل جستجو</span></div>
           <nav className="pc-taxonomy-nav" aria-label="زیردسته‌های واقعی پولی">
             <span>مسیر انتخاب محصول</span>
-            <button type="button" aria-current={selectedSubmenu === "all" ? "page" : undefined} onClick={() => selectSubmenu("all")}>همه خانواده‌ها <b>{nf(products.length)}</b></button>
+            <button type="button" aria-current={selectedSubmenu === "all" ? "page" : undefined} onClick={() => selectSubmenu("all")}>همه محصولات <b>{nf(products.length)}</b></button>
             {submenuOptions.map(option => <button type="button" key={option.name} aria-current={selectedSubmenu === option.name ? "page" : undefined} onClick={() => selectSubmenu(option.name)}>{option.name} <b>{nf(option.count)}</b></button>)}
           </nav>
           <div className="pc-types" role="group" aria-label="گروه‌های پولی">
             {types.map(item => <button type="button" onClick={() => selectType(item.id)} aria-pressed={kind === item.id} className={"pc-type" + (kind === item.id ? " is-selected" : "")} key={item.id}>
               <div className="pc-type-image">{item.image ? <ProductImage src={item.image} alt={"نمونه ثبت‌شده " + item.title} thumbnail loading="lazy"/> : <span className="pc-type-icon"><CircleDot size={30}/></span>}</div>
-              <div className="pc-type-copy"><strong>{item.title}</strong><span>{item.desc}</span><small>{nf(item.count)} خانواده</small></div><ChevronLeft className="pc-type-arrow" size={18}/>
+              <div className="pc-type-copy"><strong>{item.title}</strong><span>{item.desc}</span><small>{nf(item.count)} کالا</small></div><ChevronLeft className="pc-type-arrow" size={18}/>
             </button>)}
           </div>
         </section>
@@ -226,7 +226,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
         </div>
 
         <section ref={resultsRef} id="pulley-results" className="pc-results" aria-label="محصولات پولی">
-          <div className="pc-section-heading pc-section-heading--results"><div><span className="pc-eyebrow">کاتالوگ محصولات</span><h2>انتخاب و بررسی پولی صنعتی</h2><p>برای مشاهده کدها، اندازه‌ها و جزئیات هر خانواده وارد صفحه محصول شوید.</p></div><div className="pc-count-tag"><Layers3 size={17}/>{nf(filtered.length)} خانواده یافت شد</div></div>
+          <div className="pc-section-heading pc-section-heading--results"><div><span className="pc-eyebrow">کاتالوگ محصولات</span><h2>انتخاب و بررسی پولی صنعتی</h2><p>برای مشاهده کدها، اندازه‌ها و جزئیات هر خانواده وارد صفحه محصول شوید.</p></div><div className="pc-count-tag"><Layers3 size={17}/>{nf(filtered.length)} کالا یافت شد</div></div>
           <div className="pc-layout">
             <aside className="pc-sidebar">{filters}</aside>
             <div className="pc-content">
@@ -258,7 +258,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
                       <div className="pc-product-info">
                         <div className="pc-product-overline"><span>{type?.title || "پولی صنعتی"}</span><span dir="ltr">{p.code}</span></div>
                         <Link to={detailHref} className="pc-product-title">{p.name}</Link>
-                        <div className="pc-product-tags"><span><Layers3 size={13}/>{skuCount(p) ? nf(skuCount(p)) + " کد و سایز" : "جزئیات فنی"}</span>{profiles(p).length > 0 && <span><Ruler size={13}/>{profiles(p).slice(0,2).join("، ")}</span>}</div>
+                        <div className="pc-product-tags"><span><Layers3 size={13}/>{(skuCount(p) || (directSkuCodes.has(p.code) ? 1 : 0)) ? nf(skuCount(p) || 1) + " کد و سایز" : "جزئیات فنی"}</span>{profiles(p).length > 0 && <span><Ruler size={13}/>{profiles(p).slice(0,2).join("، ")}</span>}</div>
                         <div className="pc-product-bottom"><div><small>وضعیت قیمت</small><strong>{cost > 0 ? nf(cost) + " تومان" : "استعلام قیمت"}</strong></div><span className={inStock(p) ? "pc-status available" : "pc-status"}>{inStock(p) ? "موجودی ثبت‌شده" : "استعلام موجودی"}</span></div>
                         <Link to={detailHref} className="pc-product-link">مشاهده مشخصات و کدها <ArrowLeft size={17}/></Link>
                       </div>
@@ -313,7 +313,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
         </section>
       </div>}
 
-      {drawer && <div className="pc-drawer-root"><button className="pc-drawer-scrim" type="button" aria-label="بستن فیلترها" onClick={() => setDrawer(false)}/><div className="pc-drawer" role="dialog" aria-modal="true" aria-label="فیلتر محصولات"><div className="pc-drawer-head"><strong>فیلتر محصولات</strong><button type="button" aria-label="بستن" onClick={() => setDrawer(false)}><X size={21}/></button></div>{filters}<button type="button" className="pc-drawer-apply" onClick={() => setDrawer(false)}>نمایش {nf(filtered.length)} خانواده <ArrowLeft size={18}/></button></div></div>}
+      {drawer && <div className="pc-drawer-root"><button className="pc-drawer-scrim" type="button" aria-label="بستن فیلترها" onClick={() => setDrawer(false)}/><div className="pc-drawer" role="dialog" aria-modal="true" aria-label="فیلتر محصولات"><div className="pc-drawer-head"><strong>فیلتر محصولات</strong><button type="button" aria-label="بستن" onClick={() => setDrawer(false)}><X size={21}/></button></div>{filters}<button type="button" className="pc-drawer-apply" onClick={() => setDrawer(false)}>نمایش {nf(filtered.length)} کالا <ArrowLeft size={18}/></button></div></div>}
     </main>
   );
 };
