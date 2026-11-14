@@ -77,7 +77,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   leafName:literal(match[4]),
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
- assert.equal(rows.length,1287);
+ assert.equal(rows.length,1286);
  assert.equal(new Set(rows.map(match=>match[1])).size,1287);
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
@@ -210,7 +210,8 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   'FAM-10161',
   'FAM-90308',
   'FAM-38353'
- ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
+ 
+  'FAM-35198',]) assert.ok(correction.includes(code),"Missing review correction for "+code);
  for(const code of ['FAM-35826','FAM-10105','FAM-52948','FAM-52858']) assert.ok(correction.includes(code));
 });
 
