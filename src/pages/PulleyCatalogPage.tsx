@@ -92,7 +92,13 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
     const matching = type.id === "all" ? products : products.filter(p => typeOf(p) === type.id);
     return { ...type, count: matching.length, image: matching.find(realImage)?.images?.[0] };
   }).filter(type => type.count > 0), [products]);
-  const brands = useMemo(() => values(products), [products]);
+  const brandScopeProducts = useMemo(
+    () => selectedSubmenu === "all"
+      ? products
+      : products.filter(product => product.subcategory === selectedSubmenu || product.submenu === selectedSubmenu),
+    [products, selectedSubmenu],
+  );
+  const brands = useMemo(() => values(brandScopeProducts), [brandScopeProducts]);
   const profileOptions = useMemo(() => Array.from(new Set(products.flatMap(profiles))).sort((a, b) => a.localeCompare(b, "fa")), [products]);
   const pricedCount = useMemo(() => products.filter(p => priceOf(p) > 0).length, [products]);
   const totalSkus = useMemo(() => products.reduce((s, p) => s + skuCount(p), 0), [products]);
