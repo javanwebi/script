@@ -102,3 +102,8 @@ test('direct SKU cards do not borrow inferred product imagery or placeholder man
   assert.match(page, /تصویر تأییدشده ثبت نشده/);
   assert.doesNotMatch(page, /product\.brand \|\| 'قطعات صنعتی'/);
 });
+
+test('belt subcategory navigation counts include direct SKU records as well as family records', () => {
+  assert.match(page, /const directSkuCount = directSkuRecords\.filter/);
+  assert.match(page, /counts\.set\(option\.id, familyCount \+ directSkuCount\)/);
+});
