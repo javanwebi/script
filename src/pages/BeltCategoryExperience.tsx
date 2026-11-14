@@ -457,12 +457,14 @@ function CatalogCard({
   compareDisabled,
   onToggleCompare,
   detailPath,
+  disableFallbackImage = false,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
   detailPath?: string;
+  disableFallbackImage?: boolean;
 }) {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const href = detailPath || '/product/' + encodeURIComponent(product.code);
@@ -473,7 +475,7 @@ function CatalogCard({
 
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = referenceArtworkForProduct(product);
+  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   const retailPrice = priceOf(product);
   const brandLabel = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
@@ -494,14 +496,15 @@ function CatalogCard({
           {hasSpecificImage ? (
             <ProductImage
               src={product.images?.[0]}
-              fallbackSrc={fallbackArt}
+              fallbackSrc={fallbackArt || undefined}
+              disableFallback={disableFallbackImage}
               alt={product.name}
               thumbnail
               loading="lazy"
               decoding="async"
               onError={() => setImageFailed(true)}
             />
-          ) : (
+          ) : fallbackArt ? (
             <img
               className="bce-product-reference-art"
               src={fallbackArt}
@@ -509,6 +512,10 @@ function CatalogCard({
               loading="lazy"
               decoding="async"
             />
+          ) : (
+            <div className="bce-product-reference-art bce-product-reference-art--empty" role="img" aria-label="تصویر محصول ثبت نشده">
+              تصویر تأییدشده ثبت نشده
+            </div>
           )}
         </Link>
         <button
@@ -593,19 +600,21 @@ function FeaturedProductCard({
   compareDisabled,
   onToggleCompare,
   detailPath,
+  disableFallbackImage = false,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
   detailPath?: string;
+  disableFallbackImage?: boolean;
 }) {
   const href = detailPath || '/product/' + encodeURIComponent(product.code);
   const featuredBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = referenceArtworkForProduct(product);
+  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   return (
     <aside className="bce-featured-card" aria-label="محصول پیشنهادی">
@@ -614,14 +623,15 @@ function FeaturedProductCard({
         {hasSpecificImage ? (
           <ProductImage
             src={product.images?.[0]}
-            fallbackSrc={fallbackArt}
+            fallbackSrc={fallbackArt || undefined}
+            disableFallback={disableFallbackImage}
             alt={product.name}
             thumbnail
             loading="lazy"
             decoding="async"
             onError={() => setImageFailed(true)}
           />
-        ) : (
+        ) : fallbackArt ? (
           <img
             className="bce-product-reference-art"
             src={fallbackArt}
@@ -629,6 +639,10 @@ function FeaturedProductCard({
             loading="lazy"
             decoding="async"
           />
+        ) : (
+          <div className="bce-product-reference-art bce-product-reference-art--empty" role="img" aria-label="تصویر محصول ثبت نشده">
+            تصویر تأییدشده ثبت نشده
+          </div>
         )}
       </Link>
       <div className="bce-featured-content">
@@ -1404,6 +1418,7 @@ export const BeltCategoryExperience: React.FC = () => {
                     key={p.code}
                     product={p}
                     detailPath={directSkuCodes.has(p.code) ? '/direct-product/' + encodeURIComponent(p.code) : undefined}
+                    disableFallbackImage={directSkuCodes.has(p.code)}
                     compareSelected={compareCodes.includes(p.code)}
                     compareDisabled={compareCodes.length >= 4}
                     onToggleCompare={toggleCompare}
@@ -1462,6 +1477,7 @@ export const BeltCategoryExperience: React.FC = () => {
         {featuredProduct && <FeaturedProductCard
             product={featuredProduct}
             detailPath={directSkuCodes.has(featuredProduct.code) ? '/direct-product/' + encodeURIComponent(featuredProduct.code) : undefined}
+            disableFallbackImage={directSkuCodes.has(featuredProduct.code)}
             compareSelected={compareCodes.includes(featuredProduct.code)}
             compareDisabled={compareCodes.length >= 4}
             onToggleCompare={toggleCompare}
