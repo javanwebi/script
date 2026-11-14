@@ -169,6 +169,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <ProductImage
               src={product.images?.[0] || product.image || resolvedImage}
               fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+              disableFallback={disableSiteFallback}
               thumbnail
               alt={product.name}
               loading="lazy"
@@ -235,6 +236,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <ProductImage
             src={product.images?.[0] || product.image || resolvedImage}
             fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+            disableFallback={disableSiteFallback}
             thumbnail
             alt={product.name}
             loading="lazy"
