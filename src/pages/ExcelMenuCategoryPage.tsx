@@ -862,17 +862,24 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     return map;
   }, [familyBrandLists]);
 
-  const directSkusInCategory = useMemo(
-    () => directSkus.filter(item =>
-      item.categorySlug === slug && directSkuMatchesSubcategory(item, selection),
-    ),
-    [directSkus, slug, selection],
-  );
-
   const selectedFamiliesForFacet = useMemo(() => {
     const visibleNodes = (category?.children || []).filter(node => node.hidden !== true);
     return families.filter(family => matchesSelection(family, selection, visibleNodes));
   }, [families, category?.children, selection]);
+
+  const selectedFamilyCodesForFacet = useMemo(
+    () => new Set(selectedFamiliesForFacet.map(family => family.code.trim().toLowerCase())),
+    [selectedFamiliesForFacet],
+  );
+
+  const directSkusInCategory = useMemo(
+    () => directSkus.filter(item =>
+      item.categorySlug === slug &&
+      directSkuMatchesSubcategory(item, selection) &&
+      !selectedFamilyCodesForFacet.has(item.skuCode.trim().toLowerCase()),
+    ),
+    [directSkus, slug, selection, selectedFamilyCodesForFacet],
+  );
 
   const brandCounts = useMemo(() => {
     const counts = new Map<string, number>();
