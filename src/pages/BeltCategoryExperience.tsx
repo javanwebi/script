@@ -864,8 +864,10 @@ export const BeltCategoryExperience: React.FC = () => {
   const currentPage = Math.min(page, totalPages);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const featuredProduct = useMemo(
-    () => filtered.find(product => !directSkuCodes.has(product.code) && product.images?.[0]) || filtered[0] || null,
-    [filtered],
+    () => filtered.find(product => !directSkuCodes.has(product.code) && product.images?.[0]) ||
+      filtered.find(product => !directSkuCodes.has(product.code)) ||
+      filtered.find(product => product.images?.[0]) || null,
+    [filtered, directSkuCodes],
   );
   const compareProducts = useMemo(
     () =>
