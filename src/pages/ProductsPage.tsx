@@ -78,11 +78,11 @@ function matchesProductMenuSelection(
     return getProductDisplayBrands(product).some((brand) => brand === "SWR" || brand === "FORZA");
   }
 
+  if (selectedCategory === "all" && selectedSubcategory === "all") return true;
+
   if (directSkuCodeSet.has(product.code)) {
     return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
   }
-
-  if (selectedCategory === "all" && selectedSubcategory === "all") return true;
 
   const isExcelSlug = /^excel-v2-[0-9]+-[0-9]+$/.test(selectedCategory);
   if (selectedCategory !== "all" && !isExcelSlug) {
