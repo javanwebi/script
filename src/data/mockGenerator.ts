@@ -20,7 +20,6 @@ import {
 const initialOverridesDb = {version:1,updatedAt:"",deletedCodes:[],families:{}};
 import { getProductImageUrl } from "../assets/imagesproducts";
 
-import { loadFallbackCatalog } from "./catalogFallbackLoader";
 
 const OVERRIDES_STORAGE_KEY = "atlas_catalog_overrides_v2";
 
