@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; 96 ambiguous or source-conflicting families are omitted for admin review (1,286 retained).
+// Audited family-to-menu assignments; 97 ambiguous or source-conflicting families are omitted for admin review (1,286 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
