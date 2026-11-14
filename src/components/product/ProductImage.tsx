@@ -5,8 +5,8 @@ import { resolveSiteFallbackByText } from "../../utils/siteProductImages";
 
 /** Product pictures come from the mounted volume; never retry from GitHub/CDN. */
 export const ProductImage: React.FC<
-  React.ImgHTMLAttributes<HTMLImageElement> & { thumbnail?: boolean; fallbackSrc?: string }
-> = ({ src, alt, className, onError, thumbnail = false, fallbackSrc, ...props }) => {
+  React.ImgHTMLAttributes<HTMLImageElement> & { thumbnail?: boolean; fallbackSrc?: string; disableFallback?: boolean }
+> = ({ src, alt, className, onError, thumbnail = false, fallbackSrc, disableFallback = false, ...props }) => {
   const [attempt, setAttempt] = useState(0);
   useEffect(() => setAttempt(0), [src, fallbackSrc]);
   const normalized = getProductImageUrl(src);
@@ -25,7 +25,7 @@ export const ProductImage: React.FC<
     candidates.push(localSiteAsset);
   }
 
-  const siteFallback = fallbackSrc || resolveSiteFallbackByText(alt, src);
+  const siteFallback = disableFallback ? "" : fallbackSrc || resolveSiteFallbackByText(alt, src);
   if (siteFallback && !candidates.includes(siteFallback)) {
     candidates.push(siteFallback);
   }
