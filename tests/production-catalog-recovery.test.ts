@@ -88,6 +88,9 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(mainDeploy,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
  assert.match(mainDeploy,/20261114_catalog_family_menu_audit_corrections\.sql/);
  assert.match(mainDeploy,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
+ assert.ok(mainDeploy.includes("method=\\x27admin_verified\\x27 or"),"blue-green deploy must preserve admin-verified overrides");
+ assert.ok(singlePort.includes("method=\\x27admin_verified\\x27 or"),"single-port deploy must preserve admin-verified overrides");
  assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
  assert.match(correction,/method <> 'admin_verified'/);
  assert.match(correction,/excel_source_verified/);
