@@ -88,3 +88,106 @@ export function rankIndustryProducts(
     .slice(0, Math.max(0, limit))
     .map(item => item.product);
 }
+
+export type IndustryStageCatalogDefinition = {
+  categorySlugs: readonly string[];
+  subcategories?: readonly string[];
+  terms: readonly string[];
+  notice?: string;
+};
+
+function stageProductMatch(product: Product, stage: IndustryStageCatalogDefinition, boostTerms: readonly string[] = []): { matched: boolean; score: number } {
+  const categorySlug = normalize(product.categorySlug);
+  const allowedCategories = stage.categorySlugs.map(normalize);
+  if (!categorySlug || !allowedCategories.includes(categorySlug)) return { matched: false, score: 0 };
+
+  const subcategory = normalize(product.subcategory);
+  const allowedSubcategories = (stage.subcategories || []).map(normalize);
+  if (allowedSubcategories.length && !allowedSubcategories.includes(subcategory)) return { matched: false, score: 0 };
+
+  const name = normalize(product.name);
+  const tags = normalize((product.tags || []).join(" "));
+  const details = normalize([
+    product.description,
+    product.nameEn,
+    ...(product.technicalSpecs || []).flatMap(spec => [spec.key, spec.value]),
+    ...(product.variants || []).flatMap(variant => [variant.name, variant.size, variant.model]),
+  ].join(" "));
+
+  const coreTerms = stage.terms.map(normalize).filter(Boolean);
+  if (!coreTerms.length) return { matched: false, score: 0 };
+
+  let coreScore = 0;
+  for (const term of coreTerms) {
+    if (name.includes(term)) coreScore += 12;
+    else if (tags.includes(term)) coreScore += 7;
+    else if (details.includes(term)) coreScore += 2;
+  }
+  if (coreScore <= 0) return { matched: false, score: 0 };
+
+  let boostScore = 0;
+  for (const rawTerm of boostTerms) {
+    const term = normalize(rawTerm);
+    if (term.length < 2) continue;
+    if (name.includes(term)) boostScore += 3;
+    else if (tags.includes(term) || details.includes(term)) boostScore += 1;
+  }
+
+  return {
+    matched: true,
+    score: coreScore + boostScore + (product.hasCatalogueImage ? 1 : 0) + (product.featured ? 1 : 0),
+  };
+}
+
+/**
+ * Return only active catalogue families that pass the selected production
+ * stage's explicit category, subcategory and product-name/tag rules.
+ * Industry-wide keywords are deliberately not added here: a generic bearing
+ * or belt must not appear merely because it is used somewhere in an industry.
+ */
+export function rankIndustryStageProducts(
+  products: readonly Product[],
+  stage: IndustryStageCatalogDefinition | undefined,
+  limit = 4,
+  boostTerms: readonly string[] = [],
+): Product[] {
+  if (!stage || !stage.categorySlugs.length || !stage.terms.length) return [];
+
+  const seen = new Set<string>();
+  return products
+    .filter(product => product.active !== false && Boolean(product.code && product.name))
+    .map(product => ({ product, ...stageProductMatch(product, stage, boostTerms) }))
+    .filter(item => item.matched)
+    .sort((a, b) =>
+      b.score - a.score ||
+      a.product.name.localeCompare(b.product.name, "fa"),
+    )
+    .filter(item => {
+      const code = normalize(item.product.code);
+      if (!code || seen.has(code)) return false;
+      seen.add(code);
+      return true;
+    })
+    .slice(0, Math.max(0, limit))
+    .map(item => item.product);
+}
+
+/** Merge strict stage matches into a deduplicated industry catalogue shortlist. */
+export function rankIndustryProcessProducts(
+  products: readonly Product[],
+  stages: readonly { catalog?: IndustryStageCatalogDefinition }[],
+  limit = 6,
+): Product[] {
+  const seen = new Set<string>();
+  const ranked: Product[] = [];
+  for (const stage of stages) {
+    for (const product of rankIndustryStageProducts(products, stage.catalog, limit)) {
+      const code = normalize(product.code);
+      if (!code || seen.has(code)) continue;
+      seen.add(code);
+      ranked.push(product);
+    }
+  }
+  return ranked.slice(0, Math.max(0, limit));
+}
+
