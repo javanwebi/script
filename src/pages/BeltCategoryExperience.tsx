@@ -805,14 +805,18 @@ export const BeltCategoryExperience: React.FC = () => {
   );
   const familyCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    FAMILY_OPTIONS.forEach(item =>
-      counts.set(
-        item.id,
-        allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, item.id)).length,
-      ),
-    );
+    FAMILY_OPTIONS.forEach(option => {
+      const familyCount = allProducts.filter(product =>
+        matchesCatalogCategory(product, BELT_SLUG, option.id),
+      ).length;
+      const directSkuCount = directSkuRecords.filter(item =>
+        (item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug)) &&
+        option.search.test([item.name, item.submenu, item.subcategory].join(' ')),
+      ).length;
+      counts.set(option.id, familyCount + directSkuCount);
+    });
     return counts;
-  }, [allProducts]);
+  }, [allProducts, directSkuRecords]);
   const brands = useMemo(
     () => Array.from(new Set(collectionProducts.flatMap(product => getProductDisplayBrands(product))))
       .sort((a, b) => a.localeCompare(b, 'fa')),
