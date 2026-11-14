@@ -168,17 +168,22 @@ export default function App() {
                       path="/category/ceramic-tiles"
                       element={<Navigate to="/industries/ceramic" replace />}
                     />
+                    <Route path="/category/textile-machinery" element={<Navigate to="/industries/textile" replace />} />
+                    <Route path="/category/packaging-carton" element={<Navigate to="/industries/packaging" replace />} />
+                    <Route path="/category/food-beverage" element={<Navigate to="/industries/food" replace />} />
+                    <Route path="/category/machinery-equipment" element={<Navigate to="/industries/machinery" replace />} />
+                    <Route path="/category/rubber-plastics" element={<Navigate to="/industries/rubber" replace />} />
                     <Route
                       path="/industries/ceramic"
                       element={<IndustryTemplatePage />}
                     />
                     <Route
                       path="/industries/tile-ceramic"
-                      element={<IndustryTemplatePage />}
+                      element={<Navigate to="/industries/ceramic" replace />}
                     />
                     <Route
                       path="/industry/ceramic-tile"
-                      element={<IndustryTemplatePage />}
+                      element={<Navigate to="/industries/ceramic" replace />}
                     />
 
                     {/* 2. Category Listing */}
