@@ -7,59 +7,102 @@ import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignment
 import {getFamilyMenuAssignment,resolveMenuCategoryPayload} from '../src/services/catalogTaxonomyResolver.ts';
 
 const reviewCodes=[
- 'FAM-34280',
- 'FAM-54569',
- 'FAM-381961',
- 'FAM-36858',
- 'FAM-39853',
- 'FAM-31520',
- 'FAM-32174',
- 'FAM-39782',
- 'FAM-39852',
- 'FAM-41065',
- 'FAM-41498',
- 'FAM-33163',
- 'FAM-41601',
- 'FAM-38800',
- 'FAM-35310',
- 'FAM-35743',
- 'FAM-33996',
- 'FAM-32247',
- 'FAM-32246',
- 'FAM-80151',
- 'FAM-31929',
- 'FAM-33416',
- 'FAM-33126',
- 'FAM-321931',
- 'FAM-30',
- 'FAM-10111',
- 'FAM-10410',
- 'FAM-22751',
- 'FAM-32711',
- 'FAM-32735',
- 'FAM-34854',
- 'FAM-35525',
- 'FAM-35624',
- 'FAM-36750',
- 'FAM-37769',
- 'FAM-38283',
- 'FAM-38285',
- 'FAM-38697',
- 'FAM-38786',
- 'FAM-39005',
- 'FAM-39130',
- 'FAM-40417',
- 'FAM-40462',
- 'FAM-40604',
- 'FAM-40609',
- 'FAM-41253',
- 'FAM-41326',
- 'FAM-51279',
- 'FAM-52319',
- 'FAM-52735',
- 'FAM-38906',
+  'FAM-33416',
+  'FAM-33126',
+  'FAM-32711',
+  'FAM-34280',
+  'FAM-54569',
+  'FAM-381961',
+  'FAM-36858',
+  'FAM-39853',
+  'FAM-31520',
+  'FAM-32174',
+  'FAM-39782',
+  'FAM-39852',
+  'FAM-41065',
+  'FAM-41498',
+  'FAM-33163',
+  'FAM-41601',
+  'FAM-38800',
+  'FAM-35310',
+  'FAM-34854',
+  'FAM-36750',
+  'FAM-38283',
+  'FAM-41326',
+  'FAM-32735',
+  'FAM-39005',
+  'FAM-80151',
+  'FAM-10111',
+  'FAM-52319',
+  'FAM-40462',
+  'FAM-41253',
+  'FAM-39130',
+  'FAM-38906',
+  'FAM-22751',
+  'FAM-35525',
+  'FAM-30',
+  'FAM-37769',
+  'FAM-51279',
+  'FAM-40604',
+  'FAM-10410',
+  'FAM-40417',
+  'FAM-38285',
+  'FAM-38786',
+  'FAM-35624',
+  'FAM-40609',
+  'FAM-52735',
+  'FAM-31929',
+  'FAM-38697',
+  'FAM-35743',
+  'FAM-33996',
+  'FAM-32247',
+  'FAM-32246',
+  'FAM-321931',
   'FAM-39114',
   'FAM-40601',
+  'FAM-10657',
+  'FAM-34667',
+  'FAM-34885',
+  'FAM-34881',
+  'FAM-34882',
+  'FAM-37134',
+  'FAM-32786',
+  'FAM-39543',
+  'FAM-35330',
+  'FAM-33547',
+  'FAM-31533',
+  'FAM-90163',
+  'FAM-90206',
+  'FAM-40522',
+  'FAM-40001',
+  'FAM-34123',
+  'FAM-34138',
+  'FAM-40749',
+  'FAM-40728',
+  'FAM-34899',
+  'FAM-35526',
+  'FAM-36814',
+  'FAM-32697',
+  'FAM-41148',
+  'FAM-38660',
+  'FAM-39946',
+  'FAM-34949',
+  'FAM-33173',
+  'FAM-32268',
+  'FAM-37317',
+  'FAM-33675',
+  'FAM-35245',
+  'FAM-13962',
+  'FAM-13963',
+  'FAM-33318',
+  'FAM-34724',
+  'FAM-37929',
+  'FAM-36577',
+  'FAM-33154',
+  'FAM-37715',
+  'FAM-10161',
+  'FAM-90308',
+  'FAM-38353'
 ];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
@@ -134,20 +177,20 @@ test('invalid menu routes do not fall through to the first approved category',()
  assert.equal(resolveMenuCategoryPayload('not-a-real-category'),null);
 });
 
-test('the current family map has 1,357 retained rows and exposes incomplete assignments for review',()=>{
- assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1357);
+test('the current family map has 1,287 retained rows and exposes incomplete assignments for review',()=>{
+ assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1287);
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,55);
- assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,278);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,265);
 });
 
-test('22 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
+test('20 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
  const leaves=APPROVED_MENU_CATEGORIES.flatMap(category=>(category.children||[]).flatMap(submenu=>
   (submenu.children||[]).map(leaf=>({categorySlug:category.slug,submenuName:submenu.name,leafName:leaf.name}))
  ));
  const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
   item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
  ));
- assert.equal(empty.length,22);
+ assert.equal(empty.length,20);
 });
 
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
@@ -197,9 +240,40 @@ test('the polyurethane timing-belt leaf has no families without explicit PU evid
  ).length,0);
 });
 
+test('the source-confirmed PVC conveyor and exact rail/guide types map to their approved leaves',()=>{
+ assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-52858'],{
+  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:'نوار نقاله PVC'
+ });
+ for(const familyCode of ['FAM-33201','FAM-90314','FAM-90251','FAM-90249','FAM-90037']){
+  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],{
+   categorySlug:'excel-v2-6-1',submenuName:'بر اساس تیپ و کاربرد',leafName:'ریل تیپ B و تیپ C'
+  });
+ }
+ for(const familyCode of ['FAM-33952','FAM-36235']){
+  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],{
+   categorySlug:'excel-v2-6-1',submenuName:'بر اساس تیپ و کاربرد',leafName:'ریل تایمینگ، زنجیر و دنده شانه'
+  });
+ }
+ assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-40690'],{
+  categorySlug:'excel-v2-6-1',submenuName:'بر اساس جنس',leafName:'ریل راهنما تفلون و متعلقات'
+ });
+ for(const familyCode of ['FAM-31443','FAM-36297','FAM-40689','FAM-38349']){
+  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],{
+   categorySlug:'excel-v2-6-2',submenuName:'گاید تفلونی',leafName:'۲ لبه و متعلقات'
+  });
+ }
+});
+
+test('approved page family counts align to the audited source groups',()=>{
+ const values=Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS);
+ assert.equal(values.filter(item=>item.categorySlug==='excel-v2-6-2').length,73);
+ assert.equal(values.filter(item=>item.categorySlug==='excel-v2-2-1').length,2);
+ assert.equal(values.filter(item=>item.categorySlug==='excel-v2-2-2').length,0);
+});
+
 test('mixed-material families remain at parent level until SKU-level overrides are available',()=>{
  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-52858'],{
-  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:null
+  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:'نوار نقاله PVC'
  });
  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-33117'],{
   categorySlug:'excel-v2-6-1',submenuName:'بر اساس جنس',leafName:null
