@@ -93,7 +93,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   assert.match(script,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
   assert.match(script,/20261114_catalog_family_menu_audit_corrections\.sql/);
   assert.match(script,/PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED/);
-  assert.match(script,/20261114_catalog_sku_level_menu_assignments\\.sql/);
+  assert.match(script,/20261114_catalog_sku_level_menu_assignments\.sql/);
   assert.match(script,/PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED/);
   assert.ok(script.includes("method=\\x27admin_verified\\x27 or"),"deploy must preserve admin-verified overrides");
  }
@@ -110,7 +110,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
  assert.equal(skuCodes.length,303);
  assert.equal(new Set(skuCodes).size,303);
- assert.match(skuSql,/ON CONFLICT \\(sku_code\\) DO NOTHING/);
+ assert.match(skuSql,/ON CONFLICT \(sku_code\) DO NOTHING/);
  assert.match(skuSql,/source_family_code/);
  assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
