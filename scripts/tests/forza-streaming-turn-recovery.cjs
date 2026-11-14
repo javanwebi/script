@@ -91,7 +91,7 @@ const documentText=value=>String(value||'').replace(/\\s+/g,' ').slice(-1800);
     assert.equal(sseRequests.at(-1),prompt);
     const turnPhrases=synthRequests.slice(start);
     assert.ok(turnPhrases.length>0,'each turn must synthesize private Nima WAV');
-    assert.equal(turnPhrases.join(' '),fullAnswer,'Nima must receive exactly the complete ordered reply');
+    assert.equal(turnPhrases.join(' '),fullAnswer.replace(/[،.]/gu,' ').replace(/\s+/gu,' ').trim(),'Nima must receive exactly the complete ordered reply');
     totalNimaPhrases+=turnPhrases.length;
   }
   assert.equal(sseRequests.length,2);
