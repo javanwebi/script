@@ -752,8 +752,12 @@ for index,(filename,source) in enumerate(zip(files,contents)):
    assert not api_pattern.search(source),("UNMANAGED_API_PREFIX_LOCATION",filename)
   roots=list(root_pattern.finditer(source))
   assert len(roots)==1,("ROOT_LOCATION_CHANGED",filename,len(roots))
+  # Whitespace is formatting, not a security boundary. Require the SPA root
+  # to be a direct child of the server block instead of imposing an arbitrary
+  # indentation limit that rejects valid, consistently formatted vhosts.
+  root_depth=nginx_depth_before(source,roots[0].start())
+  assert root_depth==1,("NGINX_ROOT_CONTEXT_UNSAFE",filename,root_depth)
   indent=roots[0].group(1)
-  assert len(indent) <= 16, ("NGINX_ROOT_INDENT_UNSAFE",filename,len(indent))
   if index==1:
    lines=(
     f"{indent}{marker}",
