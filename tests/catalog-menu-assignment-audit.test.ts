@@ -98,6 +98,12 @@ test('ambiguous and source-conflicting families are left for admin review',()=>{
  for(const familyCode of reviewCodes){
   assert.equal(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],undefined,familyCode+' must not have an automatic mapping');
   assert.equal(getFamilyMenuAssignment(familyCode),null,familyCode+' must not receive a heuristic fallback');
+  assert.equal(getFamilyMenuAssignment({
+   code:familyCode,
+   categorySlug:'excel-v2-1-1',
+   submenu:'سیم‌دار فابریک',
+   subcategory:'پلی‌یورتان',
+  } as any),null,familyCode+' must not fall back to legacy product metadata');
  }
  assert.equal(getFamilyMenuAssignment('FAM-999999'),null);
  const legacyProduct={
