@@ -103,7 +103,8 @@ ON CONFLICT(family_code) DO UPDATE SET
 WHERE public.catalog_family_menu_assignments.method <> 'admin_verified';
 
 
-DO $
+
+DO $audit$
 DECLARE
   verified_count integer;
 BEGIN
@@ -117,6 +118,6 @@ BEGIN
   IF verified_count <> 3 THEN
     RAISE EXCEPTION 'Expected all 3 stainless guide assignments to be in the approved stainless leaf, found %', verified_count;
   END IF;
-END $;
+END $audit$;
 
 COMMIT;
