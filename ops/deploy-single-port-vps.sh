@@ -365,7 +365,7 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const nodeCoverageRows=nodeCoverage.rows[0];
   if(total<1383)throw Error("Expected at least 1383 active family menu assignments, found "+total);
   if(mappedCategories<34 || emptyCategories!==0)throw Error("Expected all 34 approved categories to contain active families; mapped="+mappedCategories+" empty="+emptyCategories);
-  if(category14<1)throw Error("Expected active families for excel-v2-1-4, found "+category14);
+  if(category14<21)throw Error("Expected 21 assignments for excel-v2-1-4, found "+category14);
   if(Number(nodeCoverageRows.total_submenus)!==55 || Number(nodeCoverageRows.empty_submenus)!==0)throw Error("Expected all 55 approved submenus to contain active families; total="+nodeCoverageRows.total_submenus+" empty="+nodeCoverageRows.empty_submenus);
   if(Number(nodeCoverageRows.total_leaves)!==67 || Number(nodeCoverageRows.empty_leaves)!==0)throw Error("Expected all 67 approved leaf subcategories to contain active families; total="+nodeCoverageRows.total_leaves+" empty="+nodeCoverageRows.empty_leaves);
 
