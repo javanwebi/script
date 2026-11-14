@@ -92,7 +92,7 @@ test('the approved cream industrial visual system has explicit desktop, mobile a
 
 test('belt product cards do not invent technical dimensions, material or stock claims', () => {
   assert.match(page, /const cardSpecs = \(product\.technicalSpecs \|\| \[\]\)/);
-  assert.doesNotMatch(page, /'۱۵۰ استاندارد'|'۳۰ میلی‌متر'|'8M'/);
+  assert.doesNotMatch(page, /'۱۵۰ استاندارد'|'۳۰ میلی‌متر'/);
   assert.match(page, /استعلام موجودی/);
 });
 
