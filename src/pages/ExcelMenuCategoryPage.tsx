@@ -869,19 +869,26 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     [directSkus, slug, selection],
   );
 
+  const selectedFamiliesForFacet = useMemo(() => {
+    const visibleNodes = (category?.children || []).filter(node => node.hidden !== true);
+    return families.filter(family => matchesSelection(family, selection, visibleNodes));
+  }, [families, category?.children, selection]);
+
   const brandCounts = useMemo(() => {
     const counts = new Map<string, number>();
     const add = (brand: string) => {
       if (!brand) return;
       counts.set(brand, (counts.get(brand) || 0) + 1);
     };
-    families.forEach(family => (familyBrandLists.get(family.code) || []).forEach(add));
+    selectedFamiliesForFacet.forEach(family =>
+      (familyBrandLists.get(family.code) || []).forEach(add),
+    );
     directSkusInCategory.forEach(item => {
       const brand = resolveDisplayBrand(item.brand, item.name);
       if (brand) add(brand);
     });
     return counts;
-  }, [families, familyBrandLists, directSkusInCategory]);
+  }, [selectedFamiliesForFacet, familyBrandLists, directSkusInCategory]);
 
   const availableBrands = useMemo(() => Array.from(brandCounts.keys()).sort((a, b) => {
     const countDiff = (brandCounts.get(b) || 0) - (brandCounts.get(a) || 0);
