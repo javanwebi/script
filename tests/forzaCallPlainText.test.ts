@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ForzaCallPlainText, forzaSpokenPlainText} from '../src/utils/forzaCallPlainText';
+
+test('voice strips prose punctuation while retaining decimal values and part codes',()=>{
+  assert.equal(forzaSpokenPlainText('بلبرینگ 6203-ZZ، قطر 3.25 است. مناسب است؟'),
+    'بلبرینگ 6203-ZZ قطر 3.25 است مناسب است');
+});
 import {ForzaIncrementalSpeechText} from '../src/utils/forzaIncrementalSpeechText';
 
 function chunks(raw:string):string[] {
