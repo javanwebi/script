@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
+import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
 test('additive production recovery seeds every approved spreadsheet group without overwriting admin edits',()=>{
  const sql=readFileSync('ops/sql/20261103_recover_missing_production_catalog_navigation.sql','utf8');
@@ -61,20 +62,33 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
  assert.match(script,/NGINX_ROLLBACK_OK/);
 });
 
-test('production deploy applies the 832 curated family assignments additively before canary promotion',()=>{
+test('production deploy applies every canonical family-menu assignment without overwriting admin-verified edits',()=>{
  const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
- const deploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
- const rows=[...sql.matchAll(/\n\('FAM-[^']+','excel-v2-[0-9]+-[0-9]+'/g)];
- const familyCodes=[...sql.matchAll(/\n\('(FAM-[^']+)','excel-v2-/g)].map(match=>match[1]);
- assert.equal(rows.length,832);
- assert.equal(new Set(familyCodes).size,832);
+ const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
+ const wrapper=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
+ const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
+ const rows=[...sql.matchAll(/\n\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)/g)];
+ const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
+ const actual=Object.fromEntries(rows.map(match=>[match[1],{
+  categorySlug:match[2],
+  submenuName:literal(match[3]),
+  leafName:literal(match[4]),
+ }]));
+ const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
+ assert.equal(rows.length,1383);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1383);
+ assert.deepEqual(sorted(actual),sorted(source));
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,21);
  assert.match(sql,/BEGIN;/);
- assert.match(sql,/ON CONFLICT\(family_code\) DO NOTHING/);
+ assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
+ assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
  assert.match(sql,/COMMIT;/);
  assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
- assert.match(deploy,/20261101_catalog_family_menu_assignments\.sql/);
- assert.match(deploy,/PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED/);
- assert.match(deploy,/Expected at least 832 curated family assignments/);
- assert.ok(deploy.indexOf('PRODUCTION_APPROVED_CATEGORIES_VERIFIED') < deploy.indexOf('20261101_catalog_family_menu_assignments.sql'));
- assert.ok(deploy.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < deploy.indexOf("echo '===== START NEW CANARY ====='"));
+ assert.match(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
+ assert.match(singlePort,/Expected at least 1383 family menu assignments/);
+ assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
+ assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
+ assert.match(wrapper,/deploy-single-port-vps\.sh/);
+ assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
 });

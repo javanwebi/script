@@ -64,6 +64,16 @@ console.log("API_NOT_FOUND_JSON_CONTRACT_OK");
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
 
+const beltCategory = await json(candidate, "/api/catalog/menu-category/excel-v2-1-4");
+assert.ok(
+  beltCategory.success &&
+  beltCategory.category?.slug === "excel-v2-1-4" &&
+  Array.isArray(beltCategory.families) &&
+  beltCategory.families.length > 0,
+  "BELT_WELDED_CATEGORY_EMPTY: excel-v2-1-4 must return active catalogue families before promotion",
+);
+console.log("PRIVATE_CANARY_BELT_WELDED_CATEGORY_OK", beltCategory.families.length);
+
 for (const [route, key] of [
   ["/api/catalog/home-categories", "categories"],
   ["/api/catalog/home-preview", "products"],
