@@ -23,12 +23,14 @@ function wav(){
   let externalModelDownloads=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
-    // Keep the mic VAD above the near-field threshold so mocked WebSpeech
-    // partials model a real nearby speaker rather than a silent fake device.
+    // Calibrate room silence, then model a nearby speaker explicitly.
+    window.__forzaMicSample=128;
+    // Exercise the older-browser analyser fallback independently of the worklet test.
+    Object.defineProperty(AudioContext.prototype,'audioWorklet',{get:()=>undefined});
     const analyser=window.AnalyserNode?.prototype;
     if(analyser?.getByteTimeDomainData){
       // Uint8 PCM is centered at 128; 132 yields a stable near-field RMS.
-      analyser.getByteTimeDomainData=function(samples){samples.fill(132);};
+      analyser.getByteTimeDomainData=function(samples){samples.fill(window.__forzaMicSample);};
     }
     class FakePersianRecognition{
       start(){window.__forzaRecognitionStarts=(window.__forzaRecognitionStarts||0)+1;window.__forzaMockRecognition=this;this.onstart?.();}
@@ -49,7 +51,9 @@ function wav(){
   await page.goto('http://127.0.0.1:4173/ai-forza',{waitUntil:'domcontentloaded',timeout:30000});
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
-  await page.waitForTimeout(450); // six VAD frames establish near-field speech evidence
+  await page.waitForTimeout(450); // establish ambient baseline
+  await page.evaluate(()=>{window.__forzaMicSample=132;});
+  await page.waitForTimeout(450); // near-field onset before recognized words
   const started=Date.now();
   await page.evaluate(()=>{
     const rec=window.__forzaMockRecognition;

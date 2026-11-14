@@ -13,6 +13,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  const recorder={state:'recording',onstop:()=>{},ondataavailable:()=>{},onerror:()=>{},stop(){assert.equal(this.onstop,null);calls.push('recorder');}};
  const track={onended:()=>{},stop(){assert.equal(this.onended,null);calls.push('track');}};
  const values:Record<string,any>={
+  audioEvidenceCleanupRef:ref(()=>calls.push('audio-evidence')),speechAdmissionRef:ref({reset(){}}),
   playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
   activeTurnRef:ref({abort:{abort(){calls.push('request');}}}),
   silenceTimerRef:ref(null),recognitionRetryTimerRef:ref(null),
@@ -26,7 +27,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
  for(const name of ['localSttNodeRef','localSttSinkRef','micSourceNodeRef','micAnalyserRef','audioSourceNodeRef','analyserRef','gainNodeRef'])values[name]=ref({disconnect(){calls.push('disconnect');}});
  const teardown=new Function(...Object.keys(values),body).bind(null,...Object.values(values));
  teardown();teardown();await Promise.resolve();
- for(const resource of ['recognition','recorder','track','request','context','local-stt','animation'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
+ for(const resource of ['recognition','recorder','track','request','context','local-stt','animation','audio-evidence'])assert.equal(calls.filter(x=>x===resource).length,1,resource);
  assert.equal(values.callClosedRef.current,true);
  assert.equal(values.microphoneGenerationRef.current,3);
  assert.equal(values.ctxRef.current,null);
