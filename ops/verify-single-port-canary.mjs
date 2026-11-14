@@ -64,15 +64,33 @@ console.log("API_NOT_FOUND_JSON_CONTRACT_OK");
 const groups = await json(candidate, "/api/catalog/navigation-groups");
 assert.ok(groups.success && Array.isArray(groups.groups) && groups.groups.length >= 6);
 
+// excel-v2-1-4 is a valid approved category, but the reviewed family map
+// currently contains no source-confirmed families for it. Empty is valid here:
+// do not promote conservative name guesses just to satisfy a deployment probe.
 const beltCategory = await json(candidate, "/api/catalog/menu-category/excel-v2-1-4");
 assert.ok(
   beltCategory.success &&
   beltCategory.category?.slug === "excel-v2-1-4" &&
   Array.isArray(beltCategory.families) &&
-  beltCategory.families.length > 0,
-  "BELT_WELDED_CATEGORY_EMPTY: excel-v2-1-4 must return active catalogue families before promotion",
+  beltCategory.families.every((family) =>
+    typeof family?.code === "string" && family.code.length > 0 &&
+    typeof family?.name === "string" && family.name.length > 0
+  ),
+  "BELT_WELDED_CATEGORY_RESPONSE_INVALID: excel-v2-1-4 must return its approved category and a valid family array",
 );
 console.log("PRIVATE_CANARY_BELT_WELDED_CATEGORY_OK", beltCategory.families.length);
+
+// Positive control: prove the same endpoint still returns real, active families
+// for a category that has source-reviewed assignments in the approved map.
+const beltTimingCategory = await json(candidate, "/api/catalog/menu-category/excel-v2-1-1");
+assert.ok(
+  beltTimingCategory.success &&
+  beltTimingCategory.category?.slug === "excel-v2-1-1" &&
+  Array.isArray(beltTimingCategory.families) &&
+  beltTimingCategory.families.length > 0,
+  "BELT_TIMING_CATEGORY_EMPTY: excel-v2-1-1 must return source-reviewed active catalogue families",
+);
+console.log("PRIVATE_CANARY_BELT_TIMING_CATEGORY_OK", beltTimingCategory.families.length);
 
 for (const [route, key] of [
   ["/api/catalog/home-categories", "categories"],
