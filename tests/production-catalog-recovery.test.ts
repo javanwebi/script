@@ -67,7 +67,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  const correction=readFileSync('ops/sql/20261114_catalog_family_menu_audit_corrections.sql','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
- const rows=[...sql.matchAll(/\\n\\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\\)/g)];
+ const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\),?$/gm)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
   categorySlug:match[2],
@@ -80,42 +80,21 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
- assert.match(sql,/ON CONFLICT\\(family_code\\) DO UPDATE SET/);
- assert.match(sql,/WHERE public\\.catalog_family_menu_assignments\\.method <> 'admin_verified'/);
- assert.doesNotMatch(singlePort,/20261101_catalog_family_menu_assignments\\.sql/);
+ assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
+ assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
+ assert.doesNotMatch(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
  assert.match(singlePort,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
- assert.match(singlePort,/20261114_catalog_family_menu_audit_corrections\\.sql/);
- assert.match(correction,/DELETE FROM public\\.catalog_family_menu_assignments/);
+ assert.match(singlePort,/20261114_catalog_family_menu_audit_corrections\.sql/);
+ assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
+ assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
  assert.match(correction,/method <> 'admin_verified'/);
  assert.match(correction,/excel_source_verified/);
- assert.doesNotMatch(correction,/DELETE FROM public\\.catalog_families|DELETE FROM public\\.catalog_variants/);
+ assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
-  'FAM-34280',
-  'FAM-54569',
-  'FAM-381961',
-  'FAM-36858',
-  'FAM-39853',
-  'FAM-31520',
-  'FAM-32174',
-  'FAM-39782',
-  'FAM-39852',
-  'FAM-41065',
-  'FAM-41498',
-  'FAM-33163',
-  'FAM-41601',
-  'FAM-38800',
-  'FAM-35310',
-  'FAM-35743',
-  'FAM-33996',
-  'FAM-32247',
-  'FAM-32246',
-  'FAM-39114',
-  'FAM-40601',
-  'FAM-80151',
-  'FAM-31929',
-  'FAM-33416',
-  'FAM-33126',
-  'FAM-321931'
+  'FAM-34280','FAM-54569','FAM-381961','FAM-36858','FAM-39853','FAM-31520','FAM-32174',
+  'FAM-39782','FAM-39852','FAM-41065','FAM-41498','FAM-33163','FAM-41601','FAM-38800',
+  'FAM-35310','FAM-35743','FAM-33996','FAM-32247','FAM-32246','FAM-39114','FAM-40601',
+  'FAM-80151','FAM-31929','FAM-33416','FAM-33126','FAM-321931'
  ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
  for(const code of ['FAM-35826','FAM-10105','FAM-52948']) assert.ok(correction.includes(code));
 });
