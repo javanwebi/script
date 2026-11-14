@@ -58,6 +58,8 @@ const reviewCodes=[
  'FAM-52319',
  'FAM-52735',
  'FAM-38906'
+  'FAM-39114',
+  'FAM-40601',
 ];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
