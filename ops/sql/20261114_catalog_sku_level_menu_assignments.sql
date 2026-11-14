@@ -111,14 +111,13 @@ SELECT unnest(ARRAY['37093', '37121', '39757', '41122']::text[]) AS sku_code,
        'FAM-80089'::text AS expected_family_code,
        'excel-v2-6-1'::text AS category_slug,
        'بر اساس جنس'::text AS submenu,
-       'ریل راهنما آهنی و متعلقات'::text AS subcategory;
-
+       'ریل راهنما آهنی و متعلقات'::text AS subcategory
 UNION ALL
 SELECT unnest(ARRAY['39703', '3970318']::text[]) AS sku_code,
        'FAM-52858'::text AS expected_family_code,
        'excel-v2-2-1'::text AS category_slug,
        'بر اساس کاربرد و ابعاد'::text AS submenu,
-       'مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)'::text AS subcategory
+       'مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)'::text AS subcategory;
 
 DO $audit$
 DECLARE
