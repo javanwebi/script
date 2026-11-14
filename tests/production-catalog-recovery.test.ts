@@ -62,33 +62,61 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
  assert.match(script,/NGINX_ROLLBACK_OK/);
 });
 
-test('production deploy applies every canonical family-menu assignment without overwriting admin-verified edits',()=>{
+test('bulk family-menu seed is withheld from production deploy until the complete taxonomy audit is approved',()=>{
  const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
+ const correction=readFileSync('ops/sql/20261114_catalog_family_menu_audit_corrections.sql','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
- const wrapper=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
- const rows=[...sql.matchAll(/\n\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)/g)];
+ const rows=[...sql.matchAll(/\\n\\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\\)/g)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
   categorySlug:match[2],
-  submenuName:literal(match[3]),
+  submenuName:literal(match[3]) ?? '',
   leafName:literal(match[4]),
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
- assert.equal(rows.length,1383);
- assert.equal(new Set(rows.map(match=>match[1])).size,1383);
+ assert.equal(rows.length,1357);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1357);
  assert.deepEqual(sorted(actual),sorted(source));
- assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,21);
- assert.match(sql,/BEGIN;/);
- assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
- assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
- assert.match(sql,/COMMIT;/);
- assert.doesNotMatch(sql,/^\s*(DROP\s+|TRUNCATE\s+|DELETE\s+FROM\s+|UPDATE\s+)/gim);
- assert.match(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
- assert.match(singlePort,/Expected at least 1383 family menu assignments/);
- assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
- assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
- assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
- assert.match(wrapper,/deploy-single-port-vps\.sh/);
- assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
+ assert.match(sql,/ON CONFLICT\\(family_code\\) DO UPDATE SET/);
+ assert.match(sql,/WHERE public\\.catalog_family_menu_assignments\\.method <> 'admin_verified'/);
+ assert.doesNotMatch(singlePort,/20261101_catalog_family_menu_assignments\\.sql/);
+ assert.match(singlePort,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
+ assert.match(singlePort,/20261114_catalog_family_menu_audit_corrections\\.sql/);
+ assert.match(correction,/DELETE FROM public\\.catalog_family_menu_assignments/);
+ assert.match(correction,/method <> 'admin_verified'/);
+ assert.match(correction,/excel_source_verified/);
+ assert.doesNotMatch(correction,/DELETE FROM public\\.catalog_families|DELETE FROM public\\.catalog_variants/);
+ for(const code of [
+  'FAM-34280',
+  'FAM-54569',
+  'FAM-381961',
+  'FAM-36858',
+  'FAM-39853',
+  'FAM-31520',
+  'FAM-32174',
+  'FAM-39782',
+  'FAM-39852',
+  'FAM-41065',
+  'FAM-41498',
+  'FAM-33163',
+  'FAM-41601',
+  'FAM-38800',
+  'FAM-35310',
+  'FAM-35743',
+  'FAM-33996',
+  'FAM-32247',
+  'FAM-32246',
+  'FAM-39114',
+  'FAM-40601',
+  'FAM-80151',
+  'FAM-31929',
+  'FAM-33416',
+  'FAM-33126',
+  'FAM-321931'
+ ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
+ for(const code of ['FAM-35826','FAM-10105','FAM-52948']) assert.ok(correction.includes(code));
 });
+
