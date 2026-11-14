@@ -150,7 +150,7 @@ export default function DirectSkuDetailPage() {
 
             {item.imageUrl ? (
               <ProductImage
-                src={item.imageUrl}
+                src={item.imageUrl} disableFallback
                 alt={item.name}
                 className="h-full max-h-80 w-full object-contain p-4"
               />
@@ -360,7 +360,7 @@ export default function DirectSkuDetailPage() {
               >
                 <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-slate-50 p-3 mb-3">
                   {rel.imageUrl ? (
-                    <ProductImage src={rel.imageUrl} alt={rel.name} className="h-full w-full object-contain" />
+                    <ProductImage src={rel.imageUrl} disableFallback alt={rel.name} className="h-full w-full object-contain" />
                   ) : (
                     <ImageIcon className="text-slate-300" size={32} />
                   )}
