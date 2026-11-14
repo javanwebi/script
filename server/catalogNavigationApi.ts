@@ -250,7 +250,16 @@ export function registerCatalogNavigationApi(app:Express){
       if(categoryPrefix&&!/^excel-v2-\d+-$/.test(categoryPrefix))return res.status(400).json({success:false,items:[]});
       const params:any[]=[];
       const scope:string[]=[];
-      if(categorySlug){params.push(categorySlug);scope.push('d.category_slug=
+      if(categorySlug){params.push(categorySlug);scope.push('d.category_slug=$'+params.length);}
+      if(categoryPrefix){params.push(categoryPrefix+'%');scope.push('d.category_slug like $'+params.length);}
+      const conditions:string[]=[];
+      if(scope.length)conditions.push('('+scope.join(' or ')+')');
+      if(!withInactive)conditions.push('d.is_active=true');
+      const where=conditions.length?'where '+conditions.join(' and '):'';
+      const rows=await database().query(
+        `select d.sku_code as "skuCode",d.name,d.category_slug as "categorySlug",d.category_name as "categoryName",d.submenu,d.subcategory,coalesce(nullif(v.brand,''),d.brand,'') as brand,d.image_url as "imageUrl",d.technical_specs as "technicalSpecs",d.price_snapshot as "priceSnapshot",d.source_family_code as "sourceFamilyCode",d.is_active as active from public.catalog_direct_skus d left join public.catalog_variants v on v.code=d.sku_code and v.active=true ${where} order by d.updated_at desc,d.sku_code limit 5000`,
+        params,
+      );
       const identity=await getPortalIdentity(req);
       const canReadPrices=identity.canReadCommerce || canStaff(identity,'products','prices');
       return res.json({success:true,items:canReadPrices?rows.rows:rows.rows.map(row=>({...row,priceSnapshot:{}}))});
