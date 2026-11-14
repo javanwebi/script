@@ -338,7 +338,7 @@ function ContactRequestSection() {
           </div>
           <p className="max-w-2xl text-justify text-xs leading-7 text-slate-600 sm:text-[13px] sm:leading-8">
             اگر کد فنی، تصویر، نقشه یا نمونه قطعه در اختیار دارید، از مسیر تماس و هماهنگی درخواست
-            خود را ثبت کنید. برای مشاوره، بررسی امکان تأمین، هماهنگی بازدید یا ارسال نمونه نیز
+            خود را ثبت کنید. برای مشاوره، بررسی امکان تأمین یا هماهنگی ارسال اطلاعات و نمونه نیز
             جزئیات نیازتان را در همان صفحه با کارشناسان در میان بگذارید.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
