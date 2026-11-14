@@ -710,7 +710,7 @@
   .industry-template .ipt-production-visual { height: 185px; }
   .industry-template .ipt-stage-hotspots button { gap: 5px; padding: 10px 1px; }
   .industry-template .ipt-stage-hotspots button > span { width: 24px; height: 24px; font-size: 9px; }
-  .industry-template .ipt-stage-hotspots button small { font-size: 8px; line-height: 1.4; }
+  .industry-template .ipt-stage-hotspots button small { display: none; }
   .industry-template .ipt-production-caption { right: 8px; bottom: 8px; padding: 6px 8px; }
   .industry-template .ipt-production-caption strong { font-size: 10px; }
   .industry-template .ipt-stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
