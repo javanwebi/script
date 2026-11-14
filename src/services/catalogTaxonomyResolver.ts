@@ -10,7 +10,6 @@ import {
   type EnhancedCategory,
 } from '../data/categories';
 import { getAllProducts } from '../data/mockGenerator';
-import { loadFallbackCatalog } from '../data/catalogFallbackLoader';
 import {
   CATALOG_FAMILY_MENU_ASSIGNMENTS,
   type FamilyMenuAssignment,
