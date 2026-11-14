@@ -92,6 +92,26 @@ export function registerCatalogNavigationApi(app:Express){
   });
 
 
+  // Public, metadata-only family-to-subcategory index for the all-products filters.
+  // It exposes no prices, stock, images, customer data or private product fields.
+  app.get('/api/catalog/menu-family-index',async(_req,res)=>{
+    try{
+      if(!databaseEnabled())return res.status(503).json({success:false,assignments:[]});
+      const result=await database().query(
+        `select a.family_code as "familyCode",a.category_slug as "categorySlug",
+          a.submenu_name as "submenuName",a.leaf_name as "leafName"
+         from public.catalog_family_menu_assignments a
+         join public.catalog_families f on f.code=a.family_code
+         join public.catalog_categories c on c.slug=a.category_slug and c.is_active=true
+         where f.is_active=true and f.is_deleted=false
+           and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+         order by a.category_slug,a.submenu_name,a.leaf_name,a.family_code
+         limit 10000`);
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,assignments:result.rows});
+    }catch(error){return fail(res,error);}
+  });
+
   // Read-only four-level menu taxonomy; original family categories remain untouched.
   app.get('/api/catalog/menu-category/:slug',async(req,res)=>{
     try{
