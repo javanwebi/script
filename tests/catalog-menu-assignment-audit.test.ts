@@ -303,6 +303,13 @@ test('source-verified mixed-family SKU overrides populate the correct technical 
  assert.match(skuSql,/ریل راهنما گالوانیزه و متعلقات/);
 });
 
+test('family-backed direct SKUs are hidden only while their source family is visible',()=>{
+ const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
+ assert.match(source,/const sourceFamilyCode = String\(item\.sourceFamilyCode \|\| ''\)/);
+ assert.match(source,/selectedFamilyCodesForFacet\.has\(sourceFamilyCode\)/);
+ assert.match(source,/!selectedFamilyCodesForFacet\.has\(skuCode\)/);
+});
+
 test('category pages merge SKU-level records into the same collection as family products',()=>{
  const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
  assert.match(source,/useDirectSkus/);
