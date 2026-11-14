@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,357 retained).
+// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,331 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -4966,31 +4966,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "اسپاتول سیلیکونی",
     "leafName": "انواع سایزهای اسپاتول سیلیکونی جهت دستگاه چاپ"
   },
-  "FAM-32711": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-34854": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-36750": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-38283": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-41326": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
   "FAM-39826": {
     "categorySlug": "excel-v2-1-2",
     "submenuName": "تسمه اسپشیال",
@@ -5001,107 +4976,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "تسمه اسپشیال",
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
   },
-  "FAM-32735": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-39005": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-10111": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-52319": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-40462": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-41253": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-39130": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
   "FAM-38906": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-22751": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-35525": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-30": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-37769": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-51279": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-40604": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-10410": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-40417": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-38285": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-38786": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-35624": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-40609": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
-  },
-  "FAM-52735": {
     "categorySlug": "excel-v2-1-1",
     "submenuName": "سیم‌دار فابریک",
     "leafName": "پلی‌یورتان"
@@ -5115,11 +4990,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-2",
     "submenuName": "تسمه اسپشیال",
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
-  },
-  "FAM-38697": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
   },
   "FAM-32139": {
     "categorySlug": "excel-v2-1-2",
