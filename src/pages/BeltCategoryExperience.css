@@ -657,7 +657,19 @@
 .bce-product-image { position: relative; height: 184px; overflow: hidden; background: radial-gradient(ellipse at center, #fff 0%, #f2f5f7 100%); border-bottom: 1px solid #edf0f2; }
 .bce-product-image > a { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; }
 .bce-product-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.bce-product-image .bce-product-reference-art { padding: 13px; mix-blend-mode: multiply; }
+.bce-product-image .bce-product-reference-art--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 16px;
+  color: #89929b;
+  background: #f4f6f8;
+  font-size: 11px;
+  text-align: center;
+}
+
+.bce-product-reference-art { padding: 13px; mix-blend-mode: multiply; }
 .bce-image-note { position: absolute; left: 9px; bottom: 9px; z-index: 2; max-width: calc(100% - 18px); padding: 5px 7px; border: 1px solid #e1e6eb; border-radius: 7px; background: rgba(255, 255, 255, .94); color: #6e7983; font-size: 9px; font-weight: 800; line-height: 1.5; pointer-events: none; }
 .bce-heart { top: 10px; right: 10px; width: 35px; height: 35px; border: 1px solid #e2e7eb; border-radius: 10px; background: rgba(255,255,255,.95); box-shadow: 0 3px 10px #182a3b0d; }
 .bce-product-info { padding: 14px; }
