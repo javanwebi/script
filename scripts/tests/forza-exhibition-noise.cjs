@@ -60,7 +60,7 @@ function wav(seconds){
   await page.evaluate(()=>window.__emit('گفتگوی نامرتبط اطراف'));
   await page.waitForTimeout(250);assert.equal(await speaking.isVisible(),true,'background sentence must not cancel playback');
   assert.equal(await page.getByText('گفتگوی نامرتبط اطراف',{exact:true}).count(),0);
-  await page.evaluate(()=>{window.__inputGain.gain.value=0.08;});await page.waitForTimeout(400);
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.009;});await page.waitForTimeout(400);
   await page.evaluate(()=>{window.__emit('وایسا');window.__inputGain.gain.value=0.001;});
   try{await listening.waitFor({timeout:1500});}catch(error){
    console.error('EXHIBITION_DIAGNOSTICS',JSON.stringify({body:(await page.locator('body').innerText()).slice(-1800),diagnostics}));throw error;

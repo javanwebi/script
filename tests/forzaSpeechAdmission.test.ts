@@ -115,3 +115,18 @@ test('a final can await queued audio evidence without becoming a permanent rejec
  expired.filter([result('دور',true)],()=> 'reject');
  assert.equal(extractPersianSpeechSince(expired.filter([result('دور',true)],()=> 'accept').results,0).text,'');
 });
+
+test('low-gain microphone admits normal speech without requiring a shout',()=>{
+ for(const [playback,level] of [[false,0.003],[true,0.006]] as const){
+  const gate=calibrated(playback,0.0005);
+  speak(gate,1050,1400,level,playback);
+  assert.equal(gate.decide(playback?'وایسا':'بلبرینگ 6203',false,playback,1400),'accept');
+  assert.equal(gate.acousticSpeech,true);
+ }
+});
+
+test('an emerging quiet utterance does not raise its own ambient threshold',()=>{
+ const gate=calibrated(false,0.001);
+ for(let t=1050;t<6000;t+=50)gate.sample(0.003,t,false);
+ assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,5950),'accept');
+});

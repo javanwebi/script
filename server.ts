@@ -60,7 +60,7 @@ import {runReadOnlyVisionCatalogAgent} from './src/services/visionCatalogAgent';
 import portalHandler, { requirePortalAdmin } from './api/portal';
 import {registerSupabaseSmsHook} from './server/auth/supabaseSmsHook';
 import { createForzaGreeting } from './src/services/forzaGreetingAudio';
-import {buildForzaConsultSystemMessage, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
+import {avalaiFailureMessage, buildForzaConsultSystemMessage, configuredAvalaiModel, configuredBaiModel, configuredXkiroModel, streamAvalaiConsult, streamBaiConsult} from './server/ai/baiConsult';
 import {streamXkiroFreePool,listVerifiedXkiroFreeChatModels} from './server/ai/xkiroFreeFailover';
 import {selectForzaSttProvider} from './server/ai/forzaSttProvider';
 import {hasForzaDibaSttModel,isForzaDibaSttReady,transcribeForzaDibaAudio,warmForzaDibaStt} from './server/ai/forzaDibaStt';
@@ -6077,7 +6077,7 @@ app.post('/api/ai/consult-stream', async (req, res) => {
           responseId,
           errorCode: code,
           message: textProvider === 'avalai'
-            ? 'سرویس AvalAI فعلاً پاسخ کامل نداد. لطفاً چند لحظه دیگر دوباره تلاش کنید.'
+            ? avalaiFailureMessage(code)
             : code === 'xkiro_account_free_quota_exhausted'
               ? 'سهمیه رایگان روزانه حساب xKiro تمام شده است. با تغییر مدل رایگان قابل دور زدن نیست.'
               : 'مدل‌های رایگان xKiro فعلاً پاسخ نمی‌دهند. لطفاً بعداً دوباره تلاش کنید.',

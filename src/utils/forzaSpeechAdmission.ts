@@ -7,7 +7,7 @@ export type SpeechAdmission = 'accept' | 'wait' | 'reject';
  * All state is in RAM and is cleared on microphone replacement. */
 export class ForzaSpeechAdmission {
   private levels:Array<{at:number;value:number}>=[];
-  private floor=0.003;
+  private floor=0.001;
   private lastSample=-Infinity;
   private onset:number|null=null;
   private lastStrong=-Infinity;
@@ -27,7 +27,7 @@ export class ForzaSpeechAdmission {
     this.levels.push({at:now,value});
     // A low percentile tracks ambient energy without treating every peak as noise.
     // Freeze the floor during an established utterance so long speech is not gated out.
-    if(this.onset===null||this.duration<160){
+    if(this.onset===null){
       const sorted=this.levels.map(s=>s.value).sort((a,b)=>a-b);
       if(sorted.length>=6){
         const ambient=sorted[Math.floor((sorted.length-1)*0.2)];
@@ -35,7 +35,7 @@ export class ForzaSpeechAdmission {
         this.calibrated=true;
       }
     }
-    const threshold=Math.max(playback?0.014:0.009,this.floor*(playback?3.5:2.7));
+    const threshold=Math.max(playback?0.004:0.002,this.floor*(playback?3.5:2.3));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
@@ -69,7 +69,7 @@ export class ForzaSpeechAdmission {
 
   get acousticSpeech(){return this.onset!==null&&this.duration>=160&&this.strongFrames>=3;}
   reset(){
-    this.levels=[];this.floor=0.003;this.lastSample=-Infinity;this.onset=null;
+    this.levels=[];this.floor=0.001;this.lastSample=-Infinity;this.onset=null;
     this.lastStrong=-Infinity;this.duration=0;this.strongFrames=0;this.mode=false;this.calibrated=false;
   }
 }

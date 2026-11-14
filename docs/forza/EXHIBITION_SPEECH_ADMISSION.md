@@ -53,3 +53,24 @@ speaker echo, quiet visitors, competing voices and device changes before an even
 Optional `?forzaVoiceDiagnostics=1` logs numerical admission evidence only.
 
 Deploy using the existing `sudo sanatpish-deploy-main`; no migration or new service.
+
+## Quiet microphone follow-up
+
+Admission uses a relative ambient threshold with a 0.002 RMS listening minimum
+and 0.004 during playback (2.3x / 3.5x ambient respectively). These are signal
+thresholds, not sound-pressure or distance measurements. The ambient baseline
+freezes as soon as a speech onset is a candidate, so speech does not raise its
+own threshold while waiting for the persistence window. Once admission confirms
+speech, end-of-turn tracking consumes that decision directly rather than applying
+a second 0.008 RMS threshold and another onset delay. The analyser fallback uses
+float PCM to preserve quiet signals below byte quantization.
+
+Browser fixtures now exercise quiet 0.003 RMS listening and 0.009 oscillator gain
+(about 0.0064 RMS) interruption, while retaining background rejection assertions.
+These remain simulated recognition tests, not a real microphone accuracy claim.
+
+AvalAI retries once, on the same configured model, only after an empty transport
+failure (network error or EOF without completion). It does not retry partial
+answers, timeouts, authentication, quota or model errors. The extra request can
+consume provider usage; there is no cross-provider fallback. Response-service
+errors now distinguish access/quota/timeout/truncation from STT failures.
