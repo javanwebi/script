@@ -65,7 +65,19 @@ type LiveFamilyMenuIndexEntry = {
   categorySlug: string;
   submenuName: string | null;
   leafName: string | null;
+  method?: string;
 };
+
+function getEffectiveFamilyMenuAssignment(
+  product: Product,
+  liveIndex: Record<string, LiveFamilyMenuIndexEntry>,
+) {
+  const liveAssignment = liveIndex[product.code];
+  if (liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified') {
+    return liveAssignment;
+  }
+  return getFamilyMenuAssignment(product);
+}
 
 function matchesProductMenuSelection(
   product: Product,
@@ -89,7 +101,7 @@ function matchesProductMenuSelection(
     return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
   }
 
-  const assignment = liveIndex[product.code] || getFamilyMenuAssignment(product);
+  const assignment = getEffectiveFamilyMenuAssignment(product, liveIndex);
   if (!assignment) return false;
 
   const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
@@ -255,7 +267,7 @@ export const ProductsPage: React.FC = () => {
   const displayCatalogProducts = useMemo(
     () => allCatalogProducts.map((product) => {
       if (directSkuCodeSet.has(product.code)) return product;
-      const assignment = liveFamilyMenuIndex[product.code] || getFamilyMenuAssignment(product);
+      const assignment = getEffectiveFamilyMenuAssignment(product, liveFamilyMenuIndex);
       if (!assignment) return product;
       return {
         ...product,
