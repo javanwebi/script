@@ -55,6 +55,15 @@ function wav(seconds){
   await page.getByTitle('ارسال به هوش مصنوعی').click();
   const speaking=page.getByText('AI FORZA در حال صحبت...',{exact:true});
   await speaking.waitFor({timeout:15000});await page.waitForTimeout(1100);
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
+  await page.waitForTimeout(400);
+  await page.evaluate(()=>window.__emit('برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.'));
+  await page.waitForTimeout(300);
+  assert.equal(await speaking.isVisible(),true,'recognized AI loudspeaker words must not interrupt');
+  assert.equal(queries.length,1,'speaker echo must not make another request');
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.001;});
+  await page.waitForTimeout(1100);
+
   await page.evaluate(()=>{window.__inputGain.gain.value=0.005;window.__emit('وایسا');});
   await page.waitForTimeout(400);assert.equal(await speaking.isVisible(),true,'distant stop must not cancel playback');
   await page.evaluate(()=>window.__emit('گفتگوی نامرتبط اطراف'));
@@ -74,7 +83,6 @@ function wav(seconds){
    await page.waitForTimeout(400);
    await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},query);
    await page.waitForFunction(text=>document.body.innerText.includes(text),query);
-   const expected=queries.length+1;
    await page.waitForFunction(()=>document.body.innerText.includes('AI FORZA در حال صحبت...'),null,{timeout:20000});
    await listening.waitFor({timeout:20000});
    assert.equal(queries.at(-1),query,'next turn must not contain prior words or AI echo');
