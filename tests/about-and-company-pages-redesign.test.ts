@@ -24,24 +24,30 @@ test('HomeAboutSection removes the 3 mini feature divs, keeps orbital image on r
   assert.match(companyCss, /\.home-about-preview__copy\s*\{[\s\S]*?grid-column:\s*2;/);
 });
 
-test('AboutPage integrates services strip, brands & industries ecosystem, and Yazd/Meybod/Tehran contact hub', () => {
+test('AboutPage uses the supplied responsive template, accurate Atlas history, live catalogue metrics and real navigation', () => {
   const discovery = read('src/pages/DiscoveryPages.tsx');
+  const about = read('src/pages/AboutPageTemplate.tsx');
   const main = read('src/main.tsx');
 
-  assert.match(main, /company-pages-premium\.css/);
-  assert.match(discovery, /sp-about-services-strip/);
-  assert.match(discovery, /sp-about-ecosystem/);
-  assert.match(discovery, /sp-about-brands-row/);
-  assert.match(discovery, /sp-about-industries-row/);
-  assert.match(discovery, /sp-about-contact-hub/);
-  assert.match(discovery, /ABOUT_BRANCHES/);
-  assert.match(discovery, /id:\s*"yazd"/);
-  assert.match(discovery, /id:\s*"meybod"/);
-  assert.match(discovery, /id:\s*"tehran"/);
-  assert.match(discovery, /handleCopyBranchAddress/);
-  assert.match(discovery, /فعال کردن نقشه تعاملی/);
+  assert.match(main, /company-pages-premium\\.css/);
+  assert.match(discovery, /import AboutPageTemplate/);
+  assert.match(discovery, /return <AboutPageTemplate \\/>/);
+  assert.match(about, /با پشتوانه تجربه بازرگانی تسمه اطلس/);
+  assert.match(about, /۱۳۶۶/);
+  assert.doesNotMatch(about, /۱۳۸۴/);
+  assert.match(about, /SERVICE_ITEMS/);
+  assert.match(about, /شناسایی هوشمند قطعه با FORZA/);
+  assert.match(about, /بررسی مهندسی معکوس و ساخت/);
+  assert.match(about, /getManagedBrands\\(\\)/);
+  assert.match(about, /getManagedCategories\\(\\)/);
+  assert.match(about, /getAllProducts\\(\\)/);
+  assert.match(about, /subscribeCatalogChanges\\(refreshStats\\)/);
+  assert.match(about, /INDUSTRIES\\.map/);
+  assert.match(about, /to="\\/contact"/);
+  assert.match(about, /to="\\/services"/);
+  assert.match(about, /to="\\/products"/);
+  assert.doesNotMatch(about, /ABOUT_BRANCHES|navigator\\.clipboard|InquiryModal|submittedRef/);
 });
-
 test('ServicesPage, IndustriesPage, BrandsPage, KnowledgePage, ContactUsPage, and AboutNavigation implement upgraded UX', () => {
   const discovery = read('src/pages/DiscoveryPages.tsx');
   const services = read('src/pages/ServicesPage.tsx');
