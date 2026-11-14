@@ -108,10 +108,10 @@ function extractCardSpecs(product: Product, hasVariants: boolean): { key: string
     }
   }
 
-  if (picked.length === 1) {
+  if (picked.length === 1 && hasVariants) {
     picked.push({
       key: "تنوع سایز",
-      value: hasVariants ? `${toPersianDigits(product.variants?.length || 0)} سایز و کد` : "استاندارد",
+      value: `${toPersianDigits(product.variants?.length || 0)} سایز و کد`,
     });
   }
 
