@@ -701,7 +701,7 @@ export const BeltCategoryExperience: React.FC = () => {
   const selectedFamily = searchParams.get('sub') || 'all';
   const isVbelt = selectedFamily === 'تسمه V-BELT';
   const [revision, setRevision] = useState(0);
-  const directSkuRecords = useDirectSkus();
+  const directSkuRecords = useDirectSkus(BELT_SLUG, 'excel-v2-1-');
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('default');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
