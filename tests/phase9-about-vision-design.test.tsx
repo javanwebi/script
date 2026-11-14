@@ -10,6 +10,7 @@ test('homepage About preview and approved editorial pages preserve company navig
   const home = read('src/pages/HomePage.tsx');
   const overview = read('src/components/storefront/HomeOverview.tsx');
   const discovery = read('src/pages/DiscoveryPages.tsx');
+  const about = read('src/pages/AboutPageTemplate.tsx');
   const app = read('src/App.tsx');
   const layout = read('src/components/layout/Layout.tsx');
   const main = read('src/main.tsx');
@@ -25,21 +26,24 @@ test('homepage About preview and approved editorial pages preserve company navig
   assert.match(overview,/to="\/about"/);
   assert.match(overview,/to="\/services"/);
   assert.match(discovery,/export function AboutPage/);
-  assert.match(discovery,/sp-about-approved/);
-  assert.match(discovery,/sp-about-hero/);
-  assert.match(discovery,/src=\{A\.companyPages\.aboutHero\}/);
-  assert.match(discovery,/src=\{A\.companyPages\.aboutWarehouse\}/);
-  assert.match(discovery,/sp-about-hero-note/);
-  assert.match(discovery,/INDUSTRIAL PARTS MARKETPLACE/);
-  assert.match(discovery,/SANAT PISH \/ 01/);
-  assert.match(discovery,/sp-about-story/);
-  assert.match(discovery,/sp-about-timeline-year/);
-  assert.match(discovery,/sp-about-capabilities/);
-  assert.match(discovery,/getManagedCategories\(\)/);
-  assert.match(discovery,/subscribeCatalogChanges\(refreshStats\)/);
-  assert.match(discovery,/catalogStats\.ready/);
-  assert.match(discovery,/aria-live="polite"/);
-  assert.match(discovery,/با پشتوانه بازرگانی تسمه اطلس/);
+  assert.match(discovery,/import AboutPageTemplate from "\.\/AboutPageTemplate"/);
+  assert.match(discovery,/return <AboutPageTemplate \/>/);
+  assert.match(about,/A\.companyPages\.aboutHero/);
+  assert.match(about,/A\.companyPages\.aboutWarehouse/);
+  assert.match(about,/داستان ما؛ از بازرگانی تسمه اطلس تا صنعت پیش/);
+  assert.match(about,/۱۳۶۶/);
+  assert.doesNotMatch(about,/۱۳۸۴/);
+  assert.match(about,/SERVICE_ITEMS/);
+  assert.match(about,/INDUSTRIES\.map/);
+  assert.match(about,/getManagedBrands\(\)/);
+  assert.match(about,/getManagedCategories\(\)/);
+  assert.match(about,/getAllProducts\(\)/);
+  assert.match(about,/subscribeCatalogChanges\(refreshStats\)/);
+  assert.match(about,/stats\.ready/);
+  assert.match(about,/aria-live="polite"/);
+  assert.match(about,/to="\/contact"/);
+  assert.match(about,/to="\/services"/);
+  assert.doesNotMatch(about,/InquiryModal|submittedRef|کد پیگیری/);
   for (const destination of ['services','industries','brands','knowledge','contact']) {
     assert.match(discovery,new RegExp('to: "/' + destination + '"'));
   }
