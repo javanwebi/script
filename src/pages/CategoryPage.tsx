@@ -70,9 +70,11 @@ const PulleyCategoryRoute: React.FC = () => {
   const pulleySlug = categorySlugFor('پولی و انتقال نیرو');
   const products = getProductsByCategory(pulleySlug, 5000, 0).products;
   const directSkus = useDirectSkus(pulleySlug, 'excel-v2-4-');
+  const familyCodes = new Set(products.map(product => product.code.trim().toLowerCase()));
   const directSkuProducts = directSkus
     .filter(item => item.categorySlug === categorySlugFor('پولی و انتقال نیرو') || /^excel-v2-4-[0-9]+$/.test(item.categorySlug))
-    .map(toDirectSkuProduct);
+    .map(toDirectSkuProduct)
+    .filter(product => !familyCodes.has(product.code.trim().toLowerCase()));
   const directSkuCodes = new Set(directSkuProducts.map(product => product.code));
   return <PulleyCatalogPage products={[...products, ...directSkuProducts]} directSkuCodes={directSkuCodes} />;
 };
@@ -155,12 +157,13 @@ const LegacyCategoryPage: React.FC = () => {
     return getProductsByCategory(category.slug, 1000, 0);
   }, [category.slug, catalogRevision]);
 
-  const directSkuProducts = useMemo(
-    () => directSkuRecords
+  const directSkuProducts = useMemo(() => {
+    const familyCodes = new Set(rawData.products.map(product => product.code.trim().toLowerCase()));
+    return directSkuRecords
       .filter(item => item.categorySlug === category.slug)
-      .map(toDirectSkuProduct),
-    [directSkuRecords, category.slug],
-  );
+      .map(toDirectSkuProduct)
+      .filter(product => !familyCodes.has(product.code.trim().toLowerCase()));
+  }, [directSkuRecords, category.slug, rawData.products]);
   const directSkuCodes = useMemo(
     () => new Set(directSkuProducts.map(product => product.code)),
     [directSkuProducts],
