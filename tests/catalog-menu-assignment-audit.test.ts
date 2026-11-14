@@ -26,13 +26,37 @@ const reviewCodes=[
  'FAM-33996',
  'FAM-32247',
  'FAM-32246',
- 'FAM-39114',
- 'FAM-40601',
  'FAM-80151',
  'FAM-31929',
  'FAM-33416',
  'FAM-33126',
- 'FAM-321931'
+ 'FAM-321931',
+ 'FAM-30',
+ 'FAM-10111',
+ 'FAM-10410',
+ 'FAM-22751',
+ 'FAM-32711',
+ 'FAM-32735',
+ 'FAM-34854',
+ 'FAM-35525',
+ 'FAM-35624',
+ 'FAM-36750',
+ 'FAM-37769',
+ 'FAM-38283',
+ 'FAM-38285',
+ 'FAM-38697',
+ 'FAM-38786',
+ 'FAM-39005',
+ 'FAM-39130',
+ 'FAM-40417',
+ 'FAM-40462',
+ 'FAM-40604',
+ 'FAM-40609',
+ 'FAM-41253',
+ 'FAM-41326',
+ 'FAM-51279',
+ 'FAM-52319',
+ 'FAM-52735'
 ];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
@@ -121,4 +145,53 @@ test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
  const source=readFileSync('src/services/catalogTaxonomyResolver.ts','utf8');
  assert.doesNotMatch(source,/defaultSubmenu|children\?\.\[0\]\?\.name/);
  assert.match(source,/if \(!assignment \|\| assignment\.categorySlug !== cleanSlug\) continue/);
+});
+
+
+test('the polyurethane timing-belt leaf has no families without explicit PU evidence',()=>{
+ const falsePolyurethaneFamilies=[
+  'FAM-30',
+  'FAM-10111',
+  'FAM-10410',
+  'FAM-22751',
+  'FAM-32711',
+  'FAM-32735',
+  'FAM-34854',
+  'FAM-35525',
+  'FAM-35624',
+  'FAM-36750',
+  'FAM-37769',
+  'FAM-38283',
+  'FAM-38285',
+  'FAM-38697',
+  'FAM-38786',
+  'FAM-39005',
+  'FAM-39130',
+  'FAM-40417',
+  'FAM-40462',
+  'FAM-40604',
+  'FAM-40609',
+  'FAM-41253',
+  'FAM-41326',
+  'FAM-51279',
+  'FAM-52319',
+  'FAM-52735'
+ ];
+ for(const familyCode of falsePolyurethaneFamilies){
+  assert.equal(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],undefined);
+ }
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(
+  assignment=>assignment.categorySlug==='excel-v2-1-1'
+   &&assignment.submenuName==='سیم‌دار فابریک'
+   &&assignment.leafName==='پلی‌یورتان'
+ ).length,0);
+});
+
+test('mixed-material families remain at parent level until SKU-level overrides are available',()=>{
+ assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-52858'],{
+  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:null
+ });
+ assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-33117'],{
+  categorySlug:'excel-v2-6-1',submenuName:'بر اساس جنس',leafName:null
+ });
 });
