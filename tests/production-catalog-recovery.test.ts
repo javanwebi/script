@@ -76,8 +76,8 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   leafName:literal(match[4]),
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
- assert.equal(rows.length,1357);
- assert.equal(new Set(rows.map(match=>match[1])).size,1357);
+ assert.equal(rows.length,1331);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1331);
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
@@ -100,10 +100,56 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(correction,/family_code NOT IN \('FAM-35826','FAM-10105','FAM-52948'\)/);
  assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
-  'FAM-34280','FAM-54569','FAM-381961','FAM-36858','FAM-39853','FAM-31520','FAM-32174',
-  'FAM-39782','FAM-39852','FAM-41065','FAM-41498','FAM-33163','FAM-41601','FAM-38800',
-  'FAM-35310','FAM-35743','FAM-33996','FAM-32247','FAM-32246','FAM-39114','FAM-40601',
-  'FAM-80151','FAM-31929','FAM-33416','FAM-33126','FAM-321931'
+  'FAM-34280',
+  'FAM-54569',
+  'FAM-381961',
+  'FAM-36858',
+  'FAM-39853',
+  'FAM-31520',
+  'FAM-32174',
+  'FAM-39782',
+  'FAM-39852',
+  'FAM-41065',
+  'FAM-41498',
+  'FAM-33163',
+  'FAM-41601',
+  'FAM-38800',
+  'FAM-35310',
+  'FAM-35743',
+  'FAM-33996',
+  'FAM-32247',
+  'FAM-32246',
+  'FAM-80151',
+  'FAM-31929',
+  'FAM-33416',
+  'FAM-33126',
+  'FAM-321931',
+  'FAM-30',
+  'FAM-10111',
+  'FAM-10410',
+  'FAM-22751',
+  'FAM-32711',
+  'FAM-32735',
+  'FAM-34854',
+  'FAM-35525',
+  'FAM-35624',
+  'FAM-36750',
+  'FAM-37769',
+  'FAM-38283',
+  'FAM-38285',
+  'FAM-38697',
+  'FAM-38786',
+  'FAM-39005',
+  'FAM-39130',
+  'FAM-40417',
+  'FAM-40462',
+  'FAM-40604',
+  'FAM-40609',
+  'FAM-41253',
+  'FAM-41326',
+  'FAM-51279',
+  'FAM-52319',
+  'FAM-52735'
  ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
  for(const code of ['FAM-35826','FAM-10105','FAM-52948']) assert.ok(correction.includes(code));
 });
