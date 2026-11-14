@@ -13,7 +13,7 @@ export class ForzaVoiceActivity {
   private onsetAt:number|null=null;
   private previousSampleAt:number|null=null;
 
-  sample(rms: number, timestampMs: number): {
+  sample(rms: number, timestampMs: number, admitted?: boolean): {
     speaking: boolean;
     speechStarted: boolean;
     silenceMs: number;
@@ -21,7 +21,9 @@ export class ForzaVoiceActivity {
   } {
     const energy = Number.isFinite(rms) ? Math.max(0, Math.min(1, rms)) : 0;
     const threshold = Math.max(0.008, this.floor * 2.5);
-    const audible = energy > threshold;
+    // Admission already validated duration and signal/noise on the audio thread.
+    // Do not reject a quiet admitted utterance with a second absolute threshold.
+    const audible = admitted ?? (energy > threshold);
     if (!audible && !this.detected) {
       this.floor = this.floor * 0.97 + energy * 0.03;
     }
@@ -35,7 +37,7 @@ export class ForzaVoiceActivity {
       // Once a turn has started, even a short resumed syllable postpones its end.
       if (this.detected) this.lastSpeechAt = timestampMs;
       this.voicedFrames = Math.min(this.voicedFrames + 1, 12);
-      if (this.voicedFrames >= 3 && timestampMs-this.onsetAt>=100) {
+      if (admitted === true || (this.voicedFrames >= 3 && timestampMs-this.onsetAt>=100)) {
         speechStarted = !this.detected;
         this.detected = true;
         this.lastSpeechAt = timestampMs;
@@ -75,4 +77,15 @@ export function rootMeanSquareFromTimeDomain(samples: Uint8Array): number {
     total += normalized * normalized;
   }
   return Math.sqrt(total / samples.length);
+}
+
+/** Float PCM preserves quiet signals below the byte analyser quantization step. */
+export function rootMeanSquareFromFloatTimeDomain(samples: Float32Array): number {
+  if (!samples.length) return 0;
+  let total=0;
+  for (const sample of samples) {
+    if (!Number.isFinite(sample)) return 0;
+    total+=sample*sample;
+  }
+  return Math.sqrt(total/samples.length);
 }

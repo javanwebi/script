@@ -18,7 +18,7 @@ import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
 import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/forzaSpeechAdmission';
-import { ForzaVoiceActivity, rootMeanSquareFromTimeDomain } from '../../utils/forzaVoiceActivity';
+import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
 import type { LocalRecognizer, LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
@@ -409,7 +409,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // segment finishes; Chrome SpeechRecognition may finish even sooner.
   useEffect(() => {
     let active=true;
-    let samples=new Uint8Array(512);
+    let samples=new Float32Array(512);
     // Mic end-of-turn must not depend on Three.js frames. On weak devices
     // the avatar can fall to 7 FPS while a 55ms audio poll remains active.
     // This timer is not a replacement for a future AudioWorklet VAD:
@@ -419,9 +419,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const evidenceAnalyser=micAnalyserRef.current;
       if(evidenceAnalyser&&streamRef.current?.active&&ctxRef.current?.state==='running'&&!micMutedRef.current){
         if(!audioEvidenceCleanupRef.current){
-        if(samples.length!==evidenceAnalyser.fftSize)samples=new Uint8Array(evidenceAnalyser.fftSize);
-        evidenceAnalyser.getByteTimeDomainData(samples);
-        speechAdmissionRef.current.sample(rootMeanSquareFromTimeDomain(samples),Date.now(),
+        if(samples.length!==evidenceAnalyser.fftSize)samples=new Float32Array(evidenceAnalyser.fftSize);
+        evidenceAnalyser.getFloatTimeDomainData(samples);
+        speechAdmissionRef.current.sample(rootMeanSquareFromFloatTimeDomain(samples),Date.now(),
           isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current);
         }
       }else speechAdmissionRef.current.reset();
@@ -447,13 +447,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         return;
       }
       try {
-        // getByteTimeDomainData() writes only fftSize samples. A longer
-        // zero-initialized buffer makes silence look like loud speech.
-        if (samples.length !== analyser.fftSize) samples = new Uint8Array(analyser.fftSize);
-        analyser.getByteTimeDomainData(samples);
-        const rms=rootMeanSquareFromTimeDomain(samples);
+        // Float PCM retains quiet speech that byte quantization would erase.
+        // Keep the buffer exactly fftSize for both analyser paths.
+        if (samples.length !== analyser.fftSize) samples = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(samples);
+        const rms=rootMeanSquareFromFloatTimeDomain(samples);
         const micNow=Date.now();
-        const current=vadRef.current.sample(speechAdmissionRef.current.acousticSpeech?rms:0,micNow);
+        const current=vadRef.current.sample(rms,micNow,speechAdmissionRef.current.acousticSpeech);
         // Keep the last near-field VAD timestamp briefly so delayed final STT
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;

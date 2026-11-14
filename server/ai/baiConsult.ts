@@ -381,8 +381,19 @@ export async function completeXkiroConsult(
   }
 }
 
-export function streamAvalaiConsult(options: BaiConsultOptions) {
-  return streamOpenAiCompatible(options, 'https://api.avalai.ir/v1/chat/completions');
+export async function streamAvalaiConsult(options: BaiConsultOptions) {
+  let sentText=false;
+  const attempt=()=>streamOpenAiCompatible({...options,onDelta:(delta,text)=>{
+    sentText=true;options.onDelta(delta,text);
+  }}, 'https://api.avalai.ir/v1/chat/completions');
+  try{return await attempt();}catch(error){
+    // Retry only a transport failure before any answer. Never replay partial
+    // speech, retry billing/auth/model failures, or add a second timeout budget.
+    if(options.signal?.aborted||sentText||!(error instanceof BaiConsultError)||
+       !['upstream_network_error','provider_stream_incomplete'].includes(error.code))throw error;
+    console.info('[FORZA_TEXT_STREAM] provider=avalai retry=empty_transport');
+    return attempt();
+  }
 }
 
 export function streamBaiConsult(options: BaiConsultOptions) {
@@ -391,4 +402,13 @@ export function streamBaiConsult(options: BaiConsultOptions) {
 
 export function streamXkiroConsult(options: BaiConsultOptions) {
   return streamOpenAiCompatible(options, 'https://api.xkiro.com/v1/chat/completions');
+}
+
+/** Public actionable categories only; never surface upstream bodies or secrets. */
+export function avalaiFailureMessage(code:string):string {
+  if (/^http_(401|403)(_|$)/.test(code)) return 'اتصال سرویس پاسخ‌گویی مجاز نیست؛ تنظیمات دسترسی AvalAI باید بررسی شود.';
+  if (/^http_(402|429)(_|$)/.test(code)) return 'سرویس پاسخ‌گویی به محدودیت اعتبار یا تعداد درخواست رسیده است. کمی بعد دوباره تلاش کنید.';
+  if (code==='upstream_timeout') return 'پاسخ سرویس هوش مصنوعی در زمان مجاز نرسید. متن درخواست دریافت شد؛ می‌توانید دوباره تلاش کنید.';
+  if (code==='provider_output_truncated') return 'سرویس پاسخ‌گویی پاسخ را به‌دلیل محدودیت طول کامل نکرد. لطفاً سؤال را کوتاه‌تر مطرح کنید.';
+  return 'ارتباط با سرویس پاسخ‌گویی کامل نشد. متن درخواست دریافت شد؛ لطفاً دوباره تلاش کنید.';
 }

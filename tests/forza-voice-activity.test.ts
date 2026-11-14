@@ -44,3 +44,18 @@ test('55ms production sampling detects a short admitted word and quiet speech',(
  assert.equal(started,true);
  assert.ok(vad.sample(0,1600).silenceMs>=300);
 });
+
+test('admitted quiet speech starts the turn without a second loudness or onset gate',()=>{
+ const vad=new ForzaVoiceActivity();
+ assert.equal(vad.sample(0.003,1000,true).speechStarted,true);
+ assert.equal(vad.sample(0.002,1100,true).speaking,true);
+ assert.equal(vad.sample(0.2,1200,false).speaking,false,'unadmitted noise must not extend a turn');
+ assert.equal(vad.silenceDuration(1800),700);
+});
+
+test('float PCM preserves quiet microphone energy',async()=>{
+ const {rootMeanSquareFromFloatTimeDomain:rms}=await import('../src/utils/forzaVoiceActivity');
+ assert.ok(Math.abs(rms(new Float32Array([0.003,-0.003]))-0.003)<1e-8);
+ assert.equal(rms(new Float32Array([0,0])),0);
+ assert.equal(rms(new Float32Array([NaN])),0);
+});

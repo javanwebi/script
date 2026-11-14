@@ -319,3 +319,38 @@ test('xKiro verified non-stream completion uses the same free model and requires
   assert.equal(body.model,'qwen/qwen3.5-flash:free');
   assert.equal(result.text,'کد نهایی: 6203 ZZ\nتعداد: 10 عدد');
 });
+
+test('AvalAI recovers one empty transport failure using the same provider and model',async()=>{
+ let calls=0;const deltas:string[]=[];
+ const result=await streamAvalaiConsult({apiKey:'test',model:'glm-5.3-flash',query:'سلام',
+  fetchImpl:(async(url,init)=>{
+   calls++;assert.equal(String(url),'https://api.avalai.ir/v1/chat/completions');
+   assert.equal(JSON.parse(String(init?.body)).model,'glm-5.3-flash');
+   if(calls===1)return fakeStream([]);
+   return fakeStream(['data: {"choices":[{"delta":{"content":"سلام"},"finish_reason":"stop"}]}\n\n']);
+  }) as typeof fetch,onDelta:d=>deltas.push(d)});
+ assert.equal(calls,2);assert.equal(result.text,'سلام');assert.deepEqual(deltas,['سلام']);
+});
+
+test('AvalAI recovery is bounded and never replays partial text or retries account failures',async()=>{
+ for(const kind of ['empty','partial','auth','quota','aborted'] as const){
+  let calls=0;const controller=new AbortController();
+  await assert.rejects(streamAvalaiConsult({apiKey:'test',model:'glm-5.3-flash',query:'سلام',signal:controller.signal,
+   fetchImpl:(async()=>{
+    calls++;
+    if(kind==='aborted')controller.abort();
+    if(kind==='auth'||kind==='quota')return new Response('{}',{status:kind==='auth'?401:429});
+    return fakeStream(kind==='partial'?['data: {"choices":[{"delta":{"content":"ناقص"}}]}\n\n']:[]);
+   }) as typeof fetch,onDelta:()=>{}}));
+  assert.equal(calls,kind==='empty'?2:1,kind);
+ }
+});
+
+test('AvalAI failures distinguish response service issues from microphone recognition',async()=>{
+ const {avalaiFailureMessage:message}=await import('../server/ai/baiConsult');
+ assert.match(message('http_401_invalid_api_key'),/دسترسی/);
+ assert.match(message('http_429_rate_limit'),/محدودیت/);
+ assert.match(message('upstream_timeout'),/زمان مجاز/);
+ assert.match(message('provider_output_truncated'),/محدودیت طول/);
+ assert.doesNotMatch(message('private-upstream-body'),/private-upstream-body/);
+});
