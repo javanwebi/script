@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -54,6 +54,8 @@ const normalizeSlug = (raw: string | undefined): IndustryPageSlug | null => {
     "tile-ceramic": "ceramic",
     "ceramic-tiles": "ceramic",
     "ceramic-tile": "ceramic",
+    "کاشی-و-سرامیک": "ceramic",
+    "کاشی-سرامیک": "ceramic",
   };
   const slug = aliases[raw] || raw;
   return ["ceramic", "textile", "packaging", "food", "machinery", "rubber"].includes(slug)
@@ -71,6 +73,7 @@ const scrollTo = (id: string) => {
 
 export function IndustryTemplatePage() {
   const { slug: rawSlug } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const slug = normalizeSlug(rawSlug);
   const industry = INDUSTRIES.find(item => item.slug === slug);
@@ -178,7 +181,8 @@ export function IndustryTemplatePage() {
   }, [showRecommendations, products, activeStageCatalog, equipment, condition, operatingNote]);
 
   if (!slug || !industry || !detail) return <Navigate to="/industries" replace />;
-  if (rawSlug !== slug) return <Navigate to={"/industries/" + slug} replace />;
+  const canonicalPath = "/industries/" + slug;
+  if (location.pathname.replace(/\/+$/, "") !== canonicalPath) return <Navigate to={canonicalPath} replace />;
 
   const selectedIntent = INTENTS.find(item => item.id === selectedIntentId) || INTENTS[0];
   const relatedArticles = ARTICLES.filter(article => ARTICLE_SLUGS[slug].includes(article.slug));
