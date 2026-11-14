@@ -91,41 +91,13 @@ function toEnrichedAssignment(base: FamilyMenuAssignment): EnrichedFamilyMenuAss
 
 export function getFamilyMenuAssignment(
   codeOrProduct: string | Product,
-  maybeProduct?: Product,
 ): EnrichedFamilyMenuAssignment | null {
   const code = typeof codeOrProduct === 'string' ? codeOrProduct : codeOrProduct.code;
-  const product = typeof codeOrProduct === 'string' ? maybeProduct : codeOrProduct;
-
   const explicit = CATALOG_FAMILY_MENU_ASSIGNMENTS[code];
-  if (explicit) return toEnrichedAssignment(explicit);
 
-  // Only reuse product metadata when its category and submenu exist in the approved menu.
-  // Never infer a timing belt, pulley, or custom part from a name keyword.
-  if (!product) return null;
-  const category = APPROVED_MENU_CATEGORIES.find((item) => item.slug === product.categorySlug);
-  if (!category) return null;
-
-  const requestedSubmenu = normalizeText(product.submenu);
-  const submenuNode = (category.children || []).find(
-    (node) => normalizeText(node.name) === requestedSubmenu,
-  );
-  if (!submenuNode) {
-    return toEnrichedAssignment({
-      categorySlug: category.slug,
-      submenuName: '',
-      leafName: null,
-    });
-  }
-
-  const requestedLeaf = normalizeText(product.subcategory);
-  const leafNode = (submenuNode.children || []).find(
-    (node) => normalizeText(node.name) === requestedLeaf,
-  );
-  return toEnrichedAssignment({
-    categorySlug: category.slug,
-    submenuName: submenuNode.name,
-    leafName: leafNode?.name || null,
-  });
+  // The reviewed family map is the only public taxonomy source.
+  // Legacy product.categorySlug/submenu values are not trusted as a fallback.
+  return explicit ? toEnrichedAssignment(explicit) : null;
 }
 
 export type EnrichedApprovedMenuGroup = ApprovedMenuGroup & {
