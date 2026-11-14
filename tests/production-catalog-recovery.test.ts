@@ -65,6 +65,7 @@ test('blue/green publish rejects React SPA fallback for FORZA STT diagnostics',(
 test('bulk family-menu seed is withheld from production deploy until the complete taxonomy audit is approved',()=>{
  const sql=readFileSync('ops/sql/20261101_catalog_family_menu_assignments.sql','utf8');
  const correction=readFileSync('ops/sql/20261114_catalog_family_menu_audit_corrections.sql','utf8');
+ const skuSql=readFileSync('ops/sql/20261114_catalog_sku_level_menu_assignments.sql','utf8');
  const mainDeploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
@@ -84,7 +85,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-1').length,2);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-2').length,0);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
- assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-1'&&item.submenuName==='بر اساس جنس'&&item.leafName==='نوار نقاله PVC').length,1);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-1'&&item.submenuName==='بر اساس جنس'&&item.leafName==='نوار نقاله PVC').length,0);
  assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
  assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
  for(const script of [mainDeploy,singlePort]){
@@ -92,6 +93,8 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   assert.match(script,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
   assert.match(script,/20261114_catalog_family_menu_audit_corrections\.sql/);
   assert.match(script,/PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED/);
+  assert.match(script,/20261114_catalog_sku_level_menu_assignments\\.sql/);
+  assert.match(script,/PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED/);
   assert.ok(script.includes("method=\\x27admin_verified\\x27 or"),"deploy must preserve admin-verified overrides");
  }
  assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
@@ -102,7 +105,13 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(correction,/submenu_name='نرده استیل'/);
  assert.match(correction,/family_code NOT IN \('FAM-35826','FAM-10105','FAM-52948'\)/);
  assert.match(correction,/FAM-52858/);
- assert.match(correction,/نوار نقاله PVC/);
+ assert.match(correction,/leaf_name IS NULL/);
+ assert.match(skuSql,/نوار نقاله PVC/);
+ const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
+ assert.equal(skuCodes.length,303);
+ assert.equal(new Set(skuCodes).size,303);
+ assert.match(skuSql,/ON CONFLICT \\(sku_code\\) DO NOTHING/);
+ assert.match(skuSql,/source_family_code/);
  assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
   'FAM-33416',
