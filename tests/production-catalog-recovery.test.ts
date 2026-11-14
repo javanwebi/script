@@ -78,7 +78,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
  assert.equal(rows.length,1286);
- assert.equal(new Set(rows.map(match=>match[1])).size,1287);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1286);
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2').length,73);
