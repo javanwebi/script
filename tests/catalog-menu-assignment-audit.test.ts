@@ -103,7 +103,8 @@ const reviewCodes=[
   'FAM-10161',
   'FAM-90308',
   'FAM-38353'
-];
+
+  'FAM-35198',];
 
 test('approved industrial menu retains exactly 67 technical leaf nodes',()=>{
  const leafCount=APPROVED_MENU_CATEGORIES.reduce(
@@ -177,8 +178,8 @@ test('invalid menu routes do not fall through to the first approved category',()
  assert.equal(resolveMenuCategoryPayload('not-a-real-category'),null);
 });
 
-test('the current family map has 1,287 retained rows and exposes incomplete assignments for review',()=>{
- assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1287);
+test('the current family map has 1,286 retained rows and exposes incomplete assignments for review',()=>{
+ assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1286);
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,55);
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,266);
 });
