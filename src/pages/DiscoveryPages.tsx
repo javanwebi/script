@@ -1,4 +1,3 @@
-import IndustryTemplatePage from "./IndustryTemplatePage";
 import AboutPageTemplate from "./AboutPageTemplate";
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -43,6 +42,9 @@ import { ProductCard } from "../components/product/ProductCard";
 import { MemberAccess } from "../components/storefront/MemberAccess";
 import { rankIndustryProducts } from "../utils/industryCatalog";
 import "./industry-pages-premium.css";
+const IndustryTemplatePage = React.lazy(() =>
+  import("./IndustryTemplatePage").then(module => ({ default: module.IndustryTemplatePage })),
+);
 const title = (text: string) => {
   document.title = `${text} | صنعت پیش`;
 };
@@ -203,7 +205,11 @@ function IndustryVisualModule({ industry }: { industry: IndustryContent }) {
 }
 
 export function IndustryPage() {
-  return <IndustryTemplatePage />;
+  return (
+    <React.Suspense fallback={<div role="status" className="py-16 text-center">در حال بارگذاری صفحه صنعت…</div>}>
+      <IndustryTemplatePage />
+    </React.Suspense>
+  );
 }
 
 export function IndustriesPage() {
