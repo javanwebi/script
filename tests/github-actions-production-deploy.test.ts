@@ -9,10 +9,16 @@ const gate = read("ops/sanatpish-github-deploy-gate.sh");
 const installer = read("ops/install-github-actions-deploy-user-vps.sh");
 const entrypoint = read("ops/sanatpish-deploy-main.sh");
 const ci = read(".github/workflows/unified-main-bluegreen.yml");
+const source = read(".github/workflows/verify-source-db.yml");
+const vps = read(".github/workflows/verify-vps-build.yml");
 
 test("production deploy waits for successful main push CI and never deploys PR or feature-branch runs", () => {
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /Unified Sanat Pish main integration/);
+  assert.match(workflow, /Verify source UI and database runtime/);
+  assert.match(workflow, /Verify VPS frontend build before deployment/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /ALL_REQUIRED_MAIN_CHECKS_PASSED/);
   assert.match(workflow, /branches: \[main\]/);
   assert.match(workflow, /conclusion == 'success'/);
   assert.match(workflow, /event == 'push'/);
@@ -57,4 +63,7 @@ test("existing main CI runs deployment-gate shell syntax and regression tests be
   assert.match(ci, /bash -n ops\/sanatpish-github-deploy-gate\.sh/);
   assert.match(ci, /bash -n ops\/install-github-actions-deploy-user-vps\.sh/);
   assert.match(ci, /tests\/github-actions-production-deploy\.test\.ts/);
+  assert.match(source, /branches: \[main, fix\/source-ui-postgres-data-boundary-20261022\]/);
+  assert.match(vps, /branches: \[main, feature\/textile-industry-page\]/);
+  assert.doesNotMatch(vps, /push:\s*\n\s*branches:[^\n]*\n\s*paths:/);
 });
