@@ -222,8 +222,8 @@ test('single-port canary accepts an empty approved welded-belt category and chec
  assert.equal(welded.length,0,'No source-reviewed family is currently assigned to the welded-belt category');
  assert.ok(timing.length>0,'Timing belts provide the populated API positive control');
  assert.match(canary,/BELT_WELDED_CATEGORY_RESPONSE_INVALID/);
- assert.match(canary,/beltCategory\\.families\\.every/);
- assert.doesNotMatch(canary,/beltCategory\\.families\\.length\\s*>\\s*0/);
+ assert.ok(canary.includes('beltCategory.families.every'));
+ assert.ok(!canary.includes('beltCategory.families.length > 0'));
  assert.match(canary,/BELT_TIMING_CATEGORY_EMPTY/);
- assert.match(canary,/beltTimingCategory\\.families\\.length\\s*>\\s*0/);
+ assert.ok(canary.includes('beltTimingCategory.families.length > 0'));
 });
