@@ -77,7 +77,7 @@ function inferGroupIdFromCategorySlug(categorySlug: string): string {
       return grp.id;
     }
   }
-  return 'excel-v2-1';
+  return '';
 }
 
 function toEnrichedAssignment(base: FamilyMenuAssignment): EnrichedFamilyMenuAssignment {
@@ -92,115 +92,39 @@ function toEnrichedAssignment(base: FamilyMenuAssignment): EnrichedFamilyMenuAss
 export function getFamilyMenuAssignment(
   codeOrProduct: string | Product,
   maybeProduct?: Product,
-): EnrichedFamilyMenuAssignment {
+): EnrichedFamilyMenuAssignment | null {
   const code = typeof codeOrProduct === 'string' ? codeOrProduct : codeOrProduct.code;
   const product = typeof codeOrProduct === 'string' ? maybeProduct : codeOrProduct;
 
   const explicit = CATALOG_FAMILY_MENU_ASSIGNMENTS[code];
   if (explicit) return toEnrichedAssignment(explicit);
 
-  if (!product) {
+  // Only reuse product metadata when its category and submenu exist in the approved menu.
+  // Never infer a timing belt, pulley, or custom part from a name keyword.
+  if (!product) return null;
+  const category = APPROVED_MENU_CATEGORIES.find((item) => item.slug === product.categorySlug);
+  if (!category) return null;
+
+  const requestedSubmenu = normalizeText(product.submenu);
+  const submenuNode = (category.children || []).find(
+    (node) => normalizeText(node.name) === requestedSubmenu,
+  );
+  if (!submenuNode) {
     return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-1',
-      submenuName: 'انواع گام و کدهای تایمینگ',
-      leafName: '5M , 8M , 11M , 14M',
+      categorySlug: category.slug,
+      submenuName: '',
+      leafName: null,
     });
   }
 
-  // Check if product.categorySlug is already an excel-v2 slug
-  if (/^excel-v2-\d+-\d+$/.test(product.categorySlug || '')) {
-    return toEnrichedAssignment({
-      categorySlug: product.categorySlug,
-      submenuName: product.submenu || '',
-      leafName: product.subcategory || null,
-    });
-  }
-
-  const name = normalizeText(product.name);
-  const cat = normalizeText(product.categoryName);
-  const sub = normalizeText(product.submenu);
-
-  if (sub.includes('چندشیاری') || /PJ|PK|PL|PH|شیاری/i.test(name)) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-2',
-      submenuName: 'تسمه اسپشیال',
-      leafName: 'SPA , SPB , SPC و دندانه‌دار',
-    });
-  }
-  if (sub.includes('گریپ') || /گریپ|بارکش/.test(name)) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-4',
-      submenuName: 'تسمه بارکش',
-      leafName: 'انواع تسمه بارکش صنعتی',
-    });
-  }
-  if (cat.includes('تسمه') || sub.includes('تسمه')) {
-    if (sub.includes('کلاسیک') || /\b(A|B|C|D|E|Z)\d+/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-2',
-        submenuName: 'کلاسیک و دنده‌دار',
-        leafName: 'Z (9.5) , M , A , B , C , D , E , 8V',
-      });
-    }
-    if (sub.includes('پروفیل باریک') || /SPA|SPB|SPC|SPZ/i.test(name)) {
-      return toEnrichedAssignment({
-        categorySlug: 'excel-v2-1-2',
-        submenuName: 'تسمه اسپشیال',
-        leafName: 'SPA , SPB , SPC و دندانه‌دار',
-      });
-    }
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-1-1',
-      submenuName: 'انواع گام و کدهای تایمینگ',
-      leafName: '5M , 8M , 11M , 14M',
-    });
-  }
-  if (cat.includes('پولی') || name.includes('پولی')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-4-1',
-      submenuName: 'پولی پلی‌اورتان',
-      leafName: 'در سایزها و گام‌های مختلف',
-    });
-  }
-  if (cat.includes('بلبرینگ') || name.includes('بلبرینگ')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-13-1',
-      submenuName: 'انواع بلبرینگ',
-      leafName: 'بلبرینگ‌های صنعتی در سایزهای مختلف',
-    });
-  }
-  if (cat.includes('یاتاقان') || name.includes('یاتاقان')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-13-2',
-      submenuName: 'انواع یاتاقان',
-      leafName: 'یاتاقان و انواع محافظ یاتاقان',
-    });
-  }
-  if (cat.includes('زنجیر') || name.includes('زنجیر')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-9-1',
-      submenuName: 'انواع زنجیر',
-      leafName: 'زنجیرهای انتقال حرکت صنعتی',
-    });
-  }
-  if (cat.includes('برس') || name.includes('برس')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-5-1',
-      submenuName: 'انواع برس‌های سیمی',
-      leafName: 'در ابعاد مختلف',
-    });
-  }
-  if (cat.includes('آب بندی') || name.includes('اورینگ') || name.includes('کاسه نمد')) {
-    return toEnrichedAssignment({
-      categorySlug: 'excel-v2-7-2',
-      submenuName: 'انواع اورینگ',
-      leafName: 'اورینگ در سایزها و متریال‌های مختلف',
-    });
-  }
+  const requestedLeaf = normalizeText(product.subcategory);
+  const leafNode = (submenuNode.children || []).find(
+    (node) => normalizeText(node.name) === requestedLeaf,
+  );
   return toEnrichedAssignment({
-    categorySlug: 'excel-v2-12-1',
-    submenuName: 'مطابق با نقشه فنی',
-    leafName: 'طراحی و تولید قطعات بر اساس نقشه یا نمونه فنی شما',
+    categorySlug: category.slug,
+    submenuName: submenuNode.name,
+    leafName: leafNode?.name || null,
   });
 }
 
@@ -237,11 +161,12 @@ export function resolveNavigationCategoriesAndGroups(): EnrichedNavigationData {
   let totalSkus = 0;
 
   for (const product of products) {
-    const assignment = getFamilyMenuAssignment(product);
-    const slug = assignment.categorySlug;
     const skuCount = (product.variants || []).filter((v) => v.active !== false).length;
     totalFamilies += 1;
     totalSkus += skuCount;
+    const assignment = getFamilyMenuAssignment(product);
+    if (!assignment || !assignment.categorySlug) continue;
+    const slug = assignment.categorySlug;
 
     if (!byCategory.has(slug)) {
       byCategory.set(slug, {
@@ -386,10 +311,6 @@ export function resolveMenuCategoryPayload(slug: string): ResolvedMenuCategoryPa
       category = categories.find((c) => c.slug === cleanSlug);
     }
   }
-  if (!category && categories.length > 0) {
-    category = categories[0];
-    cleanSlug = category.slug;
-  }
   if (!category) return null;
 
   const parentGroup = groupByCategorySlug.get(cleanSlug);
@@ -398,16 +319,12 @@ export function resolveMenuCategoryPayload(slug: string): ResolvedMenuCategoryPa
   const matchedFamilies: ResolvedMenuCategoryFamily[] = [];
   for (const product of allProducts) {
     const assignment = getFamilyMenuAssignment(product);
-    if (assignment.categorySlug !== cleanSlug) continue;
+    if (!assignment || assignment.categorySlug !== cleanSlug) continue;
 
     const activeVariants = (product.variants || []).filter((v) => v.active !== false);
-    const defaultSubmenu = category.children?.[0]?.name || '';
-    const resolvedSubmenu = assignment.submenuName || defaultSubmenu;
-    const resolvedLeaf =
-      assignment.leafName ||
-      category.children?.find((s) => normalizeText(s.name) === normalizeText(resolvedSubmenu))
-        ?.children?.[0]?.name ||
-      '';
+    // Empty submenu/leaf means "needs review"; never place it in the first menu node.
+    const resolvedSubmenu = assignment.submenuName || '';
+    const resolvedLeaf = assignment.leafName || '';
 
     matchedFamilies.push({
       code: product.code,
