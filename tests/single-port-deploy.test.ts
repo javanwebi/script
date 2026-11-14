@@ -93,11 +93,12 @@ test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", 
 });
 
 test("Nginx root fallback accepts deep indentation only when it is a direct child of server", () => {
-  assert.match(one, /root_depth=nginx_depth_before\\(source,roots\\[0\\]\\.start\\(\\)\\)/);
-  assert.doesNotMatch(one, /NGINX_ROOT_INDENT_UNSAFE|len\\(indent\\) <= 16/);
+  assert.ok(one.includes("root_depth=nginx_depth_before(source,roots[0].start())"));
+  assert.ok(!one.includes("NGINX_ROOT_INDENT_UNSAFE"));
+  assert.ok(!one.includes("len(indent) <= 16"));
 
   const helperStart = one.indexOf("def nginx_depth_before(text, stop):");
-  const helperEnd = one.indexOf("\\ndef require_read_only_spa_guard", helperStart);
+  const helperEnd = one.indexOf("\ndef require_read_only_spa_guard", helperStart);
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
   const helper = one.slice(helperStart, helperEnd);
   const fixture = `
