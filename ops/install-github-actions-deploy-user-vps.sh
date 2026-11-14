@@ -66,7 +66,18 @@ echo "===== CREATE RESTRICTED DEPLOY USER ====="
 if ! id "$DEPLOY_USER" >/dev/null 2>&1; then
   useradd --create-home --home-dir "/home/$DEPLOY_USER" --user-group --shell /bin/bash "$DEPLOY_USER"
 fi
-passwd --lock "$DEPLOY_USER" >/dev/null 2>&1 || true
+# Keep the account valid for public-key SSH authentication while making password
+# authentication infeasible: set a random password that is never stored or printed.
+RANDOM_PASSWORD="$(openssl rand -base64 48)"
+printf '%s:%s\n' "$DEPLOY_USER" "$RANDOM_PASSWORD" | chpasswd
+unset RANDOM_PASSWORD
+
+# This account must never inherit broad sudo or Docker access from a prior setup.
+for group in sudo docker; do
+  if getent group "$group" >/dev/null && id -nG "$DEPLOY_USER" | tr ' ' '\n' | grep -qx "$group"; then
+    gpasswd -d "$DEPLOY_USER" "$group"
+  fi
+done
 
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
 test -n "$DEPLOY_HOME"
@@ -94,7 +105,7 @@ if id -nG "$DEPLOY_USER" | tr ' ' '\n' | grep -qx docker; then
 fi
 
 echo "GITHUB_ACTIONS_DEPLOY_USER_READY user=$DEPLOY_USER main_sha=$MAIN_SHA"
-echo "SSH_KEY_RESTRICTIONS=forced-command,restrict,no-pty,no-forwarding"
+echo "SSH_KEY_RESTRICTIONS=forced-command,restrict,no-user-rc,no-pty,no-forwarding"
 echo "SUDO_ALLOWLIST=/usr/local/sbin/sanatpish-deploy-main (no arguments)"
 echo "NO_DATABASE_CREDENTIALS_OR_PRIVATE_KEY_INSTALLED_ON_SERVER"
 echo "Remove the uploaded public-key file after setup."
