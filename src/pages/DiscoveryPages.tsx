@@ -1,7 +1,4 @@
-import { IndustryTools } from "../components/storefront/IndustryTools";
 import AboutPageTemplate from "./AboutPageTemplate";
-const TileCeramicIndustryPage = React.lazy(() => import("./TileCeramicIndustryPage").then(m => ({default:m.TileCeramicIndustryPage})));
-const TextileIndustryPage = React.lazy(() => import("./TextileIndustryPage").then(m => ({ default: m.TextileIndustryPage })));
 import { scrollToSectionElement } from "../components/layout/ScrollToTop";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -45,6 +42,9 @@ import { ProductCard } from "../components/product/ProductCard";
 import { MemberAccess } from "../components/storefront/MemberAccess";
 import { rankIndustryProducts } from "../utils/industryCatalog";
 import "./industry-pages-premium.css";
+const IndustryTemplatePage = React.lazy(() =>
+  import("./IndustryTemplatePage").then(module => ({ default: module.IndustryTemplatePage })),
+);
 const title = (text: string) => {
   document.title = `${text} | صنعت پیش`;
 };
@@ -205,170 +205,13 @@ function IndustryVisualModule({ industry }: { industry: IndustryContent }) {
 }
 
 export function IndustryPage() {
-  const { slug = "ceramic" } = useParams();
-  const industry = INDUSTRIES.find((i) => i.slug === slug) || INDUSTRIES[0];
-  const [tick, setTick] = useState(0);
-  useEffect(() => subscribeCatalogChanges(() => setTick((t) => t + 1)), []);
-  useEffect(() => title(`قطعات صنعت ${industry.title}`), [industry]);
-  const products = useMemo(
-    () =>
-      rankIndustryProducts(getAllProducts(), industry, 6),
-    [industry, tick],
-  );
-  if (slug === "ceramic" || slug === "tile-ceramic" || slug === "ceramic-tiles") {
-    return <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه صنایع کاشی و سرامیک…</div>}><TileCeramicIndustryPage /></React.Suspense>;
-  }
-  if (slug === "textile") {
-    return (
-      <React.Suspense fallback={<div role="status" className="min-h-[300px] flex items-center justify-center">در حال بارگذاری صفحه تخصصی نساجی…</div>}>
-        <TextileIndustryPage />
-      </React.Suspense>
-    );
-  }
   return (
-    <div className={`editorial industry-page industry-${industry.slug}`}>
-      <section className={`industry-hero industry-hero--${industry.slug}`} aria-labelledby="industry-hero-title">
-        <div className="industry-hero-layout">
-          <div className="industry-hero-visual">
-            <img
-              src={industry.image}
-              alt={`خط تولید ${industry.title}`}
-              fetchPriority="high"
-              decoding="async"
-            />
-            <div className="industry-hero-shade" />
-            <div className="industry-hero-visual-caption">
-              <span>فرآیند تولید {industry.title}</span>
-              <strong>انتخاب قطعه بر اساس کاربرد و شرایط واقعی خط</strong>
-            </div>
-          </div>
-          <div className="industry-hero-copy">
-            <nav className="editorial-crumb industry-hero-crumb" aria-label="مسیر صفحه">
-              <Link to="/">صنعت پیش</Link>
-              <span>/</span>
-              <Link to="/industries">صنایع</Link>
-              <span>/</span>
-              <span>{industry.title}</span>
-            </nav>
-            <span className="industry-kicker">{industry.eyebrow}</span>
-            <h1 id="industry-hero-title" className="industry-hero-title">
-              همراه خط تولید
-              <em>{industry.title}</em>
-            </h1>
-            <p className="industry-hero-description">{industry.description}</p>
-            <div className="industry-hero-tags" aria-label="گروه‌های مرتبط این صنعت">
-              {industry.parts.slice(0, 4).map(part => <span key={part}>{part}</span>)}
-            </div>
-            <div className="industry-hero-actions">
-              <a className="industry-hero-primary" href="#industry-parts">
-                کاوش قطعات این صنعت <ArrowLeft size={16} />
-              </a>
-              <Link className="industry-hero-secondary" to={`/ai-consult?industry=${industry.slug}`}>
-                مشاوره با FORZA <MessageSquare size={16} />
-              </Link>
-              <Link className="industry-hero-identify" to="/identify-part">
-                شناسایی با تصویر <ScanLine size={16} />
-              </Link>
-            </div>
-            <div className="industry-hero-metrics">
-              <span><b>{industry.parts.length.toLocaleString("fa-IR")}</b> گروه قطعه مرتبط</span>
-              <span><b>{industry.checks.length.toLocaleString("fa-IR")}</b> معیار بررسی فنی</span>
-            </div>
-          </div>
-        </div>
-      </section>
-      <IndustryTools key={industry.slug} industry={industry} />
-      <IndustryVisualModule industry={industry} />
-      <section className="editorial-wrap editorial-split scroll-mt-24" id="industry-parts">
-        <SectionHeading
-          eyebrow="از کاربرد شروع کنید"
-          title="قطعه مناسب برای کدام بخش خط؟"
-          text="این گروه‌ها نقطه شروع بررسی هستند. سازگاری هر کد با دستگاه و شرایط کار شما باید جداگانه تأیید شود."
-        />
-        <div className="industry-part-links">
-          {industry.parts.map((p, i) => (
-            <Link
-              key={p}
-              to={`/products?q=${encodeURIComponent(industry.terms[i])}`}
-            >
-              <Layers size={22} />
-              <span>
-                {p}
-                <small>مشاهده خانواده‌ها و مشخصات</small>
-              </span>
-              <ArrowUpLeft size={19} />
-            </Link>
-          ))}
-        </div>
-      </section>
-      <section className="industry-check-band" id="industry-checks">
-        <div className="editorial-wrap editorial-split">
-          <div>
-            <SectionHeading
-              eyebrow="انتخاب دقیق‌تر"
-              title="قبل از استعلام، این اطلاعات را آماده کنید"
-            />
-            <p className="technical-note">{industry.note}</p>
-          </div>
-          <div className="industry-check-list">
-            {industry.checks.map((c) => (
-              <div key={c}>
-                <Check size={18} />
-                {c}
-              </div>
-            ))}
-            <Link
-              to={`/ai-consult?industry=${industry.slug}`}
-              className="store-btn-secondary"
-            >
-              <ScanLine size={18} />
-              ارسال تصویر و بررسی مشخصات
-            </Link>
-          </div>
-        </div>
-      </section>
-      <section className="editorial-wrap" id="industry-catalog">
-        <SectionHeading
-          eyebrow="از کاتالوگ واقعی سایت"
-          title="خانواده‌های مرتبط برای بررسی اولیه"
-        />
-        {products.length > 0 ? (
-          <div className="editorial-products">
-            {products.map((p) => (
-              <ProductCard key={p.code} product={p} />
-            ))}
-          </div>
-        ) : (
-          <div className="industry-catalog-empty" role="status">
-            <strong>فعلاً محصول تأییدشده‌ای برای نمایش این بخش پیدا نشد.</strong>
-            <p>برای جلوگیری از پیشنهاد کالای نامرتبط، فقط خانواده‌های واقعی و فعال کاتالوگ نمایش داده می‌شوند.</p>
-            <Link to={`/products?q=${encodeURIComponent(industry.terms.join(" "))}`} className="store-btn-secondary">
-              جستجو در کاتالوگ کامل
-            </Link>
-          </div>
-        )}
-        <MemberAccess />
-      </section>
-      <section className="editorial-wrap" id="industry-related">
-        <SectionHeading
-          eyebrow="صنعت پیش، برای صنعت شما"
-          title="صنایع دیگر را هم بررسی کنید"
-        />
-        <div className="industry-related">
-          {INDUSTRIES.filter((i) => i.slug !== industry.slug).map((i) => (
-            <Link to={`/industries/${i.slug}`} key={i.slug}>
-              <img src={i.image} alt="" loading="lazy" />
-              <span>
-                {i.title}
-                <ArrowUpLeft size={17} />
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </div>
+    <React.Suspense fallback={<div role="status" className="py-16 text-center">در حال بارگذاری صفحه صنعت…</div>}>
+      <IndustryTemplatePage />
+    </React.Suspense>
   );
 }
+
 export function IndustriesPage() {
   const [query, setQuery] = useState("");
   useEffect(() => title("صنایع تحت پوشش"), []);

@@ -9,8 +9,11 @@ test('preloads one shared module for each product and category family', () => {
   assert.equal(resolvePreloadKey('/consumer-dashboard/product/6203ZZ'), '/product/:code');
   assert.equal(resolvePreloadKey('/account/product/6203ZZ'), '/product/:code');
   assert.equal(resolvePreloadKey('/category/تسمه-و-انتقال-نیرو'), '/category/:slug');
-  assert.equal(resolvePreloadKey('/category/ceramic-tiles'), '/industry-ceramic');
-  assert.equal(resolvePreloadKey('/industries/ceramic'), '/industry-ceramic');
+  assert.equal(resolvePreloadKey('/category/ceramic-tiles'), '/industry-template');
+  assert.equal(resolvePreloadKey('/industries/ceramic'), '/industry-template');
+  assert.equal(resolvePreloadKey('/industries/textile'), '/industry-template');
+  assert.equal(resolvePreloadKey('/industries/packaging'), '/industry-template');
+  assert.equal(resolvePreloadKey('/industry/ceramic-tile'), '/industry-template');
   assert.equal(resolvePreloadKey('/cart'), '/cart');
   assert.equal(resolvePreloadKey('/ai-forza'), '/ai-forza');
   assert.equal(resolvePreloadKey('/some-unrelated-route'), null);

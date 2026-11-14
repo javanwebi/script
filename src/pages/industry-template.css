@@ -1,0 +1,792 @@
+.industry-template {
+  --ipt-orange: #e56b1e;
+  --ipt-orange-dark: #c85a17;
+  --ipt-ink: #262b31;
+  --ipt-muted: #68707a;
+  --ipt-line: #e7e5e1;
+  --ipt-cream: #f7f5f1;
+  color: var(--ipt-ink);
+  background: #fbfaf8;
+  direction: rtl;
+  overflow: clip;
+}
+.industry-template * { box-sizing: border-box; }
+.industry-template--ceramic .ipt-hero-visual > img { object-position: center 52%; }
+.industry-template--textile .ipt-hero-visual > img { object-position: center 46%; }
+.industry-template--packaging .ipt-hero-visual > img { object-position: center 50%; }
+.industry-template--food .ipt-hero-visual > img { object-position: center 48%; }
+.industry-template--machinery .ipt-hero-visual > img { object-position: center 52%; }
+.industry-template--rubber .ipt-hero-visual > img { object-position: center 50%; }
+.industry-template a { text-decoration: none; }
+.industry-template button,
+.industry-template input,
+.industry-template select { font: inherit; }
+.industry-template button { cursor: pointer; }
+.industry-template img { display: block; max-width: 100%; }
+.industry-template .ipt-hero,
+.industry-template .ipt-section,
+.industry-template .ipt-proof-strip,
+.industry-template .ipt-why,
+.industry-template .ipt-lead { width: min(100% - 40px, 1280px); margin-inline: auto; }
+.industry-template .ipt-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr);
+  gap: clamp(24px, 4vw, 58px);
+  align-items: center;
+  padding-block: 48px 42px;
+}
+.industry-template .ipt-hero-copy { min-width: 0; }
+.industry-template .ipt-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: #858a91;
+  font-size: 12px;
+}
+.industry-template .ipt-breadcrumb a { color: #6b7077; transition: color .18s ease; }
+.industry-template .ipt-breadcrumb a:hover { color: var(--ipt-orange-dark); }
+.industry-template .ipt-breadcrumb svg { color: #b6b8ba; }
+.industry-template .ipt-eyebrow,
+.industry-template .ipt-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ipt-orange-dark);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.industry-template .ipt-eyebrow-mark {
+  width: 24px;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--ipt-orange);
+}
+.industry-template .ipt-hero h1 {
+  max-width: 700px;
+  margin: 13px 0 15px;
+  color: #20252b;
+  font-size: clamp(30px, 3.2vw, 47px);
+  line-height: 1.48;
+  font-weight: 900;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+.industry-template .ipt-hero-copy > p {
+  max-width: 670px;
+  margin: 0;
+  color: #565e67;
+  font-size: 15px;
+  line-height: 2.05;
+}
+.industry-template .ipt-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.industry-template .ipt-hero-tags span {
+  padding: 7px 11px;
+  border: 1px solid #eaded4;
+  border-radius: 8px;
+  background: #fff;
+  color: #555b62;
+  font-size: 11px;
+  font-weight: 700;
+}
+.industry-template .ipt-hero-actions,
+.industry-template .ipt-forza-actions,
+.industry-template .ipt-lead-actions,
+.industry-template .ipt-why-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+.industry-template .ipt-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 17px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  white-space: nowrap;
+}
+.industry-template .ipt-button:hover { transform: translateY(-1px); }
+.industry-template .ipt-button:focus-visible,
+.industry-template .ipt-intent-card:focus-visible,
+.industry-template .ipt-stage-hotspots button:focus-visible,
+.industry-template .ipt-stage-tabs button:focus-visible {
+  outline: 3px solid rgba(229,107,30,.28);
+  outline-offset: 2px;
+}
+.industry-template .ipt-button--primary {
+  background: var(--ipt-orange);
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(201, 91, 25, .15);
+}
+.industry-template .ipt-button--primary:hover { background: var(--ipt-orange-dark); }
+.industry-template .ipt-button--light {
+  border-color: #dedbd6;
+  background: #fff;
+  color: #30363d;
+}
+.industry-template .ipt-button--light:hover,
+.industry-template .ipt-button--outline:hover { border-color: #e7a174; background: #fff8f2; }
+.industry-template .ipt-button--outline {
+  border-color: #e2dfda;
+  background: rgba(255,255,255,.62);
+  color: #4d545d;
+}
+.industry-template .ipt-button--dark {
+  background: #303840;
+  color: #fff;
+}
+.industry-template .ipt-button--dark:hover { background: #1e252c; }
+.industry-template .ipt-hero-visual {
+  position: relative;
+  min-height: 390px;
+  overflow: hidden;
+  border: 1px solid #e3ded7;
+  border-radius: 22px;
+  background: #d9d5ce;
+  box-shadow: 0 18px 48px rgba(38, 43, 49, .10);
+}
+.industry-template .ipt-hero-visual > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.industry-template .ipt-hero-visual-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(25,30,35,.02) 35%, rgba(25,30,35,.72) 100%);
+}
+.industry-template .ipt-hero-caption {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  left: 22px;
+  display: grid;
+  gap: 5px;
+  color: #fff;
+}
+.industry-template .ipt-hero-caption span {
+  color: #ffd1b2;
+  font-size: 11px;
+  font-weight: 800;
+}
+.industry-template .ipt-hero-caption strong {
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.6;
+}
+.industry-template .ipt-hero-index {
+  position: absolute;
+  top: 16px;
+  left: 17px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 7px;
+  background: rgba(27,32,38,.35);
+  color: rgba(255,255,255,.92);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.industry-template .ipt-proof-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 22px;
+  overflow: hidden;
+  border: 1px solid var(--ipt-line);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 5px 20px rgba(34,39,44,.035);
+}
+.industry-template .ipt-proof-strip > div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  column-gap: 11px;
+  align-items: center;
+  padding: 17px 18px;
+  border-left: 1px solid #eeece8;
+}
+.industry-template .ipt-proof-strip > div:last-child { border-left: 0; }
+.industry-template .ipt-proof-strip > div > span {
+  grid-row: span 2;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #f2dfd1;
+  border-radius: 11px;
+  background: #fff6ef;
+  color: var(--ipt-orange-dark);
+}
+.industry-template .ipt-proof-strip strong { color: #30363c; font-size: 12px; font-weight: 850; }
+.industry-template .ipt-proof-strip small { margin-top: 3px; color: #7b8289; font-size: 10px; line-height: 1.6; }
+.industry-template .ipt-section { padding-block: 42px; scroll-margin-top: 90px; }
+.industry-template .ipt-section-heading { margin-bottom: 22px; }
+.industry-template .ipt-section-heading h2 {
+  margin: 8px 0 7px;
+  color: #252b31;
+  font-size: clamp(22px, 2.2vw, 29px);
+  font-weight: 900;
+  line-height: 1.5;
+  letter-spacing: -.02em;
+}
+.industry-template .ipt-section-heading p {
+  max-width: 760px;
+  margin: 0;
+  color: #727981;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.industry-template .ipt-intent-section { padding-top: 36px; }
+.industry-template .ipt-intent-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.industry-template .ipt-intent-card {
+  position: relative;
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 17px;
+  border: 1px solid #e8e5e0;
+  border-radius: 14px;
+  background: #fff;
+  color: inherit;
+  text-align: right;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+}
+.industry-template .ipt-intent-card:hover { transform: translateY(-2px); border-color: #e9b18d; box-shadow: 0 9px 25px rgba(40,43,47,.055); }
+.industry-template .ipt-intent-card[aria-pressed="true"] {
+  border-color: var(--ipt-orange);
+  background: #fff8f2;
+  box-shadow: 0 0 0 2px rgba(229,107,30,.09);
+}
+.industry-template .ipt-intent-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 15px;
+  place-items: center;
+  border: 1px solid #f0dfd3;
+  border-radius: 12px;
+  background: #fff5ee;
+  color: var(--ipt-orange-dark);
+}
+.industry-template .ipt-intent-card strong { color: #2c3238; font-size: 13px; font-weight: 850; }
+.industry-template .ipt-intent-card p { margin: 7px 0 18px; color: #777e86; font-size: 11px; line-height: 1.85; }
+.industry-template .ipt-intent-arrow { position: absolute; left: 14px; bottom: 13px; color: var(--ipt-orange); }
+.industry-template .ipt-intent-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 15px 17px;
+  border: 1px solid #e9e4de;
+  border-radius: 12px;
+  background: #f6f3ef;
+}
+.industry-template .ipt-intent-next > div { display: grid; gap: 4px; }
+.industry-template .ipt-intent-next strong { color: #343a40; font-size: 12px; font-weight: 850; }
+.industry-template .ipt-intent-next span { color: #737b83; font-size: 11px; line-height: 1.7; }
+.industry-template .ipt-production-shell {
+  padding: 16px;
+  border: 1px solid var(--ipt-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(38,43,49,.04);
+}
+.industry-template .ipt-production-visual {
+  position: relative;
+  height: 270px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #d8d5cf;
+}
+.industry-template .ipt-production-visual > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 54%;
+}
+.industry-template .ipt-production-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20,24,28,.12), rgba(20,24,28,.48));
+}
+.industry-template .ipt-stage-hotspots {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--ipt-stage-count, 8), minmax(0, 1fr));
+}
+.industry-template .ipt-stage-hotspots button {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 17px 4px;
+  border: 0;
+  border-left: 1px solid rgba(255,255,255,.26);
+  background: transparent;
+  color: #fff;
+  transition: background .18s ease;
+}
+.industry-template .ipt-stage-hotspots button:hover,
+.industry-template .ipt-stage-hotspots button[aria-pressed="true"] { background: rgba(229,107,30,.24); }
+.industry-template .ipt-stage-hotspots button > span {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.92);
+  border-radius: 50%;
+  background: rgba(36,42,48,.5);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+.industry-template .ipt-stage-hotspots button[aria-pressed="true"] > span { border-color: #fff; background: var(--ipt-orange); }
+.industry-template .ipt-stage-hotspots button small {
+  max-width: 100%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.7;
+  text-align: center;
+  text-shadow: 0 1px 5px rgba(0,0,0,.6);
+}
+.industry-template .ipt-production-caption {
+  position: absolute;
+  right: 14px;
+  bottom: 13px;
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 9px;
+  background: rgba(24,29,34,.72);
+  color: #fff;
+  backdrop-filter: blur(10px);
+}
+.industry-template .ipt-production-caption span { color: #ffc49e; font-size: 9px; font-weight: 800; }
+.industry-template .ipt-production-caption strong { font-size: 12px; }
+.industry-template .ipt-stage-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+.industry-template .ipt-stage-tabs button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 10px;
+  border: 1px solid #e8e5e0;
+  border-radius: 10px;
+  background: #f8f7f5;
+  color: #4e555c;
+  text-align: right;
+  transition: border-color .18s ease, background .18s ease;
+}
+.industry-template .ipt-stage-tabs button[aria-selected="true"] {
+  border-color: var(--ipt-orange);
+  background: #fff5ed;
+  color: #2c3238;
+}
+.industry-template .ipt-stage-tabs button > b {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ipt-orange-dark);
+  font-size: 10px;
+}
+.industry-template .ipt-stage-tabs button[aria-selected="true"] > b { background: var(--ipt-orange); color: #fff; }
+.industry-template .ipt-stage-tabs button > span { min-width: 0; flex: 1; color: inherit; font-size: 11px; font-weight: 850; line-height: 1.5; }
+.industry-template .ipt-stage-tabs button small { display: block; margin-top: 2px; color: #838991; font-size: 9px; font-weight: 500; }
+.industry-template .ipt-stage-tabs button > svg { flex: 0 0 auto; color: #a4a8ac; }
+.industry-template .ipt-stage-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+  gap: 22px;
+  margin-top: 14px;
+  padding: 21px;
+  border: 1px solid #ece9e4;
+  border-radius: 13px;
+  background: #faf9f7;
+}
+.industry-template .ipt-stage-copy h3 { margin: 6px 0 8px; color: #2a3036; font-size: 18px; font-weight: 900; }
+.industry-template .ipt-stage-copy p { margin: 0; color: #68717a; font-size: 12px; line-height: 2; }
+.industry-template .ipt-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--ipt-orange-dark);
+  font-size: 11px;
+  font-weight: 850;
+}
+.industry-template .ipt-text-link:hover { color: #9c4210; }
+.industry-template .ipt-stage-products { min-width: 0; }
+.industry-template .ipt-mini-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.industry-template .ipt-mini-heading strong { color: #333a41; font-size: 11px; font-weight: 900; }
+.industry-template .ipt-mini-heading span { color: #8a9097; font-size: 10px; }
+.industry-template .ipt-stage-product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+  padding: 10px;
+  border: 1px solid #eae7e2;
+  border-radius: 9px;
+  background: #fff;
+  color: inherit;
+  transition: border-color .18s ease, transform .18s ease;
+}
+.industry-template .ipt-stage-product:hover { transform: translateX(-2px); border-color: #e7a77e; }
+.industry-template .ipt-stage-product > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: #fff3e9;
+  color: var(--ipt-orange-dark);
+}
+.industry-template .ipt-stage-product > div { min-width: 0; flex: 1; }
+.industry-template .ipt-stage-product strong { display: block; overflow: hidden; color: #3a4148; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.industry-template .ipt-stage-product small { display: block; overflow: hidden; margin-top: 3px; color: #8b9198; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.industry-template .ipt-stage-product > svg { flex: 0 0 auto; color: #a2a7ad; }
+.industry-template .ipt-stage-empty {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px dashed #d9d5cf;
+  border-radius: 10px;
+  background: #fff;
+}
+.industry-template .ipt-stage-empty strong { color: #555d65; font-size: 11px; }
+.industry-template .ipt-stage-empty span { color: #858c93; font-size: 10px; line-height: 1.8; }
+.industry-template .ipt-search-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.industry-template .ipt-search-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 22px;
+  border: 1px solid var(--ipt-line);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(38,43,49,.035);
+}
+.industry-template .ipt-search-card--problem { background: #f6f4f1; }
+.industry-template .ipt-search-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 13px;
+  place-items: center;
+  border: 1px solid #f0dfd3;
+  border-radius: 12px;
+  background: #fff6ef;
+  color: var(--ipt-orange-dark);
+}
+.industry-template .ipt-search-card h3 { margin: 0 0 6px; color: #30363d; font-size: 15px; font-weight: 900; }
+.industry-template .ipt-search-card p { min-height: 44px; margin: 0 0 15px; color: #747b83; font-size: 11px; line-height: 1.9; }
+.industry-template .ipt-search-card label { width: 100%; margin-top: auto; }
+.industry-template .ipt-search-card input,
+.industry-template .ipt-recommender-form input,
+.industry-template .ipt-recommender-form select {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #e2dfda;
+  border-radius: 9px;
+  background: #fbfaf8;
+  color: #30363d;
+  font-size: 12px;
+  outline: none;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.industry-template .ipt-search-card input:focus,
+.industry-template .ipt-recommender-form input:focus,
+.industry-template .ipt-recommender-form select:focus { border-color: var(--ipt-orange); background: #fff; box-shadow: 0 0 0 3px rgba(229,107,30,.1); }
+.industry-template .ipt-search-card .ipt-button { width: 100%; margin-top: 12px; }
+.industry-template .ipt-recommender {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 25px;
+  padding: 28px;
+  border: 1px solid #e6e1da;
+  border-radius: 18px;
+  background: #f4f1ec;
+}
+.industry-template .ipt-recommender-copy h2 { margin: 8px 0 10px; color: #292f35; font-size: 24px; font-weight: 900; line-height: 1.55; }
+.industry-template .ipt-recommender-copy p { margin: 0; color: #6e757d; font-size: 12px; line-height: 2; }
+.industry-template .ipt-recommender-note { display: flex; gap: 9px; margin-top: 18px; padding: 12px; border: 1px solid #ead9cb; border-radius: 10px; background: #fffaf6; color: #755b49; font-size: 10px; line-height: 1.8; }
+.industry-template .ipt-recommender-note svg { flex: 0 0 auto; color: var(--ipt-orange-dark); }
+.industry-template .ipt-recommender-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; }
+.industry-template .ipt-recommender-form label { display: grid; gap: 7px; color: #555d65; font-size: 10px; font-weight: 850; }
+.industry-template .ipt-recommender-form .ipt-recommender-wide { grid-column: 1 / -1; }
+.industry-template .ipt-recommendation-results { grid-column: 1 / -1; padding-top: 17px; border-top: 1px solid #e4ded6; }
+.industry-template .ipt-recommendation-results > .ipt-button { margin-top: 14px; }
+.industry-template .ipt-forza-banner {
+  position: relative;
+  display: flex;
+  width: min(100% - 40px, 1280px);
+  min-height: 310px;
+  align-items: center;
+  margin: 24px auto 12px;
+  overflow: hidden;
+  border-radius: 19px;
+  background: #242a30;
+  color: #fff;
+}
+.industry-template .ipt-forza-banner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 42%; opacity: .48; }
+.industry-template .ipt-forza-shade { position: absolute; inset: 0; background: linear-gradient(270deg, rgba(25,30,35,.97) 0%, rgba(25,30,35,.88) 48%, rgba(25,30,35,.3) 100%); }
+.industry-template .ipt-forza-copy { position: relative; z-index: 1; width: min(720px, 74%); padding: 38px 44px; }
+.industry-template .ipt-forza-kicker { color: #ffb37f; font-size: 11px; font-weight: 900; }
+.industry-template .ipt-forza-copy h2 { margin: 9px 0; color: #fff; font-size: clamp(22px, 2.5vw, 31px); font-weight: 900; line-height: 1.55; }
+.industry-template .ipt-forza-copy p { max-width: 650px; margin: 0; color: #d5d8da; font-size: 12px; line-height: 2; }
+.industry-template .ipt-button--glass { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; }
+.industry-template .ipt-button--glass:hover { background: rgba(255,255,255,.18); }
+.industry-template .ipt-catalog { padding-top: 44px; }
+.industry-template .ipt-products-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+.industry-template .ipt-catalog-empty { min-height: 150px; align-content: center; justify-items: start; }
+.industry-template .ipt-catalog-empty .ipt-button { margin-top: 8px; }
+.industry-template .ipt-checklist {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 25px;
+  padding: 27px;
+  border: 1px solid #e9e5df;
+  border-radius: 17px;
+  background: #fff;
+}
+.industry-template .ipt-checklist-copy h2 { margin: 8px 0 9px; color: #2c3238; font-size: 22px; font-weight: 900; line-height: 1.6; }
+.industry-template .ipt-checklist-copy p { margin: 0; color: #727982; font-size: 12px; line-height: 2; }
+.industry-template .ipt-checklist-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; align-content: center; }
+.industry-template .ipt-checklist-items > div { display: flex; min-height: 54px; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eeeae5; border-radius: 10px; background: #faf9f7; }
+.industry-template .ipt-checklist-items b { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 8px; background: #fff0e5; color: var(--ipt-orange-dark); font-size: 10px; }
+.industry-template .ipt-checklist-items span { flex: 1; color: #555d65; font-size: 10px; font-weight: 750; line-height: 1.7; }
+.industry-template .ipt-checklist-items svg { flex: 0 0 auto; color: #9a9fa4; }
+.industry-template .ipt-article-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.industry-template .ipt-article-card { display: flex; min-height: 160px; overflow: hidden; border: 1px solid #e8e5e0; border-radius: 13px; background: #fff; color: inherit; transition: border-color .18s ease, box-shadow .18s ease; }
+.industry-template .ipt-article-card:hover { border-color: #e7a77e; box-shadow: 0 8px 24px rgba(38,43,49,.05); }
+.industry-template .ipt-article-image { width: 38%; flex: 0 0 38%; overflow: hidden; background: #e6e2dc; }
+.industry-template .ipt-article-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.industry-template .ipt-article-card:hover .ipt-article-image img { transform: scale(1.04); }
+.industry-template .ipt-article-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: flex-start; padding: 13px; }
+.industry-template .ipt-article-copy > span { color: #a36a46; font-size: 9px; font-weight: 800; }
+.industry-template .ipt-article-copy strong { margin-top: 7px; color: #343a40; font-size: 12px; font-weight: 900; line-height: 1.7; }
+.industry-template .ipt-article-copy p { margin: 5px 0 10px; color: #7a8188; font-size: 10px; line-height: 1.8; }
+.industry-template .ipt-article-copy b { display: inline-flex; align-items: center; gap: 5px; margin-top: auto; color: var(--ipt-orange-dark); font-size: 10px; }
+.industry-template .ipt-why {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 32px;
+  align-items: center;
+  padding-block: 48px;
+}
+.industry-template .ipt-why-visual { position: relative; min-height: 310px; overflow: hidden; border-radius: 17px; background: #d9d6d1; }
+.industry-template .ipt-why-visual img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.industry-template .ipt-why-visual > div { position: absolute; right: 15px; bottom: 15px; display: grid; gap: 3px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(27,32,38,.75); color: #fff; backdrop-filter: blur(8px); }
+.industry-template .ipt-why-visual span { color: #ffc29b; font-size: 9px; font-weight: 900; letter-spacing: .14em; }
+.industry-template .ipt-why-visual strong { font-size: 12px; }
+.industry-template .ipt-why-copy h2 { margin: 8px 0; color: #292f35; font-size: 25px; font-weight: 900; line-height: 1.6; }
+.industry-template .ipt-why-copy > p { margin: 0; color: #6e767e; font-size: 12px; line-height: 2; }
+.industry-template .ipt-why-copy ul { display: grid; gap: 9px; margin: 17px 0 0; padding: 0; list-style: none; }
+.industry-template .ipt-why-copy li { display: flex; align-items: flex-start; gap: 8px; color: #59616a; font-size: 11px; line-height: 1.8; }
+.industry-template .ipt-why-copy li svg { flex: 0 0 auto; margin-top: 2px; color: var(--ipt-orange-dark); }
+.industry-template .ipt-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 25px;
+  align-items: center;
+  margin-block: 12px 42px;
+  padding: 27px;
+  border: 1px solid #e7e1d9;
+  border-radius: 17px;
+  background: #f3f0eb;
+}
+.industry-template .ipt-lead-copy h2 { max-width: 750px; margin: 8px 0; color: #292f35; font-size: 23px; font-weight: 900; line-height: 1.6; }
+.industry-template .ipt-lead-copy p { max-width: 780px; margin: 0; color: #717981; font-size: 12px; line-height: 2; }
+.industry-template .ipt-lead-actions { margin-top: 18px; }
+.industry-template .ipt-lead-side { display: grid; justify-items: start; gap: 7px; padding: 19px; border: 1px solid #e6d8cb; border-radius: 13px; background: #fff; }
+.industry-template .ipt-lead-side > span { color: #9a6a4c; font-size: 10px; font-weight: 800; }
+.industry-template .ipt-lead-side strong { color: #343a40; font-size: 19px; font-weight: 900; }
+.industry-template .ipt-lead-side small { color: #8b9298; font-size: 10px; }
+.industry-template .ipt-lead-side a { display: inline-flex; align-items: center; gap: 5px; margin-top: 7px; color: var(--ipt-orange-dark); font-size: 10px; font-weight: 850; }
+.industry-template .ipt-related { padding-top: 10px; padding-bottom: 55px; }
+.industry-template .ipt-related-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.industry-template .ipt-related-card { position: relative; min-height: 150px; overflow: hidden; border-radius: 12px; background: #3b4147; color: #fff; }
+.industry-template .ipt-related-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.industry-template .ipt-related-card::after { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,24,28,.04), rgba(20,24,28,.78)); content: ""; }
+.industry-template .ipt-related-card:hover img { transform: scale(1.05); }
+.industry-template .ipt-related-card span { position: absolute; z-index: 1; right: 12px; bottom: 12px; left: 12px; display: flex; align-items: center; justify-content: space-between; gap: 7px; color: #fff; font-size: 11px; font-weight: 850; }
+.industry-template .ipt-related-card span svg { color: #ffc49e; }
+@media (max-width: 1050px) {
+  .industry-template .ipt-hero { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: 24px; }
+  .industry-template .ipt-hero-visual { min-height: 340px; }
+  .industry-template .ipt-intent-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .industry-template .ipt-proof-strip > div { padding: 13px 12px; }
+  .industry-template .ipt-stage-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .industry-template .ipt-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .industry-template .ipt-related-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .industry-template .ipt-hero,
+  .industry-template .ipt-section,
+  .industry-template .ipt-proof-strip,
+  .industry-template .ipt-why,
+  .industry-template .ipt-lead,
+  .industry-template .ipt-forza-banner { width: min(100% - 28px, 620px); }
+  .industry-template .ipt-hero { grid-template-columns: 1fr; gap: 19px; padding-block: 22px 25px; }
+  .industry-template .ipt-hero-copy { order: 1; }
+  .industry-template .ipt-hero-visual { order: 0; min-height: 225px; max-height: 270px; border-radius: 15px; }
+  .industry-template .ipt-breadcrumb { margin-bottom: 14px; font-size: 10px; }
+  .industry-template .ipt-hero h1 { margin: 9px 0 9px; font-size: clamp(25px, 7vw, 34px); line-height: 1.5; }
+  .industry-template .ipt-hero-copy > p { font-size: 12px; line-height: 1.95; }
+  .industry-template .ipt-hero-tags { gap: 6px; margin-top: 13px; }
+  .industry-template .ipt-hero-tags span { padding: 6px 8px; font-size: 10px; }
+  .industry-template .ipt-hero-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .industry-template .ipt-hero-actions .ipt-button { min-width: 0; padding-inline: 8px; font-size: 10px; white-space: normal; }
+  .industry-template .ipt-hero-actions .ipt-button:last-child { grid-column: 1 / -1; }
+  .industry-template .ipt-proof-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .industry-template .ipt-proof-strip > div { min-height: 72px; padding: 10px; border-bottom: 1px solid #eeece8; }
+  .industry-template .ipt-proof-strip > div:nth-child(2n) { border-left: 0; }
+  .industry-template .ipt-proof-strip > div:nth-last-child(-n+2) { border-bottom: 0; }
+  .industry-template .ipt-proof-strip > div > span { width: 34px; height: 34px; }
+  .industry-template .ipt-proof-strip strong { font-size: 10px; }
+  .industry-template .ipt-proof-strip small { font-size: 9px; }
+  .industry-template .ipt-section { padding-block: 28px; }
+  .industry-template .ipt-section-heading { margin-bottom: 16px; }
+  .industry-template .ipt-section-heading h2 { font-size: 21px; line-height: 1.55; }
+  .industry-template .ipt-section-heading p { font-size: 11px; }
+  .industry-template .ipt-intent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .industry-template .ipt-intent-card { min-height: 158px; padding: 12px; }
+  .industry-template .ipt-intent-card:last-child { grid-column: 1 / -1; min-height: 125px; }
+  .industry-template .ipt-intent-icon { width: 35px; height: 35px; margin-bottom: 10px; }
+  .industry-template .ipt-intent-card strong { font-size: 11px; }
+  .industry-template .ipt-intent-card p { margin: 5px 0 14px; font-size: 10px; line-height: 1.75; }
+  .industry-template .ipt-intent-next { align-items: stretch; flex-direction: column; gap: 10px; padding: 12px; }
+  .industry-template .ipt-intent-next span { font-size: 10px; }
+  .industry-template .ipt-intent-next .ipt-button { width: 100%; }
+  .industry-template .ipt-production-shell { padding: 9px; border-radius: 13px; }
+  .industry-template .ipt-production-visual { height: 185px; }
+  .industry-template .ipt-stage-hotspots button { gap: 5px; padding: 10px 1px; }
+  .industry-template .ipt-stage-hotspots button > span { width: 24px; height: 24px; font-size: 9px; }
+  .industry-template .ipt-stage-hotspots button small { display: none; }
+  .industry-template .ipt-production-caption { right: 8px; bottom: 8px; padding: 6px 8px; }
+  .industry-template .ipt-production-caption strong { font-size: 10px; }
+  .industry-template .ipt-stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+  .industry-template .ipt-stage-tabs button { gap: 6px; padding: 8px 7px; }
+  .industry-template .ipt-stage-tabs button > b { width: 25px; height: 25px; flex-basis: 25px; font-size: 9px; }
+  .industry-template .ipt-stage-tabs button > span { font-size: 10px; }
+  .industry-template .ipt-stage-tabs button small { font-size: 9px; }
+  .industry-template .ipt-stage-tabs button > svg { width: 12px; }
+  .industry-template .ipt-stage-panel { grid-template-columns: 1fr; gap: 14px; margin-top: 9px; padding: 13px; }
+  .industry-template .ipt-stage-copy h3 { font-size: 16px; }
+  .industry-template .ipt-stage-copy p { font-size: 11px; line-height: 1.9; }
+  .industry-template .ipt-stage-product { padding: 8px; }
+  .industry-template .ipt-stage-product strong { font-size: 10px; }
+  .industry-template .ipt-search-grid { grid-template-columns: 1fr; gap: 9px; }
+  .industry-template .ipt-search-card { padding: 16px; }
+  .industry-template .ipt-search-card h3 { font-size: 14px; }
+  .industry-template .ipt-search-card p { min-height: auto; font-size: 10px; }
+  .industry-template .ipt-recommender { grid-template-columns: 1fr; gap: 15px; padding: 17px; border-radius: 14px; }
+  .industry-template .ipt-recommender-copy h2 { font-size: 20px; }
+  .industry-template .ipt-recommender-copy p { font-size: 11px; }
+  .industry-template .ipt-recommender-form { gap: 9px; }
+  .industry-template .ipt-recommender-form label { font-size: 9px; }
+  .industry-template .ipt-recommender-form input,
+  .industry-template .ipt-recommender-form select { min-height: 41px; font-size: 11px; }
+  .industry-template .ipt-forza-banner { min-height: 290px; margin-top: 8px; border-radius: 14px; }
+  .industry-template .ipt-forza-shade { background: linear-gradient(270deg, rgba(25,30,35,.97), rgba(25,30,35,.78)); }
+  .industry-template .ipt-forza-copy { width: 100%; padding: 24px 18px; }
+  .industry-template .ipt-forza-copy h2 { font-size: 22px; }
+  .industry-template .ipt-forza-copy p { font-size: 10px; }
+  .industry-template .ipt-forza-actions { display: grid; grid-template-columns: 1fr; }
+  .industry-template .ipt-forza-actions .ipt-button { width: 100%; }
+  .industry-template .ipt-products-grid { grid-template-columns: 1fr; gap: 10px; }
+  .industry-template .ipt-checklist { grid-template-columns: 1fr; gap: 14px; padding: 17px; }
+  .industry-template .ipt-checklist-copy h2 { font-size: 20px; }
+  .industry-template .ipt-checklist-copy p { font-size: 11px; }
+  .industry-template .ipt-checklist-items { grid-template-columns: 1fr; gap: 7px; }
+  .industry-template .ipt-checklist-items > div { min-height: 46px; }
+  .industry-template .ipt-article-grid { grid-template-columns: 1fr; gap: 9px; }
+  .industry-template .ipt-article-card { min-height: 130px; }
+  .industry-template .ipt-article-copy { padding: 10px; }
+  .industry-template .ipt-article-copy strong { font-size: 12px; }
+  .industry-template .ipt-article-copy p { font-size: 10px; }
+  .industry-template .ipt-why { grid-template-columns: 1fr; gap: 17px; padding-block: 30px; }
+  .industry-template .ipt-why-visual { min-height: 210px; }
+  .industry-template .ipt-why-copy h2 { font-size: 21px; }
+  .industry-template .ipt-why-copy > p { font-size: 11px; }
+  .industry-template .ipt-why-copy li { font-size: 10px; }
+  .industry-template .ipt-lead { grid-template-columns: 1fr; gap: 15px; margin-bottom: 30px; padding: 17px; }
+  .industry-template .ipt-lead-copy h2 { font-size: 20px; }
+  .industry-template .ipt-lead-copy p { font-size: 11px; }
+  .industry-template .ipt-lead-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .industry-template .ipt-lead-actions .ipt-button { min-width: 0; padding-inline: 8px; font-size: 10px; white-space: normal; }
+  .industry-template .ipt-lead-actions .ipt-button:last-child { grid-column: 1 / -1; }
+  .industry-template .ipt-lead-side { padding: 14px; }
+  .industry-template .ipt-related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .industry-template .ipt-related-card { min-height: 120px; }
+  .industry-template .ipt-related-card span { font-size: 10px; }
+}
+@media (max-width: 390px) {
+  .industry-template .ipt-hero,
+  .industry-template .ipt-section,
+  .industry-template .ipt-proof-strip,
+  .industry-template .ipt-why,
+  .industry-template .ipt-lead,
+  .industry-template .ipt-forza-banner { width: min(100% - 22px, 370px); }
+  .industry-template .ipt-hero h1 { font-size: 24px; }
+  .industry-template .ipt-hero-actions { grid-template-columns: 1fr; }
+  .industry-template .ipt-hero-actions .ipt-button:last-child { grid-column: auto; }
+  .industry-template .ipt-stage-hotspots button small { font-size: 7px; }
+  .industry-template .ipt-stage-tabs { grid-template-columns: 1fr 1fr; }
+  .industry-template .ipt-recommender-form { grid-template-columns: 1fr; }
+  .industry-template .ipt-recommender-form .ipt-recommender-wide { grid-column: auto; }
+  .industry-template .ipt-related-card { min-height: 104px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-template *,
+  .industry-template *::before,
+  .industry-template *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

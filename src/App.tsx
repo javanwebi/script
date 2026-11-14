@@ -2,7 +2,6 @@ import {RouteIntentPreload} from './components/layout/RouteIntentPreload';
 import {MobileSwipeHint} from './components/layout/MobileSwipeHint';
 import { PartIdentificationProvider, PartIdentificationPage } from './components/search/PartIdentificationProvider';
 import {
-  IndustryPage,
   IndustriesPage,
   BrandsPage,
   KnowledgePage,
@@ -70,9 +69,9 @@ const ConsumerDashboardPage = lazy(() =>
     default: module.ConsumerDashboardPage,
   })),
 );
-const TileCeramicIndustryPage = lazy(() =>
-  import("./pages/TileCeramicIndustryPage").then((module) => ({
-    default: module.TileCeramicIndustryPage,
+const IndustryTemplatePage = lazy(() =>
+  import("./pages/IndustryTemplatePage").then((module) => ({
+    default: module.IndustryTemplatePage,
   })),
 );
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage").then(m => ({default:m.AboutUsPage})));
@@ -167,27 +166,28 @@ export default function App() {
                     {/* Dedicated Tile & Ceramic Industry Page */}
                     <Route
                       path="/category/ceramic-tiles"
-                      element={<TileCeramicIndustryPage />}
+                      element={<Navigate to="/industries/ceramic" replace />}
                     />
                     <Route
                       path="/industries/ceramic"
-                      element={<TileCeramicIndustryPage />}
+                      element={<IndustryTemplatePage />}
                     />
                     <Route
                       path="/industries/tile-ceramic"
-                      element={<TileCeramicIndustryPage />}
+                      element={<IndustryTemplatePage />}
                     />
                     <Route
                       path="/industry/ceramic-tile"
-                      element={<TileCeramicIndustryPage />}
+                      element={<IndustryTemplatePage />}
                     />
 
                     {/* 2. Category Listing */}
                     <Route path="/industries" element={<IndustriesPage />} />
                     <Route
                       path="/industries/:slug"
-                      element={<IndustryPage />}
+                      element={<IndustryTemplatePage />}
                     />
+                    <Route path="/industry/:slug" element={<IndustryTemplatePage />} />
                     <Route path="/brands" element={<BrandsPage />} />
                     <Route path="/knowledge" element={<KnowledgePage />} />
                     <Route
