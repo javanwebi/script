@@ -68,6 +68,24 @@ WHERE family_code IN (
 )
 AND method <> 'admin_verified';
 
+
+-- Earlier database-reference counts showed 43 families / 1,037 SKUs under
+-- "لاستیکی فابریک", but the authoritative Excel has no explicit rubber material.
+-- Remove only automatic assignments; preserve any admin_verified decision.
+DELETE FROM public.catalog_family_menu_assignments
+WHERE category_slug='excel-v2-1-1'
+  AND submenu_name='لاستیکی فابریک'
+  AND method <> 'admin_verified';
+
+-- Earlier database-reference counts showed 7 steel families / 109 SKUs.
+-- Excel confirms only the three explicit stainless families above (9 SKUs).
+-- Keep those three for the verified upsert; send other automatic rows to review.
+DELETE FROM public.catalog_family_menu_assignments
+WHERE category_slug='excel-v2-6-2'
+  AND submenu_name='نرده استیل'
+  AND family_code NOT IN ('FAM-35826','FAM-10105','FAM-52948')
+  AND method <> 'admin_verified';
+
 -- The Excel explicitly identifies these three guide families as stainless steel:
 -- FAM-35826 = 5 SKUs; FAM-10105 = 2 SKUs; FAM-52948 = 2 SKUs.
 INSERT INTO public.catalog_family_menu_assignments
