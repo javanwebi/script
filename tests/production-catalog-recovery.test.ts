@@ -107,7 +107,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(correction,/FAM-52858/);
  assert.match(correction,/leaf_name IS NULL/);
  assert.match(skuSql,/نوار نقاله PVC/);
- const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
+ const skuCodes=[...skuSql.matchAll(/'([0-9]{4,7})'/g)].map(match=>match[1]);
  assert.equal(skuCodes.length,305);
  assert.equal(new Set(skuCodes).size,305);
  assert.match(skuSql,/ON CONFLICT \(sku_code\) DO NOTHING/);
