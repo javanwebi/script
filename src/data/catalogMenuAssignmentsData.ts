@@ -1,7 +1,7 @@
 // Auto-generated verified family-to-menu assignments for all 1,383 industrial families
 export interface FamilyMenuAssignment {
   categorySlug: string;
-  submenuName: string;
+  submenuName: string | null;
   leafName: string | null;
 }
 
@@ -38,8 +38,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-10077": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-10081": {
     "categorySlug": "excel-v2-1-2",
@@ -58,8 +58,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-10105": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-10114": {
     "categorySlug": "excel-v2-9-1",
@@ -93,8 +93,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-10182": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-10186": {
     "categorySlug": "excel-v2-1-2",
@@ -128,8 +128,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-10265": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-10276": {
     "categorySlug": "excel-v2-1-1",
@@ -608,8 +608,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-31501": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-31554": {
     "categorySlug": "excel-v2-6-2",
@@ -648,7 +648,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-31710": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-31740": {
@@ -678,12 +678,12 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-31917": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-31931": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-31942": {
@@ -753,7 +753,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-32328": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-32354": {
@@ -768,8 +768,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-32384": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-32416": {
     "categorySlug": "excel-v2-1-1",
@@ -783,7 +783,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-32444": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-32496": {
@@ -883,8 +883,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-32929": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-32935": {
     "categorySlug": "excel-v2-13-1",
@@ -898,17 +898,17 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-32986": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33000": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33001": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33008": {
@@ -963,7 +963,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-33121": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33135": {
@@ -1048,7 +1048,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-33463": {
     "categorySlug": "excel-v2-4-1",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33488": {
@@ -1118,22 +1118,22 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-33804": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-33838": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33839": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33840": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-33892": {
@@ -1198,7 +1198,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-34360": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-34373": {
@@ -1338,13 +1338,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-34705": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-34722": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-34732": {
     "categorySlug": "excel-v2-7-3",
@@ -1358,7 +1358,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-34774": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-34802": {
@@ -1373,7 +1373,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-34830": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-34869": {
@@ -1418,7 +1418,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-34973": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-34989": {
@@ -1443,7 +1443,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-35064": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-35073": {
@@ -1458,7 +1458,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-35093": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-35099": {
@@ -1563,7 +1563,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-35623": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-35625": {
@@ -1608,8 +1608,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-35826": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-35837": {
     "categorySlug": "excel-v2-6-2",
@@ -1728,17 +1728,17 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36068": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-36079": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-36081": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-36102": {
@@ -1768,7 +1768,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36219": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-36235": {
@@ -1778,7 +1778,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36274": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-36290": {
@@ -1823,13 +1823,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36375": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-36378": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-36384": {
     "categorySlug": "excel-v2-3-1",
@@ -1848,13 +1848,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36467": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-36468": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-36479": {
     "categorySlug": "excel-v2-1-1",
@@ -1903,12 +1903,12 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36636": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-36690": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-367891": {
@@ -1948,7 +1948,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36998": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-37015": {
@@ -1963,8 +1963,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37044": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-37048": {
     "categorySlug": "excel-v2-9-1",
@@ -2023,7 +2023,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37221": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-37237": {
@@ -2118,8 +2118,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37681": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-37713": {
     "categorySlug": "excel-v2-1-1",
@@ -2143,8 +2143,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37734": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-37738": {
     "categorySlug": "excel-v2-1-1",
@@ -2153,8 +2153,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37739": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-37741": {
     "categorySlug": "excel-v2-1-2",
@@ -2168,7 +2168,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-37819": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-37898": {
@@ -2208,18 +2208,18 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38019": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38027": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38040": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38047": {
     "categorySlug": "excel-v2-1-1",
@@ -2263,7 +2263,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38095": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-38110": {
@@ -2283,8 +2283,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38181": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38225": {
     "categorySlug": "excel-v2-6-2",
@@ -2303,17 +2303,17 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38262": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-38264": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38265": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-38294": {
@@ -2343,7 +2343,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38337": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-38349": {
@@ -2403,7 +2403,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38828": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-38844": {
@@ -2443,8 +2443,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-38933": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-38955": {
     "categorySlug": "excel-v2-3-1",
@@ -2478,7 +2478,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39156": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-39198": {
@@ -2508,8 +2508,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39283": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-39297": {
     "categorySlug": "excel-v2-1-1",
@@ -2583,8 +2583,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39613": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-39626": {
     "categorySlug": "excel-v2-1-2",
@@ -2598,7 +2598,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39663": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-39768": {
@@ -2633,12 +2633,12 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39859": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-39869": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-39893": {
@@ -2653,13 +2653,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-39897": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-39908": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-39912": {
     "categorySlug": "excel-v2-1-2",
@@ -2708,7 +2708,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40003": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40005": {
@@ -2858,7 +2858,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40471": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40488": {
@@ -2928,17 +2928,17 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40605": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40608": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40611": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40628": {
@@ -2993,8 +2993,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40692": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-40699": {
     "categorySlug": "excel-v2-3-1",
@@ -3018,7 +3018,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40754": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40782": {
@@ -3048,7 +3048,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40932": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-40942": {
@@ -3063,7 +3063,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-40965": {
     "categorySlug": "excel-v2-2-1",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-41039": {
@@ -3093,8 +3093,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-41156": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-41168": {
     "categorySlug": "excel-v2-1-1",
@@ -3283,8 +3283,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-41630": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-41648": {
     "categorySlug": "excel-v2-13-1",
@@ -3418,7 +3418,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-51280": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-51622": {
@@ -3483,7 +3483,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-52640": {
     "categorySlug": "excel-v2-1-3",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-52674": {
@@ -3553,8 +3553,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-52948": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": null
+    "submenuName": "نرده استیل",
+    "leafName": "نرده استیل و متعلقات"
   },
   "FAM-53016": {
     "categorySlug": "excel-v2-1-1",
@@ -3653,13 +3653,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-58265": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-58288": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "انواع گام و کدهای تایمینگ",
-    "leafName": null
+    "submenuName": "لاستیکی فابریک",
+    "leafName": "لاستیکی فابریک ساده و دنده‌دار"
   },
   "FAM-58363": {
     "categorySlug": "excel-v2-1-1",
@@ -4073,22 +4073,22 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-90046": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-90047": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-900600": {
     "categorySlug": "excel-v2-6-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-90086": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-90087": {
@@ -4108,12 +4108,12 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-90126": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-90143": {
     "categorySlug": "excel-v2-3-2",
-    "submenuName": "",
+    "submenuName": null,
     "leafName": null
   },
   "FAM-90147": {
@@ -4252,14 +4252,14 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
   },
   "FAM-35198": {
-    "categorySlug": "excel-v2-9-3",
-    "submenuName": "دستگیره و پیچ فلکه",
-    "leafName": "انواع دستگیره شکل و پیچ فلکه"
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
   },
   "FAM-33126": {
-    "categorySlug": "excel-v2-9-3",
-    "submenuName": "دستگیره و پیچ فلکه",
-    "leafName": "انواع دستگیره شکل و پیچ فلکه"
+    "categorySlug": "excel-v2-1-1",
+    "submenuName": "سیم‌دار فابریک",
+    "leafName": null
   },
   "FAM-41098": {
     "categorySlug": "excel-v2-9-3",
@@ -5098,8 +5098,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-80151": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "submenuName": null,
+    "leafName": null
   },
   "FAM-10111": {
     "categorySlug": "excel-v2-1-1",
@@ -5107,34 +5107,34 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "پلی‌یورتان"
   },
   "FAM-52319": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-3",
+    "submenuName": "تسمه گرد (CRC)",
+    "leafName": "انواع تسمه گرد جوشی"
   },
   "FAM-40462": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-3",
+    "submenuName": "تسمه گرد (CRC)",
+    "leafName": "انواع تسمه گرد جوشی"
   },
   "FAM-41253": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": null
   },
   "FAM-39130": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "submenuName": null,
+    "leafName": null
   },
   "FAM-38906": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": null
   },
   "FAM-22751": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": "Z (9.5) , M , A , B , C , D , E , 8V"
   },
   "FAM-35525": {
     "categorySlug": "excel-v2-1-1",
@@ -5142,9 +5142,9 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "پلی‌یورتان"
   },
   "FAM-30": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "categorySlug": "excel-v2-1-2",
+    "submenuName": "کلاسیک و دنده‌دار",
+    "leafName": null
   },
   "FAM-37769": {
     "categorySlug": "excel-v2-1-1",
@@ -5198,8 +5198,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-31929": {
     "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
+    "submenuName": "انواع گام و کدهای تایمینگ",
+    "leafName": "H , XH , L , XL"
   },
   "FAM-41448": {
     "categorySlug": "excel-v2-1-2",

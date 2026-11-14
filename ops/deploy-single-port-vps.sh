@@ -356,12 +356,49 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   const category14=Number(result.rows[0].category_14);
   const mappedCategories=Number(result.rows[0].mapped_categories);
   const emptyCategories=Number(result.rows[0].empty_categories);
+
+  const critical=await database().query(
+   "select " +
+   "count(*) filter(where family_code=any(array['FAM-10077','FAM-10182','FAM-10265','FAM-31501','FAM-32384','FAM-32929','FAM-33804','FAM-34722','FAM-36375','FAM-36378','FAM-36467','FAM-36468','FAM-36636','FAM-37044','FAM-37681','FAM-37734','FAM-37739','FAM-38019','FAM-38027','FAM-38040','FAM-38181','FAM-38264','FAM-38933','FAM-39283','FAM-39613','FAM-39897','FAM-39908','FAM-40692','FAM-41156','FAM-41630','FAM-58265','FAM-58288']::text[]) and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-1' and submenu_name='لاستیکی فابریک' and leaf_name='لاستیکی فابریک ساده و دنده‌دار')))::int as rubber_timing, " +
+   "count(*) filter(where family_code=any(array['FAM-10105','FAM-35826','FAM-52948']::text[]) and " +
+   "(method='admin_verified' or (category_slug='excel-v2-6-2' and submenu_name='نرده استیل' and leaf_name='نرده استیل و متعلقات')))::int as stainless_guides, " +
+   "count(*) filter(where family_code='FAM-33126' and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-1' and submenu_name='سیم‌دار فابریک' and leaf_name is null)))::int as wire_t10, " +
+   "count(*) filter(where family_code='FAM-35198' and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-2' and submenu_name='کلاسیک و دنده‌دار' and leaf_name='Z (9.5) , M , A , B , C , D , E , 8V')))::int as packaging_vbelt, " +
+   "count(*) filter(where family_code='FAM-22751' and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-2' and submenu_name='کلاسیک و دنده‌دار' and leaf_name='Z (9.5) , M , A , B , C , D , E , 8V')))::int as z_vbelt, " +
+   "count(*) filter(where family_code=any(array['FAM-30','FAM-38906','FAM-41253']::text[]) and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-2' and submenu_name='کلاسیک و دنده‌دار' and leaf_name is null)))::int as other_vbelts, " +
+   "count(*) filter(where family_code=any(array['FAM-40462','FAM-52319']::text[]) and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-3' and submenu_name='تسمه گرد (CRC)' and leaf_name='انواع تسمه گرد جوشی')))::int as crc_belts, " +
+   "count(*) filter(where family_code='FAM-31929' and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-1' and submenu_name='انواع گام و کدهای تایمینگ' and leaf_name='H , XH , L , XL')))::int as timing_h, " +
+   "count(*) filter(where family_code=any(array['FAM-39130','FAM-80151']::text[]) and " +
+   "(method='admin_verified' or (category_slug='excel-v2-1-1' and submenu_name is null and leaf_name is null)))::int as mixed_review " +
+   "from public.catalog_family_menu_assignments");
+  const criticalRows=critical.rows[0];
   if(total<1383)throw Error("Expected at least 1383 active family menu assignments, found "+total);
   if(mappedCategories<34 || emptyCategories!==0)throw Error("Expected all 34 approved categories to contain active families; mapped="+mappedCategories+" empty="+emptyCategories);
   if(category14<1)throw Error("Expected active families for excel-v2-1-4, found "+category14);
+
+  if(Number(criticalRows.rubber_timing)!==32)throw Error("Expected all 32 rubber timing families in the factory-rubber submenu; found "+criticalRows.rubber_timing);
+  if(Number(criticalRows.stainless_guides)!==3)throw Error("Expected all 3 explicitly stainless guide families in the stainless-rail submenu; found "+criticalRows.stainless_guides);
+  if(Number(criticalRows.wire_t10)!==1)throw Error("Expected the T10 wire-reinforced belt family in the wire-reinforced submenu");
+  if(Number(criticalRows.packaging_vbelt)!==1)throw Error("Expected the B-profile packaging belt family in the V-belt submenu");
+  if(Number(criticalRows.z_vbelt)!==1 || Number(criticalRows.other_vbelts)!==3)throw Error("Expected 4 verified V-belt families in the V-belt submenu");
+  if(Number(criticalRows.crc_belts)!==2)throw Error("Expected 2 CRC welded-belt families in the welded-belt submenu");
+  if(Number(criticalRows.timing_h)!==1)throw Error("Expected the H-profile timing-belt family in the timing-profile submenu");
+  if(Number(criticalRows.mixed_review)!==2)throw Error("Mixed legacy belt families must remain unassigned to a false submenu");
   console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total);
   console.log("PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED",mappedCategories,"empty="+emptyCategories);
   console.log("PRODUCTION_EXCEL_V2_1_4_FAMILY_ASSIGNMENTS_VERIFIED",category14);
+
+  console.log("PRODUCTION_RUBBER_TIMING_ASSIGNMENTS_VERIFIED",criticalRows.rubber_timing);
+  console.log("PRODUCTION_STAINLESS_GUIDE_ASSIGNMENTS_VERIFIED",criticalRows.stainless_guides);
+  console.log("PRODUCTION_WIRE_T10_ASSIGNMENT_VERIFIED",criticalRows.wire_t10);
+  console.log("PRODUCTION_PACKAGING_VBELT_ASSIGNMENT_VERIFIED",criticalRows.packaging_vbelt);
  }catch(error){console.error("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 ' < "$ASSIGNMENT_SQL"
