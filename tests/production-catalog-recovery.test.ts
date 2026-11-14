@@ -94,6 +94,9 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
  assert.match(correction,/method <> 'admin_verified'/);
  assert.match(correction,/excel_source_verified/);
+ assert.match(correction,/submenu_name='لاستیکی فابریک'/);
+ assert.match(correction,/submenu_name='نرده استیل'/);
+ assert.match(correction,/family_code NOT IN \('FAM-35826','FAM-10105','FAM-52948'\)/);
  assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
   'FAM-34280','FAM-54569','FAM-381961','FAM-36858','FAM-39853','FAM-31520','FAM-32174',
