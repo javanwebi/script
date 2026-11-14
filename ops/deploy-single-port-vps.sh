@@ -343,13 +343,24 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
   await database().query(sql);
   const result=await database().query(
    "select count(*)::int as total, " +
-   "count(*) filter(where category_slug=\x27excel-v2-1-4\x27)::int as category_14 " +
-   "from public.catalog_family_menu_assignments");
+   "count(*) filter(where a.category_slug=\x27excel-v2-1-4\x27)::int as category_14, " +
+   "count(distinct a.category_slug)::int as mapped_categories, " +
+   "(select count(*)::int from public.catalog_categories c " +
+   " where c.is_active=true and c.metadata->>\x27source\x27=\x27industrial_megamenu_hierarchy_v2\x27 " +
+   " and not exists (select 1 from public.catalog_family_menu_assignments x " +
+   " join public.catalog_families xf on xf.code=x.family_code and xf.is_active=true and xf.is_deleted=false " +
+   " where x.category_slug=c.slug)) as empty_categories " +
+   "from public.catalog_family_menu_assignments a " +
+   "join public.catalog_families f on f.code=a.family_code and f.is_active=true and f.is_deleted=false");
   const total=Number(result.rows[0].total);
   const category14=Number(result.rows[0].category_14);
-  if(total<1383)throw Error("Expected at least 1383 family menu assignments, found "+total);
-  if(category14<21)throw Error("Expected 21 assignments for excel-v2-1-4, found "+category14);
+  const mappedCategories=Number(result.rows[0].mapped_categories);
+  const emptyCategories=Number(result.rows[0].empty_categories);
+  if(total<1383)throw Error("Expected at least 1383 active family menu assignments, found "+total);
+  if(mappedCategories<34 || emptyCategories!==0)throw Error("Expected all 34 approved categories to contain active families; mapped="+mappedCategories+" empty="+emptyCategories);
+  if(category14<1)throw Error("Expected active families for excel-v2-1-4, found "+category14);
   console.log("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED",total);
+  console.log("PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED",mappedCategories,"empty="+emptyCategories);
   console.log("PRODUCTION_EXCEL_V2_1_4_FAMILY_ASSIGNMENTS_VERIFIED",category14);
  }catch(error){console.error("PRODUCTION_FAMILY_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
