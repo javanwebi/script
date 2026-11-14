@@ -10,7 +10,7 @@ const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProd
 test('direct SKU records are rendered in the same belt collection as family cards', () => {
   assert.match(route, /return <BeltCategoryExperience \/>/);
   assert.doesNotMatch(route, /DirectSkuProducts categorySlug=\{canonicalBeltSlug\}/);
-  assert.match(page, /const directSkuRecords = useDirectSkus\(\)/);
+  assert.match(page, /const directSkuRecords = useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
   assert.match(page, /const directSkuProducts = useMemo/);
   assert.match(page, /const collectionProducts = useMemo/);
   assert.match(page, /detailPath=\{directSkuCodes\.has\(p\.code\)/);
@@ -103,7 +103,12 @@ test('direct SKU cards do not borrow inferred product imagery or placeholder man
   assert.doesNotMatch(page, /product\.brand \|\| 'قطعات صنعتی'/);
 });
 
-test('belt subcategory navigation counts include direct SKU records as well as family records', () => {
+test('belt subcategory navigation counts include unique direct SKU records as well as family records', () => {
+  assert.match(page, /const familyCodeSet = useMemo/);
+  assert.match(page, /filter\(product => !familyCodeSet\.has/);
+  assert.match(page, /const displayBrands = useMemo\([\s\S]*?brands\.filter/);
+  assert.doesNotMatch(page, /const standard = \['Megadyne'/);
+  assert.match(page, /products\.filter\(product => productHasDisplayBrand\(product, brand\)\)/);
   assert.match(page, /const directSkuCount = directSkuRecords\.filter/);
   assert.match(page, /counts\.set\(option\.id, familyCount \+ directSkuCount\)/);
 });
