@@ -3,8 +3,10 @@
 ## Behavior
 
 - Only a successful `push` CI run for `main` can trigger automatic production deployment.
+- Deployment waits for all three required workflows for the exact same main SHA: `Unified Sanat Pish main integration`, `Verify source UI and database runtime`, and `Verify VPS frontend build before deployment`.
+- The source/database and VPS responsive-build workflows are deliberately enabled on every main push, so direct Google AI Studio pushes cannot skip those gates.
 - Pull-request runs, feature branches, workflow-dispatch CI runs, and failed CI runs do not auto-deploy.
-- The deploy workflow uses the exact `head_sha` from the successful CI run.
+- The deploy workflow uses the exact `head_sha` from the successful CI run and queries GitHub Actions to confirm all required checks for that SHA have completed successfully.
 - The VPS fetches current `origin/main` and refuses a stale SHA. An older completed CI run can never roll the site back.
 - The existing canonical `sudo sanatpish-deploy-main` release path remains responsible for the isolated build, canary, database checks, promotion, HTTPS health checks, and rollback.
 - Deployments are serialized. A newer main commit must pass CI before it can be promoted.
