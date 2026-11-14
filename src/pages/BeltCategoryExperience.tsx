@@ -601,6 +601,7 @@ function FeaturedProductCard({
   detailPath?: string;
 }) {
   const href = detailPath || '/product/' + encodeURIComponent(product.code);
+  const featuredBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
@@ -633,7 +634,7 @@ function FeaturedProductCard({
       <div className="bce-featured-content">
         <div className="bce-product-code">
           <b dir="ltr">{product.code}</b>
-          <span dir="ltr">{product.brand || 'قطعات صنعتی'}</span>
+          {featuredBrand && <span dir="ltr">{featuredBrand}</span>}
         </div>
         <Link to={href} className="bce-featured-name">
           {product.name}
@@ -655,8 +656,8 @@ function FeaturedProductCard({
           )}
         </div>
         <div className="bce-featured-status">
-          <span className="dot in-stock" />
-          موجود در انبار
+          <span className={`dot ${product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'in-stock' : ''}`} />
+          {product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'موجود در انبار' : 'استعلام موجودی'}
         </div>
         <div className="bce-featured-actions">
           <div className="bce-member-access">
