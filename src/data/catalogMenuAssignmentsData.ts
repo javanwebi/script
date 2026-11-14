@@ -3544,7 +3544,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-52858": {
     "categorySlug": "excel-v2-2-1",
     "submenuName": "بر اساس جنس",
-    "leafName": "نوار نقاله PVC"
+    "leafName": null
   },
   "FAM-52926": {
     "categorySlug": "excel-v2-1-2",
