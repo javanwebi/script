@@ -584,16 +584,16 @@ if [[ -f "$APP/.local-vision-enabled" ]]; then
        !Number.isInteger(d.storedEntries) || d.storedEntries<d.indexed ||
        !Number.isInteger(d.missing) || !Number.isInteger(d.signatureChanged)){
       console.error("LOCAL_VISION_PERSISTENCE_GATE_FAILED_INVALID_STATUS");
-      process.exit(2);
+      process.exitCode=2;
     }
     console.log("CANARY_INDEX",d.indexed,"/",d.total,
       "stored="+d.storedEntries,"missing="+d.missing,
       "changed="+d.signatureChanged,"persistence="+d.persistence);
     if(d.ready && d.indexed===d.total && d.missing===0 && d.signatureChanged===0){
       console.log("LOCAL_VISION_INDEX_READY");
-      process.exit(0);
+      process.exitCode=0;
     }
-    process.exit(3);
+    process.exitCode=3;
    });'); then
     echo "$CHECK_OUTPUT"
     VISION_INDEX_READY=1
