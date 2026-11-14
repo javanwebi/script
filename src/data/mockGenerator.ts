@@ -35,7 +35,8 @@ export function installDatabaseProducts(products:Product[]){databaseProducts=pro
 const baselineProducts=():Product[]=>{
   if (databaseProducts) return databaseProducts;
   if (USER_PRODUCTS_RAW.length > 0) return USER_PRODUCTS_RAW;
-  return loadFallbackCatalog();
+  // PostgreSQL is the only production catalogue source; never resurrect fixture JSON at runtime.
+  return [];
 };
 let sessionOverrides: CatalogOverridesState | null = null;
 let catalogRequestVersion = 0;
