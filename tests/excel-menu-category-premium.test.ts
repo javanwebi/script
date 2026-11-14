@@ -82,7 +82,9 @@ test('family product cards preserve a usable image from the family gallery or SK
 });
 
 test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
-  assert.match(page, /<DirectSkuProducts categorySlug=\{slug\}/);
+  assert.match(page, /DirectSkuProductCard/);
+  assert.match(page, /const filteredDirectSkus = useMemo/);
+  assert.match(page, /filteredCollectionItems/);
   assert.match(page, /const cardProduct = product \?/);
   assert.match(page, /<ProductCard product=\{cardProduct\}/);
   assert.match(page, /'\/product\/' \+ encodeURIComponent\(family\.code\)/);
