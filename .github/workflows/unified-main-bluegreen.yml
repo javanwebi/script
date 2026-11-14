@@ -45,6 +45,7 @@ jobs:
           PY
           node --import tsx --test tests/single-port-deploy.test.ts
           node --import tsx --test tests/production-catalog-recovery.test.ts
+          node --import tsx --test tests/catalog-menu-assignment-audit.test.ts
           node --import tsx --test tests/production-category-bootstrap.test.ts
           node --import tsx --test tests/bluegreen-domain-routing.test.ts
           bash -n ops/sanatpish-deploy-main.sh

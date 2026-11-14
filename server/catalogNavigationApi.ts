@@ -1,6 +1,7 @@
 import type {Express,Request,Response} from 'express';
 import crypto from 'node:crypto';
 import {database,databaseEnabled} from './db/connection';
+import {getFamilyMenuAssignment} from '../src/services/catalogTaxonomyResolver';
 import {getPortalIdentity} from '../api/portal';
 import {canStaff} from './db/staffPermissions';
 
@@ -99,7 +100,7 @@ export function registerCatalogNavigationApi(app:Express){
       if(!databaseEnabled())return res.status(503).json({success:false,assignments:[]});
       const result=await database().query(
         `select a.family_code as "familyCode",a.category_slug as "categorySlug",
-          a.submenu_name as "submenuName",a.leaf_name as "leafName"
+          a.submenu_name as "submenuName",a.leaf_name as "leafName",a.method
          from public.catalog_family_menu_assignments a
          join public.catalog_families f on f.code=a.family_code
          join public.catalog_categories c on c.slug=a.category_slug and c.is_active=true
@@ -125,18 +126,34 @@ export function registerCatalogNavigationApi(app:Express){
          limit 1`,[slug]);
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       const familyRows=await database().query(
-        `select a.family_code as code,f.name,coalesce(f.brand,'') as brand,
-          a.submenu_name as submenu,a.leaf_name as leaf,coalesce(f.item_count,0) as "skuCount"
-         from public.catalog_family_menu_assignments a
-         join public.catalog_families f on f.code=a.family_code
-         where a.category_slug=$1 and f.is_active=true and f.is_deleted=false
-         order by f.name,f.code limit 3000`,[slug]);
+        `select f.code,f.name,coalesce(f.brand,'') as brand,
+          coalesce(f.item_count,0) as "skuCount",
+          a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+          a.leaf_name as "assignedLeaf",a.method
+         from public.catalog_families f
+         left join public.catalog_family_menu_assignments a on a.family_code=f.code
+         where f.is_active=true and f.is_deleted=false
+         order by f.name,f.code limit 10000`);
+      const families=familyRows.rows.flatMap((row)=>{
+        const databaseAssignment=(row.assignedCategorySlug
+          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu,leafName:row.assignedLeaf}
+          : null);
+        const assignment=(row.method==='admin_verified'||row.method==='excel_source_verified')
+          ? databaseAssignment
+          : getFamilyMenuAssignment(row.code);
+        if(!assignment||assignment.categorySlug!==slug)return [];
+        return [{
+          code:row.code,name:row.name,brand:row.brand,
+          submenu:assignment.submenuName||'',leaf:assignment.leafName||null,
+          skuCount:row.skuCount
+        }];
+      });
       const record=category.rows[0];
       res.setHeader('Cache-Control','no-store');
       return res.json({success:true,category:{
         slug:record.slug,name:record.name,description:record.description||'',
         image:record.image||null,children:Array.isArray(record.metadata?.children)?record.metadata.children:[]
-      },families:familyRows.rows});
+      },families});
     }catch(error){return fail(res,error);}
   });
 
@@ -166,12 +183,33 @@ export function registerCatalogNavigationApi(app:Express){
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
         `select f.code,f.name,f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
-          coalesce(f.item_count,0) as "skuCount"
+          coalesce(f.item_count,0) as "skuCount",
+          a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+          a.leaf_name as "assignedLeaf",a.method as "assignmentMethod"
          from public.catalog_families f
          left join public.catalog_family_menu_assignments a on a.family_code=f.code
-         where f.is_active=true and f.is_deleted=false and a.family_code is null
-         order by f.category_slug,f.name limit 4000`);
-      return res.json({success:true,families:rows.rows});
+         where f.is_active=true and f.is_deleted=false
+         order by f.category_slug,f.name limit 10000`);
+      const families=rows.rows.flatMap((row)=>{
+        const databaseAssignment=(row.assignedCategorySlug
+          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu,leafName:row.assignedLeaf}
+          : null);
+        const assignment=(row.assignmentMethod==='admin_verified'||row.assignmentMethod==='excel_source_verified')
+          ? databaseAssignment
+          : getFamilyMenuAssignment(row.code);
+        const reviewReason=!assignment?'unassigned'
+          : !assignment.submenuName?'missing_submenu'
+          : !assignment.leafName?'missing_leaf':null;
+        if(!reviewReason)return [];
+        return [{
+          code:row.code,name:row.name,oldCategory:row.oldCategory,oldSubmenu:row.oldSubmenu,
+          skuCount:row.skuCount,assignedCategorySlug:assignment?.categorySlug||row.assignedCategorySlug,
+          assignedSubmenu:assignment?.submenuName||row.assignedSubmenu,
+          assignedLeaf:assignment?.leafName||row.assignedLeaf,
+          assignmentMethod:row.assignmentMethod,reviewReason
+        }];
+      }).slice(0,4000);
+      return res.json({success:true,families});
     }catch(error){return fail(res,error);}
   });
 

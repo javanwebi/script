@@ -65,13 +65,26 @@ type LiveFamilyMenuIndexEntry = {
   categorySlug: string;
   submenuName: string | null;
   leafName: string | null;
+  method?: string;
 };
+
+function getEffectiveFamilyMenuAssignment(
+  product: Product,
+  liveIndex: Record<string, LiveFamilyMenuIndexEntry>,
+) {
+  const liveAssignment = liveIndex[product.code];
+  if (liveAssignment?.method === 'admin_verified' || liveAssignment?.method === 'excel_source_verified') {
+    return liveAssignment;
+  }
+  return getFamilyMenuAssignment(product);
+}
 
 function matchesProductMenuSelection(
   product: Product,
   selectedCategory: string,
   selectedSubcategory: string,
   liveIndex: Record<string, LiveFamilyMenuIndexEntry>,
+  directSkuCodeSet: Set<string>,
 ): boolean {
   if (selectedCategory === "swr-forza-exclusive") {
     return getProductDisplayBrands(product).some((brand) => brand === "SWR" || brand === "FORZA");
@@ -79,21 +92,26 @@ function matchesProductMenuSelection(
 
   if (selectedCategory === "all" && selectedSubcategory === "all") return true;
 
-  const live = liveIndex[product.code];
-  const assignment = live || getFamilyMenuAssignment(product);
-  const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
-  const isExcelSlug = /^excel-v2-[0-9]+-[0-9]+$/.test(selectedCategory);
+  if (directSkuCodeSet.has(product.code)) {
+    return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
+  }
 
-  if (isExcelSlug && assignedSlug !== selectedCategory) return false;
+  const isExcelSlug = /^excel-v2-[0-9]+-[0-9]+$/.test(selectedCategory);
   if (selectedCategory !== "all" && !isExcelSlug) {
     return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
   }
 
+  const assignment = getEffectiveFamilyMenuAssignment(product, liveIndex);
+  if (!assignment) return false;
+
+  const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
+  if (isExcelSlug && assignedSlug !== selectedCategory) return false;
   if (selectedSubcategory === "all") return true;
+
   const normalize = (value: string) =>
     String(value || "").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/[\u200c\s]+/g, " ").trim();
   const target = normalize(selectedSubcategory);
-  return [assignment.submenuName, assignment.leafName, product.submenu, product.subcategory]
+  return [assignment.submenuName, assignment.leafName]
     .some((value) => normalize(String(value || "")) === target);
 }
 
@@ -249,11 +267,12 @@ export const ProductsPage: React.FC = () => {
   const displayCatalogProducts = useMemo(
     () => allCatalogProducts.map((product) => {
       if (directSkuCodeSet.has(product.code)) return product;
-      const assignment = liveFamilyMenuIndex[product.code] || getFamilyMenuAssignment(product);
+      const assignment = getEffectiveFamilyMenuAssignment(product, liveFamilyMenuIndex);
+      if (!assignment) return product;
       return {
         ...product,
-        submenu: assignment.submenuName || product.submenu,
-        subcategory: assignment.leafName || assignment.submenuName || product.subcategory,
+        submenu: assignment.submenuName || "",
+        subcategory: assignment.leafName || "",
       };
     }),
     [allCatalogProducts, directSkuCodeSet, liveFamilyMenuIndex],
@@ -292,7 +311,7 @@ export const ProductsPage: React.FC = () => {
   // First resolve the real category/subcategory scope, then derive its brand facet.
   const categoryScopedProducts = useMemo(
     () => displayCatalogProducts.filter((product) =>
-      matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex),
+      matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex, directSkuCodeSet),
     ),
     [displayCatalogProducts, selectedCategory, selectedSubcategory, liveFamilyMenuIndex],
   );
