@@ -392,7 +392,6 @@ function rawFamilyToProduct(raw: RawCatalogueFamily): Product {
   const menuAssign = CATALOG_FAMILY_MENU_ASSIGNMENTS[raw.code];
   const categorySlug = menuAssign?.categorySlug || '';
   return {
-    id: raw.code,
     code: raw.code,
     name: raw.name,
     category: raw.categoryName,
@@ -401,7 +400,10 @@ function rawFamilyToProduct(raw: RawCatalogueFamily): Product {
     submenu: menuAssign?.submenuName || raw.submenu || '',
     subcategory: menuAssign?.leafName || raw.technicalType || '',
     brand: raw.brand || 'UNSPECIFIED',
-    price: 0,
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    inquiryOnly: true,
+    images: [],
+    tags: [],
     stock: raw.itemCount || raw.variants.length,
     unit: (raw.unit || 'عدد').split(',')[0].trim() || 'عدد',
     image: '',
