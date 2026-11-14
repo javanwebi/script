@@ -23,6 +23,37 @@ test('persistent visual index ranks every indexed image, reuses vectors and requ
  await assert.rejects(()=>loaded.retrieve(image,images,async()=>[[NaN]]));
  await fs.rm(dir,{recursive:true});
 });
+test('a partially persisted PostgreSQL index resumes only rows with changed signatures',async()=>{
+ const saved:Record<string,{signature:string;vector:number[]}>={};
+ const persistence={
+  async loadEntries(){return {...saved};},
+  async saveEntries(rows:Array<{id:string;signature:string;vector:number[]}>){
+   for(const entry of rows)saved[entry.id]={signature:entry.signature,vector:entry.vector};
+  }
+ };
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-partial-db-'));
+ try{
+  const image=await sharp({create:{width:24,height:24,channels:3,background:'white'}}).jpeg().toBuffer();
+  const options={model:'local-resume',dimensions:2,batchSize:1,concurrency:1};
+  const original=[row('a'),row('b'),row('c')];
+  const first=new CatalogVisualIndex(path.join(dir,'unused.json'),persistence,options);
+  await first.update(original,async()=>image,async buffers=>buffers.map(()=>[1,0]));
+  assert.equal(Object.keys(saved).length,3);
+
+  const revised=[row('a'),row('b','changed'),row('c')];
+  const resumed=new CatalogVisualIndex(path.join(dir,'unused.json'),persistence,options);
+  const reads:string[]=[];let embedded=0;
+  await resumed.update(revised,async item=>{reads.push(item.id);return image;},async buffers=>{
+   embedded+=buffers.length;return buffers.map(()=>[0,1]);
+  });
+  assert.deepEqual(reads,['b']);
+  assert.equal(embedded,1);
+  assert.deepEqual(resumed.coverage(revised),{
+   total:3,indexed:3,ready:true,storedEntries:3,missing:0,signatureChanged:0
+  });
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
+
 test('a partial embedding batch cannot be reported as a complete catalogue index',async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'atlas-index-failure-'));
  const index=new CatalogVisualIndex(path.join(dir,'index.json'));const rows=[row('missing')];
