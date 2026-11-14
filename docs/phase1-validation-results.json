@@ -1,0 +1,3510 @@
+{
+  "generatedAt": "2026-11-14T19:51:45.775Z",
+  "gitContext": {
+    "baseBranch": "main",
+    "baseCommitSha": "5e2fa0c43541aed91a27b6596590a1d141a21bfb",
+    "targetBranch": "audit/belt-family-validation-v2",
+    "targetBranchInitialCommitSha": "33d0d9254b5634323e079e87e1271fe0e79e32e2",
+    "excelSha256": "0ac4648d92aae6ca403d92d9283cf8d245d066f42d924a646ce9b4045aca9272"
+  },
+  "summary": {
+    "totalSourceFamilies": 1383,
+    "totalSourceSkus": 10435,
+    "totalTechnicalTypes": 90,
+    "beforeMultiSkuFamilies": 511,
+    "beforeSingletonFamilies": 872,
+    "beforeMappedFamiliesInLiveMenu": 1286,
+    "beforeReviewQueueFamilies": 97,
+    "beforeReviewQueueSkus": 1563,
+    "preservedDirectSkuOverridesCount": 305,
+    "afterReconstructedMultiSkuFamilies": 752,
+    "afterApprovedFamilySkus": 9597,
+    "afterDirectProductSkus": 698,
+    "afterUnresolvedSkus": 140,
+    "eliminatedArtificialSingletonFamilies": 872,
+    "sourceFamiliesSplitCount": 191,
+    "sourceFamiliesMergedCount": 759,
+    "misplacedSkusCorrectedCount": 150,
+    "allFamiliesPassHomogeneity": true
+  },
+  "evidenceDistribution": {
+    "EXACT_MANUFACTURER_DATASHEET": 17,
+    "OFFICIAL_CATALOG": 1119,
+    "OFFICIAL_PRODUCT_PAGE": 10,
+    "STANDARD_REFERENCE": 6526,
+    "PHYSICAL_VERIFICATION": 0,
+    "EXCEL_SOURCE": 177,
+    "INVENTORY_DESCRIPTION": 2446,
+    "INFERRED": 0,
+    "UNKNOWN": 140
+  },
+  "decisionDistribution": {
+    "APPROVED_FAMILY": 9597,
+    "DIRECT_PRODUCT": 698,
+    "UNRESOLVED": 140
+  },
+  "confidenceDistribution": {
+    "HIGH": 1548,
+    "MEDIUM": 8747,
+    "LOW": 0,
+    "UNRESOLVED": 140
+  },
+  "qualityGates": {
+    "all10435SkusCovered": true,
+    "all1383SourceFamiliesCovered": true,
+    "all90TechnicalTypesCovered": true,
+    "zeroDuplicateSkuCodes": true,
+    "zeroSingletonFamiliesInApproved": true,
+    "allReconstructedFamiliesHomogeneous": true,
+    "all305DirectSkuOverridesPreserved": true,
+    "haulOffBeltLeafCleanZeroFalseItems": true,
+    "weldingToolsSeparatedFromBeltFamilies": true,
+    "zeroPrivateAuditFilesInPublicDir": true
+  },
+  "haulOffBeltAuditSummary": {
+    "totalAuditedSkus": 185,
+    "verifiedTrueHaulOffBeltCount": 0,
+    "coatedTimingBeltCount": 86,
+    "coatedWeldedVBeltCount": 23,
+    "gripBackingSheetCount": 15,
+    "conveyorGripTapeCount": 22,
+    "industrialMouldCount": 39,
+    "haulOffLeafStatus": "EMPTY_VERIFIED (0 تسمه بارکش واقعی در کاتالوگ فعلی وجود دارد؛ برگ «انواع تسمه بارکش صنعتی» بدون انتساب کاذب باقی می‌ماند)"
+  },
+  "weldingEquipmentAuditSummary": {
+    "totalAuditedSkus": 204,
+    "weldingEquipmentAndClampCount": 3,
+    "weldedRoundCrcBeltCount": 121,
+    "weldedVOrFlatBeltCount": 80
+  },
+  "typeRuleProfiles": [
+    {
+      "technicalType": "تسمه کلاسیک",
+      "domainGroup": "FRICTION_V_BELTS",
+      "engineeringRuleCode": "RULE-BELT-V-02",
+      "sourceFamilyCount": 97,
+      "sourceSkuCount": 4010,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل مقطع (Cross-Section Profile: Z/A/B/C/D/E, SPZ/SPA/SPB/SPC, 3V/5V/8V, AX/BX/CX, XPZ/XPA/XPB/XPC, AA/BB/CC)",
+        "عرض بالا و ارتفاع استاندارد مقطع (Top Width & Height)",
+        "ساختار بدنه (Wrapped Classical vs Raw-Edge Molded Cogged vs Hexagonal Double-V vs Banded)",
+        "جنس بدنه و کورد پلی‌استر/آرامید",
+        "فرم عرضه و واحد فروش (حلقه مداربسته در برابر متری سوراخ‌دار)"
+      ],
+      "allowedVariantAttributes": [
+        "طول داخلی / طول گام / طول خارجی (Inside Length Li / Pitch Length Lp / Effective Length La)",
+        "تعداد شاخه در تسمه‌های جفتی Banded (Rib/Band Count)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه سنکرون (Tooth Pitch)",
+        "ارتفاع دندانه سنکرون (Tooth Height)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل کلاسیک A/B/C با پروفیل باریک SPA/SPB/SPC",
+        "ادغام تسمه ساده دورپیچ (Wrapped B) با تسمه دنده‌ای (Cogged BX)",
+        "ادغام تسمه شش‌ضلعی دوطرفه (AA/BB/CC) با تسمه یک‌طرفه (A/B/C)"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 110,
+      "approvedFamilySkuCount": 3978,
+      "directProductSkuCount": 32,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "تسمه تایمینگ",
+      "domainGroup": "SYNCHRONOUS_TIMING_BELTS",
+      "engineeringRuleCode": "RULE-BELT-SYNC-01",
+      "sourceFamilyCount": 285,
+      "sourceSkuCount": 1286,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل و گام دندانه (Profile & Pitch: XL/L/H/XH/T5/T10/AT5/AT10/AT20/3M/5M/8M/14M/S8M/RPP)",
+        "زاویه و ارتفاع دندانه (Tooth Angle & Height)",
+        "ضخامت کل تسمه (Belt Thickness)",
+        "جنس بدنه (Body Material: Neoprene vs PU)",
+        "جنس کورد کششی (Tensile Cord: Fiberglass vs Steel vs Kevlar)",
+        "پوشش دندانه و پشت تسمه (Tooth Facing & Backing: Nylon/NFT/NTB/APL/Grip)",
+        "یک‌طرفه یا دوطرفه بودن (Sidedness: Single vs Double D/DH/DL/DT/D8M)",
+        "فرم عرضه و واحد فروش (Supply Form: Endless Loop vs Uncut Sleeve vs Open-Ended Meter)"
+      ],
+      "allowedVariantAttributes": [
+        "طول گام تسمه (Pitch Length Lp)",
+        "تعداد دندانه (Tooth Count Z)",
+        "عرض تسمه برحسب میلی‌متر یا کد اینچی (Belt Width — در حلقه‌ها و متری؛ N/A در آستین)"
+      ],
+      "notApplicableAttributes": [
+        "تعداد شیار طولی PJ/PK/PL (Rib Count)",
+        "قطر شفت یا سوراخ (Bore Diameter)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل یک‌طرفه H با دوطرفه DH",
+        "ادغام حلقه مداربسته (عدد/حلقه) با آستین برش‌نخورده (سانتی‌متر) یا تسمه باز متری (متر)",
+        "ادغام گام 8M با S8M یا RPP8M یا گام T10 با AT10",
+        "ادغام بدنه لاستیکی نئوپرن با پلی‌یورتان سیم‌دار"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 117,
+      "approvedFamilySkuCount": 1220,
+      "directProductSkuCount": 57,
+      "unresolvedSkuCount": 9
+    },
+    {
+      "technicalType": "تسمه صنعتی",
+      "domainGroup": "COATED_WELDED_AND_SPECIAL_BELTS",
+      "engineeringRuleCode": "RULE-BELT-COAT-04",
+      "sourceFamilyCount": 23,
+      "sourceSkuCount": 1209,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "نوع پایه تسمه (تایمینگ سیم‌دار یا تسمه جوشی V یا تسمه گرد CRC)",
+        "پروفیل پایه (H/L/T10/AT10/8M یا A/B/C یا CRC/ROUND)",
+        "نوع و جنس روکش (گریپ قرمز، گریپ مشکی، روکش ضدسایش Linatex)",
+        "ضخامت روکش گریپ (6mm, 10mm, 12mm, 15mm)",
+        "ساختار کورد (سیم‌دار، نخ‌دار، ساده بدون نخ)"
+      ],
+      "allowedVariantAttributes": [
+        "طول و عرض تسمه (Length & Width)",
+        "قطر یا سایز مقطع در تسمه گرد PU"
+      ],
+      "notApplicableAttributes": [
+        "سوراخ شفت (Bore Diameter)"
+      ],
+      "forbiddenMerges": [
+        "ادغام گریپ 10 میل با گریپ 12 میل یا 15 میل",
+        "ادغام گریپ قرمز با گریپ مشکی",
+        "ادغام تسمه جوشی نخ‌دار با تسمه جوشی ساده بدون نخ",
+        "ادغام گیره و دستگاه جوش تسمه با خود تسمه جوشی"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 122,
+      "approvedFamilySkuCount": 1129,
+      "directProductSkuCount": 78,
+      "unresolvedSkuCount": 2
+    },
+    {
+      "technicalType": "تسمه پروفیل باریک",
+      "domainGroup": "FRICTION_V_BELTS",
+      "engineeringRuleCode": "RULE-BELT-V-02",
+      "sourceFamilyCount": 77,
+      "sourceSkuCount": 544,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل مقطع (Cross-Section Profile: Z/A/B/C/D/E, SPZ/SPA/SPB/SPC, 3V/5V/8V, AX/BX/CX, XPZ/XPA/XPB/XPC, AA/BB/CC)",
+        "عرض بالا و ارتفاع استاندارد مقطع (Top Width & Height)",
+        "ساختار بدنه (Wrapped Classical vs Raw-Edge Molded Cogged vs Hexagonal Double-V vs Banded)",
+        "جنس بدنه و کورد پلی‌استر/آرامید",
+        "فرم عرضه و واحد فروش (حلقه مداربسته در برابر متری سوراخ‌دار)"
+      ],
+      "allowedVariantAttributes": [
+        "طول داخلی / طول گام / طول خارجی (Inside Length Li / Pitch Length Lp / Effective Length La)",
+        "تعداد شاخه در تسمه‌های جفتی Banded (Rib/Band Count)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه سنکرون (Tooth Pitch)",
+        "ارتفاع دندانه سنکرون (Tooth Height)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل کلاسیک A/B/C با پروفیل باریک SPA/SPB/SPC",
+        "ادغام تسمه ساده دورپیچ (Wrapped B) با تسمه دنده‌ای (Cogged BX)",
+        "ادغام تسمه شش‌ضلعی دوطرفه (AA/BB/CC) با تسمه یک‌طرفه (A/B/C)"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 39,
+      "approvedFamilySkuCount": 515,
+      "directProductSkuCount": 29,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پولی صنعتی",
+      "domainGroup": "INDUSTRIAL_PULLEYS",
+      "engineeringRuleCode": "RULE-PULLEY-09",
+      "sourceFamilyCount": 35,
+      "sourceSkuCount": 203,
+      "invariantAttributes": [
+        "عملکرد پولی (ثابت، هرزگرد با بلبرینگ، هرزگرد بدون بلبرینگ، نافی‌دار، پولی تایمینگ)",
+        "پروفیل شیار پولی (پروفیل A، پروفیل B، پروفیل C، دوبل 2B، تسمه گرد R، تایمینگ H، تایمینگ T5/T10)",
+        "جنس پولی (چدن/فولاد در برابر پلی‌آمید/پلاستیک)"
+      ],
+      "allowedVariantAttributes": [
+        "قطر خارجی و داخلی پولی (OD / ID)",
+        "عرض پولی و شماره کد نقشه"
+      ],
+      "notApplicableAttributes": [
+        "طول تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام پولی شیار A با پولی شیار B یا C یا پولی تسمه گرد R یا پولی تایمینگ H",
+        "ادغام پولی هرزگرد بلبرینگ‌دار با پولی ثابت بدون بلبرینگ"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 17,
+      "approvedFamilySkuCount": 194,
+      "directProductSkuCount": 9,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "گاید",
+      "domainGroup": "GUIDE_RAILS_AND_PROFILES",
+      "engineeringRuleCode": "RULE-RAIL-06",
+      "sourceFamilyCount": 66,
+      "sourceSkuCount": 198,
+      "invariantAttributes": [
+        "نوع قطعه (ریل راهنما، گاید هدایت، گاید فنری، سر ریل، پایه ریل، بست زیر ناودانی)",
+        "جنس قطعه (استیل Stainless vs تفلون PTFE vs آلومینیوم vs گالوانیزه vs آهنی)",
+        "تیپ مقطع و کاربرد (تیپ A، تیپ B، تیپ C، زیر تسمه تایم، زیر تسمه گرد، ۲ لبه)",
+        "فرآیند ساخت در تفلون (تزریقی در برابر چاکدار/ماشین‌کاری)"
+      ],
+      "allowedVariantAttributes": [
+        "طول شاخه (3 متری / 6 متری)",
+        "ابعاد مقطع در یک سری کد نقشه یکسان"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه",
+        "تعداد شیار تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام ریل یا گاید استیل با ریل یا گاید تفلونی (PTFE) یا آلومینیومی یا گالوانیزه",
+        "ادغام بست زیر ناودانی فلزی با خود ریل راهنما"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 22,
+      "approvedFamilySkuCount": 169,
+      "directProductSkuCount": 29,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "نوار نقاله",
+      "domainGroup": "CONVEYOR_BELTS_AND_TAPES",
+      "engineeringRuleCode": "RULE-CONV-05",
+      "sourceFamilyCount": 5,
+      "sourceSkuCount": 193,
+      "invariantAttributes": [
+        "نوع محصول (نوار نقاله PVC، نوار نقاله PU، نوار گریپ پشت پلی‌استر، نوار سیلیکونی، نوار اسفنجی)",
+        "جنس لایه کاری (PVC vs PU vs Silicone vs Elastomer Grip)",
+        "طرح سطح (ساده Smooth در برابر آجدار/گریپ Grip)",
+        "تعداد لایه منجید / ساختار پشت (Polyester Backing)"
+      ],
+      "allowedVariantAttributes": [
+        "عرض نوار (Width)",
+        "طول نوار (Length)",
+        "ضخامت نوار در خانواده هم‌جنس"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه (Tooth Pitch)",
+        "پروفیل شیار V"
+      ],
+      "forbiddenMerges": [
+        "ادغام نوار نقاله PVC با نوار نقاله پلی‌یورتان (PU)",
+        "ادغام نوار گریپ پشت پلی‌استر با تسمه بارکش صنعتی",
+        "ادغام نوار اسفنجی با نوار نقاله باربر PVC/PU"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 5,
+      "approvedFamilySkuCount": 184,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 6
+    },
+    {
+      "technicalType": "رولر صنعتی",
+      "domainGroup": "ROLLERS_WHEELS_AND_ACCESSORIES",
+      "engineeringRuleCode": "RULE-ROLLER-07",
+      "sourceFamilyCount": 51,
+      "sourceSkuCount": 191,
+      "invariantAttributes": [
+        "نوع دقیق قطعه (رولر فلزی، روکش رولر، بوش سر رولر، فنر سر رولر، پین سر رولر، انگشتی رولر، چرخ‌زنجیر، چرخ هرزگرد)",
+        "جنس قطعه (فولاد، استیل، پلی‌یورتان، تفلون، سیلیکون، لاستیک نسوز)",
+        "طرح سطح و رنگ در روکش رولر (آجدار در برابر ساده؛ قرمز، مشکی، طوسی، سبز، سفید سیلیکونی)"
+      ],
+      "allowedVariantAttributes": [
+        "قطر رولر یا قطر داخل بوش/فنر (Diameter / Bore)",
+        "طول رولر",
+        "تعداد دندانه چرخ‌زنجیر (Z)"
+      ],
+      "notApplicableAttributes": [
+        "طول گام تسمه (Belt Pitch Length)"
+      ],
+      "forbiddenMerges": [
+        "ادغام بوش سر رولر فلزی با بوش سر رولر تفلونی یا پلی‌یورتان",
+        "ادغام روکش رولر آجدار با روکش رولر ساده یا سیلیکونی"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 26,
+      "approvedFamilySkuCount": 175,
+      "directProductSkuCount": 15,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "تسمه سیم‌دار",
+      "domainGroup": "SYNCHRONOUS_TIMING_BELTS",
+      "engineeringRuleCode": "RULE-BELT-SYNC-01",
+      "sourceFamilyCount": 8,
+      "sourceSkuCount": 184,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل و گام دندانه (Profile & Pitch: XL/L/H/XH/T5/T10/AT5/AT10/AT20/3M/5M/8M/14M/S8M/RPP)",
+        "زاویه و ارتفاع دندانه (Tooth Angle & Height)",
+        "ضخامت کل تسمه (Belt Thickness)",
+        "جنس بدنه (Body Material: Neoprene vs PU)",
+        "جنس کورد کششی (Tensile Cord: Fiberglass vs Steel vs Kevlar)",
+        "پوشش دندانه و پشت تسمه (Tooth Facing & Backing: Nylon/NFT/NTB/APL/Grip)",
+        "یک‌طرفه یا دوطرفه بودن (Sidedness: Single vs Double D/DH/DL/DT/D8M)",
+        "فرم عرضه و واحد فروش (Supply Form: Endless Loop vs Uncut Sleeve vs Open-Ended Meter)"
+      ],
+      "allowedVariantAttributes": [
+        "طول گام تسمه (Pitch Length Lp)",
+        "تعداد دندانه (Tooth Count Z)",
+        "عرض تسمه برحسب میلی‌متر یا کد اینچی (Belt Width — در حلقه‌ها و متری؛ N/A در آستین)"
+      ],
+      "notApplicableAttributes": [
+        "تعداد شیار طولی PJ/PK/PL (Rib Count)",
+        "قطر شفت یا سوراخ (Bore Diameter)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل یک‌طرفه H با دوطرفه DH",
+        "ادغام حلقه مداربسته (عدد/حلقه) با آستین برش‌نخورده (سانتی‌متر) یا تسمه باز متری (متر)",
+        "ادغام گام 8M با S8M یا RPP8M یا گام T10 با AT10",
+        "ادغام بدنه لاستیکی نئوپرن با پلی‌یورتان سیم‌دار"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 11,
+      "approvedFamilySkuCount": 176,
+      "directProductSkuCount": 7,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "لاستیک صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لاستیک-صنع",
+      "sourceFamilyCount": 39,
+      "sourceSkuCount": 178,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 30,
+      "approvedFamilySkuCount": 111,
+      "directProductSkuCount": 67,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "مدل یا نام تجاری بدون نوع کالا",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-مدل-یا-نام",
+      "sourceFamilyCount": 4,
+      "sourceSkuCount": 154,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 11,
+      "approvedFamilySkuCount": 27,
+      "directProductSkuCount": 26,
+      "unresolvedSkuCount": 101
+    },
+    {
+      "technicalType": "زنجیر صنعتی",
+      "domainGroup": "CHAINS_GEARS_AND_COUPLINGS",
+      "engineeringRuleCode": "RULE-CHAIN-08",
+      "sourceFamilyCount": 79,
+      "sourceSkuCount": 118,
+      "invariantAttributes": [
+        "نوع قطعه (زنجیر غلتکی، قفل زنجیر، نیم‌دانه زنجیر، چرخ‌دنده، کوپلینگ فلزی، لاستیک کوپلینگ)",
+        "استاندارد سری زنجیر (ISO/BS سری B مانند 06B..24B در برابر ANSI سری 40..160)",
+        "تعداد ردیف زنجیر (تک‌ردیفه Simplex در برابر دوبل Duplex و سه‌ردیفه Triplex)",
+        "برند سازنده (KANA, IMPORTED, GENERIC)"
+      ],
+      "allowedVariantAttributes": [
+        "شماره گام زنجیر در همان استاندارد و تعداد ردیف (مثلاً 06B, 08B, 10B در سری B تک‌ردیفه)",
+        "ابعاد کوپلینگ"
+      ],
+      "notApplicableAttributes": [
+        "زاویه دندانه تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام زنجیر تک‌ردیفه با زنجیر دوبل یا سه‌ردیفه",
+        "ادغام قفل زنجیر با خود زنجیر",
+        "ادغام لاستیک ضربه‌گیر کوپلینگ با پوسته فلزی کوپلینگ"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 20,
+      "approvedFamilySkuCount": 113,
+      "directProductSkuCount": 5,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "شیلنگ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-شیلنگ",
+      "sourceFamilyCount": 35,
+      "sourceSkuCount": 117,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 10,
+      "approvedFamilySkuCount": 114,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "ضربه‌گیر صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ضربه-گیر-ص",
+      "sourceFamilyCount": 17,
+      "sourceSkuCount": 116,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 7,
+      "approvedFamilySkuCount": 116,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پایه و براکت",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پایه-و-برا",
+      "sourceFamilyCount": 24,
+      "sourceSkuCount": 106,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 17,
+      "approvedFamilySkuCount": 83,
+      "directProductSkuCount": 23,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "تسمه روکش‌دار",
+      "domainGroup": "COATED_WELDED_AND_SPECIAL_BELTS",
+      "engineeringRuleCode": "RULE-BELT-COAT-04",
+      "sourceFamilyCount": 38,
+      "sourceSkuCount": 100,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "نوع پایه تسمه (تایمینگ سیم‌دار یا تسمه جوشی V یا تسمه گرد CRC)",
+        "پروفیل پایه (H/L/T10/AT10/8M یا A/B/C یا CRC/ROUND)",
+        "نوع و جنس روکش (گریپ قرمز، گریپ مشکی، روکش ضدسایش Linatex)",
+        "ضخامت روکش گریپ (6mm, 10mm, 12mm, 15mm)",
+        "ساختار کورد (سیم‌دار، نخ‌دار، ساده بدون نخ)"
+      ],
+      "allowedVariantAttributes": [
+        "طول و عرض تسمه (Length & Width)",
+        "قطر یا سایز مقطع در تسمه گرد PU"
+      ],
+      "notApplicableAttributes": [
+        "سوراخ شفت (Bore Diameter)"
+      ],
+      "forbiddenMerges": [
+        "ادغام گریپ 10 میل با گریپ 12 میل یا 15 میل",
+        "ادغام گریپ قرمز با گریپ مشکی",
+        "ادغام تسمه جوشی نخ‌دار با تسمه جوشی ساده بدون نخ",
+        "ادغام گیره و دستگاه جوش تسمه با خود تسمه جوشی"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 11,
+      "approvedFamilySkuCount": 85,
+      "directProductSkuCount": 15,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ریل صنعتی",
+      "domainGroup": "GUIDE_RAILS_AND_PROFILES",
+      "engineeringRuleCode": "RULE-RAIL-06",
+      "sourceFamilyCount": 28,
+      "sourceSkuCount": 94,
+      "invariantAttributes": [
+        "نوع قطعه (ریل راهنما، گاید هدایت، گاید فنری، سر ریل، پایه ریل، بست زیر ناودانی)",
+        "جنس قطعه (استیل Stainless vs تفلون PTFE vs آلومینیوم vs گالوانیزه vs آهنی)",
+        "تیپ مقطع و کاربرد (تیپ A، تیپ B، تیپ C، زیر تسمه تایم، زیر تسمه گرد، ۲ لبه)",
+        "فرآیند ساخت در تفلون (تزریقی در برابر چاکدار/ماشین‌کاری)"
+      ],
+      "allowedVariantAttributes": [
+        "طول شاخه (3 متری / 6 متری)",
+        "ابعاد مقطع در یک سری کد نقشه یکسان"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه",
+        "تعداد شیار تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام ریل یا گاید استیل با ریل یا گاید تفلونی (PTFE) یا آلومینیومی یا گالوانیزه",
+        "ادغام بست زیر ناودانی فلزی با خود ریل راهنما"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 19,
+      "approvedFamilySkuCount": 77,
+      "directProductSkuCount": 16,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "قطعات کوره",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قطعات-کوره",
+      "sourceFamilyCount": 20,
+      "sourceSkuCount": 90,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 9,
+      "approvedFamilySkuCount": 81,
+      "directProductSkuCount": 8,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "تسمه چندشیاری",
+      "domainGroup": "POLY_V_RIBBED_BELTS",
+      "engineeringRuleCode": "RULE-BELT-RIB-03",
+      "sourceFamilyCount": 76,
+      "sourceSkuCount": 86,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل شیار (Rib Profile: PH / PJ / PK / PL / PM)",
+        "گام شیار عرضی و زاویه ۴۰ درجه (Rib Pitch & Angle)",
+        "ضخامت کل تسمه (Belt Height)",
+        "جنس بدنه و کورد کششی"
+      ],
+      "allowedVariantAttributes": [
+        "طول موثر تسمه (Effective Length)",
+        "تعداد شیار (Rib Count)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه عرضی تایمینگ (Synchronous Tooth Pitch)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل PJ (گام 2.34mm) با PK (گام 3.56mm) یا PL (گام 4.70mm)"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 15,
+      "approvedFamilySkuCount": 78,
+      "directProductSkuCount": 7,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "قطعه صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قطعه-صنعتی",
+      "sourceFamilyCount": 13,
+      "sourceSkuCount": 71,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 12,
+      "approvedFamilySkuCount": 45,
+      "directProductSkuCount": 25,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "توری صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-توری-صنعتی",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 66,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 13,
+      "approvedFamilySkuCount": 61,
+      "directProductSkuCount": 5,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "قطعات پمپ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قطعات-پمپ",
+      "sourceFamilyCount": 5,
+      "sourceSkuCount": 64,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 16,
+      "approvedFamilySkuCount": 38,
+      "directProductSkuCount": 26,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "خار / پین",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-خار-پین",
+      "sourceFamilyCount": 4,
+      "sourceSkuCount": 59,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 4,
+      "approvedFamilySkuCount": 54,
+      "directProductSkuCount": 5,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پلی‌یورتان",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پلی-یورتان",
+      "sourceFamilyCount": 23,
+      "sourceSkuCount": 56,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 12,
+      "approvedFamilySkuCount": 43,
+      "directProductSkuCount": 13,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پلاستیک صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پلاستیک-صن",
+      "sourceFamilyCount": 32,
+      "sourceSkuCount": 55,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 12,
+      "approvedFamilySkuCount": 43,
+      "directProductSkuCount": 12,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-صنعتی",
+      "sourceFamilyCount": 13,
+      "sourceSkuCount": 53,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 7,
+      "approvedFamilySkuCount": 45,
+      "directProductSkuCount": 8,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "چرخ صنعتی",
+      "domainGroup": "ROLLERS_WHEELS_AND_ACCESSORIES",
+      "engineeringRuleCode": "RULE-ROLLER-07",
+      "sourceFamilyCount": 23,
+      "sourceSkuCount": 53,
+      "invariantAttributes": [
+        "نوع دقیق قطعه (رولر فلزی، روکش رولر، بوش سر رولر، فنر سر رولر، پین سر رولر، انگشتی رولر، چرخ‌زنجیر، چرخ هرزگرد)",
+        "جنس قطعه (فولاد، استیل، پلی‌یورتان، تفلون، سیلیکون، لاستیک نسوز)",
+        "طرح سطح و رنگ در روکش رولر (آجدار در برابر ساده؛ قرمز، مشکی، طوسی، سبز، سفید سیلیکونی)"
+      ],
+      "allowedVariantAttributes": [
+        "قطر رولر یا قطر داخل بوش/فنر (Diameter / Bore)",
+        "طول رولر",
+        "تعداد دندانه چرخ‌زنجیر (Z)"
+      ],
+      "notApplicableAttributes": [
+        "طول گام تسمه (Belt Pitch Length)"
+      ],
+      "forbiddenMerges": [
+        "ادغام بوش سر رولر فلزی با بوش سر رولر تفلونی یا پلی‌یورتان",
+        "ادغام روکش رولر آجدار با روکش رولر ساده یا سیلیکونی"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 6,
+      "approvedFamilySkuCount": 46,
+      "directProductSkuCount": 6,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "قطعات دستگاه چاپ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قطعات-دستگ",
+      "sourceFamilyCount": 26,
+      "sourceSkuCount": 51,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 6,
+      "approvedFamilySkuCount": 38,
+      "directProductSkuCount": 13,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "بلبرینگ صنعتی",
+      "domainGroup": "BEARINGS_AND_HOUSINGS",
+      "engineeringRuleCode": "RULE-BRG-10",
+      "sourceFamilyCount": 15,
+      "sourceSkuCount": 44,
+      "invariantAttributes": [
+        "نوع قطعه (بلبرینگ شیارعمیق، یاتاقان، کفی یاتاقان)",
+        "سری ابعادی بلبرینگ (سری 6000، سری 6200، سری 6300، سری مینیاتوری 600)",
+        "نوع آب‌بند و حفاظ (کاسه‌نمد لاستیکی 2RS در برابر واشر فلزی ZZ)",
+        "برند سازنده (KG, SKF, GENERIC)"
+      ],
+      "allowedVariantAttributes": [
+        "شماره سوراخ شفت بلبرینگ در همان سری و نوع آب‌بند (مثلاً 6002 2RS تا 6012 2RS)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام بلبرینگ حفاظ فلزی ZZ با بلبرینگ کاسه‌نمد لاستیکی 2RS",
+        "ادغام رکورد مبهم «بلبرینگ» بدون شماره فنی با بلبرینگ‌های سایز مشخص"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 9,
+      "approvedFamilySkuCount": 39,
+      "directProductSkuCount": 4,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "بست صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-بست-صنعتی",
+      "sourceFamilyCount": 14,
+      "sourceSkuCount": 42,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 4,
+      "approvedFamilySkuCount": 19,
+      "directProductSkuCount": 22,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "قالب صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قالب-صنعتی",
+      "sourceFamilyCount": 6,
+      "sourceSkuCount": 39,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 34,
+      "directProductSkuCount": 4,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "کوپلینگ صنعتی",
+      "domainGroup": "CHAINS_GEARS_AND_COUPLINGS",
+      "engineeringRuleCode": "RULE-CHAIN-08",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 38,
+      "invariantAttributes": [
+        "نوع قطعه (زنجیر غلتکی، قفل زنجیر، نیم‌دانه زنجیر، چرخ‌دنده، کوپلینگ فلزی، لاستیک کوپلینگ)",
+        "استاندارد سری زنجیر (ISO/BS سری B مانند 06B..24B در برابر ANSI سری 40..160)",
+        "تعداد ردیف زنجیر (تک‌ردیفه Simplex در برابر دوبل Duplex و سه‌ردیفه Triplex)",
+        "برند سازنده (KANA, IMPORTED, GENERIC)"
+      ],
+      "allowedVariantAttributes": [
+        "شماره گام زنجیر در همان استاندارد و تعداد ردیف (مثلاً 06B, 08B, 10B در سری B تک‌ردیفه)",
+        "ابعاد کوپلینگ"
+      ],
+      "notApplicableAttributes": [
+        "زاویه دندانه تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام زنجیر تک‌ردیفه با زنجیر دوبل یا سه‌ردیفه",
+        "ادغام قفل زنجیر با خود زنجیر",
+        "ادغام لاستیک ضربه‌گیر کوپلینگ با پوسته فلزی کوپلینگ"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 35,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "پیچ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پیچ",
+      "sourceFamilyCount": 21,
+      "sourceSkuCount": 37,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 6,
+      "approvedFamilySkuCount": 32,
+      "directProductSkuCount": 4,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "لاستیک کوپلینگ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لاستیک-کوپ",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 33,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 33,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "لاستیک دیافراگم",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لاستیک-دیا",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 28,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 28,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "نوار گریپ",
+      "domainGroup": "CONVEYOR_BELTS_AND_TAPES",
+      "engineeringRuleCode": "RULE-CONV-05",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 22,
+      "invariantAttributes": [
+        "نوع محصول (نوار نقاله PVC، نوار نقاله PU، نوار گریپ پشت پلی‌استر، نوار سیلیکونی، نوار اسفنجی)",
+        "جنس لایه کاری (PVC vs PU vs Silicone vs Elastomer Grip)",
+        "طرح سطح (ساده Smooth در برابر آجدار/گریپ Grip)",
+        "تعداد لایه منجید / ساختار پشت (Polyester Backing)"
+      ],
+      "allowedVariantAttributes": [
+        "عرض نوار (Width)",
+        "طول نوار (Length)",
+        "ضخامت نوار در خانواده هم‌جنس"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه (Tooth Pitch)",
+        "پروفیل شیار V"
+      ],
+      "forbiddenMerges": [
+        "ادغام نوار نقاله PVC با نوار نقاله پلی‌یورتان (PU)",
+        "ادغام نوار گریپ پشت پلی‌استر با تسمه بارکش صنعتی",
+        "ادغام نوار اسفنجی با نوار نقاله باربر PVC/PU"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 22,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "درب صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-درب-صنعتی",
+      "sourceFamilyCount": 8,
+      "sourceSkuCount": 21,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 3,
+      "approvedFamilySkuCount": 8,
+      "directProductSkuCount": 13,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "راهنمای کاشی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-راهنمای-کا",
+      "sourceFamilyCount": 11,
+      "sourceSkuCount": 20,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 5,
+      "approvedFamilySkuCount": 11,
+      "directProductSkuCount": 9,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "لوله صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لوله-صنعتی",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 20,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 5,
+      "approvedFamilySkuCount": 17,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ورق تفلون",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ورق-تفلون",
+      "sourceFamilyCount": 10,
+      "sourceSkuCount": 19,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 4,
+      "approvedFamilySkuCount": 19,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "سر ریل",
+      "domainGroup": "GUIDE_RAILS_AND_PROFILES",
+      "engineeringRuleCode": "RULE-RAIL-06",
+      "sourceFamilyCount": 7,
+      "sourceSkuCount": 17,
+      "invariantAttributes": [
+        "نوع قطعه (ریل راهنما، گاید هدایت، گاید فنری، سر ریل، پایه ریل، بست زیر ناودانی)",
+        "جنس قطعه (استیل Stainless vs تفلون PTFE vs آلومینیوم vs گالوانیزه vs آهنی)",
+        "تیپ مقطع و کاربرد (تیپ A، تیپ B، تیپ C، زیر تسمه تایم، زیر تسمه گرد، ۲ لبه)",
+        "فرآیند ساخت در تفلون (تزریقی در برابر چاکدار/ماشین‌کاری)"
+      ],
+      "allowedVariantAttributes": [
+        "طول شاخه (3 متری / 6 متری)",
+        "ابعاد مقطع در یک سری کد نقشه یکسان"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه",
+        "تعداد شیار تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام ریل یا گاید استیل با ریل یا گاید تفلونی (PTFE) یا آلومینیومی یا گالوانیزه",
+        "ادغام بست زیر ناودانی فلزی با خود ریل راهنما"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 5,
+      "approvedFamilySkuCount": 15,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "مهره",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-مهره",
+      "sourceFamilyCount": 5,
+      "sourceSkuCount": 16,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 9,
+      "directProductSkuCount": 6,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "دستگاه صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-دستگاه-صنع",
+      "sourceFamilyCount": 5,
+      "sourceSkuCount": 16,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 5,
+      "approvedFamilySkuCount": 11,
+      "directProductSkuCount": 5,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "قاشقک صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قاشقک-صنعت",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 16,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 3,
+      "approvedFamilySkuCount": 14,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ورق صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ورق-صنعتی",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 16,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 3,
+      "approvedFamilySkuCount": 15,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "بوش صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-بوش-صنعتی",
+      "sourceFamilyCount": 11,
+      "sourceSkuCount": 15,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 7,
+      "directProductSkuCount": 7,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "گریپ صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-گریپ-صنعتی",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 15,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 9,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "تسمه شیاری PJ / PK / PL",
+      "domainGroup": "POLY_V_RIBBED_BELTS",
+      "engineeringRuleCode": "RULE-BELT-RIB-03",
+      "sourceFamilyCount": 7,
+      "sourceSkuCount": 14,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "پروفیل شیار (Rib Profile: PH / PJ / PK / PL / PM)",
+        "گام شیار عرضی و زاویه ۴۰ درجه (Rib Pitch & Angle)",
+        "ضخامت کل تسمه (Belt Height)",
+        "جنس بدنه و کورد کششی"
+      ],
+      "allowedVariantAttributes": [
+        "طول موثر تسمه (Effective Length)",
+        "تعداد شیار (Rib Count)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه عرضی تایمینگ (Synchronous Tooth Pitch)"
+      ],
+      "forbiddenMerges": [
+        "ادغام پروفیل PJ (گام 2.34mm) با PK (گام 3.56mm) یا PL (گام 4.70mm)"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 7,
+      "approvedFamilySkuCount": 14,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "فوم صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-فوم-صنعتی",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 14,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 10,
+      "directProductSkuCount": 4,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "واشر صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-واشر-صنعتی",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 13,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 10,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "قطعات استاکر",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-قطعات-استا",
+      "sourceFamilyCount": 11,
+      "sourceSkuCount": 12,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 4,
+      "directProductSkuCount": 7,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "لاستیک بالمیل",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لاستیک-بال",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 11,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 10,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس لبه‌گیر",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-لبه-گی",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 11,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 10,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "صفحه صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-صفحه-صنعتی",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 10,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 7,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پارچه صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پارچه-صنعت",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 10,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 10,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "یاتاقان صنعتی",
+      "domainGroup": "BEARINGS_AND_HOUSINGS",
+      "engineeringRuleCode": "RULE-BRG-10",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 9,
+      "invariantAttributes": [
+        "نوع قطعه (بلبرینگ شیارعمیق، یاتاقان، کفی یاتاقان)",
+        "سری ابعادی بلبرینگ (سری 6000، سری 6200، سری 6300، سری مینیاتوری 600)",
+        "نوع آب‌بند و حفاظ (کاسه‌نمد لاستیکی 2RS در برابر واشر فلزی ZZ)",
+        "برند سازنده (KG, SKF, GENERIC)"
+      ],
+      "allowedVariantAttributes": [
+        "شماره سوراخ شفت بلبرینگ در همان سری و نوع آب‌بند (مثلاً 6002 2RS تا 6012 2RS)"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام بلبرینگ حفاظ فلزی ZZ با بلبرینگ کاسه‌نمد لاستیکی 2RS",
+        "ادغام رکورد مبهم «بلبرینگ» بدون شماره فنی با بلبرینگ‌های سایز مشخص"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "اسپاتول",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-اسپاتول",
+      "sourceFamilyCount": 6,
+      "sourceSkuCount": 9,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 3,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "تیغه / تیغ",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-تیغه-تیغ",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 8,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 8,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس ساب",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-ساب",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 8,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 7,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "توپی صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-توپی-صنعتی",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 8,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ورق ضدسایش",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ورق-ضدسایش",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 8,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 7,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس کف",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-کف",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 7,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 7,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ورق فلزی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ورق-فلزی",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 7,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 7,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ورق پلی‌یورتان",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ورق-پلی-یو",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 7,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 5,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "مکنده صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-مکنده-صنعت",
+      "sourceFamilyCount": 4,
+      "sourceSkuCount": 6,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ضربه‌زن صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ضربه-زن-صن",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 6,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 5,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "فنر صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-فنر-صنعتی",
+      "sourceFamilyCount": 6,
+      "sourceSkuCount": 6,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 4,
+      "unresolvedSkuCount": 2
+    },
+    {
+      "technicalType": "زلامید",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-زلامید",
+      "sourceFamilyCount": 4,
+      "sourceSkuCount": 6,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 3,
+      "approvedFamilySkuCount": 6,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "بست U شکل",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-بست-U-شکل",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 5,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 4,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ساپورت صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ساپورت-صنع",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 5,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "میله صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-میله-صنعتی",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 5,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "شفت صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-شفت-صنعتی",
+      "sourceFamilyCount": 5,
+      "sourceSkuCount": 5,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "اورینگ لاستیکی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-اورینگ-لاس",
+      "sourceFamilyCount": 3,
+      "sourceSkuCount": 4,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "لاستیک فلنج",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-لاستیک-فلن",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 4,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 4,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "سیلندر انگشتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-سیلندر-انگ",
+      "sourceFamilyCount": 4,
+      "sourceSkuCount": 4,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ترانس صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ترانس-صنعت",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 4,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "نوار سیلیکونی",
+      "domainGroup": "CONVEYOR_BELTS_AND_TAPES",
+      "engineeringRuleCode": "RULE-CONV-05",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 4,
+      "invariantAttributes": [
+        "نوع محصول (نوار نقاله PVC، نوار نقاله PU، نوار گریپ پشت پلی‌استر، نوار سیلیکونی، نوار اسفنجی)",
+        "جنس لایه کاری (PVC vs PU vs Silicone vs Elastomer Grip)",
+        "طرح سطح (ساده Smooth در برابر آجدار/گریپ Grip)",
+        "تعداد لایه منجید / ساختار پشت (Polyester Backing)"
+      ],
+      "allowedVariantAttributes": [
+        "عرض نوار (Width)",
+        "طول نوار (Length)",
+        "ضخامت نوار در خانواده هم‌جنس"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه (Tooth Pitch)",
+        "پروفیل شیار V"
+      ],
+      "forbiddenMerges": [
+        "ادغام نوار نقاله PVC با نوار نقاله پلی‌یورتان (PU)",
+        "ادغام نوار گریپ پشت پلی‌استر با تسمه بارکش صنعتی",
+        "ادغام نوار اسفنجی با نوار نقاله باربر PVC/PU"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 2,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پایه ریل",
+      "domainGroup": "GUIDE_RAILS_AND_PROFILES",
+      "engineeringRuleCode": "RULE-RAIL-06",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 3,
+      "invariantAttributes": [
+        "نوع قطعه (ریل راهنما، گاید هدایت، گاید فنری، سر ریل، پایه ریل، بست زیر ناودانی)",
+        "جنس قطعه (استیل Stainless vs تفلون PTFE vs آلومینیوم vs گالوانیزه vs آهنی)",
+        "تیپ مقطع و کاربرد (تیپ A، تیپ B، تیپ C، زیر تسمه تایم، زیر تسمه گرد، ۲ لبه)",
+        "فرآیند ساخت در تفلون (تزریقی در برابر چاکدار/ماشین‌کاری)"
+      ],
+      "allowedVariantAttributes": [
+        "طول شاخه (3 متری / 6 متری)",
+        "ابعاد مقطع در یک سری کد نقشه یکسان"
+      ],
+      "notApplicableAttributes": [
+        "گام دندانه تسمه",
+        "تعداد شیار تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام ریل یا گاید استیل با ریل یا گاید تفلونی (PTFE) یا آلومینیومی یا گالوانیزه",
+        "ادغام بست زیر ناودانی فلزی با خود ریل راهنما"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ضربه‌گیر استاکر",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ضربه-گیر-ا",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 3,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 3,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ضربه‌گیر پلی‌یورتان",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ضربه-گیر-پ",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 3,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 3,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "اسفنج",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-اسفنج",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 3,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پکینگ / کاسه‌نمد",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پکینگ-کاسه",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 2,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 1
+    },
+    {
+      "technicalType": "نوار آب‌بندی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-نوار-آب-بن",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 2,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 2,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "ماژیک صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-ماژیک-صنعت",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 2,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس استوانه‌ای",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-استوان",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 2,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 2,
+      "directProductSkuCount": 0,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "برس نواری",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-برس-نواری",
+      "sourceFamilyCount": 2,
+      "sourceSkuCount": 2,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 1,
+      "approvedFamilySkuCount": 1,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "تسمه ضدسایش",
+      "domainGroup": "COATED_WELDED_AND_SPECIAL_BELTS",
+      "engineeringRuleCode": "RULE-BELT-COAT-04",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 1,
+      "invariantAttributes": [
+        "برند سازنده (Brand)",
+        "نوع پایه تسمه (تایمینگ سیم‌دار یا تسمه جوشی V یا تسمه گرد CRC)",
+        "پروفیل پایه (H/L/T10/AT10/8M یا A/B/C یا CRC/ROUND)",
+        "نوع و جنس روکش (گریپ قرمز، گریپ مشکی، روکش ضدسایش Linatex)",
+        "ضخامت روکش گریپ (6mm, 10mm, 12mm, 15mm)",
+        "ساختار کورد (سیم‌دار، نخ‌دار، ساده بدون نخ)"
+      ],
+      "allowedVariantAttributes": [
+        "طول و عرض تسمه (Length & Width)",
+        "قطر یا سایز مقطع در تسمه گرد PU"
+      ],
+      "notApplicableAttributes": [
+        "سوراخ شفت (Bore Diameter)"
+      ],
+      "forbiddenMerges": [
+        "ادغام گریپ 10 میل با گریپ 12 میل یا 15 میل",
+        "ادغام گریپ قرمز با گریپ مشکی",
+        "ادغام تسمه جوشی نخ‌دار با تسمه جوشی ساده بدون نخ",
+        "ادغام گیره و دستگاه جوش تسمه با خود تسمه جوشی"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "سیلندر صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-سیلندر-صنع",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 1,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "پوسته صنعتی",
+      "domainGroup": "INDUSTRIAL_COMPONENTS_SEALS_AND_POLYMERS",
+      "engineeringRuleCode": "RULE-IND-پوسته-صنعت",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 1,
+      "invariantAttributes": [
+        "نوع دقیق و کارکرد مکانیکی قطعه (Product Type & Function)",
+        "برند یا سری ساخت (Brand / Origin Series)",
+        "جنس دقیق قطعه (Material: Steel, Stainless, Aluminum, PTFE, PU, PVC, Silicone, Rubber)",
+        "ساختار، نحوه نصب و سری کد نقشه (Construction & Drawing Code Series)",
+        "واحد فروش (Unit)"
+      ],
+      "allowedVariantAttributes": [
+        "ابعاد هندسی (قطر، طول، عرض، ضخامت، شماره کد فرعی نقشه)"
+      ],
+      "notApplicableAttributes": [
+        "گام و ارتفاع دندانه تسمه سنکرون (Synchronous Belt Tooth Geometry)"
+      ],
+      "forbiddenMerges": [
+        "ادغام متریال‌های متفاوت (مانند استیل با گالوانیزه، یا تفلون با پلی‌یورتان، یا لاستیک با آلومینیوم)",
+        "ادغام قطعات با کارکرد متفاوت که صرفاً نام مشابه دارند"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    },
+    {
+      "technicalType": "چرخ‌دنده",
+      "domainGroup": "CHAINS_GEARS_AND_COUPLINGS",
+      "engineeringRuleCode": "RULE-CHAIN-08",
+      "sourceFamilyCount": 1,
+      "sourceSkuCount": 1,
+      "invariantAttributes": [
+        "نوع قطعه (زنجیر غلتکی، قفل زنجیر، نیم‌دانه زنجیر، چرخ‌دنده، کوپلینگ فلزی، لاستیک کوپلینگ)",
+        "استاندارد سری زنجیر (ISO/BS سری B مانند 06B..24B در برابر ANSI سری 40..160)",
+        "تعداد ردیف زنجیر (تک‌ردیفه Simplex در برابر دوبل Duplex و سه‌ردیفه Triplex)",
+        "برند سازنده (KANA, IMPORTED, GENERIC)"
+      ],
+      "allowedVariantAttributes": [
+        "شماره گام زنجیر در همان استاندارد و تعداد ردیف (مثلاً 06B, 08B, 10B در سری B تک‌ردیفه)",
+        "ابعاد کوپلینگ"
+      ],
+      "notApplicableAttributes": [
+        "زاویه دندانه تسمه"
+      ],
+      "forbiddenMerges": [
+        "ادغام زنجیر تک‌ردیفه با زنجیر دوبل یا سه‌ردیفه",
+        "ادغام قفل زنجیر با خود زنجیر",
+        "ادغام لاستیک ضربه‌گیر کوپلینگ با پوسته فلزی کوپلینگ"
+      ],
+      "singletonPolicy": "هر کالای تک‌عضوی که هیچ واریانت سایزی هم‌جنس و هم‌پروفیل دیگری در کاتالوگ ندارد، به عنوان DIRECT_PRODUCT عرضه می‌شود و خانواده ۱ عضوی مصنوعی نمی‌سازد.",
+      "reconstructedMultiFamilyCount": 0,
+      "approvedFamilySkuCount": 0,
+      "directProductSkuCount": 1,
+      "unresolvedSkuCount": 0
+    }
+  ],
+  "lowSkuSubcategoryDecisions": [
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-1",
+      "categoryName": "تسمه تایمینگ",
+      "submenuName": "سیم‌دار فابریک",
+      "leafName": "پلی‌یورتان",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 17,
+      "afterDirectProductCount": 13,
+      "afterTotalSkuCount": 109,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 17 خانواده چندعضوی همگن و 13 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-1",
+      "categoryName": "تسمه تایمینگ",
+      "submenuName": "سیم‌دار فابریک",
+      "leafName": "کامیون دار (کلید دار)",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-1",
+      "categoryName": "تسمه تایمینگ",
+      "submenuName": "لاستیکی فابریک",
+      "leafName": "لاستیکی فابریک ساده و دنده‌دار",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-1",
+      "categoryName": "تسمه تایمینگ",
+      "submenuName": "انواع گام و کدهای تایمینگ",
+      "leafName": "T5 , AT5 , AT10 , AT20",
+      "beforeFamilyCount": 5,
+      "beforeSkuCount": 12,
+      "afterMultiFamilyCount": 6,
+      "afterDirectProductCount": 6,
+      "afterTotalSkuCount": 115,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 6 خانواده چندعضوی همگن و 6 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-2",
+      "categoryName": "تسمه وی‌بلت (V-Belt)",
+      "submenuName": "وی‌بلت متری",
+      "leafName": "تسمه A و B و C وی‌بلت متری",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 8,
+      "afterDirectProductCount": 6,
+      "afterTotalSkuCount": 126,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 8 خانواده چندعضوی همگن و 6 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-3",
+      "categoryName": "تسمه جوشی با سایت",
+      "submenuName": "تسمه گرد (CRC)",
+      "leafName": "انواع تسمه گرد جوشی",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 25,
+      "afterDirectProductCount": 14,
+      "afterTotalSkuCount": 224,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 25 خانواده چندعضوی همگن و 14 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-3",
+      "categoryName": "تسمه جوشی با سایت",
+      "submenuName": "تسمه فلت",
+      "leafName": "انواع تسمه تخت و فلت",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 18,
+      "afterDirectProductCount": 35,
+      "afterTotalSkuCount": 80,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 18 خانواده چندعضوی همگن و 35 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-4",
+      "categoryName": "تسمه بارکش و تجهیزات جوشی",
+      "submenuName": "تسمه بارکش",
+      "leafName": "انواع تسمه بارکش صنعتی",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "هیچ تسمه بارکش واقعی در کاتالوگ فعلی وجود ندارد؛ برگ بدون انتساب کاذب خالی می‌ماند."
+    },
+    {
+      "groupId": "excel-v2-1",
+      "groupTitle": "انواع تسمه‌های صنعتی",
+      "categorySlug": "excel-v2-1-4",
+      "categoryName": "تسمه بارکش و تجهیزات جوشی",
+      "submenuName": "دستگاه‌های تسمه جوشی",
+      "leafName": "دستگاه جوش تسمه صنعتی",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 3,
+      "afterTotalSkuCount": 3,
+      "displayStrategy": "DIRECT_PRODUCTS_ONLY",
+      "engineeringRationale": "دارای 3 کالای مستقل با مشخصات فنی متمایز است؛ به جای ساخت خانواده‌های ۱ عضوی مصنوعی، کالاها مستقیماً (DIRECT_PRODUCT) نمایش داده می‌شوند."
+    },
+    {
+      "groupId": "excel-v2-2",
+      "groupTitle": "نوارهای نقاله و انتقال مواد",
+      "categorySlug": "excel-v2-2-1",
+      "categoryName": "نوار نقاله صنعتی",
+      "submenuName": "بر اساس جنس",
+      "leafName": "نوار نقاله PVC",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 146,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 1 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-2",
+      "groupTitle": "نوارهای نقاله و انتقال مواد",
+      "categorySlug": "excel-v2-2-1",
+      "categoryName": "نوار نقاله صنعتی",
+      "submenuName": "بر اساس جنس",
+      "leafName": "نوار نقاله پلی‌اورتان (PU)",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 2,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 13,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 2 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-2",
+      "groupTitle": "نوارهای نقاله و انتقال مواد",
+      "categorySlug": "excel-v2-2-1",
+      "categoryName": "نوار نقاله صنعتی",
+      "submenuName": "بر اساس کاربرد و ابعاد",
+      "leafName": "مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 22,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 1 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-2",
+      "groupTitle": "نوارهای نقاله و انتقال مواد",
+      "categorySlug": "excel-v2-2-2",
+      "categoryName": "خدمات نوار نقاله",
+      "submenuName": "بازدید و نصب",
+      "leafName": "بازدید و نصب کامل در محل",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-3",
+      "groupTitle": "رولر و متعلقات رولر",
+      "categorySlug": "excel-v2-3-1",
+      "categoryName": "روکش رولر و غلتک",
+      "submenuName": "روکش غلتک",
+      "leafName": "در سختی‌های مختلف - پرینت",
+      "beforeFamilyCount": 17,
+      "beforeSkuCount": 90,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-3",
+      "groupTitle": "رولر و متعلقات رولر",
+      "categorySlug": "excel-v2-3-2",
+      "categoryName": "قطعات رولر",
+      "submenuName": "بوش بغل رولر",
+      "leafName": "بوش بغل رولر فلزی",
+      "beforeFamilyCount": 10,
+      "beforeSkuCount": 11,
+      "afterMultiFamilyCount": 7,
+      "afterDirectProductCount": 17,
+      "afterTotalSkuCount": 44,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 7 خانواده چندعضوی همگن و 17 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-3",
+      "groupTitle": "رولر و متعلقات رولر",
+      "categorySlug": "excel-v2-3-2",
+      "categoryName": "قطعات رولر",
+      "submenuName": "بوش بغل رولر",
+      "leafName": "بوش بغل رولر پلاستیک",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 4,
+      "afterDirectProductCount": 3,
+      "afterTotalSkuCount": 18,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 4 خانواده چندعضوی همگن و 3 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-3",
+      "groupTitle": "رولر و متعلقات رولر",
+      "categorySlug": "excel-v2-3-2",
+      "categoryName": "قطعات رولر",
+      "submenuName": "بوش دنده رولر",
+      "leafName": "انواع بوش دنده رولر",
+      "beforeFamilyCount": 15,
+      "beforeSkuCount": 39,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-3",
+      "groupTitle": "رولر و متعلقات رولر",
+      "categorySlug": "excel-v2-3-2",
+      "categoryName": "قطعات رولر",
+      "submenuName": "پین سر رولر و زنجیر",
+      "leafName": "انواع پین سر رولر و زنجیر",
+      "beforeFamilyCount": 4,
+      "beforeSkuCount": 31,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-4",
+      "groupTitle": "پولی و تجهیزات انتقال قدرت",
+      "categorySlug": "excel-v2-4-1",
+      "categoryName": "انواع پولی تایمینگ",
+      "submenuName": "پولی پلاستیک",
+      "leafName": "در سایزها و گام‌های مختلف",
+      "beforeFamilyCount": 7,
+      "beforeSkuCount": 9,
+      "afterMultiFamilyCount": 4,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 11,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 4 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-5",
+      "groupTitle": "برس‌های صنعتی",
+      "categorySlug": "excel-v2-5-1",
+      "categoryName": "برس سیمی",
+      "submenuName": "انواع برس‌های سیمی",
+      "leafName": "در ابعاد مختلف",
+      "beforeFamilyCount": 14,
+      "beforeSkuCount": 59,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-5",
+      "groupTitle": "برس‌های صنعتی",
+      "categorySlug": "excel-v2-5-2",
+      "categoryName": "برس خشک‌کن",
+      "submenuName": "انواع برس خشک‌کن",
+      "leafName": "مخصوص خطوط صنعتی و شستشو",
+      "beforeFamilyCount": 8,
+      "beforeSkuCount": 23,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس جنس",
+      "leafName": "ریل راهنما استیل و متعلقات",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 2,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 1 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس جنس",
+      "leafName": "ریل راهنما تفلون و متعلقات",
+      "beforeFamilyCount": 9,
+      "beforeSkuCount": 11,
+      "afterMultiFamilyCount": 12,
+      "afterDirectProductCount": 9,
+      "afterTotalSkuCount": 70,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 12 خانواده چندعضوی همگن و 9 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس جنس",
+      "leafName": "ریل راهنما آهنی و متعلقات",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 2,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 7,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 2 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس جنس",
+      "leafName": "ریل راهنما گالوانیزه و متعلقات",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 2,
+      "afterTotalSkuCount": 2,
+      "displayStrategy": "DIRECT_PRODUCTS_ONLY",
+      "engineeringRationale": "دارای 2 کالای مستقل با مشخصات فنی متمایز است؛ به جای ساخت خانواده‌های ۱ عضوی مصنوعی، کالاها مستقیماً (DIRECT_PRODUCT) نمایش داده می‌شوند."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس تیپ و کاربرد",
+      "leafName": "ریل تیپ B و تیپ C",
+      "beforeFamilyCount": 5,
+      "beforeSkuCount": 9,
+      "afterMultiFamilyCount": 2,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 5,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 2 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-1",
+      "categoryName": "انواع ریل راهنما",
+      "submenuName": "بر اساس تیپ و کاربرد",
+      "leafName": "ریل تایمینگ، زنجیر و دنده شانه",
+      "beforeFamilyCount": 2,
+      "beforeSkuCount": 2,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-2",
+      "categoryName": "انواع گاید راهنما",
+      "submenuName": "گاید تفلونی",
+      "leafName": "۲ لبه و متعلقات",
+      "beforeFamilyCount": 4,
+      "beforeSkuCount": 4,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 2,
+      "afterTotalSkuCount": 4,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 2 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-2",
+      "categoryName": "انواع گاید راهنما",
+      "submenuName": "گاید تفلونی",
+      "leafName": "۳ لبه و متعلقات",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-2",
+      "categoryName": "انواع گاید راهنما",
+      "submenuName": "گاید تفلونی",
+      "leafName": "بدون لبه و متعلقات",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-2",
+      "categoryName": "انواع گاید راهنما",
+      "submenuName": "نرده استیل",
+      "leafName": "نرده استیل و متعلقات",
+      "beforeFamilyCount": 3,
+      "beforeSkuCount": 9,
+      "afterMultiFamilyCount": 3,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 9,
+      "displayStrategy": "MULTI_SKU_FAMILIES",
+      "engineeringRationale": "کالاهای این زیرشاخه دارای واریانت‌های سایزی همگن هستند و در 3 خانواده چندعضوی استاندارد سازمان‌دهی شده‌اند."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-3",
+      "categoryName": "پروفیل و پایه هدایت",
+      "submenuName": "پروفیل آلومینیوم",
+      "leafName": "انواع پروفیل آلومینیومی صنعتی",
+      "beforeFamilyCount": 16,
+      "beforeSkuCount": 55,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-3",
+      "categoryName": "پروفیل و پایه هدایت",
+      "submenuName": "پایه کشویی",
+      "leafName": "انواع پایه کشویی تفلونی خط کاشی",
+      "beforeFamilyCount": 17,
+      "beforeSkuCount": 65,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-4",
+      "categoryName": "سنسور و نگهدارنده‌ها",
+      "submenuName": "انواع سنسور",
+      "leafName": "سنسورهای خطوط انتقال",
+      "beforeFamilyCount": 5,
+      "beforeSkuCount": 5,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 2,
+      "afterTotalSkuCount": 2,
+      "displayStrategy": "DIRECT_PRODUCTS_ONLY",
+      "engineeringRationale": "دارای 2 کالای مستقل با مشخصات فنی متمایز است؛ به جای ساخت خانواده‌های ۱ عضوی مصنوعی، کالاها مستقیماً (DIRECT_PRODUCT) نمایش داده می‌شوند."
+    },
+    {
+      "groupId": "excel-v2-6",
+      "groupTitle": "ریل، گاید و تجهیزات هدایت خطوط انتقال",
+      "categorySlug": "excel-v2-6-4",
+      "categoryName": "سنسور و نگهدارنده‌ها",
+      "submenuName": "نگهدارنده سنسور",
+      "leafName": "انواع قطعات نگهدارنده سنسور",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 2,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 7,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 2 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-7",
+      "groupTitle": "قطعات پلیمری و لاستیکی",
+      "categorySlug": "excel-v2-7-2",
+      "categoryName": "آب‌بندها و اورینگ",
+      "submenuName": "انواع اورینگ",
+      "leafName": "اورینگ در سایزها و متریال‌های مختلف",
+      "beforeFamilyCount": 1,
+      "beforeSkuCount": 2,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 5,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-7",
+      "groupTitle": "قطعات پلیمری و لاستیکی",
+      "categorySlug": "excel-v2-7-2",
+      "categoryName": "آب‌بندها و اورینگ",
+      "submenuName": "کاسه نمد و پکینگ",
+      "leafName": "انواع کاسه نمد و پکینگ صنعتی",
+      "beforeFamilyCount": 4,
+      "beforeSkuCount": 43,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 3,
+      "afterTotalSkuCount": 13,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 3 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-7",
+      "groupTitle": "قطعات پلیمری و لاستیکی",
+      "categorySlug": "excel-v2-7-3",
+      "categoryName": "ضربه‌گیر و مکنده",
+      "submenuName": "ضربه‌گیر و لرزه‌گیر",
+      "leafName": "انواع ضربه‌گیر و لرزه‌گیر لاستیکی و پلیمری",
+      "beforeFamilyCount": 22,
+      "beforeSkuCount": 124,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-7",
+      "groupTitle": "قطعات پلیمری و لاستیکی",
+      "categorySlug": "excel-v2-7-3",
+      "categoryName": "ضربه‌گیر و مکنده",
+      "submenuName": "مکنده",
+      "leafName": "انواع مکنده صنعتی",
+      "beforeFamilyCount": 16,
+      "beforeSkuCount": 31,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-8",
+      "groupTitle": "تجهیزات نسوز و حرارتی",
+      "categorySlug": "excel-v2-8-1",
+      "categoryName": "نوار برزنتی نسوز (چند لایه)",
+      "submenuName": "برزنتی چسب‌دار",
+      "leafName": "(نخ و پارچه) برزنتی در ضخامت مختلف",
+      "beforeFamilyCount": 12,
+      "beforeSkuCount": 14,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 2,
+      "afterTotalSkuCount": 2,
+      "displayStrategy": "DIRECT_PRODUCTS_ONLY",
+      "engineeringRationale": "دارای 2 کالای مستقل با مشخصات فنی متمایز است؛ به جای ساخت خانواده‌های ۱ عضوی مصنوعی، کالاها مستقیماً (DIRECT_PRODUCT) نمایش داده می‌شوند."
+    },
+    {
+      "groupId": "excel-v2-8",
+      "groupTitle": "تجهیزات نسوز و حرارتی",
+      "categorySlug": "excel-v2-8-1",
+      "categoryName": "نوار برزنتی نسوز (چند لایه)",
+      "submenuName": "نسوز چسب‌دار",
+      "leafName": "(کتان و چسب) نسوز در ضخامت مختلف",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-8",
+      "groupTitle": "تجهیزات نسوز و حرارتی",
+      "categorySlug": "excel-v2-8-2",
+      "categoryName": "نخ و عایق نسوز",
+      "submenuName": "نخ نسوز",
+      "leafName": "انواع نخ نسوز صنعتی",
+      "beforeFamilyCount": 7,
+      "beforeSkuCount": 62,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-9",
+      "groupTitle": "زنجیر و قطعات مکانیکی انتقال حرکت",
+      "categorySlug": "excel-v2-9-1",
+      "categoryName": "زنجیر صنعتی",
+      "submenuName": "انواع زنجیر",
+      "leafName": "زنجیرهای انتقال حرکت صنعتی",
+      "beforeFamilyCount": 79,
+      "beforeSkuCount": 118,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-9",
+      "groupTitle": "زنجیر و قطعات مکانیکی انتقال حرکت",
+      "categorySlug": "excel-v2-9-3",
+      "categoryName": "یراق‌آلات و قطعات مکانیکی",
+      "submenuName": "انواع لولا",
+      "leafName": "لولاهای صنعتی",
+      "beforeFamilyCount": 0,
+      "beforeSkuCount": 0,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-10",
+      "groupTitle": "قطعات خطوط لعاب و چاپ",
+      "categorySlug": "excel-v2-10-2",
+      "categoryName": "تجهیزات روتاری",
+      "submenuName": "انگشتی روتاری",
+      "leafName": "انواع انگشتی روتاری فرنگ",
+      "beforeFamilyCount": 8,
+      "beforeSkuCount": 9,
+      "afterMultiFamilyCount": 4,
+      "afterDirectProductCount": 8,
+      "afterTotalSkuCount": 35,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 4 خانواده چندعضوی همگن و 8 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-11",
+      "groupTitle": "انواع توری مش",
+      "categorySlug": "excel-v2-11-1",
+      "categoryName": "توری مش صنعتی",
+      "submenuName": "انواع توری مش",
+      "leafName": "توری مش در ابعاد و چشمه‌های مختلف",
+      "beforeFamilyCount": 11,
+      "beforeSkuCount": 90,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 6,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-13",
+      "groupTitle": "انواع بلبرینگ",
+      "categorySlug": "excel-v2-13-2",
+      "categoryName": "یاتاقان و متعلقات",
+      "submenuName": "انواع یاتاقان",
+      "leafName": "یاتاقان و انواع محافظ یاتاقان",
+      "beforeFamilyCount": 3,
+      "beforeSkuCount": 9,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 3,
+      "afterTotalSkuCount": 9,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 3 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-13",
+      "groupTitle": "انواع بلبرینگ",
+      "categorySlug": "excel-v2-13-2",
+      "categoryName": "یاتاقان و متعلقات",
+      "submenuName": "مهره و واشر",
+      "leafName": "انواع مهره و واشر بلبرینگ و یاتاقان",
+      "beforeFamilyCount": 7,
+      "beforeSkuCount": 18,
+      "afterMultiFamilyCount": 2,
+      "afterDirectProductCount": 6,
+      "afterTotalSkuCount": 15,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 2 خانواده چندعضوی همگن و 6 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-14",
+      "groupTitle": "ابر و اسفنج و اسکاج صنعتی",
+      "categorySlug": "excel-v2-14-2",
+      "categoryName": "نوار اسفنجی",
+      "submenuName": "نوار اسفنجی چسب‌دار و ساده",
+      "leafName": "چسب‌دار و بدون چسب",
+      "beforeFamilyCount": 3,
+      "beforeSkuCount": 24,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 0,
+      "afterTotalSkuCount": 0,
+      "displayStrategy": "EMPTY_AWAITING_VERIFIED_STOCK",
+      "engineeringRationale": "در کاتالوگ فعلی کالای تاییدشده‌ای برای این برگ وجود ندارد؛ از انتساب حدسی خودداری شده است."
+    },
+    {
+      "groupId": "excel-v2-14",
+      "groupTitle": "ابر و اسفنج و اسکاج صنعتی",
+      "categorySlug": "excel-v2-14-2",
+      "categoryName": "نوار اسفنجی",
+      "submenuName": "نوار اسفنجی سیلیکونی",
+      "leafName": "انواع نوار اسفنجی سیلیکونی",
+      "beforeFamilyCount": 1,
+      "beforeSkuCount": 3,
+      "afterMultiFamilyCount": 1,
+      "afterDirectProductCount": 1,
+      "afterTotalSkuCount": 3,
+      "displayStrategy": "HYBRID_FAMILIES_AND_DIRECT",
+      "engineeringRationale": "ترکیب بهینه شامل 1 خانواده چندعضوی همگن و 1 کالای مستقیم (DIRECT_PRODUCT) بدون خانواده ۱ عضوی مصنوعی."
+    },
+    {
+      "groupId": "excel-v2-14",
+      "groupTitle": "ابر و اسفنج و اسکاج صنعتی",
+      "categorySlug": "excel-v2-14-3",
+      "categoryName": "اسکاج صنعتی",
+      "submenuName": "انواع اسکاج",
+      "leafName": "اسکاج صنعتی و اسکاج گرد",
+      "beforeFamilyCount": 1,
+      "beforeSkuCount": 1,
+      "afterMultiFamilyCount": 0,
+      "afterDirectProductCount": 4,
+      "afterTotalSkuCount": 4,
+      "displayStrategy": "DIRECT_PRODUCTS_ONLY",
+      "engineeringRationale": "دارای 4 کالای مستقل با مشخصات فنی متمایز است؛ به جای ساخت خانواده‌های ۱ عضوی مصنوعی، کالاها مستقیماً (DIRECT_PRODUCT) نمایش داده می‌شوند."
+    }
+  ]
+}
