@@ -57,3 +57,9 @@ test("direct SKU product images cannot silently fall back to unrelated inferred 
   assert.match(card, /disableFallback=\{disableSiteFallback\}/);
   assert.match(card, /getProductDisplayBrands\(product\)\[0\]/);
 });
+
+test("product cards do not invent a standard size when no variant or size data exists", () => {
+  const card = readFileSync(new URL("../src/components/product/ProductCard.tsx", import.meta.url), "utf8");
+  assert.match(card, /picked\.length === 1 && hasVariants/);
+  assert.doesNotMatch(card, /: "استاندارد"/);
+});
