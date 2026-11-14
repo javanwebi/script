@@ -1,5 +1,5 @@
 -- Canonical family-to-menu assignments generated from src/data/catalogMenuAssignmentsData.ts.
--- 1,330 retained mappings after source-data audit; unresolved families are omitted for manual review.
+-- 1,286 retained mappings after source-data audit; unresolved families are omitted for manual review.
 -- Existing admin_verified assignments always take precedence; automatic assignments are refreshed.
 -- Original catalog_families category_slug/submenu/subcategory values are never rewritten.
 BEGIN;
