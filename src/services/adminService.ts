@@ -327,7 +327,7 @@ export const INITIAL_BANNERS: BannerItem[] = [
     id: 'ban-2',
     title: 'تأمین فوری قطعات کوره کارخانجات کاشی و سرامیک یزد',
     imageUrl: '/images/industries/ceramic.webp',
-    linkUrl: '/category/ceramic-tiles',
+    linkUrl: '/industries/ceramic',
     position: 'hero_slider',
     order: 2,
     active: true,
