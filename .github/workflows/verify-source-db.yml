@@ -50,3 +50,5 @@ jobs:
         run: node --import tsx --test tests/forza-streaming-speech.test.ts tests/forza-tts-client.test.ts tests/forza-boot-speech.test.ts
       - name: Build static React frontend from source
         run: npm run build
+      - name: Probe real FORZA model via production Worker (temporary)
+        run: node scripts/forza-live-smoke.mjs
