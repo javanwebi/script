@@ -11,6 +11,12 @@
   overflow: clip;
 }
 .industry-template * { box-sizing: border-box; }
+.industry-template--ceramic .ipt-hero-visual > img { object-position: center 52%; }
+.industry-template--textile .ipt-hero-visual > img { object-position: center 46%; }
+.industry-template--packaging .ipt-hero-visual > img { object-position: center 50%; }
+.industry-template--food .ipt-hero-visual > img { object-position: center 48%; }
+.industry-template--machinery .ipt-hero-visual > img { object-position: center 52%; }
+.industry-template--rubber .ipt-hero-visual > img { object-position: center 50%; }
 .industry-template a { text-decoration: none; }
 .industry-template button,
 .industry-template input,
