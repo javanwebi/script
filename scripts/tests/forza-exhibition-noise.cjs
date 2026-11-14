@@ -12,7 +12,7 @@ function wav(seconds){
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
  let diagnostics=[];
  try{
-  const page=await browser.newPage({permissions:['microphone']});const errors=[],queries=[];
+  const page=await browser.newPage({permissions:['microphone']});const errors=[],queries=[],phrases=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{if(m.text().includes('[FORZA_'))diagnostics.push(m.text());});
   await page.addInitScript(()=>{
@@ -36,7 +36,7 @@ function wav(seconds){
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({contentType:'audio/wav',body:wav(0.2)}));
   await page.route('**/api/ai/forza-stt-info',r=>r.fulfill({json:{serverSttConfigured:false,serverSttReady:false}}));
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}}));
-  await page.route('**/api/ai/forza-speech',r=>r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:queries.length>1?0.3:12)}));
+  await page.route('**/api/ai/forza-speech',r=>{phrases.push(r.request().postDataJSON().text);return r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:queries.length>1?0.3:12)});});
   await page.route('**/api/ai/consult-stream',r=>{
    queries.push(r.request().postDataJSON().query);
    const text='برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.';
@@ -57,9 +57,10 @@ function wav(seconds){
   await speaking.waitFor({timeout:15000});await page.waitForTimeout(1100);
   await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
   await page.waitForTimeout(400);
-  await page.evaluate(()=>window.__emit('برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.'));
+  assert.ok(phrases[0],'an actual spoken phrase must exist');
+  await page.evaluate(text=>window.__emit(text),phrases[0]);
   await page.waitForTimeout(300);
-  assert.equal(await speaking.isVisible(),true,'recognized AI loudspeaker words must not interrupt');
+  assert.equal(await speaking.isVisible(),true,'recognized AI loudspeaker words must not interrupt: '+JSON.stringify({phrases,diagnostics}));
   assert.equal(queries.length,1,'speaker echo must not make another request');
   await page.evaluate(()=>{window.__inputGain.gain.value=0.001;});
   await page.waitForTimeout(1100);

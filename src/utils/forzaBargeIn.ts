@@ -4,6 +4,7 @@
  * after the customer has finished speaking.
  */
 const normalize = (text:string) => String(text || '')
+  .replace(/[\u064b-\u065f\u0670]/g,'')
   .replace(/[\u064A]/g,'ی').replace(/[\u0643]/g,'ک')
   .replace(/[.,،؛:!?؟\u200c\n\r]/g,' ')
   .replace(/\s+/g,' ').trim().toLowerCase();
