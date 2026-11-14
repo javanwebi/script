@@ -16,6 +16,7 @@ import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
 import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
+import { ForzaRecordingSafety, ForzaSttFailure, forzaSttFailure } from '../../utils/forzaSttTurnSafety';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
 import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/forzaSpeechAdmission';
 import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
@@ -1230,10 +1231,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 console.warn('[FORZA_STT] server_final_unavailable status='+sttResponse.status+
                   ' code='+String(sttData?.errorCode||'unknown').slice(0,48)+
                   ' browser_fallback='+(q?'1':'0'));
-                if(!q)throw new Error(sttData?.error||'تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
+                if(!q)throw forzaSttFailure(sttResponse.status,String(sttData?.errorCode||''));
               }
             }catch(sttError:any){
-              if(pocketAbort.signal.aborted)throw sttError;
+              if(pocketAbort.signal.aborted||sttError instanceof ForzaSttFailure)throw sttError;
               console.warn('[FORZA_STT] server_final_error code='+
                 String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
                 ' browser_fallback='+(q?'1':'0'));
@@ -1543,6 +1544,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
         // A speech-recognition failure is not a TTS/playback failure.
         if (!q) setUserText(previous=>previous.trim());
+        if(err instanceof ForzaSttFailure&&err.code==='stt_no_transcript'){
+          setMicrophoneError(err.message);
+          return; // finally restores listening; no false server-outage banner
+        }
         setErrorNotice(
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
@@ -1577,8 +1582,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
         let rotateCapture=false;
+        const recordingSafety=new ForzaRecordingSafety();
+        mr.onstart=()=>recordingSafety.reset();
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
+            recordingSafety.observe(isAiSpeakingRef.current||isManualReplayPendingRef.current,
+              lastForzaPlaybackAtRef.current>0&&Date.now()-lastForzaPlaybackAtRef.current<1500);
             audioChunksRef.current.push(e.data);
             // Rotate complete containers instead of dropping their first bytes.
             // Idle/AI monitoring is bounded; active customer turns retain up to
@@ -1606,7 +1615,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             return;
           }
           const hadSpeech = hasSpeechSoundRef.current;
-          const rejectedSpeech=rejectedRecordingRef.current;
+          const rejectedSpeech=rejectedRecordingRef.current||!recordingSafety.safe;
           rejectedRecordingRef.current=false;
           hasSpeechSoundRef.current = false;
 

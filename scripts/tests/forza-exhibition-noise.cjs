@@ -12,7 +12,7 @@ function wav(seconds){
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
  let diagnostics=[];
  try{
-  const page=await browser.newPage({permissions:['microphone']});const errors=[],queries=[];
+  const page=await browser.newPage({permissions:['microphone']});const errors=[],queries=[],phrases=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{if(m.text().includes('[FORZA_'))diagnostics.push(m.text());});
   await page.addInitScript(()=>{
@@ -36,7 +36,7 @@ function wav(seconds){
   await page.route('**/forza-greeting-bootstrap.wav',r=>r.fulfill({contentType:'audio/wav',body:wav(0.2)}));
   await page.route('**/api/ai/forza-stt-info',r=>r.fulfill({json:{serverSttConfigured:false,serverSttReady:false}}));
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}}));
-  await page.route('**/api/ai/forza-speech',r=>r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:12)}));
+  await page.route('**/api/ai/forza-speech',r=>{phrases.push(r.request().postDataJSON().text);return r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:queries.length>1?0.3:12)});});
   await page.route('**/api/ai/consult-stream',r=>{
    queries.push(r.request().postDataJSON().query);
    const text='برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.';
@@ -55,6 +55,17 @@ function wav(seconds){
   await page.getByTitle('ارسال به هوش مصنوعی').click();
   const speaking=page.getByText('AI FORZA در حال صحبت...',{exact:true});
   await speaking.waitFor({timeout:15000});await page.waitForTimeout(1100);
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
+  await page.waitForTimeout(400);
+  const spoken=phrases.find(text=>text!=='بله، بفرما.');
+  assert.ok(spoken,'an actual response phrase must exist');
+  await page.evaluate(text=>window.__emit(text),spoken);
+  await page.waitForTimeout(300);
+  assert.equal(await speaking.isVisible(),true,'recognized AI loudspeaker words must not interrupt: '+JSON.stringify({phrases,diagnostics}));
+  assert.equal(queries.length,1,'speaker echo must not make another request');
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.001;});
+  await page.waitForTimeout(1100);
+
   await page.evaluate(()=>{window.__inputGain.gain.value=0.005;window.__emit('وایسا');});
   await page.waitForTimeout(400);assert.equal(await speaking.isVisible(),true,'distant stop must not cancel playback');
   await page.evaluate(()=>window.__emit('گفتگوی نامرتبط اطراف'));
@@ -68,6 +79,18 @@ function wav(seconds){
   assert.ok(diagnostics.some(v=>v.includes('phase=customer-interrupt')),'close stop must cancel the active turn');
   assert.equal(queries.length,1,'a stop must not make an LLM request');
   await page.evaluate(()=>{window.__inputGain.gain.value=0.001;});
+  for(const query of ['بلبرینگ شش هزار و دویست و سه دارید','تسمه برای دستگاه بسته بندی می خواهم']){
+   await page.waitForTimeout(1800);
+   await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
+   await page.waitForTimeout(400);
+   await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},query);
+   await page.waitForFunction(text=>document.body.innerText.includes(text),query);
+   await page.waitForFunction(()=>document.body.innerText.includes('AI FORZA در حال صحبت...'),null,{timeout:20000});
+   await listening.waitFor({timeout:20000});
+   assert.equal(queries.at(-1),query,'next turn must not contain prior words or AI echo');
+   assert.equal(await page.getByText('تشخیص گفتار سرور موقتاً در دسترس نیست',{exact:false}).count(),0);
+  }
+  assert.equal(queries.length,3,'three independent requests across interruption and resumed turns');
   assert.deepEqual(errors,[]);
   console.log('FORZA_EXHIBITION_PASS distant_text_hidden=1 distant_stop_ignored=1 close_stop_cancels=1 cumulative_background_retired=1');
  }finally{await browser.close();}

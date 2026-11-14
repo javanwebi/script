@@ -79,3 +79,7 @@ test('late echo of preceding audible phrase is rejected without suppressing corr
  history.record('قطر پولی هم مهم است',4100);history.clear();
  assert.equal(history.matches('قطر پولی هم مهم است',4200),false);
 });
+
+test('optional Persian vowel marks cannot turn speaker echo into a new question',()=>{
+ assert.equal(shouldIgnoreForzaSpeakerEcho('لطفا مشخصات دستگاه را بگویید','لطفاً مشخصات دستگاه را بگویید',true),true);
+});
