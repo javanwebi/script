@@ -14,11 +14,14 @@ test('header and homepage do not synchronously bundle heavy visual or consultati
  }
 });
 
-test('ceramic industry detail no longer defeats dynamic import and keeps a fallback',()=>{
+test('all industry details share one lazy template and canonical route handling',()=>{
  const text=source('src/pages/DiscoveryPages.tsx');
- assert.match(text,/React\.lazy\(\(\) => import\("\.\/TileCeramicIndustryPage"\)/);
- assert.match(text,/React\.Suspense fallback=/);
- assert.doesNotMatch(text,/^import\s+\{\s*TileCeramicIndustryPage\s*\}\s+from/m);
+ const app=source('src/App.tsx');
+ assert.match(text,/import IndustryTemplatePage from "\.\/IndustryTemplatePage"/);
+ assert.match(text,/return <IndustryTemplatePage \/>/);
+ assert.doesNotMatch(text,/TileCeramicIndustryPage|TextileIndustryPage/);
+ assert.match(app,/const IndustryTemplatePage = lazy/);
+ assert.match(app,/path="\/industries\/:slug"[\s\S]*?IndustryTemplatePage/);
 });
 
 test('non-home routes are loaded only when requested',()=>{
