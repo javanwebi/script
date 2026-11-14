@@ -3,12 +3,9 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpLeft,
-  BadgeCheck,
-  BookOpen,
   Boxes,
   Check,
   ChevronLeft,
-  Factory,
   FileSearch,
   Gauge,
   Headphones,
