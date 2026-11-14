@@ -110,5 +110,5 @@ test('belt subcategory navigation counts include unique direct SKU records as we
   assert.doesNotMatch(page, /const standard = \['Megadyne'/);
   assert.match(page, /products\.filter\(product => productHasDisplayBrand\(product, brand\)\)/);
   assert.match(page, /const directSkuCount = directSkuRecords\.filter/);
-  assert.match(page, /counts\.set\(option\.id, familyCount \+ directSkuCount\)/);
+  assert.match(page, /counts\.set\(option\.id, matchingFamilies\.length \+ directSkuCount\)/);
 });
