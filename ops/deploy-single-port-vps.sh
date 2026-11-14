@@ -352,12 +352,28 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
    "and submenu_name=\x27نرده استیل\x27 and leaf_name=\x27نرده استیل و متعلقات\x27))) " +
    "or (family_code=\x27FAM-52858\x27 and (method=\x27admin_verified\x27 or " +
    "(category_slug=\x27excel-v2-2-1\x27 and submenu_name=\x27بر اساس جنس\x27 " +
-   "and leaf_name=\x27نوار نقاله PVC\x27))))");
+   "and leaf_name IS NULL))))");
   if(Number(result.rows[0].total)!==4)throw Error("Expected 4 source-verified or admin-locked family assignments");
   console.log("PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED",result.rows[0].total);
  }catch(error){console.error("PRODUCTION_CATALOG_AUDIT_CORRECTION_FAILED",error.code||"",error.message);process.exitCode=1}
  finally{await closeDatabase()}
 ' < "$CORRECTION_SQL"
+
+echo '===== APPLY SOURCE-VERIFIED SKU-LEVEL MENU ASSIGNMENTS ====='
+SKU_MENU_SQL="$STAGE/ops/sql/20261114_catalog_sku_level_menu_assignments.sql"
+test -s "$SKU_MENU_SQL" || { echo "REQUIRED_SKU_MENU_SQL_MISSING=$SKU_MENU_SQL"; exit 1; }
+docker exec -i "$OLD" node --import tsx --input-type=module -e '
+ import {readFileSync} from "node:fs";
+ import {database,closeDatabase} from "./server/db/connection.ts";
+ try {
+  const sql=readFileSync(0,"utf8");
+  await database().query(sql);
+  console.log("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_VERIFIED",303);
+ }catch(error){
+  console.error("PRODUCTION_SKU_LEVEL_MENU_ASSIGNMENTS_FAILED",error.code||"",error.message);
+  process.exitCode=1;
+ }finally{await closeDatabase()}
+' < "$SKU_MENU_SQL"
 
 echo '===== APPLY CUSTOMER 360 AND MANUFACTURING REQUEST SCHEMA ====='
 for MIGRATION in \
