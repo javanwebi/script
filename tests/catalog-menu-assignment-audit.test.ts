@@ -190,7 +190,7 @@ test('20 approved menu leaves have no explicit family leaf mapping after this au
  const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
   item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
  ));
- assert.equal(empty.length,20);
+ assert.equal(empty.length,21);
 });
 
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
@@ -240,9 +240,9 @@ test('the polyurethane timing-belt leaf has no families without explicit PU evid
  ).length,0);
 });
 
-test('the source-confirmed PVC conveyor and exact rail/guide types map to their approved leaves',()=>{
+test('mixed conveyor family stays at parent level while rail/guide families map to approved leaves',()=>{
  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-52858'],{
-  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:'نوار نقاله PVC'
+  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:null
  });
  for(const familyCode of ['FAM-33201','FAM-90314','FAM-90251','FAM-90249','FAM-90037']){
   assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],{
@@ -273,7 +273,7 @@ test('approved page family counts align to the audited source groups',()=>{
 
 test('mixed-material families remain at parent level until SKU-level overrides are available',()=>{
  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-52858'],{
-  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:'نوار نقاله PVC'
+  categorySlug:'excel-v2-2-1',submenuName:'بر اساس جنس',leafName:null
  });
  assert.deepEqual(CATALOG_FAMILY_MENU_ASSIGNMENTS['FAM-33117'],{
   categorySlug:'excel-v2-6-1',submenuName:'بر اساس جنس',leafName:null
@@ -284,4 +284,25 @@ test('direct SKU records are filtered into the same Excel category collection as
  const source=readFileSync('src/pages/ProductsPage.tsx','utf8');
  assert.match(source,/directSkuCodeSet\.has\(product\.code\)[\s\S]*?matchesCatalogCategory\(product, selectedCategory, selectedSubcategory\)/);
  assert.match(source,/matchesProductMenuSelection\(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex, directSkuCodeSet\)/);
+});
+
+test('source-verified mixed-family SKU overrides populate the correct technical leaves',()=>{
+ const skuSql=readFileSync('ops/sql/20261114_catalog_sku_level_menu_assignments.sql','utf8');
+ const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
+ assert.equal(skuCodes.length,303);
+ assert.equal(new Set(skuCodes).size,303);
+ assert.match(skuSql,/ON CONFLICT \(sku_code\) DO NOTHING/);
+ assert.match(skuSql,/source_family_code/);
+ assert.match(skuSql,/نوار نقاله PVC/);
+ assert.match(skuSql,/نوار نقاله پلی‌اورتان \(PU\)/);
+ assert.match(skuSql,/انواع تسمه گرد جوشی/);
+ assert.match(skuSql,/ریل راهنما استیل و متعلقات/);
+ assert.match(skuSql,/ریل راهنما آهنی و متعلقات/);
+ assert.match(skuSql,/ریل راهنما گالوانیزه و متعلقات/);
+});
+
+test('category pages merge SKU-level records into the same collection as family products',()=>{
+ const source=readFileSync('src/pages/ExcelMenuCategoryPage.tsx','utf8');
+ assert.match(source,/useDirectSkus/);
+ assert.match(source,/directSkuProducts/);
 });
