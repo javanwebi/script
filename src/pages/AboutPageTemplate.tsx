@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, ArrowUpLeft, Boxes, CheckCircle2, Factory, Headphones, Package,
+  ArrowLeft, ArrowUpLeft, CheckCircle2, Factory, Headphones, Package,
   Phone, ScanLine, Wrench, type LucideIcon,
 } from "lucide-react";
 import { STORE_ASSETS as A } from "../assets/images";
@@ -437,7 +437,7 @@ function BottomCtaBanner() {
               برای تأمین، مشاوره یا بررسی فنی
               <span className="block">با <span className="text-[#F28A45]">صنعت پیش</span> در ارتباط باشید</span>
             </h2>
-            <p className="mt-2 text-xs leading-7 text-slate-200 sm:text-[13px]">کد کالا، تصویر، نقشه یا شرح نیاز خود را ارسال کنید تا مسیر بررسی و پیگیری مشخص شود.</p>
+            <p className="mt-2 text-xs leading-7 text-slate-200 sm:text-[13px]">کد کالا، تصویر، نقشه یا شرح نیاز خود را آماده کنید تا مسیر بررسی و پیگیری با کارشناسان مشخص شود.</p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link to="/contact" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-xs font-extrabold text-slate-900 shadow-lg transition-colors hover:bg-orange-50">
