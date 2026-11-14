@@ -285,6 +285,10 @@ test('mixed-material families remain at parent level until SKU-level overrides a
 test('direct SKU records are filtered into the same Excel category collection as family products',()=>{
  const source=readFileSync('src/pages/ProductsPage.tsx','utf8');
  assert.match(source,/directSkuCodeSet\.has\(product\.code\)[\s\S]*?matchesCatalogCategory\(product, selectedCategory, selectedSubcategory\)/);
+ const allProductsIndex=source.indexOf('if (selectedCategory === "all" && selectedSubcategory === "all") return true;');
+ const directSkuIndex=source.indexOf('if (directSkuCodeSet.has(product.code))');
+ assert.ok(allProductsIndex>=0 && directSkuIndex>allProductsIndex,'all products must include direct SKU cards before category filtering');
+
  assert.match(source,/matchesProductMenuSelection\(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex, directSkuCodeSet\)/);
 });
 
