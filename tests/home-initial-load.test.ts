@@ -17,8 +17,9 @@ test('header and homepage do not synchronously bundle heavy visual or consultati
 test('all industry details share one lazy template and canonical route handling',()=>{
  const text=source('src/pages/DiscoveryPages.tsx');
  const app=source('src/App.tsx');
- assert.match(text,/import IndustryTemplatePage from "\.\/IndustryTemplatePage"/);
- assert.match(text,/return <IndustryTemplatePage \/>/);
+ assert.match(text,/React\.lazy\(\(\) =>[\s\S]*import\("\.\/IndustryTemplatePage"\)/);
+ assert.match(text,/<IndustryTemplatePage \/>/);
+ assert.match(text,/React\.Suspense fallback=/);
  assert.doesNotMatch(text,/TileCeramicIndustryPage|TextileIndustryPage/);
  assert.match(app,/const IndustryTemplatePage = lazy/);
  assert.match(app,/path="\/industries\/:slug"[\s\S]*?IndustryTemplatePage/);
