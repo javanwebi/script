@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type {Product} from '../src/types';
 import {APPROVED_MENU_CATEGORIES} from '../src/data/approvedMenuFallback.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 import {getFamilyMenuAssignment,resolveMenuCategoryPayload} from '../src/services/catalogTaxonomyResolver.ts';
@@ -74,6 +75,14 @@ test('ambiguous and source-conflicting families are left for admin review',()=>{
   assert.equal(getFamilyMenuAssignment(familyCode),null,familyCode+' must not receive a heuristic fallback');
  }
  assert.equal(getFamilyMenuAssignment('FAM-999999'),null);
+ const legacyProduct={
+  code:'FAM-80151',
+  categorySlug:'excel-v2-1-1',
+  submenu:'سیم‌دار فابریک',
+  subcategory:'پلی‌یورتان',
+ } as unknown as Product;
+ assert.equal(getFamilyMenuAssignment(legacyProduct),null,
+  'legacy product category metadata must not bypass the explicit review map');
 });
 
 test('rubber-factory timing belts are not populated without material evidence in the source workbook',()=>{
