@@ -9,44 +9,15 @@ import { memberPath } from "../storefront/MemberAccess";
 import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { resolveSiteProductImage } from "../../utils/siteProductImages";
+import { getProductDisplayBrands, resolveDisplayBrand } from "../../utils/catalogBrands";
+export { resolveDisplayBrand } from "../../utils/catalogBrands";
 
 export interface ProductCardProps {
   product: Product;
   variant?: "default" | "excel-grid" | "excel-list";
   compareControl?: React.ReactNode;
-}
-
-export function resolveDisplayBrand(rawBrand?: string | null, name?: string | null): string {
-  const cleaned = String(rawBrand || "").trim();
-  const text = `${cleaned} ${String(name || "")}`;
-
-  if (cleaned && cleaned !== "ثبت نشده" && cleaned !== "نامشخص" && cleaned !== "خارجی") {
-    return cleaned;
-  }
-
-  if (/اپتی.?بلت|اپتی\b|optibelt/i.test(text)) return "اپتی‌بلت";
-  if (/هانچانگ|hanchang/i.test(text)) return "هانچانگ";
-  if (/باندو|bando/i.test(text)) return "باندو";
-  if (/دانگیل|dongil/i.test(text)) return "دانگیل";
-  if (/مگداین|مگادین|megadyne/i.test(text)) return "مگادین";
-  if (/فوجی|fuji/i.test(text)) return "فوجی";
-  if (/drauda|دراودا/i.test(text)) return "DRAUDA";
-  if (/candrive|کندرایو/i.test(text)) return "CANDRIVE";
-  if (/دایکو|dayco/i.test(text)) return "دایکو";
-  if (/کنتی|continental|contitech/i.test(text)) return "کنتیننتال";
-  if (/مارشال|marshal/i.test(text)) return "مارشال";
-  if (/\bswr\b/i.test(text)) return "SWR";
-  if (/\bforza\b|فورزا/i.test(text)) return "FORZA";
-  if (/\bgnr\b/i.test(text)) return "GNR";
-  if (/گیتس|gates/i.test(text)) return "گیتس";
-  if (/میتسوبوشی|mitsuboshi/i.test(text)) return "میتسوبوشی";
-  if (/چیاراوالی|chiaravalli/i.test(text)) return "چیاراوالی";
-  if (/تایوان|taiwan/i.test(text)) return "تایوان";
-  if (/کره|korea/i.test(text)) return "کره‌ای";
-  if (/آلمان|germany/i.test(text)) return "آلمانی";
-
-  if (cleaned === "خارجی") return "وارداتی صنعتی";
-  return "صنعت پیش";
+  detailPath?: string;
+  disableSiteFallback?: boolean;
 }
 
 const LOW_VALUE_SPEC_KEYS = /^(واحدهای فروش|تعداد کد کالا|وضعیت|کد خانواده)$/i;
@@ -137,10 +108,10 @@ function extractCardSpecs(product: Product, hasVariants: boolean): { key: string
     }
   }
 
-  if (picked.length === 1) {
+  if (picked.length === 1 && hasVariants) {
     picked.push({
       key: "تنوع سایز",
-      value: hasVariants ? `${toPersianDigits(product.variants?.length || 0)} سایز و کد` : "استاندارد",
+      value: `${toPersianDigits(product.variants?.length || 0)} سایز و کد`,
     });
   }
 
@@ -151,6 +122,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   variant = "default",
   compareControl,
+  detailPath,
+  disableSiteFallback = false,
 }) => {
   const { currentUser } = useAuth();
   const location = useLocation();
@@ -167,9 +140,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const price = !hasVariants
     ? getCurrentCustomerSkuPrice(product, currentUser, canViewPrices)
     : 0;
-  const href = hasPricePermission
+  const href = detailPath || (hasPricePermission
     ? memberPath(currentUser, product.code)
-    : `/product/${encodeURIComponent(product.code)}`;
+    : `/product/${encodeURIComponent(product.code)}`);
 
   const unavailablePriceLabel = !currentUser
     ? "استعلام قیمت"
@@ -182,11 +155,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? price > 0 ? `${formatPrice(price)} تومان` : "استعلام قیمت در پنل"
       : unavailablePriceLabel;
 
-  const displayBrand = resolveDisplayBrand(product.brand, product.name);
+  const displayBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || "";
   const specRows = extractCardSpecs(product, hasVariants);
 
   const isInStock = product.stockKnown && product.stock > 0 && !product.inquiryOnly;
-  const resolvedImage = resolveSiteProductImage(product);
+  const resolvedImage = disableSiteFallback ? "" : resolveSiteProductImage(product);
 
   if (variant === "excel-grid" || variant === "excel-list") {
     return (
@@ -195,7 +168,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <Link to={href} aria-label={product.name}>
             <ProductImage
               src={product.images?.[0] || product.image || resolvedImage}
-              fallbackSrc={product.image || resolvedImage}
+              fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+              disableFallback={disableSiteFallback}
               thumbnail
               alt={product.name}
               loading="lazy"
@@ -239,7 +213,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           <div className="excel-card-footer">
             <span className="excel-card-meta-brand" dir="ltr">
-              {displayBrand} · {product.code}
+              {displayBrand ? `${displayBrand} · ` : ""}{product.code}
             </span>
             {compareControl}
           </div>
@@ -251,7 +225,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <article className="store-product-card">
       <div className="store-product-top-badges">
-        <span className="store-badge-featured">{displayBrand}</span>
+        {displayBrand && <span className="store-badge-featured">{displayBrand}</span>}
         <span className="store-badge-code" dir="ltr">
           {hasVariants ? `${toPersianDigits(product.variants?.length || 0)} SKU` : product.code.slice(0, 10)}
         </span>
@@ -261,7 +235,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <Link to={href}>
           <ProductImage
             src={product.images?.[0] || product.image || resolvedImage}
-            fallbackSrc={product.image || resolvedImage}
+            fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+            disableFallback={disableSiteFallback}
             thumbnail
             alt={product.name}
             loading="lazy"
@@ -280,7 +255,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       <div className="store-product-copy">
         <div className="store-product-meta">
-          <span className="store-product-brand-pill" dir="ltr">{displayBrand}</span>
+          {displayBrand && <span className="store-product-brand-pill" dir="ltr">{displayBrand}</span>}
           <span className="store-product-code-tag" dir="ltr">{product.code}</span>
         </div>
 

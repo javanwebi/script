@@ -7,6 +7,7 @@ const page = source('src/pages/ExcelMenuCategoryPage.tsx');
 const styles = source('src/pages/excel-menu-category-premium.css');
 const routes = source('src/pages/CategoryPage.tsx');
 const api = source('server/catalogNavigationApi.ts');
+const pulley = source('src/pages/PulleyCatalogPage.tsx');
 
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
   assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
@@ -82,7 +83,9 @@ test('family product cards preserve a usable image from the family gallery or SK
 });
 
 test('direct SKU catalogue, family product cards and inquiry-safe detail links remain connected', () => {
-  assert.match(page, /<DirectSkuProducts categorySlug=\{slug\}/);
+  assert.match(page, /DirectSkuProductCard/);
+  assert.match(page, /const filteredDirectSkus = useMemo/);
+  assert.match(page, /filteredCollectionItems/);
   assert.match(page, /const cardProduct = product \?/);
   assert.match(page, /<ProductCard product=\{cardProduct\}/);
   assert.match(page, /'\/product\/' \+ encodeURIComponent\(family\.code\)/);
@@ -144,3 +147,74 @@ test('V-Belt category includes data-driven profile matrix, structure and top-wid
   assert.match(styles, /\.excel-vbelt-groups-grid/);
 });
 
+
+test('family cards and direct SKU cards share one filtered, sorted and paginated subcategory collection', () => {
+  assert.match(page, /const directSkus = useDirectSkus\(slug\)/);
+  assert.match(page, /const filteredCollectionItems = useMemo/);
+  assert.match(page, /const pageItems = filteredCollectionItems\.slice/);
+  assert.match(page, /pageItems\.map\(entry =>/);
+  assert.match(page, /DirectSkuProductCard/);
+  assert.doesNotMatch(page, /DirectSkuProducts categorySlug=/);
+  assert.match(page, /const seenCodes = new Set<string>\(\)/);
+  assert.match(page, /seenCodes\.has\(key\)/);
+});
+
+test('brand facets use real manufacturer brands from families, active SKU variants and direct SKU records', () => {
+  assert.match(page, /const familyBrandLists = useMemo/);
+  assert.match(page, /getProductDisplayBrands\(product\)/);
+  assert.match(page, /directSkusInCategory\.forEach/);
+  assert.match(page, /const selectedFamilyCodesForFacet = useMemo/);
+  assert.match(page, /!selectedFamilyCodesForFacet\.has\(item\.skuCode\.trim\(\)\.toLowerCase\(\)\)/);
+  assert.match(page, /productHasDisplayBrand\(product, brand\)/);
+  assert.doesNotMatch(page, /resolved === 'صنعت پیش'/);
+  assert.doesNotMatch(page, /resolved === 'وارداتی صنعتی'/);
+});
+
+test('the all-products page can read the live approved family-to-subcategory mapping without exposing commerce fields', () => {
+  assert.match(api, /app\.get\('\/api\/catalog\/menu-family-index'/);
+  const indexRoute = api.slice(api.indexOf("app.get('/api/catalog/menu-family-index'"), api.indexOf("// Read-only four-level menu taxonomy"));
+  assert.match(indexRoute, /catalog_family_menu_assignments/);
+  assert.match(indexRoute, /family_code as "familyCode"/);
+  assert.match(indexRoute, /Cache-Control','no-store'/);
+  assert.doesNotMatch(indexRoute, /price_snapshot|retail_price|wholesale_price|stock_reserved/);
+});
+
+test('unified subcategory results preserve default, name, code, SKU-count and stock sorting', () => {
+  assert.match(page, /if \(sortBy === 'name'\)/);
+  assert.match(page, /else if \(sortBy === 'code'\)/);
+  assert.match(page, /else if \(sortBy === 'sku_desc'\)/);
+  assert.match(page, /else if \(sortBy === 'stock_desc'\)/);
+  assert.match(page, /const skuCountOf = \(item: CollectionItem\)/);
+  assert.match(page, /const productOf = \(item: CollectionItem\)/);
+  assert.match(page, /items\.sort\(\(a, b\) =>/);
+});
+
+test('brand facets are scoped to the selected subcategory across Excel, legacy category and pulley pages', () => {
+  assert.match(page, /const selectedFamiliesForFacet = useMemo/);
+  assert.match(page, /matchesSelection\(family, selection, visibleNodes\)/);
+  assert.match(routes, /const brandFacetProducts = useMemo/);
+  assert.match(routes, /matchesCatalogCategory\(product, category\.slug, selectedSubcat\)/);
+  assert.match(pulley, /const brandScopeProducts = useMemo/);
+  assert.match(pulley, /selectedSubmenu === "all"/);
+  assert.match(pulley, /values\(brandScopeProducts\)/);
+});
+
+test('category pages request only their own direct SKU records while all-products and search retain the full index', () => {
+  const directSkuHook = source('src/components/catalog/DirectSkuProducts.tsx');
+  const belt = source('src/pages/BeltCategoryExperience.tsx');
+  const category = source('src/pages/CategoryPage.tsx');
+  const products = source('src/pages/ProductsPage.tsx');
+  const search = source('src/pages/SearchPage.tsx');
+  assert.match(directSkuHook, /useDirectSkus\(categorySlug\?: string, categoryPrefix\?: string\)/);
+  assert.match(directSkuHook, /params\.set\("categorySlug", categorySlug\)/);
+  assert.match(api, /const categorySlug=clean\(req\.query\.categorySlug,180\)/);
+  assert.match(api, /const categoryPrefix=clean\(req\.query\.categoryPrefix,40\)/);
+  assert.match(api, /category_slug=\$'\+params\.length/);
+  assert.match(api, /category_slug like \$'\+params\.length/);
+  assert.match(page, /useDirectSkus\(slug\)/);
+  assert.match(routes, /useDirectSkus\(category\.slug\)/);
+  assert.match(routes, /useDirectSkus\(pulleySlug, 'excel-v2-4-'\)/);
+  assert.match(belt, /useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
+  assert.match(products, /useDirectSkus\(\)/);
+  assert.match(search, /useDirectSkus\(\)/);
+});

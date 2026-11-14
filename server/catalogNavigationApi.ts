@@ -92,6 +92,26 @@ export function registerCatalogNavigationApi(app:Express){
   });
 
 
+  // Public, metadata-only family-to-subcategory index for the all-products filters.
+  // It exposes no prices, stock, images, customer data or private product fields.
+  app.get('/api/catalog/menu-family-index',async(_req,res)=>{
+    try{
+      if(!databaseEnabled())return res.status(503).json({success:false,assignments:[]});
+      const result=await database().query(
+        `select a.family_code as "familyCode",a.category_slug as "categorySlug",
+          a.submenu_name as "submenuName",a.leaf_name as "leafName"
+         from public.catalog_family_menu_assignments a
+         join public.catalog_families f on f.code=a.family_code
+         join public.catalog_categories c on c.slug=a.category_slug and c.is_active=true
+         where f.is_active=true and f.is_deleted=false
+           and c.metadata->>'source'='industrial_megamenu_hierarchy_v2'
+         order by a.category_slug,a.submenu_name,a.leaf_name,a.family_code
+         limit 10000`);
+      res.setHeader('Cache-Control','no-store');
+      return res.json({success:true,assignments:result.rows});
+    }catch(error){return fail(res,error);}
+  });
+
   // Read-only four-level menu taxonomy; original family categories remain untouched.
   app.get('/api/catalog/menu-category/:slug',async(req,res)=>{
     try{
@@ -225,7 +245,27 @@ export function registerCatalogNavigationApi(app:Express){
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,items:[]});
       const withInactive=req.query.includeInactive==='1'&&canStaff(await getPortalIdentity(req),'products');
-      const rows=await database().query('select sku_code as "skuCode",name,category_slug as "categorySlug",category_name as "categoryName",submenu,subcategory,brand,image_url as "imageUrl",technical_specs as "technicalSpecs",price_snapshot as "priceSnapshot",source_family_code as "sourceFamilyCode",is_active as active from public.catalog_direct_skus '+(withInactive?'':'where is_active=true ')+'order by updated_at desc,sku_code limit 5000');
+      const categorySlug=clean(req.query.categorySlug,180);
+      const categoryPrefix=clean(req.query.categoryPrefix,40);
+      if(categoryPrefix&&!/^excel-v2-\d+-$/.test(categoryPrefix))return res.status(400).json({success:false,items:[]});
+      const params:any[]=[];
+      const scope:string[]=[];
+      if(categorySlug){params.push(categorySlug);scope.push('d.category_slug=$'+params.length);}
+      if(categoryPrefix){params.push(categoryPrefix+'%');scope.push('d.category_slug like $'+params.length);}
+      const conditions:string[]=[];
+      if(scope.length)conditions.push('('+scope.join(' or ')+')');
+      if(!withInactive)conditions.push('d.is_active=true');
+      const where=conditions.length?'where '+conditions.join(' and '):'';
+      const rows=await database().query(
+        `select d.sku_code as "skuCode",d.name,d.category_slug as "categorySlug",d.category_name as "categoryName",
+          d.submenu,d.subcategory,coalesce(nullif(trim(v.brand),''),nullif(trim(d.brand),''),'') as brand,
+          d.image_url as "imageUrl",d.technical_specs as "technicalSpecs",d.price_snapshot as "priceSnapshot",
+          d.source_family_code as "sourceFamilyCode",d.is_active as active
+         from public.catalog_direct_skus d
+         left join public.catalog_variants v on v.code=d.sku_code and v.active=true
+         ${where} order by d.updated_at desc,d.sku_code limit 5000`,
+        params,
+      );
       const identity=await getPortalIdentity(req);
       const canReadPrices=identity.canReadCommerce || canStaff(identity,'products','prices');
       return res.json({success:true,items:canReadPrices?rows.rows:rows.rows.map(row=>({...row,priceSnapshot:{}}))});

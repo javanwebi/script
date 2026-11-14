@@ -1,5 +1,8 @@
 import { PulleyCatalogPage } from "./PulleyCatalogPage";
 import { ProductCard } from "../components/product/ProductCard";
+import { toDirectSkuProduct, useDirectSkus } from "../components/catalog/DirectSkuProducts";
+import { getProductDisplayBrands, productHasDisplayBrand } from "../utils/catalogBrands";
+import { getFamilyMenuAssignment } from "../services/catalogTaxonomyResolver";
 import {
   matchesProductSearch,
   CATALOGUE_SKU_COUNT,
@@ -57,6 +60,43 @@ import {
 
 const BELT_CATEGORY_SLUG = categorySlugFor("تسمه و انتقال نیرو");
 
+type LiveFamilyMenuIndexEntry = {
+  familyCode: string;
+  categorySlug: string;
+  submenuName: string | null;
+  leafName: string | null;
+};
+
+function matchesProductMenuSelection(
+  product: Product,
+  selectedCategory: string,
+  selectedSubcategory: string,
+  liveIndex: Record<string, LiveFamilyMenuIndexEntry>,
+): boolean {
+  if (selectedCategory === "swr-forza-exclusive") {
+    return getProductDisplayBrands(product).some((brand) => brand === "SWR" || brand === "FORZA");
+  }
+
+  if (selectedCategory === "all" && selectedSubcategory === "all") return true;
+
+  const live = liveIndex[product.code];
+  const assignment = live || getFamilyMenuAssignment(product);
+  const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
+  const isExcelSlug = /^excel-v2-[0-9]+-[0-9]+$/.test(selectedCategory);
+
+  if (isExcelSlug && assignedSlug !== selectedCategory) return false;
+  if (selectedCategory !== "all" && !isExcelSlug) {
+    return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
+  }
+
+  if (selectedSubcategory === "all") return true;
+  const normalize = (value: string) =>
+    String(value || "").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/[\u200c\s]+/g, " ").trim();
+  const target = normalize(selectedSubcategory);
+  return [assignment.submenuName, assignment.leafName, product.submenu, product.subcategory]
+    .some((value) => normalize(String(value || "")) === target);
+}
+
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   "تسمه و انتقال نیرو": <Layers className="w-4 h-4" />,
   "پولی و انتقال نیرو": <CircleDot className="w-4 h-4" />,
@@ -85,6 +125,7 @@ export const ProductsPage: React.FC = () => {
   const { currentUser, openAuthModal } = useAuth();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const directSkuRecords = useDirectSkus();
 
   // URL-driven or local state
   const categoryParam = resolveCategorySlug(
@@ -167,6 +208,56 @@ export const ProductsPage: React.FC = () => {
     };
   }, [mobileFiltersOpen, compareModalOpen]);
   const allProducts = useMemo(() => getAllProducts(), [catalogVersion]);
+  const directSkuProducts = useMemo(
+    () => directSkuRecords.map(toDirectSkuProduct),
+    [directSkuRecords],
+  );
+  const familyCodeSet = useMemo(() => new Set(allProducts.map((product) => product.code.toLowerCase())), [allProducts]);
+  const allCatalogProducts = useMemo(() => {
+    const seen = new Set<string>(familyCodeSet);
+    const combined = [...allProducts];
+    directSkuProducts.forEach((product) => {
+      const key = product.code.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      combined.push(product);
+    });
+    return combined;
+  }, [allProducts, directSkuProducts, familyCodeSet]);
+  const directSkuCodeSet = useMemo(
+    () => new Set(directSkuProducts.filter((product) => !familyCodeSet.has(product.code.toLowerCase())).map((product) => product.code)),
+    [directSkuProducts, familyCodeSet],
+  );
+  const [liveFamilyMenuIndex, setLiveFamilyMenuIndex] = useState<Record<string, LiveFamilyMenuIndexEntry>>({});
+  useEffect(() => {
+    let active = true;
+    fetch("/api/catalog/menu-family-index", { credentials: "same-origin", cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!active || !payload?.success || !Array.isArray(payload.assignments)) return;
+        const index: Record<string, LiveFamilyMenuIndexEntry> = {};
+        for (const entry of payload.assignments as LiveFamilyMenuIndexEntry[]) {
+          if (entry?.familyCode && entry?.categorySlug) index[entry.familyCode] = entry;
+        }
+        setLiveFamilyMenuIndex(index);
+      })
+      .catch(() => {
+        // The checked-in approved mapping remains a safe read-only fallback.
+      });
+    return () => { active = false; };
+  }, [catalogVersion]);
+  const displayCatalogProducts = useMemo(
+    () => allCatalogProducts.map((product) => {
+      if (directSkuCodeSet.has(product.code)) return product;
+      const assignment = liveFamilyMenuIndex[product.code] || getFamilyMenuAssignment(product);
+      return {
+        ...product,
+        submenu: assignment.submenuName || product.submenu,
+        subcategory: assignment.leafName || assignment.submenuName || product.subcategory,
+      };
+    }),
+    [allCatalogProducts, directSkuCodeSet, liveFamilyMenuIndex],
+  );
   const managedCategories = useMemo(
     () => getManagedCategories().filter((category) => category.active !== false),
     [catalogVersion],
@@ -174,8 +265,8 @@ export const ProductsPage: React.FC = () => {
 
   // Total products with official uploaded catalogue images
   const countWithImages = useMemo(() => {
-    return allProducts.filter((p) => p.hasCatalogueImage).length;
-  }, [allProducts]);
+    return allCatalogProducts.filter((p) => p.hasCatalogueImage).length;
+  }, [allCatalogProducts]);
 
   // Synchronize category state if URL changes
   useEffect(() => {
@@ -198,38 +289,34 @@ export const ProductsPage: React.FC = () => {
     navigate(`/category/${BELT_CATEGORY_SLUG}${query ? `?${query}` : ""}`, { replace: true });
   }, [categoryParam, subParam, queryParam, searchParams, navigate]);
 
-  // Available brands in the entire catalog
+  // First resolve the real category/subcategory scope, then derive its brand facet.
+  const categoryScopedProducts = useMemo(
+    () => displayCatalogProducts.filter((product) =>
+      matchesProductMenuSelection(product, selectedCategory, selectedSubcategory, liveFamilyMenuIndex),
+    ),
+    [displayCatalogProducts, selectedCategory, selectedSubcategory, liveFamilyMenuIndex],
+  );
+
   const allBrands = useMemo(() => {
-    const bSet = new Set<string>();
-    allProducts.forEach((p) => bSet.add(p.brand));
-    return Array.from(bSet).sort();
-  }, [allProducts]);
+    const brands = new Set<string>();
+    categoryScopedProducts.forEach((product) =>
+      getProductDisplayBrands(product).forEach((brand) => brands.add(brand)),
+    );
+    return Array.from(brands).sort((a, b) => a.localeCompare(b, "fa"));
+  }, [categoryScopedProducts]);
 
   // Active category object
   const activeCategoryObj = useMemo(() => {
     return findCatalogCategory(selectedCategory);
   }, [selectedCategory]);
 
-  // Filtered products
+  // Filtered families and direct SKU records share one result collection.
   const filteredProducts = useMemo(() => {
-    let result = [...allProducts];
+    let result = [...categoryScopedProducts];
 
-    // Match the selected branch together with all of its descendants.
-    if (selectedCategory === "swr-forza-exclusive") {
-      result = result.filter(
-        (p) => p.brand.includes("SWR") || p.brand.includes("FORZA"),
-      );
-    } else if (selectedCategory !== "all") {
-      result = result.filter((p) =>
-        matchesCatalogCategory(p, selectedCategory, selectedSubcategory),
-      );
-    } else if (selectedSubcategory !== "all") {
-      result = result.filter((p) => p.subcategory === selectedSubcategory);
-    }
-
-    // 3. Brand Filter
+    // 3. Brand Filter uses the actual family/SKU brand fields, never placeholders.
     if (selectedBrand !== "all") {
-      result = result.filter((p) => p.brand === selectedBrand);
+      result = result.filter((product) => productHasDisplayBrand(product, selectedBrand));
     }
 
     // 4. In-Stock Filter
@@ -251,7 +338,7 @@ export const ProductsPage: React.FC = () => {
           p.code.toLowerCase().includes(q) ||
           p.name.toLowerCase().includes(q) ||
           (p.nameEn && p.nameEn.toLowerCase().includes(q)) ||
-          p.brand.toLowerCase().includes(q) ||
+          getProductDisplayBrands(p).join(" ").toLowerCase().includes(q) ||
           p.subcategory.toLowerCase().includes(q) ||
           p.categoryName.toLowerCase().includes(q) ||
           (p.tags && p.tags.some((t) => t.toLowerCase().includes(q))) ||
@@ -285,7 +372,7 @@ export const ProductsPage: React.FC = () => {
 
     return result;
   }, [
-    allProducts,
+    categoryScopedProducts,
     selectedCategory,
     selectedSubcategory,
     selectedBrand,
@@ -372,7 +459,7 @@ export const ProductsPage: React.FC = () => {
     (searchQuery.trim() ? 1 : 0);
 
   if (selectedCategory === "پولی-و-انتقال-نیرو") {
-    return <PulleyCatalogPage products={allProducts.filter(p => matchesCatalogCategory(p, selectedCategory))} />;
+    return <PulleyCatalogPage products={allCatalogProducts.filter(p => matchesCatalogCategory(p, selectedCategory) || /^excel-v2-4-[0-9]+$/.test(p.categorySlug))} directSkuCodes={directSkuCodeSet} />;
   }
 
   return (
@@ -889,7 +976,11 @@ export const ProductsPage: React.FC = () => {
               const isSelectedForCompare = compareCodes.includes(product.code);
               return (
                 <div key={product.code} className="catalogue-product-item-wrap">
-                  <ProductCard product={product} />
+                  <ProductCard
+                    product={product}
+                    detailPath={directSkuCodeSet.has(product.code) ? "/direct-product/" + encodeURIComponent(product.code) : undefined}
+                    disableSiteFallback={directSkuCodeSet.has(product.code)}
+                  />
                   <button
                     type="button"
                     aria-pressed={isSelectedForCompare}
@@ -1002,7 +1093,7 @@ export const ProductsPage: React.FC = () => {
       {/* Floating Compare Dock */}
       {compareCodes.length > 0 && (() => {
         const comparedItems = compareCodes
-          .map((code) => allProducts.find((p) => p.code === code))
+          .map((code) => displayCatalogProducts.find((p) => p.code === code))
           .filter((item): item is Product => Boolean(item));
         const specKeys = Array.from(
           new Set(

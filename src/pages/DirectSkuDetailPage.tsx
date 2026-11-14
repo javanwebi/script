@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ProductImage } from '../components/product/ProductImage';
 import { useDirectSkus } from '../components/catalog/DirectSkuProducts';
+import { resolveDisplayBrand } from '../utils/catalogBrands';
 import { toPersianDigits } from '../utils/formatters';
 
 export default function DirectSkuDetailPage() {
@@ -30,6 +31,7 @@ export default function DirectSkuDetailPage() {
     () => items.find(row => row.skuCode === code),
     [items, code],
   );
+  const brandLabel = item ? resolveDisplayBrand(item.brand, item.name) : '';
 
   const relatedDirectSkus = useMemo(() => {
     if (!item) return [];
@@ -141,16 +143,16 @@ export default function DirectSkuDetailPage() {
                 <Layers className="h-3.5 w-3.5 text-[#E06518]" />
                 <span>کالای ثبت‌شده مستقیم (Direct SKU)</span>
               </span>
-              {item.brand && (
+              {brandLabel && (
                 <span className="rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1 text-[10.5px] font-extrabold text-slate-700">
-                  {item.brand}
+                  {brandLabel}
                 </span>
               )}
             </div>
 
             {item.imageUrl ? (
               <ProductImage
-                src={item.imageUrl}
+                src={item.imageUrl} disableFallback
                 alt={item.name}
                 className="h-full max-h-80 w-full object-contain p-4"
               />
@@ -213,11 +215,11 @@ export default function DirectSkuDetailPage() {
                   گروه:{' '}
                   <strong className="text-slate-800">{item.categoryName}</strong>
                 </span>
-                {item.brand && (
+                {brandLabel && (
                   <>
                     <span>·</span>
                     <span>
-                      برند: <strong className="text-slate-800">{item.brand}</strong>
+                      برند: <strong className="text-slate-800">{brandLabel}</strong>
                     </span>
                   </>
                 )}
@@ -268,10 +270,10 @@ export default function DirectSkuDetailPage() {
                     {item.categoryName} › {item.subcategory || item.submenu}
                   </span>
                 </div>
-                {item.brand && (
+                {brandLabel && (
                   <div className="grid grid-cols-2 gap-3 p-3.5 bg-white">
                     <span className="text-slate-500 font-medium">برند / سازنده</span>
-                    <span className="font-bold text-slate-800">{item.brand}</span>
+                    <span className="font-bold text-slate-800">{brandLabel}</span>
                   </div>
                 )}
                 {(item.technicalSpecs || []).map((spec, i) => (
@@ -360,7 +362,7 @@ export default function DirectSkuDetailPage() {
               >
                 <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-slate-50 p-3 mb-3">
                   {rel.imageUrl ? (
-                    <ProductImage src={rel.imageUrl} alt={rel.name} className="h-full w-full object-contain" />
+                    <ProductImage src={rel.imageUrl} disableFallback alt={rel.name} className="h-full w-full object-contain" />
                   ) : (
                     <ImageIcon className="text-slate-300" size={32} />
                   )}

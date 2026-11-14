@@ -10,7 +10,6 @@ import {
   type EnhancedCategory,
 } from '../data/categories';
 import { getAllProducts } from '../data/mockGenerator';
-import { loadFallbackCatalog } from '../data/catalogFallbackLoader';
 import {
   CATALOG_FAMILY_MENU_ASSIGNMENTS,
   type FamilyMenuAssignment,
@@ -29,7 +28,8 @@ export function ensureCatalogFamiliesLoaded(): Product[] {
   if (existing && existing.length > 0) {
     return existing;
   }
-  return loadFallbackCatalog();
+  // Do not infer live catalogue records from bundled fixtures when PostgreSQL is unavailable.
+  return [];
 }
 
 export function resolveProductPreviewImage(product?: Product): string {

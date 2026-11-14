@@ -29,6 +29,8 @@ import {
 import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { resolveDisplayBrand } from '../components/product/ProductCard';
+import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
+import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { MemberAccess } from '../components/storefront/MemberAccess';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
@@ -85,15 +87,6 @@ const FAMILY_ARTWORK: Record<string, string> = {
   'تسمه گرد پلی اورتان': STORE_ASSETS.subcategories.puWeldedBeltHero,
   'تسمه CRC پنج ضلعی': STORE_ASSETS.subcategories.puWeldedBeltHero,
 };
-
-const HERO_BRAND_LOGOS = [
-  { name: 'Megadyne', tone: 'brand-megadyne' },
-  { name: 'BANDO', tone: 'brand-bando' },
-  { name: 'Continental', tone: 'brand-continental' },
-  { name: 'optibelt', tone: 'brand-optibelt' },
-  { name: 'PowerGrip', tone: 'brand-powergrip' },
-  { name: 'JASON', tone: 'brand-jason' },
-] as const;
 
 const PITCH_GRID_ITEMS = ['8M', '5M', '14M', '3M', 'T10', 'T5', 'XL', 'L', 'H', 'XH', 'A', 'B'] as const;
 
@@ -218,11 +211,12 @@ function FilterFields({
     return combined.length ? combined : [...DEFAULT_PROFILES];
   }, [profiles]);
 
-  const displayBrands = useMemo(() => {
-    const standard = ['Megadyne', 'Bando', 'Continental', 'Optibelt'];
-    const merged = Array.from(new Set([...brands, ...standard]));
-    return merged.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase()));
-  }, [brands, brandSearch]);
+  const displayBrands = useMemo(
+    () => brands.filter(brand =>
+      brand.toLocaleLowerCase('fa-IR').includes(brandSearch.toLocaleLowerCase('fa-IR')),
+    ),
+    [brands, brandSearch],
+  );
 
   return (
     <div className="bce-filter-fields">
@@ -301,7 +295,7 @@ function FilterFields({
         </div>
         <div className="bce-filter-brand-list">
           {displayBrands.slice(0, 10).map(brand => {
-            const count = products.filter(p => p.brand === brand).length;
+            const count = products.filter(product => productHasDisplayBrand(product, brand)).length;
             return (
               <label key={brand}>
                 <span>
@@ -454,42 +448,29 @@ function CatalogCard({
   compareSelected,
   compareDisabled,
   onToggleCompare,
+  detailPath,
+  disableFallbackImage = false,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
+  detailPath?: string;
+  disableFallbackImage?: boolean;
 }) {
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const href = '/product/' + encodeURIComponent(product.code);
+  const href = detailPath || '/product/' + encodeURIComponent(product.code);
   const marked = isInWishlist(product.code);
-  const rawSpecs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value);
-  const derivedPitch =
-    product.code.match(/(?:^|[^A-Z0-9])(\d{1,2}M|T\d+|XL|XH|SPA|SPB|SPC|PK|[A-E])(?=[\s-]?\d)/i)?.[1]?.toUpperCase() ||
-    '8M';
-
-  const cardSpecs = [
-    rawSpecs[0] || { key: 'نوع گام', value: derivedPitch },
-    rawSpecs[1] || {
-      key: 'تعداد دندانه / سایز',
-      value:
-        product.variants && product.variants.length > 1
-          ? `${toPersianDigits(product.variants.length)} سایز`
-          : '۱۵۰ استاندارد',
-    },
-    rawSpecs[2] || { key: 'عرض', value: '۳۰ میلی‌متر' },
-    rawSpecs[3] || {
-      key: 'جنس',
-      value: /پلی|pu/i.test(product.name) ? 'پلی‌یورتان' : 'لاستیکی صنعتی',
-    },
-  ];
+  const cardSpecs = (product.technicalSpecs || [])
+    .filter(spec => spec.key && spec.value)
+    .slice(0, 4);
 
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = referenceArtworkForProduct(product);
+  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   const retailPrice = priceOf(product);
-  const brandLabel = resolveDisplayBrand(product.brand, product.name);
+  const brandLabel = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
 
   return (
     <article className="bce-product-row">
@@ -507,14 +488,15 @@ function CatalogCard({
           {hasSpecificImage ? (
             <ProductImage
               src={product.images?.[0]}
-              fallbackSrc={fallbackArt}
+              fallbackSrc={fallbackArt || undefined}
+              disableFallback={disableFallbackImage}
               alt={product.name}
               thumbnail
               loading="lazy"
               decoding="async"
               onError={() => setImageFailed(true)}
             />
-          ) : (
+          ) : fallbackArt ? (
             <img
               className="bce-product-reference-art"
               src={fallbackArt}
@@ -522,6 +504,10 @@ function CatalogCard({
               loading="lazy"
               decoding="async"
             />
+          ) : (
+            <div className="bce-product-reference-art bce-product-reference-art--empty" role="img" aria-label="تصویر محصول ثبت نشده">
+              تصویر تأییدشده ثبت نشده
+            </div>
           )}
         </Link>
         <button
@@ -548,9 +534,7 @@ function CatalogCard({
       <div className="bce-row-content">
         <div className="bce-row-heading">
           <div className="bce-product-code">
-            <span className="bce-brand-badge" dir="ltr">
-              {brandLabel}
-            </span>
+            {brandLabel && <span className="bce-brand-badge" dir="ltr">{brandLabel}</span>}
             <b dir="ltr">{product.code}</b>
           </div>
         </div>
@@ -560,25 +544,23 @@ function CatalogCard({
         </Link>
 
         <div className="bce-mobile-spec-pill">
-          <span>گام: {cardSpecs[0].value}</span>
-          <span className="bce-mobile-brand-chip" dir="ltr">
-            {brandLabel}
-          </span>
+          <span>{cardSpecs[0] ? `${cardSpecs[0].key}: ${cardSpecs[0].value}` : 'مشخصات فنی ثبت نشده'}</span>
+          {brandLabel && <span className="bce-mobile-brand-chip" dir="ltr">{brandLabel}</span>}
         </div>
 
         <div className="bce-product-specs">
-          {cardSpecs.map((spec, idx) => (
+          {cardSpecs.length ? cardSpecs.map((spec, idx) => (
             <div key={`${spec.key}-${idx}`}>
               <span>{spec.key}:</span>
               <strong>{spec.value}</strong>
             </div>
-          ))}
+          )) : <div><span>مشخصات فنی</span><strong>در انتظار تکمیل اطلاعات</strong></div>}
         </div>
 
         <div className="bce-row-meta">
           <div className="bce-product-availability">
-            <span className="dot in-stock" />
-            {product.stockKnown && product.stock > 0 ? 'موجود در انبار' : 'موجود در انبار'}
+            <span className={`dot ${product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'in-stock' : ''}`} />
+            {product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'موجود در انبار' : 'استعلام موجودی'}
           </div>
           <div className="bce-mobile-price-tag">
             {retailPrice ? `${formatPrice(retailPrice)} تومان` : 'استعلام قیمت'}
@@ -609,17 +591,22 @@ function FeaturedProductCard({
   compareSelected,
   compareDisabled,
   onToggleCompare,
+  detailPath,
+  disableFallbackImage = false,
 }: {
   product: Product;
   compareSelected: boolean;
   compareDisabled: boolean;
   onToggleCompare: (code: string) => void;
+  detailPath?: string;
+  disableFallbackImage?: boolean;
 }) {
-  const href = '/product/' + encodeURIComponent(product.code);
+  const href = detailPath || '/product/' + encodeURIComponent(product.code);
+  const featuredBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = referenceArtworkForProduct(product);
+  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   return (
     <aside className="bce-featured-card" aria-label="محصول پیشنهادی">
@@ -628,14 +615,15 @@ function FeaturedProductCard({
         {hasSpecificImage ? (
           <ProductImage
             src={product.images?.[0]}
-            fallbackSrc={fallbackArt}
+            fallbackSrc={fallbackArt || undefined}
+            disableFallback={disableFallbackImage}
             alt={product.name}
             thumbnail
             loading="lazy"
             decoding="async"
             onError={() => setImageFailed(true)}
           />
-        ) : (
+        ) : fallbackArt ? (
           <img
             className="bce-product-reference-art"
             src={fallbackArt}
@@ -643,12 +631,16 @@ function FeaturedProductCard({
             loading="lazy"
             decoding="async"
           />
+        ) : (
+          <div className="bce-product-reference-art bce-product-reference-art--empty" role="img" aria-label="تصویر محصول ثبت نشده">
+            تصویر تأییدشده ثبت نشده
+          </div>
         )}
       </Link>
       <div className="bce-featured-content">
         <div className="bce-product-code">
           <b dir="ltr">{product.code}</b>
-          <span dir="ltr">{product.brand || 'قطعات صنعتی'}</span>
+          {featuredBrand && <span dir="ltr">{featuredBrand}</span>}
         </div>
         <Link to={href} className="bce-featured-name">
           {product.name}
@@ -670,8 +662,8 @@ function FeaturedProductCard({
           )}
         </div>
         <div className="bce-featured-status">
-          <span className="dot in-stock" />
-          موجود در انبار
+          <span className={`dot ${product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'in-stock' : ''}`} />
+          {product.stockKnown && product.stock > 0 && !product.inquiryOnly ? 'موجود در انبار' : 'استعلام موجودی'}
         </div>
         <div className="bce-featured-actions">
           <div className="bce-member-access">
@@ -701,6 +693,7 @@ export const BeltCategoryExperience: React.FC = () => {
   const selectedFamily = searchParams.get('sub') || 'all';
   const isVbelt = selectedFamily === 'تسمه V-BELT';
   const [revision, setRevision] = useState(0);
+  const directSkuRecords = useDirectSkus(BELT_SLUG, 'excel-v2-1-');
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('default');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -783,35 +776,63 @@ export const BeltCategoryExperience: React.FC = () => {
     () => allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, selectedFamily)),
     [allProducts, selectedFamily],
   );
-  const familyCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    FAMILY_OPTIONS.forEach(item =>
-      counts.set(
-        item.id,
-        allProducts.filter(product => matchesCatalogCategory(product, BELT_SLUG, item.id)).length,
-      ),
-    );
-    return counts;
-  }, [allProducts]);
-  const brands = useMemo(
-    () =>
-      Array.from(new Set(familyProducts.map(p => p.brand).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b),
-      ),
+  const familyCodeSet = useMemo(
+    () => new Set(familyProducts.map(product => product.code.trim().toLowerCase())),
     [familyProducts],
   );
-  const profileOptions = useMemo(() => deriveProfileOptions(familyProducts), [familyProducts]);
+  const directSkuProducts = useMemo(() => {
+    const matchesFamily = (item: { name: string; submenu: string; subcategory: string }) => {
+      if (selectedFamily === 'all') return true;
+      const option = FAMILY_OPTIONS.find(entry => entry.id === selectedFamily);
+      return Boolean(option?.search.test([item.name, item.submenu, item.subcategory].join(' ')));
+    };
+    return directSkuRecords
+      .filter(item => item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug))
+      .filter(matchesFamily)
+      .map(toDirectSkuProduct)
+      .filter(product => !familyCodeSet.has(product.code.trim().toLowerCase()));
+  }, [directSkuRecords, familyCodeSet, selectedFamily]);
+  const directSkuCodes = useMemo(
+    () => new Set(directSkuProducts.map(product => product.code)),
+    [directSkuProducts],
+  );
+  const collectionProducts = useMemo(
+    () => [...familyProducts, ...directSkuProducts],
+    [familyProducts, directSkuProducts],
+  );
+  const familyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    FAMILY_OPTIONS.forEach(option => {
+      const matchingFamilies = allProducts.filter(product =>
+        matchesCatalogCategory(product, BELT_SLUG, option.id),
+      );
+      const familyCodes = new Set(matchingFamilies.map(product => product.code.trim().toLowerCase()));
+      const directSkuCount = directSkuRecords.filter(item =>
+        (item.categorySlug === BELT_SLUG || /^excel-v2-1-[0-9]+$/.test(item.categorySlug)) &&
+        !familyCodes.has(String(item.skuCode || '').trim().toLowerCase()) &&
+        option.search.test([item.name, item.submenu, item.subcategory].join(' ')),
+      ).length;
+      counts.set(option.id, matchingFamilies.length + directSkuCount);
+    });
+    return counts;
+  }, [allProducts, directSkuRecords]);
+  const brands = useMemo(
+    () => Array.from(new Set(collectionProducts.flatMap(product => getProductDisplayBrands(product))))
+      .sort((a, b) => a.localeCompare(b, 'fa')),
+    [collectionProducts],
+  );
+  const profileOptions = useMemo(() => deriveProfileOptions(collectionProducts), [collectionProducts]);
   const showProfileFilter = isVbelt || selectedFamily === 'all' || Boolean(selectedFamily);
-  const hasPrices = familyProducts.some(p => priceOf(p) !== null);
+  const hasPrices = collectionProducts.some(p => priceOf(p) !== null);
 
   const filtered = useMemo(() => {
     const minLength = filters.minimumLength !== '' ? number(filters.minimumLength) : null;
     const maxLength = filters.maximumLength !== '' ? number(filters.maximumLength) : null;
     const minPrice = filters.minimumPrice !== '' ? number(filters.minimumPrice) : null;
     const maxPrice = filters.maximumPrice !== '' ? number(filters.maximumPrice) : null;
-    const selected = familyProducts.filter(product => {
+    const selected = collectionProducts.filter(product => {
       if (search.trim() && !matchesProductSearch(product, search.trim())) return false;
-      if (filters.brands.length && !filters.brands.includes(product.brand)) return false;
+      if (filters.brands.length && !filters.brands.some(brand => productHasDisplayBrand(product, brand))) return false;
       if (filters.profile !== 'all' && !matchesProfile(product, filters.profile)) return false;
       if (filters.inStock && !(product.stockKnown && product.stock > 0)) return false;
       if (filters.quoteOnly && !product.inquiryOnly && priceOf(product) !== null) return false;
@@ -839,22 +860,24 @@ export const BeltCategoryExperience: React.FC = () => {
     if (sortBy === 'price-low') selected.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity));
     if (sortBy === 'price-high') selected.sort((a, b) => (priceOf(b) ?? -Infinity) - (priceOf(a) ?? -Infinity));
     return selected;
-  }, [familyProducts, filters, search, isVbelt, sortBy]);
+  }, [collectionProducts, filters, search, isVbelt, sortBy]);
 
   const pageSize = 24;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const featuredProduct = useMemo(
-    () => filtered.find(product => product.images?.[0]) || filtered[0] || null,
-    [filtered],
+    () => filtered.find(product => !directSkuCodes.has(product.code) && product.images?.[0]) ||
+      filtered.find(product => !directSkuCodes.has(product.code)) ||
+      filtered.find(product => product.images?.[0]) || null,
+    [filtered, directSkuCodes],
   );
   const compareProducts = useMemo(
     () =>
       compareCodes
-        .map(code => allProducts.find(product => product.code === code))
+        .map(code => collectionProducts.find(product => product.code === code))
         .filter((product): product is Product => Boolean(product)),
-    [allProducts, compareCodes],
+    [collectionProducts, compareCodes],
   );
   const comparisonSpecKeys = useMemo(
     () =>
@@ -1015,7 +1038,7 @@ export const BeltCategoryExperience: React.FC = () => {
             value={filters}
             onChange={changeFilters}
             brands={brands}
-            products={familyProducts}
+            products={collectionProducts}
             profiles={profileOptions}
             classic={showProfileFilter}
             hasPrices={hasPrices}
@@ -1052,19 +1075,22 @@ export const BeltCategoryExperience: React.FC = () => {
               </p>
 
               <div className="bce-hero-brands" aria-label="برندهای منتخب تسمه صنعتی">
-                {HERO_BRAND_LOGOS.map(brand => (
+                {brands.slice(0, 6).map(brand => (
                   <button
-                    key={brand.name}
+                    key={brand}
                     type="button"
-                    className={`bce-hero-brand-chip ${brand.tone}`}
+                    className="bce-hero-brand-chip"
+                    aria-pressed={filters.brands.includes(brand)}
                     onClick={() =>
                       changeFilters({
                         ...filters,
-                        brands: filters.brands.includes(brand.name) ? [] : [brand.name],
+                        brands: filters.brands.includes(brand)
+                          ? filters.brands.filter(item => item !== brand)
+                          : [...filters.brands, brand],
                       })
                     }
                   >
-                    {brand.name}
+                    {brand}
                   </button>
                 ))}
               </div>
@@ -1399,6 +1425,8 @@ export const BeltCategoryExperience: React.FC = () => {
                   <CatalogCard
                     key={p.code}
                     product={p}
+                    detailPath={directSkuCodes.has(p.code) ? '/direct-product/' + encodeURIComponent(p.code) : undefined}
+                    disableFallbackImage={directSkuCodes.has(p.code)}
                     compareSelected={compareCodes.includes(p.code)}
                     compareDisabled={compareCodes.length >= 4}
                     onToggleCompare={toggleCompare}
@@ -1456,6 +1484,8 @@ export const BeltCategoryExperience: React.FC = () => {
 
         {featuredProduct && <FeaturedProductCard
             product={featuredProduct}
+            detailPath={directSkuCodes.has(featuredProduct.code) ? '/direct-product/' + encodeURIComponent(featuredProduct.code) : undefined}
+            disableFallbackImage={directSkuCodes.has(featuredProduct.code)}
             compareSelected={compareCodes.includes(featuredProduct.code)}
             compareDisabled={compareCodes.length >= 4}
             onToggleCompare={toggleCompare}
@@ -1725,7 +1755,7 @@ export const BeltCategoryExperience: React.FC = () => {
               <FilterFields value={draft}
                 onChange={setDraft}
                 brands={brands}
-                products={familyProducts}
+                products={collectionProducts}
                 profiles={profileOptions}
                 classic={showProfileFilter}
                 hasPrices={hasPrices}

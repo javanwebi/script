@@ -25,7 +25,8 @@ import {
 import { getAllProducts, subscribeCatalogChanges } from '../data/mockGenerator';
 import { ProductCard, resolveDisplayBrand } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
-import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
+import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, useDirectSkus, type DirectSku } from '../components/catalog/DirectSkuProducts';
+import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
 import { STORE_ASSETS } from '../assets/images';
@@ -686,6 +687,7 @@ const matchesBeltTopWidth = (product: Product | undefined, widthId: string): boo
 
 export const ExcelMenuCategoryPage: React.FC = () => {
   const { slug = '' } = useParams<{ slug: string }>();
+  const directSkus = useDirectSkus(slug);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MenuResponse | null>(null);
   const [status, setStatus] = useState<CatalogueStatus>('loading');
@@ -840,25 +842,60 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   const isVBeltCategory = slug === 'excel-v2-1-2' || Boolean(category && /وی.?بلت|v-belt/i.test(category.name));
   const skuTotal = families.reduce((total, family) => total + Math.max(0, Number(family.skuCount) || 0), 0);
 
-  const familyResolvedBrands = useMemo(() => {
-    const map = new Map<string, string>();
+  const familyBrandLists = useMemo(() => {
+    const map = new Map<string, string[]>();
     families.forEach(family => {
       const product = products.get(family.code);
-      const resolved = resolveDisplayBrand(family.brand || product?.brand, family.name || product?.name);
-      map.set(family.code, resolved);
+      const familyBrand = resolveDisplayBrand(family.brand || product?.brand, family.name || product?.name);
+      const brands = Array.from(new Set([
+        familyBrand,
+        ...(product ? getProductDisplayBrands(product) : []),
+      ].filter(Boolean)));
+      map.set(family.code, brands);
     });
     return map;
   }, [families, products]);
 
+  const familyResolvedBrands = useMemo(() => {
+    const map = new Map<string, string>();
+    familyBrandLists.forEach((brands, code) => map.set(code, brands[0] || ''));
+    return map;
+  }, [familyBrandLists]);
+
+  const selectedFamiliesForFacet = useMemo(() => {
+    const visibleNodes = (category?.children || []).filter(node => node.hidden !== true);
+    return families.filter(family => matchesSelection(family, selection, visibleNodes));
+  }, [families, category?.children, selection]);
+
+  const selectedFamilyCodesForFacet = useMemo(
+    () => new Set(selectedFamiliesForFacet.map(family => family.code.trim().toLowerCase())),
+    [selectedFamiliesForFacet],
+  );
+
+  const directSkusInCategory = useMemo(
+    () => directSkus.filter(item =>
+      item.categorySlug === slug &&
+      directSkuMatchesSubcategory(item, selection) &&
+      !selectedFamilyCodesForFacet.has(item.skuCode.trim().toLowerCase()),
+    ),
+    [directSkus, slug, selection, selectedFamilyCodesForFacet],
+  );
+
   const brandCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    families.forEach(family => {
-      const resolved = familyResolvedBrands.get(family.code) || family.brand;
-      if (!resolved || resolved === 'ثبت نشده' || resolved === 'صنعت پیش' || resolved === 'وارداتی صنعتی') return;
-      counts.set(resolved, (counts.get(resolved) || 0) + 1);
+    const add = (brand: string) => {
+      if (!brand) return;
+      counts.set(brand, (counts.get(brand) || 0) + 1);
+    };
+    selectedFamiliesForFacet.forEach(family =>
+      (familyBrandLists.get(family.code) || []).forEach(add),
+    );
+    directSkusInCategory.forEach(item => {
+      const brand = resolveDisplayBrand(item.brand, item.name);
+      if (brand) add(brand);
     });
     return counts;
-  }, [families, familyResolvedBrands]);
+  }, [selectedFamiliesForFacet, familyBrandLists, directSkusInCategory]);
 
   const availableBrands = useMemo(() => Array.from(brandCounts.keys()).sort((a, b) => {
     const countDiff = (brandCounts.get(b) || 0) - (brandCounts.get(a) || 0);
@@ -972,14 +1009,11 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     const visibleNodes = (category?.children || []).filter(node => node.hidden !== true);
     const list = families.filter(family => {
       if (!matchesSelection(family, selection, visibleNodes)) return false;
-      const resolvedBrand = familyResolvedBrands.get(family.code) || family.brand;
-      if (
-        selectedBrands.length &&
-        !selectedBrands.includes(family.brand) &&
-        !selectedBrands.includes(resolvedBrand)
-      ) {
+      const familyBrands = familyBrandLists.get(family.code) || [];
+      if (selectedBrands.length && !familyBrands.some(brand => selectedBrands.includes(brand))) {
         return false;
       }
+      const resolvedBrand = familyResolvedBrands.get(family.code) || '';
 
       const product = products.get(family.code);
       if (inStockOnly && !(product?.stockKnown === true && product.stock > 0 && !product.inquiryOnly)) return false;
@@ -1061,12 +1095,132 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     orderMode, search, products, sortBy,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredFamilies.length / perPage));
+  const filteredDirectSkus = useMemo(() => {
+    const query = normalizeSearch(search);
+    return directSkusInCategory.filter(item => {
+      const product = toDirectSkuProduct(item);
+      const syntheticFamily: MenuFamily = {
+        code: item.skuCode,
+        name: item.name || item.skuCode,
+        brand: item.brand || '',
+        submenu: item.submenu || null,
+        leaf: item.subcategory || null,
+        skuCount: 1,
+      };
+      if (selectedBrands.length && !selectedBrands.some(brand => productHasDisplayBrand(product, brand))) return false;
+      if (inStockOnly) return false; // Public direct-SKU data has no authoritative stock value.
+      if (imageOnly && !item.imageUrl) return false;
+      if (!matchesTechnicalFilter(product, specKey, specValue)) return false;
+      if (facetToken && !matchesDynamicFacetToken(syntheticFamily, product, facetToken)) return false;
+      if (beltStructure && !matchesBeltStructure(syntheticFamily, product, beltStructure)) return false;
+      if (beltTopWidth && !matchesBeltTopWidth(product, beltTopWidth)) return false;
+      if (lenMin || lenMax || dimMin || dimMax) {
+        const dims = extractNumericDimensions(syntheticFamily, product);
+        if (!matchesDimensionRange(dims, lenMin, lenMax, dimMin, dimMax)) return false;
+      }
+      if (orderMode === 'multi_sku') return false;
+      if (query) {
+        const searchable = normalizeSearch([
+          item.skuCode, item.name, item.brand, item.submenu, item.subcategory,
+          ...(item.technicalSpecs || []).flatMap(spec => [spec.key, spec.value]),
+        ].join(' '));
+        if (!searchable.includes(query)) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name, 'fa');
+      if (sortBy === 'code') return a.skuCode.localeCompare(b.skuCode, undefined, { numeric: true });
+      return a.skuCode.localeCompare(b.skuCode, undefined, { numeric: true });
+    });
+  }, [
+    directSkusInCategory, selectedBrands.join('|'), inStockOnly, imageOnly,
+    specKey, specValue, facetToken, beltStructure, beltTopWidth,
+    lenMin, lenMax, dimMin, dimMax, orderMode, search, sortBy,
+  ]);
+
+  type CollectionItem =
+    | { kind: 'family'; family: MenuFamily }
+    | { kind: 'directSku'; sku: DirectSku };
+  const filteredCollectionItems = useMemo<CollectionItem[]>(() => {
+    const items: CollectionItem[] = [];
+    const seenCodes = new Set<string>();
+    filteredFamilies.forEach(family => {
+      const key = String(family.code || '').trim().toLowerCase();
+      if (!key || seenCodes.has(key)) return;
+      seenCodes.add(key);
+      items.push({ kind: 'family', family });
+    });
+    filteredDirectSkus.forEach(sku => {
+      const key = String(sku.skuCode || '').trim().toLowerCase();
+      if (!key || seenCodes.has(key)) return;
+      seenCodes.add(key);
+      items.push({ kind: 'directSku', sku });
+    });
+    const codeOf = (item: CollectionItem) =>
+      item.kind === 'family' ? item.family.code : item.sku.skuCode;
+    const nameOf = (item: CollectionItem) =>
+      item.kind === 'family' ? item.family.name : item.sku.name;
+    const skuCountOf = (item: CollectionItem) =>
+      item.kind === 'family' ? Math.max(0, item.family.skuCount) : 1;
+    const productOf = (item: CollectionItem) =>
+      item.kind === 'family'
+        ? products.get(item.family.code)
+        : toDirectSkuProduct(item.sku);
+    const brandOf = (item: CollectionItem) => {
+      if (item.kind === 'family') {
+        return familyResolvedBrands.get(item.family.code) ||
+          resolveDisplayBrand(item.family.brand, item.family.name);
+      }
+      return resolveDisplayBrand(item.sku.brand, item.sku.name);
+    };
+
+    if (sortBy === 'name') {
+      items.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fa'));
+    } else if (sortBy === 'code') {
+      items.sort((a, b) => codeOf(a).localeCompare(codeOf(b), undefined, { numeric: true }));
+    } else if (sortBy === 'sku_desc') {
+      items.sort((a, b) => skuCountOf(b) - skuCountOf(a));
+    } else if (sortBy === 'stock_desc') {
+      items.sort((a, b) => {
+        const aProduct = productOf(a);
+        const bProduct = productOf(b);
+        const aStock = aProduct?.stockKnown === true && !aProduct.inquiryOnly ? aProduct.stock : -1;
+        const bStock = bProduct?.stockKnown === true && !bProduct.inquiryOnly ? bProduct.stock : -1;
+        return bStock - aStock;
+      });
+    } else {
+      items.sort((a, b) => {
+        const aName = nameOf(a);
+        const bName = nameOf(b);
+        const aIsPulley = /پولی|چرخ|فلکه/i.test(aName) ? 1 : 0;
+        const bIsPulley = /پولی|چرخ|فلکه/i.test(bName) ? 1 : 0;
+        if (aIsPulley !== bIsPulley) return aIsPulley - bIsPulley;
+        const aIsGeneric = /عمومی/i.test(aName) ? 1 : 0;
+        const bIsGeneric = /عمومی/i.test(bName) ? 1 : 0;
+        if (aIsGeneric !== bIsGeneric) return aIsGeneric - bIsGeneric;
+        const aProduct = productOf(a);
+        const bProduct = productOf(b);
+        const aHasProfile = (aProduct?.technicalSpecs || []).some(spec => /پروفیل|عرض/i.test(spec.key)) ? 1 : 0;
+        const bHasProfile = (bProduct?.technicalSpecs || []).some(spec => /پروفیل|عرض/i.test(spec.key)) ? 1 : 0;
+        if (aHasProfile !== bHasProfile) return bHasProfile - aHasProfile;
+        const aNamedBrand = brandOf(a) ? 1 : 0;
+        const bNamedBrand = brandOf(b) ? 1 : 0;
+        if (aNamedBrand !== bNamedBrand) return bNamedBrand - aNamedBrand;
+        const aMulti = a.kind === 'family' && a.family.skuCount > 1 ? 1 : 0;
+        const bMulti = b.kind === 'family' && b.family.skuCount > 1 ? 1 : 0;
+        if (aMulti !== bMulti) return bMulti - aMulti;
+        return skuCountOf(b) - skuCountOf(a);
+      });
+    }
+    return items;
+  }, [filteredFamilies, filteredDirectSkus, sortBy, products, familyResolvedBrands]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCollectionItems.length / perPage));
   const currentPage = Math.min(requestedPage, totalPages);
   const startIndex = (currentPage - 1) * perPage;
-  const pageFamilies = filteredFamilies.slice(startIndex, startIndex + perPage);
-  const rangeStart = filteredFamilies.length ? startIndex + 1 : 0;
-  const rangeEnd = Math.min(filteredFamilies.length, startIndex + pageFamilies.length);
+  const pageItems = filteredCollectionItems.slice(startIndex, startIndex + perPage);
+  const rangeStart = filteredCollectionItems.length ? startIndex + 1 : 0;
+  const rangeEnd = Math.min(filteredCollectionItems.length, startIndex + pageItems.length);
   const paginationTokens = useMemo(
     () => buildPaginationWindow(currentPage, totalPages),
     [currentPage, totalPages],
@@ -1804,12 +1958,10 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                 </div>
 
                 <span className="excel-toolbar-counter">
-                  نمایش {toPersianDigits(rangeStart)} تا {toPersianDigits(rangeEnd)} از {toPersianDigits(filteredFamilies.length)} محصول
+                  نمایش {toPersianDigits(rangeStart)} تا {toPersianDigits(rangeEnd)} از {toPersianDigits(filteredCollectionItems.length)} محصول
                 </span>
               </div>
             </div>
-
-            <DirectSkuProducts categorySlug={slug} selectedSub={selection || 'all'} />
 
             {activeFilterCount > 0 && (
               <div className="excel-category-active-filters" aria-label="فیلترهای فعال">
@@ -1895,7 +2047,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               </div>
             )}
 
-            {filteredFamilies.length === 0 ? (
+            {filteredCollectionItems.length === 0 ? (
               <div className="excel-category-empty">
                 <span><Search size={24} /></span>
                 <h3>محصولی با این مشخصات پیدا نشد</h3>
@@ -1907,7 +2059,18 @@ export const ExcelMenuCategoryPage: React.FC = () => {
               </div>
             ) : (
               <div className={`excel-category-product-grid ${viewMode === 'list' ? 'is-list' : ''}`}>
-                {pageFamilies.map(family => {
+                {pageItems.map(entry => {
+                  if (entry.kind === 'directSku') {
+                    return (
+                      <div className="excel-category-product-shell" key={`direct-${entry.sku.skuCode}`}>
+                        <DirectSkuProductCard
+                          item={entry.sku}
+                          variant={viewMode === 'list' ? 'excel-list' : 'excel-grid'}
+                        />
+                      </div>
+                    );
+                  }
+                  const family = entry.family;
                   const product = products.get(family.code);
                   const previewImage = productPreviewImage(product);
                   const resolvedBrand = familyResolvedBrands.get(family.code) || resolveDisplayBrand(family.brand, family.name);
@@ -1967,7 +2130,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                             </Link>
                             <div className="excel-card-specs">
                               <span className="excel-card-spec-item">
-                                <em>برند:</em> <b>{resolvedBrand}</b>
+                                <em>برند:</em> <b>{resolvedBrand || 'ثبت نشده'}</b>
                               </span>
                               <span className="excel-card-spec-sep" aria-hidden="true">|</span>
                               <span className="excel-card-spec-item">
@@ -1987,7 +2150,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                             </Link>
                             <div className="excel-card-footer">
                               <span className="excel-card-meta-brand" dir="ltr">
-                                {resolvedBrand} · {family.code}
+                                {resolvedBrand ? `${resolvedBrand} · ` : ''}{family.code}
                               </span>
                               {compareControl}
                             </div>

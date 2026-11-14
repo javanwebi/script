@@ -56,3 +56,18 @@ test('catalogue styling has deliberate desktop, tablet, mobile and reduced-motio
   assert.match(styles, /prefers-reduced-motion: reduce/);
   assert.match(styles, /overflow: hidden/);
 });
+
+test('all-products results use live family-to-subcategory assignments and include direct SKU records in the same grid', () => {
+  assert.match(page, /\/api\/catalog\/menu-family-index/);
+  assert.match(page, /const allCatalogProducts = useMemo/);
+  assert.match(page, /const categoryScopedProducts = useMemo/);
+  assert.match(page, /matchesProductMenuSelection/);
+  assert.match(page, /directSkuCodeSet\.has\(product\.code\)/);
+  assert.match(page, /detailPath=\{directSkuCodeSet\.has/);
+});
+
+test('all-products brand options and filtering are scoped to real family and SKU manufacturer fields', () => {
+  assert.match(page, /getProductDisplayBrands\(product\)/);
+  assert.match(page, /productHasDisplayBrand\(product, selectedBrand\)/);
+  assert.doesNotMatch(page, /p\.brand === selectedBrand/);
+});

@@ -6,8 +6,9 @@ import {
 } from '../data/mockGenerator';
 import { getManagedCategories } from '../data/categories';
 import { ProductCard } from '../components/product/ProductCard';
-import { ProductImage } from '../components/product/ProductImage';
-import { useDirectSkus } from '../components/catalog/DirectSkuProducts';
+import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
+import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
+import type { Product } from '../types';
 import {
   Search,
   ChevronLeft,
@@ -85,24 +86,43 @@ export const SearchPage: React.FC = () => {
     return searchProducts(queryParam, 240);
   }, [queryParam, catalogVersion]);
 
+  const directSkuQueryMatches = useMemo(() => {
+    const q = queryParam.trim().toLowerCase();
+    if (!q) return [];
+    return directSkus.filter(item => {
+      if (selectedCategory !== 'all' && item.categorySlug !== selectedCategory) return false;
+      if (onlyWithImage && !item.imageUrl) return false;
+      if (onlyInStock) return false; // Direct SKU endpoint has no authoritative stock field.
+      const specText = (item.technicalSpecs || []).map(spec => `${spec.key} ${spec.value}`).join(' ');
+      const haystack = [
+        item.skuCode, item.name, item.categoryName, item.submenu,
+        item.subcategory, item.brand, specText,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    }).slice(0, 24);
+  }, [directSkus, queryParam, selectedCategory, onlyWithImage, onlyInStock]);
+
   const availableBrands = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const item of rawResults) {
-      const brand = (item.brand || '').trim();
-      if (!brand) continue;
+    const add = (brand: string) => {
+      if (!brand) return;
       counts.set(brand, (counts.get(brand) || 0) + 1);
-    }
+    };
+    rawResults.forEach(product => getProductDisplayBrands(product).forEach(add));
+    directSkuQueryMatches.forEach(item =>
+      getProductDisplayBrands(toDirectSkuProduct(item)).forEach(add),
+    );
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([brand, count]) => ({ brand, count }));
-  }, [rawResults]);
+  }, [rawResults, directSkuQueryMatches]);
 
   const filteredResults = useMemo(() => {
     const list = rawResults.filter(product => {
       if (selectedCategory !== 'all' && product.category !== selectedCategory) {
         return false;
       }
-      if (selectedBrand !== 'all' && product.brand !== selectedBrand) {
+      if (selectedBrand !== 'all' && !productHasDisplayBrand(product, selectedBrand)) {
         return false;
       }
       if (onlyInStock && !(product.stockKnown === true && product.stock > 0 && !product.inquiryOnly)) {
@@ -130,39 +150,42 @@ export const SearchPage: React.FC = () => {
     return list;
   }, [rawResults, selectedCategory, selectedBrand, onlyInStock, onlyWithImage, sortBy]);
 
-  const matchingDirectSkus = useMemo(() => {
-    const q = queryParam.trim().toLowerCase();
-    if (!q) return [];
-    return directSkus
-      .filter(item => {
-        if (selectedCategory !== 'all' && item.categorySlug !== selectedCategory) {
-          return false;
-        }
-        if (selectedBrand !== 'all' && item.brand !== selectedBrand) {
-          return false;
-        }
-        if (onlyWithImage && !item.imageUrl) {
-          return false;
-        }
-        const specText = (item.technicalSpecs || [])
-          .map(s => `${s.key} ${s.value}`)
-          .join(' ');
-        const haystack = [
-          item.skuCode,
-          item.name,
-          item.categoryName,
-          item.submenu,
-          item.subcategory,
-          item.brand,
-          specText,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(q);
-      })
-      .slice(0, 24);
-  }, [directSkus, queryParam, selectedCategory, selectedBrand, onlyWithImage]);
+  const matchingDirectSkus = useMemo(
+    () => directSkuQueryMatches.filter(item =>
+      selectedBrand === 'all' || productHasDisplayBrand(toDirectSkuProduct(item), selectedBrand),
+    ),
+    [directSkuQueryMatches, selectedBrand],
+  );
+
+  const combinedResults = useMemo(() => {
+    const items: Array<{ product: Product; directSkuCode?: string }> = [];
+    const seen = new Set<string>();
+    filteredResults.forEach(product => {
+      const key = product.code.trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      items.push({ product });
+    });
+    matchingDirectSkus.forEach(item => {
+      const key = item.skuCode.trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      items.push({ product: toDirectSkuProduct(item), directSkuCode: item.skuCode });
+    });
+
+    if (sortBy === 'code_asc') {
+      items.sort((a, b) => a.product.code.localeCompare(b.product.code, 'en', { numeric: true }));
+    } else if (sortBy === 'name_asc') {
+      items.sort((a, b) => a.product.name.localeCompare(b.product.name, 'fa'));
+    } else if (sortBy === 'stock_desc') {
+      items.sort((a, b) => {
+        const aStock = a.product.stockKnown && !a.product.inquiryOnly ? a.product.stock : -1;
+        const bStock = b.product.stockKnown && !b.product.inquiryOnly ? b.product.stock : -1;
+        return bStock - aStock;
+      });
+    }
+    return items;
+  }, [filteredResults, matchingDirectSkus, sortBy]);
 
   const updateQueryParam = (nextQuery: string, nextCat = selectedCategory, nextBrand = selectedBrand) => {
     const params: Record<string, string> = {};
@@ -200,7 +223,7 @@ export const SearchPage: React.FC = () => {
     onlyWithImage ||
     sortBy !== 'relevance';
 
-  const totalCombinedCount = filteredResults.length + matchingDirectSkus.length;
+  const totalCombinedCount = combinedResults.length;
 
   const selectedCategoryName = useMemo(() => {
     if (selectedCategory === 'all') return null;
@@ -622,97 +645,32 @@ export const SearchPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Family / Catalogue Products */}
-          {filteredResults.length > 0 && (
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-[#CBD2D8] pb-3">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-[#E06518]" />
-                  <h2 className="text-base font-black text-[#23262B]">
-                    خانواده‌ها و قطعات کاتالوگ اصلی
-                  </h2>
-                </div>
-                <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-[#55565A]">
-                  {toPersianDigits(filteredResults.length)} مورد
-                </span>
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-[#CBD2D8] pb-3">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-[#E06518]" />
+                <h2 className="text-base font-black text-[#23262B]">نتایج یکپارچه کاتالوگ</h2>
               </div>
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-bold text-[#55565A]">
+                {toPersianDigits(combinedResults.length)} کالا
+              </span>
+            </div>
 
-              <div
-                className={
-                  viewMode === 'grid'
-                    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                    : 'grid grid-cols-1 gap-3 md:grid-cols-2'
-                }
-              >
-                {filteredResults.map(product => (
-                  <ProductCard key={product.code} product={product} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Direct SKU Results */}
-          {matchingDirectSkus.length > 0 && (
-            <section className="space-y-4 rounded-2xl border border-[#CBD2D8] bg-white p-5 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                <div>
-                  <h2 className="text-base font-black text-[#23262B]">
-                    ردیف‌های مستقیم کالایی (SKU) منطبق با جستجو
-                  </h2>
-                  <p className="text-xs text-[#777A7D]">
-                    قطعات و سایزهای تفکیک‌شده از بانک جامع کالاهای صنعتی
-                  </p>
-                </div>
-                <span className="rounded-lg bg-[#FFF5EE] border border-[#E06518]/30 px-3 py-1 font-mono text-xs font-extrabold text-[#C95210]">
-                  {toPersianDigits(matchingDirectSkus.length)} ردیف کالا
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {matchingDirectSkus.map(sku => (
-                  <Link
-                    key={sku.skuCode}
-                    to={`/direct-product/${encodeURIComponent(sku.skuCode)}`}
-                    className="group flex items-center gap-3.5 rounded-xl border border-slate-200 bg-[#F8FAFC] p-3 transition-all hover:border-[#E06518] hover:bg-white hover:shadow-sm"
-                  >
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1">
-                      {sku.imageUrl ? (
-                        <ProductImage
-                          src={sku.imageUrl}
-                          alt={sku.name}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <ImageIcon className="h-6 w-6 text-slate-300" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-[11px] font-bold text-[#E06518]">
-                          {sku.skuCode}
-                        </span>
-                        {sku.brand && (
-                          <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-bold text-[#55565A]">
-                            {sku.brand}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="truncate text-xs font-extrabold text-[#23262B] group-hover:text-[#E06518]">
-                        {sku.name}
-                      </h3>
-                      <div className="flex items-center justify-between text-[11px] text-[#777A7D]">
-                        <span className="truncate">
-                          {sku.categoryName}
-                          {sku.subcategory || sku.submenu ? ` / ${sku.subcategory || sku.submenu}` : ''}
-                        </span>
-                        <ArrowUpLeft className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-[#E06518]" />
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
+            <div className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                : 'grid grid-cols-1 gap-3 md:grid-cols-2'
+            }>
+              {combinedResults.map(item => (
+                <ProductCard
+                  key={item.product.code}
+                  product={item.product}
+                  detailPath={item.directSkuCode ? `/direct-product/${encodeURIComponent(item.directSkuCode)}` : undefined}
+                  disableSiteFallback={Boolean(item.directSkuCode)}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </div>

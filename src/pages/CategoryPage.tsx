@@ -10,7 +10,8 @@ import { Navigate, useLocation, useParams, Link, useSearchParams } from 'react-r
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
-import { DirectSkuProducts } from '../components/catalog/DirectSkuProducts';
+import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
+import { getProductDisplayBrands, productHasDisplayBrand, resolveDisplayBrand } from '../utils/catalogBrands';
 import { getProductsByCategory } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
@@ -50,14 +51,14 @@ export const CategoryPage: React.FC = () => {
     if (slug !== canonicalBeltSlug) {
       return <Navigate to={`/category/${canonicalBeltSlug}${location.search}${location.hash}`} replace />;
     }
-    return <><BeltCategoryExperience /><DirectSkuProducts categorySlug={canonicalBeltSlug} selectedSub={new URLSearchParams(location.search).get('sub')||'all'}/></>;
+    return <BeltCategoryExperience />;
   }
   const canonicalPulleySlug = categorySlugFor('پولی و انتقال نیرو');
   if (resolveCategorySlug(slug || '') === canonicalPulleySlug) {
     if (slug !== canonicalPulleySlug) {
       return <Navigate to={`/category/${canonicalPulleySlug}${location.search}${location.hash}`} replace />;
     }
-    return <><PulleyCategoryRoute /><DirectSkuProducts categorySlug={canonicalPulleySlug} selectedSub={new URLSearchParams(location.search).get('sub')||'all'}/></>;
+    return <PulleyCategoryRoute />;
   }
   return <LegacyCategoryPage />;
 };
@@ -66,16 +67,24 @@ export const CategoryPage: React.FC = () => {
 const PulleyCategoryRoute: React.FC = () => {
   const [, refresh] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => refresh(value => value + 1)), []);
-  const products = getProductsByCategory(categorySlugFor('پولی و انتقال نیرو'), 5000, 0).products;
-  return <PulleyCatalogPage products={products} />;
+  const pulleySlug = categorySlugFor('پولی و انتقال نیرو');
+  const products = getProductsByCategory(pulleySlug, 5000, 0).products;
+  const directSkus = useDirectSkus(pulleySlug, 'excel-v2-4-');
+  const familyCodes = new Set(products.map(product => product.code.trim().toLowerCase()));
+  const directSkuProducts = directSkus
+    .filter(item => item.categorySlug === categorySlugFor('پولی و انتقال نیرو') || /^excel-v2-4-[0-9]+$/.test(item.categorySlug))
+    .map(toDirectSkuProduct)
+    .filter(product => !familyCodes.has(product.code.trim().toLowerCase()));
+  const directSkuCodes = new Set(directSkuProducts.map(product => product.code));
+  return <PulleyCatalogPage products={[...products, ...directSkuProducts]} directSkuCodes={directSkuCodes} />;
 };
 
 const LegacyCategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
+  const directSkuRecords = useDirectSkus(category.slug);
   const [catalogRevision, setCatalogRevision] = useState(0);
   useEffect(() => subscribeCatalogChanges(() => setCatalogRevision(value => value + 1)), []);
-
-  const category = findCatalogCategory(slug || '') || CATEGORIES[0];
   const [searchParams, setSearchParams] = useSearchParams();
   const subParam = searchParams.get('sub') || 'all';
 
@@ -148,21 +157,43 @@ const LegacyCategoryPage: React.FC = () => {
     return getProductsByCategory(category.slug, 1000, 0);
   }, [category.slug, catalogRevision]);
 
-  // Extract unique brands for filtering
+  const directSkuProducts = useMemo(() => {
+    const familyCodes = new Set(rawData.products.map(product => product.code.trim().toLowerCase()));
+    return directSkuRecords
+      .filter(item => item.categorySlug === category.slug)
+      .map(toDirectSkuProduct)
+      .filter(product => !familyCodes.has(product.code.trim().toLowerCase()));
+  }, [directSkuRecords, category.slug, rawData.products]);
+  const directSkuCodes = useMemo(
+    () => new Set(directSkuProducts.map(product => product.code)),
+    [directSkuProducts],
+  );
+  const categoryProducts = useMemo(
+    () => [...rawData.products, ...directSkuProducts],
+    [rawData.products, directSkuProducts],
+  );
+
+  // Derive brand facets from the currently selected subcategory, not the whole category.
+  const brandFacetProducts = useMemo(
+    () => selectedSubcat === 'all'
+      ? categoryProducts
+      : categoryProducts.filter(product => matchesCatalogCategory(product, category.slug, selectedSubcat)),
+    [categoryProducts, category.slug, selectedSubcat],
+  );
   const availableBrands = useMemo(() => {
-    const brandsSet = new Set<string>();
-    rawData.products.forEach(p => {
-      if (p.brand) brandsSet.add(p.brand);
-    });
-    return Array.from(brandsSet);
-  }, [rawData]);
+    const brands = new Set<string>();
+    brandFacetProducts.forEach(product =>
+      getProductDisplayBrands(product).forEach(brand => brands.add(brand)),
+    );
+    return Array.from(brands).sort((a, b) => a.localeCompare(b, 'fa'));
+  }, [brandFacetProducts]);
 
   // Visual subcategory cards with representative image and item count
   const visualSubcategories = useMemo(() => {
     const nodes = (category.children || []).filter(node => node.hidden !== true);
     return nodes.slice(0, 8).map(node => {
       const value = node.value || node.name;
-      const matching = rawData.products.filter(p => matchesCatalogCategory(p, category.slug, value));
+      const matching = categoryProducts.filter(p => matchesCatalogCategory(p, category.slug, value));
       const sampleImage = matching.find(p => p.images?.length)?.images?.[0] || category.image;
       return {
         name: node.name,
@@ -171,7 +202,7 @@ const LegacyCategoryPage: React.FC = () => {
         image: sampleImage,
       };
     });
-  }, [category, rawData.products]);
+  }, [category, categoryProducts]);
 
   const toggleCompareProduct = (code: string) => {
     setCompareCodes(prev => {
@@ -183,9 +214,9 @@ const LegacyCategoryPage: React.FC = () => {
 
   const comparedProducts = useMemo(
     () => compareCodes
-      .map(code => rawData.products.find(p => p.code === code))
+      .map(code => categoryProducts.find(p => p.code === code))
       .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-    [compareCodes, rawData.products],
+    [compareCodes, categoryProducts],
   );
 
   const comparedSpecKeys = useMemo(() => {
@@ -200,7 +231,7 @@ const LegacyCategoryPage: React.FC = () => {
 
   // Filter and sort
   const filteredProducts = useMemo(() => {
-    let list = [...rawData.products];
+    let list = [...categoryProducts];
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -227,9 +258,9 @@ const LegacyCategoryPage: React.FC = () => {
         return length !== null && (min === null || length >= min) && (max === null || length <= max);
       });
     }
-    if (selectedBrands.length) list = list.filter(p => selectedBrands.includes(p.brand));
+    if (selectedBrands.length) list = list.filter(p => selectedBrands.some(brand => productHasDisplayBrand(p, brand)));
     if (selectedBrand !== 'all') {
-      list = list.filter(p => p.brand === selectedBrand);
+      list = list.filter(p => productHasDisplayBrand(p, selectedBrand));
     }
     if (inStockOnly) {
       list = list.filter(p => p.stock > 0 && !p.inquiryOnly);
@@ -247,7 +278,7 @@ const LegacyCategoryPage: React.FC = () => {
     }
 
     return list;
-  }, [rawData, category.slug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
+  }, [categoryProducts, category.slug, searchQuery, selectedSubcat, selectedBrand, selectedBrands, inStockOnly, inquiryOnlyFilter, sortBy, selectedProfile, minLength, maxLength, isClassicBelt]);
 
   const paginated = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
@@ -270,7 +301,6 @@ const LegacyCategoryPage: React.FC = () => {
 
   return (
     <div className="category-showcase space-y-8 text-right pb-16" dir="rtl">
-      <DirectSkuProducts categorySlug={category.slug} selectedSub={selectedSubcat}/>
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
         <Link to="/" className="hover:text-[#E06518] transition-colors">
@@ -312,7 +342,7 @@ const LegacyCategoryPage: React.FC = () => {
               {label:'گرد پلی‌یورتان',value:'تسمه گرد پلی اورتان',matcher:/گرد/},
               {label:'CRC پنج‌ضلعی',value:'تسمه CRC پنج ضلعی',matcher:/CRC/},
             ].map((item) => {
-              const image = rawData.products.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
+              const image = categoryProducts.find(p => item.matcher.test([p.subcategory,p.submenu,p.name].join(' ')) && p.images?.length)?.images?.[0];
               return <button type="button" key={item.value} aria-pressed={selectedSubcat === item.value}
                 onClick={()=>selectSubcategory(item.value)} className={`flex h-20 items-center justify-between gap-1 overflow-hidden rounded-xl border px-3 text-xs font-extrabold transition-colors md:h-24 ${selectedSubcat===item.value ? 'border-[#E06518] bg-orange-50 text-[#E06518]' : 'border-slate-100 bg-[#f5f6f7] hover:border-orange-300'}`}>
                 <span>{item.label}</span>
@@ -379,7 +409,7 @@ const LegacyCategoryPage: React.FC = () => {
               <div className="flex items-center gap-4 self-start lg:self-center">
                 <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3.5">
                   <div className="px-2.5 text-center border-l border-slate-200">
-                    <div className="text-lg md:text-xl font-black text-[#E56B1E]">{toPersianDigits(rawData.products.length)}</div>
+                    <div className="text-lg md:text-xl font-black text-[#E56B1E]">{toPersianDigits(categoryProducts.length)}</div>
                     <div className="text-[10px] font-bold text-slate-500">کالا / خانواده</div>
                   </div>
                   <div className="px-2.5 text-center border-l border-slate-200">
@@ -642,7 +672,7 @@ const LegacyCategoryPage: React.FC = () => {
               <fieldset className="space-y-3 border-t border-slate-100 pt-3">
                 <legend className="text-xs font-extrabold text-slate-800">برند</legend>
                 {availableBrands.map(brand => <label key={brand} className="flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-700">
-                  <span>{brand} <span className="text-slate-400">({toPersianDigits(rawData.products.filter(p=>p.brand===brand).length)})</span></span>
+                  <span>{brand} <span className="text-slate-400">({toPersianDigits(brandFacetProducts.filter(p=>productHasDisplayBrand(p,brand)).length)})</span></span>
                   <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={e=>{setSelectedBrands(previous=>e.target.checked?[...previous,brand]:previous.filter(v=>v!==brand));setPage(1);}} className="h-4 w-4 accent-[#E06518]"/>
                 </label>)}
               </fieldset>
@@ -716,11 +746,11 @@ const LegacyCategoryPage: React.FC = () => {
                   const isCompared = compareCodes.includes(product.code);
                   return isBeltCategory ? (
                     <article key={product.code} className="category-premium-card flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
-                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
-                        <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
+                      <Link to={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : `/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
+                        <ProductImage src={product.images?.[0]} alt={product.name} disableFallback={directSkuCodes.has(product.code)} thumbnail loading="lazy" decoding="async"/>
                       </Link>
-                      <div className="category-sku-head"><strong dir="ltr">{product.code}</strong><span dir="ltr">{product.brand || 'صنعت پیش'}</span></div>
-                      <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-title">{product.name}</Link>
+                      <div className="category-sku-head"><strong dir="ltr">{product.code}</strong>{(resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0]) && <span dir="ltr">{resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0]}</span>}</div>
+                      <Link to={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : `/product/${encodeURIComponent(product.code)}`} className="category-sku-title">{product.name}</Link>
                       <p className="category-sku-family"><Layers size={13}/>{product.subcategory}</p>
                       <dl className="category-sku-specs">
                         {(product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0,2).map(spec=><div key={spec.key}><dt>{spec.key}</dt><dd>{spec.value}</dd></div>)}
@@ -728,7 +758,7 @@ const LegacyCategoryPage: React.FC = () => {
                       </dl>
                       <div className="category-sku-status"><span className={product.stockKnown && product.stock > 0 ? 'available' : 'unconfirmed'}></span>{product.stockKnown && product.stock > 0 ? 'موجودی ثبت‌شده' : 'استعلام موجودی و قیمت'}</div>
                       <div className="category-sku-actions">
-                        <Link to={`/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link>
+                        <Link to={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : `/product/${encodeURIComponent(product.code)}`} className="category-sku-cta">جزئیات و استعلام <ChevronLeft size={17}/></Link>
                         <button
                           type="button"
                           aria-pressed={isCompared}
@@ -742,7 +772,7 @@ const LegacyCategoryPage: React.FC = () => {
                     </article>
                   ) : (
                     <div key={product.code} className="relative flex flex-col">
-                      <ProductCard product={product}/>
+                      <ProductCard product={product} detailPath={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : undefined} disableSiteFallback={directSkuCodes.has(product.code)}/>
                       <button
                         type="button"
                         aria-pressed={isCompared}
