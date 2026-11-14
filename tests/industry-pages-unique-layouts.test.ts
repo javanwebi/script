@@ -17,9 +17,10 @@ const app = read("src/App.tsx");
 const home = read("src/pages/HomePage.tsx");
 const details = read("src/data/industryPageDetails.ts");
 const stageCatalogSource = read("src/data/industryStageCatalog.ts");
+const industrySlugs = ["ceramic", "textile", "packaging", "food", "machinery", "rubber"] as const;
 
 test("all six homepage industry cards open their canonical industry detail routes", () => {
-  for (const slug of ["ceramic", "textile", "packaging", "food", "machinery", "rubber"]) {
+  for (const slug of industrySlugs) {
     assert.match(home, new RegExp('link: "/industries/' + slug + '"'));
     assert.match(app, new RegExp('path="/industries/' + slug + '"|path="/industries/:slug"'));
   }
