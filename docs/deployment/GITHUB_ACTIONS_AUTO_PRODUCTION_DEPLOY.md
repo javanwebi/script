@@ -39,7 +39,9 @@ Copy only the public key to the VPS (for example with `scp`). The private key st
 After the PR is merged, connect to the VPS as an administrator and run:
 
 ```bash
-sudo bash /opt/sanatpish/ops/install-github-actions-deploy-user-vps.sh /root/sanatpish_github_actions.pub
+cd /opt/sanatpish
+git fetch origin main
+git show FETCH_HEAD:ops/install-github-actions-deploy-user-vps.sh | sudo bash -s -- /root/sanatpish_github_actions.pub
 ```
 
 The installer:
