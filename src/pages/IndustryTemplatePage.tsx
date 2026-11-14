@@ -232,6 +232,12 @@ export function IndustryTemplatePage() {
   return (
     <div className={"industry-template industry-template--" + slug} dir="rtl">
       <section className="ipt-hero" aria-labelledby="ipt-title">
+        <div className="ipt-hero-visual">
+          <img src={industry.image} alt={"خط تولید " + industry.title} fetchPriority="high" decoding="async" />
+          <div className="ipt-hero-visual-shade" />
+          <div className="ipt-hero-caption"><span>{detail.heroCaption}</span><strong>شناخت کاربرد، سپس انتخاب قطعه</strong></div>
+          <span className="ipt-hero-index">SANAT PISH / INDUSTRY</span>
+        </div>
         <div className="ipt-hero-copy">
           <nav className="ipt-breadcrumb" aria-label="مسیر صفحه">
             <Link to="/">صنعت پیش</Link><ChevronLeft size={13} /><Link to="/industries">صنایع</Link><ChevronLeft size={13} /><span>{industry.title}</span>
@@ -247,12 +253,6 @@ export function IndustryTemplatePage() {
             <Link to={consultUrl(slug, "برای صنعت " + industry.title + " مشاوره فنی می‌خواهم.")} className="ipt-button ipt-button--light"><Headphones size={16} /> مشاوره با FORZA</Link>
             <PartIdentificationLink to={"/identify-part?industry=" + slug} className="ipt-button ipt-button--outline"><ScanLine size={16} /> شناسایی با تصویر</PartIdentificationLink>
           </div>
-        </div>
-        <div className="ipt-hero-visual">
-          <img src={industry.image} alt={"خط تولید " + industry.title} fetchPriority="high" decoding="async" />
-          <div className="ipt-hero-visual-shade" />
-          <div className="ipt-hero-caption"><span>{detail.heroCaption}</span><strong>شناخت کاربرد، سپس انتخاب قطعه</strong></div>
-          <span className="ipt-hero-index">SANAT PISH / INDUSTRY</span>
         </div>
       </section>
 
