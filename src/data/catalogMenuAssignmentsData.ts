@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,330 retained).
+// Audited family-to-menu assignments; 96 ambiguous or source-conflicting families are omitted for admin review (1,287 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -594,7 +594,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-31443": {
     "categorySlug": "excel-v2-6-2",
     "submenuName": "گاید تفلونی",
-    "leafName": null
+    "leafName": "۲ لبه و متعلقات"
   },
   "FAM-31445": {
     "categorySlug": "excel-v2-7-1",
@@ -983,8 +983,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-33201": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تیپ B و تیپ C"
   },
   "FAM-33216": {
     "categorySlug": "excel-v2-10-1",
@@ -1148,8 +1148,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-33952": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تایمینگ، زنجیر و دنده شانه"
   },
   "FAM-34032": {
     "categorySlug": "excel-v2-13-1",
@@ -1773,8 +1773,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-36235": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تایمینگ، زنجیر و دنده شانه"
   },
   "FAM-36274": {
     "categorySlug": "excel-v2-3-2",
@@ -1794,7 +1794,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-36297": {
     "categorySlug": "excel-v2-6-2",
     "submenuName": "گاید تفلونی",
-    "leafName": null
+    "leafName": "۲ لبه و متعلقات"
   },
   "FAM-36303": {
     "categorySlug": "excel-v2-1-1",
@@ -2349,7 +2349,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-38349": {
     "categorySlug": "excel-v2-6-2",
     "submenuName": "گاید تفلونی",
-    "leafName": null
+    "leafName": "۲ لبه و متعلقات"
   },
   "FAM-38374": {
     "categorySlug": "excel-v2-1-1",
@@ -2984,12 +2984,12 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-40689": {
     "categorySlug": "excel-v2-6-2",
     "submenuName": "گاید تفلونی",
-    "leafName": null
+    "leafName": "۲ لبه و متعلقات"
   },
   "FAM-40690": {
     "categorySlug": "excel-v2-6-1",
     "submenuName": "بر اساس جنس",
-    "leafName": null
+    "leafName": "ریل راهنما تفلون و متعلقات"
   },
   "FAM-40692": {
     "categorySlug": "excel-v2-1-1",
@@ -3544,7 +3544,7 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   "FAM-52858": {
     "categorySlug": "excel-v2-2-1",
     "submenuName": "بر اساس جنس",
-    "leafName": null
+    "leafName": "نوار نقاله PVC"
   },
   "FAM-52926": {
     "categorySlug": "excel-v2-1-2",
@@ -4063,8 +4063,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-90037": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تیپ B و تیپ C"
   },
   "FAM-90040": {
     "categorySlug": "excel-v2-9-1",
@@ -4123,13 +4123,13 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-90249": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تیپ B و تیپ C"
   },
   "FAM-90251": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تیپ B و تیپ C"
   },
   "FAM-90259": {
     "categorySlug": "excel-v2-6-2",
@@ -4148,8 +4148,8 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
   },
   "FAM-90314": {
     "categorySlug": "excel-v2-6-1",
-    "submenuName": "بر اساس جنس",
-    "leafName": null
+    "submenuName": "بر اساس تیپ و کاربرد",
+    "leafName": "ریل تیپ B و تیپ C"
   },
   "FAM-90325": {
     "categorySlug": "excel-v2-9-1",
@@ -6036,46 +6036,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "برزنتی چسب‌دار",
     "leafName": "(نخ و پارچه) برزنتی در ضخامت مختلف"
   },
-  "FAM-10657": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34667": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34885": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34881": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34882": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-37134": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-32786": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-39543": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
   "FAM-38125": {
     "categorySlug": "excel-v2-11-1",
     "submenuName": "انواع توری مش",
@@ -6085,56 +6045,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-11-1",
     "submenuName": "انواع توری مش",
     "leafName": "توری مش در ابعاد و چشمه‌های مختلف"
-  },
-  "FAM-35330": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-33547": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-31533": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-90163": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-90206": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-40522": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-40001": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34123": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34138": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-40749": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
   },
   "FAM-31911": {
     "categorySlug": "excel-v2-4-1",
@@ -6156,66 +6066,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "پولی پلاستیک",
     "leafName": "در سایزها و گام‌های مختلف"
   },
-  "FAM-40728": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34899": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-35526": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-36814": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-32697": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-41148": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-38660": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-39946": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34949": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-33173": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-32268": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-37317": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
   "FAM-13983": {
     "categorySlug": "excel-v2-4-1",
     "submenuName": "پولی پلی‌اورتان",
@@ -6231,66 +6081,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "submenuName": "پولی پلاستیک",
     "leafName": "در سایزها و گام‌های مختلف"
   },
-  "FAM-33675": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-35245": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-13962": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-13963": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-33318": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-34724": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-37929": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-36577": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-33154": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-37715": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-10161": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
-  "FAM-90308": {
-    "categorySlug": "excel-v2-6-2",
-    "submenuName": "گاید تفلونی",
-    "leafName": "۲ لبه و متعلقات"
-  },
   "FAM-35604": {
     "categorySlug": "excel-v2-4-1",
     "submenuName": "پولی پلاستیک",
@@ -6300,11 +6090,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-8-1",
     "submenuName": "برزنتی چسب‌دار",
     "leafName": "(نخ و پارچه) برزنتی در ضخامت مختلف"
-  },
-  "FAM-38353": {
-    "categorySlug": "excel-v2-2-2",
-    "submenuName": "بازدید و نصب",
-    "leafName": "بازدید و نصب کامل در محل"
   },
   "FAM-44624": {
     "categorySlug": "excel-v2-4-1",
