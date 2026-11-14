@@ -11,7 +11,7 @@ import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { CategoryNavigation } from '../components/catalog/CategoryNavigation';
 import { toDirectSkuProduct, useDirectSkus } from '../components/catalog/DirectSkuProducts';
-import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
+import { getProductDisplayBrands, productHasDisplayBrand, resolveDisplayBrand } from '../utils/catalogBrands';
 import { getProductsByCategory } from '../data/mockGenerator';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductImage } from '../components/product/ProductImage';
@@ -738,9 +738,9 @@ const LegacyCategoryPage: React.FC = () => {
                   return isBeltCategory ? (
                     <article key={product.code} className="category-premium-card flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
                       <Link to={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : `/product/${encodeURIComponent(product.code)}`} className="category-showcase-product-media flex h-52 items-center justify-center rounded-lg bg-[#fafafa]">
-                        <ProductImage src={product.images?.[0]} alt={product.name} thumbnail loading="lazy" decoding="async"/>
+                        <ProductImage src={product.images?.[0]} alt={product.name} disableFallback={directSkuCodes.has(product.code)} thumbnail loading="lazy" decoding="async"/>
                       </Link>
-                      <div className="category-sku-head"><strong dir="ltr">{product.code}</strong>{product.brand && <span dir="ltr">{product.brand}</span>}</div>
+                      <div className="category-sku-head"><strong dir="ltr">{product.code}</strong>{(resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0]) && <span dir="ltr">{resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0]}</span>}</div>
                       <Link to={directSkuCodes.has(product.code) ? `/direct-product/${encodeURIComponent(product.code)}` : `/product/${encodeURIComponent(product.code)}`} className="category-sku-title">{product.name}</Link>
                       <p className="category-sku-family"><Layers size={13}/>{product.subcategory}</p>
                       <dl className="category-sku-specs">
