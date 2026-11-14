@@ -176,7 +176,8 @@ test('the polyurethane timing-belt leaf has no families without explicit PU evid
   'FAM-51279',
   'FAM-52319',
   'FAM-52735'
- ];
+   'FAM-38906',
+];
  for(const familyCode of falsePolyurethaneFamilies){
   assert.equal(CATALOG_FAMILY_MENU_ASSIGNMENTS[familyCode],undefined);
  }
