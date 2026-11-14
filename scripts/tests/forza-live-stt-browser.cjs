@@ -54,6 +54,11 @@ function wav(){
   await page.waitForTimeout(450); // establish ambient baseline
   await page.evaluate(()=>{window.__forzaMicSample=0.003;});
   await page.waitForTimeout(450); // near-field onset before recognized words
+  for(const text of ['می خواهم','می خواهم مشخصات','می خواهم مشخصات تسمه صنعتی را']){
+    await page.evaluate(text=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[
+      Object.assign([{transcript:text}],{isFinal:false})]}),text);
+    await page.getByText(text,{exact:true}).waitFor({timeout:950});
+  }
   const started=Date.now();
   await page.evaluate(()=>{
     const rec=window.__forzaMockRecognition;

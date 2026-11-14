@@ -344,7 +344,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (!activeTranscriptRef.current.trim()) {
         lastTranscriptChangedAtRef.current = 0;
         hasSpeechSoundRef.current = false;
-        audioChunksRef.current = [];
+        // A running MediaRecorder owns a single container header.
+        // Never clear its chunks until its onstop event consumes them.
+        if(mediaRecorderRef.current?.state!=='recording')audioChunksRef.current = [];
       }
     }
 
@@ -676,9 +678,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
-    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
-    // first syllables; older chunks may contain FORZA's own speaker output.
-    audioChunksRef.current=audioChunksRef.current.slice(-2);
+    // Keep the complete current recording: sliced WebM chunks lose their
+    // container header. Monitoring recordings rotate every ~2 seconds.
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1575,17 +1576,19 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const mimeType = getSupportedAudioMimeType();
         const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
+        let rotateCapture=false;
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
-            // 2-second in-RAM pre-roll while FORZA is responding. No disk
-            // persistence; preserve the first user syllables after barge-in.
-            // Hard RAM cap also while the customer leaves the microphone
-            // open for hours. Keep 45s for optional post-recording STT and a
-            // 2s tail during model speech to reduce memory and self-echo.
-            const maxChunks=isProcessingTurnRef.current?8:180;
-            if(audioChunksRef.current.length>maxChunks)
-              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
+            // Rotate complete containers instead of dropping their first bytes.
+            // Idle/AI monitoring is bounded; active customer turns retain up to
+            // 40s, leaving headroom below the server's 45s decode limit.
+            const monitoring=isProcessingTurnRef.current||isAiSpeakingRef.current;
+            const maxChunks=monitoring||!hasSpeechSoundRef.current?8:160;
+            if(audioChunksRef.current.length>=maxChunks&&mr.state==='recording'){
+              rotateCapture=monitoring||!hasSpeechSoundRef.current;
+              mr.stop();
+            }
           }
         };
 
@@ -1594,6 +1597,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (mediaRecorderRef.current !== mr) return;
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
+          if(rotateCapture){
+            rotateCapture=false;
+            // Words arriving between stop and onstop belong to the next turn.
+            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
+            return;
+          }
           const hadSpeech = hasSpeechSoundRef.current;
           const rejectedSpeech=rejectedRecordingRef.current;
           rejectedRecordingRef.current=false;
