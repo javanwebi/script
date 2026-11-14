@@ -92,6 +92,22 @@ test('invalid menu routes do not fall through to the first approved category',()
  assert.equal(resolveMenuCategoryPayload('not-a-real-category'),null);
 });
 
+test('the current family map has 1,357 retained rows and exposes incomplete assignments for review',()=>{
+ assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1357);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,55);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,278);
+});
+
+test('21 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
+ const leaves=APPROVED_MENU_CATEGORIES.flatMap(category=>(category.children||[]).flatMap(submenu=>
+  (submenu.children||[]).map(leaf=>({categorySlug:category.slug,submenuName:submenu.name,leafName:leaf.name}))
+ ));
+ const empty=leaves.filter(leaf=>!Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).some(item=>
+  item.categorySlug===leaf.categorySlug&&item.submenuName===leaf.submenuName&&item.leafName===leaf.leafName
+ ));
+ assert.equal(empty.length,21);
+});
+
 test('the resolver has no first-submenu or first-leaf defaulting rule',()=>{
  const source=readFileSync('src/services/catalogTaxonomyResolver.ts','utf8');
  assert.doesNotMatch(source,/defaultSubmenu|children\?\.\[0\]\?\.name/);
