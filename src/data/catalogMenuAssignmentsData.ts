@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,331 retained).
+// Audited family-to-menu assignments; ambiguous families are intentionally omitted for admin review (1,330 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -4975,11 +4975,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "categorySlug": "excel-v2-1-2",
     "submenuName": "تسمه اسپشیال",
     "leafName": "SPA , SPB , SPC و دندانه‌دار"
-  },
-  "FAM-38906": {
-    "categorySlug": "excel-v2-1-1",
-    "submenuName": "سیم‌دار فابریک",
-    "leafName": "پلی‌یورتان"
   },
   "FAM-41448": {
     "categorySlug": "excel-v2-1-2",
