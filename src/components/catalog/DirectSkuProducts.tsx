@@ -18,13 +18,17 @@ export type DirectSku = {
   active: boolean;
 };
 
-export function useDirectSkus() {
+export function useDirectSkus(categorySlug?: string, categoryPrefix?: string) {
   const [items, setItems] = useState<DirectSku[]>([]);
 
   useEffect(() => {
     let alive = true;
-    const refresh = () =>
-      fetch("/api/catalog/direct-skus", {
+    const refresh = () => {
+      const params = new URLSearchParams();
+      if (categorySlug) params.set("categorySlug", categorySlug);
+      if (categoryPrefix) params.set("categoryPrefix", categoryPrefix);
+      const query = params.toString();
+      return fetch("/api/catalog/direct-skus" + (query ? "?" + query : ""), {
         credentials: "same-origin",
         cache: "no-store",
       })
@@ -43,6 +47,7 @@ export function useDirectSkus() {
         .catch(() => {
           // Preserve the last successful catalogue snapshot during transient network errors.
         });
+    };
 
     void refresh();
     window.addEventListener("catalog-direct-skus-updated", refresh);
@@ -50,7 +55,7 @@ export function useDirectSkus() {
       alive = false;
       window.removeEventListener("catalog-direct-skus-updated", refresh);
     };
-  }, []);
+  }, [categorySlug, categoryPrefix]);
 
   return items;
 }
