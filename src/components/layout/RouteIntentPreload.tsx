@@ -31,7 +31,14 @@ export function resolvePreloadKey(pathname: string): string | null {
     return '/product/:code';
   if (path.startsWith('/direct-product/')) return '/direct-product/:code';
   if (path.startsWith('/industries/') || path.startsWith('/industry/')) return '/industry-template';
-  if (path === '/category/ceramic-tiles') return '/industry-template';
+  if ([
+    '/category/ceramic-tiles',
+    '/category/textile-machinery',
+    '/category/packaging-carton',
+    '/category/food-beverage',
+    '/category/machinery-equipment',
+    '/category/rubber-plastics',
+  ].includes(path)) return '/industry-template';
   if (path.startsWith('/category/')) return '/category/:slug';
   return null;
 }
