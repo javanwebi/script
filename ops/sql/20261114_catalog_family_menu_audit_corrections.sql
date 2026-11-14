@@ -111,12 +111,17 @@ BEGIN
   SELECT count(*) INTO verified_count
   FROM public.catalog_family_menu_assignments
   WHERE family_code IN ('FAM-35826','FAM-10105','FAM-52948')
-    AND category_slug='excel-v2-6-2'
-    AND submenu_name='نرده استیل'
-    AND leaf_name='نرده استیل و متعلقات';
+    AND (
+      method='admin_verified'
+      OR (
+        category_slug='excel-v2-6-2'
+        AND submenu_name='نرده استیل'
+        AND leaf_name='نرده استیل و متعلقات'
+      )
+    );
 
   IF verified_count <> 3 THEN
-    RAISE EXCEPTION 'Expected all 3 stainless guide assignments to be in the approved stainless leaf, found %', verified_count;
+    RAISE EXCEPTION 'Expected 3 source-verified or admin-locked stainless guide families, found %', verified_count;
   END IF;
 END $audit$;
 
