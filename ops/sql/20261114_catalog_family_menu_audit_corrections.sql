@@ -169,14 +169,14 @@ WHERE category_slug='excel-v2-6-2'
   AND method <> 'admin_verified';
 
 -- The workbook identifies these 3 families as stainless guides (9 SKUs total).
--- FAM-52858 is the 165-SKU conveyor-belt family whose source material is PVC.
+-- FAM-52858 is a mixed-material 165-SKU conveyor family; keep it at the parent submenu.
 INSERT INTO public.catalog_family_menu_assignments
   (family_code,category_slug,submenu_name,leaf_name,method)
 VALUES
   ('FAM-35826','excel-v2-6-2','نرده استیل','نرده استیل و متعلقات','excel_source_verified'),
   ('FAM-10105','excel-v2-6-2','نرده استیل','نرده استیل و متعلقات','excel_source_verified'),
   ('FAM-52948','excel-v2-6-2','نرده استیل','نرده استیل و متعلقات','excel_source_verified'),
-  ('FAM-52858','excel-v2-2-1','بر اساس جنس','نوار نقاله PVC','excel_source_verified')
+  ('FAM-52858','excel-v2-2-1','بر اساس جنس',NULL,'excel_source_verified')
 ON CONFLICT(family_code) DO UPDATE SET
   category_slug=EXCLUDED.category_slug,
   submenu_name=EXCLUDED.submenu_name,
@@ -208,7 +208,7 @@ BEGIN
       OR (
         category_slug='excel-v2-2-1'
         AND submenu_name='بر اساس جنس'
-        AND leaf_name='نوار نقاله PVC'
+        AND leaf_name IS NULL
       )
     )
   );
