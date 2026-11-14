@@ -333,7 +333,7 @@ docker exec "$OLD" node --import tsx --input-type=module -e '
  finally{await closeDatabase()}
 '
 echo '===== SKIP UNVERIFIED BULK FAMILY MENU SEED ====='
-echo 'The 1,287-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
+echo 'The 1,286-row family menu seed is intentionally not auto-applied while the 90-to-67 technical taxonomy audit is open.'
 echo 'Existing admin_verified assignments remain untouched.'
 
 echo '===== APPLY TARGETED EXCEL-VERIFIED FAMILY MENU CORRECTIONS ====='
