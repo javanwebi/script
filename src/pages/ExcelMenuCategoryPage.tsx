@@ -1133,18 +1133,64 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       ...filteredFamilies.map(family => ({ kind: 'family' as const, family })),
       ...filteredDirectSkus.map(sku => ({ kind: 'directSku' as const, sku })),
     ];
+    const codeOf = (item: CollectionItem) =>
+      item.kind === 'family' ? item.family.code : item.sku.skuCode;
+    const nameOf = (item: CollectionItem) =>
+      item.kind === 'family' ? item.family.name : item.sku.name;
+    const skuCountOf = (item: CollectionItem) =>
+      item.kind === 'family' ? Math.max(0, item.family.skuCount) : 1;
+    const productOf = (item: CollectionItem) =>
+      item.kind === 'family'
+        ? products.get(item.family.code)
+        : toDirectSkuProduct(item.sku);
+    const brandOf = (item: CollectionItem) => {
+      if (item.kind === 'family') {
+        return familyResolvedBrands.get(item.family.code) ||
+          resolveDisplayBrand(item.family.brand, item.family.name);
+      }
+      return resolveDisplayBrand(item.sku.brand, item.sku.name);
+    };
+
     if (sortBy === 'name') {
-      items.sort((a, b) => (a.kind === 'family' ? a.family.name : a.sku.name)
-        .localeCompare(b.kind === 'family' ? b.family.name : b.sku.name, 'fa'));
+      items.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'fa'));
     } else if (sortBy === 'code') {
-      items.sort((a, b) => (a.kind === 'family' ? a.family.code : a.sku.skuCode)
-        .localeCompare(b.kind === 'family' ? b.family.code : b.sku.skuCode, undefined, { numeric: true }));
+      items.sort((a, b) => codeOf(a).localeCompare(codeOf(b), undefined, { numeric: true }));
     } else if (sortBy === 'sku_desc') {
-      items.sort((a, b) => (b.kind === 'family' ? b.family.skuCount : 1) -
-        (a.kind === 'family' ? a.family.skuCount : 1));
+      items.sort((a, b) => skuCountOf(b) - skuCountOf(a));
+    } else if (sortBy === 'stock_desc') {
+      items.sort((a, b) => {
+        const aProduct = productOf(a);
+        const bProduct = productOf(b);
+        const aStock = aProduct?.stockKnown === true && !aProduct.inquiryOnly ? aProduct.stock : -1;
+        const bStock = bProduct?.stockKnown === true && !bProduct.inquiryOnly ? bProduct.stock : -1;
+        return bStock - aStock;
+      });
+    } else {
+      items.sort((a, b) => {
+        const aName = nameOf(a);
+        const bName = nameOf(b);
+        const aIsPulley = /پولی|چرخ|فلکه/i.test(aName) ? 1 : 0;
+        const bIsPulley = /پولی|چرخ|فلکه/i.test(bName) ? 1 : 0;
+        if (aIsPulley !== bIsPulley) return aIsPulley - bIsPulley;
+        const aIsGeneric = /عمومی/i.test(aName) ? 1 : 0;
+        const bIsGeneric = /عمومی/i.test(bName) ? 1 : 0;
+        if (aIsGeneric !== bIsGeneric) return aIsGeneric - bIsGeneric;
+        const aProduct = productOf(a);
+        const bProduct = productOf(b);
+        const aHasProfile = (aProduct?.technicalSpecs || []).some(spec => /پروفیل|عرض/i.test(spec.key)) ? 1 : 0;
+        const bHasProfile = (bProduct?.technicalSpecs || []).some(spec => /پروفیل|عرض/i.test(spec.key)) ? 1 : 0;
+        if (aHasProfile !== bHasProfile) return bHasProfile - aHasProfile;
+        const aNamedBrand = brandOf(a) ? 1 : 0;
+        const bNamedBrand = brandOf(b) ? 1 : 0;
+        if (aNamedBrand !== bNamedBrand) return bNamedBrand - aNamedBrand;
+        const aMulti = a.kind === 'family' && a.family.skuCount > 1 ? 1 : 0;
+        const bMulti = b.kind === 'family' && b.family.skuCount > 1 ? 1 : 0;
+        if (aMulti !== bMulti) return bMulti - aMulti;
+        return skuCountOf(b) - skuCountOf(a);
+      });
     }
     return items;
-  }, [filteredFamilies, filteredDirectSkus, sortBy]);
+  }, [filteredFamilies, filteredDirectSkus, sortBy, products, familyResolvedBrands]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCollectionItems.length / perPage));
   const currentPage = Math.min(requestedPage, totalPages);
