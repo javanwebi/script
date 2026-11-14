@@ -32,7 +32,7 @@ test('common short questions and completed industrial inquiries respond promptly
   ]) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 900, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 1800, phrase);
   }
 });
 
@@ -47,7 +47,7 @@ test('standalone turn control words are recognized without a long timeout', () =
   for (const phrase of ['صبر کن', 'بس کن', 'ادامه بده', 'سلام', 'ممنون']) {
     const analysis = analyzePersianSentenceCompletion(phrase);
     assert.equal(analysis.isComplete, true, phrase);
-    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 850, phrase);
+    assert.ok(forzaEndOfTurnPauseMs(phrase, false) <= 1800, phrase);
   }
   assert.equal(analyzePersianSentenceCompletion('صبر کن تا').isComplete, false);
 });

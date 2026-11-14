@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs,
+  checkpointForzaRecognition, extractPersianSpeechRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs,
   normalizePersianTranscript, verbalizeForzaTechnicalTerms, extractForzaAudioBase64,
 } from '../src/utils/forzaSpeechPipeline.ts';
 
@@ -26,8 +26,8 @@ test('Persian normalization preserves real product codes and numbers',()=>{
 test('Do not cut a half-finished sentence after a short hesitation',()=>{
   assert.ok(forzaEndOfTurnPauseMs('این تسمه را می‌خواهم چون',false)>=1700);
   assert.ok(forzaEndOfTurnPauseMs('مدل 6205',true)>=1800);
-  assert.ok(forzaEndOfTurnPauseMs('سلام',false)<=950);
-  assert.ok(forzaEndOfTurnPauseMs('مدل چند است؟',false)<=900);
+  assert.ok(forzaEndOfTurnPauseMs('سلام',false)>=1300);
+  assert.ok(forzaEndOfTurnPauseMs('مدل چند است؟',false)>=1300);
 });
 
 test('Only the spoken copy expands industrial codes, never the underlying SKU',()=>{
@@ -81,4 +81,13 @@ test('final results are consumed while interim prefixes remain revisable',()=>{
  assert.equal(extractPersianSpeechSince(
    [result('سلام',true),result('کد 6202',true),result('ده عدد',true)],
    checkpoint.count,checkpoint.interim).text,'ده عدد');
+});
+
+
+test('a recognizer final inside a short Persian pause cannot dispatch the turn',()=>{
+ const text='بلبرینگ می‌خواستم';
+ assert.ok(forzaTurnRemainingWaitMs(text,false,1000,800)>0);
+ const revision='بلبرینگ می‌خواستم می‌خوام بهم مشاوره بدی';
+ assert.ok(forzaTurnRemainingWaitMs(revision,true,100,100)>0);
+ assert.equal(forzaTurnRemainingWaitMs(revision,false,2500,2500),0);
 });

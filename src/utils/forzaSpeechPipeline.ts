@@ -116,11 +116,11 @@ export function chooseForzaFinalTranscript(browserValue:string,serverValue:strin
 export function forzaEndOfTurnPauseMs(text: string, hasInterim: boolean): number {
   const analysis = analyzePersianSentenceCompletion(text);
   // A provisional browser hypothesis can still gain another word or SKU.
-  if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(1900, analysis.recommendedPauseMs);
+  if (analysis.isMidThought) return hasInterim ? 2400 : Math.max(2100, analysis.recommendedPauseMs);
   if (analysis.isComplete && analysis.confidence >= 0.9) {
-    return hasInterim ? 1100 : Math.max(550, Math.min(850, analysis.recommendedPauseMs - 150));
+    return hasInterim ? 1900 : Math.max(1300, analysis.recommendedPauseMs);
   }
-  if (analysis.isComplete) return hasInterim ? 1450 : Math.max(1000, analysis.recommendedPauseMs);
+  if (analysis.isComplete) return hasInterim ? 2100 : Math.max(1500, analysis.recommendedPauseMs);
   return hasInterim ? 1950 : Math.max(1450, analysis.recommendedPauseMs);
 }
 
