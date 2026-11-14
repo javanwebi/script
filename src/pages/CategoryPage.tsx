@@ -70,7 +70,7 @@ const PulleyCategoryRoute: React.FC = () => {
   const products = getProductsByCategory(categorySlugFor('پولی و انتقال نیرو'), 5000, 0).products;
   const directSkus = useDirectSkus();
   const directSkuProducts = directSkus
-    .filter(item => item.categorySlug === categorySlugFor('پولی و انتقال نیرو'))
+    .filter(item => item.categorySlug === categorySlugFor('پولی و انتقال نیرو') || /^excel-v2-4-[0-9]+$/.test(item.categorySlug))
     .map(toDirectSkuProduct);
   const directSkuCodes = new Set(directSkuProducts.map(product => product.code));
   return <PulleyCatalogPage products={[...products, ...directSkuProducts]} directSkuCodes={directSkuCodes} />;
