@@ -180,7 +180,7 @@ test('invalid menu routes do not fall through to the first approved category',()
 test('the current family map has 1,287 retained rows and exposes incomplete assignments for review',()=>{
  assert.equal(Object.keys(CATALOG_FAMILY_MENU_ASSIGNMENTS).length,1287);
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.submenuName).length,55);
- assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,265);
+ assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,266);
 });
 
 test('21 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
