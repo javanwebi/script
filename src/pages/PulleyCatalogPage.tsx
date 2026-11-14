@@ -195,9 +195,9 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = 
           <nav className="pc-crumb" aria-label="مسیر صفحه"><Link to="/">خانه</Link><ChevronLeft size={13}/><span>قطعات انتقال نیرو</span><ChevronLeft size={13}/><strong>پولی صنعتی</strong></nav>
           <span className="pc-overline"><Sparkles size={16}/> مهندسی انتقال قدرت / کاتالوگ صنعت پیش</span>
           <h1>پولی و <em>انتقال نیرو</em></h1>
-          <p>از شناسایی نوع پولی تا انتخاب دقیق کد کالا؛ خانواده‌های واقعی کاتالوگ را با مشخصات فنی مقایسه کنید.</p>
+          <p>از شناسایی نوع پولی تا انتخاب دقیق کد کالا؛ خانواده‌ها و کالاهای مستقیم کاتالوگ را با مشخصات فنی مقایسه کنید.</p>
           <div className="pc-hero-actions"><button type="button" onClick={() => setGuideOpen(true)} className="pc-hero-primary">راهنمای انتخاب پولی <ArrowLeft size={18}/></button><button type="button" onClick={scrollToResults} className="pc-hero-secondary">مشاهده محصولات <ArrowUpLeft size={16}/></button></div>
-          <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> مورد ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> خانواده تصویردار</span></div>
+          <div className="pc-hero-stats"><span><strong>{nf(products.length)}</strong> مورد ثبت‌شده</span><span><strong>{nf(totalSkus)}</strong> کد کالای مرتبط</span><span><strong>{nf(imageCount)}</strong> مورد دارای تصویر</span></div>
         </div>
         <div className="pc-hero-corner"><BadgeCheck size={17}/> خانواده‌ها و کدهای ثبت‌شده در صنعت پیش</div>
       </header>
