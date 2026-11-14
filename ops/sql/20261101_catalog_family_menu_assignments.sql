@@ -1129,7 +1129,7 @@ VALUES
 ('FAM-52797','excel-v2-1-1','انواع گام و کدهای تایمینگ','H , XH , L , XL','conservative_name_rule'),
 ('FAM-52830','excel-v2-1-1','انواع گام و کدهای تایمینگ','H , XH , L , XL','conservative_name_rule'),
 ('FAM-52854','excel-v2-1-1','انواع گام و کدهای تایمینگ','H , XH , L , XL','conservative_name_rule'),
-('FAM-52858','excel-v2-2-1','بر اساس جنس','نوار نقاله PVC','conservative_name_rule'),
+('FAM-52858','excel-v2-2-1','بر اساس جنس',NULL,'conservative_name_rule'),
 ('FAM-52899','excel-v2-5-1','انواع برس‌های سیمی','در ابعاد مختلف','conservative_name_rule'),
 ('FAM-52926','excel-v2-1-2','کلاسیک و دنده‌دار','Z (9.5) , M , A , B , C , D , E , 8V','conservative_name_rule'),
 ('FAM-52948','excel-v2-6-2','نرده استیل','نرده استیل و متعلقات','conservative_name_rule'),
