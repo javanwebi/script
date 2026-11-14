@@ -847,7 +847,6 @@ VALUES
 ('FAM-38872','excel-v2-1-1','انواع گام و کدهای تایمینگ','5M , 8M , 11M , 14M','conservative_name_rule'),
 ('FAM-38885','excel-v2-8-1','برزنتی چسب‌دار','(نخ و پارچه) برزنتی در ضخامت مختلف','conservative_name_rule'),
 ('FAM-38896','excel-v2-1-2','تسمه اسپشیال','SPA , SPB , SPC و دندانه‌دار','conservative_name_rule'),
-('FAM-38906','excel-v2-1-1','سیم‌دار فابریک','پلی‌یورتان','conservative_name_rule'),
 ('FAM-38914','excel-v2-1-2','تسمه اسپشیال','SPA , SPB , SPC و دندانه‌دار','conservative_name_rule'),
 ('FAM-38915','excel-v2-3-1','روکش غلتک','در سختی‌های مختلف - پرینت','conservative_name_rule'),
 ('FAM-38921','excel-v2-6-2','گاید تفلونی',NULL,'conservative_name_rule'),
