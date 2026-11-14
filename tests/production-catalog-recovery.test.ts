@@ -149,7 +149,8 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   'FAM-41326',
   'FAM-51279',
   'FAM-52319',
-  'FAM-52735'
+  'FAM-52735',
+  'FAM-38906'
  ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
  for(const code of ['FAM-35826','FAM-10105','FAM-52948']) assert.ok(correction.includes(code));
 });
