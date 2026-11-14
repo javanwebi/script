@@ -68,7 +68,7 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  const mainDeploy=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
- const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)[,;]?$/gm)];
+ const rows=[...sql.matchAll(/^\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\),?$/gm)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
   categorySlug:match[2],
@@ -76,21 +76,24 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   leafName:literal(match[4]),
  }]));
  const sorted=(value:Record<string,unknown>)=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)));
- assert.equal(rows.length,1330);
- assert.equal(new Set(rows.map(match=>match[1])).size,1331);
+ assert.equal(rows.length,1287);
+ assert.equal(new Set(rows.map(match=>match[1])).size,1287);
  assert.deepEqual(sorted(actual),sorted(source));
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,0);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2').length,73);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-1').length,2);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-2').length,0);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-6-2'&&item.submenuName==='نرده استیل'&&item.leafName==='نرده استیل و متعلقات').length,3);
+ assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-2-1'&&item.submenuName==='بر اساس جنس'&&item.leafName==='نوار نقاله PVC').length,1);
  assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
  assert.match(sql,/WHERE public\.catalog_family_menu_assignments\.method <> 'admin_verified'/);
- assert.doesNotMatch(mainDeploy,/20261101_catalog_family_menu_assignments\.sql/);
- assert.doesNotMatch(singlePort,/20261101_catalog_family_menu_assignments\.sql/);
- assert.match(mainDeploy,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
- assert.match(mainDeploy,/20261114_catalog_family_menu_audit_corrections\.sql/);
- assert.match(mainDeploy,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
- assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_FAMILIES_VERIFIED/);
- assert.ok(mainDeploy.includes("method=\\x27admin_verified\\x27 or"),"blue-green deploy must preserve admin-verified overrides");
- assert.ok(singlePort.includes("method=\\x27admin_verified\\x27 or"),"single-port deploy must preserve admin-verified overrides");
+ for(const script of [mainDeploy,singlePort]){
+  assert.doesNotMatch(script,/20261101_catalog_family_menu_assignments\.sql/);
+  assert.match(script,/SKIP UNVERIFIED BULK FAMILY MENU SEED/);
+  assert.match(script,/20261114_catalog_family_menu_audit_corrections\.sql/);
+  assert.match(script,/PRODUCTION_SOURCE_VERIFIED_FAMILY_ASSIGNMENTS_OR_ADMIN_LOCKED/);
+  assert.ok(script.includes("method=\\x27admin_verified\\x27 or"),"deploy must preserve admin-verified overrides");
+ }
  assert.match(correction,/DELETE FROM public\.catalog_family_menu_assignments/);
  assert.match(correction,/method <> 'admin_verified'/);
  assert.match(correction,/excel_source_verified/);
@@ -98,8 +101,13 @@ test('bulk family-menu seed is withheld from production deploy until the complet
  assert.match(correction,/submenu_name='لاستیکی فابریک'/);
  assert.match(correction,/submenu_name='نرده استیل'/);
  assert.match(correction,/family_code NOT IN \('FAM-35826','FAM-10105','FAM-52948'\)/);
+ assert.match(correction,/FAM-52858/);
+ assert.match(correction,/نوار نقاله PVC/);
  assert.doesNotMatch(correction,/DELETE FROM public\.catalog_families|DELETE FROM public\.catalog_variants/);
  for(const code of [
+  'FAM-33416',
+  'FAM-33126',
+  'FAM-32711',
   'FAM-34280',
   'FAM-54569',
   'FAM-381961',
@@ -115,44 +123,85 @@ test('bulk family-menu seed is withheld from production deploy until the complet
   'FAM-41601',
   'FAM-38800',
   'FAM-35310',
+  'FAM-34854',
+  'FAM-36750',
+  'FAM-38283',
+  'FAM-41326',
+  'FAM-32735',
+  'FAM-39005',
+  'FAM-80151',
+  'FAM-10111',
+  'FAM-52319',
+  'FAM-40462',
+  'FAM-41253',
+  'FAM-39130',
+  'FAM-38906',
+  'FAM-22751',
+  'FAM-35525',
+  'FAM-30',
+  'FAM-37769',
+  'FAM-51279',
+  'FAM-40604',
+  'FAM-10410',
+  'FAM-40417',
+  'FAM-38285',
+  'FAM-38786',
+  'FAM-35624',
+  'FAM-40609',
+  'FAM-52735',
+  'FAM-31929',
+  'FAM-38697',
   'FAM-35743',
   'FAM-33996',
   'FAM-32247',
   'FAM-32246',
-  'FAM-80151',
-  'FAM-31929',
-  'FAM-33416',
-  'FAM-33126',
   'FAM-321931',
-  'FAM-30',
-  'FAM-10111',
-  'FAM-10410',
-  'FAM-22751',
-  'FAM-32711',
-  'FAM-32735',
-  'FAM-34854',
-  'FAM-35525',
-  'FAM-35624',
-  'FAM-36750',
-  'FAM-37769',
-  'FAM-38283',
-  'FAM-38285',
-  'FAM-38697',
-  'FAM-38786',
-  'FAM-39005',
-  'FAM-39130',
-  'FAM-40417',
-  'FAM-40462',
-  'FAM-40604',
-  'FAM-40609',
-  'FAM-41253',
-  'FAM-41326',
-  'FAM-51279',
-  'FAM-52319',
-  'FAM-52735',
-  'FAM-38906',
   'FAM-39114',
-  'FAM-40601',]) assert.ok(correction.includes(code),"Missing review correction for "+code);
- for(const code of ['FAM-35826','FAM-10105','FAM-52948']) assert.ok(correction.includes(code));
+  'FAM-40601',
+  'FAM-10657',
+  'FAM-34667',
+  'FAM-34885',
+  'FAM-34881',
+  'FAM-34882',
+  'FAM-37134',
+  'FAM-32786',
+  'FAM-39543',
+  'FAM-35330',
+  'FAM-33547',
+  'FAM-31533',
+  'FAM-90163',
+  'FAM-90206',
+  'FAM-40522',
+  'FAM-40001',
+  'FAM-34123',
+  'FAM-34138',
+  'FAM-40749',
+  'FAM-40728',
+  'FAM-34899',
+  'FAM-35526',
+  'FAM-36814',
+  'FAM-32697',
+  'FAM-41148',
+  'FAM-38660',
+  'FAM-39946',
+  'FAM-34949',
+  'FAM-33173',
+  'FAM-32268',
+  'FAM-37317',
+  'FAM-33675',
+  'FAM-35245',
+  'FAM-13962',
+  'FAM-13963',
+  'FAM-33318',
+  'FAM-34724',
+  'FAM-37929',
+  'FAM-36577',
+  'FAM-33154',
+  'FAM-37715',
+  'FAM-10161',
+  'FAM-90308',
+  'FAM-38353'
+ ]) assert.ok(correction.includes(code),"Missing review correction for "+code);
+ for(const code of ['FAM-35826','FAM-10105','FAM-52948','FAM-52858']) assert.ok(correction.includes(code));
 });
 
