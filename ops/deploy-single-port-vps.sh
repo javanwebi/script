@@ -511,7 +511,7 @@ fi
 echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='
 CANARY_CID="$(docker run -d --name "$CANARY_NAME" --network "$NETWORK" --workdir /app \
  --cpus=1.5 --memory=3g --memory-swap=3g --env-file "$ENV_FILE" \
- "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true -e SANATPISH_DISABLE_LOCAL_VISION_WARMUP=1 \
+ "${MULTILINE_ENV_ARGS[@]}" -e PORT=3000 -e SANATPISH_SERVE_DIST=1 -e "SANATPISH_RELEASE_SHA=$EXPECTED" -e CATALOG_IMAGE_VOLUME_MIGRATE_ON_BOOT=false -e FORZA_STT_PROVIDER=diba -e FORZA_STT_DIBA_MODEL_PATH=/opt/diba-stt/model -e FORZA_STT_PYTHON=/opt/forza-pocket/bin/python -e FORZA_STT_WORKERS=2 -e CUSTOMER_360_LOCAL_VAULT_ENABLED=true \
  "${MOUNTS[@]}" "$STT_IMAGE" node --import tsx server.ts)"
 READY=0
 for i in $(seq 1 65); do
@@ -555,46 +555,78 @@ fi
 docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
 
 if [[ -f "$APP/.local-vision-enabled" ]]; then
- echo '===== VERIFY PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='
- # Canary warmup is disabled above: a release must reuse the existing
- # model-specific PostgreSQL index, never rebuild 869 embeddings per deploy.
+ echo '===== RESUME PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='
+ # Startup warmup is enabled in the private canary. CatalogVisualIndex.update
+ # embeds only rows whose stored signature differs; completed batches survive
+ # failed releases in PostgreSQL and are not rebuilt.
  LIVE_VISION_STATUS="$(docker exec "$OLD" node -e '
    fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
     .then(async r=>{if(!r.ok)throw new Error("LIVE_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
     .catch(e=>{console.error(e.message);process.exit(1)})')"
- CANARY_VISION_STATUS="$(docker exec "$CANARY_NAME" node -e '
-   fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
-    .then(async r=>{if(!r.ok)throw new Error("CANARY_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
-    .catch(e=>{console.error(e.message);process.exit(1)})')"
  printf '%s\n' "$LIVE_VISION_STATUS" | node -e '
   let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
    const d=JSON.parse(s);
+   if(!d.enabled || !d.model || !d.pipeline)throw new Error("LIVE_VISION_CONFIG_INVALID");
    console.log("LIVE_INDEX",d.indexed,"/",d.total,"ready="+d.ready,"model="+d.model);
   });'
- printf '%s\n' "$CANARY_VISION_STATUS" | node -e '
-  let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-   const d=JSON.parse(s);
-   console.log("CANARY_INDEX",d.indexed,"/",d.total,"stored="+d.storedEntries,
-     "missing="+d.missing,"changed="+d.signatureChanged,
-     "persistence="+d.persistence,"namespace="+d.namespace);
-  });'
+ VISION_INDEX_READY=0
+ for attempt in $(seq 1 360); do
+  CANARY_VISION_STATUS="$(docker exec "$CANARY_NAME" node -e '
+    fetch("http://127.0.0.1:3000/api/ai/local-vision-status",{signal:AbortSignal.timeout(8000)})
+     .then(async r=>{if(!r.ok)throw new Error("CANARY_VISION_STATUS_HTTP_"+r.status);console.log(JSON.stringify(await r.json()))})
+     .catch(e=>{console.error(e.message);process.exit(1)})')"
+  if CHECK_OUTPUT="$(printf '%s\n' "$CANARY_VISION_STATUS" | node -e '
+   let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+    const d=JSON.parse(s);
+    if(!d.enabled || d.persistence!=="postgres" ||
+       !d.namespace || d.namespace!=="catalog_visual_"+d.model ||
+       !Number.isInteger(d.total) || !Number.isInteger(d.indexed) ||
+       !Number.isInteger(d.storedEntries) || d.storedEntries<d.indexed ||
+       !Number.isInteger(d.missing) || !Number.isInteger(d.signatureChanged)){
+      console.error("LOCAL_VISION_PERSISTENCE_GATE_FAILED_INVALID_STATUS");
+      process.exit(2);
+    }
+    console.log("CANARY_INDEX",d.indexed,"/",d.total,
+      "stored="+d.storedEntries,"missing="+d.missing,
+      "changed="+d.signatureChanged,"persistence="+d.persistence);
+    if(d.ready && d.indexed===d.total && d.missing===0 && d.signatureChanged===0){
+      console.log("LOCAL_VISION_INDEX_READY");
+      process.exit(0);
+    }
+    process.exit(3);
+   });'); then
+    echo "$CHECK_OUTPUT"
+    VISION_INDEX_READY=1
+    break
+  else
+    CHECK_STATUS=$?
+    if [[ "$CHECK_STATUS" -eq 2 ]]; then
+      echo "$CHECK_OUTPUT" >&2
+      exit 1
+    fi
+    if (( attempt == 1 || attempt % 6 == 0 )); then
+      echo "$CHECK_OUTPUT"
+      echo "LOCAL_VISION_RESUME_WAIT attempt=$attempt/360"
+    fi
+  fi
+  sleep 5
+ done
+ if [[ "$VISION_INDEX_READY" != 1 ]]; then
+  echo "LOCAL_VISION_RESUME_TIMEOUT_AFTER_30_MINUTES" >&2
+  docker logs --tail 80 "$CANARY_NAME" || true
+  exit 1
+ fi
  node -e '
   const live=JSON.parse(process.argv[1]), next=JSON.parse(process.argv[2]);
   const fail=message=>{console.error("LOCAL_VISION_PERSISTENCE_GATE_FAILED "+message);process.exit(1)};
-  if(!next.enabled || !next.ready || next.total<1 || next.indexed!==next.total)
+  for(const key of ["model","pipeline","total"])
+    if(live[key]!==next[key])fail("LIVE_CANARY_MISMATCH_"+key);
+  if(next.persistence!=="postgres" || !next.ready ||
+     next.indexed!==next.total || next.missing!==0 || next.signatureChanged!==0)
     fail("CANARY_INDEX_NOT_READY");
-  if(next.persistence!=="postgres")
-    fail("CANARY_INDEX_NOT_POSTGRES_PERSISTED");
-  if(!next.namespace || next.namespace!=="catalog_visual_"+next.model)
-    fail("CANARY_INDEX_NAMESPACE_MISMATCH");
-  if(next.storedEntries<next.indexed)
-    fail("CANARY_PERSISTED_ROW_COUNT_INVALID");
-  if(live.enabled && live.ready && live.indexed===live.total){
-    for(const key of ["model","pipeline","total","indexed"])
-      if(live[key]!==next[key])fail("LIVE_CANARY_MISMATCH_"+key);
-  }
-  console.log("LOCAL_VISION_PERSISTED_INDEX_REUSED_OK",next.indexed,"/",next.total);
+  console.log("LOCAL_VISION_PERSISTED_INDEX_RESUMED_OK",next.indexed,"/",next.total);
  ' "$LIVE_VISION_STATUS" "$CANARY_VISION_STATUS"
+ test "$(docker inspect "$CANARY_NAME" --format '{{.State.OOMKilled}}')" = false
 fi
 
 echo '===== PROMOTE ON SAME FIXED PORT (BRIEF RESTART) ====='
