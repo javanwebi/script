@@ -79,21 +79,22 @@ function matchesProductMenuSelection(
 
   if (selectedCategory === "all" && selectedSubcategory === "all") return true;
 
-  const live = liveIndex[product.code];
-  const assignment = live || getFamilyMenuAssignment(product);
-  const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
   const isExcelSlug = /^excel-v2-[0-9]+-[0-9]+$/.test(selectedCategory);
-
-  if (isExcelSlug && assignedSlug !== selectedCategory) return false;
   if (selectedCategory !== "all" && !isExcelSlug) {
     return matchesCatalogCategory(product, selectedCategory, selectedSubcategory);
   }
 
+  const assignment = liveIndex[product.code] || getFamilyMenuAssignment(product);
+  if (!assignment) return false;
+
+  const assignedSlug = resolveCategorySlug(assignment.categorySlug || "");
+  if (isExcelSlug && assignedSlug !== selectedCategory) return false;
   if (selectedSubcategory === "all") return true;
+
   const normalize = (value: string) =>
     String(value || "").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/[\u200c\s]+/g, " ").trim();
   const target = normalize(selectedSubcategory);
-  return [assignment.submenuName, assignment.leafName, product.submenu, product.subcategory]
+  return [assignment.submenuName, assignment.leafName]
     .some((value) => normalize(String(value || "")) === target);
 }
 
@@ -250,10 +251,11 @@ export const ProductsPage: React.FC = () => {
     () => allCatalogProducts.map((product) => {
       if (directSkuCodeSet.has(product.code)) return product;
       const assignment = liveFamilyMenuIndex[product.code] || getFamilyMenuAssignment(product);
+      if (!assignment) return product;
       return {
         ...product,
-        submenu: assignment.submenuName || product.submenu,
-        subcategory: assignment.leafName || assignment.submenuName || product.subcategory,
+        submenu: assignment.submenuName || "",
+        subcategory: assignment.leafName || "",
       };
     }),
     [allCatalogProducts, directSkuCodeSet, liveFamilyMenuIndex],
