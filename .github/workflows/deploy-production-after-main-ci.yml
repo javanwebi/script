@@ -1,0 +1,154 @@
+name: Deploy Sanat Pish production after successful main CI
+
+on:
+  workflow_run:
+    workflows:
+      - Unified Sanat Pish main integration
+      - Verify source UI and database runtime
+      - Verify VPS frontend build before deployment
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact current main commit SHA to deploy (manual verification only)
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: sanatpish-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    if: >-
+      ${{
+        vars.SANATPISH_DEPLOY_ENABLED == 'true' &&
+        (
+          (
+            github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.head_branch == 'main'
+          ) ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            github.ref == 'refs/heads/main'
+          )
+        )
+      }}
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Verify every required main check passed for this exact SHA
+        id: required-checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
+          READY=0
+          for attempt in $(seq 1 12); do
+            RUNS_JSON="$(curl --fail --silent --show-error --retry 3 --retry-all-errors \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$DEPLOY_SHA&per_page=100")"
+            WAITING=0
+            for required in \
+              "Unified Sanat Pish main integration" \
+              "Verify source UI and database runtime" \
+              "Verify VPS frontend build before deployment"; do
+              match="$(jq -c --arg name "$required" --arg sha "$DEPLOY_SHA" \
+                '[.workflow_runs[] | select(.name == $name and .head_sha == $sha and .head_branch == "main" and .event == "push")] | sort_by(.created_at) | last // empty' \
+                <<< "$RUNS_JSON")"
+              if [[ -z "$match" ]]; then
+                echo "REQUIRED_CHECK_NOT_VISIBLE_YET=$required"
+                WAITING=1
+                break
+              fi
+              status="$(jq -r '.status' <<< "$match")"
+              conclusion="$(jq -r '.conclusion // ""' <<< "$match")"
+              if [[ "$status" != "completed" ]]; then
+                echo "REQUIRED_CHECK_STILL_RUNNING=$required status=$status"
+                WAITING=1
+                break
+              fi
+              if [[ "$conclusion" != "success" ]]; then
+                echo "REQUIRED_CHECK_FAILED=$required conclusion=$conclusion"
+                exit 1
+              fi
+              echo "REQUIRED_CHECK_PASSED=$required"
+            done
+            if [[ "$WAITING" -eq 0 ]]; then
+              READY=1
+              break
+            fi
+            echo "WAITING_FOR_ALL_MAIN_CHECKS attempt=$attempt/12"
+            sleep 5
+          done
+          if [[ "$READY" -ne 1 ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "REQUIRED_MAIN_CHECKS_NOT_READY; a later workflow completion will re-check them."
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "ALL_REQUIRED_MAIN_CHECKS_PASSED=$DEPLOY_SHA"
+
+      - name: Validate pinned release and production secrets
+        if: steps.required-checks.outputs.ready == 'true'
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SANATPISH_DEPLOY_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SANATPISH_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "INVALID_DEPLOY_SHA"; exit 1; }
+          test -n "$SSH_HOST" || { echo "MISSING_SANATPISH_DEPLOY_HOST"; exit 1; }
+          test -n "$SSH_USER" || { echo "MISSING_SANATPISH_DEPLOY_USER"; exit 1; }
+          test -n "$SSH_PRIVATE_KEY" || { echo "MISSING_SANATPISH_DEPLOY_PRIVATE_KEY"; exit 1; }
+          test -n "$SSH_KNOWN_HOSTS" || { echo "MISSING_SANATPISH_DEPLOY_KNOWN_HOSTS"; exit 1; }
+          echo "PINNED_MAIN_RELEASE=$DEPLOY_SHA"
+          echo "PRODUCTION_DEPLOY_CONFIGURATION_PRESENT"
+
+      - name: Configure pinned SSH identity and host key
+        if: steps.required-checks.outputs.ready == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SANATPISH_DEPLOY_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SANATPISH_DEPLOY_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          install -m 0700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/sanatpish_deploy_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/sanatpish_deploy_ed25519" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/sanatpish_deploy_ed25519" >/dev/null
+          ssh-keygen -F "$SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
+
+      - name: Deploy only the exact main commit whose CI passed
+        if: steps.required-checks.outputs.ready == 'true'
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_sha }}
+          SSH_HOST: ${{ secrets.SANATPISH_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.SANATPISH_DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          ssh \
+            -i "$HOME/.ssh/sanatpish_deploy_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=90 \
+            "$SSH_USER@$SSH_HOST" "deploy $DEPLOY_SHA"
