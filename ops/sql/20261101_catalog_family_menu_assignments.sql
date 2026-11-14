@@ -514,7 +514,6 @@ VALUES
 ('FAM-35166','excel-v2-3-2','بوش بغل رولر','بوش بغل رولر فلزی','conservative_name_rule'),
 ('FAM-35169','excel-v2-6-2','گاید تفلونی',NULL,'conservative_name_rule'),
 ('FAM-35190','excel-v2-8-1','برزنتی چسب‌دار','(نخ و پارچه) برزنتی در ضخامت مختلف','conservative_name_rule'),
-('FAM-35198','excel-v2-9-3','دستگیره و پیچ فلکه','انواع دستگیره شکل و پیچ فلکه','conservative_name_rule'),
 ('FAM-35203','excel-v2-1-2','تسمه اسپشیال','SPA , SPB , SPC و دندانه‌دار','conservative_name_rule'),
 ('FAM-35210','excel-v2-1-2','کلاسیک و دنده‌دار','Z (9.5) , M , A , B , C , D , E , 8V','conservative_name_rule'),
 ('FAM-35233','excel-v2-1-2','تسمه اسپشیال','SPA , SPB , SPC و دندانه‌دار','conservative_name_rule'),
