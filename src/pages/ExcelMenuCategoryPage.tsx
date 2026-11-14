@@ -873,11 +873,16 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   );
 
   const directSkusInCategory = useMemo(
-    () => directSkus.filter(item =>
-      item.categorySlug === slug &&
-      directSkuMatchesSubcategory(item, selection) &&
-      !selectedFamilyCodesForFacet.has(item.skuCode.trim().toLowerCase()),
-    ),
+    () => directSkus.filter(item => {
+      const skuCode = item.skuCode.trim().toLowerCase();
+      const sourceFamilyCode = String(item.sourceFamilyCode || '').trim().toLowerCase();
+      const sourceFamilyAlreadyVisible =
+        Boolean(sourceFamilyCode) && selectedFamilyCodesForFacet.has(sourceFamilyCode);
+      return item.categorySlug === slug &&
+        directSkuMatchesSubcategory(item, selection) &&
+        !selectedFamilyCodesForFacet.has(skuCode) &&
+        !sourceFamilyAlreadyVisible;
+    }),
     [directSkus, slug, selection, selectedFamilyCodesForFacet],
   );
 
