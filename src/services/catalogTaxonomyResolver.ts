@@ -63,7 +63,7 @@ export function resolveCategoryFallbackArtwork(slug: string, name: string): stri
 
 export interface EnrichedFamilyMenuAssignment extends FamilyMenuAssignment {
   groupId: string;
-  submenu: string;
+  submenu: string | null;
   leaf: string | null;
 }
 
@@ -111,7 +111,7 @@ export function getFamilyMenuAssignment(
   if (/^excel-v2-\d+-\d+$/.test(product.categorySlug || '')) {
     return toEnrichedAssignment({
       categorySlug: product.categorySlug,
-      submenuName: product.submenu || '',
+      submenuName: product.submenu || null,
       leafName: product.subcategory || null,
     });
   }
@@ -401,13 +401,9 @@ export function resolveMenuCategoryPayload(slug: string): ResolvedMenuCategoryPa
     if (assignment.categorySlug !== cleanSlug) continue;
 
     const activeVariants = (product.variants || []).filter((v) => v.active !== false);
-    const defaultSubmenu = category.children?.[0]?.name || '';
-    const resolvedSubmenu = assignment.submenuName || defaultSubmenu;
-    const resolvedLeaf =
-      assignment.leafName ||
-      category.children?.find((s) => normalizeText(s.name) === normalizeText(resolvedSubmenu))
-        ?.children?.[0]?.name ||
-      '';
+    // Never invent a submenu or leaf for a family that has not been assigned.
+    const resolvedSubmenu = assignment.submenuName || '';
+    const resolvedLeaf = assignment.leafName || '';
 
     matchedFamilies.push({
       code: product.code,

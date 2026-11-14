@@ -1,12 +1,16 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
+import {APPROVED_MENU_CATEGORIES,APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
 test('additive production recovery seeds every approved spreadsheet group without overwriting admin edits',()=>{
  const sql=readFileSync('ops/sql/20261103_recover_missing_production_catalog_navigation.sql','utf8');
  assert.equal(APPROVED_MENU_GROUPS.length,14);
+ const approvedSubmenus=APPROVED_MENU_CATEGORIES.reduce((count,category)=>count+(category.children||[]).length,0);
+ const approvedLeaves=APPROVED_MENU_CATEGORIES.reduce((count,category)=>count+(category.children||[]).reduce((sum,submenu)=>sum+(submenu.children||[]).length,0),0);
+ assert.equal(approvedSubmenus,55);
+ assert.equal(approvedLeaves,67);
  for(const group of APPROVED_MENU_GROUPS) {
   assert.ok(sql.includes("'"+group.id+"'"),"Missing "+group.id);
   assert.ok(sql.includes("'"+group.title+"'"),"Missing "+group.title);
@@ -67,6 +71,7 @@ test('production deploy applies every canonical family-menu assignment without o
  const singlePort=readFileSync('ops/deploy-single-port-vps.sh','utf8');
  const wrapper=readFileSync('ops/deploy-main-bluegreen-vps.sh','utf8');
  const source=CATALOG_FAMILY_MENU_ASSIGNMENTS;
+ const resolver=readFileSync('src/services/catalogTaxonomyResolver.ts','utf8');
  const rows=[...sql.matchAll(/\n\('(FAM-[^']+)','(excel-v2-[0-9]+-[0-9]+)',(NULL|'(?:''|[^'])*'),(NULL|'(?:''|[^'])*'),'conservative_name_rule'\)/g)];
  const literal=(value:string)=>value==='NULL'?null:value.slice(1,-1).replace(/''/g,"'");
  const actual=Object.fromEntries(rows.map(match=>[match[1],{
@@ -78,6 +83,52 @@ test('production deploy applies every canonical family-menu assignment without o
  assert.equal(rows.length,1383);
  assert.equal(new Set(rows.map(match=>match[1])).size,1383);
  assert.deepEqual(sorted(actual),sorted(source));
+
+ const rubberTimingCodes=["FAM-10077","FAM-10182","FAM-10265","FAM-31501","FAM-32384","FAM-32929","FAM-33804","FAM-34722","FAM-36375","FAM-36378","FAM-36467","FAM-36468","FAM-36636","FAM-37044","FAM-37681","FAM-37734","FAM-37739","FAM-38019","FAM-38027","FAM-38040","FAM-38181","FAM-38264","FAM-38933","FAM-39283","FAM-39613","FAM-39897","FAM-39908","FAM-40692","FAM-41156","FAM-41630","FAM-58265","FAM-58288"];
+ assert.equal(rubberTimingCodes.length,32);
+ for(const code of rubberTimingCodes) {
+  assert.deepEqual(source[code],{
+   categorySlug:'excel-v2-1-1',
+   submenuName:'لاستیکی فابریک',
+   leafName:'لاستیکی فابریک ساده و دنده‌دار',
+  },'Incorrect rubber timing assignment: '+code);
+ }
+ for(const code of ['FAM-10105','FAM-35826','FAM-52948']) {
+  assert.deepEqual(source[code],{
+   categorySlug:'excel-v2-6-2',
+   submenuName:'نرده استیل',
+   leafName:'نرده استیل و متعلقات',
+  },'Stainless guide must stay in the stainless rail subcategory: '+code);
+ }
+ assert.deepEqual(source['FAM-33126'],{
+  categorySlug:'excel-v2-1-1',submenuName:'سیم‌دار فابریک',leafName:null,
+ });
+ assert.deepEqual(source['FAM-35198'],{
+  categorySlug:'excel-v2-1-2',submenuName:'کلاسیک و دنده‌دار',leafName:'Z (9.5) , M , A , B , C , D , E , 8V',
+ });
+ assert.deepEqual(source['FAM-22751'],{
+  categorySlug:'excel-v2-1-2',submenuName:'کلاسیک و دنده‌دار',leafName:'Z (9.5) , M , A , B , C , D , E , 8V',
+ });
+ for(const code of ['FAM-30','FAM-38906','FAM-41253']) {
+  assert.deepEqual(source[code],{
+   categorySlug:'excel-v2-1-2',submenuName:'کلاسیک و دنده‌دار',leafName:null,
+  },'V-belt family must not be mislabeled as timing or wire reinforced: '+code);
+ }
+ assert.deepEqual(source['FAM-31929'],{
+  categorySlug:'excel-v2-1-1',submenuName:'انواع گام و کدهای تایمینگ',leafName:'H , XH , L , XL',
+ });
+ for(const code of ['FAM-40462','FAM-52319']) {
+  assert.deepEqual(source[code],{
+   categorySlug:'excel-v2-1-3',submenuName:'تسمه گرد (CRC)',leafName:'انواع تسمه گرد جوشی',
+  },'CRC welded belt family must use the welded-belt category: '+code);
+ }
+ for(const code of ['FAM-39130','FAM-80151']) {
+  assert.equal(source[code].submenuName,null,'Mixed legacy family must not be forced into an unrelated submenu: '+code);
+  assert.equal(source[code].leafName,null);
+ }
+ assert.match(resolver,/const resolvedSubmenu = assignment\.submenuName \|\| '';/);
+ assert.match(resolver,/const resolvedLeaf = assignment\.leafName \|\| '';/);
+ assert.doesNotMatch(resolver,/const defaultSubmenu/);
  assert.equal(Object.values(source).filter(item=>item.categorySlug==='excel-v2-1-4').length,21);
  assert.match(sql,/BEGIN;/);
  assert.match(sql,/ON CONFLICT\(family_code\) DO UPDATE SET/);
@@ -89,6 +140,12 @@ test('production deploy applies every canonical family-menu assignment without o
  assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
  assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
  assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_SUBMENUS_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_SUBCATEGORY_LEAVES_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_RUBBER_TIMING_ASSIGNMENTS_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_ASSIGNMENTS_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_WIRE_T10_ASSIGNMENT_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_PACKAGING_VBELT_ASSIGNMENT_VERIFIED/);
  assert.match(wrapper,/deploy-single-port-vps\.sh/);
  assert.ok(singlePort.indexOf('PRODUCTION_FAMILY_MENU_ASSIGNMENTS_VERIFIED') < singlePort.indexOf("echo '===== PRIVATE CANARY WITHOUT A HOST PORT ====='"));
 });
