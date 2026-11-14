@@ -95,7 +95,7 @@ test('both recognition result paths share full-resolution zoomable photography a
   assert.match(wizard,/sp-vision-result-intro/);
   assert.match(wizard,/sp-vision-match-photo/);
   assert.match(wizard,/sources=\{\[match\.image,/);
-  assert.match(wizard,/sources=\{\[photo\.image\]\}/);
+  assert.match(wizard,/photos=\{visiblePhotoMatches\}/);
   assert.match(wizard,/نیازمند تأیید فنی/);
   assert.match(wizard,/حداکثر حجم ۱۰ مگابایت/);
   assert.doesNotMatch(wizard,/resolveMatchImage/);

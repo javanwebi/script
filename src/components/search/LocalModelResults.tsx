@@ -1,11 +1,13 @@
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
-import type {CatalogModelSuggestion} from '../../services/aiVisualSearchService';
+import type {CatalogModelSuggestion, CatalogPhotoMatch} from '../../services/aiVisualSearchService';
+import {visualCatalogCards} from '../../utils/visualCatalogCards';
 import {toPersianDigits} from '../../utils/formatters';
 import { CatalogResultImage } from './CatalogResultImage';
 
-export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[];onClose:()=>void}){
+export function LocalModelResults({items:models,photos=[],onClose}:{items:CatalogModelSuggestion[];photos?:CatalogPhotoMatch[];onClose:()=>void}){
  const [expanded,setExpanded]=useState(false);
+ const items=visualCatalogCards(models,photos);
  if(!items.length)return null;
  const exploring=items.every(item=>item.matchBasis==='explore');
  const shown=expanded?items:items.slice(0,12);
@@ -20,8 +22,9 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
   </header>
   <ol className="sanat-visual-results__grid">
    {shown.map((item,index)=>{
-    const target=item.code?'/product/'+encodeURIComponent(item.code):'/product/'+encodeURIComponent(item.familyCode);
-    return <li key={item.code || 'family-'+item.familyCode}>
+    const target=item.code?'/product/'+encodeURIComponent(item.code):item.familyCode?'/product/'+encodeURIComponent(item.familyCode):null;
+    const consult=new URLSearchParams({q:`درباره گزینه تصویری «${item.name}» راهنمایی کن. این فقط شباهت تصویری است و کد، اندازه و سازگاری قطعی نیست.${item.imageId?' مرجع تصویر کاتالوگ: '+item.imageId:''}`,...(item.code?{productCode:item.code,productName:item.name}:{})});
+    return <li key={item.imageId ? 'photo-'+item.imageId : item.code || 'family-'+item.familyCode}>
      <article className="sanat-visual-result-card">
       <div className="sanat-visual-result-card__meta">
        <span className="sanat-visual-result-card__rank">گزینه {toPersianDigits(index+1)}</span>
@@ -41,13 +44,14 @@ export function LocalModelResults({items,onClose}:{items:CatalogModelSuggestion[
        <p className="sanat-visual-result-card__family">{item.familyName}{item.model?' · مدل '+item.model:''}{item.size?' · سایز '+item.size:''}</p>
        {item.code?
         <p className="sanat-visual-result-card__code" dir="ltr">{item.code}</p>:
-        <span className="sanat-visual-result-card__no-code">کد SKU مشخص نیست</span>}
+        <span className="sanat-visual-result-card__no-code">تصویر کاتالوگ · کد کالا هنوز ثبت نشده</span>}
        {item.imageScope==='family'&&item.image&&<p className="sanat-visual-result-card__image-note">{item.code?'تصویر نمونهٔ خانواده؛ شباهت مستقل این مدل تأیید نشده است.':'تصویر ثبت‌شده برای همین خانوادهٔ محصول'}</p>}
       </div>
       {!!item.specs.length&&<dl className="sanat-visual-result-card__specs">{item.specs.slice(0,4).map((spec,i)=><div key={i}><dt>{spec.key}</dt><dd dir="auto">{spec.value}</dd></div>)}</dl>}
       <p className="sanat-visual-result-card__reason">{item.reason}</p>
       <div className="sanat-visual-result-card__actions">
-       <Link to={target} onClick={onClose}>{item.code?'مشاهده این مدل':'مشاهده خانواده محصول'}</Link>
+       {target && <Link to={target} onClick={onClose}>{item.code?'مشاهده این مدل':'مشاهده خانواده محصول'}</Link>}
+       <Link to={'/ai-consult?'+consult.toString()} onClick={onClose}>مشاوره درباره این گزینه</Link>
        {item.code&&<Link to={'/product/'+encodeURIComponent(item.familyCode)} onClick={onClose}>همه مدل‌ها</Link>}
       </div>
      </article>

@@ -98,10 +98,13 @@ export function localVisionResult(hits:LocalVisualHit[],products:Product[],cover
  if(query?.model===localVisionProfile({LOCAL_VISION_ENCODER:'mobileclip2-s0'}).model)hits=corroborateLocalFamilies(hits,products,minSimilarity);
  const families=new Map(products.filter(p=>p.active!==false).map(p=>[p.code,p]));
  const familyCounts=new Map<string,number>();
- const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity&&hit.row.bindings.some(binding=>families.has(binding.familyCode)));
+ // Unbound catalogue photographs remain valid visual evidence, without becoming
+ // invented products. Exclude obsolete bindings and keep the raw visual order.
+ const eligible=hits.filter(hit=>hit.eligible!==false&&Number.isFinite(hit.score)&&Number.isFinite(hit.visualScore ?? hit.score)&&(hit.visualScore ?? hit.score)>=minSimilarity&&(hit.row.bindings.length===0||hit.row.bindings.some(binding=>families.has(binding.familyCode))))
+  .sort((a,b)=>(b.visualScore ?? b.score)-(a.visualScore ?? a.score)||a.row.id.localeCompare(b.row.id));
  const diversified=eligible.filter(hit=>{const key=[...new Set(hit.row.bindings.map(b=>b.familyCode).filter(code=>families.has(code)))].sort().join('|') || hit.row.id;const n=familyCounts.get(key)||0;if(n>=2)return false;familyCounts.set(key,n+1);return true;});
- const photoMatches=diversified.slice(0,8).map(({row,score})=>({
-  imageId:row.id,image:row.url,label:row.label,score:Math.round(Math.max(0,Math.min(1,score))*100),
+ const photoMatches=diversified.slice(0,24).map(({row,score,visualScore})=>({
+  imageId:row.id,image:row.url,label:row.label,score:Math.round(Math.max(0,Math.min(1,visualScore ?? score))*100),
   reason:scoreReason(hits.find(h=>h.row.id===row.id)!),
   relation:'very_similar' as const,
   familyNames:[...new Set(row.bindings.flatMap(b=>families.has(b.familyCode)?[families.get(b.familyCode)!.name]:[]))],

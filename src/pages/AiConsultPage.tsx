@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { apiUrl } from '../config/apiConfig';
 import { consumeForzaTextStream } from '../utils/forzaStreamClient';
+import { createForzaStreamDeadline } from '../utils/forzaStreamDeadline';
 import { buildVisionConsultationPrompt } from '../utils/visionConsultationPrompt';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
 import { renderEngineeringMarkdown } from '../utils/engineeringMarkdown';
@@ -720,6 +721,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
     }
     const abortCtrl = new AbortController();
     streamAbortControllerRef.current = abortCtrl;
+    const deadline = createForzaStreamDeadline();
 
     const userMessageId = 'u-' + Date.now();
     const uniqueResponseId = `resp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -782,7 +784,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       const res = await fetch(apiUrl('/api/ai/consult-stream'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: abortCtrl.signal,
+        signal: AbortSignal.any([abortCtrl.signal, deadline.signal]),
         body: JSON.stringify({
           query: queryWithContext,
           history: historyPayload,
@@ -796,6 +798,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
         res,
         (_chunk, accumulatedText) => {
           if (abortCtrl.signal.aborted || streamAbortControllerRef.current !== abortCtrl) return;
+          if (_chunk.trim()) deadline.progress();
           streamedText = accumulatedText;
           setMessages(prev =>
             prev.map(m => (m.id === aiMessageId ? { ...m, text: accumulatedText } : m))
@@ -847,7 +850,9 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
 
       const failureText = streamedText.trim()
         ? `${streamedText}\n\nپاسخ کامل از سرویس دریافت نشد؛ متن بالا ممکن است ناقص باشد. لطفاً درخواست را دوباره ارسال کنید.`
-        : 'سرویس مشاوره فعلاً پاسخ کامل نداد. لطفاً کمی بعد دوباره تلاش کنید.';
+        : deadline.signal.aborted
+          ? 'زمان انتظار پاسخ تمام شد. می‌توانید همین سؤال را دوباره ارسال کنید.'
+          : 'سرویس مشاوره فعلاً پاسخ کامل نداد. لطفاً کمی بعد دوباره تلاش کنید.';
 
       const finalMessagesList = [
         ...messages,
@@ -874,6 +879,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
       saveSessionsToStorage(updatedSessions);
       persistConsultationForCrm(activeSessionId, sessionTitle, finalMessagesList, failureText, turnSelectedProducts);
     } finally {
+      deadline.dispose();
       // Only the request that still owns the composer may clear its loading
       // state; an older aborted request must not stop a newer request's spinner.
       if (streamAbortControllerRef.current === abortCtrl) {
@@ -2058,13 +2064,14 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                 <div className="max-w-4xl mx-auto w-full bg-[#F4F4F5] rounded-2xl border border-[#CBD2D8] p-2 focus-within:border-[#E06518] focus-within:bg-[#FFFFFF] transition-all">
                   <div className="flex items-end gap-2">
                     <textarea
+                      aria-label="پرسش از مشاور FORZA"
                       ref={textareaRef}
                       value={inputQuery}
                       onChange={e => setInputQuery(e.target.value)}
                       onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
-                          handleSend();
+                          if (!loading) handleSend();
                         }
                       }}
                       rows={1}
@@ -2073,7 +2080,7 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                     />
 
                     {/* Action buttons inside composer */}
-                    <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                    <div className="flex flex-wrap justify-end items-center gap-1 shrink-0 pb-0.5 max-w-[112px] sm:max-w-none">
                       {/* Deep Research toggle */}
                       <button
                         type="button"
@@ -2119,15 +2126,24 @@ export const AiConsultPage: React.FC<{ identificationOnly?: boolean }> = ({ iden
                       </button>
 
                       {/* Send Button */}
+                      {loading ? <button type="button"
+                        onClick={() => {
+                          cancelActiveConsultation();
+                          setMessages(current => current.map((message, index) =>
+                            index === current.length - 1 && message.sender === 'ai'
+                              ? {...message, text: message.text + '\n\nدریافت پاسخ متوقف شد.'} : message));
+                        }}
+                        className="min-h-11 px-3 rounded-xl bg-slate-800 text-white text-xs font-bold"
+                        aria-label="توقف دریافت پاسخ">توقف</button> :
                       <button
                         type="button"
                         onClick={() => handleSend()}
                         disabled={!inputQuery.trim() || loading}
-                        className="w-9 h-9 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+                        className="w-11 h-11 rounded-xl bg-[#E06518] hover:bg-[#C95210] disabled:bg-[#CBD2D8] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
                         title="ارسال"
                       >
                         <Send className="w-4 h-4 -rotate-45" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>

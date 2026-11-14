@@ -267,8 +267,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showSimilar, setShowSimilar] = useState<boolean>(true);
-  const visiblePhotoMatches=(analysisResult?.catalogImageMatches || []).filter(photo=>
-    !analysisResult?.modelSuggestions?.length || photo.bindings.length===0);
+  const visiblePhotoMatches=analysisResult?.catalogImageMatches || [];
 
   // Short part family for dynamic titles, e.g. «این چرخ‌دهنده‌ها را داریم».
   // Different per product type (wheel / belt / pulley / bush / ...).
@@ -868,7 +867,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
       noPadding={currentStep === 1 || currentStep === "analyzing"}
     >
       <div className="sanat-visual-search-shell" dir="rtl">
-      {!cameraFlowActive && currentStep === 1 && !selectedImage && (
+      {!cameraFlowActive && (
         <nav className="sp-vision-journey" aria-label="مراحل شناسایی قطعه" data-testid="vision-journey">
           {[
             { label: 'تصویر قطعه', detail: 'دوربین یا گالری' },
@@ -876,7 +875,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
             { label: 'جست‌وجوی کاتالوگ', detail: 'مقایسه واقعی' },
             { label: 'نتیجه و مشاوره', detail: 'بررسی فنی' },
           ].map((step, index) => {
-            const activeIndex = 0; // Intro rail is displayed only before a photo is selected.
+            const activeIndex = currentStep === 'results' ? 3 : currentStep === 'analyzing' ? 2 : selectedImage ? 1 : 0;
             return (
               <div key={step.label} className={['sp-vision-journey__step', index === activeIndex ? 'is-current' : '', index < activeIndex ? 'is-complete' : ''].filter(Boolean).join(' ')} aria-current={index === activeIndex ? 'step' : undefined}>
                 <span className="sp-vision-journey__number">{index < activeIndex ? '✓' : index + 1}</span>
@@ -1031,7 +1030,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
           </button>
 
           {/* BANNER / HERO PANEL (Desktop = Left in RTL, Mobile = Top) */}
-          <div data-testid="identification-image-panel" className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
+          {!selectedImage && <div data-testid="identification-image-panel" className="sanat-visual-search-hero lg:col-span-5 lg:col-start-8 lg:row-start-1 order-first lg:order-last bg-[#0B0F19] text-white p-4 pt-14 lg:p-8 relative flex flex-col justify-between overflow-hidden shadow-2xl">
             {/* Industrial Background Texture */}
             <div
               className="absolute inset-0 z-0 opacity-25 bg-cover bg-center pointer-events-none filter contrast-125"
@@ -1163,49 +1162,10 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                 </span>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* FORM / UPLOAD PANEL (Desktop = Right in RTL, Mobile = Bottom) */}
-          <div className="sanat-visual-search-form lg:col-span-7 lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
-            {/* STEPPER HEADER */}
-            <div className="sanat-visual-stepper pt-2 pb-4 border-b border-slate-200/80">
-              <div className="flex items-center justify-between max-w-sm mx-auto relative">
-                {/* Step 1 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10">
-                  <div className="w-9 h-9 rounded-full bg-[#E06518] text-white font-black text-sm flex items-center justify-center shadow-md shadow-orange-500/20 ring-4 ring-orange-100">
-                    ۱
-                  </div>
-                  <span className="text-xs font-bold text-[#E06518]">
-                    تصویر قطعه
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 2 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۲
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    پردازش تصویر
-                  </span>
-                </div>
-
-                <div className="flex-1 h-0.5 bg-slate-200 mx-2 -mt-5" />
-
-                {/* Step 3 Item */}
-                <div className="flex flex-col items-center gap-1.5 relative z-10 opacity-60">
-                  <div className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-500 font-bold text-sm flex items-center justify-center shadow-2xs">
-                    ۳
-                  </div>
-                  <span className="text-xs font-medium text-slate-600">
-                    تحلیل و نتایج
-                  </span>
-                </div>
-              </div>
-            </div>
-
+          <div className={`sanat-visual-search-form ${selectedImage ? "lg:col-span-12 pt-16" : "lg:col-span-7"} lg:col-start-1 lg:row-start-1 order-last lg:order-first bg-[#FAFBFD] p-4 sm:p-6 lg:p-8 flex flex-col justify-between`}>
             {/* STEP CONTENT BODY */}
             <div className="my-4 space-y-4">
               <div className="sanat-visual-search-heading text-right space-y-1">
@@ -2138,31 +2098,9 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
                     {analysisResult.retrieval?.mode==="local-embedding" ? " نتایج بر اساس شباهت تصویر هستند؛ مدل و سایز هنوز تأیید نشده است." : analysisResult.retrieval?.mode==="indexed" ? ` جست‌وجو در ${toPersianDigits(analysisResult.retrieval.indexed)} تصویر ایندکس‌شده؛ ${analysisResult.scanCoverage.complete ? "بازبینی گزینه‌های نزدیک کامل شد." : "بازبینی کامل نشده است."}` : analysisResult.scanCoverage.complete ? " بررسی تمام تصاویر کامل شد." : " بررسی کامل کاتالوگ انجام نشده است؛ نتیجه موقت است."}
                   </p>
                 )}
-                {analysisResult.modelSuggestions && <LocalModelResults key={analysisResult.customerImageUrl} items={analysisResult.modelSuggestions} onClose={onClose} />}
-                {!!visiblePhotoMatches.length && (
-                  <section className="space-y-3" aria-label="تصاویر مشابه در کاتالوگ">
-                    <h4 className="font-bold text-sm text-slate-800">{analysisResult.modelSuggestions?.length?"تصاویر مشابه بدون کد متصل":"تصاویر مشابه پیدا‌شده در کاتالوگ"}</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {visiblePhotoMatches.map(photo=>(
-                        <article key={photo.imageId} className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                          <CatalogResultImage sources={[photo.image]} alt={photo.label} className="sp-vision-photo-evidence" />
-                          <p className="text-xs font-bold text-slate-700">{photo.label}</p>
-                          <p className="text-xs text-orange-700">{photo.relation==="related" ? "هم‌خانواده؛ دارای تفاوت" : "شباهت بصری بیشتر"}</p>
-                          {!!photo.familyNames?.length && <p className="text-xs text-slate-600">خانواده: {photo.familyNames.join("، ")}</p>}
-                          <p className="text-xs leading-6 text-slate-500">{photo.reason}</p>
-                          {photo.bindings.some(binding=>binding.code) && !photo.bindings.some(binding=>binding.verified) && <p className="text-xs text-slate-500">کدهای متصل به عکس؛ تعلق دقیق تصویر به این کدها هنوز تأیید نشده است.</p>}
-                          {[...new Set(photo.bindings.flatMap(binding=>binding.code ? [binding.code] : []))].map(code=>(
-                            <Link key={code} to={`/product/${encodeURIComponent(code)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشخصات کد {code}</Link>
-                          ))}
-                          {[...new Set(photo.bindings.map(binding=>binding.familyCode))].map(familyCode=>(
-                            <Link key={familyCode} to={`/product/${encodeURIComponent(familyCode)}`} onClick={onClose} className="inline-block border rounded-lg px-2 py-1 m-1 text-xs text-orange-700">مشاهده خانواده و سایزها</Link>
-                          ))}
-                          {!photo.bindings.some(binding=>binding.code) && <p className="text-xs text-slate-500">تصویر کاتالوگی مشابه؛ کد دقیق این عکس هنوز تأیید نشده است.</p>}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                <LocalModelResults key={analysisResult.customerImageUrl}
+                  items={analysisResult.modelSuggestions || []}
+                  photos={visiblePhotoMatches} onClose={onClose} />
                 {/* Strong visual evidence banner */}
                 {analysisResult.summary.exactVisualMatch &&
                   analysisResult.matchedProducts.some(
@@ -2199,7 +2137,7 @@ export const AiVisualPartSearchModal: React.FC<Props> = ({
 
                 {/* All matched real catalog records returned by the server */}
                 {(() => {
-                  if(analysisResult.modelSuggestions?.length)return null;
+                  if(analysisResult.modelSuggestions?.length || visiblePhotoMatches.length)return null;
                   const combinedList = [
                     ...(analysisResult.matchedProducts || []),
                     ...(analysisResult.similarCandidates || []),
