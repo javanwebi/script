@@ -9,10 +9,10 @@ const textileProduct = {
   name: 'تسمه صنعتی مخصوص خط نساجی',
   nameEn: 'Textile Production Industrial Belt',
   brand: 'Test Textile',
-  categorySlug: 'excel-v2-1-1',
-  categoryName: 'نساجی',
+  categorySlug: 'تسمه-و-انتقال-نیرو',
+  categoryName: 'تسمه و انتقال نیرو',
   submenu: 'تسمه',
-  subcategory: 'ریسندگی',
+  subcategory: 'تسمه صنعتی',
   technicalSpecs: [
     { key: 'عرض', value: '20 mm' },
     { key: 'کاربرد', value: 'ریسندگی' },
@@ -109,7 +109,7 @@ async function installRoutes(page) {
         };
       });
       if (viewport.width > 760) {
-        assert.ok(heroLayout.visualX > heroLayout.copyX, 'industrial image should be on the right of the text on desktop');
+        assert.ok(heroLayout.visualX < heroLayout.copyX, 'industrial image should be on the left of the text on desktop');
       } else {
         assert.ok(heroLayout.visualY < heroLayout.copyY, 'industrial image should appear before copy on mobile');
       }
