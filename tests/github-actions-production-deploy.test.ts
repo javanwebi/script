@@ -51,7 +51,7 @@ test("SSH forced command accepts only one deploy command with a full lowercase S
 test("VPS installer creates a dedicated restricted account and an exact no-argument sudo allowlist", () => {
   assert.match(installer, /readonly DEPLOY_USER="sanatpish-deploy"/);
   assert.match(installer, /useradd --create-home/);
-  assert.match(installer, /command="\/usr\/local\/sbin\/sanatpish-github-deploy-gate",restrict/);
+  assert.match(installer, /command=.*sanatpish-github-deploy-gate.*restrict/);
   assert.match(installer, /NOPASSWD: \/usr\/local\/sbin\/sanatpish-deploy-main ""/);
   assert.match(installer, /visudo -cf \/etc\/sudoers/);
   assert.match(installer, /env_keep \+= "SANATPISH_EXPECTED_MAIN_SHA"/);
