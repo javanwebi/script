@@ -144,3 +144,30 @@ test('V-Belt category includes data-driven profile matrix, structure and top-wid
   assert.match(styles, /\.excel-vbelt-groups-grid/);
 });
 
+
+test('family cards and direct SKU cards share one filtered, sorted and paginated subcategory collection', () => {
+  assert.match(page, /const directSkus = useDirectSkus\(\)/);
+  assert.match(page, /const filteredCollectionItems = useMemo/);
+  assert.match(page, /const pageItems = filteredCollectionItems\.slice/);
+  assert.match(page, /pageItems\.map\(entry =>/);
+  assert.match(page, /DirectSkuProductCard/);
+  assert.doesNotMatch(page, /DirectSkuProducts categorySlug=/);
+});
+
+test('brand facets use real manufacturer brands from families, active SKU variants and direct SKU records', () => {
+  assert.match(page, /const familyBrandLists = useMemo/);
+  assert.match(page, /getProductDisplayBrands\(product\)/);
+  assert.match(page, /directSkusInCategory\.forEach/);
+  assert.match(page, /productHasDisplayBrand\(product, brand\)/);
+  assert.doesNotMatch(page, /resolved === 'صنعت پیش'/);
+  assert.doesNotMatch(page, /resolved === 'وارداتی صنعتی'/);
+});
+
+test('the all-products page can read the live approved family-to-subcategory mapping without exposing commerce fields', () => {
+  assert.match(api, /app\.get\('\/api\/catalog\/menu-family-index'/);
+  const indexRoute = api.slice(api.indexOf("app.get('/api/catalog/menu-family-index'"), api.indexOf("// Read-only four-level menu taxonomy"));
+  assert.match(indexRoute, /catalog_family_menu_assignments/);
+  assert.match(indexRoute, /family_code as "familyCode"/);
+  assert.match(indexRoute, /Cache-Control','no-store'/);
+  assert.doesNotMatch(indexRoute, /price_snapshot|retail_price|wholesale_price|stock_reserved/);
+});
