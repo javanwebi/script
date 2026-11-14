@@ -31,7 +31,7 @@ import { CustomPartRequestModal } from "../components/home/CustomPartRequestModa
 import "./industry-template.css";
 
 const INTENTS = [
-  { id: "supply", title: "تأمین قطعه یدکی", description: "کد یا نام قطعه را دارید و می‌خواهید خانواده‌های واقعی کاتالوگ را بررسی کنید.", action: "مشاهده قطعات مرتبط", icon: PackageSearch },
+  { id: "supply", title: "تأمین قطعه یدکی", description: "کد یا نام قطعه را دارید و می‌خواهید کالاهای واقعی کاتالوگ را بررسی کنید.", action: "مشاهده قطعات مرتبط", icon: PackageSearch },
   { id: "identify", title: "شناسایی قطعه", description: "کد فنی مشخص نیست؛ از تصویر، نوشته روی قطعه و ابعاد برای شروع بررسی استفاده کنید.", action: "شروع شناسایی تصویری", icon: ScanLine },
   { id: "replacement", title: "انتخاب جایگزین", description: "برای تطبیق ابعاد، جنس، بار و شرایط کاری قطعه فعلی راهنمایی می‌خواهید.", action: "گفت‌وگو با FORZA", icon: Layers },
   { id: "custom", title: "ساخت قطعه کمیاب", description: "نمونه، نقشه یا مشخصات قطعه را برای بررسی امکان ساخت و مهندسی معکوس ارسال کنید.", action: "ثبت درخواست بررسی ساخت", icon: Wrench },
@@ -323,14 +323,14 @@ export function IndustryTemplatePage() {
               <Link to={catalogSearchUrl(industry.terms.join(" ") + " " + (activeStage?.title || ""))} className="ipt-text-link">جست‌وجوی قطعات این مرحله <ArrowLeft size={15} /></Link>
             </div>
             <div className="ipt-stage-products">
-              <div className="ipt-mini-heading"><strong>خانواده‌های مرتبط در کاتالوگ</strong><span>{stageProducts.length.toLocaleString("fa-IR")} نتیجه</span></div>
+              <div className="ipt-mini-heading"><strong>کالاهای مرتبط در کاتالوگ</strong><span>{stageProducts.length.toLocaleString("fa-IR")} نتیجه</span></div>
               {stageProducts.length ? stageProducts.map(product => (
                 <Link key={product.code} to={"/product/" + encodeURIComponent(product.code)} className="ipt-stage-product">
                   <span><PackageSearch size={17} /></span><div><strong>{product.name}</strong><small>{product.categoryName} · {product.subcategory}</small></div><ArrowUpLeft size={16} />
                 </Link>
               )) : (
                 <div className="ipt-stage-empty" role="status">
-                  <strong>{catalogReady ? "نتیجه تأییدشده‌ای برای این ایستگاه پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
+                  <strong>{catalogReady ? "کالای تأییدشده‌ای برای این ایستگاه پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
                   <span>برای جلوگیری از نمایش کالای نامرتبط، نتیجه ساختگی ارائه نمی‌شود.</span>
                 </div>
               )}
@@ -376,12 +376,12 @@ export function IndustryTemplatePage() {
         </form>
         {showRecommendations && (
           <div className="ipt-recommendation-results">
-            <div className="ipt-mini-heading"><strong>نتایج اولیه برای بررسی</strong><span>{recommendationProducts.length.toLocaleString("fa-IR")} خانواده</span></div>
+            <div className="ipt-mini-heading"><strong>نتایج اولیه برای بررسی</strong><span>{recommendationProducts.length.toLocaleString("fa-IR")} مورد</span></div>
             {recommendationProducts.length ? (
               <div className="ipt-products-grid">{recommendationProducts.map(product => <ProductCard key={product.code} product={product} />)}</div>
             ) : (
               <div className="ipt-stage-empty" role="status">
-                <strong>{catalogReady ? "خانواده مرتبطی با این معیارها پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
+                <strong>{catalogReady ? "کالای مرتبطی با این معیارها پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
                 <span>می‌توانید جست‌وجوی آزاد انجام دهید یا شرایط را برای مشاوره فنی ارسال کنید.</span>
                 <Link to={catalogSearchUrl(industry.terms.join(" ") + " " + equipment)} className="ipt-text-link">جست‌وجو در کل کاتالوگ <ArrowLeft size={15} /></Link>
               </div>
@@ -408,14 +408,14 @@ export function IndustryTemplatePage() {
       <section className="ipt-section ipt-catalog" id="ipt-catalog">
         <div className="ipt-section-heading">
           <span className="ipt-section-kicker">کاتالوگ واقعی صنعت پیش</span>
-          <h2>خانواده‌های مرتبط با صنعت {industry.title}</h2>
-          <p>این فهرست از کاتالوگ فعال سایت خوانده می‌شود. تنوع‌ها و کدهای مستقیم هر خانواده در صفحه جزئیات قابل بررسی‌اند.</p>
+          <h2>قطعات مرتبط با صنعت {industry.title}</h2>
+          <p>این فهرست از کاتالوگ فعال سایت خوانده می‌شود؛ خانواده‌ها، کدهای مستقیم و تنوع‌های هر خانواده در یک مسیر قابل بررسی‌اند.</p>
         </div>
         {industryProducts.length ? (
           <div className="ipt-products-grid">{industryProducts.map(product => <ProductCard key={product.code} product={product} />)}</div>
         ) : (
           <div className="ipt-stage-empty ipt-catalog-empty" role="status">
-            <strong>{catalogReady ? "در حال حاضر خانواده تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
+            <strong>{catalogReady ? "در حال حاضر کالای تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد." : "کاتالوگ در حال همگام‌سازی است."}</strong>
             <span>برای جلوگیری از پیشنهاد کالای نامرتبط، فقط داده‌های فعال و قابل تطبیق نمایش داده می‌شوند.</span>
             <Link to={catalogSearchUrl(industry.terms.join(" "))} className="ipt-button ipt-button--light">جست‌وجوی کامل کاتالوگ <Search size={16} /></Link>
           </div>
