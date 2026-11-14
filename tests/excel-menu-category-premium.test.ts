@@ -149,12 +149,14 @@ test('V-Belt category includes data-driven profile matrix, structure and top-wid
 
 
 test('family cards and direct SKU cards share one filtered, sorted and paginated subcategory collection', () => {
-  assert.match(page, /const directSkus = useDirectSkus\(\)/);
+  assert.match(page, /const directSkus = useDirectSkus\(slug\)/);
   assert.match(page, /const filteredCollectionItems = useMemo/);
   assert.match(page, /const pageItems = filteredCollectionItems\.slice/);
   assert.match(page, /pageItems\.map\(entry =>/);
   assert.match(page, /DirectSkuProductCard/);
   assert.doesNotMatch(page, /DirectSkuProducts categorySlug=/);
+  assert.match(page, /const seenCodes = new Set<string>\(\)/);
+  assert.match(page, /seenCodes\.has\(key\)/);
 });
 
 test('brand facets use real manufacturer brands from families, active SKU variants and direct SKU records', () => {
