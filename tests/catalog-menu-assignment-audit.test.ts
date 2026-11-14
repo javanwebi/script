@@ -183,7 +183,7 @@ test('the current family map has 1,287 retained rows and exposes incomplete assi
  assert.equal(Object.values(CATALOG_FAMILY_MENU_ASSIGNMENTS).filter(item=>!item.leafName).length,265);
 });
 
-test('20 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
+test('21 approved menu leaves have no explicit family leaf mapping after this audit',()=>{
  const leaves=APPROVED_MENU_CATEGORIES.flatMap(category=>(category.children||[]).flatMap(submenu=>
   (submenu.children||[]).map(leaf=>({categorySlug:category.slug,submenuName:submenu.name,leafName:leaf.name}))
  ));
