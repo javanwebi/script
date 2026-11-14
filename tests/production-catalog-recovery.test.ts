@@ -1,12 +1,16 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
+import {APPROVED_MENU_CATEGORIES,APPROVED_MENU_GROUPS} from '../src/data/approvedMenuFallback.ts';
 import {CATALOG_FAMILY_MENU_ASSIGNMENTS} from '../src/data/catalogMenuAssignmentsData.ts';
 
 test('additive production recovery seeds every approved spreadsheet group without overwriting admin edits',()=>{
  const sql=readFileSync('ops/sql/20261103_recover_missing_production_catalog_navigation.sql','utf8');
  assert.equal(APPROVED_MENU_GROUPS.length,14);
+ const approvedSubmenus=APPROVED_MENU_CATEGORIES.reduce((count,category)=>count+(category.children||[]).length,0);
+ const approvedLeaves=APPROVED_MENU_CATEGORIES.reduce((count,category)=>count+(category.children||[]).reduce((sum,submenu)=>sum+(submenu.children||[]).length,0),0);
+ assert.equal(approvedSubmenus,55);
+ assert.equal(approvedLeaves,67);
  for(const group of APPROVED_MENU_GROUPS) {
   assert.ok(sql.includes("'"+group.id+"'"),"Missing "+group.id);
   assert.ok(sql.includes("'"+group.title+"'"),"Missing "+group.title);
@@ -136,6 +140,8 @@ test('production deploy applies every canonical family-menu assignment without o
  assert.match(singlePort,/Expected 21 assignments for excel-v2-1-4/);
  assert.match(singlePort,/Expected all 34 approved categories to contain active families/);
  assert.match(singlePort,/PRODUCTION_APPROVED_CATEGORIES_WITH_FAMILIES_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_SUBMENUS_VERIFIED/);
+ assert.match(singlePort,/PRODUCTION_APPROVED_SUBCATEGORY_LEAVES_VERIFIED/);
  assert.match(singlePort,/PRODUCTION_RUBBER_TIMING_ASSIGNMENTS_VERIFIED/);
  assert.match(singlePort,/PRODUCTION_STAINLESS_GUIDE_ASSIGNMENTS_VERIFIED/);
  assert.match(singlePort,/PRODUCTION_WIRE_T10_ASSIGNMENT_VERIFIED/);
