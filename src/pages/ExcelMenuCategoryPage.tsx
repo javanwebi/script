@@ -1100,8 +1100,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
         leaf: item.subcategory || null,
         skuCount: 1,
       };
-      if (selectedBrands.length && !productHasDisplayBrand(product, selectedBrands[0]) &&
-          !selectedBrands.some(brand => productHasDisplayBrand(product, brand))) return false;
+      if (selectedBrands.length && !selectedBrands.some(brand => productHasDisplayBrand(product, brand))) return false;
       if (inStockOnly) return false; // Public direct-SKU data has no authoritative stock value.
       if (imageOnly && !item.imageUrl) return false;
       if (!matchesTechnicalFilter(product, specKey, specValue)) return false;
