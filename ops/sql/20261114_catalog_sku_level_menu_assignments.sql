@@ -1,5 +1,5 @@
 -- Source-verified SKU-level subcategory overrides from SanatPish_Products_Final.xlsx.
--- Expected unique SKU rows: 303.
+-- Expected unique SKU rows: 305.
 -- Family rows and variant rows are never deleted or rewritten.
 -- ON CONFLICT DO NOTHING preserves any existing admin-managed SKU assignment.
 BEGIN;
@@ -187,7 +187,7 @@ BEGIN
    AND d.is_active=true;
 
   IF assigned_count <> 305 THEN
-    RAISE EXCEPTION 'SKU menu assignments conflict with existing/admin records: expected 303, found %', assigned_count;
+    RAISE EXCEPTION 'SKU menu assignments conflict with existing/admin records: expected 305, found %', assigned_count;
   END IF;
 END $audit$;
 
