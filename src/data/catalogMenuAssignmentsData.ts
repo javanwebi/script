@@ -1,4 +1,4 @@
-// Audited family-to-menu assignments; 96 ambiguous or source-conflicting families are omitted for admin review (1,287 retained).
+// Audited family-to-menu assignments; 96 ambiguous or source-conflicting families are omitted for admin review (1,286 retained).
 export interface FamilyMenuAssignment {
   categorySlug: string;
   submenuName: string;
@@ -4242,11 +4242,6 @@ export const CATALOG_FAMILY_MENU_ASSIGNMENTS: Record<string, FamilyMenuAssignmen
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
   },
   "FAM-10388": {
-    "categorySlug": "excel-v2-9-3",
-    "submenuName": "دستگیره و پیچ فلکه",
-    "leafName": "انواع دستگیره شکل و پیچ فلکه"
-  },
-  "FAM-35198": {
     "categorySlug": "excel-v2-9-3",
     "submenuName": "دستگیره و پیچ فلکه",
     "leafName": "انواع دستگیره شکل و پیچ فلکه"
