@@ -164,7 +164,9 @@ test('brand facets use real manufacturer brands from families, active SKU varian
   assert.match(page, /getProductDisplayBrands\(product\)/);
   assert.match(page, /directSkusInCategory\.forEach/);
   assert.match(page, /const selectedFamilyCodesForFacet = useMemo/);
-  assert.match(page, /!selectedFamilyCodesForFacet\.has\(item\.skuCode\.trim\(\)\.toLowerCase\(\)\)/);
+  assert.match(page, /const sourceFamilyCode = String\(item\.sourceFamilyCode \|\| ''\)/);
+  assert.match(page, /selectedFamilyCodesForFacet\.has\(sourceFamilyCode\)/);
+  assert.match(page, /!selectedFamilyCodesForFacet\.has\(skuCode\)/);
   assert.match(page, /productHasDisplayBrand\(product, brand\)/);
   assert.doesNotMatch(page, /resolved === 'صنعت پیش'/);
   assert.doesNotMatch(page, /resolved === 'وارداتی صنعتی'/);
