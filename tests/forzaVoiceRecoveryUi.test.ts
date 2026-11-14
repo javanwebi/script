@@ -128,8 +128,8 @@ test('particle engine stops its render loop while the tab is hidden and resumes 
 });
 
 
-test('server Diba STT verifies captured speech only when local Diba is ready and never falls back to Gemini',()=>{
-  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && serverSttConfiguredRef\.current === true/);
+test('server Diba batch STT is reserved for turns without admitted live text',()=>{
+  assert.match(ui,/const needsServerFinal = Boolean\(audioBlob\) && !q && serverSttConfiguredRef\.current === true/);
   assert.match(ui,/transcribeOnly:true/);
   assert.match(ui,/fetch\('\/api\/ai\/forza-live'/);
   assert.match(ui,/info\.serverSttProvider==='diba'/);
