@@ -92,6 +92,34 @@ test("post-promotion HTTPS and STT checks preserve canonical hostname and SNI", 
   assert.doesNotMatch(verify, /https:\/\/127\.0\.0\.1/);
 });
 
+test("Nginx root fallback accepts deep indentation only when it is a direct child of server", () => {
+  assert.match(one, /root_depth=nginx_depth_before\\(source,roots\\[0\\]\\.start\\(\\)\\)/);
+  assert.doesNotMatch(one, /NGINX_ROOT_INDENT_UNSAFE|len\\(indent\\) <= 16/);
+
+  const helperStart = one.indexOf("def nginx_depth_before(text, stop):");
+  const helperEnd = one.indexOf("\\ndef require_read_only_spa_guard", helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helper = one.slice(helperStart, helperEnd);
+  const fixture = `
+import re
+${helper}
+source = "server {\\n" + (" " * 32) + "location / {\\n" + (" " * 36) + "try_files $uri /index.html;\\n" + (" " * 32) + "}\\n}\\n"
+root = re.search(r"(?m)^([ \\t]*)location\\s+/\\s*\\{", source)
+assert root
+assert len(root.group(1)) == 32
+assert nginx_depth_before(source, root.start()) == 1
+
+nested = "server {\\n    location /nested/ {\\n        location / {\\n            try_files $uri /index.html;\\n        }\\n    }\\n}\\n"
+nested_root = re.search(r"(?m)^([ \\t]*)location\\s+/\\s*\\{", nested)
+assert nested_root
+assert nginx_depth_before(nested, nested_root.start()) == 2
+print("NGINX_ROOT_CONTEXT_FIXTURES_OK")
+`;
+  const result = spawnSync("python3", ["-c", fixture], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /NGINX_ROOT_CONTEXT_FIXTURES_OK/);
+});
+
 test("read-only SPA guard validation scans the complete root block without weakening the guard", () => {
   assert.ok(one.includes("def nginx_block_at(text, opening_brace):"));
   assert.ok(one.includes("def nginx_depth_before(text, stop):"));
