@@ -29,6 +29,7 @@ import {
 import type { Product } from '../types';
 import { ProductImage } from '../components/product/ProductImage';
 import { resolveDisplayBrand } from '../components/product/ProductCard';
+import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import { MemberAccess } from '../components/storefront/MemberAccess';
 import { useWishlist } from '../context/WishlistContext';
 import { getProductsByCategory, subscribeCatalogChanges } from '../data/mockGenerator';
@@ -489,7 +490,7 @@ function CatalogCard({
   const fallbackArt = referenceArtworkForProduct(product);
   const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
   const retailPrice = priceOf(product);
-  const brandLabel = resolveDisplayBrand(product.brand, product.name);
+  const brandLabel = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
 
   return (
     <article className="bce-product-row">
@@ -548,9 +549,7 @@ function CatalogCard({
       <div className="bce-row-content">
         <div className="bce-row-heading">
           <div className="bce-product-code">
-            <span className="bce-brand-badge" dir="ltr">
-              {brandLabel}
-            </span>
+            {brandLabel && <span className="bce-brand-badge" dir="ltr">{brandLabel}</span>}
             <b dir="ltr">{product.code}</b>
           </div>
         </div>
@@ -561,9 +560,7 @@ function CatalogCard({
 
         <div className="bce-mobile-spec-pill">
           <span>گام: {cardSpecs[0].value}</span>
-          <span className="bce-mobile-brand-chip" dir="ltr">
-            {brandLabel}
-          </span>
+          {brandLabel && <span className="bce-mobile-brand-chip" dir="ltr">{brandLabel}</span>}
         </div>
 
         <div className="bce-product-specs">
@@ -794,10 +791,8 @@ export const BeltCategoryExperience: React.FC = () => {
     return counts;
   }, [allProducts]);
   const brands = useMemo(
-    () =>
-      Array.from(new Set(familyProducts.map(p => p.brand).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b),
-      ),
+    () => Array.from(new Set(familyProducts.flatMap(product => getProductDisplayBrands(product))))
+      .sort((a, b) => a.localeCompare(b, 'fa')),
     [familyProducts],
   );
   const profileOptions = useMemo(() => deriveProfileOptions(familyProducts), [familyProducts]);
@@ -811,7 +806,7 @@ export const BeltCategoryExperience: React.FC = () => {
     const maxPrice = filters.maximumPrice !== '' ? number(filters.maximumPrice) : null;
     const selected = familyProducts.filter(product => {
       if (search.trim() && !matchesProductSearch(product, search.trim())) return false;
-      if (filters.brands.length && !filters.brands.includes(product.brand)) return false;
+      if (filters.brands.length && !filters.brands.some(brand => productHasDisplayBrand(product, brand))) return false;
       if (filters.profile !== 'all' && !matchesProfile(product, filters.profile)) return false;
       if (filters.inStock && !(product.stockKnown && product.stock > 0)) return false;
       if (filters.quoteOnly && !product.inquiryOnly && priceOf(product) !== null) return false;
