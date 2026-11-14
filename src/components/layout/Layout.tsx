@@ -10,6 +10,7 @@ import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const mainContentRef = React.useRef<HTMLElement>(null);
   const identificationOpen = useIdentificationOverlayOpen();
   // Preserve the shared route-eligibility check for full-screen identification.
   const routeAllowsStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
@@ -76,8 +77,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className={`storefront min-h-screen flex flex-col ${showStorefrontDock ? "has-mobile-dock" : "no-mobile-dock"} ${isTextileReferencePage ? "textile-reference-layout" : ""}`}>
+      <button
+        type="button"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[1000] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-[#55565A] focus:ring-2 focus:ring-[#E56B1E]"
+        onClick={() => mainContentRef.current?.focus()}
+      >
+        رفتن به محتوای اصلی
+      </button>
       <Header />
-      <main className={`flex-1 w-full ${showStorefrontDock ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
+      <main ref={mainContentRef} tabIndex={-1} className={`flex-1 w-full ${showStorefrontDock ? "pb-28 lg:pb-0" : ""} ${isHomePage || isEditorial || isCategoryPage ? '' : 'max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}`}>
         {children}
       </main>
       <Footer />
