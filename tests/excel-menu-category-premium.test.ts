@@ -194,3 +194,23 @@ test('brand facets are scoped to the selected subcategory across Excel, legacy c
   assert.match(pulley, /selectedSubmenu === "all"/);
   assert.match(pulley, /values\(brandScopeProducts\)/);
 });
+
+test('category pages request only their own direct SKU records while all-products and search retain the full index', () => {
+  const directSkuHook = source('src/components/catalog/DirectSkuProducts.tsx');
+  const belt = source('src/pages/BeltCategoryExperience.tsx');
+  const category = source('src/pages/CategoryPage.tsx');
+  const products = source('src/pages/ProductsPage.tsx');
+  const search = source('src/pages/SearchPage.tsx');
+  assert.match(directSkuHook, /useDirectSkus\(categorySlug\?: string, categoryPrefix\?: string\)/);
+  assert.match(directSkuHook, /params\.set\("categorySlug", categorySlug\)/);
+  assert.match(api, /const categorySlug=clean\(req\.query\.categorySlug,180\)/);
+  assert.match(api, /const categoryPrefix=clean\(req\.query\.categoryPrefix,40\)/);
+  assert.match(api, /category_slug=\$'\+params\.length/);
+  assert.match(api, /category_slug like \$'\+params\.length/);
+  assert.match(page, /useDirectSkus\(slug\)/);
+  assert.match(routes, /useDirectSkus\(category\.slug\)/);
+  assert.match(routes, /useDirectSkus\(pulleySlug, 'excel-v2-4-'\)/);
+  assert.match(belt, /useDirectSkus\(BELT_SLUG, 'excel-v2-1-'\)/);
+  assert.match(products, /useDirectSkus\(\)/);
+  assert.match(search, /useDirectSkus\(\)/);
+});
