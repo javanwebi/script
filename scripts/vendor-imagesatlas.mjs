@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Copy pinned official imagesatlas blobs into script source without guessing SKU assignments. */
 import {execFileSync} from 'node:child_process';
-import {copyFile,mkdir,writeFile} from 'node:fs/promises';
+import {copyFile,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 const repo='javanweb/imagesatlas';
 const commit='5bbaec971a05771939663d47803b5d5c2c624c6d';
@@ -22,6 +22,4 @@ for(let number=1;number<=869;number++)
  if(!files.some(x=>x.name===`e(${number}).png`))throw new Error('Missing e('+number+').png');
 await mkdir(target,{recursive:true});
 for(const file of files)await copyFile(path.join(source,file.name),path.join(target,file.name));
-await writeFile(path.join(target,'manifest.json'),
- JSON.stringify({sourceRepo:repo,sourceCommit:commit,files},null,2)+'\n','utf8');
 console.log('Vendored',files.length,'PNG images from',repo+'@'+commit,'into',target);
