@@ -173,3 +173,13 @@ test('the all-products page can read the live approved family-to-subcategory map
   assert.match(indexRoute, /Cache-Control','no-store'/);
   assert.doesNotMatch(indexRoute, /price_snapshot|retail_price|wholesale_price|stock_reserved/);
 });
+
+test('unified subcategory results preserve default, name, code, SKU-count and stock sorting', () => {
+  assert.match(page, /if \(sortBy === 'name'\)/);
+  assert.match(page, /else if \(sortBy === 'code'\)/);
+  assert.match(page, /else if \(sortBy === 'sku_desc'\)/);
+  assert.match(page, /else if \(sortBy === 'stock_desc'\)/);
+  assert.match(page, /const skuCountOf = \(item: CollectionItem\)/);
+  assert.match(page, /const productOf = \(item: CollectionItem\)/);
+  assert.match(page, /items\.sort\(\(a, b\) =>/);
+});
