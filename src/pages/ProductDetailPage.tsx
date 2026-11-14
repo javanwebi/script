@@ -24,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 import { toPersianDigits, getStockStatus } from "../utils/formatters";
+import { getProductDisplayBrands, resolveDisplayBrand } from "../utils/catalogBrands";
 import {
   ChevronLeft,
   ShieldCheck,
@@ -330,7 +331,10 @@ export const ProductDetailPage: React.FC = () => {
     ? { text: "موجودی نیازمند استعلام", badgeBg: "#94a3b8" }
     : getStockStatus(activeStockCount);
 
-  const activeBrand = selectedVariant?.brand || product.brand || "ثبت نشده";
+  const activeBrand = resolveDisplayBrand(
+    selectedVariant?.brand || product.brand,
+    selectedVariant?.name || product.name,
+  ) || (!selectedVariant ? getProductDisplayBrands(product)[0] || "" : "");
   const activeUnit = selectedVariant?.unit || product.unit || "عدد";
   const activeVariantSpecs = selectedVariant?.technicalSpecs || [];
 
@@ -799,11 +803,15 @@ export const ProductDetailPage: React.FC = () => {
                       {requestedProduct.code}
                     </strong>
                   </span>
-                  <span aria-hidden="true">·</span>
-                  <span>
-                    برند:{" "}
-                    <strong className="text-slate-800">{activeBrand}</strong>
-                  </span>
+                  {activeBrand && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        برند:{" "}
+                        <strong className="text-slate-800">{activeBrand}</strong>
+                      </span>
+                    </>
+                  )}
                   {selectedVariant?.model && (
                     <>
                       <span aria-hidden="true">·</span>
