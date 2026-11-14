@@ -295,7 +295,7 @@ test('direct SKU records are filtered into the same Excel category collection as
 
 test('source-verified mixed-family SKU overrides populate the correct technical leaves',()=>{
  const skuSql=readFileSync('ops/sql/20261114_catalog_sku_level_menu_assignments.sql','utf8');
- const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
+ const skuCodes=[...skuSql.matchAll(/'([0-9]{4,7})'/g)].map(match=>match[1]);
  assert.equal(skuCodes.length,305);
  assert.equal(new Set(skuCodes).size,305);
  assert.match(skuSql,/ON CONFLICT \(sku_code\) DO NOTHING/);
