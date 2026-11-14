@@ -7,6 +7,7 @@ const page = source('src/pages/ExcelMenuCategoryPage.tsx');
 const styles = source('src/pages/excel-menu-category-premium.css');
 const routes = source('src/pages/CategoryPage.tsx');
 const api = source('server/catalogNavigationApi.ts');
+const pulley = source('src/pages/PulleyCatalogPage.tsx');
 
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
   assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
@@ -182,4 +183,14 @@ test('unified subcategory results preserve default, name, code, SKU-count and st
   assert.match(page, /const skuCountOf = \(item: CollectionItem\)/);
   assert.match(page, /const productOf = \(item: CollectionItem\)/);
   assert.match(page, /items\.sort\(\(a, b\) =>/);
+});
+
+test('brand facets are scoped to the selected subcategory across Excel, legacy category and pulley pages', () => {
+  assert.match(page, /const selectedFamiliesForFacet = useMemo/);
+  assert.match(page, /matchesSelection\(family, selection, visibleNodes\)/);
+  assert.match(routes, /const brandFacetProducts = useMemo/);
+  assert.match(routes, /matchesCatalogCategory\(product, category\.slug, selectedSubcat\)/);
+  assert.match(pulley, /const brandScopeProducts = useMemo/);
+  assert.match(pulley, /selectedSubmenu === "all"/);
+  assert.match(pulley, /values\(brandScopeProducts\)/);
 });
