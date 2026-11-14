@@ -84,7 +84,7 @@ test -n "$DEPLOY_HOME"
 SSH_DIR="$DEPLOY_HOME/.ssh"
 install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 0700 "$SSH_DIR"
 AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
-printf 'command="/usr/local/sbin/sanatpish-github-deploy-gate",restrict %s %s github-actions-sanatpish\n' "$KEY_TYPE" "$KEY_DATA" > "$AUTHORIZED_KEYS"
+printf 'command="/usr/local/sbin/sanatpish-github-deploy-gate",restrict,no-user-rc %s %s github-actions-sanatpish\n' "$KEY_TYPE" "$KEY_DATA" > "$AUTHORIZED_KEYS"
 chown "$DEPLOY_USER:$DEPLOY_USER" "$AUTHORIZED_KEYS"
 chmod 0600 "$AUTHORIZED_KEYS"
 
