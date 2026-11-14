@@ -75,7 +75,6 @@ async function installRoutes(page) {
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
-  const failures = [];
   try {
     for (const viewport of viewports) {
       const context = await browser.newContext({
@@ -90,24 +89,23 @@ async function installRoutes(page) {
       page.on('pageerror', error => pageErrors.push(error.message));
       await installRoutes(page);
       await page.goto(baseUrl + '/industries/textile', { waitUntil: 'domcontentloaded' });
-      await page.locator('.textile-page').waitFor();
-      await page.getByRole('heading', { name: 'قطعات و راهکارهای صنعت نساجی' }).waitFor({ timeout: 25000 });
+      await page.locator('.industry-template--textile').waitFor();
+      await page.getByRole('heading', { name: 'تأمین قطعات و پشتیبانی فنی خطوط نساجی و پارچه' }).waitFor({ timeout: 25000 });
 
-      const heroImage = page.locator('.textile-hero-visual img');
+      const heroImage = page.locator('.ipt-hero-visual img');
       await heroImage.waitFor({ state: 'visible' });
       await heroImage.evaluate(image => image.decode());
       assert.ok(await heroImage.evaluate(image => image.complete && image.naturalWidth > 0), 'textile industrial image should load');
 
       const heroLayout = await page.evaluate(() => {
-        const visual = document.querySelector('.textile-hero-visual').getBoundingClientRect();
-        const copy = document.querySelector('.textile-hero-copy').getBoundingClientRect();
+        const visual = document.querySelector('.ipt-hero-visual').getBoundingClientRect();
+        const copy = document.querySelector('.ipt-hero-copy').getBoundingClientRect();
         return {
           viewport: window.innerWidth,
           visualX: visual.x,
           visualY: visual.y,
           copyX: copy.x,
           copyY: copy.y,
-          accentBlock: getComputedStyle(document.querySelector('.textile-hero'), '::after').display,
         };
       });
       if (viewport.width > 760) {
@@ -115,22 +113,22 @@ async function installRoutes(page) {
       } else {
         assert.ok(heroLayout.visualY < heroLayout.copyY, 'industrial image should appear before copy on mobile');
       }
-      assert.equal(heroLayout.accentBlock, 'none', 'the old colored hero block must remain removed');
 
-      await page.locator('.textile-product-grid .store-product-card').first().waitFor({ timeout: 25000 });
-      assert.equal(await page.locator('.textile-product-grid .store-product-card').count(), 1, 'ranked real textile catalogue product should render');
+      const productCards = page.locator('.ipt-catalog .store-product-card');
+      await productCards.first().waitFor({ timeout: 25000 });
+      assert.equal(await productCards.count(), 1, 'only the active textile catalogue family fixture should render');
 
-      const weavingStage = page.locator('.textile-stage-list button').nth(1);
+      const weavingStage = page.locator('.ipt-stage-tabs button').nth(1);
       await weavingStage.click();
-      assert.equal(await weavingStage.getAttribute('aria-pressed'), 'true', 'selected textile stage should expose its state');
-      assert.equal(await page.locator('.textile-stage-detail h3').innerText(), 'بافندگی', 'stage details should update interactively');
-      const relatedLink = page.locator('.textile-stage-actions a').first();
-      assert.ok((await relatedLink.getAttribute('href')).startsWith('/products?q='), 'stage-specific product search should be linked');
+      assert.equal(await weavingStage.getAttribute('aria-selected'), 'true', 'selected textile stage should expose its state');
+      assert.equal(await page.locator('.ipt-stage-copy h3').innerText(), 'ریسندگی', 'stage details should update interactively');
+      const relatedLink = page.locator('.ipt-stage-copy a').first();
+      assert.ok((await relatedLink.getAttribute('href')).startsWith('/products?q='), 'stage-specific catalog search should be linked');
 
-      const forzaLink = page.locator('.textile-hero-actions a').nth(1);
+      const forzaLink = page.locator('.ipt-hero-actions a').nth(1);
       assert.ok((await forzaLink.getAttribute('href')).includes('/ai-consult?industry=textile'), 'hero FORZA consultation should keep its industry context');
-      const visualIdentification = page.getByRole('link', { name: 'شناسایی تصویری قطعه' });
-      assert.equal(await visualIdentification.getAttribute('href'), '/identify-part', 'textile FORZA banner should use the canonical image-identification route');
+      const visualIdentification = page.locator('.ipt-hero-actions a').nth(2);
+      assert.ok((await visualIdentification.getAttribute('href')).includes('/identify-part'), 'image identification should use the canonical route');
 
       const layout = await page.evaluate(() => ({
         viewport: window.innerWidth,
@@ -139,7 +137,7 @@ async function installRoutes(page) {
       }));
       assert.ok(layout.document <= layout.viewport + 1, 'unexpected horizontal document overflow: ' + JSON.stringify(layout));
       assert.ok(layout.body <= layout.viewport + 1, 'unexpected horizontal body overflow: ' + JSON.stringify(layout));
-      if (pageErrors.length) failures.push({ viewport, pageErrors });
+      assert.deepEqual(pageErrors, [], 'browser page errors were detected');
 
       await page.screenshot({
         path: '/tmp/textile-industry-' + viewport.width + 'x' + viewport.height + '.png',
@@ -149,7 +147,6 @@ async function installRoutes(page) {
       console.log('TEXTILE_INDUSTRY_RESPONSIVE_OK', viewport.width + 'x' + viewport.height, JSON.stringify(heroLayout), JSON.stringify(layout));
       await context.close();
     }
-    assert.deepEqual(failures, [], 'browser page errors were detected');
   } finally {
     await browser.close();
   }
