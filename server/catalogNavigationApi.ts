@@ -126,7 +126,7 @@ export function registerCatalogNavigationApi(app:Express){
       if(!category.rows.length)return res.status(404).json({success:false,message:'دسته موجود نیست.'});
       const familyRows=await database().query(
         `select a.family_code as code,f.name,coalesce(f.brand,'') as brand,
-          a.submenu_name as submenu,a.leaf_name as leaf,coalesce(f.item_count,0) as "skuCount"
+          coalesce(a.submenu_name,'') as submenu,a.leaf_name as leaf,coalesce(f.item_count,0) as "skuCount"
          from public.catalog_family_menu_assignments a
          join public.catalog_families f on f.code=a.family_code
          where a.category_slug=$1 and f.is_active=true and f.is_deleted=false
@@ -166,11 +166,25 @@ export function registerCatalogNavigationApi(app:Express){
       if(!databaseEnabled())return res.status(503).json({success:false});
       const rows=await database().query(
         `select f.code,f.name,f.category_slug as "oldCategory",f.submenu as "oldSubmenu",
-          coalesce(f.item_count,0) as "skuCount"
+          coalesce(f.item_count,0) as "skuCount",
+          a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+          a.leaf_name as "assignedLeaf",a.method as "assignmentMethod",
+          case
+            when a.family_code is null then 'unassigned'
+            when nullif(trim(a.submenu_name),'') is null then 'missing_submenu'
+            when nullif(trim(a.leaf_name),'') is null then 'missing_leaf'
+            else 'assigned'
+          end as "reviewReason"
          from public.catalog_families f
          left join public.catalog_family_menu_assignments a on a.family_code=f.code
-         where f.is_active=true and f.is_deleted=false and a.family_code is null
-         order by f.category_slug,f.name limit 4000`);
+         where f.is_active=true and f.is_deleted=false
+           and (a.family_code is null
+             or nullif(trim(a.submenu_name),'') is null
+             or nullif(trim(a.leaf_name),'') is null)
+         order by
+           case when a.family_code is null then 0
+                when nullif(trim(a.submenu_name),'') is null then 1 else 2 end,
+           f.category_slug,f.name limit 4000`);
       return res.json({success:true,families:rows.rows});
     }catch(error){return fail(res,error);}
   });
