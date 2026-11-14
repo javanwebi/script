@@ -12,20 +12,20 @@ import { useWishlist } from "../context/WishlistContext";
 import { toPersianDigits } from "../utils/formatters";
 import { STORE_ASSETS } from "../assets/images";
 import { CATEGORIES } from "../data/categories";
+import { getProductDisplayBrands, productHasDisplayBrand } from "../utils/catalogBrands";
 import "./pulley-catalog.css";
 
-type Props = { products: Product[] };
+type Props = { products: Product[]; directSkuCodes?: Set<string> };
 type PulleyKind = "all" | "idler" | "timing" | "grooved" | "variable" | "fixed" | "flat" | "other";
 
 const nf = (n: number) => toPersianDigits(n.toLocaleString("en-US"));
 const clean = (s?: string) => (s || "").trim();
 const normalize = (s: string) => s.toLocaleLowerCase("fa").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\s+/g, " ").trim();
-const knownBrand = (s?: string) => !!s && !/^(ثبت نشده|نامشخص|بدون برند|unknown|n\/a|-|عمومی)$/i.test(s.trim());
 const realImage = (p: Product) => Boolean(p.hasCatalogueImage && p.images?.[0]);
 const priceOf = (p: Product) => (!p.inquiryOnly && Number(p.prices?.retail || 0) > 0) ? Number(p.prices.retail) : 0;
 const inStock = (p: Product) => p.stockKnown === true && p.stock > 0 && !p.inquiryOnly;
 const skuCount = (p: Product) => p.variants?.length || 0;
-const values = (products: Product[]) => Array.from(new Set(products.map(x => clean(x.brand)).filter(knownBrand))).sort((a, b) => a.localeCompare(b, "fa"));
+const values = (products: Product[]) => Array.from(new Set(products.flatMap(getProductDisplayBrands))).sort((a, b) => a.localeCompare(b, "fa"));
 
 const TYPE_INFO: Array<{ id: PulleyKind; title: string; desc: string }> = [
   { id: "all", title: "همه پولی‌ها", desc: "کل کاتالوگ" },
@@ -53,7 +53,7 @@ function profiles(p: Product): string[] {
   return entries.flatMap(s => s.value.split(/[,،;/]+/g).map(v => clean(v)).filter(Boolean));
 }
 
-export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
+export const PulleyCatalogPage: React.FC<Props> = ({ products, directSkuCodes = new Set<string>() }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   // Every submenu, including links from the header, stays on this landing page.
   const selectedSubmenu = searchParams.get("sub") || "all";
@@ -120,7 +120,7 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
     const list = products.filter(p => {
       if (selectedSubmenu !== "all" && p.subcategory !== selectedSubmenu && p.submenu !== selectedSubmenu) return false;
       if (kind !== "all" && typeOf(p) !== kind) return false;
-      if (brand.length && !brand.includes(p.brand)) return false;
+      if (brand.length && !brand.some(name => productHasDisplayBrand(p, name))) return false;
       if (profile && !profiles(p).includes(profile)) return false;
       if (photoOnly && !realImage(p)) return false;
       if (availableOnly && !inStock(p)) return false;
@@ -242,18 +242,19 @@ export const PulleyCatalogPage: React.FC<Props> = ({ products }) => {
                     const cost = priceOf(p);
                     const type = TYPE_INFO.find(t => t.id === typeOf(p));
                     const wishlist = isInWishlist(p.code);
+                    const detailHref = (directSkuCodes.has(p.code) ? "/direct-product/" : "/product/") + encodeURIComponent(p.code);
                     return <article className={"pc-product" + (hasPhoto ? "" : " pc-product--unpictured")} key={p.code}>
                       <div className="pc-product-photo">
-                        <Link to={"/product/" + encodeURIComponent(p.code)} aria-label={"جزئیات " + p.name}>{hasPhoto ? <ProductImage src={p.images[0]} alt={p.name} thumbnail loading="lazy"/> : <div className="pc-no-photo"><ImageOff size={35}/><span>تصویر تأییدشده موجود نیست</span></div>}</Link>
+                        <Link to={detailHref} aria-label={"جزئیات " + p.name}>{hasPhoto ? <ProductImage src={p.images[0]} alt={p.name} thumbnail loading="lazy"/> : <div className="pc-no-photo"><ImageOff size={35}/><span>تصویر تأییدشده موجود نیست</span></div>}</Link>
                         {hasPhoto && <span className="pc-verified"><Check size={12}/> تصویر کاتالوگ</span>}
                         <button type="button" className="pc-wishlist" aria-label={wishlist ? "حذف از علاقه‌مندی" : "افزودن به علاقه‌مندی"} aria-pressed={wishlist} onClick={() => toggleWishlist(p.code)}><Heart size={19} fill={wishlist ? "#e06518" : "none"}/></button>
                       </div>
                       <div className="pc-product-info">
                         <div className="pc-product-overline"><span>{type?.title || "پولی صنعتی"}</span><span dir="ltr">{p.code}</span></div>
-                        <Link to={"/product/" + encodeURIComponent(p.code)} className="pc-product-title">{p.name}</Link>
+                        <Link to={detailHref} className="pc-product-title">{p.name}</Link>
                         <div className="pc-product-tags"><span><Layers3 size={13}/>{skuCount(p) ? nf(skuCount(p)) + " کد و سایز" : "جزئیات فنی"}</span>{profiles(p).length > 0 && <span><Ruler size={13}/>{profiles(p).slice(0,2).join("، ")}</span>}</div>
                         <div className="pc-product-bottom"><div><small>وضعیت قیمت</small><strong>{cost > 0 ? nf(cost) + " تومان" : "استعلام قیمت"}</strong></div><span className={inStock(p) ? "pc-status available" : "pc-status"}>{inStock(p) ? "موجودی ثبت‌شده" : "استعلام موجودی"}</span></div>
-                        <Link to={"/product/" + encodeURIComponent(p.code)} className="pc-product-link">مشاهده مشخصات و کدها <ArrowLeft size={17}/></Link>
+                        <Link to={detailHref} className="pc-product-link">مشاهده مشخصات و کدها <ArrowLeft size={17}/></Link>
                       </div>
                     </article>;
                   })}
