@@ -18,7 +18,7 @@ const loaders: Record<string, () => Promise<unknown>> = {
   '/categories': () => import('../../pages/AllCategoriesPage'),
   '/cart': () => import('../../pages/CartPage'),
   '/checkout': () => import('../../pages/CheckoutPage'),
-  '/industry-ceramic': () => import('../../pages/TileCeramicIndustryPage'),
+  '/industry-template': () => import('../../pages/IndustryTemplatePage'),
   '/product/:code': () => import('../../pages/ProductDetailPage'),
   '/category/:slug': () => import('../../pages/CategoryPage'),
   '/direct-product/:code': () => import('../../pages/DirectSkuDetailPage'),
@@ -30,8 +30,8 @@ export function resolvePreloadKey(pathname: string): string | null {
   if (path.startsWith('/product/') || /^\/(?:account|consumer-dashboard)\/product\/[^/]+/.test(path))
     return '/product/:code';
   if (path.startsWith('/direct-product/')) return '/direct-product/:code';
-  if (['/category/ceramic-tiles', '/industries/ceramic', '/industries/tile-ceramic', '/industry/ceramic-tile'].includes(path))
-    return '/industry-ceramic';
+  if (path.startsWith('/industries/') || path.startsWith('/industry/')) return '/industry-template';
+  if (path === '/category/ceramic-tiles') return '/industry-template';
   if (path.startsWith('/category/')) return '/category/:slug';
   return null;
 }
