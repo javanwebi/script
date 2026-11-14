@@ -295,11 +295,12 @@ test('direct SKU records are filtered into the same Excel category collection as
 test('source-verified mixed-family SKU overrides populate the correct technical leaves',()=>{
  const skuSql=readFileSync('ops/sql/20261114_catalog_sku_level_menu_assignments.sql','utf8');
  const skuCodes=[...skuSql.matchAll(/'([0-9]{4,6})'/g)].map(match=>match[1]);
- assert.equal(skuCodes.length,303);
- assert.equal(new Set(skuCodes).size,303);
+ assert.equal(skuCodes.length,305);
+ assert.equal(new Set(skuCodes).size,305);
  assert.match(skuSql,/ON CONFLICT \(sku_code\) DO NOTHING/);
  assert.match(skuSql,/source_family_code/);
  assert.match(skuSql,/نوار نقاله PVC/);
+ assert.match(skuSql,/مخصوص دستگاه بسته‌بندی/);
  assert.match(skuSql,/نوار نقاله پلی‌اورتان \(PU\)/);
  assert.match(skuSql,/انواع تسمه گرد جوشی/);
  assert.match(skuSql,/ریل راهنما استیل و متعلقات/);
