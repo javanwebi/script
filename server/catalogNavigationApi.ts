@@ -248,10 +248,18 @@ export function registerCatalogNavigationApi(app:Express){
       const categorySlug=clean(req.query.categorySlug,180);
       const categoryPrefix=clean(req.query.categoryPrefix,40);
       if(categoryPrefix&&!/^excel-v2-\d+-$/.test(categoryPrefix))return res.status(400).json({success:false,items:[]});
-      const params:unknown[]=[];
+      const params:any[]=[];
       const scope:string[]=[];
-      if(categorySlug){params.push(categorySlug);scope.push(`category_slug=${params.length}`);}
-      if(categoryPrefix){params.push(categoryPrefix+'%');scope.push(`category_slug like $ ${params.length}`.replace('$ ','
+      if(categorySlug){params.push(categorySlug);scope.push('category_slug=$'+params.length);}
+      if(categoryPrefix){params.push(categoryPrefix+'%');scope.push('category_slug like $'+params.length);}
+      const conditions:string[]=[];
+      if(scope.length)conditions.push('('+scope.join(' or ')+')');
+      if(!withInactive)conditions.push('is_active=true');
+      const where=conditions.length?'where '+conditions.join(' and '):'';
+      const rows=await database().query(
+        'select sku_code as "skuCode",name,category_slug as "categorySlug",category_name as "categoryName",submenu,subcategory,brand,image_url as "imageUrl",technical_specs as "technicalSpecs",price_snapshot as "priceSnapshot",source_family_code as "sourceFamilyCode",is_active as active from public.catalog_direct_skus '+where+' order by updated_at desc,sku_code limit 5000',
+        params,
+      );
       const identity=await getPortalIdentity(req);
       const canReadPrices=identity.canReadCommerce || canStaff(identity,'products','prices');
       return res.json({success:true,items:canReadPrices?rows.rows:rows.rows.map(row=>({...row,priceSnapshot:{}}))});
