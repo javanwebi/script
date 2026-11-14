@@ -113,14 +113,21 @@ SELECT unnest(ARRAY['37093', '37121', '39757', '41122']::text[]) AS sku_code,
        'بر اساس جنس'::text AS submenu,
        'ریل راهنما آهنی و متعلقات'::text AS subcategory;
 
+UNION ALL
+SELECT unnest(ARRAY['39703', '3970318']::text[]) AS sku_code,
+       'FAM-52858'::text AS expected_family_code,
+       'excel-v2-2-1'::text AS category_slug,
+       'بر اساس کاربرد و ابعاد'::text AS submenu,
+       'مخصوص دستگاه بسته‌بندی (در ضخامت و ابعاد مختلف)'::text AS subcategory
+
 DO $audit$
 DECLARE
   source_count integer;
   valid_count integer;
 BEGIN
   SELECT count(*) INTO source_count FROM pg_temp.catalog_sku_menu_source;
-  IF source_count <> 303 THEN
-    RAISE EXCEPTION 'Expected 303 source SKU assignments, found %', source_count;
+  IF source_count <> 305 THEN
+    RAISE EXCEPTION 'Expected 305 source SKU assignments, found %', source_count;
   END IF;
 
   SELECT count(*) INTO valid_count
@@ -179,7 +186,7 @@ BEGIN
    AND d.subcategory=s.subcategory
    AND d.is_active=true;
 
-  IF assigned_count <> 303 THEN
+  IF assigned_count <> 305 THEN
     RAISE EXCEPTION 'SKU menu assignments conflict with existing/admin records: expected 303, found %', assigned_count;
   END IF;
 END $audit$;
