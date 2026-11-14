@@ -7,7 +7,7 @@ const endBody=source.split('      rec.onend = () => {')[1].split('\n      };')[0
 function recognizerHarness(){
  const ref=(current:any)=>({current});let scheduled:(()=>void)|null=null,starts=0;
  const rec={start(){starts++;}};
- const scope:Record<string,any>={rec,recognitionRef:ref(rec),isRecognitionActiveRef:ref(true),
+ const scope:Record<string,any>={admissionRetry:null,rec,recognitionRef:ref(rec),isRecognitionActiveRef:ref(true),
   callClosedRef:ref(false),micMutedRef:ref(false),isCallActive:true,greetingFinishedRef:ref(true),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),localSttRecognizerRef:ref(null),
   recognitionRetryTimerRef:ref(null),setMicrophoneError:()=>{},
@@ -59,7 +59,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  const rec={};
  let interrupted=0,echo=true;
  const scope:Record<string,any>={
-  window:{location:{search:''}},
+  window:{location:{search:''}},admissionRetry:null,admissionSession:0,
   admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),

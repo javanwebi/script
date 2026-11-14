@@ -4,7 +4,13 @@ The microphone's end-of-turn VAD used to retain `heardSpeech` and a 3.5-second
 recent-energy window. An unrelated recognition result could use that old evidence
 to appear in the customer transcript or cancel current playback.
 
-The call now maintains a separate in-memory acoustic admission window. It learns
+The call now maintains a separate in-memory acoustic admission window.
+An AudioWorklet measures RMS in 20ms windows independently of WebGL rendering.
+Only bounded timestamp/energy batches cross to the main thread (at most one
+in flight and 32 pending frames); raw audio is not sent by this detector.
+Older browsers fall back to analyser polling and may conservatively reject
+speech when rendering blocks sampling. Pending final candidates get at most
+400ms to obtain queued evidence; this does not authorize unconfirmed speech. It learns
 an ambient RMS baseline from a rolling low percentile, requires sustained energy
 above that baseline, and applies a stronger threshold during AI output. Explicit
 stop commands need 160ms evidence; ordinary interruptions need 280ms and at least
@@ -38,10 +44,12 @@ in strong noise, and late finals can be rejected. Close microphone placement and
 real exhibition testing remain necessary; do not claim zero false activations.
 
 Unit tests use simulated RMS/text. The browser test uses a fake recognizer and
-synthetic microphone levels with the real call controller/player, verifying that
+an actual WebAudio oscillator/AudioWorklet with the real call controller/player, verifying that
 background words stay hidden, distant stop words do not cancel playback and an
 admitted stop does cancel without another LLM request. Neither is an acoustic
 accuracy benchmark. Validate actual Persian speech and part codes, television
 speaker echo, quiet visitors, competing voices and device changes before an event.
+
+Optional `?forzaVoiceDiagnostics=1` logs numerical admission evidence only.
 
 Deploy using the existing `sudo sanatpish-deploy-main`; no migration or new service.

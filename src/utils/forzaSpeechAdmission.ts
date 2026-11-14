@@ -94,12 +94,12 @@ export class ForzaRecognitionAdmission {
           ? raw.startsWith(slot.blocked+' ')?raw.slice(slot.blocked.length).trim():''
           : raw;
         const decision=candidate?decide(candidate,final):'reject';
-        slot.pending=decision==='wait'&&!final;
+        slot.pending=decision==='wait';
         if(decision==='accept'){
           const accepted=slot.blocked?[slot.prefix,candidate].filter(Boolean).join(' '):candidate;
           changed=changed||slot.accepted!==accepted||slot.final!==final;
           slot.accepted=accepted;
-        }else if(decision==='reject'||final){
+        }else if(decision==='reject'){
           // Keep already admitted words, but never append untrusted suffixes.
           rejected=rejected||Boolean(raw);
           slot.blocked=raw;slot.prefix=slot.accepted;
@@ -110,6 +110,6 @@ export class ForzaRecognitionAdmission {
       this.slots[i]=slot;
       clean.push({0:{transcript:slot.accepted},isFinal:final});
     }
-    return {results:clean,changed,rejected};
+    return {results:clean,changed,rejected,waiting:this.slots.some(slot=>slot.pending)};
   }
 }

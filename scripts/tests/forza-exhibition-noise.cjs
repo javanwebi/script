@@ -16,8 +16,13 @@ function wav(seconds){
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{if(m.text().includes('[FORZA_'))diagnostics.push(m.text());});
   await page.addInitScript(()=>{
-   window.__noiseLevel=128;window.__results=[];
-   AnalyserNode.prototype.getByteTimeDomainData=function(a){a.fill(window.__noiseLevel);};
+   window.__results=[];
+   AudioContext.prototype.createMediaStreamSource=function(){
+    const osc=this.createOscillator(),gain=this.createGain();
+    osc.frequency.value=220;gain.gain.value=0.001;
+    osc.connect(gain);osc.start();window.__inputGain=gain;
+    return gain;
+   };
    class Rec{start(){window.__recognition=this;this.onstart?.();}abort(){this.onend?.();}stop(){this.onend?.();}}
    window.SpeechRecognition=window.webkitSpeechRecognition=Rec;
    window.__emit=text=>{
@@ -50,19 +55,19 @@ function wav(seconds){
   await page.getByTitle('ارسال به هوش مصنوعی').click();
   const speaking=page.getByText('AI FORZA در حال صحبت...',{exact:true});
   await speaking.waitFor({timeout:15000});await page.waitForTimeout(1100);
-  await page.evaluate(()=>{window.__noiseLevel=129;window.__emit('وایسا');});
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.005;window.__emit('وایسا');});
   await page.waitForTimeout(400);assert.equal(await speaking.isVisible(),true,'distant stop must not cancel playback');
   await page.evaluate(()=>window.__emit('گفتگوی نامرتبط اطراف'));
   await page.waitForTimeout(250);assert.equal(await speaking.isVisible(),true,'background sentence must not cancel playback');
   assert.equal(await page.getByText('گفتگوی نامرتبط اطراف',{exact:true}).count(),0);
-  await page.evaluate(()=>{window.__noiseLevel=136;});await page.waitForTimeout(400);
-  await page.evaluate(()=>{window.__emit('وایسا');window.__noiseLevel=128;});
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.08;});await page.waitForTimeout(400);
+  await page.evaluate(()=>{window.__emit('وایسا');window.__inputGain.gain.value=0.001;});
   try{await listening.waitFor({timeout:1500});}catch(error){
    console.error('EXHIBITION_DIAGNOSTICS',JSON.stringify({body:(await page.locator('body').innerText()).slice(-1800),diagnostics}));throw error;
   }
   assert.ok(diagnostics.some(v=>v.includes('phase=customer-interrupt')),'close stop must cancel the active turn');
   assert.equal(queries.length,1,'a stop must not make an LLM request');
-  await page.evaluate(()=>{window.__noiseLevel=128;});
+  await page.evaluate(()=>{window.__inputGain.gain.value=0.001;});
   assert.deepEqual(errors,[]);
   console.log('FORZA_EXHIBITION_PASS distant_text_hidden=1 distant_stop_ignored=1 close_stop_cancels=1 cumulative_background_retired=1');
  }finally{await browser.close();}

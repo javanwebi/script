@@ -104,3 +104,14 @@ test('slow rendering does not turn consecutive voiced samples into silence',()=>
  sparse.sample(0.06,1700,true);
  assert.notEqual(sparse.decide('وایسا',true,true,1700),'accept','a long sampling stall resets evidence');
 });
+
+
+test('a final can await queued audio evidence without becoming a permanent rejected slot',()=>{
+ const f=new ForzaRecognitionAdmission();
+ assert.equal(f.filter([result('وایسا',true)],()=> 'wait').waiting,true);
+ const accepted=f.filter([result('وایسا',true)],()=> 'accept');
+ assert.equal(extractPersianSpeechSince(accepted.results,0).text,'وایسا');
+ const expired=new ForzaRecognitionAdmission();expired.filter([result('دور',true)],()=> 'wait');
+ expired.filter([result('دور',true)],()=> 'reject');
+ assert.equal(extractPersianSpeechSince(expired.filter([result('دور',true)],()=> 'accept').results,0).text,'');
+});

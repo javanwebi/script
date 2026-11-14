@@ -25,6 +25,8 @@ function wav(){
   await page.addInitScript(()=>{
     // Calibrate room silence, then model a nearby speaker explicitly.
     window.__forzaMicSample=128;
+    // Exercise the older-browser analyser fallback independently of the worklet test.
+    Object.defineProperty(AudioContext.prototype,'audioWorklet',{get:()=>undefined});
     const analyser=window.AnalyserNode?.prototype;
     if(analyser?.getByteTimeDomainData){
       // Uint8 PCM is centered at 128; 132 yields a stable near-field RMS.

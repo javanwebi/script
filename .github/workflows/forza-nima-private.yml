@@ -15,6 +15,9 @@ on:
       - src/components/forza/AiForzaCallExperience.tsx
       - src/utils/forzaIncrementalSpeechText.ts
       - src/utils/forzaNimaBufferedSpeech.ts
+      - public/worklets/forza-speech-evidence.js
+      - src/utils/forzaAudioEvidence.ts
+      - tests/forzaAudioEvidence.test.ts
       - src/utils/forzaSpeechAdmission.ts
       - tests/forzaSpeechAdmission.test.ts
       - src/utils/forzaBargeIn.ts
@@ -66,7 +69,7 @@ jobs:
       - name: Install frontend/toolchain
         run: npm ci --ignore-scripts
       - name: Test incremental SSE speech planner
-        run: node --import tsx --test tests/forzaSpeechAdmission.test.ts tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
+        run: node --import tsx --test tests/forzaAudioEvidence.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaCallPlainText.test.ts tests/forzaNimaIncrementalSpeech.test.ts tests/forzaNimaBufferedSpeech.test.ts tests/forzaVoiceRetry.test.ts tests/forzaTtsBudget.test.ts tests/forza-streaming-speech.test.ts tests/forzaVoiceRecoveryUi.test.ts tests/forzaLiveAuditScript.test.ts tests/forza-continuous-wav.test.ts tests/forzaBargeIn.test.ts tests/forza-voice-activity.test.ts tests/forzaRecognitionRecovery.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaStopAcknowledgement.test.ts tests/forzaCallTeardown.test.ts tests/forzaConsultContract.test.ts tests/forzaSseImmediateCompletion.test.ts
       - name: Validate Persian smart end-of-turn recognition
         run: node --import tsx --test tests/forza-smart-turn.test.ts tests/forza-speech-pipeline.test.ts
       - name: Verify xKiro chat keys never activate Gemini speech recognition
