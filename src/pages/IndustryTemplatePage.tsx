@@ -297,7 +297,7 @@ export function IndustryTemplatePage() {
           <div className="ipt-production-visual">
             <img src={industry.image} alt={"نمای خط تولید " + industry.title} loading="lazy" />
             <div className="ipt-production-overlay" />
-            <div className="ipt-stage-hotspots">
+            <div className="ipt-stage-hotspots" style={{ "--ipt-stage-count": stages.length } as React.CSSProperties}>
               {stages.map((stage, index) => (
                 <button type="button" key={stage.title} aria-pressed={activeStageIndex === index} onClick={() => setActiveStageIndex(index)} aria-label={"انتخاب مرحله " + stage.title}>
                   <span>{String(index + 1).padStart(2, "0")}</span><small>{stage.title}</small>
