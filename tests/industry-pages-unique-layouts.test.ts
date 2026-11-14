@@ -44,7 +44,7 @@ test("catalog cards and stage recommendations come only from the live catalog ra
   assert.match(page, /rankIndustryProducts\(products, \{ \.\.\.industry, terms:/);
   assert.match(page, /<ProductCard/);
   assert.match(page, /نتیجه ساختگی ارائه نمی‌شود/);
-  assert.match(page, /خانواده تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد/);
+  assert.match(page, /کالای تأییدشده‌ای برای پیشنهاد مستقیم پیدا نشد/);
 });
 
 test("all major actions navigate to real site routes or the real custom-part request API", () => {
