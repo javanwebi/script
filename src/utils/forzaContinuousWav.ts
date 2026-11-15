@@ -50,8 +50,19 @@ export class ForzaContinuousWav {
   private pending = new Set<() => void>();
   private closed = false;
   private gain: GainNode | null = null;
+  private outputAnalyser: AnalyserNode | null = null;
   private muted = false;
   private underflows = 0;
+
+  /** Output level used only for avatar animation. */
+  getOutputLevel(): number {
+    if (!this.outputAnalyser || !this.startedSources.size) return 0;
+    const samples = new Float32Array(this.outputAnalyser.fftSize);
+    this.outputAnalyser.getFloatTimeDomainData(samples);
+    let sum = 0;
+    for (const sample of samples) sum += sample * sample;
+    return Math.min(1, Math.sqrt(sum / samples.length) * 8);
+  }
   constructor(
     private readonly getContext: () => AudioContext | null,
     private readonly onPlaying: () => void,
@@ -142,7 +153,14 @@ export class ForzaContinuousWav {
       if(!this.gain){
         this.gain=ctx.createGain();
         this.gain.gain.value=this.muted?0:1;
-        this.gain.connect(ctx.destination);
+        if (typeof ctx.createAnalyser === 'function') {
+          this.outputAnalyser = ctx.createAnalyser();
+          this.outputAnalyser.fftSize = 512;
+          this.gain.connect(this.outputAnalyser);
+          this.outputAnalyser.connect(ctx.destination);
+        } else {
+          this.gain.connect(ctx.destination);
+        }
       }
       source.connect(this.gain);
       this.sources.add(source);
@@ -243,6 +261,8 @@ export class ForzaContinuousWav {
     this.progress.clear();
     try{this.gain?.disconnect();}catch{}
     this.gain=null;
+    try{this.outputAnalyser?.disconnect();}catch{}
+    this.outputAnalyser=null;
     for(const resolve of [...this.pending])resolve();
     this.pending.clear();
   }

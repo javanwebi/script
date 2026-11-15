@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ForzaContinuousWav,pocketWavWindow} from '../src/utils/forzaContinuousWav';
 
+test('avatar measures the played output and returns to zero after cancellation',async()=>{
+  const analyser={fftSize:0,connect(){},disconnect(){},getFloatTimeDomainData(samples:Float32Array){samples.fill(0.05);}};
+  let source:any;
+  const ctx:any={
+    state:'running',currentTime:0,destination:{},
+    createAnalyser:()=>analyser,
+    createGain:()=>({gain:{value:1},connect(){},disconnect(){}}),
+    createBufferSource:()=>source={buffer:null,onended:null,connect(){},disconnect(){},start(){},stop(){}},
+    decodeAudioData:async()=>({duration:0.4}),
+  };
+  const player=new ForzaContinuousWav(()=>ctx,()=>{});
+  const pending=player.enqueueWav(new Uint8Array([1]));
+  await new Promise(resolve=>setTimeout(resolve,40));
+  assert.ok(player.getOutputLevel()>0);
+  player.cancel();
+  await pending;
+  assert.equal(player.getOutputLevel(),0);
+  assert.ok(source);
+});
+
 test('Pocket WAVs use a single sample-clock timeline, not an HTML audio restart',async()=>{
   const originalFetch=globalThis.fetch;
   const scheduled:number[]=[];
