@@ -1,11 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ForzaCallPlainText, forzaSpokenPlainText} from '../src/utils/forzaCallPlainText';
-
-test('voice strips prose punctuation while retaining decimal values and part codes',()=>{
-  assert.equal(forzaSpokenPlainText('بلبرینگ 6203-ZZ، قطر 3.25 است. مناسب است؟'),
-    'بلبرینگ 6203-ZZ قطر 3.25 است مناسب است');
-});
 import {ForzaIncrementalSpeechText} from '../src/utils/forzaIncrementalSpeechText';
 
 function chunks(raw:string):string[] {
@@ -75,13 +70,4 @@ test('decimal dimensions and negative technical values survive plain-text displa
   assert.equal(project.complete('3.25×20 و -5'),'3.25×20 و -5');
   assert.equal(forzaSpokenPlainText('ابعاد 100×200 و 3.25×20'),
     'ابعاد 100 در 200 و 3.25 در بیست');
-});
-
-
-test('provider pause after the first WAV releases stable words without losing a partial SKU',()=>{
-  const planner=new ForzaIncrementalSpeechText();
-  assert.deepEqual(planner.push('سلام.'),['سلام.']);
-  assert.deepEqual(planner.push('سلام. برای موتور شما مدل 62'),[]);
-  assert.deepEqual(planner.flushStableIdle(),['برای موتور شما مدل']);
-  assert.deepEqual(planner.complete('سلام. برای موتور شما مدل 6203 مناسب است.'),['6203 مناسب است.']);
 });

@@ -479,8 +479,10 @@ registerProductImageStorage(app,async()=>{
   primePublicCatalogCache(fresh);
   refreshRecognitionCatalog();
   // New admin uploads are also indexed without requiring the next deployment.
-  void buildImageFeatureIndex();
-  void buildImageEmbeddingIndex();
+  if(databaseEnabled()){
+    void buildImageFeatureIndex();
+    void buildImageEmbeddingIndex();
+  }
 });
 app.use('/api/ai', async (req,res,next)=>{
   let authorized=false;try {const identity=await getPortalIdentity(req);authorized=adoptedSchema()?identity.admin:!!(identity.user||identity.admin);}catch {}
@@ -1112,13 +1114,13 @@ async function jinaEmbedImages(buffers: Buffer[], task: 'retrieval.query' | 'ret
 // Load the catalog embedding cache; build it in the background when missing
 // and a Jina key is configured.
 async function buildImageEmbeddingIndex(): Promise<void> {
+ if(!databaseEnabled())return;
  try {
-  if(!databaseEnabled())throw new Error('PostgreSQL required for image embeddings');
   const saved=(await database().query(
    'select file_name,embedding::text as vector from public.catalog_image_features where embedding is not null'
   )).rows;
   for(const row of saved){
-   const values=String(row.vector||'').replace(/^\\[/,'').replace(/\\]$/,'').split(',').map(Number);
+   const values=String(row.vector||'').replace(/^\[/,'').replace(/\]$/,'').split(',').map(Number);
    if(values.length!==1024||values.some(v=>!Number.isFinite(v)))continue;
    IMAGE_EMB_INDEX.set(row.file_name,values);
    const alias=normalizeCatalogImageKey(row.file_name);
@@ -1701,8 +1703,8 @@ function gridDistance(a: ImageFeatures, b: ImageFeatures): number {
 }
 
 async function buildImageFeatureIndex(): Promise<void> {
+ if(!databaseEnabled())return;
  try {
-  if(!databaseEnabled())throw new Error('PostgreSQL required for visual hashes');
   buildCatalogImageAliases();
   const columns=['dh','ph','ah','eh','aspect','col','radial','hog','hu','grid'];
   const select=['file_name',...['raw','clean'].flatMap(p=>columns.map(c=>p+'_'+c))].join(',');
@@ -7876,8 +7878,10 @@ async function start() {
   }
   refreshRecognitionCatalog();
   console.log(`[Server] Loaded ${CATALOG_ITEMS.length} real inventory SKUs for recognition.`);
-  void buildImageFeatureIndex();
-  void buildImageEmbeddingIndex();
+  if(databaseEnabled()){
+    void buildImageFeatureIndex();
+    void buildImageEmbeddingIndex();
+  }
 
   // The self-hosted VPS uses a private Docker-network PostgreSQL connection
   // (DATABASE_SSL=disable). It can safely serve the already-built production

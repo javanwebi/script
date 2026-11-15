@@ -1,6 +1,6 @@
 import type { Product } from '../types';
 
-const normalize = (value = '') => value.toLowerCase().replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c]+/g, ' ').trim();
+const normalize = (value?: string | null) => String(value || '').toLowerCase().replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c]+/g, ' ').trim();
 
 /** Normalize catalog spelling; dimensions remain available on every original SKU. */
 export function productFamilyName(product: Product): string {

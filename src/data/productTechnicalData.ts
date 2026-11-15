@@ -66,10 +66,10 @@ export function enrichTechnicalVariant(product: Product, variant: ProductVariant
   };
   if (isBelt) {
     const narrow = (name.match(/\b(SP[ZABC]|XP[ZABC])\s*[-/]?\s*(\d+(?:\.\d+)?)\b/) || rawSize.match(/\b(SP[ZABC]|XP[ZABC])\s*(\d+(?:\.\d+)?)\b/));
-    const rib = name.match(/\b(?:(\d+)\s*)?(PH|PJ|PK|PL|PM)\s*[-/]?\s*(\d{3,5})\b/);
-    const timing = name.match(/(?:^|[^A-Z])(AT20|AT10|AT5|T20|T10|T5|14M|8M|5M|3M)(?=$|[^A-Z0-9]|\d{3,5}\b)/);
+    const rib = name.match(/\b(?:(\d+)\s*)?(PH|PJ|PK|PL|PM)\s*[-/]?\s*(\d{3,5})\b/) || name.match(/\b(\d{3,5})\s*(PH|PJ|PK|PL|PM)\s*(\d+)\b/);
+    const timing = name.match(/(?:^|[^A-Z])(AT20|AT10|AT5|DT10|DT5|T20|T10|T5|14M|11M|D8M|8M|D5M|5M|3M)(?=$|[^A-Z0-9]|\d{3,5}\b)/);
     const imperial = name.match(/\b(\d{2,5}(?:\.\d+)?)\s*(DXL|XXH|MXL|XH|XL|DH|DL|H|L)(?![A-Z])/);
-    const classic = name.match(/\b(AX|BX|CX|Z|A|B|C|D|E)\s*[-/]?\s*(\d+(?:\.\d+)?)\b/);
+    const classic = name.match(/\b(AX|BX|CX|ZX|MX|AA|BB|Z|M|K|A|B|C|D|E)\s*[-/]?\s*(\d+(?:\.\d+)?)\b/);
     if (narrow) {
       model = narrow[1]; technicalCode = `${model} ${narrow[2]}`;
       type = model.startsWith('XP') ? 'تسمه V شکل باریک دندانه‌دار' : 'تسمه V شکل باریک';
@@ -82,16 +82,21 @@ export function enrichTechnicalVariant(product: Product, variant: ProductVariant
         add('استاندارد مرجع پروفیل', 'DIN 7753-1 / ISO 4184؛ گواهی این کالا تأیید نشده', 'wedge');
       }
     } else if (rib) {
-      model = rib[2]; technicalCode = `${rib[1] || ''}${model} ${rib[3]}`;
+      const isLenFirst = /^(PH|PJ|PK|PL|PM)$/.test(rib[2]) && rib[1] && rib[1].length >= 3 && rib[3].length <= 2;
+      const ribCount = isLenFirst ? rib[3] : rib[1];
+      const ribLen = isLenFirst ? rib[1] : rib[3];
+      model = rib[2]; technicalCode = `${ribCount || ''}${model} ${ribLen}`;
       type = 'تسمه چندشیاری'; add('پروفیل',model);
-      if(rib[1]) add('تعداد شیار درج‌شده',rib[1]);
-      add('طول درج‌شده در کد',`${rib[3]} میلی‌متر`);
+      if(ribCount) add('تعداد شیار درج‌شده',ribCount);
+      add('طول درج‌شده در کد',`${ribLen} میلی‌متر`);
       add('گام شیار پروفیل (مرجع)',`${ribPitch[model]} میلی‌متر`,'ribbed');
     } else if (timing) {
-      model = timing[1]; type = 'تسمه تایمینگ'; add('پروفیل',model);
+      model = timing[1]; type = model.startsWith('D') ? 'تسمه تایمینگ دوطرف دندانه' : 'تسمه تایمینگ'; add('پروفیل',model);
       // Do not infer rounded tooth geometry from pitch alone (e.g. HTD vs GT).
       if (timingPitch[model]) add('گام دندانه پروفیل (مرجع)',`${timingPitch[model]} میلی‌متر`,'timing');
-      else if (/^(3M|5M|8M|14M)$/.test(model)) add('گام دندانه پروفیل (مرجع)',`${Number(model.slice(0,-1))} میلی‌متر`,'imperial');
+      else if (/^(DT10|DT5)$/.test(model)) add('گام دندانه پروفیل (مرجع)',`${Number(model.slice(2))} میلی‌متر`,'timing');
+      else if (/^(3M|5M|8M|11M|14M)$/.test(model)) add('گام دندانه پروفیل (مرجع)',`${Number(model.slice(0,-1))} میلی‌متر`,'imperial');
+      else if (/^(D5M|D8M)$/.test(model)) add('گام دندانه پروفیل (مرجع)',`${Number(model.slice(1,-1))} میلی‌متر`,'imperial');
     } else if (imperial) {
       const suffix=name.slice((imperial.index||0)+imperial[0].length);
       const widthCode=suffix.match(/^\s*[-*]?\s*(\d{3})(?![A-Z0-9])/)?.[1];
@@ -116,13 +121,17 @@ export function enrichTechnicalVariant(product: Product, variant: ProductVariant
       add('استاندارد مرجع نام‌گذاری','ISO 19347:2015؛ گواهی کالای موجود تأیید نشده','imperialStandard');
     } else if (classic) {
       model = classic[1]; technicalCode = `${model} ${classic[2]}`;
-      type = /X/.test(model) ? 'تسمه V شکل کلاسیک دندانه‌دار' : 'تسمه V شکل کلاسیک';
+      type = /^(AA|BB)$/.test(model) ? 'تسمه V شکل شش‌ضلعی دوطرفه' : /X/.test(model) ? 'تسمه V شکل کلاسیک دندانه‌دار' : 'تسمه V شکل کلاسیک';
       add('پروفیل',model); add('عدد طول درج‌شده (بدون تبدیل واحد)',classic[2]);
     } else {
       const weldedProfile = /جوشی/.test(name) ? name.match(/\b(A|B|C|D|Z|CRC)(?:\b|(?=\d))/) : undefined;
-      const usWedge = name.match(/\b(3VX|5VX|8VX|3V|5V|8V)\s*(\d+)\b/);
+      const bandedWedge = name.match(/\b(\d+R(?:3VX|3V|5VX|5V|8VX|8V|SPZ|SPA|SPB|SPC|AX|BX|CX|A|B|C))\s*(\d+)\b/);
+      const usWedge = name.match(/\b(3VX|5VX|8VX|3V|5V|8V)\s*(\d+)\b/) || name.match(/\b(\d+)\s*(3VX|5VX|8VX|3V|5V|8V)\b/);
+      const endlessCrc = !/جوشی/.test(name) ? name.match(/\b(CRC|TRC)\s*(\d+)?\b/) : undefined;
       if(weldedProfile){model=weldedProfile[1];type='تسمه جوشی پروفیل‌دار';add('پروفیل درج‌شده',model);}
-      else if(usWedge){model=usWedge[1];technicalCode=`${model} ${usWedge[2]}`;type='تسمه V شکل باریک اینچی';add('پروفیل درج‌شده',model);add('عدد طول درج‌شده (بدون تبدیل واحد)',usWedge[2]);}
+      else if(bandedWedge){model=bandedWedge[1];technicalCode=`${bandedWedge[1]} ${bandedWedge[2]}`;type='تسمه V شکل به‌پشت‌پیوسته (پاورباند)';add('پروفیل درج‌شده',model);add('عدد طول درج‌شده (بدون تبدیل واحد)',bandedWedge[2]);}
+      else if(usWedge){const prof=/^\d+$/.test(usWedge[1])?usWedge[2]:usWedge[1];const len=/^\d+$/.test(usWedge[1])?usWedge[1]:usWedge[2];model=prof;technicalCode=`${prof} ${len}`;type='تسمه V شکل باریک اینچی';add('پروفیل درج‌شده',model);add('عدد طول درج‌شده (بدون تبدیل واحد)',len);}
+      else if(endlessCrc){model=endlessCrc[1];if(endlessCrc[2])technicalCode=`${endlessCrc[1]} ${endlessCrc[2]}`;type='تسمه ذوزنقه‌ای تاج‌دار (گرده‌ماهی)';add('پروفیل درج‌شده',model);}
     }
   } else if (/^بلبرینگ/.test(name)) {
     const bearing = name.match(/\b(6\d{2,4})(?:\s*[-/]?\s*(ZZ|2RSZ|2RS|2Z|RS|Z))?(?!\d)/);

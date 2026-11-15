@@ -48,6 +48,8 @@ import {
   Eye,
   Link2,
   Image as ImageIcon,
+  ZoomIn,
+  Ruler,
 } from "lucide-react";
 import { Modal } from "../components/ui/Modal";
 import { ProductCard } from "../components/product/ProductCard";
@@ -55,6 +57,16 @@ import { getCurrentCustomerSkuPrice } from "../utils/customerPricing";
 import { adminService } from "../services/adminService";
 import { isDatabaseCatalogHydrated } from "../services/durableStorage";
 import { resolveSiteProductImage } from "../utils/siteProductImages";
+import {
+  buildBeltGalleryImages,
+  getBeltFamilyMedia,
+  getBeltSkuMedia,
+  isExcludedBeltSku,
+} from "../utils/beltCatalogMedia";
+import {
+  BeltVisualMediaSection,
+  type BeltDocModalPayload,
+} from "../components/product/BeltVisualMediaSection";
 import "./product-detail-premium.css";
 
 export const ProductDetailPage: React.FC = () => {
@@ -117,10 +129,19 @@ export const ProductDetailPage: React.FC = () => {
       : product.variants.filter((v) => v.active !== false);
   }, [product, isPreviewMode]);
 
+  const [beltDocModal, setBeltDocModal] = useState<BeltDocModalPayload | null>(null);
+
+  const [selectedVariantCode, setSelectedVariantCode] = useState("");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const pendingVariantFocusRef = React.useRef<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+
   // Structured gallery images with scope ('family' vs 'variant') and variantCode
   const galleryImages = useMemo(() => {
     if (!product) return [];
-    const allImgs = buildDefaultGalleryImages(product);
+    const baseImgs = buildDefaultGalleryImages(product);
+    const allImgs = buildBeltGalleryImages(product, baseImgs, selectedVariantCode);
     if (isPreviewMode) return allImgs;
     // Hide images belonging to inactive variants for public visitors
     const activeCodes = new Set(visibleVariants.map((v) => v.code));
@@ -130,12 +151,7 @@ export const ProductDetailPage: React.FC = () => {
         !img.variantCode ||
         activeCodes.has(img.variantCode),
     );
-  }, [product, visibleVariants, isPreviewMode]);
-
-  const [selectedVariantCode, setSelectedVariantCode] = useState("");
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
+  }, [product, visibleVariants, isPreviewMode, selectedVariantCode]);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [inquiryNotes, setInquiryNotes] = useState("");
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
@@ -183,7 +199,7 @@ export const ProductDetailPage: React.FC = () => {
     return () => controller.abort();
   }, [activeTab, selectedVariantCode, visibleVariants, lazyReviews]);
 
-  // Initialize selected variant & matching image when URL code or family changes
+  // Initialize selected variant when URL code or product family changes
   useEffect(() => {
     if (!product) return;
     const matchedFromUrl = visibleVariants.find(
@@ -191,19 +207,43 @@ export const ProductDetailPage: React.FC = () => {
     );
     const initialCode = matchedFromUrl?.code || visibleVariants[0]?.code || "";
     setSelectedVariantCode(initialCode);
+    pendingVariantFocusRef.current = initialCode || null;
+  }, [decodedCode, product?.code, visibleVariants.length]);
 
-    if (initialCode) {
-      const variantImgIdx = galleryImages.findIndex(
-        (img) => img.scope === "variant" && img.variantCode === initialCode,
-      );
-      // A family photograph may be shown as a clearly labelled general reference,
-      // but must never be represented as a verified photo of the selected SKU.
-      const familyImgIdx = galleryImages.findIndex((img) => img.scope === "family");
-      setActiveImageIndex(variantImgIdx >= 0 ? variantImgIdx : familyImgIdx);
-    } else {
-      setActiveImageIndex(galleryImages.length ? 0 : -1);
+  // Move main gallery focus cleanly once galleryImages reflects the newly selected SKU
+  useEffect(() => {
+    if (!galleryImages.length) {
+      setActiveImageIndex(-1);
+      return;
     }
-  }, [decodedCode, product?.code, visibleVariants.length, galleryImages]);
+    const pendingSku = pendingVariantFocusRef.current;
+    if (pendingSku) {
+      pendingVariantFocusRef.current = null;
+      const realIdx = galleryImages.findIndex(
+        (img) =>
+          img.scope === "variant" &&
+          img.variantCode === pendingSku &&
+          !String(img.id || "").startsWith("belt-sku-profile-"),
+      );
+      if (realIdx >= 0) {
+        setActiveImageIndex(realIdx);
+        return;
+      }
+      const profileIdx = galleryImages.findIndex(
+        (img) => img.scope === "variant" && img.variantCode === pendingSku,
+      );
+      if (profileIdx >= 0) {
+        setActiveImageIndex(profileIdx);
+        return;
+      }
+      const famIdx = galleryImages.findIndex((img) => img.scope === "family");
+      setActiveImageIndex(famIdx >= 0 ? famIdx : 0);
+      return;
+    }
+    if (activeImageIndex < 0 || activeImageIndex >= galleryImages.length) {
+      setActiveImageIndex(0);
+    }
+  }, [galleryImages, activeImageIndex]);
 
   const syncSelectedVariantRoute = (variantCode: string) => {
     if (isCustomerPortalRoute) return;
@@ -221,7 +261,6 @@ export const ProductDetailPage: React.FC = () => {
     syncSelectedVariantRoute(newVariantCode);
 
     const currentImg = galleryImages[activeImageIndex];
-    // If current image is already linked to this exact SKU, keep it (do not jump)
     if (
       currentImg &&
       currentImg.scope === "variant" &&
@@ -230,18 +269,7 @@ export const ProductDetailPage: React.FC = () => {
       return;
     }
 
-    // Find first image linked to this SKU
-    const firstLinkedIdx = galleryImages.findIndex(
-      (img) => img.scope === "variant" && img.variantCode === newVariantCode,
-    );
-    if (firstLinkedIdx >= 0) {
-      setActiveImageIndex(firstLinkedIdx);
-      return;
-    }
-
-    // Keep the family's general image visible, labelled as a family reference.
-    // Never substitute another SKU's photo or claim this is SKU verified.
-    setActiveImageIndex(galleryImages.findIndex((img) => img.scope === "family"));
+    pendingVariantFocusRef.current = newVariantCode;
   };
 
   // 2. Customer clicks an image -> if linked to a SKU, automatically select that SKU;
@@ -392,6 +420,17 @@ export const ProductDetailPage: React.FC = () => {
         (g) => g.scope === "variant" && g.variantCode === selectedVariant.code,
       ).length
     : 0;
+
+  const beltFamilyMedia = getBeltFamilyMedia(
+    product.code,
+    product.images?.[0] || product.image,
+  );
+  const activeBeltSkuCode = selectedVariant?.code || product.code;
+  const isSelectedBeltSkuExcluded = isExcludedBeltSku(activeBeltSkuCode);
+  const beltSkuMedia =
+    beltFamilyMedia && !isSelectedBeltSkuExcluded
+      ? getBeltSkuMedia(product.code, activeBeltSkuCode)
+      : null;
 
   const handleAddToCart = () => {
     if (!canViewCommercial) {
@@ -591,17 +630,22 @@ export const ProductDetailPage: React.FC = () => {
             <div className="product-detail-image relative w-full pt-[82%] bg-gradient-to-b from-slate-50/70 to-white border border-slate-200/90 rounded-2xl overflow-hidden group flex items-center justify-center">
               <ProductImage
                 src={currentGalleryImage?.url}
-                fallbackSrc={resolveSiteProductImage(
-                  product,
-                  [
-                    product.subcategory,
-                    product.submenu,
-                    product.categoryName,
-                    selectedVariant?.name,
-                  ]
-                    .filter(Boolean)
-                    .join(" "),
-                )}
+                fallbackSrc={
+                  beltFamilyMedia
+                    ? beltFamilyMedia.primaryThumbnail
+                    : resolveSiteProductImage(
+                        product,
+                        [
+                          product.subcategory,
+                          product.submenu,
+                          product.categoryName,
+                          selectedVariant?.name,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      )
+                }
+                disableFallback={Boolean(beltFamilyMedia)}
                 alt={currentGalleryImage?.title || requestedProduct.name}
                 className="absolute inset-0 w-full h-full object-contain p-6 sm:p-8 group-hover:scale-105 transition-transform duration-300"
               />
@@ -645,10 +689,45 @@ export const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {selectedVariant && selectedVariantImagesCount === 0 && (
-              <p role="status" className="text-xs text-slate-600 leading-6 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                تصویر اختصاصی کد <strong dir="ltr">{selectedVariant.code}</strong> هنوز تأیید و ثبت نشده است. مشخصات زیر مربوط به همین کد است.
-              </p>
+            {beltSkuMedia ? (
+              beltSkuMedia.realImageStatus === "EXACT_SKU_IMAGE_FOUND" ? (
+                <p
+                  role="status"
+                  className="text-xs text-emerald-900 leading-6 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>
+                    تصویر واقعی کالای فیزیکی اختصاصی برای کد{" "}
+                    <strong className="font-mono" dir="ltr">
+                      {beltSkuMedia.skuCode}
+                    </strong>{" "}
+                    تأیید و متصل شده است.
+                  </span>
+                </p>
+              ) : (
+                <p
+                  role="status"
+                  className="text-xs text-amber-950 leading-6 bg-amber-50/80 border border-amber-200/90 rounded-xl px-3 py-2 flex items-start gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-1" />
+                  <span>
+                    <strong>تصویر واقعی هنوز تأمین نشده است</strong> — برای کد{" "}
+                    <strong className="font-mono" dir="ltr">
+                      {beltSkuMedia.skuCode}
+                    </strong>{" "}
+                    عکس فیزیکی اختصاصی ثبت نشده و تصاویر بالا عکس‌های واقعی مرجع
+                    این خانواده هستند؛ نقشه فنی اختصاصی همین کد در بخش زیر
+                    نمایش داده شده است.
+                  </span>
+                </p>
+              )
+            ) : (
+              selectedVariant &&
+              selectedVariantImagesCount === 0 && (
+                <p role="status" className="text-xs text-slate-600 leading-6 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  تصویر اختصاصی کد <strong dir="ltr">{selectedVariant.code}</strong> هنوز تأیید و ثبت نشده است. مشخصات زیر مربوط به همین کد است.
+                </p>
+              )
             )}
             {/* Scope Notice */}
             {currentGalleryImage?.scope === "family" ? (
@@ -714,17 +793,22 @@ export const ProductDetailPage: React.FC = () => {
                       >
                         <ProductImage
                           src={img.url}
-                          fallbackSrc={resolveSiteProductImage(
-                            product,
-                            [
-                              product.subcategory,
-                              product.submenu,
-                              product.categoryName,
-                              selectedVariant?.name,
-                            ]
-                              .filter(Boolean)
-                              .join(" "),
-                          )}
+                          fallbackSrc={
+                            beltFamilyMedia
+                              ? beltFamilyMedia.primaryThumbnail
+                              : resolveSiteProductImage(
+                                  product,
+                                  [
+                                    product.subcategory,
+                                    product.submenu,
+                                    product.categoryName,
+                                    selectedVariant?.name,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" "),
+                                )
+                          }
+                          disableFallback={Boolean(beltFamilyMedia)}
                           alt=""
                           loading="lazy"
                           className="absolute inset-0 w-full h-full object-contain p-2 pb-5"
@@ -959,6 +1043,7 @@ export const ProductDetailPage: React.FC = () => {
                   <ProductVariants
                     showPrices={canViewCommercial}
                     key={product.code}
+                    familyCode={product.code}
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
@@ -1031,6 +1116,7 @@ export const ProductDetailPage: React.FC = () => {
                   <ProductVariants
                     showPrices={canViewCommercial}
                     key={product.code}
+                    familyCode={product.code}
                     variants={visibleVariants.map((v) => ({
                       ...v,
                       price: canViewCommercial
@@ -1212,6 +1298,24 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 2.25 BELT 4 FAMILY VISUALS + 2 LIVE SKU VISUALS */}
+      {beltFamilyMedia && (
+        <BeltVisualMediaSection
+          productName={product.name}
+          brand={activeBrand}
+          selectedSkuSize={selectedVariant?.size}
+          selectedSkuName={selectedVariant?.name}
+          beltFamilyMedia={beltFamilyMedia}
+          beltSkuMedia={beltSkuMedia}
+          onOpenDocModal={setBeltDocModal}
+          onJumpToFamilyGallery={() => {
+            const famIdx = galleryImages.findIndex((img) => img.scope === "family");
+            if (famIdx >= 0) setActiveImageIndex(famIdx);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      )}
 
       {/* 2.5 INTERACTIVE TABS: SPECS (SHARED + VARIANT-SPECIFIC), CATALOGUE, DELIVERY */}
       <div className="product-detail-tabs bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
@@ -1700,6 +1804,40 @@ export const ProductDetailPage: React.FC = () => {
             </button>
           )}
         </form>
+      </Modal>
+
+      {/* 6. BELT TECHNICAL DRAWING / SPEC SHEET ZOOM MODAL */}
+      <Modal
+        isOpen={Boolean(beltDocModal)}
+        onClose={() => setBeltDocModal(null)}
+        title={beltDocModal?.title || "پیش‌نمایش نقشه فنی"}
+        maxWidth="2xl"
+      >
+        {beltDocModal && (
+          <div className="space-y-3 text-right">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-slate-600">
+              <span>{beltDocModal.subtitle}</span>
+              {beltDocModal.svgUrl.endsWith(".svg") && (
+                <a
+                  href={beltDocModal.svgUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-bold text-[#E06518] hover:underline"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>باز کردن فایل برداری SVG با کیفیت اصلی</span>
+                </a>
+              )}
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-[#FBF8F3] p-2 overflow-auto">
+              <img
+                src={beltDocModal.svgUrl || beltDocModal.webpUrl}
+                alt={beltDocModal.title}
+                className="w-full h-auto rounded-xl bg-white"
+              />
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

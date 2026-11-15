@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1020" width="1400" height="1020">
+  <defs>
+    <style>
+      .font-fa { font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Tahoma', 'DejaVu Sans', sans-serif; }
+      .font-mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+    <pattern id="techGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#ECE6DC" stroke-width="0.75"/>
+    </pattern>
+    <pattern id="rubberHatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#55565A" stroke-width="1.2" opacity="0.35"/>
+    </pattern>
+    <marker id="arrowStart" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 1 L 1 5 L 10 9 z" fill="#E56B1E"/>
+    </marker>
+    <marker id="arrowEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#E56B1E"/>
+    </marker>
+    <marker id="arrowDarkStart" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 1 L 1 5 L 10 9 z" fill="#55565A"/>
+    </marker>
+    <marker id="arrowDarkEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#55565A"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="1020" fill="#FBF8F3"/>
+  <rect x="24" y="24" width="1352" height="972" rx="16" fill="url(#techGrid)" stroke="#CFC6B6" stroke-width="1.5"/>
+  <rect x="38" y="38" width="1324" height="944" rx="12" fill="#FFFFFF" fill-opacity="0.94" stroke="#55565A" stroke-width="2.2"/>
+
+  <path d="M 38 50 Q 38 38 50 38 L 1350 38 Q 1362 38 1362 50 L 1362 142 L 38 142 Z" fill="#55565A"/>
+  <rect x="38" y="138" width="1324" height="6" fill="#E56B1E"/>
+
+  <rect x="60" y="54" width="330" height="70" rx="10" fill="#3F4044" stroke="#E56B1E" stroke-width="1.8"/>
+  <text x="225" y="82" text-anchor="middle" class="font-mono" font-size="17" font-weight="700" fill="#FFFFFF">8، 1850</text>
+  <text x="225" y="110" text-anchor="middle" class="font-mono" font-size="13" font-weight="600" fill="#FFB07C">SKU: 31431  |  PROF: PK</text>
+
+  <text x="1334" y="80" text-anchor="end" class="font-fa" font-size="22" font-weight="800" fill="#FFFFFF">‫نقشه فنی و برگه ابعاد مهندسی اختصاصی کد کالا‬</text>
+  <text x="1334" y="114" text-anchor="end" class="font-fa" font-size="14.5" font-weight="600" fill="#F4EDE2">‫تسمه شياري 8pk 1850 — خانواده تسمه شیاری 8PK PK‬</text>
+
+  <rect x="60" y="156" width="1280" height="36" rx="7" fill="#FFF5EE" stroke="#E56B1E" stroke-width="1.1"/>
+  <text x="1322" y="179" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#B94B08">‫نماهای هندسی به‌صورت شماتیک فنی (SCHEMATIC — NOT TO SCALE) ترسیم شده و مقادیر عددی منطبق بر مشخصات قطعی ثبت‌شده هستند.‬</text>
+  <text x="76" y="179" text-anchor="start" class="font-mono" font-size="11.5" font-weight="700" fill="#E56B1E">SCHEMATIC — NOT TO SCALE | UNIT: mm</text>
+
+  <!-- VIEW 1: TOP RIGHT -->
+  <rect x="710" y="206" width="630" height="312" rx="10" fill="#FFFFFF" stroke="#CFC6B6" stroke-width="1.5"/>
+  <rect x="711" y="207" width="628" height="34" rx="8" fill="#F4EFE6"/>
+  
+  <text x="1322" y="229" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">‫نمای ۱ — شماتیک حلقه تسمه و طول مرجع‬</text>
+  <text x="726" y="229" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">VIEW A: BELT LOOP GEOMETRY</text>
+  <rect x="790" y="264" width="470" height="148" rx="74" fill="none" stroke="#55565A" stroke-width="8"/>
+  <rect x="786" y="260" width="478" height="156" rx="78" fill="none" stroke="#E56B1E" stroke-width="2" stroke-dasharray="8,5"/>
+  <rect x="798" y="272" width="454" height="132" rx="66" fill="#FBF8F3" stroke="#55565A" stroke-width="2"/>
+  <g fill="#55565A"></g>
+  <text x="1025" y="325" text-anchor="middle" class="font-mono" font-size="15.5" font-weight="700" fill="#E56B1E">Lp = 1850 mm</text>
+  <text x="1025" y="352" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#55565A">Ribs / Bands = 8 | Angle = 40°</text>
+  <text x="1025" y="378" text-anchor="middle" class="font-fa" font-size="11.5" font-weight="700" fill="#68696E">‫خط‌چین نارنجی: خط مرجع کوردهای کششی (Pitch Line)‬</text>
+  <rect x="730" y="432" width="590" height="70" rx="8" fill="#F8F5EE" stroke="#E2D9C8" stroke-width="1"/>
+  <text x="1025" y="458" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">MULTI-RIBBED POLY-V BELT | Lp = 1850 mm</text>
+  <text x="1025" y="485" text-anchor="middle" class="font-fa" font-size="11.5" font-weight="600" fill="#55565A">‫ISO 9982 / DIN 7867 (پروفیل چندشیاری PK با گام شیار 3.56 mm)‬</text>
+
+  <!-- VIEW 2: TOP LEFT -->
+  <rect x="60" y="206" width="630" height="312" rx="10" fill="#FFFFFF" stroke="#CFC6B6" stroke-width="1.5"/>
+  <rect x="61" y="207" width="628" height="34" rx="8" fill="#F4EFE6"/>
+  
+  <text x="672" y="229" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">‫نمای ۲ — مقطع عرضی و ساختار لایه‌ها‬</text>
+  <text x="76" y="229" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">VIEW B: CROSS-SECTION (WIDTH b)</text>
+  <line x1="150" y1="268" x2="150" y2="318" stroke="#E56B1E" stroke-width="1.4"/>
+  <line x1="440" y1="268" x2="440" y2="318" stroke="#E56B1E" stroke-width="1.4"/>
+  <line x1="156" y1="282" x2="434" y2="282" stroke="#E56B1E" stroke-width="2" marker-start="url(#arrowStart)" marker-end="url(#arrowEnd)"/>
+  <rect x="200" y="262" width="190" height="24" rx="5" fill="#FFF5EE" stroke="#E56B1E" stroke-width="1"/>
+  <text x="295" y="279" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">b = 28.48 mm</text>
+  
+  <rect x="150" y="318" width="290" height="44" fill="url(#rubberHatch)" stroke="#55565A" stroke-width="2.2"/>
+  <rect x="150" y="318" width="290" height="44" fill="#55565A" fill-opacity="0.18"/>
+  <line x1="135" y1="362" x2="455" y2="362" stroke="#E56B1E" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <g fill="#E56B1E" stroke="#FFFFFF" stroke-width="1.2"><circle cx="170" cy="362" r="5"/><circle cx="195" cy="362" r="5"/><circle cx="220" cy="362" r="5"/><circle cx="245" cy="362" r="5"/><circle cx="270" cy="362" r="5"/><circle cx="295" cy="362" r="5"/><circle cx="320" cy="362" r="5"/><circle cx="345" cy="362" r="5"/><circle cx="370" cy="362" r="5"/><circle cx="395" cy="362" r="5"/><circle cx="420" cy="362" r="5"/></g>
+  <rect x="150" y="362" width="290" height="48" fill="#55565A" fill-opacity="0.32" stroke="#55565A" stroke-width="2.2"/>
+  <line x1="150" y1="410" x2="440" y2="410" stroke="#E56B1E" stroke-width="3"/>
+  <line x1="112" y1="318" x2="150" y2="318" stroke="#55565A" stroke-width="1.2"/>
+  <line x1="112" y1="410" x2="150" y2="410" stroke="#55565A" stroke-width="1.2"/>
+  <line x1="124" y1="323" x2="124" y2="405" stroke="#55565A" stroke-width="1.8" marker-start="url(#arrowDarkStart)" marker-end="url(#arrowDarkEnd)"/>
+  <text x="90" y="366" text-anchor="middle" class="font-mono" font-size="11.5" font-weight="700" fill="#55565A">hs=5 mm</text>
+  <g class="font-fa" font-size="12" font-weight="700" fill="#3B3C40">
+    <text x="670" y="340" text-anchor="end">‫۱. پشت تسمه صنعتی مقاوم به سایش‬</text>
+    <text x="670" y="368" text-anchor="end" fill="#E56B1E">‫۲. کورد کششی فایبرگلاس / سیم فولادی‬</text>
+    <text x="670" y="396" text-anchor="end">‫۳. شیارهای طولی Poly-V با چسبندگی بالا‬</text>
+  </g>
+  <rect x="80" y="432" width="590" height="70" rx="8" fill="#F8F5EE" stroke="#E2D9C8" stroke-width="1"/>
+  <text x="375" y="458" text-anchor="middle" class="font-mono" font-size="12.8" font-weight="700" fill="#E56B1E">Width/Dia: 28.48 mm  |  Thickness: 5 mm</text>
+  <text x="375" y="485" text-anchor="middle" class="font-fa" font-size="11.5" font-weight="600" fill="#55565A">‫الاستومر مصنوعی (EPDM / کلروپرن)‬</text>
+
+  <!-- VIEW 3: BOTTOM RIGHT -->
+  <rect x="710" y="534" width="630" height="412" rx="10" fill="#FFFFFF" stroke="#CFC6B6" stroke-width="1.5"/>
+  <rect x="711" y="535" width="628" height="34" rx="8" fill="#F4EFE6"/>
+  
+  <text x="1322" y="557" text-anchor="end" class="font-fa" font-size="13.5" font-weight="800" fill="#55565A">‫نمای ۳ — هندسه شیارهای طولی Poly-V‬</text>
+  <text x="726" y="557" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">VIEW C: POLY-V RIB GEOMETRY</text>
+  <path d="M 780 635 L 1240 635 L 1240 685 L 810 685 L 835 735 L 860 685 L 860 685 L 885 735 L 910 685 L 910 685 L 935 735 L 960 685 L 960 685 L 985 735 L 1010 685 L 1010 685 L 1035 735 L 1060 685 L 1060 685 L 1085 735 L 1110 685 L 1110 685 L 1135 735 L 1160 685 L 1160 685 L 1185 735 L 1210 685 L 780 685 Z" fill="#55565A" fill-opacity="0.22" stroke="#55565A" stroke-width="2.4"/>
+  <line x1="775" y1="658" x2="1245" y2="658" stroke="#E56B1E" stroke-width="1.8" stroke-dasharray="7,4"/>
+  <line x1="885" y1="735" x2="885" y2="804" stroke="#E56B1E" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="935" y1="735" x2="935" y2="804" stroke="#E56B1E" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="890" y1="794" x2="930" y2="794" stroke="#E56B1E" stroke-width="2" marker-start="url(#arrowStart)" marker-end="url(#arrowEnd)"/>
+  <rect x="862" y="758" width="96" height="24" rx="4" fill="#FFF5EE" stroke="#E56B1E" stroke-width="1"/>
+  <text x="910" y="775" text-anchor="middle" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">s = 3.56 mm</text>
+  <text x="1140" y="768" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#55565A">Rib Angle α = 40°</text>
+  <rect x="730" y="828" width="590" height="100" rx="8" fill="#F8F5EE" stroke="#E2D9C8" stroke-width="1"/>
+  <text x="1025" y="854" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="800" fill="#55565A">‫پارامترهای ثابت شیار طولی پروفیل Poly-V‬</text>
+  <text x="1025" y="882" text-anchor="middle" class="font-mono" font-size="11.8" font-weight="700" fill="#1F2022">Rib Pitch (s) = 3.56 mm  |  Ribs Count = 8  |  Thickness (h) = 5 mm</text>
+  <text x="1025" y="910" text-anchor="middle" class="font-mono" font-size="11.8" font-weight="700" fill="#E56B1E">Profile: PK  |  Standard: ISO 9982 / DIN 7867</text>
+
+  <!-- VIEW 4: BOTTOM LEFT TABLE -->
+  <rect x="60" y="534" width="630" height="412" rx="10" fill="#FFFFFF" stroke="#55565A" stroke-width="1.8"/>
+  <rect x="462" y="571" width="227" height="374" fill="#F7F4EE"/>
+  <rect x="61" y="535" width="628" height="36" rx="8" fill="#55565A"/>
+  <text x="672" y="558" text-anchor="end" class="font-fa" font-size="14" font-weight="800" fill="#FFFFFF">‫جدول مشخصات قطعی کد کالا‬</text>
+  <text x="76" y="558" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#FFB07C">SKU: 31431</text>
+  <line x1="462" y1="571" x2="462" y2="946" stroke="#CFC6B6" stroke-width="1.3"/>
+  <g stroke="#E6DFD3" stroke-width="1">
+    <line x1="60" y1="605" x2="690" y2="605"/>
+    <line x1="60" y1="639" x2="690" y2="639"/>
+    <line x1="60" y1="673" x2="690" y2="673"/>
+    <line x1="60" y1="707" x2="690" y2="707"/>
+    <line x1="60" y1="741" x2="690" y2="741"/>
+    <line x1="60" y1="775" x2="690" y2="775"/>
+    <line x1="60" y1="809" x2="690" y2="809"/>
+    <line x1="60" y1="843" x2="690" y2="843"/>
+    <line x1="60" y1="877" x2="690" y2="877"/>
+    <line x1="60" y1="911" x2="690" y2="911"/>
+  </g>
+  <g class="font-fa" font-size="12.5">
+    <text x="674" y="593" text-anchor="end" font-weight="700" fill="#55565A">‫کد کالا در دیتابیس‬</text>
+    <text x="261" y="593" text-anchor="middle" class="font-mono" font-size="14" font-weight="700" fill="#E56B1E">31431</text>
+
+    <text x="674" y="627" text-anchor="end" font-weight="700" fill="#55565A">‫سایز / کد فنی ثبت‌شده‬</text>
+    <text x="261" y="627" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">8، 1850</text>
+
+    <text x="674" y="661" text-anchor="end" font-weight="700" fill="#55565A">‫برند و خانواده مرجع‬</text>
+    <text x="261" y="661" text-anchor="middle" font-weight="700" fill="#1F2022">‫سفارشی / ثبت‌نشده — FAM-35122‬</text>
+
+    <text x="674" y="695" text-anchor="end" font-weight="700" fill="#55565A">‫پروفیل و گام دندانه‬</text>
+    <text x="261" y="695" text-anchor="middle" class="font-mono" font-size="12.5" font-weight="700" fill="#1F2022">Profile: PK  |  Pitch: 3.56 mm</text>
+
+    <text x="674" y="729" text-anchor="end" font-weight="700" fill="#55565A">‫طول مرجع (Lp)‬</text>
+    <text x="261" y="729" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">Lp = 1850 mm</text>
+
+    <text x="674" y="763" text-anchor="end" font-weight="700" fill="#55565A">‫تعداد دندانه / شیار‬</text>
+    <text x="261" y="763" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">8 Ribs / Bands</text>
+
+    <text x="674" y="797" text-anchor="end" font-weight="700" fill="#55565A">‫عرض / قطر مقطع‬</text>
+    <text x="261" y="797" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">28.48 mm (Code 8 ribs)</text>
+
+    <text x="674" y="831" text-anchor="end" font-weight="700" fill="#55565A">‫ضخامت کل و ارتفاع دندانه‬</text>
+    <text x="261" y="831" text-anchor="middle" class="font-mono" font-size="12.5" font-weight="700" fill="#1F2022">hs = 5 mm  |  ht = —</text>
+
+    <text x="674" y="865" text-anchor="end" font-weight="700" fill="#55565A">‫طول داخلی / بیرونی‬</text>
+    <text x="261" y="865" text-anchor="middle" class="font-mono" font-weight="600" fill="#6E7075">Li: — | La: —</text>
+
+    <text x="674" y="899" text-anchor="end" font-weight="700" fill="#55565A">‫متریال و کورد کششی‬</text>
+    <text x="261" y="899" text-anchor="middle" font-weight="700" fill="#1F2022">‫نخ پلی‌استر کم‌کشش (Low-Stretch Polyest…‬</text>
+
+    <text x="674" y="933" text-anchor="end" font-weight="700" fill="#55565A">‫واحد فروش و استاندارد‬</text>
+    <text x="261" y="933" text-anchor="middle" class="font-fa" font-size="12" font-weight="700" fill="#1F2022">‫حلقه — ISO 9982 / DIN 7867 (پروفیل چندش…‬</text>
+  </g>
+
+  <text x="1334" y="968" text-anchor="end" class="font-fa" font-size="11.5" font-weight="600" fill="#55565A">‫واحد مهندسی کاتالوگ صنعت پیش — نقشه اختصاصی کد 31431‬</text>
+  <text x="64" y="968" text-anchor="start" class="font-mono" font-size="11.5" font-weight="700" fill="#E56B1E">DWG: SP-SKU-31431-V1</text>
+</svg>

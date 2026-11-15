@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560">
+  <defs>
+    <style>
+      .font-fa { font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Tahoma', 'DejaVu Sans', sans-serif; }
+      .font-mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+    <marker id="cadStart" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 10 1.5 L 1 5 L 10 8.5 z" fill="#111827"/>
+    </marker>
+    <marker id="cadEnd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#111827"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" fill="#FFFFFF"/>
+  <text x="36" y="42" text-anchor="start" class="font-mono" font-size="14" font-weight="700" fill="#475569">PROFILE CAD  ·  10، 3، 565</text>
+  <text x="924" y="42" text-anchor="end" class="font-mono" font-size="14" font-weight="700" fill="#111827">SKU 56362 (3VX-BANDED)</text>
+  <line x1="36" y1="54" x2="924" y2="54" stroke="#E2E8F0" stroke-width="1"/>
+  
+  <path d="M 218 195 L 742 195 L 742 230 L 218 230 L 236 348 L 292 348 L 310 230 L 326 230 L 344 348 L 400 348 L 418 230 L 434 230 L 452 348 L 508 348 L 526 230 L 542 230 L 560 348 L 616 348 L 634 230 L 650 230 L 668 348 L 724 348 L 742 230 L 218 230 Z" fill="#FFFFFF" stroke="#111827" stroke-width="2.3" stroke-linejoin="round"/>
+  <line x1="198" y1="222" x2="762" y2="222" stroke="#111827" stroke-width="1.25" stroke-dasharray="18,4,3,4"/>
+  <line x1="218" y1="115" x2="218" y2="195" stroke="#334155" stroke-width="1"/>
+  <line x1="742" y1="115" x2="742" y2="195" stroke="#334155" stroke-width="1"/>
+  <line x1="222" y1="128" x2="738" y2="128" stroke="#111827" stroke-width="1.5" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="480" y="114" text-anchor="middle" class="font-mono" font-size="20" font-weight="700" fill="#111827">W = 9.5 mm (10 Bands)</text>
+  <line x1="742" y1="195" x2="820" y2="195" stroke="#334155" stroke-width="1"/>
+  <line x1="724" y1="348" x2="820" y2="348" stroke="#334155" stroke-width="1"/>
+  <line x1="806" y1="199" x2="806" y2="344" stroke="#111827" stroke-width="1.5" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="818" y="278" text-anchor="start" class="font-mono" font-size="20" font-weight="700" fill="#111827">h=8</text>
+  <line x1="36" y1="504" x2="924" y2="504" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="480" y="534" text-anchor="middle" class="font-mono" font-size="14" font-weight="700" fill="#334155">SKU 56362  |  3VX-BANDED  |  La=1435.1 mm  |  b=9.5mm  |  hs=8mm  |  All dims in mm</text>
+</svg>

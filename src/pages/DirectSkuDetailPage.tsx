@@ -21,17 +21,32 @@ import { ProductImage } from '../components/product/ProductImage';
 import { useDirectSkus } from '../components/catalog/DirectSkuProducts';
 import { resolveDisplayBrand } from '../utils/catalogBrands';
 import { toPersianDigits } from '../utils/formatters';
+import { getBeltFamilyMedia, getBeltSkuMedia } from '../utils/beltCatalogMedia';
+import {
+  BeltVisualMediaSection,
+  type BeltDocModalPayload,
+} from '../components/product/BeltVisualMediaSection';
+import { Modal } from '../components/ui/Modal';
 
 export default function DirectSkuDetailPage() {
   const { code } = useParams<{ code: string }>();
   const items = useDirectSkus();
   const [copied, setCopied] = useState(false);
+  const [beltDocModal, setBeltDocModal] = useState<BeltDocModalPayload | null>(null);
 
   const item = useMemo(
     () => items.find(row => row.skuCode === code),
     [items, code],
   );
   const brandLabel = item ? resolveDisplayBrand(item.brand, item.name) : '';
+  const beltSkuMedia = useMemo(
+    () => (item ? getBeltSkuMedia(undefined, item.skuCode) : null),
+    [item],
+  );
+  const beltFamilyMedia = useMemo(
+    () => (beltSkuMedia ? getBeltFamilyMedia(beltSkuMedia.familyCode, item?.imageUrl) : null),
+    [beltSkuMedia, item?.imageUrl],
+  );
 
   const relatedDirectSkus = useMemo(() => {
     if (!item) return [];
@@ -150,9 +165,10 @@ export default function DirectSkuDetailPage() {
               )}
             </div>
 
-            {item.imageUrl ? (
+            {item.imageUrl || beltSkuMedia?.realProductImage || beltFamilyMedia?.primaryThumbnail ? (
               <ProductImage
-                src={item.imageUrl} disableFallback
+                src={item.imageUrl || beltSkuMedia?.realProductImage || beltFamilyMedia?.primaryThumbnail}
+                disableFallback
                 alt={item.name}
                 className="h-full max-h-80 w-full object-contain p-4"
               />
@@ -335,6 +351,18 @@ export default function DirectSkuDetailPage() {
         </div>
       </section>
 
+      {/* Belt 4 Family + 2 SKU Visual Media Section */}
+      {beltFamilyMedia && beltSkuMedia && (
+        <BeltVisualMediaSection
+          productName={item.name}
+          brand={brandLabel}
+          selectedSkuName={item.name}
+          beltFamilyMedia={beltFamilyMedia}
+          beltSkuMedia={beltSkuMedia}
+          onOpenDocModal={setBeltDocModal}
+        />
+      )}
+
       {/* Related Direct SKUs in Same Category */}
       {relatedDirectSkus.length > 0 && (
         <section className="space-y-4 pt-2">
@@ -383,6 +411,39 @@ export default function DirectSkuDetailPage() {
           </div>
         </section>
       )}
+
+      <Modal
+        isOpen={Boolean(beltDocModal)}
+        onClose={() => setBeltDocModal(null)}
+        title={beltDocModal?.title || 'پیش‌نمایش تصویر فنی'}
+        maxWidth="2xl"
+      >
+        {beltDocModal && (
+          <div className="space-y-3 text-right">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-slate-600">
+              <span>{beltDocModal.subtitle}</span>
+              {beltDocModal.svgUrl.endsWith('.svg') && (
+                <a
+                  href={beltDocModal.svgUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-bold text-[#E06518] hover:underline"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>باز کردن فایل برداری SVG با کیفیت اصلی</span>
+                </a>
+              )}
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-[#FBF8F3] p-2 overflow-auto">
+              <img
+                src={beltDocModal.svgUrl || beltDocModal.webpUrl}
+                alt={beltDocModal.title}
+                className="w-full h-auto rounded-xl bg-white"
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
     </main>
   );
 }

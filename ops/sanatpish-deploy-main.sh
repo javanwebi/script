@@ -14,20 +14,10 @@ git -C "$APP" diff --quiet && git -C "$APP" diff --cached --quiet || {
   echo "SOURCE_CHECKOUT_HAS_TRACKED_CHANGES - refusing to overwrite server edits" >&2
   exit 1
 }
-EXPECTED_MAIN_SHA="${SANATPISH_EXPECTED_MAIN_SHA:-}"
-if [[ -n "$EXPECTED_MAIN_SHA" && ! "$EXPECTED_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]; then
-  echo "INVALID_EXPECTED_MAIN_SHA" >&2
-  exit 1
-fi
 echo "===== FETCH CANONICAL MAIN ====="
 git fetch origin main
 SHA="$(git rev-parse FETCH_HEAD)"
 test -n "$SHA"
-if [[ -n "$EXPECTED_MAIN_SHA" && "$SHA" != "$EXPECTED_MAIN_SHA" ]]; then
-  echo "DEPLOY_REF_NOT_CURRENT_MAIN expected=$EXPECTED_MAIN_SHA actual=$SHA" >&2
-  echo "Refusing to deploy a commit whose successful CI run is no longer the current main head." >&2
-  exit 1
-fi
 git -C "$APP" merge-base --is-ancestor HEAD "$SHA" || {
   echo "SOURCE_CHECKOUT_CANNOT_FAST_FORWARD_TO_RELEASE head=$(git -C "$APP" rev-parse --short HEAD) release=$(git rev-parse --short "$SHA")" >&2
   exit 1

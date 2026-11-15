@@ -5,6 +5,7 @@ import { toPersianDigits } from "../../utils/formatters";
 import { ProductImage } from "./ProductImage";
 import { Modal } from "../ui/Modal";
 import { Check, Image as ImageIcon } from "lucide-react";
+import { getBeltSkuMedia, isExcludedBeltSku } from "../../utils/beltCatalogMedia";
 
 export interface ProductVariantsProps {
   variants: ProductVariant[];
@@ -12,6 +13,7 @@ export interface ProductVariantsProps {
   onSelect: (code: string) => void;
   showPrices?: boolean;
   galleryImages?: ProductGalleryImage[];
+  familyCode?: string;
 }
 
 export const ProductVariants: React.FC<ProductVariantsProps> = ({
@@ -20,11 +22,17 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
   onSelect,
   galleryImages = [],
   showPrices = false,
+  familyCode,
 }) => {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [imagePreview, setImagePreview] = useState<{
-    code: string; name: string; src: string | null; familyReference: boolean;
+    code: string;
+    name: string;
+    src: string | null;
+    secondarySrc?: string | null;
+    realImageStatus?: 'EXACT_SKU_IMAGE_FOUND' | 'REAL_IMAGE_NOT_FOUND';
+    familyReference: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -46,23 +54,45 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
   const totalPages = Math.max(1, Math.ceil(results.length / 20));
 
   const getVariantLinkedImages = (variant: ProductVariant): string[] => {
-    const fromGallery = galleryImages
-      .filter(
-        (img) => img.scope === "variant" && img.variantCode === variant.code,
-      )
-      .map((img) => img.url);
-    if (fromGallery.length > 0) return fromGallery;
-    return variant.images || [];
+    const urls: string[] = [];
+    const pushUrl = (u?: string | null) => {
+      if (u && !urls.includes(u)) urls.push(u);
+    };
+    for (const img of galleryImages) {
+      if (img.scope === "variant" && img.variantCode === variant.code) {
+        pushUrl(img.url);
+      }
+    }
+    for (const u of variant.images || []) {
+      pushUrl(u);
+    }
+    if (familyCode && !isExcludedBeltSku(variant.code)) {
+      const beltMedia = getBeltSkuMedia(familyCode, variant.code);
+      if (beltMedia) {
+        pushUrl(beltMedia.realProductImage);
+        pushUrl(beltMedia.profileDrawingWebp);
+      }
+    }
+    return urls;
   };
 
   const openVariantImagePreview = (variant: ProductVariant) => {
     const exactImages = getVariantLinkedImages(variant);
+    const beltMedia =
+      familyCode && !isExcludedBeltSku(variant.code)
+        ? getBeltSkuMedia(familyCode, variant.code)
+        : null;
     const familyImage = galleryImages.find(img => img.scope === "family")?.url || null;
     onSelect(variant.code);
     setImagePreview({
       code: variant.code,
       name: variant.name,
       src: exactImages[0] || familyImage,
+      secondarySrc:
+        beltMedia && exactImages[0] !== beltMedia.profileDrawingWebp
+          ? beltMedia.profileDrawingWebp
+          : exactImages[1] || null,
+      realImageStatus: beltMedia?.realImageStatus,
       familyReference: exactImages.length === 0 && Boolean(familyImage),
     });
   };
@@ -277,31 +307,46 @@ export const ProductVariants: React.FC<ProductVariantsProps> = ({
         <Modal
           isOpen={Boolean(imagePreview)}
           onClose={() => setImagePreview(null)}
-          title={`تصویر کد کالا: ${imagePreview.code}`}
-          maxWidth="lg"
+          title={`تصاویر اختصاصی کد کالا: ${imagePreview.code}`}
+          maxWidth={imagePreview.secondarySrc ? "2xl" : "lg"}
         >
           <div className="space-y-3">
-            <div className="grid min-h-[220px] max-h-[66dvh] place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              {imagePreview.src ? (
-                <ProductImage
-                  src={imagePreview.src}
-                  alt={`تصویر ${imagePreview.name} با کد ${imagePreview.code}`}
-                  className="max-h-[62dvh] w-full object-contain"
-                />
-              ) : (
-                <div className="px-5 py-12 text-center text-sm text-slate-500">
-                  برای این کد کالا هنوز تصویری در کاتالوگ ثبت نشده است.
+            <div className={`grid gap-3 ${imagePreview.secondarySrc ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              <div className="grid min-h-[200px] max-h-[60dvh] place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                {imagePreview.src ? (
+                  <ProductImage
+                    src={imagePreview.src}
+                    alt={`تصویر ${imagePreview.name} با کد ${imagePreview.code}`}
+                    className="max-h-[54dvh] w-full object-contain"
+                  />
+                ) : (
+                  <div className="px-5 py-12 text-center text-sm text-slate-500">
+                    برای این کد کالا هنوز تصویری در کاتالوگ ثبت نشده است.
+                  </div>
+                )}
+              </div>
+              {imagePreview.secondarySrc && (
+                <div className="grid min-h-[200px] max-h-[60dvh] place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                  <ProductImage
+                    src={imagePreview.secondarySrc}
+                    alt={`نقشه پروفیل و ابعاد کد ${imagePreview.code}`}
+                    className="max-h-[54dvh] w-full object-contain"
+                  />
                 </div>
               )}
             </div>
             <div className="space-y-1">
               <p className="text-sm font-black text-slate-800">{imagePreview.name}</p>
               <p className="font-mono text-xs text-slate-500" dir="ltr">{imagePreview.code}</p>
-              {imagePreview.familyReference && (
+              {imagePreview.realImageStatus === 'REAL_IMAGE_NOT_FOUND' ? (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
+                  تصویر واقعی فیزیکی اختصاصی این کد هنوز تأمین نشده است؛ نقشه پروفیل و ابعاد مهندسی اختصاصی همین کد در کنار تصویر قابل مشاهده است.
+                </p>
+              ) : imagePreview.familyReference ? (
                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
                   تصویر اختصاصی این کد ثبت نشده است؛ تصویر نمایش‌داده‌شده مرجع عمومی خانواده محصول است.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         </Modal>

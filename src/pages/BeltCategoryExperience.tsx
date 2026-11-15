@@ -39,6 +39,7 @@ import { STORE_ASSETS } from '../assets/images';
 import { matchesProductSearch } from '../data/userProducts';
 import { toPersianDigits, formatPrice } from '../utils/formatters';
 import { resolveSiteProductImage } from '../utils/siteProductImages';
+import { getBeltFamilyMedia } from '../utils/beltCatalogMedia';
 import './BeltCategoryExperience.css';
 
 const BELT_SLUG = 'تسمه-و-انتقال-نیرو';
@@ -465,10 +466,14 @@ function CatalogCard({
     .filter(spec => spec.key && spec.value)
     .slice(0, 4);
 
+  const beltMedia = getBeltFamilyMedia(product.code, product.images?.[0] || product.image);
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
-  const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
+  useEffect(() => setImageFailed(false), [product.images?.[0], beltMedia?.primaryThumbnail]);
+  const fallbackArt = disableFallbackImage
+    ? ''
+    : beltMedia?.primaryThumbnail || referenceArtworkForProduct(product);
+  const primaryImage = product.images?.[0] || beltMedia?.primaryThumbnail;
+  const hasSpecificImage = Boolean(primaryImage) && !imageFailed;
   const retailPrice = priceOf(product);
   const brandLabel = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
 
@@ -487,9 +492,9 @@ function CatalogCard({
         <Link to={href} aria-label={'مشاهده ' + product.name} className="bce-row-image">
           {hasSpecificImage ? (
             <ProductImage
-              src={product.images?.[0]}
+              src={primaryImage}
               fallbackSrc={fallbackArt || undefined}
-              disableFallback={disableFallbackImage}
+              disableFallback={disableFallbackImage || Boolean(beltMedia)}
               alt={product.name}
               thumbnail
               loading="lazy"
@@ -604,19 +609,23 @@ function FeaturedProductCard({
   const href = detailPath || '/product/' + encodeURIComponent(product.code);
   const featuredBrand = resolveDisplayBrand(product.brand, product.name) || getProductDisplayBrands(product)[0] || '';
   const specs = (product.technicalSpecs || []).filter(spec => spec.key && spec.value).slice(0, 3);
+  const beltMedia = getBeltFamilyMedia(product.code, product.images?.[0] || product.image);
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => setImageFailed(false), [product.images?.[0]]);
-  const fallbackArt = disableFallbackImage ? '' : referenceArtworkForProduct(product);
-  const hasSpecificImage = Boolean(product.images?.[0]) && !imageFailed;
+  useEffect(() => setImageFailed(false), [product.images?.[0], beltMedia?.primaryThumbnail]);
+  const fallbackArt = disableFallbackImage
+    ? ''
+    : beltMedia?.primaryThumbnail || referenceArtworkForProduct(product);
+  const primaryImage = product.images?.[0] || beltMedia?.primaryThumbnail;
+  const hasSpecificImage = Boolean(primaryImage) && !imageFailed;
   return (
     <aside className="bce-featured-card" aria-label="محصول پیشنهادی">
       <div className="bce-featured-tag">محصول پیشنهادی</div>
       <Link to={href} aria-label={'مشاهده ' + product.name} className="bce-featured-image">
         {hasSpecificImage ? (
           <ProductImage
-            src={product.images?.[0]}
+            src={primaryImage}
             fallbackSrc={fallbackArt || undefined}
-            disableFallback={disableFallbackImage}
+            disableFallback={disableFallbackImage || Boolean(beltMedia)}
             alt={product.name}
             thumbnail
             loading="lazy"

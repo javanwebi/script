@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560">
+  <defs>
+    <style>
+      .font-fa { font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Tahoma', 'DejaVu Sans', sans-serif; }
+      .font-mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+    <marker id="cadStart" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 10 1.5 L 1 5 L 10 8.5 z" fill="#111827"/>
+    </marker>
+    <marker id="cadEnd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#111827"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" fill="#FFFFFF"/>
+  <text x="36" y="42" text-anchor="start" class="font-mono" font-size="14" font-weight="700" fill="#475569">PROFILE CAD  ·  A80</text>
+  <text x="924" y="42" text-anchor="end" class="font-mono" font-size="14" font-weight="700" fill="#111827">SKU 37360 (A)</text>
+  <line x1="36" y1="54" x2="924" y2="54" stroke="#E2E8F0" stroke-width="1"/>
+  
+  <path d="M 300 185 L 660 185 L 605 375 L 355 375 Z" fill="#FFFFFF" stroke="#111827" stroke-width="2.4" stroke-linejoin="round"/>
+  <line x1="275" y1="226" x2="685" y2="226" stroke="#111827" stroke-width="1.25" stroke-dasharray="18,4,3,4"/>
+  <line x1="300" y1="102" x2="300" y2="185" stroke="#334155" stroke-width="1"/>
+  <line x1="660" y1="102" x2="660" y2="185" stroke="#334155" stroke-width="1"/>
+  <line x1="304" y1="116" x2="656" y2="116" stroke="#111827" stroke-width="1.5" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="480" y="102" text-anchor="middle" class="font-mono" font-size="21" font-weight="700" fill="#111827">13 (A)</text>
+  <line x1="660" y1="185" x2="770" y2="185" stroke="#334155" stroke-width="1"/>
+  <line x1="605" y1="375" x2="770" y2="375" stroke="#334155" stroke-width="1"/>
+  <line x1="755" y1="189" x2="755" y2="371" stroke="#111827" stroke-width="1.5" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="774" y="286" text-anchor="start" class="font-mono" font-size="21" font-weight="700" fill="#111827">h=8</text>
+  <path d="M 355 375 L 330 432 M 605 375 L 630 432" stroke="#334155" stroke-width="1" stroke-dasharray="5,4"/>
+  <path d="M 412 414 A 72 72 0 0 0 548 414" fill="none" stroke="#111827" stroke-width="1.4" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="480" y="454" text-anchor="middle" class="font-mono" font-size="18" font-weight="700" fill="#111827">β = 40°</text>
+  <line x1="36" y1="504" x2="924" y2="504" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="480" y="534" text-anchor="middle" class="font-mono" font-size="14" font-weight="700" fill="#334155">SKU 37360  |  A  |  Li=2032 mm  |  b=13mm  |  hs=8mm  |  All dims in mm</text>
+</svg>

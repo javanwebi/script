@@ -35,7 +35,7 @@ export class ForzaSpeechAdmission {
         this.calibrated=true;
       }
     }
-    const threshold=Math.max(playback?0.004:0.0008,this.floor*(playback?3.5:2.3));
+    const threshold=Math.max(playback?0.004:0.002,this.floor*(playback?3.5:2.3));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
@@ -49,15 +49,14 @@ export class ForzaSpeechAdmission {
   }
 
   decide(text:string,final:boolean,playback:boolean,now:number):SpeechAdmission{
-    if(playback&&!this.mode)return 'reject';
-    if(now-this.lastSample>250||!this.calibrated)return playback?'reject':'wait';
+    if((playback&&!this.mode)||now-this.lastSample>250||!this.calibrated)return 'reject';
     const intent=forzaTurnIntent(text);
     const needed=playback&&intent!=='stop'?280:160;
     // A final may arrive slightly after acoustic silence. Interim words need
     // much fresher evidence; an old loud syllable must not admit a bystander.
-    const fresh=now-this.lastStrong<=(final?900:playback?300:450);
+    const fresh=now-this.lastStrong<=(final?900:300);
     if(!fresh)return 'reject';
-    if(this.duration<needed||this.strongFrames<3)return this.onset!==null||!playback?'wait':'reject';
+    if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
     return 'accept';
   }

@@ -22,6 +22,25 @@ export default defineConfig(() => {
             );
         },
       },
+      {
+        name: "copy-belt-catalog-assets",
+        apply: "build",
+        writeBundle(options) {
+          const outRoot = options.dir
+            ? path.resolve(options.dir)
+            : path.resolve(__dirname, "dist");
+          const srcBeltsRoot = path.resolve(__dirname, "src/assets/catalog/belts");
+          const destBeltsRoot = path.join(outRoot, "src/assets/catalog/belts");
+          for (const sub of ["families", "skus"]) {
+            const srcSub = path.join(srcBeltsRoot, sub);
+            const destSub = path.join(destBeltsRoot, sub);
+            if (fs.existsSync(srcSub)) {
+              fs.mkdirSync(path.dirname(destSub), { recursive: true });
+              fs.cpSync(srcSub, destSub, { recursive: true, force: true });
+            }
+          }
+        },
+      },
       react(),
       tailwindcss(),
     ],

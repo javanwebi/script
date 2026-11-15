@@ -9,6 +9,7 @@ import { memberPath } from "../storefront/MemberAccess";
 import { getCurrentCustomerSkuPrice, hasCustomerPriceAccess } from "../../utils/customerPricing";
 import { toPersianDigits, formatPrice } from "../../utils/formatters";
 import { resolveSiteProductImage } from "../../utils/siteProductImages";
+import { getBeltFamilyMedia } from "../../utils/beltCatalogMedia";
 import { getProductDisplayBrands, resolveDisplayBrand } from "../../utils/catalogBrands";
 export { resolveDisplayBrand } from "../../utils/catalogBrands";
 
@@ -160,6 +161,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const isInStock = product.stockKnown && product.stock > 0 && !product.inquiryOnly;
   const resolvedImage = disableSiteFallback ? "" : resolveSiteProductImage(product);
+  const rawPrimaryImage = product.images?.[0] || product.image || "";
+  const beltFamilyMedia = getBeltFamilyMedia(product.code, rawPrimaryImage);
+  const cardPrimaryImage = rawPrimaryImage || beltFamilyMedia?.primaryThumbnail || resolvedImage;
+  const cardFallbackImage = disableSiteFallback
+    ? undefined
+    : product.image || beltFamilyMedia?.primaryThumbnail || resolvedImage;
 
   if (variant === "excel-grid" || variant === "excel-list") {
     return (
@@ -167,8 +174,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="excel-card-media">
           <Link to={href} aria-label={product.name}>
             <ProductImage
-              src={product.images?.[0] || product.image || resolvedImage}
-              fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+              src={cardPrimaryImage}
+              fallbackSrc={cardFallbackImage}
               disableFallback={disableSiteFallback}
               thumbnail
               alt={product.name}
@@ -234,8 +241,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className="store-product-media">
         <Link to={href}>
           <ProductImage
-            src={product.images?.[0] || product.image || resolvedImage}
-            fallbackSrc={disableSiteFallback ? undefined : product.image || resolvedImage}
+            src={cardPrimaryImage}
+            fallbackSrc={cardFallbackImage}
             disableFallback={disableSiteFallback}
             thumbnail
             alt={product.name}

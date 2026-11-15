@@ -5,6 +5,7 @@ import {installDatabaseReferences} from './data/databaseReferences';
 import {installDatabaseProducts} from './data/mockGenerator';
 import {shouldRemountAfterCatalogHydration} from './utils/forzaBootPolicy';
 import {prefetchHomeFirstPaint} from './services/homeFirstPaint';
+import {importWithRetry} from './utils/moduleImportRetry';
 import './index.css';
 import './company-pages.css';
 import './about-page-approved.css';
@@ -113,7 +114,7 @@ async function boot(){
   if (window.location.pathname === '/') prefetchHomeFirstPaint();
 
   // Start React before awaiting a potentially slow cross-region database read.
-  const {default:App}=await import('./App.tsx');
+  const {default:App}=await importWithRetry(()=>import('./App.tsx'),{maxRetries:3,baseDelayMs:500});
   const root=createRoot(document.getElementById('root')!);
   let mountRevision=0;
   rerenderOnFirstDatabaseHydration=()=>root.render(<StrictMode><App key={++mountRevision}/></StrictMode>);
@@ -148,5 +149,19 @@ async function boot(){
 void boot().catch(error=>{
   console.error('[SanatPish] Fatal UI startup error',error);
   const root=document.getElementById('root');
-  if(root)root.textContent='بارگذاری رابط سایت با مشکل مواجه شد. لطفاً دوباره تلاش کنید.';
+  if(!root)return;
+  const box=document.createElement('div');
+  box.dir='rtl';
+  box.setAttribute('role','alert');
+  box.style.cssText='max-width:480px;margin:64px auto;padding:24px;border:1px solid #fed7aa;border-radius:16px;background:#fff7ed;color:#7c2d12;text-align:center;font-family:Vazirmatn,sans-serif;line-height:1.8;';
+  const msg=document.createElement('p');
+  msg.textContent='بارگذاری رابط سایت با مشکل مواجه شد. لطفاً دوباره تلاش کنید.';
+  msg.style.cssText='margin:0 0 16px;font-weight:600;';
+  const retryBtn=document.createElement('button');
+  retryBtn.type='button';
+  retryBtn.textContent='تلاش دوباره';
+  retryBtn.style.cssText='border:1px solid #c2410c;border-radius:10px;background:#ea580c;color:#fff;padding:8px 20px;font:inherit;font-weight:700;cursor:pointer;';
+  retryBtn.addEventListener('click',()=>window.location.reload());
+  box.append(msg,retryBtn);
+  root.replaceChildren(box);
 });

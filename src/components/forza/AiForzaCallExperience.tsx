@@ -16,7 +16,6 @@ import type { ParticleAvatarProps, ParticleAvatarRef } from './ParticleAvatar';
 import { checkpointForzaRecognition, extractPersianSpeechSince, forzaEndOfTurnPauseMs, forzaTurnRemainingWaitMs, extractForzaAudioBase64, chooseForzaFinalTranscript } from '../../utils/forzaSpeechPipeline';
 import { FORZA_GREETING_TEXT } from '../../utils/forzaGreeting';
 import {forzaRecognitionRetryDelay} from '../../utils/forzaRecognitionRecovery';
-import { ForzaRecordingSafety, ForzaSttFailure, forzaSttFailure } from '../../utils/forzaSttTurnSafety';
 import { attachForzaAudioEvidence } from '../../utils/forzaAudioEvidence';
 import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/forzaSpeechAdmission';
 import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
@@ -129,7 +128,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // must never silently replace the avatar with a sparse/different design.
   const [quality] = useState<'high'>('high');
   const [audioLevel, setAudioLevel] = useState<number>(0);
-  const [voiceOutputLevel, setVoiceOutputLevel] = useState(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [consultationImage,setConsultationImage]=useState('');
   const micMutedBeforeImageSearchRef = useRef(false);
@@ -188,25 +186,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
   const continuousVoiceRef=useRef<ForzaContinuousWav|null>(null);
-  const greetingWaveformRef = useRef<AudioBuffer | null>(null);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      let level = continuousVoiceRef.current?.getOutputLevel() ?? 0;
-      const audio = audioElRef.current;
-      const waveform = greetingWaveformRef.current;
-      if (!level && audio && waveform && !audio.paused && !audio.muted) {
-        const pcm = waveform.getChannelData(0);
-        const start = Math.floor(audio.currentTime * waveform.sampleRate);
-        const end = Math.min(pcm.length, start + Math.floor(waveform.sampleRate * 0.055));
-        let sum = 0;
-        for (let i = start; i < end; i++) sum += pcm[i] * pcm[i];
-        if (end > start) level = Math.min(1, Math.sqrt(sum / (end - start)) * 8);
-      }
-      setVoiceOutputLevel(level);
-    }, 55);
-    return () => window.clearInterval(timer);
-  }, []);
   const manualReplayAbortRef=useRef<AbortController|null>(null);
   const isManualReplayPendingRef=useRef(false);
   const [fullscreenError, setFullscreenError] = useState('');
@@ -365,9 +344,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if (!activeTranscriptRef.current.trim()) {
         lastTranscriptChangedAtRef.current = 0;
         hasSpeechSoundRef.current = false;
-        // A running MediaRecorder owns a single container header.
-        // Never clear its chunks until its onstop event consumes them.
-        if(mediaRecorderRef.current?.state!=='recording')audioChunksRef.current = [];
+        audioChunksRef.current = [];
       }
     }
 
@@ -699,8 +676,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
-    // Keep the complete current recording: sliced WebM chunks lose their
-    // container header. Monitoring recordings rotate every ~2 seconds.
+    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
+    // first syllables; older chunks may contain FORZA's own speaker output.
+    audioChunksRef.current=audioChunksRef.current.slice(-2);
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1011,17 +989,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // The exact greeting was synthesized by Pocket Farsi v2 at image build time.
       // No model download or inference is needed at the 100% particle event.
       const url = '/forza-greeting-bootstrap.wav';
-      // Decode a copy for the avatar only. Playback remains on the existing
-      // media element, so a failed waveform lookup cannot delay the greeting.
-      const context = ensureCtx();
-      if (context && !greetingWaveformRef.current) {
-        void fetch(url).then(response => {
-          if (!response.ok) throw new Error('greeting_waveform_unavailable');
-          return response.arrayBuffer();
-        }).then(bytes => context.decodeAudioData(bytes))
-          .then(buffer => { if (!callClosedRef.current) greetingWaveformRef.current = buffer; })
-          .catch(() => {});
-      }
       await playDataUrl(url);
       console.info('[FORZA greeting] selected server voice welcome finished');
       return;
@@ -1029,7 +996,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     // Request and play one complete WAV. No network/player chunk boundaries.
     if(text.trim())await playSpeechPhrase(text.trim());
-  }, [ensureCtx,playDataUrl,playSpeechPhrase,setStatus,stopListening,startListening]);
+  }, [playSpeechPhrase,setStatus,stopListening,startListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -1218,9 +1185,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           payload.query = q;
         }
 
-        // An admitted transcript can start the reply immediately. Diba batch
-        // recognition is the recovery path for turns without live words.
-        const needsServerFinal = Boolean(audioBlob) && !q && serverSttConfiguredRef.current === true;
+        // Browser speech is a low-latency live preview only. When the
+        // server Diba recognizer is enabled, its final transcript is verified
+        // on every recorded turn before the AI receives the query.
+        const needsServerFinal = Boolean(audioBlob) && serverSttConfiguredRef.current === true;
         if (audioBlob && needsServerFinal) {
           if(serverSttConfiguredRef.current===false){
             console.warn('[FORZA_STT] source=server unavailable=1 browser_transcript='+(q?'1':'0'));
@@ -1261,10 +1229,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
                 console.warn('[FORZA_STT] server_final_unavailable status='+sttResponse.status+
                   ' code='+String(sttData?.errorCode||'unknown').slice(0,48)+
                   ' browser_fallback='+(q?'1':'0'));
-                if(!q)throw forzaSttFailure(sttResponse.status,String(sttData?.errorCode||''));
+                if(!q)throw new Error(sttData?.error||'تشخیص گفتار سرور پاسخ نداد؛ لطفاً دوباره صحبت کنید.');
               }
             }catch(sttError:any){
-              if(pocketAbort.signal.aborted||sttError instanceof ForzaSttFailure)throw sttError;
+              if(pocketAbort.signal.aborted)throw sttError;
               console.warn('[FORZA_STT] server_final_error code='+
                 String(sttError?.message||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,48)+
                 ' browser_fallback='+(q?'1':'0'));
@@ -1574,10 +1542,6 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         console.warn('[AI FORZA] Conversational turn failed:', err?.message || 'unknown');
         // A speech-recognition failure is not a TTS/playback failure.
         if (!q) setUserText(previous=>previous.trim());
-        if(err instanceof ForzaSttFailure&&err.code==='stt_no_transcript'){
-          setMicrophoneError(err.message);
-          return; // finally restores listening; no false server-outage banner
-        }
         setErrorNotice(
           String(err?.message || 'پاسخ هوش مصنوعی در دسترس نیست؛ لطفاً دوباره تلاش کنید.').slice(0, 230)
         );
@@ -1611,23 +1575,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const mimeType = getSupportedAudioMimeType();
         const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
-        let rotateCapture=false;
-        const recordingSafety=new ForzaRecordingSafety();
-        mr.onstart=()=>recordingSafety.reset();
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
-            recordingSafety.observe(isAiSpeakingRef.current||isManualReplayPendingRef.current,
-              lastForzaPlaybackAtRef.current>0&&Date.now()-lastForzaPlaybackAtRef.current<1500);
             audioChunksRef.current.push(e.data);
-            // Rotate complete containers instead of dropping their first bytes.
-            // Idle/AI monitoring is bounded; active customer turns retain up to
-            // 40s, leaving headroom below the server's 45s decode limit.
-            const monitoring=isProcessingTurnRef.current||isAiSpeakingRef.current;
-            const maxChunks=monitoring||!hasSpeechSoundRef.current?8:160;
-            if(audioChunksRef.current.length>=maxChunks&&mr.state==='recording'){
-              rotateCapture=monitoring||!hasSpeechSoundRef.current;
-              mr.stop();
-            }
+            // 2-second in-RAM pre-roll while FORZA is responding. No disk
+            // persistence; preserve the first user syllables after barge-in.
+            // Hard RAM cap also while the customer leaves the microphone
+            // open for hours. Keep 45s for optional post-recording STT and a
+            // 2s tail during model speech to reduce memory and self-echo.
+            const maxChunks=isProcessingTurnRef.current?8:180;
+            if(audioChunksRef.current.length>maxChunks)
+              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
           }
         };
 
@@ -1636,16 +1594,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (mediaRecorderRef.current !== mr) return;
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
-          if(rotateCapture){
-            rotateCapture=false;
-            // Words arriving between stop and onstop belong to the next turn.
-            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
-              try{mr.start(250);}catch{}
-            }
-            return;
-          }
           const hadSpeech = hasSpeechSoundRef.current;
-          const rejectedSpeech=rejectedRecordingRef.current||!recordingSafety.safe;
+          const rejectedSpeech=rejectedRecordingRef.current;
           rejectedRecordingRef.current=false;
           hasSpeechSoundRef.current = false;
 
@@ -2200,7 +2150,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           paused={paused}
           mode={avatarMode}
           intensity={avatarIntensity}
-          audioLevel={status === 'speaking' ? voiceOutputLevel : audioLevel}
+          audioLevel={audioLevel}
           quality={quality}
           background={true}
           backgroundSpeed={speed}

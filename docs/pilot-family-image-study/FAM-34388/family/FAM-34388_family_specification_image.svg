@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1020" width="1400" height="1020">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap');
+      .font-fa { font-family: 'Vazirmatn', 'Tahoma', 'Arial', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+    </style>
+    <pattern id="engGrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#EAE4DA" stroke-width="0.8"/>
+    </pattern>
+  </defs>
+
+  <!-- Outer Background & Sheet Frame -->
+  <rect x="0" y="0" width="1400" height="1020" fill="#FBF8F3"/>
+  <rect x="24" y="24" width="1352" height="972" rx="18" fill="url(#engGrid)" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="38" y="38" width="1324" height="944" rx="14" fill="#FFFFFF" stroke="#55565A" stroke-width="2"/>
+
+  <!-- Top Industrial Header Bar -->
+  <path d="M 38 52 Q 38 38 52 38 L 1348 38 Q 1362 38 1362 52 L 1362 146 L 38 146 Z" fill="#55565A"/>
+  <rect x="38" y="142" width="1324" height="6" fill="#E56B1E"/>
+
+  <!-- Brand & Document Badge (Left) -->
+  <rect x="62" y="56" width="250" height="68" rx="10" fill="#434448" stroke="#E56B1E" stroke-width="1.5"/>
+  <text x="187" y="84" text-anchor="middle" class="font-mono" font-size="18" font-weight="700" fill="#FFFFFF">OPTIBELT • GERMANY</text>
+  <text x="187" y="110" text-anchor="middle" class="font-mono" font-size="13" font-weight="600" fill="#FFB07C">SERIES: optibelt ZR (L)</text>
+
+  <!-- Header Title (Right-aligned at x=1332) -->
+  <text x="1332" y="82" text-anchor="end" class="font-fa" font-size="24" font-weight="800" fill="#FFFFFF">‫شناسنامه مهندسی و جدول مشخصات خانواده تسمه تایمینگ صنعتی‬</text>
+  <text x="1332" y="116" text-anchor="end" class="font-fa" font-size="15.5" font-weight="600" fill="#F4EDE2">‫خانواده: تسمه تایمینگ ذوزنقه‌ای اینچی | برند اپتی‌بلت آلمان | تیپ ال (پروفیل اینچی) | کلروپرن با نخ فایبرگلاس‬</text>
+
+  <!-- Subheader Meta Strip (3 distinct boxes) -->
+  <rect x="938" y="164" width="400" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="1320" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫کد خانواده فعلی و بازسازی‌شده در دیتابیس‬</text>
+  <text x="1138" y="208" text-anchor="middle" class="font-mono" font-size="13.5" font-weight="700" fill="#E56B1E">FAM-34388  →  PFAM-OPTIBELT-L-228</text>
+
+  <rect x="490" y="164" width="432" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="904" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫مسیر دسته‌بندی مصوب کاتالوگ صنعت پیش‬</text>
+  <text x="706" y="208" text-anchor="middle" class="font-fa" font-size="13" font-weight="800" fill="#1F2022">‫تسمه تایمینگ صنعتی ← تسمه تایمینگ لاستیکی ← گام اینچی‬</text>
+
+  <rect x="62" y="164" width="412" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="456" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫استاندارد بین‌المللی پروفیل و ابعاد‬</text>
+  <text x="268" y="208" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">ISO 5296 / DIN 2215 / BS 4548 / RMA IP-24</text>
+
+  <!-- SECTION 1: INVARIANT ENGINEERING SPECIFICATIONS OF THE FAMILY -->
+  <rect x="62" y="234" width="1276" height="38" rx="8" fill="#E56B1E"/>
+  <text x="1318" y="259" text-anchor="end" class="font-fa" font-size="15.5" font-weight="800" fill="#FFFFFF">‫بخش اول — مشخصات مهندسی ثابت خانواده (مشترک در تمام کدهای عضو خانواده)‬</text>
+  <text x="82" y="258" text-anchor="start" class="font-mono" font-size="13" font-weight="700" fill="#FFF5EE">FAMILY INVARIANT SPECIFICATIONS</text>
+
+  <!-- Two-Column Spec Table -->
+  <rect x="712" y="284" width="626" height="312" rx="10" fill="#FFFFFF" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="1120" y="285" width="217" height="310" rx="8" fill="#F7F4EE"/>
+  <line x1="1120" y1="284" x2="1120" y2="596" stroke="#DCD4C6" stroke-width="1.4"/>
+
+  <rect x="62" y="284" width="626" height="312" rx="10" fill="#FFFFFF" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="470" y="285" width="217" height="310" rx="8" fill="#F7F4EE"/>
+  <line x1="470" y1="284" x2="470" y2="596" stroke="#DCD4C6" stroke-width="1.4"/>
+
+  <!-- Horizontal Dividers for both tables (6 rows × 52px) -->
+  <g stroke="#E6DFD3" stroke-width="1">
+    <line x1="712" y1="336" x2="1338" y2="336"/>
+    <line x1="712" y1="388" x2="1338" y2="388"/>
+    <line x1="712" y1="440" x2="1338" y2="440"/>
+    <line x1="712" y1="492" x2="1338" y2="492"/>
+    <line x1="712" y1="544" x2="1338" y2="544"/>
+
+    <line x1="62" y1="336" x2="688" y2="336"/>
+    <line x1="62" y1="388" x2="688" y2="388"/>
+    <line x1="62" y1="440" x2="688" y2="440"/>
+    <line x1="62" y1="492" x2="688" y2="492"/>
+    <line x1="62" y1="544" x2="688" y2="544"/>
+  </g>
+
+  <!-- Right Table Labels (x=1322) & Values (centered at x=916 or right-aligned at x=1102) -->
+  <g class="font-fa" font-size="13.5">
+    <text x="1322" y="316" text-anchor="end" font-weight="700" fill="#55565A">‫نوع و ساختار تسمه‬</text>
+    <text x="1102" y="316" text-anchor="end" font-weight="700" fill="#1F2022">‫تسمه تایمینگ ذوزنقه‌ای اینچی یک‌طرفه‬</text>
+
+    <text x="1322" y="368" text-anchor="end" font-weight="700" fill="#55565A">‫برند و سری ساخت‬</text>
+    <text x="916" y="368" text-anchor="middle" class="font-mono" font-weight="700" fill="#E56B1E">OPTIBELT — Series optibelt ZR (Germany)</text>
+
+    <text x="1322" y="420" text-anchor="end" font-weight="700" fill="#55565A">‫پروفیل و تیپ دندانه‬</text>
+    <text x="916" y="420" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">Profile L — Light Imperial Trapezoidal</text>
+
+    <text x="1322" y="472" text-anchor="end" font-weight="700" fill="#55565A">‫گام دندانه‬</text>
+    <text x="916" y="472" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">p = 9.525 mm  (3/8 inch = 0.375 in)</text>
+
+    <text x="1322" y="524" text-anchor="end" font-weight="700" fill="#55565A">‫ارتفاع دندانه و ضخامت کل‬</text>
+    <text x="916" y="524" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">ht = 1.91 mm   |   hs = 3.60 mm</text>
+
+    <text x="1322" y="576" text-anchor="end" font-weight="700" fill="#55565A">‫زاویه و پهنای ریشه دندانه‬</text>
+    <text x="916" y="576" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">Angle β = 40°   |   Root s = 4.65 mm</text>
+  </g>
+
+  <!-- Left Table Labels (x=672) & Values (x=452) -->
+  <g class="font-fa" font-size="13.5">
+    <text x="672" y="316" text-anchor="end" font-weight="700" fill="#55565A">‫جنس بدنه تسمه‬</text>
+    <text x="452" y="316" text-anchor="end" font-weight="700" fill="#1F2022">‫لاستیک کلروپرن صنعتی (نئوپرن ضدسایش)‬</text>
+
+    <text x="672" y="368" text-anchor="end" font-weight="700" fill="#55565A">‫جنس نخ کششی (کورد)‬</text>
+    <text x="452" y="368" text-anchor="end" font-weight="700" fill="#1F2022">‫نخ کششی فایبرگلاس با پایداری طولی بالا‬</text>
+
+    <text x="672" y="420" text-anchor="end" font-weight="700" fill="#55565A">‫پوشش سطح دندانه‬</text>
+    <text x="452" y="420" text-anchor="end" font-weight="700" fill="#1F2022">‫روکش پارچه پلی‌آمید (نایلون) ضدسایش‬</text>
+
+    <text x="672" y="472" text-anchor="end" font-weight="700" fill="#55565A">‫فرم عرضه و واحد فروش‬</text>
+    <text x="452" y="472" text-anchor="end" font-weight="700" fill="#1F2022">‫حلقه مداربسته فابریک — واحد فروش: حلقه‬</text>
+
+    <text x="672" y="524" text-anchor="end" font-weight="700" fill="#55565A">‫دمای کاری و سرعت خطی‬</text>
+    <text x="266" y="524" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">-30°C to +100°C   |   Vmax = 40 m/s</text>
+
+    <text x="672" y="576" text-anchor="end" font-weight="700" fill="#55565A">‫ویژگی‌های مقاومتی‬</text>
+    <text x="452" y="576" text-anchor="end" font-weight="700" fill="#E56B1E">‫مقاوم در برابر سایش، رطوبت و روغن‌های معدنی‬</text>
+  </g>
+
+  <!-- SECTION 2: CALCULATED DIMENSIONAL RANGES & SKU MATRIX -->
+  <rect x="62" y="612" width="1276" height="38" rx="8" fill="#55565A"/>
+  <text x="1318" y="637" text-anchor="end" class="font-fa" font-size="15.5" font-weight="800" fill="#FFFFFF">‫بخش دوم — بازه ابعاد محاسبه‌شده از اعضای خانواده و جدول ۵ کد کالای عضو‬</text>
+  <text x="82" y="636" text-anchor="start" class="font-mono" font-size="13" font-weight="700" fill="#FFB07C">CALCULATED SKU RANGES (5 ACTIVE SKUs)</text>
+
+  <!-- 4 Summary KPI Range Pills -->
+  <g>
+    <rect x="1034" y="662" width="304" height="62" rx="8" fill="#FFF6F0" stroke="#E56B1E" stroke-width="1.4"/>
+    <text x="1186" y="686" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="700" fill="#55565A">‫تعداد کل کدهای کالای عضو خانواده‬</text>
+    <text x="1186" y="712" text-anchor="middle" class="font-fa" font-size="15" font-weight="800" fill="#E56B1E">‫۵ کد کالا در این خانواده‬</text>
+
+    <rect x="710" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="864" y="686" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="700" fill="#55565A">‫بازه طول گام در این خانواده‬</text>
+    <text x="864" y="712" text-anchor="middle" class="font-mono" font-size="13.5" font-weight="700" fill="#1F2022">609.60 – 1371.60 mm (24.0" – 54.0")</text>
+
+    <rect x="386" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="540" y="686" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="700" fill="#55565A">‫بازه تعداد دندانه در این خانواده‬</text>
+    <text x="540" y="712" text-anchor="middle" class="font-mono" font-size="14" font-weight="700" fill="#1F2022">z = 64  to  z = 144 Teeth</text>
+
+    <rect x="62" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="216" y="686" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="700" fill="#55565A">‫مقاطع عرض موجود در این خانواده‬</text>
+    <text x="216" y="712" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">12.70 (050) | 19.05 (075) | 25.40 (100)</text>
+  </g>
+
+  <!-- SKU Breakdown Table -->
+  <rect x="62" y="736" width="1276" height="198" rx="10" fill="#FFFFFF" stroke="#55565A" stroke-width="1.5"/>
+  <rect x="63" y="737" width="1274" height="36" rx="8" fill="#F0EAE0"/>
+
+  <!-- Table Headers -->
+  <g class="font-fa" font-size="13" font-weight="800" fill="#55565A">
+    <text x="1280" y="760" text-anchor="middle">‫کد کالا‬</text>
+    <text x="1110" y="760" text-anchor="middle">‫شماره فنی سازنده‬</text>
+    <text x="905" y="760" text-anchor="middle">‫طول گام (میلی‌متر)‬</text>
+    <text x="735" y="760" text-anchor="middle">‫طول گام (اینچ)‬</text>
+    <text x="585" y="760" text-anchor="middle">‫تعداد دندانه‬</text>
+    <text x="430" y="760" text-anchor="middle">‫کد عرض‬</text>
+    <text x="275" y="760" text-anchor="middle">‫عرض تسمه‬</text>
+    <text x="130" y="760" text-anchor="middle">‫ضخامت / گام‬</text>
+  </g>
+  <line x1="62" y1="773" x2="1338" y2="773" stroke="#55565A" stroke-width="1.2"/>
+
+  <!-- 5 SKU Rows -->
+  <g class="font-mono" font-size="13.5" font-weight="600" fill="#1F2022">
+    <text x="1280" y="797" text-anchor="middle" font-weight="700" fill="#E56B1E">34388</text>
+    <text x="1110" y="797" text-anchor="middle" font-weight="700">optibelt ZR 240 L 100</text>
+    <text x="905" y="797" text-anchor="middle">609.60 mm</text>
+    <text x="735" y="797" text-anchor="middle">24.0 in</text>
+    <text x="585" y="797" text-anchor="middle">64</text>
+    <text x="430" y="797" text-anchor="middle">100 (1.00")</text>
+    <text x="275" y="797" text-anchor="middle">25.40 mm</text>
+    <text x="130" y="797" text-anchor="middle">3.60 / 9.525</text>
+    <line x1="62" y1="806" x2="1338" y2="806" stroke="#EAE4DA" stroke-width="1"/>
+
+    <rect x="63" y="807" width="1274" height="31" fill="#FAF7F2"/>
+    <text x="1280" y="828" text-anchor="middle" font-weight="700" fill="#E56B1E">52237</text>
+    <text x="1110" y="828" text-anchor="middle" font-weight="700">optibelt ZR 240 L 075</text>
+    <text x="905" y="828" text-anchor="middle">609.60 mm</text>
+    <text x="735" y="828" text-anchor="middle">24.0 in</text>
+    <text x="585" y="828" text-anchor="middle">64</text>
+    <text x="430" y="828" text-anchor="middle">075 (0.75")</text>
+    <text x="275" y="828" text-anchor="middle">19.05 mm</text>
+    <text x="130" y="828" text-anchor="middle">3.60 / 9.525</text>
+    <line x1="62" y1="838" x2="1338" y2="838" stroke="#EAE4DA" stroke-width="1"/>
+
+    <text x="1280" y="860" text-anchor="middle" font-weight="700" fill="#E56B1E">52006</text>
+    <text x="1110" y="860" text-anchor="middle" font-weight="700">optibelt ZR 255 L 050</text>
+    <text x="905" y="860" text-anchor="middle">647.70 mm</text>
+    <text x="735" y="860" text-anchor="middle">25.5 in</text>
+    <text x="585" y="860" text-anchor="middle">68</text>
+    <text x="430" y="860" text-anchor="middle">050 (0.50")</text>
+    <text x="275" y="860" text-anchor="middle">12.70 mm</text>
+    <text x="130" y="860" text-anchor="middle">3.60 / 9.525</text>
+    <line x1="62" y1="870" x2="1338" y2="870" stroke="#EAE4DA" stroke-width="1"/>
+
+    <rect x="63" y="871" width="1274" height="31" fill="#FAF7F2"/>
+    <text x="1280" y="892" text-anchor="middle" font-weight="700" fill="#E56B1E">52009</text>
+    <text x="1110" y="892" text-anchor="middle" font-weight="700">optibelt ZR 300 L 050</text>
+    <text x="905" y="892" text-anchor="middle">762.00 mm</text>
+    <text x="735" y="892" text-anchor="middle">30.0 in</text>
+    <text x="585" y="892" text-anchor="middle">80</text>
+    <text x="430" y="892" text-anchor="middle">050 (0.50")</text>
+    <text x="275" y="892" text-anchor="middle">12.70 mm</text>
+    <text x="130" y="892" text-anchor="middle">3.60 / 9.525</text>
+    <line x1="62" y1="902" x2="1338" y2="902" stroke="#EAE4DA" stroke-width="1"/>
+
+    <text x="1280" y="924" text-anchor="middle" font-weight="700" fill="#E56B1E">52050</text>
+    <text x="1110" y="924" text-anchor="middle" font-weight="700">optibelt ZR 540 L 075</text>
+    <text x="905" y="924" text-anchor="middle">1371.60 mm</text>
+    <text x="735" y="924" text-anchor="middle">54.0 in</text>
+    <text x="585" y="924" text-anchor="middle">144</text>
+    <text x="430" y="924" text-anchor="middle">075 (0.75")</text>
+    <text x="275" y="924" text-anchor="middle">19.05 mm</text>
+    <text x="130" y="924" text-anchor="middle">3.60 / 9.525</text>
+  </g>
+
+  <!-- Footer Engineering Seal -->
+  <text x="1334" y="962" text-anchor="end" class="font-fa" font-size="12.5" font-weight="600" fill="#55565A">‫واحد مهندسی کاتالوگ صنعتی صنعت پیش — ممیزی و استخراج از دیتاشیت رسمی شرکت اپتی‌بلت آلمان‬</text>
+  <text x="66" y="962" text-anchor="start" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">DOC-ID: SP-FAM-34388-SPEC-V1</text>
+</svg>

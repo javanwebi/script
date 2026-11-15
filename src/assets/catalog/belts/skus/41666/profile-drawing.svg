@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560">
+  <defs>
+    <style>
+      .font-fa { font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Tahoma', 'DejaVu Sans', sans-serif; }
+      .font-mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+    <marker id="cadStart" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 10 1.5 L 1 5 L 10 8.5 z" fill="#111827"/>
+    </marker>
+    <marker id="cadEnd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#111827"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" fill="#FFFFFF"/>
+  <text x="36" y="42" text-anchor="start" class="font-mono" font-size="14" font-weight="700" fill="#475569">PROFILE CAD  ·  20</text>
+  <text x="924" y="42" text-anchor="end" class="font-mono" font-size="14" font-weight="700" fill="#111827">SKU 41666 (L)</text>
+  <line x1="36" y1="54" x2="924" y2="54" stroke="#E2E8F0" stroke-width="1"/>
+  
+  
+  <path d="
+      M 192 212 L 768 212
+      Q 782 238 764 288 L 692 288
+      L 649 395 L 561 395 L 518 288
+      L 442 288
+      L 399 395 L 311 395 L 268 288
+      L 188 288
+      Q 204 252 192 212 Z" fill="#FFFFFF" stroke="#111827" stroke-width="2.2" stroke-linejoin="round"/>
+  
+  <line x1="158" y1="254" x2="800" y2="254" stroke="#111827" stroke-width="1.3" stroke-dasharray="20,5,3,5"/>
+  <!-- Top Pitch p dimension -->
+  <line x1="355" y1="98" x2="355" y2="399" stroke="#334155" stroke-width="1"/>
+  <line x1="605" y1="98" x2="605" y2="399" stroke="#334155" stroke-width="1"/>
+  <line x1="359" y1="112" x2="601" y2="112" stroke="#111827" stroke-width="1.4" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="480" y="99" text-anchor="middle" class="font-mono" font-size="21" font-weight="700" fill="#111827">p = 9.525</text>
+  <!-- Left cord offset u -->
+  <line x1="126" y1="254" x2="178" y2="254" stroke="#334155" stroke-width="1"/>
+  <line x1="126" y1="288" x2="188" y2="288" stroke="#334155" stroke-width="1"/>
+  <line x1="142" y1="214" x2="142" y2="250" stroke="#111827" stroke-width="1.3" marker-end="url(#cadEnd)"/>
+  <line x1="142" y1="330" x2="142" y2="292" stroke="#111827" stroke-width="1.3" marker-end="url(#cadEnd)"/>
+  <text x="122" y="276" text-anchor="middle" class="font-mono" font-size="17" font-weight="700" fill="#111827" transform="rotate(-90 122 276)">0.811</text>
+  <!-- Right vertical ht & hs -->
+  <line x1="768" y1="212" x2="884" y2="212" stroke="#334155" stroke-width="1"/>
+  <line x1="764" y1="288" x2="846" y2="288" stroke="#334155" stroke-width="1"/>
+  <line x1="649" y1="395" x2="884" y2="395" stroke="#334155" stroke-width="1"/>
+  <line x1="832" y1="292" x2="832" y2="391" stroke="#111827" stroke-width="1.4" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="816" y="344" text-anchor="middle" class="font-mono" font-size="18" font-weight="700" fill="#111827" transform="rotate(-90 816 344)">1.91</text>
+  <line x1="870" y1="216" x2="870" y2="391" stroke="#111827" stroke-width="1.4" marker-start="url(#cadStart)" marker-end="url(#cadEnd)"/>
+  <text x="854" y="305" text-anchor="middle" class="font-mono" font-size="19" font-weight="700" fill="#111827" transform="rotate(-90 854 305)">3.6</text>
+  <!-- Tooth flank angle -->
+  <text x="480" y="446" text-anchor="middle" class="font-mono" font-size="17" font-weight="700" fill="#111827">Angle 2β = 40°  |  b = 20 mm</text>
+  <line x1="36" y1="504" x2="924" y2="504" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="480" y="534" text-anchor="middle" class="font-mono" font-size="14" font-weight="700" fill="#334155">SKU 41666  |  L  |  Roll/Spec  |  b=20mm  |  hs=3.6mm  |  All dims in mm</text>
+</svg>

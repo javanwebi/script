@@ -2,14 +2,6 @@ import { STORE_ASSETS } from '../assets/images';
 import { getProductImageUrl } from '../assets/imagesproducts';
 import type { Product } from '../types';
 
-const BELT_GALLERY = [
-  STORE_ASSETS.subcategories.timingBeltHero,
-  STORE_ASSETS.products.forzaBelt,
-  STORE_ASSETS.subcategories.vbeltRibbedHero,
-  STORE_ASSETS.categories.belts,
-  STORE_ASSETS.products.pvcBelt,
-] as const;
-
 const BEARING_GALLERY = [
   STORE_ASSETS.products.bearing,
   STORE_ASSETS.products.bearingNsk,
@@ -68,25 +60,25 @@ export function resolveSiteFallbackByText(textInput?: string | null, seedInput?:
     return STORE_ASSETS.subcategories.spongesFoamScourers;
   }
   if (/تسمه بارکش|تسمه فلت|دستگاه.*جوش|flat belt|belt welder/i.test(text)) {
-    return STORE_ASSETS.subcategories.flatBeltsWelder;
+    return '';
   }
   if (/پولی|فلکه|pulley|تیپربوش|bushing/i.test(text)) {
     return PULLEY_GALLERY[seed % PULLEY_GALLERY.length];
   }
   if (/تایم|timing|htd|gt\d|\b\d+m\b|\bt\d+\b|\bxl\b|\bxh\b/i.test(text)) {
-    return seed % 2 === 0 ? STORE_ASSETS.subcategories.timingBeltHero : STORE_ASSETS.products.forzaBelt;
+    return '';
   }
   if (/جوشی|پلی.?یورتان|پلی.?اورتان|\bpu\b|گرد|crc/i.test(text)) {
-    return seed % 2 === 0 ? STORE_ASSETS.subcategories.puWeldedBeltHero : STORE_ASSETS.products.pvcBelt;
+    return '';
   }
   if (/شیاری|ribbed|\bpk\b|\bpy\b|\bpl\b|\bpj\b/i.test(text)) {
-    return seed % 2 === 0 ? STORE_ASSETS.subcategories.vbeltRibbedHero : STORE_ASSETS.categories.belts;
+    return '';
   }
   if (/اسپشیال|کلاسیک|\bspa\b|\bspb\b|\bspc\b|\bspz\b|\bxpa\b|\bxpb\b|\bxpc\b|\bxpz\b|\bax\b|\bbx\b|\bcx\b|وی.?بلت|v-belt|گریپ|سوراخ.?دار/i.test(text)) {
-    return seed % 2 === 0 ? STORE_ASSETS.subcategories.vbeltRibbedHero : STORE_ASSETS.categories.belts;
+    return '';
   }
   if (/تسمه|belt|انتقال نیرو/i.test(text)) {
-    return BELT_GALLERY[seed % BELT_GALLERY.length];
+    return '';
   }
   if (/بلبرینگ|رولبرینگ|یاتاقان|bearing|nsk|skf|fag|koyo/i.test(text)) {
     return BEARING_GALLERY[seed % BEARING_GALLERY.length];
@@ -130,7 +122,7 @@ export function resolveSiteFallbackByText(textInput?: string | null, seedInput?:
   if (/مهندسی معکوس|ساخت|سفارشی/i.test(text)) {
     return STORE_ASSETS.reverseEngineeringLab;
   }
-  return BELT_GALLERY[seed % BELT_GALLERY.length];
+  return '';
 }
 
 export function resolveSiteProductImage(product?: Partial<Product> | null, fallbackContext?: string): string {

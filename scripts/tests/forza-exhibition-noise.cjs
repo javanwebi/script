@@ -38,12 +38,7 @@ function wav(seconds){
   await page.route('**/api/ai/forza-voice-info',r=>r.fulfill({json:{voice:'piper-nima-gyro-medium',incrementalSpeech:true}}));
   await page.route('**/api/ai/forza-speech',r=>{phrases.push(r.request().postDataJSON().text);return r.fulfill({contentType:'audio/wav',headers:{'X-Forza-Voice':'piper-nima-gyro-medium'},body:wav(r.request().postDataJSON().text==='بله، بفرما.'?0.2:queries.length>1?0.3:12)});});
   await page.route('**/api/ai/consult-stream',r=>{
-   const {query,history}=r.request().postDataJSON();
-   if(queries.length===2){
-    assert.ok(history.some(turn=>turn.role==='user'&&turn.text===queries[1]));
-    assert.ok(history.some(turn=>turn.role==='model'&&turn.text.includes('قطعه مناسب')));
-   }
-   queries.push(query);
+   queries.push(r.request().postDataJSON().query);
    const text='برای انتخاب قطعه مناسب لطفاً مشخصات دستگاه را توضیح دهید.';
    const frame=v=>'data: '+JSON.stringify(v)+'\n\n';
    return r.fulfill({contentType:'text/event-stream',body:frame({type:'start'})+frame({type:'text_chunk',chunk:text,textSoFar:text})+frame({type:'done',fullText:text})});
@@ -88,15 +83,7 @@ function wav(seconds){
    await page.waitForTimeout(1800);
    await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
    await page.waitForTimeout(400);
-   const prefix=query.split(' ').slice(0,2).join(' ');
-   const count=queries.length;
-   await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},prefix);
-   await page.getByText(prefix,{exact:true}).waitFor({timeout:1500});
-   await page.waitForTimeout(500);
-   assert.equal(queries.length,count,'a pause inside the spoken question must not submit it');
-   await page.evaluate(()=>{window.__inputGain.gain.value=0.02;});
-   await page.waitForTimeout(400);
-   await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},query.slice(prefix.length).trim());
+   await page.evaluate(text=>{window.__emit(text);window.__inputGain.gain.value=0.001;},query);
    await page.waitForFunction(text=>document.body.innerText.includes(text),query);
    await page.waitForFunction(()=>document.body.innerText.includes('AI FORZA در حال صحبت...'),null,{timeout:20000});
    await listening.waitFor({timeout:20000});

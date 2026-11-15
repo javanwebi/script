@@ -32,6 +32,7 @@ import type { CategoryNode } from '../data/categories';
 import { STORE_ASSETS } from '../assets/images';
 import { toPersianDigits } from '../utils/formatters';
 import { resolveSiteFallbackByText } from '../utils/siteProductImages';
+import { getBeltFamilyMedia } from '../utils/beltCatalogMedia';
 import {
   buildCategoryFacetProfile,
   buildPaginationWindow,
@@ -873,16 +874,11 @@ export const ExcelMenuCategoryPage: React.FC = () => {
   );
 
   const directSkusInCategory = useMemo(
-    () => directSkus.filter(item => {
-      const skuCode = item.skuCode.trim().toLowerCase();
-      const sourceFamilyCode = String(item.sourceFamilyCode || '').trim().toLowerCase();
-      const sourceFamilyAlreadyVisible =
-        Boolean(sourceFamilyCode) && selectedFamilyCodesForFacet.has(sourceFamilyCode);
-      return item.categorySlug === slug &&
-        directSkuMatchesSubcategory(item, selection) &&
-        !selectedFamilyCodesForFacet.has(skuCode) &&
-        !sourceFamilyAlreadyVisible;
-    }),
+    () => directSkus.filter(item =>
+      item.categorySlug === slug &&
+      directSkuMatchesSubcategory(item, selection) &&
+      !selectedFamilyCodesForFacet.has(item.skuCode.trim().toLowerCase()),
+    ),
     [directSkus, slug, selection, selectedFamilyCodesForFacet],
   );
 
@@ -2079,12 +2075,21 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                   const product = products.get(family.code);
                   const previewImage = productPreviewImage(product);
                   const resolvedBrand = familyResolvedBrands.get(family.code) || resolveDisplayBrand(family.brand, family.name);
-                  const fallbackSiteImage = resolveSiteFallbackByText([
+                  const combinedContext = [
                     family.name,
                     family.submenu || '',
                     family.leaf || '',
                     resolvedCategory.name,
-                  ].join(' '), family.code) || artwork;
+                  ].join(' ');
+                  const isBeltItem =
+                    /^excel-v2-1-/.test(resolvedCategory.slug) ||
+                    /تسمه|belt|انتقال نیرو|تایم|timing|وی.?بلت|v-belt|شیاری|جوشی/i.test(combinedContext);
+                  const beltMedia = getBeltFamilyMedia(family.code, previewImage || product?.image);
+                  const fallbackSiteImage = beltMedia
+                    ? beltMedia.primaryThumbnail
+                    : isBeltItem
+                      ? ''
+                      : (resolveSiteFallbackByText(combinedContext, family.code) || artwork);
 
                   const cardProduct = product ? {
                     ...product,
@@ -2093,7 +2098,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                     brand: resolvedBrand,
                     submenu: family.submenu || product.submenu,
                     subcategory: family.leaf || resolvedCategory.name || product.subcategory,
-                    image: product.image || previewImage || fallbackSiteImage,
+                    image: product.image || previewImage || beltMedia?.primaryThumbnail || fallbackSiteImage,
                     images: product.images?.some(Boolean) ? product.images : previewImage ? [previewImage] : [],
                   } : undefined;
 
@@ -2122,7 +2127,7 @@ export const ExcelMenuCategoryPage: React.FC = () => {
                           <div className="excel-card-media">
                             <Link to={'/product/' + encodeURIComponent(family.code)} aria-label={family.name}>
                               <ProductImage
-                                src={fallbackSiteImage}
+                                src={beltMedia?.primaryThumbnail || fallbackSiteImage}
                                 alt={family.name}
                                 loading="lazy"
                                 decoding="async"

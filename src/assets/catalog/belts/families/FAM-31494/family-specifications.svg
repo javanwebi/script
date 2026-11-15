@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1020" width="1400" height="1020">
+  <defs>
+    <style>
+      .font-fa { font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Tahoma', 'DejaVu Sans', sans-serif; }
+      .font-mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+    </style>
+    <pattern id="engGrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#EAE4DA" stroke-width="0.8"/>
+    </pattern>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="1020" fill="#FBF8F3"/>
+  <rect x="24" y="24" width="1352" height="972" rx="18" fill="url(#engGrid)" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="38" y="38" width="1324" height="944" rx="14" fill="#FFFFFF" stroke="#55565A" stroke-width="2"/>
+
+  <path d="M 38 52 Q 38 38 52 38 L 1348 38 Q 1362 38 1362 52 L 1362 146 L 38 146 Z" fill="#55565A"/>
+  <rect x="38" y="142" width="1324" height="6" fill="#E56B1E"/>
+
+  <rect x="62" y="56" width="290" height="68" rx="10" fill="#434448" stroke="#E56B1E" stroke-width="1.5"/>
+  <text x="207" y="84" text-anchor="middle" class="font-mono" font-size="16" font-weight="700" fill="#FFFFFF">FAM-31494</text>
+  <text x="207" y="109" text-anchor="middle" class="font-mono" font-size="12" font-weight="600" fill="#FFB07C">MULTI-RIBBED POLY-V BELT</text>
+
+  <text x="1332" y="82" text-anchor="end" class="font-fa" font-size="22" font-weight="800" fill="#FFFFFF">‫شناسنامه مهندسی و جدول مشخصات خانواده تسمه صنعتی‬</text>
+  <text x="1332" y="116" text-anchor="end" class="font-fa" font-size="15" font-weight="600" fill="#F4EDE2">‫تسمه شیاری اپتی اصلی PK | تسمه شیاری چندشیاره (Poly-V PH / PJ / PK / PL)‬</text>
+
+  <rect x="938" y="164" width="400" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="1320" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫کد خانواده و پروفیل‌های عضو‬</text>
+  <text x="1138" y="208" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#E56B1E">FAM-31494  |  PK</text>
+
+  <rect x="490" y="164" width="432" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="904" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫مسیر دسته‌بندی کاتالوگ صنعت پیش‬</text>
+  <text x="706" y="208" text-anchor="middle" class="font-fa" font-size="12.5" font-weight="800" fill="#1F2022">‫تسمه اسپشیال ← SPA , SPB , SPC و دندانه‌دار‬</text>
+
+  <rect x="62" y="164" width="412" height="54" rx="10" fill="#F7F3EC" stroke="#E2D9C8" stroke-width="1.2"/>
+  <text x="456" y="186" text-anchor="end" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫مرجع استاندارد بین‌المللی‬</text>
+  <text x="268" y="208" text-anchor="middle" class="font-mono" font-size="12" font-weight="700" fill="#E56B1E">ISO 9982 / DIN 7867 (پروفیل چندشیاری PK ب…</text>
+
+  <rect x="62" y="234" width="1276" height="38" rx="8" fill="#E56B1E"/>
+  <text x="1318" y="259" text-anchor="end" class="font-fa" font-size="15" font-weight="800" fill="#FFFFFF">‫بخش اول — مشخصات مهندسی ثابت و ساختاری خانواده‬</text>
+  <text x="82" y="258" text-anchor="start" class="font-mono" font-size="12.5" font-weight="700" fill="#FFF5EE">FAMILY ENGINEERING SPECIFICATIONS</text>
+
+  <rect x="712" y="284" width="626" height="312" rx="10" fill="#FFFFFF" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="1120" y="285" width="217" height="310" rx="8" fill="#F7F4EE"/>
+  <line x1="1120" y1="284" x2="1120" y2="596" stroke="#DCD4C6" stroke-width="1.4"/>
+
+  <rect x="62" y="284" width="626" height="312" rx="10" fill="#FFFFFF" stroke="#DCD4C6" stroke-width="1.5"/>
+  <rect x="470" y="285" width="217" height="310" rx="8" fill="#F7F4EE"/>
+  <line x1="470" y1="284" x2="470" y2="596" stroke="#DCD4C6" stroke-width="1.4"/>
+
+  <g stroke="#E6DFD3" stroke-width="1">
+    <line x1="712" y1="336" x2="1338" y2="336"/>
+    <line x1="712" y1="388" x2="1338" y2="388"/>
+    <line x1="712" y1="440" x2="1338" y2="440"/>
+    <line x1="712" y1="492" x2="1338" y2="492"/>
+    <line x1="712" y1="544" x2="1338" y2="544"/>
+    <line x1="62" y1="336" x2="688" y2="336"/>
+    <line x1="62" y1="388" x2="688" y2="388"/>
+    <line x1="62" y1="440" x2="688" y2="440"/>
+    <line x1="62" y1="492" x2="688" y2="492"/>
+    <line x1="62" y1="544" x2="688" y2="544"/>
+  </g>
+
+  <g class="font-fa" font-size="13">
+    <text x="1322" y="316" text-anchor="end" font-weight="700" fill="#55565A">‫نوع و ساختار تسمه‬</text>
+    <text x="1102" y="316" text-anchor="end" font-weight="700" fill="#1F2022">‫تسمه شیاری چندشیاره (Poly-V PH / PJ / PK / PL)‬</text>
+
+    <text x="1322" y="368" text-anchor="end" font-weight="700" fill="#55565A">‫برند ثبت‌شده خانواده‬</text>
+    <text x="1102" y="368" text-anchor="end" font-weight="700" fill="#E56B1E">‫OPTIBELT‬</text>
+
+    <text x="1322" y="420" text-anchor="end" font-weight="700" fill="#55565A">‫پروفیل‌های مقطع‬</text>
+    <text x="916" y="420" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">PK</text>
+
+    <text x="1322" y="472" text-anchor="end" font-weight="700" fill="#55565A">‫گام / زاویه پروفیل‬</text>
+    <text x="916" y="472" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">p = 3.56 mm   |   Angle = 40°</text>
+
+    <text x="1322" y="524" text-anchor="end" font-weight="700" fill="#55565A">‫ضخامت کل / ارتفاع‬</text>
+    <text x="916" y="524" text-anchor="middle" class="font-mono" font-weight="700" fill="#1F2022">h = 5 mm</text>
+
+    <text x="1322" y="576" text-anchor="end" font-weight="700" fill="#55565A">‫جایگاه در گروه اصلی‬</text>
+    <text x="1102" y="576" text-anchor="end" font-weight="700" fill="#1F2022">‫SPA , SPB , SPC و دندانه‌دار‬</text>
+  </g>
+
+  <g class="font-fa" font-size="13">
+    <text x="672" y="316" text-anchor="end" font-weight="700" fill="#55565A">‫جنس بدنه تسمه‬</text>
+    <text x="452" y="316" text-anchor="end" font-weight="700" fill="#1F2022">‫الاستومر مصنوعی (EPDM / کلروپرن)‬</text>
+
+    <text x="672" y="368" text-anchor="end" font-weight="700" fill="#55565A">‫ساختار نخ کششی (کورد)‬</text>
+    <text x="452" y="368" text-anchor="end" font-weight="700" fill="#1F2022">‫نخ پلی‌استر کم‌کشش (Low-Stretch Polyester Cord)‬</text>
+
+    <text x="672" y="420" text-anchor="end" font-weight="700" fill="#55565A">‫فرم عرضه و واحد فروش‬</text>
+    <text x="452" y="420" text-anchor="end" font-weight="700" fill="#1F2022">‫حلقه مداربسته (Endless Loop) — حلقه‬</text>
+
+    <text x="672" y="472" text-anchor="end" font-weight="700" fill="#55565A">‫پوشش / سطح فوقانی‬</text>
+    <text x="452" y="472" text-anchor="end" font-weight="700" fill="#1F2022">‫استاندارد صنعتی‬</text>
+
+    <text x="672" y="524" text-anchor="end" font-weight="700" fill="#55565A">‫تعداد کدهای تسمه عضو‬</text>
+    <text x="266" y="524" text-anchor="middle" class="font-mono" font-weight="700" fill="#E56B1E">3 Active Belt SKUs</text>
+
+    <text x="672" y="576" text-anchor="end" font-weight="700" fill="#55565A">‫محدوده کاربری مهندسی‬</text>
+    <text x="452" y="576" text-anchor="end" font-weight="700" fill="#E56B1E">‫انتقال قدرت و همگام‌سازی صنعتی طبق استاندارد‬</text>
+  </g>
+
+  <rect x="62" y="612" width="1276" height="38" rx="8" fill="#55565A"/>
+  <text x="1318" y="637" text-anchor="end" class="font-fa" font-size="15" font-weight="800" fill="#FFFFFF">‫بخش دوم — بازه ابعادی محاسبه‌شده و نمونه کدهای عضو (3 کد تسمه)‬</text>
+  <text x="82" y="636" text-anchor="start" class="font-mono" font-size="12.5" font-weight="700" fill="#FFB07C">CALCULATED RANGES (3 BELT SKUs)</text>
+
+  <g>
+    <rect x="1034" y="662" width="304" height="62" rx="8" fill="#FFF6F0" stroke="#E56B1E" stroke-width="1.4"/>
+    <text x="1186" y="686" text-anchor="middle" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫تعداد کد تسمه در این خانواده‬</text>
+    <text x="1186" y="712" text-anchor="middle" class="font-mono" font-size="14.5" font-weight="700" fill="#E56B1E">3 Belt SKUs</text>
+
+    <rect x="710" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="864" y="686" text-anchor="middle" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫بازه طول گام (Lp)‬</text>
+    <text x="864" y="712" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">845 – 1420 mm</text>
+
+    <rect x="386" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="540" y="686" text-anchor="middle" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫تعداد شیار / ردیف‬</text>
+    <text x="540" y="712" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">4 Ribs/Bands</text>
+
+    <rect x="62" y="662" width="308" height="62" rx="8" fill="#F7F4EE" stroke="#D5CBB8" stroke-width="1.3"/>
+    <text x="216" y="686" text-anchor="middle" class="font-fa" font-size="12" font-weight="700" fill="#55565A">‫بازه عرض / قطر مقطع‬</text>
+    <text x="216" y="712" text-anchor="middle" class="font-mono" font-size="13" font-weight="700" fill="#1F2022">14.24 mm</text>
+  </g>
+
+  <rect x="62" y="736" width="1276" height="198" rx="10" fill="#FFFFFF" stroke="#55565A" stroke-width="1.5"/>
+  <rect x="63" y="737" width="1274" height="36" rx="8" fill="#F0EAE0"/>
+
+  <g class="font-fa" font-size="12.5" font-weight="800" fill="#55565A">
+    <text x="1280" y="760" text-anchor="middle">‫کد کالا‬</text>
+    <text x="1105" y="760" text-anchor="middle">‫کد سایز / نام فنی‬</text>
+    <text x="905" y="760" text-anchor="middle">‫پروفیل‬</text>
+    <text x="720" y="760" text-anchor="middle">‫طول مرجع‬</text>
+    <text x="545" y="760" text-anchor="middle">‫عرض / قطر‬</text>
+    <text x="385" y="760" text-anchor="middle">‫ارتفاع / ضخامت‬</text>
+    <text x="235" y="760" text-anchor="middle">‫دندانه / شیار‬</text>
+    <text x="110" y="760" text-anchor="middle">‫گام‬</text>
+  </g>
+  <line x1="62" y1="773" x2="1338" y2="773" stroke="#55565A" stroke-width="1.2"/>
+
+  <g class="font-mono" font-size="13" font-weight="600" fill="#1F2022">
+
+    
+    <text x="1280" y="797" text-anchor="middle" font-weight="700" fill="#E56B1E">31494</text>
+    <text x="1105" y="797" text-anchor="middle" font-weight="700">4، 1420</text>
+    <text x="905" y="797" text-anchor="middle">PK</text>
+    <text x="720" y="797" text-anchor="middle">Lp 1420 mm</text>
+    <text x="545" y="797" text-anchor="middle">14.24 mm</text>
+    <text x="385" y="797" text-anchor="middle">5 mm</text>
+    <text x="235" y="797" text-anchor="middle">4 R</text>
+    <text x="110" y="797" text-anchor="middle">3.56 mm</text>
+    <line x1="62" y1="807" x2="1338" y2="807" stroke="#EAE4DA" stroke-width="1"/>
+
+    <rect x="63" y="807" width="1274" height="31" fill="#FAF7F2"/>
+    <text x="1280" y="828" text-anchor="middle" font-weight="700" fill="#E56B1E">31492</text>
+    <text x="1105" y="828" text-anchor="middle" font-weight="700">4، 845</text>
+    <text x="905" y="828" text-anchor="middle">PK</text>
+    <text x="720" y="828" text-anchor="middle">Lp 845 mm</text>
+    <text x="545" y="828" text-anchor="middle">14.24 mm</text>
+    <text x="385" y="828" text-anchor="middle">5 mm</text>
+    <text x="235" y="828" text-anchor="middle">4 R</text>
+    <text x="110" y="828" text-anchor="middle">3.56 mm</text>
+    <line x1="62" y1="838" x2="1338" y2="838" stroke="#EAE4DA" stroke-width="1"/>
+
+    
+    <text x="1280" y="859" text-anchor="middle" font-weight="700" fill="#E56B1E">31493</text>
+    <text x="1105" y="859" text-anchor="middle" font-weight="700">4، 945</text>
+    <text x="905" y="859" text-anchor="middle">PK</text>
+    <text x="720" y="859" text-anchor="middle">Lp 945 mm</text>
+    <text x="545" y="859" text-anchor="middle">14.24 mm</text>
+    <text x="385" y="859" text-anchor="middle">5 mm</text>
+    <text x="235" y="859" text-anchor="middle">4 R</text>
+    <text x="110" y="859" text-anchor="middle">3.56 mm</text>
+    
+  </g>
+
+  <text x="700" y="956" text-anchor="middle" class="font-fa" font-size="12" font-weight="600" fill="#55565A">‫تمامی کدهای فعال تسمه در این خانواده در جدول فوق درج شده‌اند‬</text>
+  <text x="1334" y="974" text-anchor="end" class="font-fa" font-size="11.5" font-weight="600" fill="#55565A">‫واحد مهندسی کاتالوگ صنعت پیش — استخراج مستند از پایگاه داده و جدول استاندارد سازندگان‬</text>
+  <text x="66" y="974" text-anchor="start" class="font-mono" font-size="11.5" font-weight="700" fill="#E56B1E">DOC-ID: SP-FAM-31494-SPEC</text>
+</svg>
