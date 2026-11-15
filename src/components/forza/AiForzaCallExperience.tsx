@@ -129,6 +129,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   // must never silently replace the avatar with a sparse/different design.
   const [quality] = useState<'high'>('high');
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [voiceOutputLevel, setVoiceOutputLevel] = useState(0);
   const [showImageSearch, setShowImageSearch] = useState(false);
   const [consultationImage,setConsultationImage]=useState('');
   const micMutedBeforeImageSearchRef = useRef(false);
@@ -187,6 +188,25 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [voiceOutputError, setVoiceOutputError] = useState<string | null>(null);
   const continuousVoiceRef=useRef<ForzaContinuousWav|null>(null);
+  const greetingWaveformRef = useRef<AudioBuffer | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      let level = continuousVoiceRef.current?.getOutputLevel() ?? 0;
+      const audio = audioElRef.current;
+      const waveform = greetingWaveformRef.current;
+      if (!level && audio && waveform && !audio.paused && !audio.muted) {
+        const pcm = waveform.getChannelData(0);
+        const start = Math.floor(audio.currentTime * waveform.sampleRate);
+        const end = Math.min(pcm.length, start + Math.floor(waveform.sampleRate * 0.055));
+        let sum = 0;
+        for (let i = start; i < end; i++) sum += pcm[i] * pcm[i];
+        if (end > start) level = Math.min(1, Math.sqrt(sum / (end - start)) * 8);
+      }
+      setVoiceOutputLevel(level);
+    }, 55);
+    return () => window.clearInterval(timer);
+  }, []);
   const manualReplayAbortRef=useRef<AbortController|null>(null);
   const isManualReplayPendingRef=useRef(false);
   const [fullscreenError, setFullscreenError] = useState('');
@@ -991,6 +1011,17 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       // The exact greeting was synthesized by Pocket Farsi v2 at image build time.
       // No model download or inference is needed at the 100% particle event.
       const url = '/forza-greeting-bootstrap.wav';
+      // Decode a copy for the avatar only. Playback remains on the existing
+      // media element, so a failed waveform lookup cannot delay the greeting.
+      const context = ensureCtx();
+      if (context && !greetingWaveformRef.current) {
+        void fetch(url).then(response => {
+          if (!response.ok) throw new Error('greeting_waveform_unavailable');
+          return response.arrayBuffer();
+        }).then(bytes => context.decodeAudioData(bytes))
+          .then(buffer => { if (!callClosedRef.current) greetingWaveformRef.current = buffer; })
+          .catch(() => {});
+      }
       await playDataUrl(url);
       console.info('[FORZA greeting] selected server voice welcome finished');
       return;
@@ -998,7 +1029,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
     // Request and play one complete WAV. No network/player chunk boundaries.
     if(text.trim())await playSpeechPhrase(text.trim());
-  }, [playSpeechPhrase,setStatus,stopListening,startListening]);
+  }, [ensureCtx,playDataUrl,playSpeechPhrase,setStatus,stopListening,startListening]);
 
   const replayAiVoice = useCallback(async () => {
     const text = aiText.trim();
@@ -2169,7 +2200,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           paused={paused}
           mode={avatarMode}
           intensity={avatarIntensity}
-          audioLevel={audioLevel}
+          audioLevel={status === 'speaking' ? voiceOutputLevel : audioLevel}
           quality={quality}
           background={true}
           backgroundSpeed={speed}
