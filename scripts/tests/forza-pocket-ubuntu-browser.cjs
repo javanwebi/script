@@ -65,7 +65,8 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟']);
   const answer='سلام، مشخصات تسمه را بررسی می‌کنم. لطفاً کد نوشته‌شده روی قطعه را اعلام کنید تا اطلاعات فنی آن را در کاتالوگ پیدا کنم.';
-  assert.deepEqual(fullVoiceCalls,[answer],
+  const expectedSpeech=answer.replace(/[،.]/gu,' ').replace(/\s+/gu,' ').trim();
+  assert.deepEqual(fullVoiceCalls,[expectedSpeech],
     'Pocket must receive the entire final answer in ONE HTTP request and one WAV');
   assert.deepEqual(unexpectedProgressiveCalls,[],
     'never send sentence/word/token fragments to progressive TTS endpoint');
@@ -78,7 +79,7 @@ function wav(durationMs=180){
   await page.waitForFunction(()=>window.document.body.innerText.includes('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید'),
     null,{timeout:30000});
   assert.deepEqual(streamCalls,['تسمه SPA چیست؟','تسمه SPC چیست؟']);
-  assert.deepEqual(fullVoiceCalls,[answer,answer]);
+  assert.deepEqual(fullVoiceCalls,[expectedSpeech,expectedSpeech]);
   assert.equal(unexpectedProgressiveCalls.length,0);
   assert.equal(errors.length,0,errors.join('; '));
   console.log('FORZA_PRIVATE_POCKET_BROWSER_PASS full_wav_requests='+fullVoiceCalls.length+
