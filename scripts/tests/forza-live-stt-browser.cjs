@@ -52,7 +52,7 @@ function wav(){
   await page.getByText('فورزا گوش می‌دهد؛ صحبتتان را کامل کنید').waitFor({timeout:25000});
   await page.waitForFunction(()=>!!window.__forzaMockRecognition,null,{timeout:6000});
   await page.waitForTimeout(450); // establish ambient baseline
-  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.evaluate(()=>{window.__forzaMicSample=0.0014;});
   await page.waitForTimeout(450); // near-field onset before recognized words
   for(const text of ['می خواهم','می خواهم مشخصات','می خواهم مشخصات تسمه صنعتی را']){
     await page.evaluate(text=>window.__forzaMockRecognition.onresult({resultIndex:0,results:[
