@@ -35,7 +35,7 @@ export class ForzaSpeechAdmission {
         this.calibrated=true;
       }
     }
-    const threshold=Math.max(playback?0.004:0.002,this.floor*(playback?3.5:2.3));
+    const threshold=Math.max(playback?0.004:0.0008,this.floor*(playback?3.5:2.3));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
