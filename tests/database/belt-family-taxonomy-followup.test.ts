@@ -350,15 +350,19 @@ test('belt taxonomy follow-up quarantines non-belt families, preserves every SKU
       families: 71, assignments: 31, direct: 35, variants: 71, commercial: 71,
     });
 
+    // Simulate an accidental deletion after the migration; rollback must restore full rows from backup.
+    await db.query('delete from public.catalog_families where code=$1', [staleCodes[0]]);
+    await db.query("delete from public.catalog_direct_skus where sku_code='41738'");
     await db.exec(rollback);
 
-    const rolledBackCounts = await db.query<{ assignments: number; direct: number; backup: number }>(
+    const rolledBackCounts = await db.query<{ families: number; assignments: number; direct: number; backup: number }>(
       `select
+        (select count(*)::int from public.catalog_families) families,
         (select count(*)::int from public.catalog_family_menu_assignments) assignments,
         (select count(*)::int from public.catalog_direct_skus) direct,
         (select count(*)::int from internal.catalog_belt_taxonomy_followup_backup_20261116) backup`
     );
-    assert.deepEqual(rolledBackCounts.rows[0], { assignments: 32, direct: 35, backup: 138 });
+    assert.deepEqual(rolledBackCounts.rows[0], { families: 71, assignments: 32, direct: 35, backup: 138 });
 
     const restoredApl = await db.query<{ category_slug: string; submenu_name: string; method: string }>(
       `select category_slug,submenu_name,method from public.catalog_family_menu_assignments where family_code=$1`,
