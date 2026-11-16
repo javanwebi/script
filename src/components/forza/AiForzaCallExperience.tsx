@@ -2095,8 +2095,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     }
   },[ensureCtx,setupMediaRecorder,initSpeechRecognition,startListening,attachLocalStt]);
 
-  // STT uses the existing browser recognizer with the current server-side
-  // fallback. No Diba model download or browser-side model startup occurs.
+  // STT prefers same-origin local Diba/Vosk partials on capable devices,
+  // keeps browser recognition active during warmup, and retains server Diba
+  // as a final fallback. Low-power/save-data devices stay on browser STT.
 
   // Discover the optional transcription fallback independently of the
   // text AI provider. Browser streaming STT still works when this is false.
