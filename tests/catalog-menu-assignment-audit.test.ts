@@ -367,7 +367,6 @@ test('familyless industrial belt SKUs are exposed individually without synthetic
  const migration=readFileSync('supabase/migrations/20261116150000_belt_orphan_direct_skus_and_restore_pvc_units.sql','utf8');
  const rollback=readFileSync('ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units_rollback.sql','utf8');
  const expected=['10077','10265','10695','32929','34483','34854','38910','41630','58288','58304'];
- const inserted=[...migration.matchAll(/\('([0-9]{4,7})','excel-v2-1-1'|'([0-9]{4,7})'\)/g)].flatMap(m=>[m[1],m[2]].filter(Boolean));
  for(const code of expected) assert.ok(migration.includes(code),`missing standalone SKU ${code}`);
  assert.ok(migration.includes('INSERT INTO public.catalog_direct_skus'));
  assert.ok(migration.includes('source_family_code'));
