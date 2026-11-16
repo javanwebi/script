@@ -43,38 +43,64 @@ export function registerCatalogNavigationApi(app:Express){
     }catch(error){return fail(res,error);}
   });
 
-  // PostgreSQL is the authoritative source for every product category shown in the mega-menu.
+  // Category totals use the same audited family resolver as the category contents.
+  // Legacy conservative DB assignments must not override the approved static audit map.
   app.get('/api/catalog/categories',async(_req,res)=>{
     try{
       if(!databaseEnabled())return res.status(503).json({success:false,categories:[]});
-      const result=await database().query(
-        `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
-          c.sort_order as "sortOrder",c.is_active as active,c.metadata,
-          case when c.slug like 'excel-v2-%' then coalesce(mc.family_count,0) else coalesce(fc.family_count,0) end as "familyCount",
-          case when c.slug like 'excel-v2-%' then coalesce(mc.sku_count,0) else coalesce(fc.sku_count,0) end as "skuCount"
-        from public.catalog_categories c
-        left join (
-          select f.category_slug,
-            count(distinct f.code) filter (where f.is_active=true and f.is_deleted=false) as family_count,
-            count(distinct v.code) filter (where f.is_active=true and f.is_deleted=false and v.active=true) as sku_count
-          from public.catalog_families f
-          left join public.catalog_variants v on v.family_code=f.code
-          group by f.category_slug
-        ) fc on fc.category_slug=c.slug
-        left join (
-          select a.category_slug,count(distinct f.code) as family_count,
-            coalesce(sum(f.item_count),0) as sku_count
-          from public.catalog_family_menu_assignments a
-          join public.catalog_families f on f.code=a.family_code and f.is_active=true and f.is_deleted=false
-          group by a.category_slug
-        ) mc on mc.category_slug=c.slug
-        where c.is_active=true and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
-        order by c.sort_order,c.name`);
+      const [result,familyRows]=await Promise.all([
+        database().query(
+          `select c.id,c.slug,c.name,c.icon,c.image_url as image,c.description,
+            c.sort_order as "sortOrder",c.is_active as active,c.metadata,
+            coalesce(fc.family_count,0) as "familyCount",
+            coalesce(fc.sku_count,0) as "skuCount"
+           from public.catalog_categories c
+           left join (
+             select f.category_slug,
+               count(distinct f.code) filter (where f.is_active=true and f.is_deleted=false) as family_count,
+               count(distinct v.code) filter (where f.is_active=true and f.is_deleted=false and v.active=true) as sku_count
+             from public.catalog_families f
+             left join public.catalog_variants v on v.family_code=f.code
+             group by f.category_slug
+           ) fc on fc.category_slug=c.slug
+           where c.is_active=true
+             and (coalesce(fc.family_count,0)>0 or c.metadata->>'source'='industrial_megamenu_hierarchy_v2')
+           order by c.sort_order,c.name`),
+        database().query(
+          `select f.code,coalesce(f.item_count,0) as "skuCount",
+             a.category_slug as "assignedCategorySlug",a.submenu_name as "assignedSubmenu",
+             a.leaf_name as "assignedLeaf",a.method
+           from public.catalog_families f
+           left join public.catalog_family_menu_assignments a on a.family_code=f.code
+           where f.is_active=true and f.is_deleted=false
+           order by f.code limit 10000`)
+      ]);
+      const menuStats=new Map<string,{familyCount:number;skuCount:number}>();
+      for(const row of familyRows.rows){
+        const databaseAssignment=row.assignedCategorySlug
+          ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null}
+          : null;
+        const assignment=(row.method==='admin_verified'||row.method==='excel_source_verified')
+          ? databaseAssignment
+          : getFamilyMenuAssignment(row.code);
+        if(!assignment)continue;
+        const stats=menuStats.get(assignment.categorySlug)||{familyCount:0,skuCount:0};
+        stats.familyCount+=1;
+        stats.skuCount+=Number(row.skuCount)||0;
+        menuStats.set(assignment.categorySlug,stats);
+      }
       const categories=result.rows.map((row:any)=>{
         const metadata=row.metadata&&typeof row.metadata==='object'?row.metadata:{};
         const children=Array.isArray(metadata.children)?metadata.children:
           (Array.isArray(metadata.subcategories)?metadata.subcategories.map((name:unknown)=>({name:String(name),children:[]})):[]);
-        const familyCount=Number(row.familyCount)||0,skuCount=Number(row.skuCount)||0;
+        const menuStatsForCategory=menuStats.get(row.slug);
+        const isApprovedMenuCategory=String(row.slug||'').startsWith('excel-v2-');
+        const familyCount=isApprovedMenuCategory
+          ? Number(menuStatsForCategory?.familyCount)||0
+          : Number(row.familyCount)||0;
+        const skuCount=isApprovedMenuCategory
+          ? Number(menuStatsForCategory?.skuCount)||0
+          : Number(row.skuCount)||0;
         const subcategories=Array.isArray(metadata.subcategories)?metadata.subcategories:
           children.map((node:any)=>String(node?.name||'')).filter(Boolean);
         return {
@@ -91,7 +117,6 @@ export function registerCatalogNavigationApi(app:Express){
       return res.json({success:true,categories});
     }catch(error){return fail(res,error);}
   });
-
 
   // Public, metadata-only family-to-subcategory index for the all-products filters.
   // It exposes no prices, stock, images, customer data or private product fields.
