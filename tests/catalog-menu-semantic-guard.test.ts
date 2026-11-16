@@ -116,6 +116,9 @@ test('double-sided and non-listed profiles remain at their valid timing or V-bel
   assert.equal(check('excel-v2-1-1', 'انواع گام و کدهای تایمینگ', 'تسمه تایمینگ 3M لاستیکی', 'Neoprene', '', '3M').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل پروفیل 5V', 'لاستیک', 'SPA , SPB , SPC و دندانه‌دار', '5V').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل پروفیل 5V', 'لاستیک', '', '5V').valid, true);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V گوه‌ای آمریکایی پروفیل 8V', 'لاستیک با روکش پارچه‌ای', '', '8V').valid, true);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V گوه‌ای آمریکایی دنده‌ای لبه‌خام پروفیل 8VX', 'لاستیک دنده‌ای لبه‌خام', '', '8VX').valid, true);
+  assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V گوه‌ای آمریکایی پروفیل 8V', 'لاستیک', 'SPA , SPB , SPC و دندانه‌دار', '8V').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل به‌پشت‌پیوسته (Banded V-Belt) سری 3VX', 'لاستیک کلروپرن', 'SPA , SPB , SPC و دندانه‌دار', '3VX-BANDED').valid, false);
   assert.equal(check('excel-v2-1-2', 'تسمه اسپشیال', 'تسمه V شکل به‌پشت‌پیوسته (Banded V-Belt) سری 3VX', 'لاستیک کلروپرن', '', '3VX-BANDED').valid, true);
   assert.equal(check('excel-v2-1-2', 'کلاسیک و دنده‌دار', 'تسمه V شکل پروفیل MX', 'لاستیک', 'Z (9.5) , M , A , B , C , D , E , 8V', 'MX').valid, false);
