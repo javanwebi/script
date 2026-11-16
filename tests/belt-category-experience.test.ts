@@ -151,17 +151,37 @@ test('PVC conveyor surface trade labels remain distinct catalogue profiles', () 
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC سنگی').profile, 'PVC_STONE_SURFACE');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC پامرغی').profile, 'PVC_PAMARGHI_PATTERN');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC کله قندی').profile, 'PVC_CONICAL_CLEAT');
+  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC کله قندی سوراخ دار').profile, 'PVC_CONICAL_CLEAT');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC چمنی').profile, 'PVC_GRASS_PATTERN');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC لوزی').profile, 'PVC_DIAMOND_PATTERN');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC آجدار').profile, 'PVC_ROUGH_TOP');
   assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC ساده').profile, 'PVC_SMOOTH');
-  assert.equal(detectConveyorSurfaceProfile('نوار نقاله PVC شفاف').profile, 'PVC_TRANSPARENT');
+
+  // Match the Arabic-script spellings present in the imported production rows.
+  assert.equal(detectConveyorSurfaceProfile('نوار PVC كله قندي سوراخ دار 2200 * 4200').profile, 'PVC_CONICAL_CLEAT');
+  assert.equal(detectConveyorSurfaceProfile('نوار PVC پامرغي اصلي 630 * 10860').profile, 'PVC_PAMARGHI_PATTERN');
+  assert.equal(detectConveyorSurfaceProfile('نوار PVC سنگي 9 * 95 * 12600').profile, 'PVC_STONE_SURFACE');
 });
 
-test('unknown PVC surface wording is never silently classified as smooth', () => {
-  const result = detectConveyorSurfaceProfile('نوار نقاله PVC سبز');
-  assert.equal(result.profile, 'PVC_SURFACE_UNSPECIFIED');
-  assert.equal(result.requiresReview, true);
+test('PVC surface families are invariant to SKU dimensions and keep conical perforation as a SKU detail', () => {
+  const stoneShort = classifyBelt('نوار PVC سنگي 9 * 95 * 8260', 'PVC', 'حلقه', 'excel-v2-2-1', 'نوار نقاله صنعتی');
+  const stoneLong = classifyBelt('نوار PVC سنگي 9 * 95 * 12600', 'PVC', 'حلقه', 'excel-v2-2-1', 'نوار نقاله صنعتی');
+  const chicken = classifyBelt('نوار PVC پامرغي 650 * 8490', 'PVC', 'حلقه', 'excel-v2-2-1', 'نوار نقاله صنعتی');
+  const cone = classifyBelt('نوار PVC كله قندي 2200 * 4150', 'PVC', 'حلقه', 'excel-v2-2-1', 'نوار نقاله صنعتی');
+  const perforatedCone = classifyBelt('نوار PVC كله قندي سوراخ دار 2200 * 4200', 'PVC', 'حلقه', 'excel-v2-2-1', 'نوار نقاله صنعتی');
+
+  assert.equal(stoneShort.proposedFamilyId, stoneLong.proposedFamilyId);
+  assert.notEqual(stoneShort.proposedFamilyId, chicken.proposedFamilyId);
+  assert.notEqual(stoneShort.proposedFamilyId, cone.proposedFamilyId);
+  assert.equal(cone.proposedFamilyId, perforatedCone.proposedFamilyId);
+});
+
+test('unknown PVC surface wording and transparency are not silently classified as smooth', () => {
+  for (const name of ['نوار نقاله PVC سبز', 'نوار PVC شفاف عرض 80CM', 'نوار PVC زرد 1 ميل']) {
+    const result = detectConveyorSurfaceProfile(name);
+    assert.equal(result.profile, 'PVC_SURFACE_UNSPECIFIED');
+    assert.equal(result.requiresReview, true);
+  }
 });
 
 
