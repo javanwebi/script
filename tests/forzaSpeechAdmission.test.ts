@@ -93,6 +93,8 @@ test('assistant playback cannot raise the noise floor and suppress the next cust
  const roomFloor=gate.diagnostics(1000).floor;
  for(let t=1050;t<=3500;t+=50)gate.sample(0.06,t,true);
  assert.equal(gate.diagnostics(3500).floor,roomFloor,'TTS energy must not become ambient noise');
+ assert.equal(gate.diagnostics(3500).utteranceLatched,false,
+  'unrecognized loudspeaker echo must not latch as an admitted customer utterance');
  gate.sample(0.0005,3550,false);
  gate.sample(0.0005,3700,false);
  speak(gate,3750,4000,0.006,false);
@@ -148,8 +150,9 @@ test('an emerging quiet utterance does not raise its own ambient threshold',()=>
 
 test('long speech does not relearn its own voice level as ambient noise between words',()=>{
  const gate=calibrated(false,0.003);
- // First phrase establishes the utterance latch.
+ // First phrase establishes the utterance latch only after its words pass admission.
  speak(gate,1050,1300,0.006);
+ assert.equal(gate.decide('بخش اول مشخصات تسمه',false,false,1300),'accept');
  assert.equal(gate.acousticSpeech,true);
  // Simulate several natural 120ms word gaps. The room floor must stay frozen
  // while the same utterance continues, even when the mic level is modest.
@@ -189,6 +192,7 @@ test('a late final hypothesis preserves words already admitted as live interim t
 test('near-field admission survives short Persian word gaps but expires after sustained silence',()=>{
  const gate=calibrated(false,0.001);
  speak(gate,1050,1300,0.006);
+ assert.equal(gate.decide('بلبرینگ',false,false,1300),'accept');
  for(let t=1350;t<=1450;t+=50)gate.sample(0.0005,t,false);
  assert.equal(gate.acousticSpeech,false,'the immediate onset detector may reset during a word gap');
  assert.equal(gate.hasRecentNearFieldEvidence(1450),true);
