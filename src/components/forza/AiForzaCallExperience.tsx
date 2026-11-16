@@ -2061,7 +2061,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         setLocalSttStatus('loading');
         setServerSttLabel('در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است');
         void loadDibaSttModel().then(model=>{
-          if(callClosedRef.current)return;
+          if(callClosedRef.current){model.terminate?.();return;}
           localSttModelRef.current=model;
           attachLocalStt();
           setLocalSttStatus('ready');
@@ -2074,6 +2074,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             startListening(true);
           }
         }).catch(error=>{
+          if(callClosedRef.current)return;
           setLocalSttStatus('fallback');
           setServerSttLabel(serverSttConfiguredRef.current
             ? 'دایبا سرور آماده است · متن زنده مرورگر'
@@ -2244,6 +2245,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     audioEvidenceCleanupRef.current?.();audioEvidenceCleanupRef.current=null;
     speechAdmissionRef.current.reset();
     localSttRecognizerRef.current?.remove?.();localSttRecognizerRef.current=null;
+    localSttModelRef.current?.terminate?.();localSttModelRef.current=null;
+    localSttModelLoadingRef.current=false;
     for(const node of [localSttNodeRef.current,localSttSinkRef.current,
       micSourceNodeRef.current,micAnalyserRef.current,audioSourceNodeRef.current,
       analyserRef.current,gainNodeRef.current]){
