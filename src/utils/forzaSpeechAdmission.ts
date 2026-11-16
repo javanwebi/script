@@ -24,11 +24,12 @@ export class ForzaSpeechAdmission {
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
     const value=Math.max(0,Math.min(1,rms));
     const enteringPlayback=playback&&!this.mode;
+    const leavingPlayback=!playback&&this.mode;
     const samplingGap=now-this.lastSample>250||now<this.lastSample;
     // Entering TTS invalidates old microphone evidence to prevent echo.
-    // Leaving TTS must preserve a customer's already-admitted continuous
-    // utterance; otherwise a sentence that overlaps the answer gets reset.
-    if(enteringPlayback||samplingGap){
+    // Leaving TTS preserves only a customer utterance whose words were already
+    // admitted during barge-in; unconfirmed loudspeaker echo is discarded.
+    if(enteringPlayback||samplingGap||(leavingPlayback&&!this.utteranceLatched)){
       this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
       this.utteranceLatched=false;this.utteranceStartedAt=null;
       if(enteringPlayback)this.levels=[];
@@ -68,7 +69,6 @@ export class ForzaSpeechAdmission {
       this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
-      if(this.duration>=160&&this.strongFrames>=3)this.utteranceLatched=true;
     }else if(now-this.lastStrong>100){
       this.onset=null;this.duration=0;this.strongFrames=0;
     }
@@ -91,6 +91,9 @@ export class ForzaSpeechAdmission {
     if(!continuing&&(this.duration<needed||this.strongFrames<3))
       return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
+    // Latch only after recognized words pass acoustic admission. High TTS echo
+    // energy alone must never become authority for the customer's next turn.
+    this.utteranceLatched=true;
     return 'accept';
   }
 
