@@ -177,6 +177,8 @@ test('belt audit keeps V-belts out of timing APL and keeps Poly-V out of special
 test('belt audit does not place PU trapezoidal sections under flat welded belts', () => {
   const sectionB = classifyBelt('تسمه جوشی پلی‌یورتان پروفیل B', 'TPU پلی‌یورتان', 'حلقه', 'excel-v2-1-3', 'تسمه جوشی با سایت');
   assert.equal(sectionB.proposedCategorySlug, 'UNRESOLVED');
+  assert.equal(sectionB.technical.beltDivision, 'welded-pu-v-section');
+  assert.equal(sectionB.proposedSubmenu, 'پروفیل جوشی فاقد برگ مصوب');
   assert.match(sectionB.taxonomyGap || '', /LEAF-MISSING/);
 });
 
@@ -193,7 +195,8 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
 
   const t10 = classifyBelt('تسمه تایمینگ T10', 'TPU پلی‌یورتان');
   assert.equal(t10.proposedSubmenu, 'انواع گام و کدهای تایمینگ');
-  assert.equal(t10.proposedLeaf, 'T10 (فاقد برگ مصوب)');
+  assert.equal(t10.proposedLeaf, null);
+  assert.match(t10.taxonomyGap || '', /GAP-TIMING-T10-LEAF-MISSING/);
 
   const rubber3m = classifyBelt('تسمه تایمینگ 3M', 'لاستیک کلروپرن');
   assert.equal(rubber3m.proposedSubmenu, 'لاستیکی فابریک');
@@ -202,6 +205,8 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
 test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
   const meterZ = classifyBelt('تسمه V شکل پروفیل Z متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
   assert.equal(meterZ.proposedSubmenu, 'کلاسیک و دنده‌دار');
+  assert.equal(meterZ.proposedLeaf, 'Z (9.5) , M , A , B , C , D , E , 8V');
+  assert.equal(meterZ.technical.profile, 'Z');
   assert.equal(meterZ.technical.supplyForm, 'open-ended-meter');
 
   const meterB = classifyBelt('تسمه V شکل پروفیل B متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
