@@ -7,11 +7,28 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
-DO $$
+CREATE TEMP TABLE _belt_orphan_migration_context (
+  apply_production_data boolean NOT NULL
+) ON COMMIT DROP;
+
+-- Empty PGlite/schema tests do not contain the production-only catalog backup/data.
+-- Skip only when none of the ten audited source SKUs exist; partial production data still fails closed.
+INSERT INTO _belt_orphan_migration_context(apply_production_data)
+SELECT EXISTS (
+  SELECT 1 FROM public.catalog_variants
+  WHERE code IN ('10077','10265','10695','32929','34483','34854','38910','41630','58288','58304')
+);
+
+DO $
 DECLARE
   missing_skus integer;
   unit_mismatches integer;
 BEGIN
+  IF NOT (SELECT apply_production_data FROM _belt_orphan_migration_context) THEN
+    RAISE NOTICE 'Skipping production-only belt seed migration in empty isolated schema fixture';
+    RETURN;
+  END IF;
+
   IF to_regclass('internal.catalog_belt_taxonomy_backup_20261116') IS NULL THEN
     RAISE EXCEPTION 'Required full belt taxonomy pre-change backup is missing; refusing migration';
   END IF;
@@ -147,8 +164,12 @@ FROM public.catalog_direct_skus d
 WHERE d.sku_code IN ('10077','10265','10695','32929','34483','34854','38910','41630','58288','58304')
   AND d.source_family_code IS NULL;
 
-DO $$
+DO $
 BEGIN
+  IF NOT (SELECT apply_production_data FROM _belt_orphan_migration_context) THEN
+    RETURN;
+  END IF;
+
   IF (SELECT count(*) FROM public.catalog_direct_skus
       WHERE sku_code IN ('10077','10265','10695','32929','34483','34854','38910','41630','58288','58304')
         AND is_active=true) <> 10 THEN
