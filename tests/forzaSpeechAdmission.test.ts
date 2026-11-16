@@ -95,6 +95,10 @@ test('assistant playback cannot raise the noise floor and suppress the next cust
  assert.equal(gate.diagnostics(3500).floor,roomFloor,'TTS energy must not become ambient noise');
  assert.equal(gate.diagnostics(3500).utteranceLatched,false,
   'unrecognized loudspeaker echo must not latch as an admitted customer utterance');
+ assert.equal(gate.acousticSpeech,false,
+  'raw loudspeaker RMS must not start the VAD turn');
+ assert.equal(gate.hasRecentNearFieldEvidence(3500),false,
+  'assistant playback leakage must not cancel an endpoint timer');
  gate.sample(0.0005,3550,false);
  gate.sample(0.0005,3700,false);
  speak(gate,3750,4000,0.006,false);
@@ -102,9 +106,13 @@ test('assistant playback cannot raise the noise floor and suppress the next cust
   'the next customer turn must be admitted after assistant playback');
 });
 
-test('continuing speech survives the transition out of playback',()=>{
+test('only an admitted customer barge-in becomes VAD evidence during playback',()=>{
  const gate=calibrated(true);speak(gate,1050,1400,0.06,true);
+ assert.equal(gate.acousticSpeech,false,'raw playback energy is not enough to authorize VAD');
+ assert.equal(gate.hasRecentNearFieldEvidence(1400),false);
  assert.equal(gate.decide('وایسا',false,true,1400),'accept');
+ assert.equal(gate.acousticSpeech,true,'a recognized stop command enables barge-in VAD');
+ assert.equal(gate.hasRecentNearFieldEvidence(1400),true);
  assert.equal(gate.decide('وایسا منظورم',false,false,1400),'accept');
  gate.sample(0.06,1450,false);
  assert.equal(gate.decide('وایسا منظورم 6203',false,false,1450),'accept');
