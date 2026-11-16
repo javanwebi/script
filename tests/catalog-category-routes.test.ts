@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { APPROVED_MENU_CATEGORIES, APPROVED_MENU_GROUPS } from '../src/data/approvedMenuFallback';
 
 const source = (file: string) => readFileSync(file, 'utf8');
 const categories = source('src/data/categories.ts');
@@ -18,6 +19,20 @@ const footer = source('src/components/layout/Footer.tsx');
 const brandBanner = source('src/components/home/MainBrandsBanner.tsx');
 const clubPage = source('src/pages/ClubPage.tsx');
 const migration = source('supabase/migrations/20261116163011_canonical_category_routes.sql');
+
+test('the approved menu exposes 34 unique category routes with no parent-route reuse', () => {
+  assert.equal(APPROVED_MENU_CATEGORIES.length, 34);
+  const categorySlugs = APPROVED_MENU_CATEGORIES.map(category => category.slug);
+  const groupedSlugs = APPROVED_MENU_GROUPS.flatMap(group => group.categorySlugs);
+  assert.equal(new Set(categorySlugs).size, 34);
+  assert.equal(groupedSlugs.length, 34);
+  assert.equal(new Set(groupedSlugs).size, 34);
+  assert.deepEqual(new Set(groupedSlugs), new Set(categorySlugs));
+  for (const category of APPROVED_MENU_CATEGORIES) {
+    assert.match(category.slug, /^excel-v2-[0-9]+-[0-9]+$/);
+    assert.equal(category.routeSlug, category.slug, category.name + ' must have its own canonical route');
+  }
+});
 
 test('every approved category uses its own canonical route slug across storefront and admin', () => {
   assert.match(categories, /routeSlug\?: string/);
