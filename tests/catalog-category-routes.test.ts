@@ -114,6 +114,8 @@ test('database migration assigns all approved categories their own route and saf
   assert.match(migration, /نوار-نقاله-صنعتی/);
   assert.match(migration, /count\(DISTINCT metadata->>'routeSlug'\)/i);
   assert.match(migration, /catalog_categories_active_seo_route_slug_unique/);
+  assert.match(migration, /to_regclass\('public\.catalog_family_menu_assignments'\)/);
+  assert.match(migration, /EXECUTE 'CREATE UNIQUE INDEX/);
   for (const route of APPROVED_CATEGORY_SEO_ROUTES) {
     assert.ok(migration.includes(`('${route.categorySlug}', '${route.routeSlug}')`), route.categorySlug + ' SQL route mapping must match the shared route registry');
   }
