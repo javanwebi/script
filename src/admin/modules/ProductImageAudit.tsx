@@ -2,7 +2,7 @@ import React, {useEffect,useMemo,useState} from 'react';
 import { requireAdminApiJson } from '../../utils/adminApiResponse';
 import {Check,ChevronLeft,ChevronRight,Download,ImagePlus,Search,SlidersHorizontal,X,FolderPlus,FileImage,ArrowLeft,ArrowLeftRight,Edit3,Info,Plus} from 'lucide-react';
 import type {Product, Category} from '../../types';
-import {getImageAssignmentAudit,type DbImageAuditRow} from '../../data/imageAssignments';
+import {getImageAssignmentAudit,type DbImageAuditRow,type DbDirectSkuImageBinding} from '../../data/imageAssignments';
 import {getProductImageUrl} from '../../assets/imagesproducts';
 import {ProductImage} from '../../components/product/ProductImage';
 import {uploadProductImage} from '../../services/productImageUpload';
@@ -32,6 +32,8 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
   onAssignDirectSku:(input:{skuCode:string;categorySlug:string;submenu:string;subcategory:string;imageUrl:string})=>Promise<void>;
 }){
   const [records,setRecords]=useState<DbImageAuditRow[]>([]);
+  const [directSkus,setDirectSkus]=useState<DbDirectSkuImageBinding[]>([]);
+  const [directSkuLoadError,setDirectSkuLoadError]=useState('');
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState('');
   useEffect(()=>{
@@ -47,7 +49,26 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
       .catch(error=>{if(!controller.signal.aborted){setLoadError(error.message||'ارتباط با دیتابیس برقرار نشد.');setLoading(false);}});
     return ()=>controller.abort();
   },[]);
-  const audit=useMemo(()=>getImageAssignmentAudit(products,records),[products,records]);
+  useEffect(()=>{
+    let active=true;
+    const loadDirectSkus=async()=>{
+      try{
+        const response=await fetch('/api/catalog/direct-skus',{credentials:'same-origin',cache:'no-store'});
+        const data=await requireAdminApiJson<{items?:DbDirectSkuImageBinding[]}>(response,'دریافت کدهای مستقیم کاتالوگ');
+        if(!Array.isArray(data.items))throw new Error('فهرست کدهای مستقیم در پاسخ سرور وجود ندارد.');
+        if(active){setDirectSkus(data.items);setDirectSkuLoadError('');}
+      }catch(error){
+        if(active)setDirectSkuLoadError(error instanceof Error?error.message:'به‌روزرسانی کدهای مستقیم انجام نشد.');
+      }
+    };
+    void loadDirectSkus();
+    window.addEventListener('catalog-direct-skus-updated',loadDirectSkus);
+    return ()=>{
+      active=false;
+      window.removeEventListener('catalog-direct-skus-updated',loadDirectSkus);
+    };
+  },[]);
+  const audit=useMemo(()=>getImageAssignmentAudit(products,records,directSkus),[products,records,directSkus]);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState<Filter>('all');
   const [page,setPage]=useState(0);
@@ -155,7 +176,11 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
     if(filter!=='all'&&(filter==='catalogue-photo'?!r.ownerCatalogue:r.status!==filter))return false;
     if(familyFilter==='none'&&r.families.length)return false;
     if(familyFilter!=='all'&&familyFilter!=='none'&&!r.families.some(f=>f.code===familyFilter))return false;
-    return normalizeCatalogueText([r.file,r.observed,r.research?.visualType,r.ownerCatalogue?.catalogueGroup,...r.families.flatMap(f=>[f.code,f.name,...f.skus.map(s=>s.code)])].join(' ')).includes(normalizeCatalogueText(search.trim()));
+    return normalizeCatalogueText([
+      r.file,r.observed,r.research?.visualType,r.ownerCatalogue?.catalogueGroup,
+      ...r.families.flatMap(f=>[f.code,f.name,...f.skus.map(s=>s.code)]),
+      ...r.directSkus.flatMap(item=>[item.skuCode,item.name,item.categoryName,item.submenu,item.subcategory])
+    ].filter(Boolean).join(' ')).includes(normalizeCatalogueText(search.trim()));
   }),[audit,filter,familyFilter,search]);
   const totals=useMemo(()=>({unassigned:audit.filter(x=>x.status==='unassigned').length,family:audit.filter(x=>x.status==='family-example').length,sku:audit.filter(x=>x.status==='sku-linked').length,catalogue:audit.filter(x=>!!x.ownerCatalogue).length}),[audit]);
   const pages=Math.max(1,Math.ceil(filtered.length/24));
@@ -348,6 +373,7 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
       </div>
 
       <div className="p-3 sm:p-4 lg:p-5">
+        {directSkuLoadError&&<p role="status" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-800">وضعیت کدهای مستقیم تازه‌سازی نشد: {directSkuLoadError}</p>}
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
           {visible.map(row=><article key={row.file} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-[#E8B995] hover:shadow-sm">
             <div className="flex h-40 items-center justify-center bg-white p-4 sm:h-44">
@@ -362,12 +388,17 @@ export function ProductImageAudit({products,categories,onCreateFamily,onCreateCa
                 <span className={"shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold "+statusColor(row)}>{statusLabel(row)}</span>
               </div>
               <div className="min-h-[82px] rounded-xl bg-slate-50 p-3">
-                {row.families.length>0?<div className="space-y-2">
+                {row.families.length>0||row.directSkus.length>0?<div className="space-y-2">
                   {row.families.slice(0,2).map(f=><div key={f.code}>
                     <p className="text-[11px] font-bold leading-5 text-[#55565A]">خانواده: {f.name}</p>
                     <p dir="ltr" className="text-[10px] text-slate-500">{f.code}{f.skus.length?" · "+f.skus.length.toLocaleString('fa-IR')+" کد کالا":""}</p>
                   </div>)}
                   {row.families.length>2&&<p className="text-[10px] text-slate-500">و {fa(row.families.length-2)} خانواده دیگر</p>}
+                  {row.directSkus.slice(0,2).map(item=><div key={'direct-'+item.skuCode} className="border-t border-slate-200 pt-2">
+                    <p dir="ltr" className="text-[11px] font-bold leading-5 text-[#55565A]">کد مستقیم: {item.skuCode}</p>
+                    <p className="text-[10px] leading-5 text-slate-500">{item.name||'کالای ثبت‌شده بدون خانواده'}{item.categoryName?' · '+item.categoryName:''}{item.submenu?' · '+item.submenu:''}{item.subcategory?' · '+item.subcategory:''}</p>
+                  </div>)}
+                  {row.directSkus.length>2&&<p className="text-[10px] text-slate-500">و {fa(row.directSkus.length-2)} کد مستقیم دیگر</p>}
                 </div>:<p className="text-[11px] leading-6 text-slate-500">خانواده و کد کالا هنوز تأیید نشده است.</p>}
                 {row.ownerCatalogue&&<p className="mt-2 border-t border-slate-200 pt-2 text-[10px] leading-5 text-slate-500">شاهد کاتالوگ: {row.ownerCatalogue.catalogueGroup} · صفحه {fa(row.ownerCatalogue.page)}</p>}
               </div>
