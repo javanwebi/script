@@ -26,6 +26,7 @@ const productDetail = source('src/pages/ProductDetailPage.tsx');
 const directSkuDetail = source('src/pages/DirectSkuDetailPage.tsx');
 const popularProducts = source('src/components/home/PopularProductsSection.tsx');
 const brandBanner = source('src/components/home/MainBrandsBanner.tsx');
+const discoveryPages = source('src/pages/DiscoveryPages.tsx');
 const clubPage = source('src/pages/ClubPage.tsx');
 const migration = source('supabase/migrations/20261116163011_canonical_category_routes.sql');
 const routeMap = source('src/data/categorySeoRoutes.ts');
@@ -132,6 +133,9 @@ test('database migration assigns all approved categories their own route and saf
   assert.match(serverSeo, /APPROVED_CATEGORY_SEO_ROUTES\.map/);
   assert.match(serverSeo, /app\.get\('\/sitemap\.xml'/);
   assert.match(serverSeo, /app\.get\('\/robots\.txt'/);
+  assert.match(discoveryPages, /SANAT_PISH_CANONICAL_ORIGIN/);
+  assert.match(discoveryPages, /canonical\.href = SANAT_PISH_CANONICAL_ORIGIN/);
+  assert.match(discoveryPages, /article\?\.summary/);
   assert.match(migration, /SET is_active = false/);
   assert.match(migration, /catalog_family_menu_assignments/);
   assert.match(migration, /catalog_direct_skus/);
