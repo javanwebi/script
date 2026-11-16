@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown, ChevronLeft, Layers, Search, Factory, Cog, Package, Disc3, Wrench, ArrowLeft, X } from "lucide-react";
 import { CategoryNavigation } from "./CategoryNavigation";
 import type { EnhancedCategory } from "../../data/categories";
-import { getCategoryRouteSlug, resolveCategorySlug } from "../../data/categories";
+import { getCategoryRoutePath, resolveCategorySlug } from "../../data/categories";
 import { toPersianDigits } from "../../utils/formatters";
 import { getManagedCatalogProducts, subscribeCatalogChanges } from "../../data/mockGenerator";
 import { resolveExcelCategoryArtwork } from "../../utils/excelCategoryCatalog";
@@ -28,7 +28,7 @@ const iconForGroup = (title: string) => {
   return Package;
 };
 
-const categoryUrl = (category: EnhancedCategory) => "/category/" + encodeURIComponent(getCategoryRouteSlug(category));
+const categoryUrl = (category: EnhancedCategory) => getCategoryRoutePath(category.slug);
 
 /** Mobile-only, screenshot-directed two-column catalogue sheet.
  * Uses the exact approved Excel taxonomy passed by ReferenceMegaMenu.
