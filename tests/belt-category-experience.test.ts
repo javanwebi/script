@@ -203,7 +203,7 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
   assert.equal(rubber3m.proposedLeaf, 'لاستیکی فابریک ساده و دنده‌دار');
   assert.equal(rubber3m.technical.profile, '3M');
   assert.equal(rubber3m.technical.pitchMm, 3);
-  assert.equal(rubber3m.technical.beltDivision, 'timing-curvilinear-rubber');
+  assert.equal(rubber3m.technical.beltDivision, 'timing-htd-rpp-single');
   assert.match(rubber3m.technical.bodyMaterial, /لاستیک کلروپرن/);
 });
 
