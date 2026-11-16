@@ -1674,7 +1674,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
 
           // With no server ASR, empty VAD segments are not failed requests.
           // Retain browser recognition and restart only the RAM recorder.
-          if(serverSttConfiguredRef.current===false){
+          if(serverSttConfiguredRef.current===false||(rejectedSpeech&&audioSegmentsRef.current.length===0)){
             audioSegmentsRef.current=[];
             vadRef.current.reset();
             if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
