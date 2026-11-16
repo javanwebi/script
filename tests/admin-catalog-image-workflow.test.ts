@@ -65,3 +65,30 @@ test('production deploy gate runs admin catalog and image assignment regressions
   assert.match(workflow,/tests\/image-assignments\.test\.ts/);
   assert.ok(packageJson.scripts?.['test:portal']?.includes('tests/admin-catalog-image-workflow.test.ts'));
 });
+
+
+test('image assignment form selection survives modal close and a fresh admin page load',async()=>{
+  const audit=await read('../src/admin/modules/ProductImageAudit.tsx');
+  const draft=await read('../src/data/imageAssignmentDraft.ts');
+  const module=await read('../src/admin/modules/ProductsModule.tsx');
+  assert.match(audit,/readImageAssignmentDraft/);
+  assert.match(audit,/writeImageAssignmentDraft/);
+  assert.match(audit,/restoredDraft\?\.familyCode/);
+  assert.match(audit,/closeSelection=\(persistedImage\?/);
+  assert.match(draft,/IMAGE_ASSIGNMENT_DRAFT_STORAGE_KEY/);
+  assert.match(draft,/blob:/);
+  assert.match(module,/hasFamilyImage/);
+  assert.match(module,/hasSkuImage/);
+  assert.match(module,/تأیید اتصال تصویر به کد مستقیم/);
+  assert.match(audit,/متصل به کد کالا/);
+});
+
+test('direct SKU image writes are cache-invalidated and publicly re-readable',async()=>{
+  const navigation=await read('../server/catalogNavigationApi.ts');
+  const module=await read('../src/admin/modules/ProductsModule.tsx');
+  assert.match(navigation,/invalidatePublicCatalogCache\(\)/);
+  assert.match(navigation,/res\.setHeader\('Cache-Control','no-store'\)/);
+  assert.match(navigation,/imageUrl:selectedImage/);
+  assert.match(module,/\/api\/catalog\/direct-skus\?categorySlug=/);
+  assert.match(module,/stored\.imageUrl!==input\.imageUrl/);
+});
