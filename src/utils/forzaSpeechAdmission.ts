@@ -15,19 +15,25 @@ export class ForzaSpeechAdmission {
   private strongFrames=0;
   private mode=false;
   private calibrated=false;
+  // Once a near-field utterance is admitted, do not relearn its loudness as
+  // ambient noise during the small gaps between Persian words.
+  private utteranceLatched=false;
 
   sample(rms:number,now:number,playback:boolean){
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
     const value=Math.max(0,Math.min(1,rms));
-    if((playback&&!this.mode)||now-this.lastSample>250||now<this.lastSample){
+    const modeChanged=playback!==this.mode;
+    const samplingGap=now-this.lastSample>250||now<this.lastSample;
+    if(modeChanged||samplingGap){
       this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
+      this.utteranceLatched=false;
     }
     this.mode=playback;this.lastSample=now;
     this.levels=this.levels.filter(s=>now-s.at<=2400);
     this.levels.push({at:now,value});
     // A low percentile tracks ambient energy without treating every peak as noise.
     // Freeze the floor during an established utterance so long speech is not gated out.
-    if(this.onset===null){
+    if(this.onset===null&&!this.utteranceLatched){
       const sorted=this.levels.map(s=>s.value).sort((a,b)=>a-b);
       if(sorted.length>=6){
         const ambient=sorted[Math.floor((sorted.length-1)*0.2)];
@@ -35,7 +41,9 @@ export class ForzaSpeechAdmission {
         this.calibrated=true;
       }
     }
-    const threshold=Math.max(playback?0.004:0.002,this.floor*(playback?3.5:2.3));
+    // A slightly lower adaptive gate admits normal conversational mic levels
+    // without lowering the stricter anti-echo threshold during FORZA playback.
+    const threshold=Math.max(playback?0.004:0.0015,this.floor*(playback?3.5:1.8));
     if(this.calibrated&&value>threshold){
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
@@ -43,6 +51,7 @@ export class ForzaSpeechAdmission {
       this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
+      if(this.duration>=160&&this.strongFrames>=3)this.utteranceLatched=true;
     }else if(now-this.lastStrong>100){
       this.onset=null;
     }
@@ -54,7 +63,9 @@ export class ForzaSpeechAdmission {
     const needed=playback&&intent!=='stop'?280:160;
     // A final may arrive slightly after acoustic silence. Interim words need
     // much fresher evidence; an old loud syllable must not admit a bystander.
-    const fresh=now-this.lastStrong<=(final?900:300);
+    // Browser final hypotheses can arrive well after the last PCM frame.
+    // Keep a bounded evidence grace for finals; interim text remains strict.
+    const fresh=now-this.lastStrong<=(final?1800:300);
     if(!fresh)return 'reject';
     if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
@@ -71,6 +82,7 @@ export class ForzaSpeechAdmission {
   reset(){
     this.levels=[];this.floor=0.001;this.lastSample=-Infinity;this.onset=null;
     this.lastStrong=-Infinity;this.duration=0;this.strongFrames=0;this.mode=false;this.calibrated=false;
+    this.utteranceLatched=false;
   }
 }
 
