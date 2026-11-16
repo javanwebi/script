@@ -6,7 +6,9 @@ import {forzaTurnIntent} from '../src/utils/forzaBargeIn';
 import { ForzaVoiceActivity } from '../src/utils/forzaVoiceActivity';
 function calibrated(playback=false,noise=0.003){
  const gate=new ForzaSpeechAdmission();
- for(let t=0;t<=1000;t+=50)gate.sample(noise,t,playback);
+ // Learn the room before playback; TTS energy must never calibrate the mic floor.
+ for(let t=0;t<=1000;t+=50)gate.sample(noise,t,false);
+ if(playback)gate.sample(noise,1050,true);
  return gate;
 }
 function speak(gate:ForzaSpeechAdmission,from:number,to:number,level:number,playback=false){
