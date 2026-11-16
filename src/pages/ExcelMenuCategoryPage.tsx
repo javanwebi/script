@@ -29,6 +29,7 @@ import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, 
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
+import { SANAT_PISH_CANONICAL_ORIGIN, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../data/categorySeoRoutes';
 import { STORE_ASSETS } from '../assets/images';
 import { toPersianDigits } from '../utils/formatters';
 import { resolveSiteFallbackByText } from '../utils/siteProductImages';
@@ -687,7 +688,8 @@ const matchesBeltTopWidth = (product: Product | undefined, widthId: string): boo
 };
 
 export const ExcelMenuCategoryPage: React.FC = () => {
-  const { slug = '' } = useParams<{ slug: string }>();
+  const { slug: routeSlug = '' } = useParams<{ slug: string }>();
+  const slug = getInternalCategorySlugFromRouteSlug(routeSlug) || routeSlug;
   const directSkus = useDirectSkus(slug);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MenuResponse | null>(null);
@@ -773,6 +775,47 @@ export const ExcelMenuCategoryPage: React.FC = () => {
       controller.abort();
     };
   }, [slug, retryCount]);
+
+  useEffect(() => {
+    const category = data?.category;
+    if (!category) return;
+    const previousTitle = document.title;
+    const title = `${category.name} | خرید و تأمین قطعات صنعتی | صنعت پیش`;
+    document.title = title;
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const createdMeta = !meta;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'description';
+      document.head.appendChild(meta);
+    }
+    const previousDescription = meta.content;
+    const childTerms = category.children.map(node => node.name).filter(Boolean).slice(0, 4).join('، ');
+    meta.content = (category.description || `خرید و تأمین ${category.name} صنعتی با بررسی مشخصات فنی، انتخاب خانواده کالا و دریافت مشاوره از صنعت پیش.`).slice(0, 155);
+    if (childTerms && meta.content.length < 120) meta.content = (meta.content + ' شامل ' + childTerms).slice(0, 155);
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    const createdCanonical = !canonical;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    const previousCanonical = canonical.href;
+    canonical.href = SANAT_PISH_CANONICAL_ORIGIN + '/category/' + encodeURIComponent(getCategorySeoRouteSlug(slug));
+
+    return () => {
+      document.title = previousTitle;
+      if (meta) {
+        if (createdMeta) meta.remove();
+        else meta.content = previousDescription;
+      }
+      if (canonical) {
+        if (createdCanonical) canonical.remove();
+        else canonical.href = previousCanonical;
+      }
+    };
+  }, [data?.category, slug]);
 
   useEffect(() => {
     if (!mobileFiltersOpen && !comparisonOpen) return;
