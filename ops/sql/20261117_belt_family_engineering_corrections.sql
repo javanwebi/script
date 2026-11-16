@@ -765,8 +765,7 @@ SET technical_review=jsonb_set(
       to_jsonb('تسمه V دوطرفه شش‌ضلعی AA (Double V-Belt)'::text),
       true
     )
-WHERE upper(coalesce(brand,''))='SWR'
-  AND upper(coalesce(identity_specs->>'profile',''))='AA';
+WHERE upper(coalesce(identity_specs->>'profile',''))='AA';
 
 -- 11) Keep the exact SKU evidence honest: series-level catalogue evidence is not an exact model match.
 -- The official SWR catalogue confirms the series and construction families, while exact local SKU/length matching remains open.
