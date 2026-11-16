@@ -2,7 +2,7 @@ import {durableStorage,databaseStorageEnabled} from "../services/durableStorage"
 import { BELT_MENU, matchesBeltSelection } from "./beltNavigation";
 import type { Category, Product } from '../types';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProducts';
-import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from './categorySeoRoutes';
+import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug, LEGACY_CATEGORY_ROUTE_GROUPS } from './categorySeoRoutes';
 
 export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
@@ -55,6 +55,19 @@ export const resolveCategorySlug = (slug: string) => {
 /** Resolve the stable, category-specific route returned by the approved menu API. */
 export const getCategoryRouteSlug = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>): string =>
   getCategorySeoRouteSlug(String(category.slug || category.routeSlug || '').trim());
+
+/** Canonical public path for either an approved category ID or a retired legacy category slug. */
+export const getCategoryRoutePath = (slug: string): string => {
+  const rawSlug = String(slug || '').trim();
+  const internalSlug = getInternalCategorySlugFromRouteSlug(rawSlug);
+  if (internalSlug) return '/category/' + encodeURIComponent(getCategorySeoRouteSlug(internalSlug));
+  const legacySlug = resolveCategorySlug(rawSlug);
+  if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, legacySlug)) {
+    const group = LEGACY_CATEGORY_ROUTE_GROUPS[legacySlug];
+    return group ? '/categories?group=' + encodeURIComponent(group) : '/categories';
+  }
+  return '/category/' + encodeURIComponent(legacySlug);
+};
 
 export function matchesCatalogCategory(product: Product, slug: string, selection = 'all'): boolean {
   const internalSlug = getInternalCategorySlugFromRouteSlug(slug) || resolveCategorySlug(slug);
