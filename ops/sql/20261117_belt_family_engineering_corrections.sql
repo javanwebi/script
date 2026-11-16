@@ -834,6 +834,13 @@ BEGIN
   IF (SELECT count(*) FROM public.catalog_variants WHERE variable_specs->>'beltDivision'='vbelt-crowned-crc') <> 0 THEN
     RAISE EXCEPTION 'Postcondition failed: crowned CRC/TRC must not retain the V-belt division';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.catalog_variants v
+    CROSS JOIN LATERAL jsonb_array_elements(coalesce(v.technical_specs,'[]'::jsonb)) e
+    WHERE e->>'key'='beltDivision' AND e->>'value'='vbelt-crowned-crc'
+  ) THEN
+    RAISE EXCEPTION 'Postcondition failed: crowned CRC/TRC technical specs still carry the V-belt division';
+  END IF;
   IF (SELECT count(*) FROM public.catalog_variants
       WHERE variable_specs->>'beltDivision'='conveyor-crowned-crc'
         AND family_type_id='FT-BELT-CROWNED-CRC') <> 103 THEN
