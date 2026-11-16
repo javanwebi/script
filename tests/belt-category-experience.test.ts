@@ -1,10 +1,43 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { detectConveyorSurfaceProfile } from '../src/data/beltCatalogAudit';
+import { classifyBeltSku, detectConveyorSurfaceProfile } from '../src/data/beltCatalogAudit';
+import type { Product, ProductVariant } from '../src/types';
 
 const page = readFileSync(new URL('../src/pages/BeltCategoryExperience.tsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/pages/BeltCategoryExperience.css', import.meta.url), 'utf8');
+const classifyBelt = (
+  variantName: string,
+  material: string,
+  unit = 'حلقه',
+  categorySlug = 'excel-v2-1-1',
+  categoryName = 'تسمه تایمینگ'
+) => {
+  const product = {
+    code: 'TEST-BELT-FAMILY',
+    name: variantName,
+    brand: 'GENERIC',
+    categorySlug,
+    categoryName,
+    subcategory: 'تسمه صنعتی',
+    technicalSpecs: [{ key: 'جنس و متریال', value: material }],
+    prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
+    stock: 0,
+    inquiryOnly: true,
+    images: [],
+    tags: [],
+    unit,
+  } as unknown as Product;
+  const variant = {
+    code: 'TEST-BELT-SKU',
+    size: 'standard',
+    name: variantName,
+    unit,
+    technicalSpecs: [],
+  } as unknown as ProductVariant;
+  return classifyBeltSku(product, variant);
+};
+
 const route = readFileSync(new URL('../src/pages/CategoryPage.tsx', import.meta.url), 'utf8');
 const directSkus = readFileSync(new URL('../src/components/catalog/DirectSkuProducts.tsx', import.meta.url), 'utf8');
 
@@ -129,4 +162,47 @@ test('unknown PVC surface wording is never silently classified as smooth', () =>
   const result = detectConveyorSurfaceProfile('نوار نقاله PVC سبز');
   assert.equal(result.profile, 'PVC_SURFACE_UNSPECIFIED');
   assert.equal(result.requiresReview, true);
+});
+
+
+test('belt audit keeps V-belts out of timing APL and keeps Poly-V out of special V-belt leaf', () => {
+  const gripV = classifyBelt('تسمه جوشی V روکش گریپ‌دار پروفیل B', 'لاستیک کلروپرن');
+  assert.equal(gripV.proposedCategorySlug, 'excel-v2-1-2');
+  assert.equal(gripV.proposedSubmenu, 'کلاسیک و دنده‌دار');
+
+  const polyV = classifyBelt('تسمه چندشیاری Poly-V پروفیل PJ', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(polyV.proposedCategorySlug, 'UNRESOLVED');
+});
+
+test('belt audit does not place PU trapezoidal sections under flat welded belts', () => {
+  const sectionB = classifyBelt('تسمه جوشی پلی‌یورتان پروفیل B', 'TPU پلی‌یورتان', 'حلقه', 'excel-v2-1-3', 'تسمه جوشی با سایت');
+  assert.equal(sectionB.proposedCategorySlug, 'UNRESOLVED');
+  assert.match(sectionB.taxonomyGap || '', /LEAF-MISSING/);
+});
+
+test('belt audit routes crowned CRC/TRC to hauling belts, not welded PU round belts', () => {
+  const ridge = classifyBelt('تسمه ذوزنقه‌ای تاج‌دار CRC گرده‌ماهی', 'لاستیک کلروپرن ضدسایش', 'حلقه', 'excel-v2-1-3', 'تسمه جوشی با سایت');
+  assert.equal(ridge.proposedCategorySlug, 'excel-v2-1-4');
+  assert.equal(ridge.proposedSubmenu, 'تسمه بارکش');
+  assert.equal(ridge.proposedLeaf, 'انواع تسمه بارکش صنعتی');
+});
+
+test('belt audit does not force automotive RU or unsupported T10 into neighbouring timing leaves', () => {
+  const auto = classifyBelt('تسمه تایمینگ خودرویی AUTO-RU', 'لاستیک کلروپرن');
+  assert.equal(auto.proposedCategorySlug, 'UNRESOLVED');
+
+  const t10 = classifyBelt('تسمه تایمینگ T10', 'TPU پلی‌یورتان');
+  assert.equal(t10.proposedCategorySlug, 'UNRESOLVED');
+
+  const rubber3m = classifyBelt('تسمه تایمینگ 3M', 'لاستیک کلروپرن');
+  assert.equal(rubber3m.proposedSubmenu, 'لاستیکی فابریک');
+});
+
+test('belt audit distinguishes V-belt meter supply from its profile menu path', () => {
+  const meterZ = classifyBelt('تسمه V شکل پروفیل Z متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(meterZ.proposedSubmenu, 'کلاسیک و دنده‌دار');
+  assert.equal(meterZ.technical.supplyForm, 'open-ended-meter');
+
+  const meterB = classifyBelt('تسمه V شکل پروفیل B متری', 'لاستیک', 'متر', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(meterB.proposedSubmenu, 'وی‌بلت متری');
 });
