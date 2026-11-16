@@ -226,9 +226,21 @@ test('8V and 8VX are heavy-duty wedge profiles, not classical V-belt leaf member
   for (const result of [wrapped, cogged]) {
     assert.equal(result.proposedSubmenu, 'تسمه اسپشیال');
     assert.equal(result.proposedLeaf, null);
-    assert.match(result.taxonomyGap || '', /HEAVY-WEDGE-LEAF-MISSING/);
+    assert.match(result.taxonomyGap || '', /AMERICAN-WEDGE-LEAF-MISSING/);
   }
   assert.match(cogged.technical.bodyMaterial, /Raw-Edge Cogged/);
+});
+
+test('3V, 5V and 8V are American wedge belts, separate from metric SPZ/SPA/SPB/SPC narrow wedge', () => {
+  for (const profile of ['3V', '5V', '8V']) {
+    const result = classifyBelt(`تسمه V شکل پروفیل ${profile} 2500 SWR`, 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+    assert.equal(result.technical.beltDivision, 'vbelt-wedge');
+    assert.equal(result.proposedSubmenu, 'تسمه اسپشیال');
+    assert.equal(result.proposedLeaf, null);
+    assert.match(result.taxonomyGap || '', /AMERICAN-WEDGE-LEAF-MISSING/);
+  }
+  const narrow = classifyBelt('تسمه V شکل پروفیل SPB 2500 SWR', 'لاستیک', 'حلقه', 'excel-v2-1-2', 'تسمه وی‌بلت (V-Belt)');
+  assert.equal(narrow.technical.beltDivision, 'vbelt-narrow-wedge');
 });
 
 test('CC is parsed as a double-sided hexagonal V-belt using its standard section dimensions', () => {
@@ -278,6 +290,15 @@ test('engineering family types keep crowned CRC, welded PU round, and banded V-b
   assert.equal(welded.familyTypeId, 'FT-BELT-ROUND-CRC');
   assert.equal(banded.familyTypeId, 'FT-VBELT-BANDED');
   assert.equal(doubleV.familyTypeId, 'FT-VBELT-HEXAGONAL');
+  const americanWedge = resolveEngineeringFamilyType({
+    productType: 'تسمه V گوه‌ای آمریکایی 8V',
+    profile: '8V',
+    material: 'لاستیک',
+    construction: 'wrapped',
+    proposedCategorySlug: 'excel-v2-1-2',
+    engineeringSpecifications: { beltDivision: 'vbelt-wedge', sidedness: 'single-sided' },
+  });
+  assert.equal(americanWedge.familyTypeId, 'FT-VBELT-WEDGE');
   assert.match(doubleV.familyTypeName, /Double V/);
 });
 
