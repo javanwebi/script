@@ -676,11 +676,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
-    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
-    // first syllables; older chunks may contain FORZA's own speaker output.
-    const preRollChunks=audioChunksRef.current;
-    if(preRollChunks.length>2)
-      audioChunksRef.current=[preRollChunks[preRollChunks.length-2],preRollChunks[preRollChunks.length-1]];
+    // Preserve only the last 500ms of in-RAM mic pre-roll when the recorder
+    // is still live; otherwise discard stale chunks from a stopped container.
+    if(mediaRecorderRef.current?.state!=='recording')audioChunksRef.current = [];
+    else {
+      const preRollChunks=audioChunksRef.current;
+      if(preRollChunks.length>2)
+        audioChunksRef.current=[preRollChunks[preRollChunks.length-2],preRollChunks[preRollChunks.length-1]];
+    }
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1584,9 +1587,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // 2-second in-RAM pre-roll while FORZA is responding. No disk
             // persistence; preserve the first user syllables after barge-in.
             // Hard RAM cap also while the customer leaves the microphone
-            // open for hours. Keep 45s for optional post-recording STT and a
+            // open for hours. Keep 40s for optional post-recording STT and a
             // 2s tail during model speech to reduce memory and self-echo.
-            const maxChunks=isProcessingTurnRef.current?8:180;
+            const maxChunks=isProcessingTurnRef.current?8:160;
             if(audioChunksRef.current.length>=maxChunks&&mr.state==='recording'&&!rotateCapture){
               // Rotate the MediaRecorder at a complete WebM chunk boundary. Never
               // slice/splice the live container: keep its EBML header intact.
