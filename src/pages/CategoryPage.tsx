@@ -5,7 +5,7 @@ import { ExcelMenuCategoryPage } from './ExcelMenuCategoryPage';
 import { PulleyCatalogPage } from './PulleyCatalogPage';
 import { subscribeCatalogChanges } from '../data/mockGenerator';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Navigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useParams, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { scrollToSectionElement } from '../components/layout/ScrollToTop';
 import { CATEGORIES, findCatalogCategory, matchesCatalogCategory, resolveCategorySlug } from '../data/categories';
 import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug, LEGACY_CATEGORY_ROUTE_GROUPS } from '../data/categorySeoRoutes';
@@ -39,13 +39,14 @@ import {
 } from 'lucide-react';
 
 export const CategoryPage: React.FC = () => {
+  const location = useLocation();
   const { slug } = useParams<{ slug: string }>();
   const routeSlug = String(slug || '');
   const internalCategorySlug = getInternalCategorySlugFromRouteSlug(routeSlug);
   if (internalCategorySlug) {
     const seoSlug = getCategorySeoRouteSlug(internalCategorySlug);
     if (routeSlug !== seoSlug) {
-      return <Navigate to={'/category/' + encodeURIComponent(seoSlug)} replace />;
+      return <Navigate to={{ pathname: '/category/' + encodeURIComponent(seoSlug), search: location.search, hash: location.hash }} replace />;
     }
     return <ExcelMenuCategoryPage />;
   }
