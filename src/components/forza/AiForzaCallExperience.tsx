@@ -159,6 +159,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
   const recognitionFailedRef = useRef(false);
   const recognitionRetryRef=useRef(0);
   const recognitionRetryTimerRef=useRef<number|null>(null);
+  const recognitionStartWatchdogRef=useRef<number|null>(null);
+  const recognitionStartPendingRef=useRef(false);
+  const recognitionStartRef=useRef<()=>void>(()=>{});
   const vadRef = useRef(new ForzaVoiceActivity());
   const speechAdmissionRef=useRef(new ForzaSpeechAdmission());
   const audioEvidenceCleanupRef=useRef<(()=>void)|null>(null);
@@ -358,15 +361,12 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     // Prefer Chrome's Persian recognition when available; local Diba is a fallback.
     const browserAvailable=Boolean(recognitionRef.current && !recognitionFailedRef.current && !webSpeechFailedRef.current);
     const localReady=browserAvailable ? false : startDibaTurn();
-    if (!localReady && !micMutedRef.current && recognitionRef.current && !isRecognitionActiveRef.current && !recognitionFailedRef.current) {
-      try {
-        recognitionRef.current.start();
-        isRecognitionActiveRef.current = true;
-      } catch(error:any) {
-        // Chrome may still be finishing the previous recognizer; its onend
-        // callback will restart monitoring. This is not a permanent failure.
-        if(error?.name!=='InvalidStateError')recognitionFailedRef.current = true;
-      }
+    if (!localReady && !micMutedRef.current && recognitionRef.current &&
+        !isRecognitionActiveRef.current && !recognitionStartPendingRef.current &&
+        !recognitionFailedRef.current) {
+      // One guarded start path is shared by initial listening and all recovery
+      // attempts. A transient InvalidStateError must not strand later turns.
+      recognitionStartRef.current();
     }
     const recorder = mediaRecorderRef.current;
     if (!micMutedRef.current && recorder?.state === 'inactive') {
@@ -1712,6 +1712,44 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       const admission=new ForzaRecognitionAdmission();
       let admissionRetry:ReturnType<typeof setTimeout>|null=null;
       let admissionSession=0;
+      const canRestart=()=>!callClosedRef.current&&!micMutedRef.current&&isCallActive&&
+        greetingFinishedRef.current&&!recognitionFailedRef.current&&
+        !localSttRecognizerRef.current&&recognitionRef.current===rec;
+      const scheduleRestart=(delay:number)=>{
+        if(!canRestart()||recognitionRetryTimerRef.current!==null)return;
+        recognitionRetryTimerRef.current=window.setTimeout(()=>{
+          recognitionRetryTimerRef.current=null;
+          if(!canRestart()||isRecognitionActiveRef.current||recognitionStartPendingRef.current)return;
+          startWithWatchdog();
+        },delay);
+      };
+      const startWithWatchdog=()=>{
+        if(!canRestart()||isRecognitionActiveRef.current||recognitionStartPendingRef.current)return;
+        recognitionStartPendingRef.current=true;
+        try{
+          rec.start();
+          if(recognitionStartWatchdogRef.current!==null)
+            window.clearTimeout(recognitionStartWatchdogRef.current);
+          recognitionStartWatchdogRef.current=window.setTimeout(()=>{
+            recognitionStartWatchdogRef.current=null;
+            if(recognitionRef.current===rec&&!isRecognitionActiveRef.current&&
+               !callClosedRef.current&&!micMutedRef.current&&!recognitionFailedRef.current){
+              recognitionStartPendingRef.current=false;
+              scheduleRestart(450);
+            }
+          },1500);
+        }catch(error:any){
+          recognitionStartPendingRef.current=false;
+          if(error?.name==='InvalidStateError'){
+            scheduleRestart(350);
+            return;
+          }
+          recognitionFailedRef.current=true;
+          webSpeechFailedRef.current=true;
+          setMicrophoneError('تشخیص گفتار دوباره متصل نشد؛ روی «اتصال دوباره میکروفون» بزنید.');
+        }
+      };
+      recognitionStartRef.current=()=>startWithWatchdog();
       rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'fa-IR';
@@ -1726,6 +1764,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         webSpeechFailedRef.current=false;
         setMicrophoneError(null);
         isRecognitionActiveRef.current = true;
+        recognitionStartPendingRef.current=false;
+        if(recognitionStartWatchdogRef.current!==null)
+          window.clearTimeout(recognitionStartWatchdogRef.current);
+        recognitionStartWatchdogRef.current=null;
         console.info('[FORZA_STT_LIFECYCLE] event=start');
         admission.reset();admissionSession++;
         if(admissionRetry)clearTimeout(admissionRetry);admissionRetry=null;
@@ -1777,6 +1819,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         recognitionRetryRef.current=0;
         recognitionFailedRef.current=false;
         webSpeechFailedRef.current=false;
+        if(recognitionRetryTimerRef.current!==null)
+          window.clearTimeout(recognitionRetryTimerRef.current);
+        recognitionRetryTimerRef.current=null;
         setMicrophoneError(null);
         setErrorNotice(null);
         if(isProcessingTurnRef.current||isAiSpeakingRef.current||isManualReplayPendingRef.current){
@@ -1859,6 +1904,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(admissionRetry)clearTimeout(admissionRetry);admissionRetry=null;
         if(callClosedRef.current||recognitionRef.current!==rec)return;
         const error = e?.error;
+        recognitionStartPendingRef.current=false;
+        if(recognitionStartWatchdogRef.current!==null)
+          window.clearTimeout(recognitionStartWatchdogRef.current);
+        recognitionStartWatchdogRef.current=null;
         console.warn('[AI FORZA SpeechRecognition] Status:', error);
         const retryDelay=forzaRecognitionRetryDelay(String(error),recognitionRetryRef.current);
         if(retryDelay!==null && !callClosedRef.current && !micMutedRef.current){
@@ -1870,20 +1919,11 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           setMicrophoneError('ارتباط تشخیص گفتار لحظه‌ای قطع شد؛ در حال اتصال دوباره هستیم.');
           recognitionRetryTimerRef.current=window.setTimeout(()=>{
             recognitionRetryTimerRef.current=null;
-            if(callClosedRef.current||micMutedRef.current||!isCallActive||localSttRecognizerRef.current||recognitionRef.current!==rec)return;
+            if(callClosedRef.current||micMutedRef.current||!isCallActive||
+               localSttRecognizerRef.current||recognitionRef.current!==rec)return;
             recognitionFailedRef.current=false;
             webSpeechFailedRef.current=false;
-            try{rec.start();}catch(error:any){
-              if(error?.name==='InvalidStateError'){
-                // Chrome can already be starting when a scheduled retry fires.
-                // Do not poison a healthy/in-flight recognizer permanently.
-                isRecognitionActiveRef.current=true;
-                return;
-              }
-              recognitionFailedRef.current=true;
-              webSpeechFailedRef.current=true;
-              setMicrophoneError('اتصال تشخیص گفتار برقرار نشد؛ میکروفون را دوباره فعال کنید یا پیام را تایپ کنید.');
-            }
+            startWithWatchdog();
           },retryDelay);
           return;
         }
@@ -1901,23 +1941,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(admissionRetry)clearTimeout(admissionRetry);admissionRetry=null;
         if(recognitionRef.current!==rec)return;
         isRecognitionActiveRef.current=false;
+        recognitionStartPendingRef.current=false;
+        if(recognitionStartWatchdogRef.current!==null)
+          window.clearTimeout(recognitionStartWatchdogRef.current);
+        recognitionStartWatchdogRef.current=null;
         console.info('[FORZA_STT_LIFECYCLE] event=end failed='+Number(recognitionFailedRef.current));
         // End is normal (including no-speech). Keep the recognizer alive during
         // Nima/manual playback too, otherwise barge-in silently disappears.
-        const canRestart=()=>!callClosedRef.current&&!micMutedRef.current&&isCallActive&&
-          greetingFinishedRef.current&&!recognitionFailedRef.current&&
-          !localSttRecognizerRef.current&&recognitionRef.current===rec;
         if(!canRestart()||recognitionRetryTimerRef.current!==null)return;
-        recognitionRetryTimerRef.current=window.setTimeout(()=>{
-          recognitionRetryTimerRef.current=null;
-          if(!canRestart())return;
-          try{rec.start();}catch(error:any){
-            if(error?.name!=='InvalidStateError'){
-              recognitionFailedRef.current=true;webSpeechFailedRef.current=true;
-              setMicrophoneError('تشخیص گفتار دوباره متصل نشد؛ روی «اتصال دوباره میکروفون» بزنید.');
-            }
-          }
-        },200);
+        scheduleRestart(200);
       };
 
       return rec;
@@ -1982,6 +2014,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       setupMediaRecorder(stream);
       if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
       recognitionRetryTimerRef.current=null;
+      if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
+      recognitionStartWatchdogRef.current=null;
+      recognitionStartPendingRef.current=false;
+      recognitionStartRef.current=()=>{};
       recognitionRetryRef.current=0;
       const previousRecognizer=recognitionRef.current;
       if(previousRecognizer){previousRecognizer.onend=null;previousRecognizer.onerror=null;previousRecognizer.onresult=null;try{previousRecognizer.abort();}catch{}}
@@ -2110,6 +2146,10 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     silenceTimerRef.current=null;
     if(recognitionRetryTimerRef.current!==null)window.clearTimeout(recognitionRetryTimerRef.current);
     recognitionRetryTimerRef.current=null;
+    if(recognitionStartWatchdogRef.current!==null)window.clearTimeout(recognitionStartWatchdogRef.current);
+    recognitionStartWatchdogRef.current=null;
+    recognitionStartPendingRef.current=false;
+    recognitionStartRef.current=()=>{};
     const recognition=recognitionRef.current;
     recognitionRef.current=null;
     if(recognition){
