@@ -2543,9 +2543,9 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         toothCount: null,
         ribCount: null,
         bodyMaterial: vProfile.endsWith('X')
-          ? 'الاستومر کلروپرن/EPDM قالب‌گیری‌شده دنده‌ای (Raw-Edge Cogged)'
-          : 'لاستیک کلروپرن با روکش بافت پارچه‌ای (Wrapped V-Belt)',
-        tensileCord: 'کورد پلی‌استر کم‌کشش (Polyester Tensile Cord)',
+          ? 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
+          : 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt)',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود',
         backingOrCoating: coatingLabel,
         standardReference: vSpec.standard,
         manufacturerSources: [
