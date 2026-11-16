@@ -67,8 +67,8 @@ export function validateFamilyMenuAssignment(
     matches(identity, /تسمه\s*جوشی|welded.{0,24}belt/);
   const hasVbeltProfile = [
     'z', 'zx', 'm', 'mx', 'a', 'ax', 'b', 'bx', 'c', 'cx', 'd', 'e', '8v', '8vx',
-    'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx',
-    'aa', 'bb', 'k'
+    'spz', 'xpz', 'spa', 'xpa', 'spb', 'xpb', 'spc', 'xpc', '3v', '3vx', '5v', '5vx', '8v', '8vx',
+    'aa', 'bb', 'cc', 'k'
   ].includes(profileCode);
   // Welded PU V-sections are a separate engineering division, not rubber V-belts.
   const isVbelt = (matches(identity, /تسمه(?:\s+جوشی)?\s*v|وی.?بلت|v.?belt|v شکل/) || hasVbeltProfile) && !isWeldedPuVSection;
