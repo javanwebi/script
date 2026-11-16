@@ -597,7 +597,11 @@ if [[ -f "$APP/.env.forza-voice" ]]; then
     console.log("AVALAI_CANARY_CONFIG_OK desk=avalai voice=avalai key=SET");
   '
 fi
-docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs
+if ! docker exec -e "OLD_HOST=$OLD" "$CANARY_NAME" node ops/verify-single-port-canary.mjs; then
+  echo '===== PRIVATE CANARY APPLICATION LOGS (LAST 160 LINES) =====' >&2
+  docker logs --tail 160 "$CANARY_NAME" >&2 || true
+  exit 1
+fi
 
 if [[ -f "$APP/.local-vision-enabled" ]]; then
  echo '===== RESUME PERSISTED LOCAL IMAGE INDEX BEFORE PROMOTION ====='
