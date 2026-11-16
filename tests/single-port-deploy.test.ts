@@ -248,6 +248,10 @@ test("industrial belt PFAM reconciliation is guarded by the active production ca
   assert.match(one, /PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14/);
   assert.match(one, /PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14/);
   assert.match(one, /Existing belt engineering backup is incomplete/);
+  assert.match(one, /tests\/catalog-menu-semantic-guard\.test\.ts/);
+  assert.match(one, /tests\/belt-category-experience\.test\.ts/);
+  assert.match(one, /tests\/database\/belt-family-taxonomy-followup\.test\.ts/);
+  assert.match(one, /tests\/database\/belt-family-engineering-corrections\.test\.ts/);
 });
 
 test("old app containers stop after Nima validation and are not deleted", () => {
