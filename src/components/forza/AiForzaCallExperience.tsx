@@ -676,9 +676,14 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     activeTurnRef.current=null;
     active.abort.abort(new Error('forza_customer_interrupted'));
     stopAudio();
-    // Preserve only the last 500ms of in-RAM mic pre-roll for the customer's
-    // first syllables; older chunks may contain FORZA's own speaker output.
-    audioChunksRef.current=audioChunksRef.current.slice(-2);
+    // Preserve only the last 500ms of in-RAM mic pre-roll when the recorder
+    // is still live; otherwise discard stale chunks from a stopped container.
+    if(mediaRecorderRef.current?.state!=='recording')audioChunksRef.current = [];
+    else {
+      const preRollChunks=audioChunksRef.current;
+      if(preRollChunks.length>2)
+        audioChunksRef.current=[preRollChunks[preRollChunks.length-2],preRollChunks[preRollChunks.length-1]];
+    }
     // Playback cancellation has now measured a partially played WAV.
     active.markInterrupted?.();
     isProcessingTurnRef.current=false;
@@ -1574,6 +1579,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       try {
         const mimeType = getSupportedAudioMimeType();
         const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        let rotateCapture=false;
 
         mr.ondataavailable = (e: BlobEvent) => {
           if (e.data && e.data.size > 0) {
@@ -1581,11 +1587,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             // 2-second in-RAM pre-roll while FORZA is responding. No disk
             // persistence; preserve the first user syllables after barge-in.
             // Hard RAM cap also while the customer leaves the microphone
-            // open for hours. Keep 45s for optional post-recording STT and a
+            // open for hours. Keep 40s for optional post-recording STT and a
             // 2s tail during model speech to reduce memory and self-echo.
-            const maxChunks=isProcessingTurnRef.current?8:180;
-            if(audioChunksRef.current.length>maxChunks)
-              audioChunksRef.current.splice(0,audioChunksRef.current.length-maxChunks);
+            const maxChunks=isProcessingTurnRef.current?8:160;
+            if(audioChunksRef.current.length>=maxChunks&&mr.state==='recording'&&!rotateCapture){
+              // Rotate the MediaRecorder at a complete WebM chunk boundary. Never
+              // slice/splice the live container: keep its EBML header intact.
+              rotateCapture=true;
+              mr.stop();
+            }
           }
         };
 
@@ -1594,6 +1604,8 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if (mediaRecorderRef.current !== mr) return;
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
+          const wasRotating=rotateCapture;
+          rotateCapture=false;
           const hadSpeech = hasSpeechSoundRef.current;
           const rejectedSpeech=rejectedRecordingRef.current;
           rejectedRecordingRef.current=false;
@@ -1634,6 +1646,16 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
             }
             return;
           }
+          if(wasRotating&&!hadSpeech&&!currentTranscript){
+            // An idle monitor reached its RAM cap. Discard silence and restart a
+            // fresh container; the next recorder has a valid standalone header.
+            vadRef.current.reset();
+            if(!callClosedRef.current&&!micMutedRef.current&&streamRef.current?.active&&mr.state==='inactive'){
+              try{mr.start(250);}catch{}
+            }
+            return;
+          }
+
           // 2. Otherwise convert recorded audio Blob and send to /api/ai/forza-live
           if (chunks.length > 0 && hadSpeech) {
             const finalMime = mr.mimeType || mimeType || 'audio/webm';
