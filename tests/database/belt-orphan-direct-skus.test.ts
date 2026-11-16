@@ -99,6 +99,18 @@ test('familyless belt SKUs become standalone direct products and PVC units resto
     );
     assert.equal(timingParent.rows[0].count, 5);
 
+    const automotiveTiming = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.catalog_direct_skus
+       where sku_code='58288' and category_slug='excel-v2-1-1' and submenu='' and subcategory=''`
+    );
+    assert.equal(automotiveTiming.rows[0].count, 1);
+
+    const syntheticFamilies = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.catalog_families
+       where code in ('FAM-10077','FAM-10265','FAM-10695','FAM-32929','FAM-34483','FAM-34854','FAM-38910','FAM-41630','FAM-58288','FAM-58304')`
+    );
+    assert.equal(syntheticFamilies.rows[0].count, 0);
+
     const unresolved = await db.query<{ count: number }>(
       `select count(*)::int as count from public.catalog_direct_skus
        where sku_code in ('34483','34854','38910','58304') and category_slug='UNRESOLVED'`
