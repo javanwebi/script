@@ -76,7 +76,7 @@ function wav(){
   const partialMs=Date.now()-started;
   assert.ok(partialMs<1000,'interim words must be visible immediately');
   assert.equal(serverTranscriptions,0,'the live transcript must not wait for an uploaded WAV');
-  assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
+  assert.equal(externalModelDownloads,0,'low-power browser fallback must not download the local Diba model');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
 
   // Chrome may pause interim callbacks during a long sentence. Acoustic
