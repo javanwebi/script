@@ -2251,8 +2251,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         'GAP-RIDGE-TOP-CRC-LEAF: تسمه تاج‌دار CRC/TRC یک تسمه انتقال/بارکش مداربسته است، نه تسمه گرد جوشی PU. چون اکسل برگ مستقل Ridge-Top ندارد، فقط در برگ مصوب عمومی «تسمه بارکش» نمایش داده می‌شود و پروفیل CRC/TRC در مشخصات فنی حفظ می‌گردد.',
       proposedFamilyId: `FAM-CROWNED-ENDLESS-${profile}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
       proposedFamilyNameFa: `تسمه گرده‌ماهی (تاج‌دار) مداربسته ${profile} ${brand !== 'UNSPECIFIED' ? brand : ''}`.trim(),
-      proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Ceramic Transport V-Belt (${profile})`,
-      actualProductType: `تسمه ذوزنقه‌ای تاج‌دار (گرده‌ماهی / Ridge-Top ${profile}) مداربسته خطوط کاشی و سرامیک`,
+      proposedFamilyNameEn: `${brand} Endless Crowned / Ridge-Top Transport Belt (${profile})`,
+      actualProductType: `تسمه انتقال مداربسته تاج‌دار (گرده‌ماهی / Ridge-Top ${profile})`,
       technical: {
         operatingPrinciple: 'conveying',
         beltDivision: 'vbelt-crowned-crc',
@@ -2260,32 +2260,31 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         sidedness: 'single-sided',
         profile,
         pitchMm: null,
-        toothAngleDeg: 40,
+        toothAngleDeg: null,
         toothHeightMm: null,
         beltThicknessMm: 19,
         topWidthMm: 22,
         nominalWidthMm: 22,
-        widthCode: '22mm (C-Base)',
-        pitchLengthMm: lenVal,
-        insideLengthMm: lenVal,
+        widthCode: '22mm nominal (inventory-derived; manufacturer confirmation required)',
+        pitchLengthMm: null,
+        insideLengthMm: null,
         outsideLengthMm: null,
         lengthDesignation: lenVal ? `${profile}${lenVal}` : null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: 'لاستیک کلروپرن/طبیعی ضدسایش با تاج محدب (Crowned Top)',
-        tensileCord: 'کورد پلی‌استر پرتاب (High-Tensile Polyester Cord)',
-        backingOrCoating: 'سطح فوقانی محدب (گرده‌ماهی / Ridge-Top) جهت تماس خطی با کاشی',
-        standardReference: 'Ceramic Tile Roller Kiln & Glazing Line Ridge-Top C-Belt Standard',
+        bodyMaterial: 'لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است',
+        backingOrCoating: 'سطح فوقانی محدب (گرده‌ماهی / Ridge-Top)',
+        standardReference: 'استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است',
         manufacturerSources: [
-          'Megadyne / Sit / PiBelt Ceramic Industry Ridge-Top (Crowned C-Section) Endless Belts',
-          'Volta Belting CRC Ceramic Tile Transport Profile Guide',
+          'Esbelt official ceramics-sector application reference (application evidence only; not an exact CRC manufacturer datasheet)',
         ],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: 'REQUIRES_REVIEW',
       verification: unattachedProvenancePlaceholder(),
       recommendedAction: 'MOVE_TO_EXISTING_FAMILY',
       engineeringReasoning:
-        'تسمه‌های مداربسته گرده‌ماهی (CRC / TRC) دارای پایه ذوزنقه‌ای تیپ C (عرض 22 میلی‌متر) و تاج محدب برای انتقال بدون لغزش کاشی در خطوط لعاب و کوره هستند.',
+        'شرح کالا و کد CRC/TRC به ساختار تاج‌دار مداربسته اشاره می‌کند. منبع کاربردی Esbelt استفاده از تسمه‌های Ridge-Top در خطوط سرامیک را پشتیبانی می‌کند، اما استاندارد، ترکیب لاستیک، کورد و ابعاد دقیق این SKU از آن منبع اثبات نمی‌شود و باید با دیتاشیت همان سازنده تطبیق داده شود.',
     };
   }
 
@@ -2296,9 +2295,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const baseProf = bandedMatch[2];
     const lenCode = Number(bandedMatch[3]);
     const vSpec = VBELT_SPECS[baseProf] || VBELT_SPECS.C;
-    const isNarrow = ['3V', '3VX', '5V', '5VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
-    const isSpecialLeaf = ['SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
-    const isClassicalLeaf = ['Z', 'ZX', 'M', 'A', 'AX', 'B', 'BX', 'C', 'CX', 'D', 'E', '8V', '8VX'].includes(baseProf);
+    const isSpecialSubmenu = ['3V', '3VX', '5V', '5VX', '8V', '8VX', 'SPZ', 'XPZ', 'SPA', 'XPA', 'SPB', 'XPB', 'SPC', 'XPC'].includes(baseProf);
 
     return {
       sku: variant.code,
@@ -2314,7 +2311,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       detectedBrand: brand,
       proposedCategorySlug: 'excel-v2-1-2',
       proposedCategoryName: 'تسمه وی‌بلت (V-Belt)',
-      proposedSubmenu: isNarrow ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
+      proposedSubmenu: isSpecialSubmenu ? 'تسمه اسپشیال' : 'کلاسیک و دنده‌دار',
       proposedLeaf: null,
       taxonomyGap: `GAP-VBELT-BANDED: تسمه به‌پشت‌پیوسته (Banded Powerband) پروفیل ${baseProf} در زیرمنوی پروفیل پایه قرار می‌گیرد؛ فقط پروفیل‌هایی که برگ مصوب دقیق دارند به برگ فرعی متصل می‌شوند.`,
       proposedFamilyId: `FAM-VBELT-BANDED-${baseProf}-${brand}`.replace(/[^A-Z0-9-]/g, ''),
@@ -2334,14 +2331,14 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         topWidthMm: Number((bandCount * vSpec.topWidthMm).toFixed(1)),
         nominalWidthMm: vSpec.topWidthMm,
         widthCode: `${bandCount} ribs × ${vSpec.topWidthMm}mm`,
-        pitchLengthMm: isNarrow && baseProf.startsWith('SP') ? lenCode : null,
+        pitchLengthMm: isSpecialSubmenu && baseProf.startsWith('SP') ? lenCode : null,
         insideLengthMm: null,
         outsideLengthMm: baseProf.includes('V') ? Number((lenCode * 2.54).toFixed(1)) : null,
         lengthDesignation: `${bandCount}R${baseProf}${lenCode}`,
         toothCount: null,
         ribCount: bandCount,
-        bodyMaterial: 'لاستیک کلروپرن با نوار پشتی مسلح یکپارچه (Tie-Band Reinforced Neoprene)',
-        tensileCord: 'کورد پلی‌استر یا آرامید مقاوم در برابر بارهای ضربه‌ای',
+        bodyMaterial: 'بدنه لاستیکی با نوار پیونددهنده فوقانی (Tie-Band / Banded V-Belt); ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است',
+        tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد نیازمند دیتاشیت سازنده است',
         backingOrCoating: 'نوار پیونددهنده فوقانی (Tie-Band)',
         standardReference: 'ISO 5290 / RMA IP-20 / IP-22 (Joined / Banded V-Belts)',
         manufacturerSources: ['Optibelt KRAFTBAND Technical Manual', 'Bando Power-Ace / Red-S II Banded V-Belt Catalog'],
