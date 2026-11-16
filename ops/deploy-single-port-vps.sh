@@ -443,11 +443,12 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
     "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
     "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
     "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
-    "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct " +
+    "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+    "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
     "from internal.catalog_belt_family_engineering_backup_20261117");
    const backup=existing.rows[0];
    if(Number(backup.variants)!==292||Number(backup.families)!==19||
-      Number(backup.assignments)!==8||Number(backup.direct)!==14){
+      Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
     throw Error("Existing belt engineering backup is incomplete; refusing to continue");
    }
   }
@@ -465,7 +466,7 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
    if(activePfam===0)throw Error("No active PFAM or FAM family baseline found; refusing belt engineering correction");
    if(activeFam>0)throw Error("Mixed active FAM/PFAM family lineage; refusing PFAM belt engineering correction");
    if(hasBackup){
-    console.log("PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14");
+    console.log("PRODUCTION_BELT_ENGINEERING_ALREADY_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
    }else{
     await database().query(sql);
     const applied=await database().query(
@@ -473,14 +474,15 @@ docker exec -i "$OLD" node --import tsx --input-type=module -e '
      "count(*) filter(where table_name=\x27catalog_variants\x27)::int as variants, " +
      "count(*) filter(where table_name=\x27catalog_families\x27)::int as families, " +
      "count(*) filter(where table_name=\x27catalog_family_menu_assignments\x27)::int as assignments, " +
-     "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct " +
+     "count(*) filter(where table_name=\x27catalog_direct_skus\x27)::int as direct, " +
+     "count(*) filter(where table_name=\x27catalog_categories\x27)::int as categories " +
      "from internal.catalog_belt_family_engineering_backup_20261117");
     const backup=applied.rows[0];
     if(Number(backup.variants)!==292||Number(backup.families)!==19||
-       Number(backup.assignments)!==8||Number(backup.direct)!==14){
+       Number(backup.assignments)!==8||Number(backup.direct)!==14||Number(backup.categories)!==5){
      throw Error("Belt engineering migration did not create its complete private backup");
     }
-    console.log("PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14");
+    console.log("PRODUCTION_BELT_ENGINEERING_APPLIED variants=292 families=19 assignments=8 direct=14 categories=5");
    }
   }
  }catch(error){
