@@ -19,6 +19,9 @@ This change corrects the engineering taxonomy and source handling for the belt c
 - Esbelt thermoweldable belt page: https://www.esbelt.com/en/products/thermoweldable-belts/
   - Distinguishes round, trapezoidal, pentagonal and ridge-top thermoweldable belt forms. This supports keeping round PU welded belts separate from crowned/ridge-top CRC/TRC profiles, but is not an exact SKU match.
 
+- Mitsuboshi official V-belt design manual: https://global.mitsuboshi.com/assetFiles/v-belt_design_manual_din_en.pdf
+  - Identifies Double-V sections AA, BB and CC under DIN 7722 / ISO 5289 / RMA IP-21 and provides the AA section dimensions. This supports the AA profile standard, not the compound or reinforcement of an individual inventory SKU.
+
 ## Correct engineering divisions
 
 | Engineering family | Profiles / identity | Classification |
@@ -44,6 +47,9 @@ This change corrects the engineering taxonomy and source handling for the belt c
 - Correct the 12 direct American wedge SKU paths and two direct AX-banded SKU paths.
 - Remove unsupported claims that CRC/TRC, banded and other V-belt compounds/cords are definitely neoprene/polyester. Use manufacturer-neutral descriptions until the exact datasheet is available.
 - Keep technical-review states and missing-evidence requirements; series-level evidence must not be mistaken for exact internal SKU verification.
+
+- All four AA-profile variants (two SWR and two generic) are classified as Double-V / hexagonal AA using the published section definition. The two generic items do not inherit SWR-specific manufacturer evidence.
+- The SWR XPZ family is assigned to the approved “SPA, SPB, SPC and cogged” leaf after the manufacturer catalogue confirms XPZ as a raw-edge cogged wedge series. The remaining exact local SKU/length matches stay series-level, not model-level.
 
 ## Evidence limitations and remaining work
 
