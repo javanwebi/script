@@ -41,6 +41,25 @@ function cleanCode(value:unknown):string {
 }
 const fail=(status:number,message:string)=>Object.assign(new Error(message),{status});
 
+/** Keep family-level images separate from SKU-owned images in every persisted representation. */
+export function updateFamilyImageUrls(
+ existing:unknown,oldUrl:string|undefined,oldScope:string|undefined,nextUrl:string,
+ nextScope:'family'|'variant'
+):string[]{
+ const images=Array.isArray(existing)?existing.filter((value):value is string=>typeof value==='string'):[];
+ const withoutOld=oldUrl&&oldScope==='family'?images.filter(value=>value!==oldUrl):images;
+ if(nextScope==='family'&&nextUrl&&!withoutOld.includes(nextUrl))return [...withoutOld,nextUrl];
+ return withoutOld;
+}
+
+export function updateVariantImageUrls(
+ existing:unknown,oldUrl:string|undefined,nextUrl:string
+):string[]{
+ const images=Array.isArray(existing)?existing.filter((value):value is string=>typeof value==='string'):[];
+ const withoutOld=oldUrl?images.filter(value=>value!==oldUrl):images;
+ return nextUrl&&!withoutOld.includes(nextUrl)?[...withoutOld,nextUrl]:withoutOld;
+}
+
 export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Promise<void>){
  const root=productStorageDirectory();
  // The original 869 catalogue assets are publicly served from the mounted
@@ -207,16 +226,24 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
      if(!family)throw fail(404,'ابتدا خانواده کالا را در دیتابیس ذخیره کنید.');
      const variant=variantCode?(await client.query('select code,images from public.catalog_variants where code=$1 and family_code=$2 and active=true for update',[variantCode,familyCode])).rows[0]:null;
      if(variantCode && !variant)throw fail(400,'کد کالا در این خانواده وجود ندارد.');
-     const old=replaceId?(await client.query('select id,url,family_code,variant_code from public.catalog_gallery_images where id=$1 and family_code=$2 for update',[replaceId,familyCode])).rows[0]:null;
+     const old=replaceId?(await client.query('select id,url,family_code,variant_code,scope from public.catalog_gallery_images where id=$1 and family_code=$2 for update',[replaceId,familyCode])).rows[0]:null;
      if(replaceId && !old)throw fail(404,'تصویر قدیمی در این خانواده یافت نشد.');
      const oldUrl=old?.url;
      const galleryId=replaceId||'storage-'+id;
      const pictures=(value:unknown)=>Array.isArray(value)?value.filter(x=>typeof x==='string') as string[]:[];
-     const adjust=(value:unknown)=>{
-       const images=pictures(value).filter((v:string)=>v!==oldUrl || !replaceId);
-       if(!images.includes(url))images.push(url);
-       return images;
-     };
+     const nextScope:'family'|'variant'=variantCode?'variant':'family';
+     const galleryRows=(await client.query('select url,scope,variant_code from public.catalog_gallery_images where family_code=$1 order by sort_order for update',[familyCode])).rows;
+     const familyGalleryUrls=galleryRows.filter((image:any)=>image.scope==='family').map((image:any)=>image.url);
+     const variantGalleryUrls=new Set(galleryRows.filter((image:any)=>image.scope==='variant').map((image:any)=>image.url));
+     const familyBaseImages=[...new Set([
+       ...familyGalleryUrls,
+       ...pictures(family.images).filter((imageUrl:string)=>!variantGalleryUrls.has(imageUrl))
+     ])];
+     const targetVariantRows=variantCode?galleryRows.filter((image:any)=>image.scope==='variant'&&image.variant_code===variantCode).map((image:any)=>image.url).filter((imageUrl:string)=>!familyBaseImages.includes(imageUrl)):[];
+     const targetVariantImages=variantCode
+       ?(targetVariantRows.length?targetVariantRows:pictures(variant.images).filter((imageUrl:string)=>!familyBaseImages.includes(imageUrl)))
+       :[];
+     const nextFamilyImages=updateFamilyImageUrls(familyBaseImages,oldUrl,old?.scope,url,nextScope);
      // Verify the volume write before recording the URL, inside the same transaction.
      await fs.rename(temp,dest);temp='';
      if(old){
@@ -227,13 +254,14 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
          values($1,$2,$3,$4,$5,$6,$7,(select coalesce(max(sort_order),0)+1 from public.catalog_gallery_images where family_code=$2),false)`,
          [galleryId,familyCode,variantCode,name,url,variantCode?'variant':'family',title||name]);
      }
-     await client.query('update public.catalog_families set images=$2::jsonb,updated_at=now() where code=$1',[familyCode,JSON.stringify(adjust(family.images))]);
-     if(variantCode)await client.query('update public.catalog_variants set images=$2::jsonb,updated_at=now() where code=$1',[variantCode,JSON.stringify(adjust(variant.images))]);
-     else if(old?.variant_code){
-       // Moving a previously SKU-bound photo back to the family scope.
+     await client.query('update public.catalog_families set images=$2::jsonb,updated_at=now() where code=$1',[familyCode,JSON.stringify(nextFamilyImages)]);
+     if(old?.variant_code && old.variant_code!==variantCode){
        const prior=(await client.query('select images from public.catalog_variants where code=$1 for update',[old.variant_code])).rows[0];
-       if(prior)await client.query('update public.catalog_variants set images=$2::jsonb where code=$1',[old.variant_code,JSON.stringify(pictures(prior.images).filter((x:string)=>x!==oldUrl))]);
+       const priorGalleryImages=galleryRows.filter((image:any)=>image.scope==='variant'&&image.variant_code===old.variant_code).map((image:any)=>image.url).filter((imageUrl:string)=>!familyBaseImages.includes(imageUrl));
+       const priorBaseImages=priorGalleryImages.length?priorGalleryImages:(prior?pictures(prior.images).filter((imageUrl:string)=>!familyBaseImages.includes(imageUrl)):[]);
+       if(prior)await client.query('update public.catalog_variants set images=$2::jsonb,updated_at=now() where code=$1',[old.variant_code,JSON.stringify(updateVariantImageUrls(priorBaseImages,oldUrl,''))]);
      }
+     if(variantCode)await client.query('update public.catalog_variants set images=$2::jsonb,updated_at=now() where code=$1',[variantCode,JSON.stringify(updateVariantImageUrls(targetVariantImages,old?.variant_code===variantCode?oldUrl:undefined,url))]);
      // Historical admin overrides may still be displayed over normalized tables.
      // Update only their image fields, preserving prices, names, codes and specs.
      const state=(await client.query("select value from public.portal_kv_store where key='catalog_overrides_db_v1' for update")).rows[0]?.value;
@@ -246,12 +274,15 @@ export function registerProductImageStorage(app:Express,onCatalogUpdated:()=>Pro
          order:previous>=0?galleryImages[previous].order:galleryImages.length+1};
        if(previous>=0)galleryImages[previous]=updated;else galleryImages.push(updated);
        const patchedVariants=Array.isArray(original.variants)?original.variants.map((entry:any)=>{
-         if(variantCode && entry.code===variantCode)return {...entry,images:adjust(entry.images)};
-         if(old?.variant_code && entry.code===old.variant_code && !variantCode)
-           return {...entry,images:pictures(entry.images).filter((x:string)=>x!==oldUrl)};
-         return entry;
+         let images=pictures(entry.images).filter((imageUrl:string)=>!familyBaseImages.includes(imageUrl));
+         if(old?.variant_code && entry.code===old.variant_code && old.variant_code!==variantCode)
+           images=updateVariantImageUrls(images,oldUrl,'');
+         if(variantCode && entry.code===variantCode)
+           images=updateVariantImageUrls(images,old?.variant_code===variantCode?oldUrl:undefined,url);
+         return {...entry,images};
        }):original.variants;
-       state.families[familyCode]={...original,images:adjust(original.images),
+       state.families[familyCode]={...original,
+         images:nextFamilyImages,
          galleryImages,variants:patchedVariants};
        await client.query("update public.portal_kv_store set value=$2::jsonb where key=$1",
          ['catalog_overrides_db_v1',JSON.stringify(state)]);

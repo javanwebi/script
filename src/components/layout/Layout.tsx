@@ -7,10 +7,14 @@ import { AuthModal } from '../auth/AuthModal';
 import { AiFloatingButton } from '../common/AiFloatingButton';
 import { useIdentificationOverlayOpen } from '../search/PartIdentificationProvider';
 import { isStorefrontBottomNavRoute } from './storefrontBottomNavVisibility';
+import { isAdminIsolatedRoute } from './routeLayoutPolicy';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const identificationOpen = useIdentificationOverlayOpen();
+
+  // The admin application owns its complete shell. Never mount storefront chrome here.
+  if (isAdminIsolatedRoute(location.pathname)) return <>{children}</>;
   // Preserve the shared route-eligibility check for full-screen identification.
   const routeAllowsStorefrontDock = !identificationOpen && isStorefrontBottomNavRoute(location.pathname);
   // The approved About page uses a full editorial composition; keep the fixed
@@ -35,7 +39,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   // Isolated dedicated portals (dashboards): Admin, Dealer/Agency panel, B2B & Consumer Account Portals
   const isDedicatedPortal =
     ['/onboarding', '/login', '/register'].includes(location.pathname) ||
-    location.pathname.startsWith('/admin') ||
     location.pathname.startsWith('/dealer') ||
     location.pathname.startsWith('/agency') ||
     location.pathname.startsWith('/consumer-dashboard') ||

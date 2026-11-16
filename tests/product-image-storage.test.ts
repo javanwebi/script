@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {prepareProductStorage,productStorageDirectory,registerProductImageStorage} from '../server/productImageStorage';
+import {prepareProductStorage,productStorageDirectory,registerProductImageStorage,updateFamilyImageUrls,updateVariantImageUrls} from '../server/productImageStorage';
 import express from 'express';
 import type {AddressInfo} from 'node:net';
 import {getProductImageUrl} from '../src/assets/imagesproducts';
@@ -35,6 +35,29 @@ test('product URLs are served by the same site, without converting them to GitHu
  assert.equal(getProductImageUrl('https://raw.githubusercontent.com/javanweb/imagesatlas/main/e(1).png'),'/storage/products/catalog/e(1).png');
  assert.equal(getProductImageUrl('/storage/products/catalog/e(869).png'),'/storage/products/catalog/e(869).png');
  assert.equal(getProductImageUrl('/storage/products/../private.txt'),'');
+});
+
+test('family and SKU image URLs stay in their own scope when images are added or replaced',()=>{
+ assert.deepEqual(
+  updateFamilyImageUrls(['/family.webp'],undefined,undefined,'/sku.webp','variant'),
+  ['/family.webp'],
+ );
+ assert.deepEqual(
+  updateFamilyImageUrls(['/old-family.webp'],'/old-family.webp','family','/sku.webp','variant'),
+  [],
+ );
+ assert.deepEqual(
+  updateFamilyImageUrls(['/family.webp'],'/old-sku.webp','variant','/new-family.webp','family'),
+  ['/family.webp','/new-family.webp'],
+ );
+ assert.deepEqual(
+  updateFamilyImageUrls(['/family.webp'],undefined,undefined,'/family.webp','family'),
+  ['/family.webp'],
+ );
+ assert.deepEqual(
+  updateVariantImageUrls(['/old-sku.webp'],'/old-sku.webp','/new-sku.webp'),
+  ['/new-sku.webp'],
+ );
 });
 
 test('production photo folder requires a mounted path',async()=>{

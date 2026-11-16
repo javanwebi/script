@@ -47,7 +47,7 @@ import { toPersianDigits } from '../../utils/formatters';
 import { getProductImageUrl, TOTAL_OFFICIAL_IMAGES_COUNT } from '../../assets/imagesproducts';
 import { ProductImage } from '../../components/product/ProductImage';
 import { uploadProductImage } from '../../services/productImageUpload';
-import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct } from '../../data/mockGenerator';
+import { subscribeCatalogChanges, buildDefaultGalleryImages, syncCatalogFromServer, normalizeMergedProduct, installDatabaseProducts } from '../../data/mockGenerator';
 import { normalizeCatalogueText } from '../../data/userProducts';
 
 interface ProductsModuleProps {
@@ -83,6 +83,31 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   const refreshProducts = () => {
     setProducts(adminService.getProducts());
+  };
+
+  // Re-hydrate the browser catalogue from PostgreSQL after an admin mutation.
+  // This makes saved image/SKU links visible immediately without a page reload or deployment.
+  const refreshCatalogFromServer = async () => {
+    const response=await fetch('/api/admin/catalog',{
+      credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(30000)
+    });
+    const payload=await requireAdminApiJson<{products?:Product[]}>(response,'تازه‌سازی کاتالوگ از پایگاه داده');
+    if(!Array.isArray(payload.products))throw new Error('فهرست تازه کاتالوگ از سرور دریافت نشد.');
+    installDatabaseProducts(payload.products);
+    await syncCatalogFromServer();
+    refreshProducts();
+  };
+
+  const refreshCatalogAfterSave = async () => {
+    try {
+      await refreshCatalogFromServer();
+      return '';
+    } catch (error) {
+      // The write endpoint has already confirmed the database mutation. Keep that
+      // success distinct from a later read/refresh failure.
+      refreshProducts();
+      return error instanceof Error ? error.message : 'تازه‌سازی کاتالوگ کامل نشد.';
+    }
   };
 
   // Categories & Brands state
@@ -319,6 +344,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
   const [newImgVariantCode, setNewImgVariantCode] = useState('');
   const [newImgTitle, setNewImgTitle] = useState('');
   const [imageFormFeedback, setImageFormFeedback] = useState<string | null>(null);
+  const [imageAssignmentFeedback, setImageAssignmentFeedback] = useState<string | null>(null);
   const [productImageUploading, setProductImageUploading] = useState(false);
 
   // Image replacement / move to another family state
@@ -611,7 +637,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       subcategory:isCreatingNewFamily ? (draftMenuLeaf||draftMenuSubmenu) : draftFamily.subcategory,
       technicalSpecs: cleanSpecs,
       galleryImages: cleanGallery,
-      images: cleanGallery.map(g => g.url),
+      images: cleanGallery.filter(g => g.scope === 'family').map(g => g.url),
       variants: cleanVariants,
     };
 
@@ -653,23 +679,23 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               id:stored.id,url:stored.url,fileName:stored.fileName,scope:'family' as const,
               title:pendingFamilyImageTitle||stored.fileName,identityVerified:false,order:gallery.length+1
             }];
-            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+            return {...previous,galleryImages:nextGallery,images:nextGallery.filter(image=>image.scope==='family').map(image=>image.url)};
           });
         }catch(error){
           imageWarning=error instanceof Error?error.message:'بارگذاری تصویر انجام نشد.';
         }
       }
-      await syncCatalogFromServer();
-      refreshProducts();
+      const refreshWarning=await refreshCatalogAfterSave();
       setIsCreatingNewFamily(false);
       window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{
         detail:{categoryName:payload.categoryName,submenu:payload.submenu||'',subcategory:payload.subcategory,familyCode:payload.code,imageUrl:storedFamilyImage?.url,imageFileName:storedFamilyImage?.fileName}
       }));
-      if(imageWarning||categoryWarning){
+      if(imageWarning||categoryWarning||refreshWarning){
         if(imageWarning)setEditorTab('images');
-        setSaveFeedback('خانواده ذخیره شد؛ '+(categoryWarning?'اما مسیر منو ثبت نشد: '+categoryWarning+' ':'')+
-          (imageWarning?'تصویر ذخیره نشد: '+imageWarning:''));
-      }else setSaveFeedback('خانواده، کدها و مسیر دسته‌بندی مصوب در Supabase ثبت شدند.');
+        setSaveFeedback('خانواده در دیتابیس ذخیره شد؛ '+(categoryWarning?'اما مسیر منو ثبت نشد: '+categoryWarning+' ':'')+
+          (imageWarning?'تصویر ذخیره نشد: '+imageWarning+' ':'')+
+          (refreshWarning?'تازه‌سازی نمایش پنل کامل نشد: '+refreshWarning:''));
+      }else setSaveFeedback('خانواده، کدها، تصاویر و مسیر دسته‌بندی مصوب در Supabase ثبت و کاتالوگ تازه‌سازی شد.');
     }catch(error){
       setSaveFeedback(error instanceof Error?error.message:'ذخیره خانواده در دیتابیس انجام نشد.');
     }finally{
@@ -777,24 +803,26 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   const handleAddVariantToDraft = () => {
     if (!draftFamily) return;
-    const baseNum = draftFamily.code.replace(/^FAM-/i, '');
-    const nextIdx = (draftFamily.variants?.length || 0) + 1;
+    const baseNum = draftFamily.code.replace(/^FAM-/i, '') || 'SKU';
+    const existingCodes = new Set((draftFamily.variants || []).map(variant => variant.code.toLowerCase()));
+    let nextIdx = 1;
+    while (existingCodes.has(`${baseNum}-V${nextIdx}`.toLowerCase())) nextIdx += 1;
     const newCode = `${baseNum}-V${nextIdx}`;
     const newVar: ProductVariant = {
       code: newCode,
-      name: `${draftFamily.name || 'محصول'} — نوع ${toPersianDigits(nextIdx)}`,
-      size: 'سایز جدید',
+      name: draftFamily.name || 'محصول جدید',
+      size: '',
       model: '',
       brand: draftFamily.brand || 'ATLAS',
       unit: draftFamily.unit || 'عدد',
       price: 0,
       prices: { base: 0, retail: 0, wholesale: 0, dealer: 0 },
       inquiryOnly: true,
-      stock: 10,
-      stockKnown: true,
+      stock: 0,
+      stockKnown: false,
       active: true,
       images: [],
-      technicalSpecs: [{ key: 'مشخصه فنی', value: 'مقدار' }],
+      technicalSpecs: [],
     };
 
     setDraftFamily(prev =>
@@ -807,7 +835,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     );
     setEditingVariantCode(newCode);
   };
-
   const handleDeleteVariantFromDraft = (variantCode: string) => {
     if (!draftFamily || (draftFamily.variants?.length || 0) <= 1) return;
     setDraftFamily(prev => {
@@ -857,7 +884,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       return {
         ...prev,
         galleryImages: nextGallery,
-        images: nextGallery.map(g => g.url),
+        images: nextGallery.filter(g => g.scope === 'family').map(g => g.url),
       };
     });
     setNewImgTitle('');
@@ -892,10 +919,16 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
         title:prior?.title||newImgTitle.trim()||file.name,
         replaceId
       });
+      const refreshWarning=await refreshCatalogAfterSave();
       if(replaceId){
         handleReplaceImageInDraft(replaceId,stored.url,stored.fileName);
-        setImageFormFeedback('تصویر قبلی با تصویر ذخیره‌شده در Storage جایگزین شد و در دیتابیس ثبت شد.');
-      }else handleAddImageToDraft(stored.url,stored.fileName,stored.id);
+        setImageFormFeedback(refreshWarning
+          ? 'تصویر جایگزین در دیتابیس ذخیره شد؛ اما تازه‌سازی نمایش پنل کامل نشد: '+refreshWarning
+          : 'تصویر قبلی با تصویر ذخیره‌شده در Storage جایگزین شد و در دیتابیس ثبت شد.');
+      }else{
+        handleAddImageToDraft(stored.url,stored.fileName,stored.id);
+        if(refreshWarning)setImageFormFeedback('تصویر در Storage و دیتابیس ذخیره شد؛ اما تازه‌سازی نمایش پنل کامل نشد: '+refreshWarning);
+      }
       setReplacingImageId(null);
     }catch(error:any){
       setImageFormFeedback(error.message||'ذخیره تصویر انجام نشد؛ فایل و دیتابیس تغییر نکردند.');
@@ -918,7 +951,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       return {
         ...prev,
         galleryImages: nextGallery,
-        images: nextGallery.map(g => g.url),
+        images: nextGallery.filter(g => g.scope === 'family').map(g => g.url),
       };
     });
   };
@@ -947,7 +980,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       return {
         ...prev,
         galleryImages: reordered,
-        images: reordered.map(g => g.url),
+        images: reordered.filter(g => g.scope === 'family').map(g => g.url),
       };
     });
   };
@@ -961,15 +994,15 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
       return {
         ...prev,
         galleryImages: nextGallery,
-        images: nextGallery.map(g => g.url),
+        images: nextGallery.filter(g => g.scope === 'family').map(g => g.url),
       };
     });
   };
 
   const handleExecuteMoveImageToAnotherFamily = async (imageId: string) => {
     if (!draftFamily || !moveTargetFamilyCode) return;
-    // First save current draft so nothing is lost
-    handleSaveDraftFamily();
+    // First save current draft so nothing is lost; wait for the confirmed write.
+    await handleSaveDraftFamily();
     const ok = await adminService.moveImageBetweenFamilies(
       draftFamily.code,
       imageId,
@@ -978,7 +1011,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
     );
     if (ok) {
       handleDeleteGalleryImage(imageId);
-      refreshProducts();
+      await refreshCatalogAfterSave();
       setMovingImageId(null);
       setMoveTargetFamilyCode('');
       setMoveTargetVariantCode('');
@@ -1012,21 +1045,29 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
+      {imageAssignmentFeedback&&<div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-6 text-emerald-900">{imageAssignmentFeedback}<button type="button" onClick={()=>setImageAssignmentFeedback(null)} className="mr-3 font-bold underline">بستن</button></div>}
       <ProductImageAudit products={products} categories={categories}
         onCreateCategory={candidateImage=>handleOpenCategoryModal(undefined,candidateImage)}
         onEditCategory={(name,candidateImage)=>{
           const found=categories.find(c=>c.name===name);
           if(found)handleOpenCategoryModal(found,candidateImage);
         }}
-        onEditFamily={(code,file,imageUrl,imageTitle,upload)=>{
+        onEditFamily={(code,file,imageUrl,imageTitle,upload,tab,categorySlug,categoryName,submenu,subcategory)=>{
           const product=products.find(p=>p.code===code);
           if(!product)return;
-          handleOpenEditFamily(product,'family');
-          setPendingFamilyUpload(upload||null);
+          const targetTab=tab||'family';
+          const editorProduct=categorySlug?{
+            ...product,categorySlug,categoryName:categoryName||product.categoryName,
+            submenu:submenu||'',subcategory:subcategory||''
+          }:product;
+          handleOpenEditFamily(editorProduct,targetTab);
+          setPendingFamilyUpload(targetTab==='family'?(upload||null):null);
           setPendingFamilyImageTitle(imageTitle||'');
           setNewImgTitle(imageTitle||'');
           setNewImgScope('family');
-          const persistedUrl=imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
+          setNewImgVariantCode('');
+          if(targetTab==='variants')setShowSkuTechnicalSpecs(true);
+          const persistedUrl=targetTab==='family'&&imageUrl&&!imageUrl.startsWith('blob:')?imageUrl:'';
           if(persistedUrl)setDraftFamily(previous=>{
             if(!previous)return previous;
             const gallery=previous.galleryImages||[];
@@ -1036,7 +1077,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
               identityVerified:false,title:imageTitle||'تصویر انتخاب‌شده از بانک تصاویر',
               order:gallery.length+1
             }];
-            return {...previous,galleryImages:nextGallery,images:nextGallery.map(image=>image.url)};
+            return {...previous,galleryImages:nextGallery,images:nextGallery.filter(image=>image.scope==='family').map(image=>image.url)};
           });
         }}
         onCreateFamily={(file,category,submenu,subcategory,imageUrl,imageTitle,upload,target)=>{
@@ -1069,22 +1110,94 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           }:previous);
           setEditorTab('family');
         }}
-        onCreateSku={(code,file,imageUrl,imageTitle)=>{
-          const product=products.find(p=>p.code===code);if(!product)return;
-          handleOpenEditFamily(product,'variants');
-          setShowSkuTechnicalSpecs(true);
-          setDraftFamily(previous=>{
-            if(!previous)return previous;
-            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url))return previous;
-            return {...previous,galleryImages:[...gallery,{
-              id:`review-draft-${file}`,url,fileName:file,scope:'family',
-              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار کد کالا',order:gallery.length+1
-            }],images:[...(previous.images||[]),url]};
+        onCreateSku={async input=>{
+          if(forbid('create'))throw new Error('مجوز ایجاد کد کالا ندارید.');
+          if(forbid('images'))throw new Error('مجوز اتصال تصویر به کد کالا ندارید.');
+          const family=products.find(product=>product.code===input.familyCode);
+          if(!family)throw new Error('خانواده انتخاب‌شده در کاتالوگ پیدا نشد.');
+          const skuCode=input.skuCode.trim();
+          if(!/^[A-Za-z0-9._-]{1,110}$/.test(skuCode))throw new Error('فرمت کد کالا معتبر نیست.');
+          const owner=products.find(product=>(product.variants||[]).some(variant=>variant.code.toLowerCase()===skuCode.toLowerCase()));
+          if(owner)throw new Error(`کد ${skuCode} قبلاً در خانواده «${owner.name}» ثبت شده است؛ برای جابه‌جایی از حالت کد موجود استفاده کنید.`);
+          const imageUrl=input.upload?'':(getProductImageUrl(input.imageUrl||'')||input.imageUrl||'').trim();
+          if(!input.upload&&!imageUrl)throw new Error('برای ثبت کد جدید، تصویر معتبر انتخاب کنید.');
+          const gallery=buildDefaultGalleryImages(family);
+          const variant:ProductVariant={
+            code:skuCode,name:input.skuName?.trim()||family.name,size:input.size?.trim()||'',
+            brand:family.brand||'',unit:family.unit||'عدد',price:0,
+            prices:{base:0,retail:0,wholesale:0,dealer:0},inquiryOnly:true,
+            stock:0,stockKnown:false,active:true,images:imageUrl?[imageUrl]:[],technicalSpecs:[]
+          };
+          const nextGallery=imageUrl?[...gallery,{
+            id:`sku-${crypto.randomUUID()}`,url:imageUrl,fileName:input.fileName,
+            scope:'variant' as const,variantCode:skuCode,identityVerified:false,
+            title:input.title?.trim()||`تصویر کد ${skuCode}`,order:gallery.length+1
+          }]:gallery;
+          const normalized=normalizeMergedProduct(family,{
+            ...family,categorySlug:input.categorySlug,categoryName:input.categoryName,
+            submenu:input.submenu,subcategory:input.subcategory,
+            variants:[...(family.variants||[]),variant],
+            galleryImages:nextGallery,
+            images:nextGallery.filter(image=>image.scope==='family').map(image=>image.url)
           });
+          const response=await fetch('/api/catalog/overrides/family',{
+            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(30000)
+          });
+          await requireAdminApiJson(response,'ایجاد کد کالا و ذخیره خانواده');
+          if(input.upload){
+            try{
+              await uploadProductImage(input.upload,{familyCode:family.code,variantCode:skuCode,title:input.title||input.upload.name});
+            }catch(error){
+              const refreshWarning=await refreshCatalogAfterSave();
+              setImageAssignmentFeedback(`کد ${skuCode} در خانواده «${family.name}» ذخیره شد، اما تصویر آن ذخیره نشد. کد را دوباره ایجاد نکنید؛ از حالت «کد موجود» برای اتصال مجدد تصویر استفاده کنید. ${error instanceof Error?error.message:''}${refreshWarning?'؛ تازه‌سازی پنل: '+refreshWarning:''}`);
+              return;
+            }
+          }
+          const refreshWarning=await refreshCatalogAfterSave();
+          window.dispatchEvent(new CustomEvent('atlas-image-assignment-hierarchy-saved',{detail:{
+            familyCode:family.code,imageUrl:imageUrl||undefined,imageFileName:input.fileName
+          }}));
+          setImageAssignmentFeedback(refreshWarning?`کد ${skuCode} و تصویر آن در دیتابیس ذخیره شد؛ اما تازه‌سازی نمایش پنل کامل نشد: ${refreshWarning}`:`کد ${skuCode} و تصویر اختصاصی آن در خانواده «${family.name}» ذخیره شد و در کاتالوگ قابل نمایش است.`);
+          window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
+        }}
+        onAssignFamilyImage={async input=>{
+          if(forbid('images'))throw new Error('مجوز مدیریت تصاویر کاتالوگ ندارید.');
+          const family=products.find(product=>product.code===input.familyCode);
+          if(!family)throw new Error('خانواده انتخاب‌شده در کاتالوگ پیدا نشد.');
+          const imageUrl=getProductImageUrl(input.imageUrl)||input.imageUrl.trim();
+          if(!imageUrl||imageUrl.startsWith('blob:'))throw new Error('آدرس تصویر معتبر نیست.');
+          const gallery=buildDefaultGalleryImages(family);
+          const existingIndex=gallery.findIndex(image=>image.scope==='family'&&image.url===imageUrl);
+          const nextGallery=existingIndex>=0
+            ?gallery.map((image,index)=>index===existingIndex?{...image,title:input.title?.trim()||image.title}:image)
+            :[...gallery,{
+              id:`family-${crypto.randomUUID()}`,url:imageUrl,fileName:input.fileName,
+              scope:'family' as const,identityVerified:false,
+              title:input.title?.trim()||`تصویر خانواده ${family.name}`,order:gallery.length+1
+            }];
+          const normalized=normalizeMergedProduct(family,{
+            ...family,categorySlug:input.categorySlug,categoryName:input.categoryName,
+            submenu:input.submenu,subcategory:input.subcategory,
+            galleryImages:nextGallery,
+            images:nextGallery.filter(image=>image.scope==='family').map(image=>image.url)
+          });
+          const response=await fetch('/api/catalog/overrides/family',{
+            method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({family:normalized}),signal:AbortSignal.timeout(30000)
+          });
+          await requireAdminApiJson(response,'ذخیره تصویر خانواده');
+          const refreshWarning=await refreshCatalogAfterSave();
+          setImageAssignmentFeedback(refreshWarning?`تصویر خانواده در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`تصویر مشترک خانواده «${family.name}» ذخیره شد و برای کدهای عضو خانواده نمایش داده می‌شود.`);
+          window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
+        }}
+        onImageSaved={async input=>{
+          const refreshWarning=await refreshCatalogAfterSave();
+          setImageAssignmentFeedback(refreshWarning?`تصویر خانواده ${input.familyCode} روی سرور و در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`تصویر مشترک خانواده ${input.familyCode} روی سرور و در دیتابیس ذخیره شد.`);
+          window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
         }}
         onAssignDirectSku={async input=>{
-          if(forbid('edit'))return;
+          if(forbid('edit'))throw new Error('مجوز ثبت کد مستقیم ندارید.');
           const response=await fetch('/api/catalog/direct-skus',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             body:JSON.stringify(input),signal:AbortSignal.timeout(20000)
@@ -1094,41 +1207,17 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
           window.dispatchEvent(new Event('catalog-direct-skus-updated'));
         }}
         onAssignSku={async input=>{
-          if(forbid('sku_move'))return;
+          if(forbid('sku_move'))throw new Error('مجوز انتقال کد کالا ندارید.');
           const response=await fetch('/api/catalog/sku-transfer',{
             method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
             signal:AbortSignal.timeout(60000),body:JSON.stringify(input)
           });
           await requireAdminApiJson(response,'انتقال کد کالا و اتصال تصویر');
-          await syncCatalogFromServer();
-          refreshProducts();
-          setSaveFeedback(`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} منتقل شد و تصویر آن ثبت شد.`);
-          window.setTimeout(()=>setSaveFeedback(null),3500);
+          const refreshWarning=await refreshCatalogAfterSave();
+          setImageAssignmentFeedback(refreshWarning?`کد ${input.skuCode} و تصویر آن در دیتابیس ذخیره شد؛ اما تازه‌سازی پنل کامل نشد: ${refreshWarning}`:`کد ${input.skuCode} به خانواده ${input.targetFamilyCode} متصل شد و تصویر آن در دیتابیس ذخیره شد.`);
+          window.setTimeout(()=>setImageAssignmentFeedback(null),6000);
         }}
-        onEdit={(code,file,skuCode,imageUrl,imageTitle,persistedId)=>{
-          const product=products.find(p=>p.code===code);if(!product)return;
-          handleOpenEditFamily(product,skuCode?'variants':'images');
-          if(skuCode){
-            setEditingVariantCode(skuCode);
-            setShowSkuTechnicalSpecs(true);
-            setNewImgScope('variant');
-            setNewImgVariantCode(skuCode);
-          }else{
-            setShowSkuTechnicalSpecs(false);
-            setNewImgScope('family');
-            setNewImgVariantCode('');
-          }
-          setDraftFamily(previous=>{
-            if(!previous)return previous;
-            const url=imageUrl||getProductImageUrl(file),gallery=previous.galleryImages||[];
-            if(gallery.some(image=>image.url===url))return previous;
-            return {...previous,galleryImages:[...gallery,{
-              id:persistedId||`review-${file}`,url,fileName:file,
-              scope:skuCode?'variant':'family',variantCode:skuCode,
-              identityVerified:false,title:imageTitle?.trim()||'تصویر در انتظار تأیید مشخصات',order:gallery.length+1
-            }],images:skuCode?[...(previous.images||[])]:[...(previous.images||[]),url]};
-          });
-        }}
+
       />
 
       {!canAction('edit') && !canAction('create') && <div role="status" className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
@@ -2689,9 +2778,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = () => {
                   {/* Left Column: List of SKU Variants in this Family */}
                   <div className="lg:col-span-4 bg-slate-50 rounded-2xl border border-slate-200 p-3.5 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black text-slate-800">
-                        کدهای کالای زیرمجموعه ({toPersianDigits(draftFamily.variants?.length || 0)})
-                      </h4>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-black text-slate-800">
+                          کدهای کالای زیرمجموعه ({toPersianDigits(draftFamily.variants?.length || 0)})
+                        </h4>
+                        <p className="mt-1 text-[10px] leading-5 text-slate-500">کدهایی که تصویر اختصاصی ندارند، تصویر مشترک خانواده را به‌صورت پیش‌فرض نمایش می‌دهند؛ برای افزودن کد جدید لازم نیست تصویر جداگانه بارگذاری کنید.</p>
+                      </div>
                       <button
                         type="button"
                         onClick={handleAddVariantToDraft}
