@@ -125,7 +125,7 @@ export interface Phase1SkuRecord {
   proposedTechnicalType: string;
   proposedCategorySlug: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   unit: string;
   originalSize: string;
   invariantKey: string;
@@ -204,7 +204,7 @@ export interface FamilyTypeSummaryRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   reconstructedFamilyCount: number;
   familyMemberSkuCount: number;
   directProductSkuCount: number;
@@ -218,7 +218,7 @@ export interface SubcategorySkuCountRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   totalSkuCount: number;
   familyCount: number;
   familyMemberSkuCount: number;
@@ -251,7 +251,7 @@ export interface Phase1FamilyRecord {
   categorySlug: string;
   categoryName: string;
   submenu: string;
-  leaf: string;
+  leaf: string | null;
   unit: string;
   profile: string;
   standard: string;
@@ -289,7 +289,7 @@ export interface HaulOffAuditRecord {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   familyDecision: Phase1FamilyDecision;
   proposedFamilyId: string | null;
   engineeringExplanation: string;
@@ -1418,7 +1418,7 @@ function buildBeltPhase1SkuRecord(
     currentCategory: rawFam.categoryName,
     proposedCategory: proposedCategoryName,
     currentSubcategory: rawFam.technicalType,
-    proposedSubcategory: `${proposedSubmenu} > ${proposedLeaf}`,
+    proposedSubcategory: proposedLeaf ? `${proposedSubmenu} > ${proposedLeaf}` : proposedSubmenu,
     familyDecision: 'APPROVED_FAMILY',
     finalStatus: 'FAMILY_MEMBER',
     technicalEvidence: evidence,
