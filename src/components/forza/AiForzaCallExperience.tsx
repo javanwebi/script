@@ -285,7 +285,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     const ctx=ctxRef.current,source=micSourceNodeRef.current;
     if(!ctx||!source||!localSttModelRef.current||localSttNodeRef.current)return;
     try{
-      const node=ctx.createScriptProcessor(4096,1,1),sink=ctx.createGain();
+      const node=ctx.createScriptProcessor(2048,1,1),sink=ctx.createGain();
       sink.gain.value=0;
       node.onaudioprocess=(event:AudioProcessingEvent)=>{
         if(micMutedRef.current || !greetingFinishedRef.current ||
