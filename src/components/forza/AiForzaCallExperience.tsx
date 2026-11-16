@@ -1314,6 +1314,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const {previousHistory,nextHistory}=prepareForzaConversationTurn(
           historyRef.current,resolvedUserQuery,FORZA_CONVERSATION_HISTORY_LIMIT,
         );
+        // Send only the sanitized prior turns; the current query remains the
+        // separate final user message in the streaming request body.
+        payload.history=previousHistory;
         historyRef.current=nextHistory;
         if(resolvedUserQuery)setUserText(resolvedUserQuery);
         let reply='';
