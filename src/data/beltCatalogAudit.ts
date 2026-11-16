@@ -760,37 +760,89 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   ) {
     const isModular = /مدولار/.test(normName);
     const isPu = /پلی\s*یورتان|\bPU\b/i.test(normName);
-    const dims3 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
-    const dims2 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
-    let thickness: number | null = null;
-    let width: number | null = null;
-    let convLen: number | null = null;
-    if (dims3) {
-      const n1 = Number(dims3[1].replace('/', '.'));
-      const n2 = Number(dims3[2].replace('/', '.'));
-      const n3 = Number(dims3[3].replace('/', '.'));
-      if (n1 < 25) {
-        thickness = n1;
-        width = n2;
-        convLen = n3;
-      } else {
-        width = n1;
-        convLen = n2;
-      }
-    } else if (dims2) {
-      const n1 = Number(dims2[1].replace('/', '.'));
-      const n2 = Number(dims2[2].replace('/', '.'));
-      if (n1 < 25) {
-        thickness = n1;
-        width = n2;
-      } else {
-        width = n1;
-        convLen = n2;
-      }
+    const isPvc = /\bPVC\b|پی\s*وی\s*سی|پلی\s*وینیل\s*کلراید/i.test(normName);
+
+    // A generic "نوار نقاله" title is not evidence that the belt is PVC.
+    // Never silently turn an unknown material into a PVC family.
+    if (!isModular && !isPu && !isPvc) {
+      return {
+        sku: variant.code,
+        originalName: rawName,
+        originalSize: variant.size || '',
+        originalUnit,
+        unit: originalUnit,
+        currentFamilyId: product.code,
+        currentFamilyName: product.name,
+        currentCategory: product.categoryName,
+        currentSubmenu: product.submenu || '',
+        currentSubcategory: product.subcategory,
+        detectedBrand: brand,
+        proposedCategorySlug: 'UNRESOLVED',
+        proposedCategoryName: 'نیازمند تعیین مسیر مصوب',
+        proposedSubmenu: 'نیازمند تعیین جنس نوار',
+        proposedLeaf: 'نیازمند تعیین جنس نوار',
+        taxonomyGap: 'GAP-CONVEYOR-MATERIAL-UNKNOWN: عنوان کالا نوع نوار نقاله را مشخص می‌کند اما PVC، PU یا مدولار بودن آن مستند نیست؛ تا بررسی فیزیکی/دیتاشیت به دسته جنس‌محور منتقل نشود.',
+        proposedFamilyId: 'UNRESOLVED-CONVEYOR-MATERIAL-' + variant.code,
+        proposedFamilyNameFa: 'نوار نقاله با جنس نامشخص',
+        proposedFamilyNameEn: 'Conveyor Belt — Material Unverified',
+        actualProductType: 'نوار نقاله صنعتی (جنس نامشخص)',
+        technical: {
+          operatingPrinciple: 'conveying',
+          beltDivision: 'service-ambiguous',
+          supplyForm: 'unspecified',
+          sidedness: 'unknown',
+          profile: 'CONVEYOR-MATERIAL-UNKNOWN',
+          pitchMm: null,
+          toothAngleDeg: null,
+          toothHeightDeg: null,
+          beltThicknessMm: null,
+          topWidthMm: null,
+          nominalWidthMm: null,
+          widthCode: null,
+          pitchLengthMm: null,
+          insideLengthMm: null,
+          outsideLengthMm: null,
+          lengthDesignation: null,
+          toothCount: null,
+          ribCount: null,
+          bodyMaterial: 'UNKNOWN',
+          tensileCord: 'UNKNOWN',
+          backingOrCoating: null,
+          standardReference: 'NOT_ESTABLISHED',
+          manufacturerSources: [],
+        },
+        confidence: 'REQUIRES_REVIEW',
+        verification: unattachedProvenancePlaceholder(),
+        recommendedAction: 'MANUAL_ENGINEERING_REVIEW',
+        engineeringReasoning: 'نوع کلی نوار از نام مشخص است، اما جنس سازنده‌محور/ساختار آن مشخص نیست؛ انتساب PVC یا PU بدون شاهد ممنوع است.',
+      };
     }
-    const convSupplyForm: BeltTechnicalParameters['supplyForm'] = /مدار\s*بسته/.test(normName) ? 'endless-loop' : 'open-ended-meter';
-    const convUnit = convSupplyForm === 'endless-loop' ? 'حلقه' : 'متر مربع';
-    const baseFam = isModular ? 'FAM-CONVEYOR-MODULAR' : isPu ? 'FAM-CONVEYOR-PU' : 'FAM-CONVEYOR-PVC';
+
+    const surface = isPvc ? detectConveyorSurfaceProfile(normName) : null;
+    const surfaceProfile = surface?.profile || (isPu ? 'CONVEYOR-PU' : 'CONVEYOR-MODULAR');
+    const surfaceLabel = surface?.label || (isPu ? 'پلی‌یورتان' : 'مدولار');
+    const convSupplyForm: BeltTechnicalParameters['supplyForm'] =
+      /مدار\s*بسته/.test(normName) || /حلقه/.test(originalUnit)
+        ? 'endless-loop'
+        : /متر/.test(originalUnit)
+          ? 'open-ended-meter'
+          : 'unspecified';
+    const convUnit = originalUnit || 'نامشخص';
+    const baseFam = isModular
+      ? 'FAM-CONVEYOR-MODULAR'
+      : isPu
+        ? 'FAM-CONVEYOR-PU'
+        : 'FAM-CONVEYOR-PVC-' + surfaceProfile;
+    const proposedFamilyId =
+      brand !== 'UNSPECIFIED' ? (baseFam + '-' + brand).replace(/[^A-Z0-9-]/g, '') : baseFam;
+    const requiresSurfaceReview = Boolean(surface?.requiresReview);
+    const bodyMaterial = isModular
+      ? 'پلیمر مدولار (گرید دقیق پلیمر نیازمند تأیید)'
+      : isPu
+        ? 'پلی‌یورتان (گرید، سختی و ساختار تقویتی نیازمند تأیید)'
+        : 'پلی‌وینیل کلراید (PVC؛ ساختار لایه‌ها و منجید نیازمند تأیید)';
+    const tensileCord = isModular ? 'NOT_APPLICABLE' : 'NOT_ESTABLISHED';
+
     return {
       sku: variant.code,
       originalName: rawName,
@@ -808,17 +860,17 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       proposedSubmenu: 'بر اساس جنس',
       proposedLeaf: isModular ? 'نوار مدولار' : isPu ? 'نوار نقاله پلی‌اورتان (PU)' : 'نوار نقاله PVC',
       taxonomyGap: null,
-      proposedFamilyId: brand !== 'UNSPECIFIED' ? `${baseFam}-${brand}`.replace(/[^A-Z0-9-]/g, '') : baseFam,
+      proposedFamilyId,
       proposedFamilyNameFa: isModular
-        ? 'نوار نقاله مدولار پلاستیکی (شیرینگ / سبدی)'
+        ? 'نوار نقاله مدولار پلاستیکی (گرید نیازمند تأیید)'
         : isPu
-          ? 'نوار نقاله پلی‌یورتان (PU)'
-          : 'نوار نقاله صنعتی PVC',
+          ? 'نوار نقاله پلی‌یورتان (PU؛ ساختار نیازمند تأیید)'
+          : 'نوار نقاله PVC با سطح ' + surfaceLabel,
       proposedFamilyNameEn: isModular
-        ? 'Modular Plastic Conveyor Belt'
+        ? 'Modular Plastic Conveyor Belt (Polymer Grade Unverified)'
         : isPu
-          ? 'PU Industrial Conveyor Belt'
-          : 'PVC Industrial Conveyor Belt',
+          ? 'PU Conveyor Belt (Construction Unverified)'
+          : 'PVC Conveyor Belt — ' + surfaceLabel + ' Surface (Inventory Label)',
       actualProductType: isModular
         ? 'نوار نقاله مدولار (Modular Belt)'
         : isPu
@@ -828,35 +880,40 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         operatingPrinciple: 'conveying',
         beltDivision: 'conveyor-pvc-pu',
         supplyForm: convSupplyForm,
-        sidedness: 'single-sided',
-        profile: isPu ? 'CONVEYOR-PU' : isModular ? 'CONVEYOR-MODULAR' : 'CONVEYOR-PVC',
+        sidedness: 'unknown',
+        profile: surfaceProfile,
         pitchMm: null,
         toothAngleDeg: null,
         toothHeightMm: null,
-        beltThicknessMm: thickness,
-        topWidthMm: width,
-        nominalWidthMm: width,
-        widthCode: width ? `${width}mm` : null,
-        pitchLengthMm: convLen,
+        // The inventory's numeric triplets have no declared axis/unit; preserve rawSize
+        // instead of inventing millimetre dimensions from the number order.
+        beltThicknessMm: null,
+        topWidthMm: null,
+        nominalWidthMm: null,
+        widthCode: null,
+        pitchLengthMm: null,
         insideLengthMm: null,
         outsideLengthMm: null,
-        lengthDesignation: convLen ? `${convLen}` : null,
+        lengthDesignation: null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: isModular
-          ? 'پلی‌پروپیلن / استال مدولار (POM/PP)'
-          : isPu
-            ? 'پلی‌یورتان ترموپلاستیک (TPU)'
-            : 'پلی‌وینیل کلراید (PVC) چندلایه منجیددار',
-        tensileCord: isModular ? 'پین و مدول اینترلاک (Modular Interlock)' : 'منجید پلی‌استر (Polyester Fabric Plies)',
-        backingOrCoating: /آجدار/.test(normName) ? 'سطح آجدار (Grip/Rough Top)' : 'سطح صاف یا استاندارد',
-        standardReference: 'ISO 21183-1 (Light Conveyor Belts)',
-        manufacturerSources: ['ISO 21183-1 Light Conveyor Belts'],
+        bodyMaterial,
+        tensileCord,
+        backingOrCoating: surface?.label || null,
+        standardReference: 'NOT_ESTABLISHED',
+        manufacturerSources: [],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
-      verification: unattachedProvenancePlaceholder(),
-      recommendedAction: 'KEEP_IN_CURRENT_FAMILY',
-      engineeringReasoning: 'نوار نقاله استاندارد انتقال مواد منطبق با زیرشاخه نوار نقاله صنعتی (`excel-v2-2-1`).',
+      confidence: requiresSurfaceReview ? 'REQUIRES_REVIEW' : 'INVENTORY_DESCRIPTION_ONLY',
+      verification: inventoryDescriptionProvenance(
+        surface
+          ? 'برچسب سطح «' + surface.label + '» فقط از نام ثبت‌شده کالا استخراج شده؛ معادل سازنده/استاندارد و ساختار داخلی تسمه تأیید نشده است.'
+          : 'نوع جنس از نام کالا تشخیص داده شده؛ گرید پلیمر، لایه‌ها، منجید و استاندارد سازنده هنوز تأیید نشده‌اند.'
+      ),
+      recommendedAction: requiresSurfaceReview ? 'MANUAL_ENGINEERING_REVIEW' : 'CREATE_NEW_FAMILY',
+      engineeringReasoning:
+        'جنس کلی نوار از نام کالا مشخص است و ' +
+        (surface ? 'توصیف سطح «' + surface.label + '»' : 'نوع PU/مدولار') +
+        ' به‌عنوان مشخصه کاتالوگی حفظ شده است؛ اما این برچسب معادل استاندارد سازنده نیست. ساختار لایه‌ها، منجید، سختی، ابعاد محوری و انطباق استاندارد بدون دیتاشیت/بازرسی فیزیکی ادعا نمی‌شود.',
     };
   }
 
@@ -2677,6 +2734,24 @@ function unattachedProvenancePlaceholder(): VerificationProvenance {
     documentType: 'NONE_UNVERIFIED',
     matchedManufacturer: null,
     evidenceBasis: 'در حال محاسبه',
+  };
+}
+
+function inventoryDescriptionProvenance(evidenceBasis: string): VerificationProvenance {
+  return {
+    tier: 'INTERNAL_DB_CATALOG_ONLY',
+    evidenceClass7: '6_Internal_Database_Only',
+    processedBySoftwareCode: true,
+    extractedFromDatabase: true,
+    manufacturerCodeIdentified: false,
+    officialManufacturerSiteChecked: false,
+    datasheetOrCatalogChecked: false,
+    matchedAgainstReliableSource: false,
+    familyConfirmedByEvidence: false,
+    sourceUrl: 'internal://catalog/inventory-description',
+    documentType: 'INTERNAL_CATALOG_RECORD',
+    matchedManufacturer: null,
+    evidenceBasis,
   };
 }
 
