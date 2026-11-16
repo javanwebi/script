@@ -127,10 +127,18 @@ BEGIN
   END IF;
 END $$;
 
--- Store rollback rows in a non-API schema.
+-- Store rollback rows in a non-API schema. Refuse to reuse a previous/stale backup.
+DO $
+BEGIN
+  IF to_regclass('internal.catalog_family_menu_assignments_belt_backup_20261116') IS NOT NULL
+     OR to_regclass('internal.catalog_direct_skus_belt_backup_20261116') IS NOT NULL THEN
+    RAISE EXCEPTION 'Belt rollback backup tables already exist; inspect them before running this migration';
+  END IF;
+END $;
 CREATE SCHEMA IF NOT EXISTS internal;
-REVOKE ALL ON SCHEMA internal FROM PUBLIC;
-CREATE TABLE IF NOT EXISTS internal.catalog_family_menu_assignments_belt_backup_20261116 (
+REVOKE ALL ON SCHEMA internal FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON SCHEMA internal FROM anon, authenticated;
+CREATE TABLE internal.catalog_family_menu_assignments_belt_backup_20261116 (
   family_code text PRIMARY KEY,
   category_slug text NOT NULL,
   submenu_name text,
@@ -141,7 +149,7 @@ CREATE TABLE IF NOT EXISTS internal.catalog_family_menu_assignments_belt_backup_
   backup_reason text NOT NULL,
   backup_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE TABLE IF NOT EXISTS internal.catalog_direct_skus_belt_backup_20261116 (
+CREATE TABLE internal.catalog_direct_skus_belt_backup_20261116 (
   sku_code text PRIMARY KEY,
   category_slug text,
   category_name text,
