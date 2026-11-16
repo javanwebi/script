@@ -2495,12 +2495,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         vSpec.division === 'vbelt-hexagonal'
           ? 'شش‌ضلعی دوطرفه'
           : isHeavyWedgeProfile
-            ? 'پروفیل گوه‌ای سنگین'
+            ? isCoggedProfile ? 'پروفیل گوه‌ای سنگین دنده‌ای لبه‌خام' : 'پروفیل گوه‌ای سنگین'
             : isAmericanWedgeProfile
-              ? 'پروفیل گوه‌ای آمریکایی'
+              ? isCoggedProfile ? 'پروفیل گوه‌ای آمریکایی دنده‌ای لبه‌خام' : 'پروفیل گوه‌ای آمریکایی'
               : isNarrowProfile
-              ? isCoggedProfile ? 'پروفیل باریک دنده‌ای لبه‌خام' : 'پروفیل باریک روکش‌دار'
-              : isCoggedProfile ? 'کلاسیک دنده‌ای لبه‌خام' : 'کلاسیک روکش‌دار',
+                ? isCoggedProfile ? 'پروفیل باریک دنده‌ای لبه‌خام' : 'پروفیل باریک روکش‌دار'
+                : isCoggedProfile ? 'کلاسیک دنده‌ای لبه‌خام' : 'کلاسیک روکش‌دار',
         vProfile,
         coatingLabel ? `(${coatingLabel})` : '',
         isOpenEndedSupply ? 'متری' : '',
@@ -2512,12 +2512,12 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         vSpec.division === 'vbelt-hexagonal'
           ? 'Hexagonal Double-Sided'
           : isHeavyWedgeProfile
-            ? 'Heavy-Duty Wedge'
+            ? isCoggedProfile ? 'Raw-Edge Cogged Heavy-Duty Wedge' : 'Wrapped Heavy-Duty Wedge'
             : isAmericanWedgeProfile
-              ? 'American Wedge'
+              ? isCoggedProfile ? 'Raw-Edge Cogged American Wedge' : 'Wrapped American Wedge'
               : isNarrowProfile
-              ? isCoggedProfile ? 'Raw-Edge Cogged Narrow Wedge' : 'Wrapped Narrow Wedge'
-              : isCoggedProfile ? 'Raw-Edge Cogged Classical' : 'Wrapped Classical'
+                ? isCoggedProfile ? 'Raw-Edge Cogged Narrow Wedge' : 'Wrapped Narrow Wedge'
+                : isCoggedProfile ? 'Raw-Edge Cogged Classical' : 'Wrapped Classical'
       } V-Belt${hasCoating ? ' (Coated)' : ''}${isOpenEndedSupply ? ' Open-Ended Meter' : ''}`,
       actualProductType: `تسمه V شکل ${isAmericanWedgeProfile ? 'گوه‌ای آمریکایی ' : ''}${isCoggedProfile ? 'دنده‌ای لبه‌خام ' : ''}${vProfile}${hasCoating ? ` همراه با ${coatingLabel}` : ''}`,
       technical: {
