@@ -177,6 +177,20 @@ SET family_type_id='FT-BELT-CROWNED-CRC',
       to_jsonb('استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'::text),
       true
     ),
+    technical_specs=(
+      SELECT coalesce(jsonb_agg(
+        CASE
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material'
+            THEN jsonb_set(e,'{value}',to_jsonb('لاستیک/الاستومر با سطح تاج‌دار (Crowned / Ridge-Top); ترکیب دقیق نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction'
+            THEN jsonb_set(e,'{value}',to_jsonb('تسمه مداربسته با سطح فوقانی تاج‌دار؛ نوع لایه‌ها و عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='استاندارد مرجع' OR e->>'key'='standard'
+            THEN jsonb_set(e,'{value}',to_jsonb('استاندارد رسمی CRC/TRC در منابع موجود تأیید نشده؛ دیتاشیت سازنده لازم است'::text),true)
+          ELSE e
+        END ORDER BY x.ord
+      ),'[]'::jsonb)
+      FROM jsonb_array_elements(coalesce(technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
+    ),
     technical_review=jsonb_set(
       jsonb_set(
         coalesce(technical_review,'{}'::jsonb),
