@@ -7,9 +7,9 @@ BEGIN
   IF to_regclass('internal.catalog_belt_family_engineering_backup_20261117') IS NULL THEN
     RAISE EXCEPTION 'Required belt engineering backup is missing; rollback cannot proceed safely';
   END IF;
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 290
-     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 18
-     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 7
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 19
+     OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 8
      OR (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14 THEN
     RAISE EXCEPTION 'Backup row counts do not match the expected engineering correction snapshot';
   END IF;
