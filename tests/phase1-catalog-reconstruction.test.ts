@@ -289,6 +289,33 @@ test('Phase 1 Gate 7A: PVC conveyor surface profiles form separate, dimension-in
   assert.equal(skuByCode.get('52737')!.proposedCategorySlug, 'excel-v2-6-2');
 });
 
+test('Phase 1 Gate 7B: PVC conveyor data migration is backed up, reversible and fails closed', () => {
+  const migrationPath = path.join(ROOT_DIR, 'ops/sql/20261116_pvc_conveyor_surface_family_split.sql');
+  const rollbackPath = path.join(ROOT_DIR, 'ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql');
+  assert.ok(fs.existsSync(migrationPath), 'PVC conveyor surface migration must exist');
+  assert.ok(fs.existsSync(rollbackPath), 'PVC conveyor surface rollback must exist');
+
+  const migration = fs.readFileSync(migrationPath, 'utf8');
+  const rollback = fs.readFileSync(rollbackPath, 'utf8');
+  for (const marker of [
+    'PVC surface preflight mismatch',
+    'catalog_pvc_surface_variants_backup_20261116',
+    'catalog_pvc_surface_commercial_backup_20261116',
+    'PVC_STONE_SURFACE',
+    'PVC_PAMARGHI_PATTERN',
+    'PVC_CONICAL_CLEAT',
+    'PVC_SURFACE_UNSPECIFIED',
+    'NOT_ESTABLISHED',
+    'all_new_family_codes',
+    'PVC surface postflight mismatch',
+  ]) {
+    assert.ok(migration.includes(marker), 'missing migration safety or classification marker: ' + marker);
+  }
+  assert.match(rollback, /catalog_pvc_surface_variants_backup_20261116/);
+  assert.match(rollback, /DELETE FROM public\.catalog_families/);
+  assert.match(rollback, /PVC rollback did not restore all 146 variants/);
+});
+
 test('Phase 1 Gate 8: All mandatory deliverables exist in docs/ and zero private audit files exist in public/', () => {
   const requiredDocs = [
     'phase1-catalog-executive-report.md',
