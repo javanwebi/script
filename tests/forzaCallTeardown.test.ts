@@ -17,6 +17,7 @@ test('hangup cancels owned resources, detaches restart callbacks, and is repeata
   playbackEchoHistoryRef:ref({clear(){}}),stopAcknowledgementRef:ref(null),callClosedRef:ref(false),microphoneGenerationRef:ref(1),micAutoStartedRef:ref(true),
   activeTurnRef:ref({abort:{abort(){calls.push('request');}}}),
   silenceTimerRef:ref(null),recognitionRetryTimerRef:ref(null),
+  recognitionStartWatchdogRef:ref(null),recognitionStartPendingRef:ref(false),recognitionStartRef:ref(()=>{}),
   recognitionRef:ref(recognition),isRecognitionActiveRef:ref(true),
   mediaRecorderRef:ref(recorder),streamRef:ref({getTracks:()=>[track]}),
   localSttRecognizerRef:ref({remove(){calls.push('local-stt');}}),
