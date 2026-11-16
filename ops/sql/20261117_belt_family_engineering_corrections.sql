@@ -468,9 +468,19 @@ WHERE upper(coalesce(v.brand,''))='SWR'
 UPDATE public.catalog_variants v
 SET identity_specs=jsonb_set(
       jsonb_set(
-        coalesce(v.identity_specs,'{}'::jsonb),
-        '{productType}',
-        to_jsonb('تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'::text),
+        jsonb_set(
+          jsonb_set(
+            coalesce(v.identity_specs,'{}'::jsonb),
+            '{productType}',
+            to_jsonb('تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'::text),
+            true
+          ),
+          '{material}',
+          to_jsonb('بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),
+          true
+        ),
+        '{construction}',
+        to_jsonb('مقطع متقارن دوطرفه AA؛ نوع و آرایش عضو کششی نیازمند دیتاشیت سازنده است'::text),
         true
       ),
       '{standard}',
@@ -482,6 +492,8 @@ SET identity_specs=jsonb_set(
         CASE
           WHEN e->>'key'='نوع محصول' THEN jsonb_set(e,'{value}',to_jsonb('تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'::text),true)
           WHEN e->>'key'='استاندارد مرجع' THEN jsonb_set(e,'{value}',to_jsonb('ISO 5289 / DIN 7722 (Double V / Hexagonal AA / HAA)'::text),true)
+          WHEN e->>'key'='جنس و متریال' OR e->>'key'='material' THEN jsonb_set(e,'{value}',to_jsonb('بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است'::text),true)
+          WHEN e->>'key'='ساختار مهندسی' OR e->>'key'='ساختار و مکانیزم' OR e->>'key'='construction' THEN jsonb_set(e,'{value}',to_jsonb('مقطع متقارن دوطرفه AA؛ نوع و آرایش عضو کششی نیازمند دیتاشیت سازنده است'::text),true)
           ELSE e
         END ORDER BY x.ord
       ),'[]'::jsonb)
@@ -557,7 +569,8 @@ WHERE f.code IN (
 );
 
 UPDATE public.catalog_families f
-SET name=replace(f.name,'تسمه V شکل پروفیل AA','تسمه V دوطرفه شش‌ضلعی پروفیل AA'),
+SET materials='بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دقیق لاستیک نیازمند دیتاشیت سازنده است',
+    name=replace(f.name,'تسمه V شکل پروفیل AA','تسمه V دوطرفه شش‌ضلعی پروفیل AA'),
     description=replace(f.description,'تسمه V شکل پروفیل AA','تسمه V دوطرفه شش‌ضلعی پروفیل AA'),
     technical_specs=(
       SELECT coalesce(jsonb_agg(
