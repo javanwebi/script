@@ -2404,7 +2404,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     const isOpenEndedSupply = !isMixedFamilyUnit && rawUnit === 'متر';
     const isMeterLeaf = isOpenEndedSupply && ['A', 'B', 'C'].includes(vProfile);
     const isHexagonal = ['AA', 'BB', 'CC'].includes(vProfile);
-    const isCoggedProfile = /X$/.test(vProfile);
+    const isCoggedProfile = /^(?:XP[ZABC]|[ZABC]X|3VX|5VX|8VX)$/.test(vProfile);
     const isHeavyWedgeProfile = ['8V', '8VX'].includes(vProfile);
     const isWedgeProfile = isNarrowProfile || isAmericanWedgeProfile;
     const isUnlistedK = vProfile === 'K';
@@ -2539,7 +2539,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: rawLen > 0 ? `${vProfile}${rawLen}` : vProfile,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: vProfile.endsWith('X')
+        bodyMaterial: isCoggedProfile
           ? 'لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
           : 'لاستیک با روکش پارچه‌ای (Wrapped V-Belt)',
         tensileCord: 'عضو کششی داخلی؛ جنس و آرایش دقیق کورد باید از دیتاشیت همان سازنده تأیید شود',
