@@ -177,7 +177,7 @@ export function resolveManufacturerSeriesEvidence(
       return seriesEvidence(
         manufacturer,
         OPTIBELT_PRODUCT_RANGE_URL,
-        'The official Optibelt catalog lists RB ribbed-belt products and PJ/PK/PL profile families.',
+        'The official Optibelt catalog lists RB ribbed-belt profiles PH/PJ/PK/PL/PM and automotive RBK PJ/PK/DPK/EPK sections.',
         originalName,
       );
     }
@@ -189,6 +189,28 @@ export function resolveManufacturerSeriesEvidence(
         manufacturer,
         OPTIBELT_TIMING_MANUAL_URL,
         'The official Optibelt rubber-timing technical manual lists ZR imperial timing-belt profiles MXL/XL/L/H/XH/XXH.',
+        originalName,
+      );
+    }
+    if (
+      division === 'timing-imperial-double' &&
+      inSet(profile, ['DXL', 'DL', 'DH'])
+    ) {
+      return seriesEvidence(
+        manufacturer,
+        OPTIBELT_TIMING_MANUAL_URL,
+        'The official Optibelt rubber-timing technical manual lists double-sided ZR profiles DXL/DL/DH.',
+        originalName,
+      );
+    }
+    if (
+      division === 'timing-htd-rpp-double' &&
+      inSet(profile, ['D5M', 'D8M', 'D14M', 'DS8M'])
+    ) {
+      return seriesEvidence(
+        manufacturer,
+        OPTIBELT_TIMING_MANUAL_URL,
+        'The official Optibelt rubber-timing technical manual lists double-sided OMEGA D5M/D8M/D14M and STD DS8M profiles.',
         originalName,
       );
     }
