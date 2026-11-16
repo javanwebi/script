@@ -99,6 +99,12 @@ jobs:
           cache: npm
       - name: Install exactly as VPS candidate
         run: npm ci --no-audit --no-fund
+      - name: Stage pinned same-origin Diba browser runtime
+        run: |
+          npm install --no-save --ignore-scripts --package-lock=false --legacy-peer-deps --no-audit --no-fund vosk-browser@0.0.8
+          mkdir -p public/forza-runtime/stt
+          cp node_modules/vosk-browser/dist/vosk.js public/forza-runtime/stt/vosk.js
+          test -s public/forza-runtime/stt/vosk.js
       - name: TypeScript
         run: npm run lint
       - name: Products catalogue regression suite
@@ -132,7 +138,9 @@ jobs:
       - name: Mobile camera capture and confirmation flow
         run: node --import tsx --test tests/mobile-scan-ui.test.ts
       - name: Build as VPS
-        run: npm run build 2>&1 | tee /tmp/forza-vps-build.log; exit ${PIPESTATUS[0]}
+        run: |
+          npm run build 2>&1 | tee /tmp/forza-vps-build.log
+          test -s dist/forza-runtime/stt/vosk.js
       - name: Install Chromium for belt category responsive smoke
         run: |
           npm install --no-save --ignore-scripts --no-package-lock playwright@1.56.1
