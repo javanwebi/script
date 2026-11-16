@@ -54,3 +54,22 @@ test('iron and stainless material leaves for rail guides are not interchangeable
   assert.equal(check('excel-v2-6-1', 'بر اساس جنس', 'ریل راهنمای خط انتقال', 'فولاد کربنی', 'ریل راهنما استیل و متعلقات').valid, false);
   assert.equal(check('excel-v2-6-1', 'بر اساس جنس', 'ریل راهنمای خط انتقال', 'فولاد کربنی', 'ریل راهنما آهنی و متعلقات').valid, true);
 });
+
+test('family paths must exist in the approved Excel menu and leaf', () => {
+  assert.equal(check('excel-v2-2-1', 'بر اساس جنس', 'نوار نقاله PVC', 'PVC', 'نوار نقاله PVC').valid, true);
+  assert.equal(check('excel-v2-2-1', 'بر اساس جنس', 'نوار نقاله PVC', 'PVC', 'نوار نقاله پلی‌اورتان (PU)').valid, true);
+  assert.equal(check('excel-v2-2-1', 'بر اساس جنس', 'نوار نقاله PVC', 'PVC', 'نوار نقاله مدولار').valid, false);
+  assert.equal(check('excel-v2-10-3', 'قطعات دستگاه استاکر', 'قطعات استاکر', 'فولاد', 'لوازم و قطعات مصرفی استاکر').valid, false);
+});
+
+test('mixed family identity is quarantined rather than accepted by a valid path', () => {
+  const result = validateFamilyMenuAssignment({
+    categorySlug: 'excel-v2-2-1',
+    submenuName: 'بر اساس جنس',
+    leafName: 'نوار نقاله PVC',
+    productType: 'MIXED',
+    material: 'PVC',
+    profile: 'PVC_STONE_SURFACE',
+  });
+  assert.deepEqual(result, { valid: false, reason: 'family_contains_mixed_technical_identity' });
+});
