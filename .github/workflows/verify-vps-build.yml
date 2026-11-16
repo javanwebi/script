@@ -62,6 +62,7 @@ on:
       - "tests/forzaSpeechAdmission.test.ts"
       - "tests/forzaBrowserRecognitionLifecycle.test.ts"
       - "ops/Dockerfile.forza-stt-runtime"
+      - "server.ts"
       - "ops/deploy-single-port-vps.sh"
       - "ops/verify-single-port-canary.mjs"
       - ".github/workflows/verify-vps-build.yml"
