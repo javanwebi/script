@@ -500,8 +500,24 @@ export function resolveEngineeringFamilyType(input: {
   if (pt.includes('روکش گریپ‌دار') && pt.includes('جوشی')) {
     return { familyTypeId: 'FT-WELDED-V-GRIP', familyTypeName: 'تسمه جوشی V روکش گریپ‌دار' };
   }
-  if (div === 'welded-pu-round-crc' || prof === 'ROUND' || prof === 'CRC' || pt.includes('تسمه گرد')) {
-    return { familyTypeId: 'FT-BELT-ROUND-CRC', familyTypeName: 'تسمه گرد پلی‌یورتان جوشی و گرده‌ماهی (CRC)' };
+  // CRC is ambiguous unless its engineering division is read: crowned ridge-top
+  // ceramic transport belts are not the same product as heat-welded PU round belts.
+  if (div === 'vbelt-crowned-crc' || /گرده.?ماهی|ridge.?top|crowned/i.test(`${pt} ${prof}`)) {
+    return {
+      familyTypeId: 'FT-BELT-CROWNED-CRC',
+      familyTypeName: 'تسمه گرده‌ماهی / تاج‌دار مداربسته (CRC / TRC)',
+    };
+  }
+  if (
+    div === 'welded-pu-round-crc' ||
+    ((prof === 'ROUND' || prof === 'CRC') &&
+      /جوشی|welded/i.test(pt) &&
+      /پلی.?یورتان|polyurethane|\\bTPU\\b/i.test(`${pt} ${mat}`))
+  ) {
+    return {
+      familyTypeId: 'FT-BELT-ROUND-CRC',
+      familyTypeName: 'تسمه گرد پلی‌یورتان جوشی (Round PU Welded Belt)',
+    };
   }
   if (div === 'welded-pu-v-flat' || (pt.includes('تسمه جوشی') && !pt.includes('گرد'))) {
     return { familyTypeId: 'FT-BELT-WELDED-V', familyTypeName: 'تسمه جوشی پلی‌یورتان پروفیل V و تخت' };
@@ -521,12 +537,21 @@ export function resolveEngineeringFamilyType(input: {
   if (div.includes('poly-v') || /^(?:PH|PJ|PK|PL|PM)$/i.test(prof) || pt.includes('شیاری')) {
     return { familyTypeId: 'FT-BELT-POLY-V-RIBBED', familyTypeName: 'تسمه شیاری و پلی‌وی (PH / PJ / PK / PL / PM)' };
   }
+  if (div === 'vbelt-banded' || /-BANDED$/i.test(prof) || pt.includes('به‌پشت‌پیوسته')) {
+    return {
+      familyTypeId: 'FT-VBELT-BANDED',
+      familyTypeName: 'تسمه V شکل پشت‌پیوسته / پاورباند (Banded V-Belt)',
+    };
+  }
   if (div.startsWith('v-belt') || pt.includes('تسمه V') || pt.includes('کلاسیک') || pt.includes('پروفیل باریک')) {
     if (/^(?:AA|BB|CC)$/i.test(prof) || sided === 'double-sided') {
-      return { familyTypeId: 'FT-VBELT-HEXAGONAL', familyTypeName: 'تسمه V شکل شش‌ضلعی دوطرفه (AA / BB / CC)' };
+      return { familyTypeId: 'FT-VBELT-HEXAGONAL', familyTypeName: 'تسمه V دوطرفه شش‌ضلعی (Double V / AA / BB / CC)' };
     }
-    if (/^(?:AX|BX|CX|XPZ|XPA|XPB|XPC|3VX|5VX)$/i.test(prof) || div.includes('cogged')) {
-      return { familyTypeId: 'FT-VBELT-COGGED', familyTypeName: 'تسمه V شکل دنده‌ای (AX / BX / CX / XPZ / XPA / XPB / XPC)' };
+    if (/^(?:ZX|MX|AX|BX|CX|XPZ|XPA|XPB|XPC|3VX|5VX|8VX)$/i.test(prof) || div.includes('cogged')) {
+      return {
+        familyTypeId: 'FT-VBELT-COGGED',
+        familyTypeName: 'تسمه V دنده‌ای لبه‌خام (ZX / AX / BX / CX / XPZ / XPA / XPB / XPC / 3VX / 5VX / 8VX)',
+      };
     }
     if (/^(?:SPZ|SPA|SPB|SPC|3V|5V|8V)$/i.test(prof) || div.includes('narrow')) {
       return { familyTypeId: 'FT-VBELT-NARROW', familyTypeName: 'تسمه V شکل پروفیل باریک (SPZ / SPA / SPB / SPC / 3V / 5V / 8V)' };
