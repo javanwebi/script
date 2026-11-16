@@ -794,7 +794,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
           profile: 'CONVEYOR-MATERIAL-UNKNOWN',
           pitchMm: null,
           toothAngleDeg: null,
-          toothHeightDeg: null,
+          toothHeightMm: null,
           beltThicknessMm: null,
           topWidthMm: null,
           nominalWidthMm: null,
@@ -3241,6 +3241,7 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
     NOMINAL_TABLE_VERIFIED: 0,
     SERIES_VERIFIED: 0,
     ALGORITHMIC_STANDARD_ONLY: 0,
+    INVENTORY_DESCRIPTION_ONLY: 0,
     REQUIRES_REVIEW: 0,
   };
   const verificationTierCounts: Record<VerificationSourceTier, number> = {
@@ -3407,7 +3408,7 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
 
 function checkInvariantString(
   values: Array<string | null | undefined>,
-  unknownRegex = /نامشخص|UNSPECIFIED|UNKNOWN|نیازمند قرائت/i
+  unknownRegex = /نامشخص|UNSPECIFIED|UNKNOWN|NOT_ESTABLISHED|UNVERIFIED|نیازمند قرائت/i
 ): AttributeCheckStatus {
   if (values.length === 0) return 'UNKNOWN';
   const cleaned = values.map((v) => String(v ?? '').trim());
@@ -3607,12 +3608,12 @@ export function validateFamilyEngineeringHomogeneity(
   } else if (isAmbiguous) {
     sidednessCheck = 'UNKNOWN';
   } else {
-    sidednessCheck = new Set(members.map((m) => m.technical.sidedness)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
+    sidednessCheck = checkInvariantString(members.map((m) => m.technical.sidedness), /unknown|unspecified/i);
   }
 
   // 14. Supply Form & Unit
   const supplyFormCheck: AttributeCheckStatus =
-    new Set(members.map((m) => m.technical.supplyForm)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
+    checkInvariantString(members.map((m) => m.technical.supplyForm), /unknown|unspecified/i);
   const unitCheck: AttributeCheckStatus = checkInvariantString(members.map((m) => m.unit));
 
   // 15. Standard Reference
