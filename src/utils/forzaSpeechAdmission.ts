@@ -30,13 +30,20 @@ export class ForzaSpeechAdmission {
     if(enteringPlayback||samplingGap){
       this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
       this.utteranceLatched=false;
+      if(enteringPlayback)this.levels=[];
     }
     this.mode=playback;this.lastSample=now;
-    this.levels=this.levels.filter(s=>now-s.at<=2400);
-    this.levels.push({at:now,value});
+    // Never learn the loudspeaker or its echo as the room's ambient floor.
+    // The existing floor remains available for strict near-field barge-in
+    // checks; fresh room samples resume only after playback has ended.
+    if(!playback){
+      this.levels=this.levels.filter(s=>now-s.at<=2400);
+      this.levels.push({at:now,value});
+    }
     // A low percentile tracks ambient energy without treating every peak as noise.
-    // Freeze the floor during an established utterance so long speech is not gated out.
-    if(this.onset===null&&!this.utteranceLatched){
+    // Freeze the floor during playback and an established utterance so long speech
+    // and the assistant's own voice cannot be relearned as ambient noise.
+    if(!playback&&this.onset===null&&!this.utteranceLatched){
       const sorted=this.levels.map(s=>s.value).sort((a,b)=>a-b);
       if(sorted.length>=6){
         const ambient=sorted[Math.floor((sorted.length-1)*0.2)];
