@@ -46,7 +46,7 @@ test('direct SKU image links are loaded and refreshed in the audit list',async()
   assert.match(audit,/catalog-direct-skus-updated/);
   assert.match(audit,/getImageAssignmentAudit\(products,records,directSkus\)/);
   assert.match(audit,/row\.directSkus/);
-  assert.match(audit,/تصویر بدون اتصال/);
+  assert.match(audit,/متصل به کد کالا نیست/);
   assert.match(assignments,/directBindings/);
   assert.match(module,/catalog-direct-skus-updated/);
   assert.match(navigation,/app\.post\('\/api\/catalog\/direct-skus'/);
