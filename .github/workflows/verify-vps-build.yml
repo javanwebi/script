@@ -45,6 +45,11 @@ on:
       - "supabase/migrations/20261116152640_split_pvc_conveyor_surface_families_20261116.sql"
       - "ops/sql/20261116_pvc_conveyor_surface_family_split.sql"
       - "ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql"
+      - "ops/deploy-single-port-vps.sh"
+      - "ops/verify-single-port-canary.mjs"
+      - "supabase/adopted/baseline/user_supplied_master.sql"
+      - "supabase/adopted/migrations/20261116010000_catalog_identity_specs_compat.sql"
+      - "tests/database/catalog-identity-specs-compat.test.ts"
       - "scripts/tests/belt-category-responsive-smoke.cjs"
       - ".github/workflows/verify-vps-build.yml"
   push:
@@ -95,6 +100,8 @@ jobs:
         run: node --import tsx --test tests/pvc-conveyor-phase1-classification.test.ts
       - name: PVC conveyor database split and rollback integration test
         run: node --import tsx --test tests/database/pvc-conveyor-surface-family-split.test.ts
+      - name: Adopted catalogue identity schema compatibility
+        run: node --import tsx --test tests/database/catalog-identity-specs-compat.test.ts
       - name: Supabase SMS hook signature safety
         run: node --import tsx --test tests/supabase-sms-hook.test.ts
       - name: FORZA mobile support panel and swipe gesture
