@@ -21,7 +21,7 @@ import { ForzaSpeechAdmission, ForzaRecognitionAdmission } from '../../utils/for
 import { ForzaRecordingSafety } from '../../utils/forzaSttTurnSafety';
 import { ForzaVoiceActivity, rootMeanSquareFromFloatTimeDomain } from '../../utils/forzaVoiceActivity';
 import './style.css';
-import { loadDibaSttModel, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
+import { FORZA_DIBA_SAMPLE_RATE, loadDibaSttModel, resampleDibaPcm, type LocalRecognizer, type LocalSttModel } from '../../utils/forzaLocalSpeech';
 import { consumeForzaTextStream } from '../../utils/forzaStreamClient';
 import { ForzaContinuousWav } from '../../utils/forzaContinuousWav';
 import { ForzaNimaBufferedSpeech } from '../../utils/forzaNimaBufferedSpeech';
@@ -291,8 +291,15 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         if(micMutedRef.current || !greetingFinishedRef.current ||
            (statusRef.current!=='listening' && !isProcessingTurnRef.current &&
             !isAiSpeakingRef.current && !isManualReplayPendingRef.current))return;
-        try{localSttRecognizerRef.current?.acceptWaveform(event.inputBuffer);}
-        catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
+        try{
+          const input=event.inputBuffer;
+          const mono=input.getChannelData(0);
+          const pcm16k=resampleDibaPcm(mono,input.sampleRate);
+          if(!pcm16k.length)return;
+          const modelBuffer=ctx.createBuffer(1,pcm16k.length,FORZA_DIBA_SAMPLE_RATE);
+          modelBuffer.getChannelData(0).set(pcm16k);
+          localSttRecognizerRef.current?.acceptWaveform(modelBuffer);
+        }catch(error){console.warn('[FORZA Diba] PCM rejected',error);}
       };
       source.connect(node);node.connect(sink);sink.connect(ctx.destination);
       localSttNodeRef.current=node;localSttSinkRef.current=sink;
@@ -305,7 +312,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
     if(!model||!localSttNodeRef.current||!ctxRef.current)return false;
     try{
       localSttRecognizerRef.current?.remove?.();
-      const recognizer=new model.KaldiRecognizer(ctxRef.current.sampleRate);
+      const recognizer=new model.KaldiRecognizer(FORZA_DIBA_SAMPLE_RATE);
       localSttFinalRef.current='';
       const admission=new ForzaRecognitionAdmission();
       const update=(value:string,isFinal:boolean)=>{
