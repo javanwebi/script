@@ -15,9 +15,10 @@ export class ForzaSpeechAdmission {
   private strongFrames=0;
   private mode=false;
   private calibrated=false;
-  // Once a near-field utterance is admitted, do not relearn its loudness as
-  // ambient noise during the small gaps between Persian words.
+  // Once a near-field utterance is admitted, preserve its evidence across
+  // short word gaps, but never let a stale speaker authorize a later turn.
   private utteranceLatched=false;
+  private utteranceStartedAt:number|null=null;
 
   sample(rms:number,now:number,playback:boolean){
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
@@ -29,8 +30,13 @@ export class ForzaSpeechAdmission {
     // utterance; otherwise a sentence that overlaps the answer gets reset.
     if(enteringPlayback||samplingGap){
       this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
-      this.utteranceLatched=false;
+      this.utteranceLatched=false;this.utteranceStartedAt=null;
       if(enteringPlayback)this.levels=[];
+    }
+    // Keep the admitted utterance through ordinary inter-word gaps only.
+    // A longer quiet interval starts a fresh evidence window.
+    if(now-this.lastStrong>300){
+      this.utteranceLatched=false;this.utteranceStartedAt=null;
     }
     this.mode=playback;this.lastSample=now;
     // Never learn the loudspeaker or its echo as the room's ambient floor.
@@ -58,12 +64,13 @@ export class ForzaSpeechAdmission {
       // A late main-thread tick is not an observed silent frame. The separate
       // 250ms discontinuity guard above rejects genuinely stale sampling.
       if(this.onset===null){this.onset=now;this.strongFrames=0;}
+      if(this.utteranceStartedAt===null)this.utteranceStartedAt=now;
       this.strongFrames++;
       this.duration=now-this.onset;
       this.lastStrong=now;
       if(this.duration>=160&&this.strongFrames>=3)this.utteranceLatched=true;
     }else if(now-this.lastStrong>100){
-      this.onset=null;
+      this.onset=null;this.duration=0;this.strongFrames=0;
     }
   }
 
@@ -79,7 +86,10 @@ export class ForzaSpeechAdmission {
     // hypothesis arrives late; no stale new text is admitted.
     const fresh=now-this.lastStrong<=(final?900:300);
     if(!fresh)return 'reject';
-    if(this.duration<needed||this.strongFrames<3)return this.onset!==null?'wait':'reject';
+    const continuing=this.utteranceLatched&&this.utteranceStartedAt!==null&&
+      now-this.utteranceStartedAt>=needed;
+    if(!continuing&&(this.duration<needed||this.strongFrames<3))
+      return this.onset!==null?'wait':'reject';
     if(playback&&intent==='question'&&text.trim().split(/\s+/).length<2)return 'wait';
     return 'accept';
   }
@@ -87,14 +97,18 @@ export class ForzaSpeechAdmission {
   diagnostics(now:number){
     return {sampleAgeMs:now-this.lastSample,speechAgeMs:now-this.lastStrong,
       durationMs:this.duration,frames:this.strongFrames,floor:this.floor,
-      calibrated:this.calibrated,playback:this.mode};
+      calibrated:this.calibrated,playback:this.mode,utteranceLatched:this.utteranceLatched};
+  }
+
+  hasRecentNearFieldEvidence(now:number){
+    return this.calibrated&&now>=this.lastStrong&&now-this.lastStrong<=250;
   }
 
   get acousticSpeech(){return this.onset!==null&&this.duration>=160&&this.strongFrames>=3;}
   reset(){
     this.levels=[];this.floor=0.001;this.lastSample=-Infinity;this.onset=null;
     this.lastStrong=-Infinity;this.duration=0;this.strongFrames=0;this.mode=false;this.calibrated=false;
-    this.utteranceLatched=false;
+    this.utteranceLatched=false;this.utteranceStartedAt=null;
   }
 }
 
