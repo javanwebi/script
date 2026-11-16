@@ -3,8 +3,11 @@
 -- Some isolated PGlite tests intentionally omit the production catalogue tables; safely skip there.
 DO $$
 BEGIN
-  IF to_regclass('public.catalog_categories') IS NULL THEN
-    RAISE NOTICE 'Skipping canonical category routes: public.catalog_categories is not installed in this database';
+  IF to_regclass('public.catalog_categories') IS NULL
+     OR to_regclass('public.catalog_families') IS NULL
+     OR to_regclass('public.catalog_direct_skus') IS NULL
+     OR to_regclass('public.catalog_family_menu_assignments') IS NULL THEN
+    RAISE NOTICE 'Skipping canonical category routes: the complete production catalogue schema is not installed in this database';
     RETURN;
   END IF;
 
@@ -132,9 +135,9 @@ BEGIN
     RAISE EXCEPTION 'Approved category SEO routes must be unique';
   END IF;
 
-  CREATE UNIQUE INDEX IF NOT EXISTS catalog_categories_active_seo_route_slug_unique
-    ON public.catalog_categories ((metadata->>'routeSlug'))
-    WHERE is_active = true AND slug LIKE 'excel-v2-%';
+  EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS catalog_categories_active_seo_route_slug_unique
+    ON public.catalog_categories ((metadata->>''routeSlug''))
+    WHERE is_active = true AND slug LIKE ''excel-v2-%''';
 
   IF EXISTS (
     SELECT 1 FROM public.catalog_categories
