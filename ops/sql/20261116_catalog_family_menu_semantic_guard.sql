@@ -63,14 +63,14 @@ classified as (
       when category_slug='excel-v2-6-2' and submenu_name='نرده استیل'
         and (
           (product_type||' '||name||' '||profile) !~* 'گاید|راهنما|ریل|نرده|guide|rail'
-          or material !~* 'استیل|stainless|ss\\s*304|ss\\s*316'
+          or material !~* 'استیل|stainless|ss[[:space:]]*304|ss[[:space:]]*316'
         ) then 'stainless_guide_type_or_material_mismatch'
 
       when category_slug='excel-v2-6-1'
         and (product_type||' '||name||' '||profile) !~* 'ریل|گاید|راهنما|rail|guide'
         then 'rail_product_type_mismatch'
       when category_slug='excel-v2-6-1' and submenu_name='بر اساس جنس'
-        and leaf_name ilike '%استیل%' and material !~* 'استیل|stainless|ss\\s*304|ss\\s*316'
+        and leaf_name ilike '%استیل%' and material !~* 'استیل|stainless|ss[[:space:]]*304|ss[[:space:]]*316'
         then 'stainless_rail_material_mismatch'
       when category_slug='excel-v2-6-1' and submenu_name='بر اساس جنس'
         and leaf_name ilike '%تفلون%' and material !~* 'تفلون|ptfe|uhmwpe'
@@ -85,7 +85,7 @@ classified as (
       when category_slug='excel-v2-7-1'
         and (
           (
-            material ~* 'پلی.?وینیل.?کلراید|\\bpvc\\b|تفلون|\\bptfe\\b|uhmwpe|پلی.?آمید|polyamide|فولاد|آهن|steel|آلومینیوم|aluminum'
+            material ~* 'پلی.?وینیل.?کلراید|pvc|تفلون|ptfe|uhmwpe|پلی.?آمید|polyamide|فولاد|آهن|steel|آلومینیوم|aluminum'
             and (product_type||' '||name||' '||profile) !~* 'لاستیک|الاستومر|ضربه.?گیر|مکنده|دیافراگم|گریپ|اورینگ|پکینگ|کاسه.?نمد|rubber|elastomer|bumper|suction|seal'
           )
           or (
