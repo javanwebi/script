@@ -20,6 +20,7 @@ const footer = source('src/components/layout/Footer.tsx');
 const brandBanner = source('src/components/home/MainBrandsBanner.tsx');
 const clubPage = source('src/pages/ClubPage.tsx');
 const migration = source('supabase/migrations/20261116163011_canonical_category_routes.sql');
+const routeMap = source('src/data/categorySeoRoutes.ts');
 const serverSeo = source('server/categorySeoRoutes.ts');
 const serverEntry = source('server.ts');
 
@@ -64,10 +65,10 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
   assert.match(serverSeo, /res\.redirect\(301/);
   assert.match(serverEntry, /registerCategorySeoRoutes\(app\)/);
-  assert.match(categoryPage, /'تسمه-و-انتقال-نیرو': 'excel-v2-1'/);
-  assert.match(categoryPage, /'پولی-و-انتقال-نیرو': 'excel-v2-4'/);
-  assert.match(categoryPage, /'تجهیزات-وکیوم': null/);
-  assert.match(categoryPage, /'production-fittings': null/);
+  assert.match(routeMap, /'تسمه-و-انتقال-نیرو': 'excel-v2-1'/);
+  assert.match(routeMap, /'پولی-و-انتقال-نیرو': 'excel-v2-4'/);
+  assert.match(routeMap, /'تجهیزات-وکیوم': null/);
+  assert.match(routeMap, /'production-fittings': null/);
   assert.match(categoryPage, /<Navigate to=\{destination\} replace \/>/);
 });
 
