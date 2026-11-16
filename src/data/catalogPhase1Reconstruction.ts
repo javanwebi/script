@@ -386,6 +386,10 @@ export interface Phase1ReconstructionReport {
     noDuplicateFamilyMembership: boolean;
     allCategoriesValid: boolean;
     allSubcategoriesValid: boolean;
+    noInvalidMenuAssignments: boolean;
+    allSkusHaveApprovedMenuPath: boolean;
+    taxonomyGapSkuCount: number;
+    taxonomyGapFamilyCount: number;
     allFamiliesHomogeneous: boolean;
     noBrandMixingInFamilies: boolean;
     noMaterialMixingInFamilies: boolean;
@@ -643,8 +647,8 @@ for (const cat of APPROVED_MENU_CATEGORIES) {
 }
 
 /**
- * Guarantees that every (categorySlug, submenu, leaf) resolves to one of the 67 approved leaf paths
- * in APPROVED_MENU_CATEGORIES without inventing unauthorized categories or leaves.
+ * Returns an exact approved (categorySlug, submenu, leaf) triplet or an explicit
+ * UNRESOLVED sentinel. It never substitutes a nearby/first leaf for an invalid path.
  */
 export function resolveStrictApprovedMenuPath(
   rawCategorySlug: string,
@@ -1185,7 +1189,9 @@ function buildBeltPhase1SkuRecord(
       confidenceScore: 35,
       verificationStatus: 'REQUIRES_PHYSICAL_VERIFICATION',
       requiredAction: 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED',
-      taxonomyGap: null,
+      taxonomyGap: beltRec.taxonomyGap || (canonical.categorySlug === 'UNRESOLVED'
+        ? 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این نوار در منوی مصوب وجود ندارد.'
+        : null),
       similarProductCodes: [],
       sourceFamilyName: rawFam.name,
       sourceTechnicalType: rawFam.technicalType,
@@ -1277,7 +1283,9 @@ function buildBeltPhase1SkuRecord(
     evidence === 'OFFICIAL_CATALOG' ||
     evidence === 'OFFICIAL_PRODUCT_PAGE'
       ? 'VERIFIED_MANUFACTURER'
-      : 'VERIFIED_STANDARD_OR_SOURCE';
+      : evidence === 'INVENTORY_DESCRIPTION'
+        ? 'VERIFIED_INVENTORY_RECORD'
+        : 'VERIFIED_STANDARD_OR_SOURCE';
 
   const variantParts: string[] = [];
   if (beltRec.technical.pitchLengthMm) variantParts.push(`Lp=${beltRec.technical.pitchLengthMm}mm`);
@@ -1389,8 +1397,12 @@ function buildBeltPhase1SkuRecord(
         : 'MEDIUM',
     confidenceScore: computeConfidenceScore(evidence, 'APPROVED_FAMILY'),
     verificationStatus,
-    requiredAction: 'READY_FOR_MIGRATION',
-    taxonomyGap: null,
+    requiredAction: evidence === 'INVENTORY_DESCRIPTION'
+      ? 'WAREHOUSE_PHYSICAL_INSPECTION_REQUIRED'
+      : 'READY_FOR_MIGRATION',
+    taxonomyGap: proposedCategorySlug === 'UNRESOLVED'
+      ? (beltRec.taxonomyGap || 'GAP-APPROVED-MENU-PATH-MISSING: مسیر دقیق این خانواده در منوی مصوب وجود ندارد.')
+      : beltRec.taxonomyGap,
     similarProductCodes: [],
     sourceFamilyName: rawFam.name,
     sourceTechnicalType: rawFam.technicalType,
@@ -3785,11 +3797,16 @@ export function runPhase1CatalogReconstruction(
     }
   }
 
-  const allCategoriesValid = allSkus.every((s) => CANONICAL_BY_CATEGORY.has(s.proposedCategorySlug));
-  const allSubcategoriesValid = allSkus.every((s) => {
+  const menuAssignedSkus = allSkus.filter((s) => s.proposedCategorySlug !== 'UNRESOLVED');
+  const taxonomyGapSkus = allSkus.filter((s) => s.proposedCategorySlug === 'UNRESOLVED' || Boolean(s.taxonomyGap));
+  const allCategoriesValid = menuAssignedSkus.every((s) => CANONICAL_BY_CATEGORY.has(s.proposedCategorySlug));
+  const allSubcategoriesValid = menuAssignedSkus.every((s) => {
     const entries = CANONICAL_BY_CATEGORY.get(s.proposedCategorySlug) || [];
     return entries.some((e) => e.submenu === s.proposedSubmenu && e.leaf === s.proposedLeaf);
   });
+  const taxonomyGapFamilyCount = new Set(
+    taxonomyGapSkus.map((s) => s.proposedFamily || `SOURCE:${s.currentFamily}`)
+  ).size;
 
   const beforeSingletonFamilies = rawFamilies.filter((f) => f.variants.length === 1).length;
   const beforeMultiSkuFamilies = rawFamilies.filter((f) => f.variants.length > 1).length;
@@ -3853,6 +3870,10 @@ export function runPhase1CatalogReconstruction(
       noDuplicateFamilyMembership,
       allCategoriesValid,
       allSubcategoriesValid,
+      noInvalidMenuAssignments: allCategoriesValid && allSubcategoriesValid,
+      allSkusHaveApprovedMenuPath: allSkus.every((s) => s.proposedCategorySlug !== 'UNRESOLVED'),
+      taxonomyGapSkuCount: taxonomyGapSkus.length,
+      taxonomyGapFamilyCount,
       allFamiliesHomogeneous: reconstructedFamilies.every((f) => f.validationVerdict === 'PASS_HOMOGENEOUS'),
       noBrandMixingInFamilies,
       noMaterialMixingInFamilies,
