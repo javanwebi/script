@@ -2048,6 +2048,7 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
       if(dibaHasHeadroom&&!dibaSaveData&&!localSttModelRef.current&&!localSttModelLoadingRef.current){
         localSttModelLoadingRef.current=true;
         setLocalSttStatus('loading');
+        setServerSttLabel('در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است');
         void loadDibaSttModel().then(model=>{
           if(callClosedRef.current)return;
           localSttModelRef.current=model;
@@ -2063,6 +2064,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           }
         }).catch(error=>{
           setLocalSttStatus('fallback');
+          setServerSttLabel(serverSttConfiguredRef.current
+            ? 'دایبا سرور آماده است · متن زنده مرورگر'
+            : 'متن زنده مرورگر فعال است');
           console.warn('[FORZA_STT] provider=diba-browser unavailable=1 code='+
             String((error as any)?.message||'model_error').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40));
         }).finally(()=>{localSttModelLoadingRef.current=false;});
@@ -2115,11 +2119,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         serverSttConfiguredRef.current=dibaReady;
         setServerSttLabel(localSttModelRef.current
           ? 'دایبا محلی آماده است · تشخیص زنده'
-          : dibaReady
-            ? 'دایبا سرور آماده است'
-            : info.serverSttProvider==='diba'
-              ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
-              : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
+          : localSttModelLoadingRef.current
+            ? 'در حال آماده‌سازی دایبا محلی · متن مرورگر فعال است'
+            : dibaReady
+              ? 'دایبا سرور آماده است'
+              : info.serverSttProvider==='diba'
+                ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
+                : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
       })
       .catch(()=>{
         if(!controller.signal.aborted){serverSttConfiguredRef.current=false;setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');}
