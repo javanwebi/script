@@ -192,7 +192,8 @@ test('belt audit does not force automotive RU or unsupported T10 into neighbouri
   assert.equal(auto.proposedCategorySlug, 'UNRESOLVED');
 
   const t10 = classifyBelt('تسمه تایمینگ T10', 'TPU پلی‌یورتان');
-  assert.equal(t10.proposedCategorySlug, 'UNRESOLVED');
+  assert.equal(t10.proposedSubmenu, 'انواع گام و کدهای تایمینگ');
+  assert.equal(t10.proposedLeaf, 'T10 (فاقد برگ مصوب)');
 
   const rubber3m = classifyBelt('تسمه تایمینگ 3M', 'لاستیک کلروپرن');
   assert.equal(rubber3m.proposedSubmenu, 'لاستیکی فابریک');
