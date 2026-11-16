@@ -79,6 +79,12 @@ function wav(){
   assert.equal(externalModelDownloads,0,'existing STT must not download Diba automatically');
   assert.equal((await page.locator('body').innerText()).includes('در حال تبدیل صدای شما به متن و ارسال به سرور'),false);
 
+  // Chrome may pause interim callbacks during a long sentence. Acoustic
+  // microphone evidence must keep the turn open even when text is unchanged.
+  await page.evaluate(()=>{window.__forzaMicSample=0.003;});
+  await page.waitForTimeout(4200);
+  assert.equal(consultRequests,0,'continuous speech energy must block a text-only early dispatch');
+
   // A 2-second pause is not a turn boundary. The next browser recognition
   // session must append to the same visible customer sentence.
   await page.evaluate(()=>{window.__forzaMicSample=0.0005;});
