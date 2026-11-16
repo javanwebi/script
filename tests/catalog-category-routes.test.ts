@@ -70,13 +70,13 @@ test('every approved category uses its own canonical route slug across storefron
   assert.match(allCategoriesPage, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(categories, /getInternalCategorySlugFromRouteSlug/);
   assert.match(api, /routeSlug:typeof metadata\.routeSlug==='string'\?metadata\.routeSlug:row\.slug/);
-  assert.match(allCategories, /getCategoryRouteSlug\(category\)/);
-  assert.match(megaMenu, /getCategoryRouteSlug\(category\)/);
+  assert.match(allCategories, /getCategoryRoutePath\(category\.slug\)/);
+  assert.match(megaMenu, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(mobileExplorer, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(searchPage, /getCategoryRoutePath\(cat\.slug\)/);
   assert.match(header, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(megaMenu, /getCategoryRoutePath\(category\.slug\)/);
-  assert.match(searchPage, /getCategoryRouteSlug\(cat\)/);
+  assert.match(searchPage, /getCategoryRoutePath\(cat\.slug\)/);
   assert.match(footer, /getCategoryRoutePath\(category\.slug\)/);
   assert.match(productDetail, /getCategoryRoutePath\(product\.categorySlug\)/);
   assert.match(directSkuDetail, /getCategoryRoutePath\(item\.categorySlug\)/);
