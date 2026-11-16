@@ -20,6 +20,7 @@ on:
       - 'tests/forza-smart-turn.test.ts'
       - 'tests/forzaSpeechAdmission.test.ts'
       - 'tests/forzaBrowserRecognitionLifecycle.test.ts'
+      - 'tests/forzaCallTeardown.test.ts'
       - 'scripts/tests/forza-local-diba-browser.cjs'
       - 'ops/Dockerfile.forza-stt-runtime'
       - 'scripts/download-forza-amir.mjs'
@@ -65,7 +66,7 @@ jobs:
       - name: Validate Persian voice text normalization and WAV leveling
         run: node --import tsx --test tests/forzaPersianVoiceQuality.test.ts
       - name: Validate live STT admission, endpointing, and recognizer recovery
-        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts
+        run: node --import tsx --test tests/forzaLocalDibaStreaming.test.ts tests/forzaRecognitionRecovery.test.ts tests/forza-smart-turn.test.ts tests/forzaSpeechAdmission.test.ts tests/forzaBrowserRecognitionLifecycle.test.ts tests/forzaCallTeardown.test.ts
       - name: Verify self-hosted Amir weights and generate original Piper greeting
         run: |
           node scripts/download-forza-amir.mjs
