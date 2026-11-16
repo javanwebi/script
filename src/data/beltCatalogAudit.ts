@@ -128,6 +128,8 @@ export interface BeltTechnicalParameters {
     | 'welded-pu-v-flat'
     | 'perforated-open-v'
     | 'conveyor-pvc-pu'
+    | 'conveyor-modular'
+    | 'conveyor-unknown'
     | 'conveyor-grip'
     | 'belt-welding-tool'
     | 'non-belt-pulley'
@@ -144,8 +146,10 @@ export interface BeltTechnicalParameters {
     | 'heat-weldable-meter'
     | 'perforated-meter'
     | 'roll-strip'
+    | 'single-unit'
+    | 'unknown'
     | 'hardware-unit';
-  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable';
+  sidedness: 'single-sided' | 'double-sided' | 'symmetric-round-hex' | 'not-applicable' | 'unknown';
   profile: string;
   pitchMm: number | null;
   toothAngleDeg: number | null;
@@ -305,6 +309,51 @@ const normalize = (value = '') =>
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[\u200b-\u200f\ufeff\s]+/g, ' ')
     .trim();
+
+function supplyFormFromSourceUnit(
+  sourceUnit: string,
+  sourceName: string,
+  hasMixedUnit: boolean
+): BeltTechnicalParameters['supplyForm'] {
+  if (hasMixedUnit) return 'unknown';
+  const unit = normalize(sourceUnit).replace(/\s+/g, '');
+  const name = normalize(sourceName);
+  if (!unit || /نامشخص|UNKNOWN/i.test(unit)) return 'unknown';
+  if (/آستین|اسلیو/.test(name) && /سانت|cm/i.test(unit)) return 'uncut-sleeve';
+  if (/حلقه/.test(unit)) return 'endless-loop';
+  if (/رول/.test(unit)) return 'roll-strip';
+  if (/^متر$/.test(unit)) return 'open-ended-meter';
+  if (/^عدد$/.test(unit)) return 'single-unit';
+  return 'unknown';
+}
+
+function supplyFormCode(form: BeltTechnicalParameters['supplyForm']): string {
+  switch (form) {
+    case 'endless-loop': return 'LOOP';
+    case 'uncut-sleeve': return 'SLEEVE';
+    case 'open-ended-meter': return 'METER';
+    case 'heat-weldable-meter': return 'WELDABLE-METER';
+    case 'perforated-meter': return 'PERFORATED-METER';
+    case 'roll-strip': return 'ROLL';
+    case 'single-unit': return 'UNIT';
+    case 'hardware-unit': return 'HARDWARE';
+    default: return 'UNIT-UNKNOWN';
+  }
+}
+
+function supplyFormLabelFa(form: BeltTechnicalParameters['supplyForm']): string {
+  switch (form) {
+    case 'endless-loop': return 'حلقه‌ای';
+    case 'uncut-sleeve': return 'آستینی';
+    case 'open-ended-meter': return 'متری';
+    case 'heat-weldable-meter': return 'متریِ جوش‌پذیر';
+    case 'perforated-meter': return 'متریِ سوراخ‌دار';
+    case 'roll-strip': return 'رولی';
+    case 'single-unit': return 'واحدی';
+    case 'hardware-unit': return 'تکی';
+    default: return 'با واحد نامشخص';
+  }
+}
 
 const IMPERIAL_TIMING_SPECS: Record<
   string,
@@ -541,10 +590,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   const rawName = variant.name || product.name;
   const normName = normalize(rawName);
   const upperName = normName.toUpperCase();
-  const rawUnit = normalize(variant.unit || product.unit || 'عدد');
-  const originalUnit = rawUnit || 'عدد';
+  const rawUnit = normalize(variant.unit || product.unit || '');
+  const originalUnit = rawUnit || 'نامشخص';
   const isMixedFamilyUnit = rawUnit.includes(',') || rawUnit.includes('،');
-  const unit = isMixedFamilyUnit ? 'حلقه' : rawUnit;
+  const unit = isMixedFamilyUnit ? `نامشخص (مقادیر متعارض: ${originalUnit})` : originalUnit;
   const brand = detectNormalizedBrand(rawName, product.brand);
 
   // 1. Check for non-belt items inside belt or conveyor categories
@@ -709,6 +758,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   ) {
     const isModular = /مدولار/.test(normName);
     const isPu = /پلی\s*یورتان|\bPU\b/i.test(normName);
+    const isPvc = /\bPVC\b|پی\s*وی\s*سی/i.test(normName);
+
     const dims3 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
     const dims2 = normName.match(/(\d+(?:[./]\d+)?)\s*\*\s*(\d+(?:[./]\d+)?)/);
     let thickness: number | null = null;
@@ -737,48 +788,158 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         convLen = n2;
       }
     }
-    const convSupplyForm: BeltTechnicalParameters['supplyForm'] = /مدار\s*بسته/.test(normName) ? 'endless-loop' : 'open-ended-meter';
-    const convUnit = convSupplyForm === 'endless-loop' ? 'حلقه' : 'متر مربع';
-    const baseFam = isModular ? 'FAM-CONVEYOR-MODULAR' : isPu ? 'FAM-CONVEYOR-PU' : 'FAM-CONVEYOR-PVC';
+
+    const convSupplyForm = supplyFormFromSourceUnit(originalUnit, normName, isMixedFamilyUnit);
+    const unitCode = supplyFormCode(convSupplyForm);
+    const unitLabel = supplyFormLabelFa(convSupplyForm);
+
+    const pvcDescriptor = (() => {
+      const hasPerforation = /سوراخ\s*دار/.test(normName);
+      const hasKaleghandi = /کله\s*قندی/.test(normName);
+      if (hasPerforation && hasKaleghandi) {
+        return {
+          code: 'KALEGHANDI-PERFORATED',
+          label: 'کله‌قندیِ سوراخ‌دار (برچسب منبع؛ نیازمند تأیید)',
+          profile: 'UNSPECIFIED',
+          backing: 'نامشخص در منبع',
+        };
+      }
+      if (hasPerforation) {
+        return {
+          code: 'PERFORATED',
+          label: 'سوراخ‌دار (برچسب منبع؛ الگوی سوراخ نامشخص)',
+          profile: 'UNSPECIFIED',
+          backing: 'نامشخص در منبع',
+        };
+      }
+      if (/پامرغی/.test(normName)) {
+        return {
+          code: 'CHICKEN-FOOT',
+          label: 'پامرغی (برچسب سطح در نام کالا)',
+          profile: 'PVC-CHICKEN-FOOT',
+          backing: 'پامرغی (اصطلاح منبع؛ دیتاشیت همین SKU تأیید نشده)',
+        };
+      }
+      if (hasKaleghandi) {
+        return {
+          code: 'KALEGHANDI-LABEL',
+          label: 'کله‌قندی (اصطلاح منبع؛ ترجمه فنی تأیید نشده)',
+          profile: 'UNSPECIFIED',
+          backing: 'نامشخص در منبع',
+        };
+      }
+      if (/شفاف/.test(normName)) {
+        return {
+          code: 'TRANSPARENT',
+          label: 'شفاف (ویژگی ظاهری؛ ساختار نامشخص)',
+          profile: 'UNSPECIFIED',
+          backing: 'نامشخص در منبع',
+        };
+      }
+      if (/سنگی/.test(normName)) {
+        return {
+          code: 'STONE-LABEL-UNVERIFIED',
+          label: 'سنگی (برچسب منبع؛ کاربرد یا الگوی سطح تأیید نشده)',
+          profile: 'UNSPECIFIED',
+          backing: 'نامشخص در منبع',
+        };
+      }
+      return {
+        code: 'SURFACE-UNSPECIFIED',
+        label: 'با سطح نامشخص',
+        profile: 'UNSPECIFIED',
+        backing: 'نامشخص در منبع',
+      };
+    })();
+
+    const unknownConveyorDescriptor = /ضد\s*سایش/.test(normName)
+      ? 'ANTIWEAR-LABEL'
+      : /زرد/.test(normName)
+        ? 'YELLOW-LABEL'
+        : /ماشین/.test(normName)
+          ? 'MACHINE-APPLICATION'
+          : /شیرینگ/.test(normName)
+            ? 'SHRINK-APPLICATION'
+            : 'UNSPECIFIED';
+
+    const isApprovedMaterialLeaf = isPvc || isPu;
+    const baseFamilyId = isPvc
+      ? `FAM-CONVEYOR-PVC-${pvcDescriptor.code}-${unitCode}`
+      : isPu
+        ? `FAM-CONVEYOR-PU-${unitCode}`
+        : isModular
+          ? `FAM-CONVEYOR-MODULAR-${unitCode}`
+          : `FAM-CONVEYOR-UNKNOWN-${unknownConveyorDescriptor}-${unitCode}`;
+    const proposedFamilyId =
+      brand !== 'UNSPECIFIED' ? `${baseFamilyId}-${brand}`.replace(/[^A-Z0-9-]/g, '') : baseFamilyId;
+
+    const proposedCategorySlug = isApprovedMaterialLeaf ? 'excel-v2-2-1' : 'UNRESOLVED';
+    const proposedCategoryName = isApprovedMaterialLeaf ? 'نوار نقاله صنعتی' : 'نیازمند تعیین مسیر مصوب';
+    const proposedSubmenu = isApprovedMaterialLeaf ? 'بر اساس جنس' : '';
+    const proposedLeaf = isPvc ? 'نوار نقاله PVC' : isPu ? 'نوار نقاله پلی‌اورتان (PU)' : '';
+    const taxonomyGap = isApprovedMaterialLeaf
+      ? null
+      : isModular
+        ? 'GAP-CONVEYOR-MODULAR-NO-APPROVED-LEAF: در منوی مصوب فعلی برگ مستقل برای نوار مدولار ثبت نشده است.'
+        : 'GAP-CONVEYOR-MATERIAL-NOT-EXPLICIT: جنس این نوار در نام/داده منبع اثبات نشده؛ انتساب خودکار به PVC ممنوع است.';
+
+    const familyNameFa = isPvc
+      ? `نوار نقاله PVC ${pvcDescriptor.label} — ${unitLabel}`
+      : isPu
+        ? `نوار نقاله پلی‌یورتان (PU) — ${unitLabel}`
+        : isModular
+          ? `نوار نقاله مدولار (جنس و ساختار نیازمند تأیید) — ${unitLabel}`
+          : `نوار نقاله با جنس نامشخص — ${unitLabel}`;
+    const familyNameEn = isPvc
+      ? `PVC Conveyor Belt — ${pvcDescriptor.code} — ${unitCode}`
+      : isPu
+        ? `PU Conveyor Belt — ${unitCode}`
+        : isModular
+          ? `Modular Conveyor Belt — ${unitCode}`
+          : `Unidentified Conveyor Strip — ${unitCode}`;
+    const actualProductType = isPvc
+      ? `نوار نقاله PVC (برچسب منبع: ${pvcDescriptor.label})`
+      : isPu
+        ? 'نوار نقاله پلی‌یورتان (PU Conveyor Belt)'
+        : isModular
+          ? 'نوار نقاله مدولار (Modular Conveyor Belt)'
+          : 'نوار نقاله با جنس نامشخص در منبع';
+
+    const reasoning = isPvc
+      ? 'PVC در نام کالا صریح است. برچسب «سنگی» بدون مدرک به سطح زبر/سنگی ترجمه نشده؛ «پامرغی» فقط به‌عنوان برچسب سطح منبع ثبت شده؛ «کله‌قندی» به‌عنوان اصطلاح تأییدنشده حفظ شده؛ «سوراخ‌دار» از حالت معمول جدا نگه داشته شده است. واحد فروش عیناً از منبع حفظ شده. ساختار لایه‌ها، منجید، پوشش، یک‌رو/دو‌رو و استاندارد محصول در فایل منبع اثبات نشده‌اند؛ این گروه‌ها کاندید مهندسی‌اند و تأیید نهایی نمی‌گیرند.'
+      : isPu
+        ? 'PU در نام کالا صریح است؛ گرید دقیق پلی‌یورتان، منجید، پوشش، یک‌رو/دو‌رو و استاندارد سازنده در منبع اثبات نشده‌اند. واحد فروش عیناً از منبع حفظ شده و گروه صرفاً کاندید مهندسی است.'
+        : isModular
+          ? 'مدولار در نام کالا صریح است، اما جنس پلیمر و برگ مستقل آن در منوی مصوب فعلی اثبات نشده؛ بدون ساختن جنس یا مسیر، در صف بررسی باقی می‌ماند.'
+          : 'جنس نوار در داده منبع صریح نیست. الگوریتم حق ندارد کالای فاقد جنس مشخص را به PVC تبدیل کند؛ تا دریافت دیتاشیت/تصویر/مشخصات معتبر، در UNRESOLVED باقی می‌ماند.';
+
     return {
       sku: variant.code,
       originalName: rawName,
       originalSize: variant.size || '',
       originalUnit,
-      unit: convUnit,
+      unit,
       currentFamilyId: product.code,
       currentFamilyName: product.name,
       currentCategory: product.categoryName,
       currentSubmenu: product.submenu || '',
       currentSubcategory: product.subcategory,
       detectedBrand: brand,
-      proposedCategorySlug: 'excel-v2-2-1',
-      proposedCategoryName: 'نوار نقاله صنعتی',
-      proposedSubmenu: 'بر اساس جنس',
-      proposedLeaf: isModular ? 'نوار مدولار' : isPu ? 'نوار نقاله پلی‌اورتان (PU)' : 'نوار نقاله PVC',
-      taxonomyGap: null,
-      proposedFamilyId: brand !== 'UNSPECIFIED' ? `${baseFam}-${brand}`.replace(/[^A-Z0-9-]/g, '') : baseFam,
-      proposedFamilyNameFa: isModular
-        ? 'نوار نقاله مدولار پلاستیکی (شیرینگ / سبدی)'
-        : isPu
-          ? 'نوار نقاله پلی‌یورتان (PU)'
-          : 'نوار نقاله صنعتی PVC',
-      proposedFamilyNameEn: isModular
-        ? 'Modular Plastic Conveyor Belt'
-        : isPu
-          ? 'PU Industrial Conveyor Belt'
-          : 'PVC Industrial Conveyor Belt',
-      actualProductType: isModular
-        ? 'نوار نقاله مدولار (Modular Belt)'
-        : isPu
-          ? 'نوار نقاله پلی‌یورتان (PU Conveyor Belt)'
-          : 'نوار نقاله پی‌وی‌سی (PVC Conveyor Belt)',
+      proposedCategorySlug,
+      proposedCategoryName,
+      proposedSubmenu,
+      proposedLeaf,
+      taxonomyGap,
+      proposedFamilyId,
+      proposedFamilyNameFa: familyNameFa,
+      proposedFamilyNameEn: familyNameEn,
+      actualProductType,
       technical: {
         operatingPrinciple: 'conveying',
-        beltDivision: 'conveyor-pvc-pu',
+        beltDivision: isModular ? 'conveyor-modular' : isApprovedMaterialLeaf ? 'conveyor-pvc-pu' : 'conveyor-unknown',
         supplyForm: convSupplyForm,
-        sidedness: 'single-sided',
-        profile: isPu ? 'CONVEYOR-PU' : isModular ? 'CONVEYOR-MODULAR' : 'CONVEYOR-PVC',
+        sidedness: 'unknown',
+        profile: isPvc ? pvcDescriptor.profile : 'UNSPECIFIED',
         pitchMm: null,
         toothAngleDeg: null,
         toothHeightMm: null,
@@ -792,20 +953,16 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         lengthDesignation: convLen ? `${convLen}` : null,
         toothCount: null,
         ribCount: null,
-        bodyMaterial: isModular
-          ? 'پلی‌پروپیلن / استال مدولار (POM/PP)'
-          : isPu
-            ? 'پلی‌یورتان ترموپلاستیک (TPU)'
-            : 'پلی‌وینیل کلراید (PVC) چندلایه منجیددار',
-        tensileCord: isModular ? 'پین و مدول اینترلاک (Modular Interlock)' : 'منجید پلی‌استر (Polyester Fabric Plies)',
-        backingOrCoating: /آجدار/.test(normName) ? 'سطح آجدار (Grip/Rough Top)' : 'سطح صاف یا استاندارد',
-        standardReference: 'ISO 21183-1 (Light Conveyor Belts)',
-        manufacturerSources: ['ISO 21183-1 Light Conveyor Belts'],
+        bodyMaterial: isPvc ? 'PVC (source label)' : isPu ? 'PU (source label)' : 'نامشخص در منبع',
+        tensileCord: 'نامشخص در منبع',
+        backingOrCoating: isPvc ? pvcDescriptor.backing : 'نامشخص در منبع',
+        standardReference: 'نامشخص در منبع',
+        manufacturerSources: [],
       },
-      confidence: 'ALGORITHMIC_STANDARD_ONLY',
+      confidence: 'REQUIRES_REVIEW',
       verification: unattachedProvenancePlaceholder(),
-      recommendedAction: 'KEEP_IN_CURRENT_FAMILY',
-      engineeringReasoning: 'نوار نقاله استاندارد انتقال مواد منطبق با زیرشاخه نوار نقاله صنعتی (`excel-v2-2-1`).',
+      recommendedAction: isApprovedMaterialLeaf ? 'SPLIT_FROM_CURRENT_FAMILY' : 'MANUAL_ENGINEERING_REVIEW',
+      engineeringReasoning: reasoning,
     };
   }
 
@@ -3413,7 +3570,7 @@ export function validateFamilyEngineeringHomogeneity(
 
   // 8. Belt Thickness (applicable to all true belts/conveyors; controlled variant on ROUND diameter & PVC/PU conveyors only when non-null)
   const thicknessApplicable = !isNonBeltOrEquip && !isAmbiguous;
-  const allowThicknessVariant = prof === 'ROUND' || div === 'conveyor-pvc-pu';
+  const allowThicknessVariant = prof === 'ROUND' || div.startsWith('conveyor-');
   const beltThicknessCheck: AttributeCheckStatus = isAmbiguous
     ? 'UNKNOWN'
     : checkNumericAttribute(
@@ -3464,10 +3621,13 @@ export function validateFamilyEngineeringHomogeneity(
     const rawCoverings = members.map((m) => (m.technical.backingOrCoating ? m.technical.backingOrCoating.trim() : null));
     const hasNull = rawCoverings.some((c) => c === null);
     const hasNonNull = rawCoverings.some((c) => c !== null);
-    if (hasNull && hasNonNull) {
+    const hasUnknownLabel = rawCoverings.some((c) => c !== null && /نامشخص|UNKNOWN|UNSPECIFIED/i.test(c));
+    if (hasUnknownLabel) {
+      coveringCheck = 'UNKNOWN';
+    } else if (hasNull && hasNonNull) {
       coveringCheck = 'FAIL_MIXED';
     } else if (!hasNonNull) {
-      // Uncoated/bare standard construction (e.g. standard neoprene/PU belt without extra APL/Tie-Band backing)
+      // A null covering remains N/A for established bare constructions; explicit UNKNOWN labels stay UNKNOWN.
       coveringCheck = 'NOT_APPLICABLE';
     } else {
       coveringCheck = new Set(rawCoverings as string[]).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
@@ -3478,15 +3638,19 @@ export function validateFamilyEngineeringHomogeneity(
   let sidednessCheck: AttributeCheckStatus;
   if (isNonBeltOrEquip || members.every((m) => m.technical.sidedness === 'not-applicable')) {
     sidednessCheck = 'NOT_APPLICABLE';
-  } else if (isAmbiguous) {
+  } else if (isAmbiguous || members.some((m) => m.technical.sidedness === 'unknown')) {
     sidednessCheck = 'UNKNOWN';
   } else {
     sidednessCheck = new Set(members.map((m) => m.technical.sidedness)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
   }
 
   // 14. Supply Form & Unit
-  const supplyFormCheck: AttributeCheckStatus =
-    new Set(members.map((m) => m.technical.supplyForm)).size === 1 ? 'OK_INVARIANT' : 'FAIL_MIXED';
+  const supplyForms = members.map((m) => m.technical.supplyForm);
+  const supplyFormCheck: AttributeCheckStatus = supplyForms.some((form) => form === 'unknown')
+    ? 'UNKNOWN'
+    : new Set(supplyForms).size === 1
+      ? 'OK_INVARIANT'
+      : 'FAIL_MIXED';
   const unitCheck: AttributeCheckStatus = checkInvariantString(members.map((m) => m.unit));
 
   // 15. Standard Reference
