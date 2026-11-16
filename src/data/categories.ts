@@ -2,12 +2,15 @@ import {durableStorage,databaseStorageEnabled} from "../services/durableStorage"
 import { BELT_MENU, matchesBeltSelection } from "./beltNavigation";
 import type { Category, Product } from '../types';
 import { USER_PRODUCTS, USER_PRODUCTS_RAW, categorySlugFor } from './userProducts';
+import { getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug, LEGACY_CATEGORY_ROUTE_GROUPS } from './categorySeoRoutes';
 
 export interface CategoryNode { name: string; value?: string; hidden?: boolean; children?: CategoryNode[]; }
 export interface EnhancedCategory extends Category {
   children: CategoryNode[]; image?: string; topModels?: string[]; brands?: string[]; featuredBadge?: string;
   /** Family count and exact SKU count are sourced from the catalog metadata in PostgreSQL. */
   familyCount?: number; skuCount?: number;
+  /** Canonical storefront route for this approved category. */
+  routeSlug?: string;
 }
 // Only columns A, B and C belong in navigation. Family names and SKU names never enter this tree.
 const definitions: EnhancedCategory[] = [];
@@ -48,8 +51,27 @@ export const resolveCategorySlug = (slug: string) => {
   if (/^تسمه(?:\s|\u200c|-)+و(?:\s|\u200c|-)+انتقال(?:\s|\u200c|-)+(?:نیرو|قدرت)$/.test(mapped)) return 'تسمه-و-انتقال-نیرو';
   return mapped;
 };
+
+/** Resolve the stable, category-specific route returned by the approved menu API. */
+export const getCategoryRouteSlug = (category: Pick<EnhancedCategory, 'slug' | 'routeSlug'>): string =>
+  getCategorySeoRouteSlug(String(category.slug || category.routeSlug || '').trim());
+
+/** Canonical public path for either an approved category ID or a retired legacy category slug. */
+export const getCategoryRoutePath = (slug: string): string => {
+  const rawSlug = String(slug || '').trim();
+  const internalSlug = getInternalCategorySlugFromRouteSlug(rawSlug);
+  if (internalSlug) return '/category/' + encodeURIComponent(getCategorySeoRouteSlug(internalSlug));
+  const legacySlug = resolveCategorySlug(rawSlug);
+  if (Object.prototype.hasOwnProperty.call(LEGACY_CATEGORY_ROUTE_GROUPS, legacySlug)) {
+    const group = LEGACY_CATEGORY_ROUTE_GROUPS[legacySlug];
+    return group ? '/categories?group=' + encodeURIComponent(group) : '/categories';
+  }
+  return '/category/' + encodeURIComponent(legacySlug);
+};
+
 export function matchesCatalogCategory(product: Product, slug: string, selection = 'all'): boolean {
-  if (product.categorySlug !== resolveCategorySlug(slug)) return false;
+  const internalSlug = getInternalCategorySlugFromRouteSlug(slug) || resolveCategorySlug(slug);
+  if (product.categorySlug !== internalSlug) return false;
   if (selection === 'all') return true;
   const beltMatch = product.categoryName === 'تسمه و انتقال نیرو' ? matchesBeltSelection(product, selection) : undefined;
   return beltMatch ?? (product.submenu === selection || product.subcategory === selection);
@@ -129,5 +151,7 @@ export function getManagedCategories(): EnhancedCategory[] {
   return [];
 }
 
-export const findCatalogCategory = (slug: string) =>
-  getManagedCategories().find(category => resolveCategorySlug(category.slug) === resolveCategorySlug(slug));
+export const findCatalogCategory = (slug: string) => {
+  const internalSlug = getInternalCategorySlugFromRouteSlug(slug) || resolveCategorySlug(slug);
+  return getManagedCategories().find(category => category.slug === internalSlug || resolveCategorySlug(category.slug) === internalSlug);
+};
