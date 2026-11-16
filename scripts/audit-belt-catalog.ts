@@ -501,7 +501,7 @@ function buildExcelWorkbook(audit: ReturnType<typeof runBeltCatalogAudit>): XLSX
     Product_Series: 'Wrapped/wedge/raw-edge V-belts; MEGASYNC imperial/HTD/RPP/Silver3/Gold2; MEGALINEAR/MEGAPOWER/MEGAFLEX T/AT; PV Rubber Ribbed PH/PJ/PK/PL/PM',
     Manufacturer_Website: 'https://megadynegroup.com',
     Catalog_URL: 'https://megadynegroup.com/en/resources/?type=8',
-    Datasheet_URL: 'https://megadynegroup.com/files/resources/attachments/md_manu_en_v-belts_web.pdf | https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf | https://megadynegroup.com/en/products/timing-belts/polyurethane-open-end/megalinear/ | https://megadynegroup.com/de-de/products/multi-rib-belts/pv-rubber-ribbed/',
+    Datasheet_URL: 'https://megadynegroup.com/files/resources/attachments/md_manu_en_product_guide_web_0.pdf | https://megadynegroup.com/en/products/timing-belts/polyurethane-open-end/megalinear/ | https://megadynegroup.com/de-de/products/multi-rib-belts/pv-rubber-ribbed/',
     Technical_Standard: 'ISO 13050 / ISO 9982 / DIN 7721 (profile-dependent)',
     Extracted_Specifications: 'Official V-belt, MEGASYNC, MEGALINEAR and PV Rubber Ribbed sources confirm the listed profile families. The TNX inventory token was not found as an official Megadyne series and is not verified; SKU 58129 is supported only as a PJ-section multi-rib belt, not as an exact TNX datasheet match.',
     Document_Type: 'OFFICIAL_V_BELT_TIMING_AND_RIBBED_CATALOGS',
