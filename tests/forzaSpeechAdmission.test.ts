@@ -130,3 +130,31 @@ test('an emerging quiet utterance does not raise its own ambient threshold',()=>
  for(let t=1050;t<6000;t+=50)gate.sample(0.003,t,false);
  assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,5950),'accept');
 });
+
+test('long speech does not relearn its own voice level as ambient noise between words',()=>{
+ const gate=calibrated(false,0.003);
+ // First phrase establishes the utterance latch.
+ speak(gate,1050,1300,0.006);
+ assert.equal(gate.acousticSpeech,true);
+ // Simulate several natural 120ms word gaps. The room floor must stay frozen
+ // while the same utterance continues, even when the mic level is modest.
+ for(let start=1450;start<5600;start+=550){
+  speak(gate,start,start+300,0.006);
+  for(let t=start+350;t<start+500;t+=50)gate.sample(0.003,t,false);
+ }
+ assert.equal(gate.decide('مشخصات تسمه را می خواهم',false,false,5800),'accept');
+ assert.equal(gate.acousticSpeech,true);
+});
+
+test('delayed browser final hypotheses retain bounded near-field evidence',()=>{
+ const gate=calibrated(false,0.001);
+ speak(gate,1050,1350,0.006);
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,2800),'accept');
+ assert.equal(gate.decide('تسمه SPA 1250',true,false,3400),'reject');
+});
+
+test('ordinary speech at moderate mic gain remains admitted over an ambient floor',()=>{
+ const gate=calibrated(false,0.003);
+ speak(gate,1050,1450,0.006);
+ assert.equal(gate.decide('تسمه صنعتی می خواهم',false,false,1450),'accept');
+});
