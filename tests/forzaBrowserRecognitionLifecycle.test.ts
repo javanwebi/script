@@ -82,7 +82,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
   admission:new ForzaRecognitionAdmission(),speechAdmissionRef:ref({decide:()=> 'accept'}),rejectedRecordingRef:ref(false),
   rec,callClosedRef:ref(false),micMutedRef:ref(false),recognitionRef:ref(rec),
   recognitionConsumedCountRef:ref(0),recognitionResultCountRef:ref(0),recognitionSessionBaseRef:ref(''),appendForzaSpeechSegment,
-  extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),
+  extractPersianSpeechSince,checkpointForzaRecognition,recognitionCheckpointRef:ref({count:0,interim:{}}),recognitionConsumedInterimRef:ref({}),recognitionRetryRef:ref(0),recognitionRetryTimerRef:ref(null),
   recognitionFailedRef:ref(false),webSpeechFailedRef:ref(false),
   setMicrophoneError:()=>{},setErrorNotice:()=>{},
   isProcessingTurnRef:ref(true),isAiSpeakingRef:ref(true),
@@ -104,7 +104,7 @@ test('recognized interruption uses recent near-field VAD evidence after analyser
  assert.equal(interrupted,1);
 });
 test('return to listening preserves a customer sentence arriving at playback completion',()=>{
- const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer Chrome')[0];
+ const body=source.split('    if(!monitorOnly){')[1].split('    // Prefer the on-device Diba/Vosk partial recognizer')[0];
  const execute=new Function('activeTranscriptRef','lastTranscriptChangedAtRef','hasSpeechSoundRef','audioChunksRef','setStatus','setTurn','if(true){'+body);
  const transcript={current:'ده عدد از همان می خواهم'};
  const changed={current:123},speech={current:true},chunks={current:['audio']};
