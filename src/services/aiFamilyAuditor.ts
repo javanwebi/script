@@ -53,7 +53,7 @@ export interface AiFamilyAuditVerdict {
   proposedCategorySlug: string;
   proposedCategoryName: string;
   proposedSubmenu: string;
-  proposedLeaf: string;
+  proposedLeaf: string | null;
   mainGroupId: string;
   mainGroupName: string;
   familyTypeId: string;
