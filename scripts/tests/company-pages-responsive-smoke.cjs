@@ -80,8 +80,8 @@ const pages = [
           assert.ok(heroImageLoaded, "Textile hero industrial image did not load");
           const stages = page.locator('.ipt-stage-tabs button[role="tab"]');
           assert.equal(await stages.count(), 6, "Textile page must expose all six production stages");
-          await stages.nth(1).click();
-          assert.equal(await stages.nth(1).getAttribute("aria-selected"), "true",
+          await stages.nth(2).click();
+          assert.equal(await stages.nth(2).getAttribute("aria-selected"), "true",
             "Textile production stage selection did not update");
           assert.equal((await page.locator("#ipt-stage-panel h3").innerText()).trim(), "بافندگی",
             "Textile stage details did not update after selection");
