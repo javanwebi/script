@@ -74,4 +74,6 @@ test('production deploy applies catalog identity schema before the private canar
   assert.match(baseline, /variable_specs JSONB NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(canary, /response\.clone\(\)\.text\(\)/,
     'failed canary API requests must include a bounded response body for diagnosis');
+  assert.match(deploy, /docker logs --tail 160 "\$CANARY_NAME"/,
+    'the candidate application logs must be printed before cleanup removes a failed canary');
 });
