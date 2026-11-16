@@ -20,6 +20,8 @@ const footer = source('src/components/layout/Footer.tsx');
 const brandBanner = source('src/components/home/MainBrandsBanner.tsx');
 const clubPage = source('src/pages/ClubPage.tsx');
 const migration = source('supabase/migrations/20261116163011_canonical_category_routes.sql');
+const serverSeo = source('server/categorySeoRoutes.ts');
+const serverEntry = source('server.ts');
 
 test('the approved menu exposes 34 unique category routes with no parent-route reuse', () => {
   assert.equal(APPROVED_MENU_CATEGORIES.length, 34);
@@ -59,6 +61,9 @@ test('retired category parents no longer render old category experiences', () =>
   assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
   assert.match(categoryPage, /getInternalCategorySlugFromRouteSlug\(routeSlug\)/);
   assert.match(categoryPage, /getCategorySeoRouteSlug\(internalCategorySlug\)/);
+  assert.match(categoryPage, /LEGACY_CATEGORY_ROUTE_GROUPS/);
+  assert.match(serverSeo, /res\.redirect\(301/);
+  assert.match(serverEntry, /registerCategorySeoRoutes\(app\)/);
   assert.match(categoryPage, /'تسمه-و-انتقال-نیرو': 'excel-v2-1'/);
   assert.match(categoryPage, /'پولی-و-انتقال-نیرو': 'excel-v2-4'/);
   assert.match(categoryPage, /'تجهیزات-وکیوم': null/);
@@ -81,7 +86,10 @@ test('database migration assigns all approved categories their own route and saf
   assert.match(migration, /metadata->>'routeSlug'/);
   assert.match(migration, /تسمه-تایمینگ-صنعتی/);
   assert.match(migration, /نوار-نقاله-صنعتی/);
-  assert.match(migration, /count\(distinct metadata->>'routeSlug'\)/);
+  assert.match(migration, /count\(DISTINCT metadata->>'routeSlug'\)/i);
+  assert.match(serverSeo, /APPROVED_CATEGORY_SEO_ROUTES\.map/);
+  assert.match(serverSeo, /app\.get\('\/sitemap\.xml'/);
+  assert.match(serverSeo, /app\.get\('\/robots\.txt'/);
   assert.match(migration, /SET is_active = false/);
   assert.match(migration, /catalog_family_menu_assignments/);
   assert.match(migration, /catalog_direct_skus/);
