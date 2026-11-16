@@ -3353,7 +3353,10 @@ export function runBeltCatalogAudit(products: Product[], refs?: AuditReferenceTa
       r.technical.beltDivision === 'vbelt-crowned-crc'
   );
   const trueConveyor = skuRecords.filter(
-    (r) => r.technical.beltDivision === 'conveyor-pvc-pu' || r.technical.beltDivision === 'conveyor-grip'
+    (r) => r.technical.beltDivision === 'conveyor-pvc-pu'
+      || r.technical.beltDivision === 'conveyor-modular'
+      || r.technical.beltDivision === 'conveyor-unknown'
+      || r.technical.beltDivision === 'conveyor-grip'
   );
   const beltEquipment = skuRecords.filter((r) => r.technical.operatingPrinciple === 'equipment');
 
@@ -3788,7 +3791,7 @@ export function findIdenticalInvariantMergeCandidates(
   }
 
   const invariantSignature = (f: ProposedBeltFamilyRecord) => {
-    const ignoreThickness = f.profile === 'ROUND' || f.beltDivision === 'conveyor-pvc-pu';
+    const ignoreThickness = f.profile === 'ROUND' || f.beltDivision.startsWith('conveyor-');
     return [
       f.brand,
       f.beltDivision,
