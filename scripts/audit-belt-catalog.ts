@@ -1046,6 +1046,11 @@ function buildFinalValidationWorkbook(
       recSub: 'تسمه به‌پشت‌پیوسته (Banded / Powerband)',
       needNewLeaf: 'YES',
     },
+    'GAP-VBELT-AMERICAN-WEDGE-LEAF-MISSING': {
+      recCat: 'تسمه وی‌بلت (excel-v2-1-2)',
+      recSub: 'تسمه V گوه‌ای آمریکایی (3V / 5V / 8V و نسخه‌های دنده‌ای VX)',
+      needNewLeaf: 'YES — برگ مصوب گوه‌ای آمریکایی در اکسل وجود ندارد',
+    },
     'GAP-VBELT-ENDLESS-CRC': {
       recCat: 'تسمه وی‌بلت / خطوط سرامیک',
       recSub: 'تسمه گرده‌ماهی مداربسته لاستیکی (CRC / TRC Endless)',
