@@ -29,7 +29,7 @@ function resolveFamilyMenuAssignment(row:any):MenuAssignment|null{
   const databaseAssignment:MenuAssignment|null=row.assignedCategorySlug
     ? {categorySlug:row.assignedCategorySlug,submenuName:row.assignedSubmenu||'',leafName:row.assignedLeaf||null,method:row.method||row.assignmentMethod}
     : null;
-  if(databaseAssignment&&(row.method==='admin_verified'||row.method==='excel_source_verified'||row.assignmentMethod==='admin_verified'||row.assignmentMethod==='excel_source_verified')){
+  if(databaseAssignment&&(row.method==='admin_verified'||row.method==='excel_source_verified'||row.method==='engineering_audited'||row.assignmentMethod==='admin_verified'||row.assignmentMethod==='excel_source_verified'||row.assignmentMethod==='engineering_audited')){
     if(assignmentIsValid(row,databaseAssignment).valid)return databaseAssignment;
   }
   const fallback=getFamilyMenuAssignment(row.code||row.familyCode);
