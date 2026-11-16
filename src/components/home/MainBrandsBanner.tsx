@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
+import { getCategoryRoutePath } from '../../data/categories';
 
 export const MainBrandsBanner: React.FC = () => {
   // Subcategories for FORZA (Ordered Left-to-Right matching reference image)
@@ -38,7 +39,7 @@ export const MainBrandsBanner: React.FC = () => {
       id: 'pulleys',
       title: 'پولی‌ها',
       image: STORE_ASSETS.categories.pulleys || STORE_ASSETS.products.aluPulley,
-      link: '/category/excel-v2-4-1',
+      link: getCategoryRoutePath('excel-v2-4-1'),
     },
     {
       id: 'belts',
