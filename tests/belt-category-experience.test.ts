@@ -217,6 +217,10 @@ test('SWR XP wedge profiles are raw-edge cogged, not wrapped V-belts', () => {
     assert.match(result.proposedFamilyNameFa, /دنده‌ای لبه‌خام/);
     assert.match(result.proposedFamilyNameEn, /Raw-Edge Cogged/);
     assert.doesNotMatch(result.technical.bodyMaterial, /Wrapped V-Belt/);
+    if (profile === 'XPZ') {
+      assert.equal(result.proposedLeaf, 'SPA , SPB , SPC و دندانه‌دار');
+      assert.equal(result.taxonomyGap, null);
+    }
   }
 });
 
