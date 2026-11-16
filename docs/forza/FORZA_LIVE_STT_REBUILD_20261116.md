@@ -10,12 +10,13 @@ This change improves the existing FORZA call without replacing the approved part
 - The current customer utterance is now carried across browser SpeechRecognition restarts. A new recognition session appends only its new suffix instead of replacing the already visible words; overlapping words and split technical-code tokens are merged.
 - Ordinary speech requires a 2.6–3.1 second quiet/stability window before dispatch. A two-second breath or pause therefore does not split the same thought into a second AI turn. Explicit stop commands retain their immediate interruption path.
 - If acoustic speech is detected before browser text arrives, the recorder waits through the same continuation window instead of stopping after one second with an empty hypothesis.
+- MediaRecorder rotates at a bounded chunk count instead of slicing or splicing the beginning off a WebM container. Each rotated segment keeps its own header; the Diba fallback transcribes complete segments and merges overlapping words.
 - Server Diba is used as a final fallback only when the browser has no usable transcript. A successful live browser transcript no longer waits for a second full-audio ASR request before the LLM request.
 - The particle avatar's crown/hair keeps a subtle audio-reactive motion during greeting and TTS even when browser echo cancellation suppresses the speaker loopback.
 
 ## Validation
 
-The smart-turn tests cover the two-second pause, final/interim endpointing, SKU corrections, and transcript merging across recognizer restarts. The browser smoke test checks that interim words are visible before upload, a two-second pause does not submit the turn, and words from a restarted recognizer append to the same transcript.
+The smart-turn tests cover the two-second pause, final/interim endpointing, SKU corrections, and transcript merging across recognizer restarts. The recorder-container test checks that capped recordings rotate without slicing WebM data. The browser smoke test checks that interim words are visible before upload, a two-second pause does not submit the turn, and words from a restarted recognizer append to the same transcript.
 
 ## Operational note
 
