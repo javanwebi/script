@@ -323,10 +323,11 @@ export interface ConveyorSurfaceProfile {
 export function detectConveyorSurfaceProfile(rawName: string): ConveyorSurfaceProfile {
   const name = normalize(rawName);
   if (/کله\s*قندی/.test(name)) {
-    const perforated = /سوراخ\s*دار/.test(name);
+    // Perforation is retained as a SKU-level descriptor; the user's catalogue
+    // treats perforated and non-perforated cone-top belts as one PVC family.
     return {
-      profile: perforated ? 'PVC_CONICAL_CLEAT_PERFORATED' : 'PVC_CONICAL_CLEAT',
-      label: perforated ? 'کله‌قندی سوراخ‌دار' : 'کله‌قندی',
+      profile: 'PVC_CONICAL_CLEAT',
+      label: /سوراخ\s*دار/.test(name) ? 'کله‌قندی سوراخ‌دار' : 'کله‌قندی',
       requiresReview: false,
     };
   }
@@ -347,9 +348,6 @@ export function detectConveyorSurfaceProfile(rawName: string): ConveyorSurfacePr
   }
   if (/صاف|ساده/.test(name)) {
     return { profile: 'PVC_SMOOTH', label: 'صاف / ساده', requiresReview: false };
-  }
-  if (/شفاف/.test(name)) {
-    return { profile: 'PVC_TRANSPARENT', label: 'شفاف', requiresReview: false };
   }
   return {
     profile: 'PVC_SURFACE_UNSPECIFIED',
