@@ -22,9 +22,12 @@ export class ForzaSpeechAdmission {
   sample(rms:number,now:number,playback:boolean){
     if(!Number.isFinite(rms)||!Number.isFinite(now)){this.reset();return;}
     const value=Math.max(0,Math.min(1,rms));
-    const modeChanged=playback!==this.mode;
+    const enteringPlayback=playback&&!this.mode;
     const samplingGap=now-this.lastSample>250||now<this.lastSample;
-    if(modeChanged||samplingGap){
+    // Entering TTS invalidates old microphone evidence to prevent echo.
+    // Leaving TTS must preserve a customer's already-admitted continuous
+    // utterance; otherwise a sentence that overlaps the answer gets reset.
+    if(enteringPlayback||samplingGap){
       this.onset=null;this.duration=0;this.strongFrames=0;this.lastStrong=-Infinity;
       this.utteranceLatched=false;
     }
