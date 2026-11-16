@@ -54,7 +54,7 @@ const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').t
 
 const categoryHref = (category: { slug: string; routeSlug?: string; name?: string }) => {
   const routeSlug = getCategoryRouteSlug(category);
-  const isLegacyBelt = routeSlug === 'تسمه-و-انتقال-نیرو' || /تسمه(?:\\s|\\u200c)+و(?:\\s|\\u200c)+انتقال(?:\\s|\\u200c)+(?:نیرو|قدرت)/.test(category.name || '');
+  const isLegacyBelt = routeSlug === 'تسمه-و-انتقال-نیرو' || category.name === 'تسمه و انتقال نیرو' || category.name === 'تسمه و انتقال قدرت';
   return isLegacyBelt ? '/categories?group=excel-v2-1' : '/category/' + encodeURIComponent(routeSlug);
 };
 
