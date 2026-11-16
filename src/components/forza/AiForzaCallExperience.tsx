@@ -492,7 +492,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         analyser.getFloatTimeDomainData(samples);
         const rms=rootMeanSquareFromFloatTimeDomain(samples);
         const micNow=Date.now();
-        const current=vadRef.current.sample(rms,micNow,speechAdmissionRef.current.acousticSpeech);
+        const current=vadRef.current.sample(rms,micNow,
+          speechAdmissionRef.current.acousticSpeech||
+          speechAdmissionRef.current.hasRecentNearFieldEvidence(micNow));
         // Keep the last near-field VAD timestamp briefly so delayed final STT
         // events survive endpoint reset, while distant/background speech is rejected.
         if(current.speechStarted||current.speaking)lastMicActivityRef.current=micNow;
@@ -510,7 +512,9 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
           if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null;}
           return;
         }
-        if(current.speaking && speechAdmissionRef.current.acousticSpeech){
+        if(current.speaking&&speechAdmissionRef.current.hasRecentNearFieldEvidence(Date.now())){
+          // A resumed syllable can arrive before the 160ms admission latch.
+          // Cancel the pending endpoint as soon as fresh near-field PCM returns.
           if(silenceTimerRef.current){
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current=null;
