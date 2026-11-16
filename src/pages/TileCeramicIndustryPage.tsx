@@ -434,7 +434,7 @@ export const TileCeramicIndustryPage: React.FC = () => {
       title: 'تسمه‌های صنعتی',
       image: STORE_ASSETS.categories.belts,
       fallbackImage: STORE_ASSETS.products.forzaBelt,
-      link: '/category/تسمه-و-انتقال-نیرو',
+      link: '/categories?group=excel-v2-1',
     },
     {
       id: 'cat-pulleys',
