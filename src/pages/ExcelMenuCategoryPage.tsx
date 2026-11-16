@@ -29,7 +29,7 @@ import { DirectSkuProductCard, directSkuMatchesSubcategory, toDirectSkuProduct, 
 import { getProductDisplayBrands, productHasDisplayBrand } from '../utils/catalogBrands';
 import type { Product } from '../types';
 import type { CategoryNode } from '../data/categories';
-import { SANAT_PISH_CANONICAL_ORIGIN, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../data/categorySeoRoutes';
+import { SANAT_PISH_CANONICAL_ORIGIN, getCategorySeoMetadata, getCategorySeoRouteSlug, getInternalCategorySlugFromRouteSlug } from '../data/categorySeoRoutes';
 import { STORE_ASSETS } from '../assets/images';
 import { toPersianDigits } from '../utils/formatters';
 import { resolveSiteFallbackByText } from '../utils/siteProductImages';
@@ -780,7 +780,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     const category = data?.category;
     if (!category) return;
     const previousTitle = document.title;
-    const title = `${category.name} | خرید و تأمین قطعات صنعتی | صنعت پیش`;
+    const seoMetadata = getCategorySeoMetadata(slug);
+    const title = `${seoMetadata?.title || category.name} | خرید و تأمین قطعات صنعتی | صنعت پیش`;
     document.title = title;
     let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     const createdMeta = !meta;
@@ -791,8 +792,8 @@ export const ExcelMenuCategoryPage: React.FC = () => {
     }
     const previousDescription = meta.content;
     const childTerms = category.children.map(node => node.name).filter(Boolean).slice(0, 4).join('، ');
-    meta.content = (category.description || `خرید و تأمین ${category.name} صنعتی با بررسی مشخصات فنی، انتخاب خانواده کالا و دریافت مشاوره از صنعت پیش.`).slice(0, 155);
-    if (childTerms && meta.content.length < 120) meta.content = (meta.content + ' شامل ' + childTerms).slice(0, 155);
+    meta.content = (seoMetadata?.description || category.description || `خرید و تأمین ${category.name} صنعتی با بررسی مشخصات فنی، انتخاب خانواده کالا و دریافت مشاوره از صنعت پیش.`).slice(0, 155);
+    if (!seoMetadata && childTerms && meta.content.length < 120) meta.content = (meta.content + ' شامل ' + childTerms).slice(0, 155);
 
     let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     const createdCanonical = !canonical;
