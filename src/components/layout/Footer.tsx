@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { STORE_ASSETS } from '../../assets/images';
 import { SanatPishFooterLogo } from '../common/BrandIdentity';
-import { CATEGORIES, getCategoryRouteSlug } from '../../data/categories';
+import { CATEGORIES, getCategoryRoutePath } from '../../data/categories';
 const LazyAiConsultModal = React.lazy(() => import('../search/AiConsultModal').then(m => ({default:m.AiConsultModal})));
 
 // Official Iran Ministry of Industry Emblem SVG
@@ -312,7 +312,7 @@ export const Footer: React.FC = () => {
               <ul className={`space-y-1.5 text-[11px] text-[#55565A] pt-1.5 md:pt-0 ${openAccordion === 'products' ? 'block' : 'hidden'} md:block animate-in fade-in`}>
                 {CATEGORIES.slice(0, 4).map(category => (
                   <li key={category.slug}>
-                    <Link to={`/category/${encodeURIComponent(getCategoryRouteSlug(category))}`} className="hover:text-[#E06518] transition-colors flex items-center justify-between gap-2 group">
+                    <Link to={getCategoryRoutePath(category.slug)} className="hover:text-[#E06518] transition-colors flex items-center justify-between gap-2 group">
                       <span>{category.name}</span>
                       <ChevronLeft className="w-3 h-3 shrink-0 text-[#777A7D] group-hover:text-[#E06518] transition-colors" />
                     </Link>
