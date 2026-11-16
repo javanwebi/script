@@ -1218,6 +1218,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       ? upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*[*×]\s*(\d{1,3})\b(?!\s*[*×])/)
       : null;
 
+  const bareMetricPuProfileMatch = upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\b/);
   const metricPuMatch =
     mWidthLenProf ||
     mRollProf ||
@@ -1225,9 +1226,10 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
     mOpenMeterWidthKeyword ||
     mOpenProfWidthStar ||
     upperName.match(/\b(\d+(?:[./]\d+)?)\s*(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d{3,5})?\b/) ||
-    upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d+(?:[./]\d+)?)(?:\s*[*×-]\s*(\d{3,5}))?\b/);
+    upperName.match(/\b(DT5|DT10|AT5|AT10|AT20|T5|T10|T20)\s*(?:[*×-]|\s+)?\s*(\d+(?:[./]\d+)?)(?:\s*[*×-]\s*(\d{3,5}))?\b/) ||
+    bareMetricPuProfileMatch;
 
-  if (metricPuMatch) {
+  if (metricPuMatch && isPolyurethaneMaterial) {
     let profile = 'T10';
     let widthMm: number | null = null;
     let lengthMm: number | null = null;
@@ -1273,6 +1275,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
       } else {
         widthMm = n1;
       }
+    } else if (bareMetricPuProfileMatch) {
+      profile = bareMetricPuProfileMatch[1];
     }
 
     if (!lengthMm && !mOpenProfWidthStar) {
@@ -2021,7 +2025,8 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
               ? vSectionMatch[1]
               : 'PU-V';
     const isCrcOrRound = profileCode === 'CRC' || profileCode === 'ROUND';
-    const isApprovedVbeltSection = ['A', 'B', 'C'].includes(profileCode);
+    // A welded PU V-section is not a rubber V-belt. The approved Excel menu has no dedicated PU V-section leaf.
+    const isApprovedVbeltSection = false;
     const hasApprovedWeldedLeaf = isCrcOrRound || profileCode === 'FLAT';
     const isCorded = /نخ\s*دار/.test(normName);
     const isRoughGreen = /زبر/.test(normName);
@@ -2336,6 +2341,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
   // 12. Classical, Narrow/Wedge, and Hexagonal V-Belts
   const productUpperName = normalize(product.name).toUpperCase();
   const explicitWeldedVProfileMatch = `${upperName} ${productUpperName}`.match(/تسمه\s*جوشی\s*V\b.*?پروفیل\s*(A|B|C)\b/);
+  const explicitVProfileMatch = `${upperName} ${productUpperName}`.match(/(?:تسمه\s*V(?:\s*شکل)?|V[\s-]*BELT|وی[\s‌-]*بلت).*?پروفیل\s*(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\b/);
   const stdVMatch =
     upperName.match(/\b(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|Z|M|K|A|B|C|D|E)\s*[-*× ]?\s*(\d{2,5}(?:[./]\d+)?)\b/) ||
     upperName.match(/\b(\d{2,5}(?:[./]\d+)?)\s*(?:[*×]\s*)?(SPZ|XPZ|SPA|XPA|SPB|XPB|SPC|XPC|3VX|3V|5VX|5V|8VX|8V|AA|BB|ZX|AX|BX|CX|MX|M|K)\b/);
@@ -2347,12 +2353,15 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         normName.match(/\b(\d{3,5})\.?\s*\*\s*(9[./]5|10|12[./]5|13|17|22)\b/)
       : null;
 
-  if (stdVMatch || numericVMatch || explicitWeldedVProfileMatch) {
+  if (stdVMatch || numericVMatch || explicitWeldedVProfileMatch || explicitVProfileMatch) {
     let vProfile = 'A';
     let rawLen = 0;
 
     if (explicitWeldedVProfileMatch && !stdVMatch) {
       vProfile = explicitWeldedVProfileMatch[1];
+      rawLen = 0;
+    } else if (explicitVProfileMatch && !stdVMatch) {
+      vProfile = explicitVProfileMatch[1];
       rawLen = 0;
     } else if (stdVMatch) {
       if (VBELT_SPECS[stdVMatch[1]]) {
@@ -2493,7 +2502,7 @@ export function classifyBeltSku(product: Product, variant: ProductVariant): Belt
         pitchLengthMm,
         insideLengthMm,
         outsideLengthMm,
-        lengthDesignation: `${vProfile}${rawLen}`,
+        lengthDesignation: rawLen > 0 ? `${vProfile}${rawLen}` : vProfile,
         toothCount: null,
         ribCount: null,
         bodyMaterial: vProfile.endsWith('X')
