@@ -2711,7 +2711,7 @@ interface ResearchedSkuProvenanceEntry {
 }
 
 const BANDO_SYNCHRO_LINK_PDF = 'https://www.bandousa.com/media/uploads/0/114_BUI-1009_Industrial-Power-Transmission-Products-catalog-Vol-2_9-17.pdf';
-const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/fileadmin/pdf/kataloge/Optibelt-Power-Transmission-product-range-belts.pdf';
+const OPTIBELT_ZRK_CATALOG_URL = 'https://www.optibelt.com/fileadmin/pdf/produkte/keilriemen/Optibelt-product-range.pdf';
 const JIKIU_123RU24_URL = 'https://www.jikiu.jp/catalogue/557384';
 const OPTIBELT_TM_PDF_URL =
   'https://www.optibelt.com/fileadmin/pdf/produkte/zahnriemen-gummi/Optibelt-TM-Rubber-Timing-Belt-Drives.pdf';
