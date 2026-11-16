@@ -53,11 +53,17 @@ type BrowserVosk={createModel(url:string):Promise<LocalSttModel>};
 let dibaPromise:Promise<LocalSttModel>|undefined;
 let voskPromise:Promise<void>|undefined;
 
-function within<T>(promise:Promise<T>,ms:number,label:string):Promise<T>{
+function within<T>(promise:Promise<T>,ms:number,label:string,onLateResolve?:(value:T)=>void):Promise<T>{
   return new Promise((resolve,reject)=>{
-    const id=window.setTimeout(()=>reject(new Error(label)),ms);
-    promise.then(value=>{clearTimeout(id);resolve(value);},
-      error=>{clearTimeout(id);reject(error);});
+    let expired=false;
+    const id=window.setTimeout(()=>{expired=true;reject(new Error(label));},ms);
+    promise.then(value=>{
+      if(expired){try{onLateResolve?.(value);}catch{};return;}
+      clearTimeout(id);resolve(value);
+    },error=>{
+      if(expired)return;
+      clearTimeout(id);reject(error);
+    });
   });
 }
 
@@ -78,9 +84,8 @@ export async function loadDibaSttModel():Promise<LocalSttModel>{
   if(!dibaPromise){
     dibaPromise=(async()=>{
       await within(loadVoskScript(),15000,'vosk_runtime_timeout');
-      return await within(
-        ((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL),
-        90000,'diba_model_timeout');
+      const modelPromise=((window as any).Vosk as BrowserVosk).createModel(FORZA_DIBA_MODEL_URL);
+      return await within(modelPromise,90000,'diba_model_timeout',model=>model.terminate?.());
     })().catch(error=>{dibaPromise=undefined;throw error;});
   }
   return dibaPromise;
