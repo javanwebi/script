@@ -1,12 +1,13 @@
 import type { Express } from 'express';
 import {
   APPROVED_CATEGORY_SEO_ROUTES,
+  SANAT_PISH_CANONICAL_ORIGIN,
   getCategorySeoRouteSlug,
   getInternalCategorySlugFromRouteSlug,
   LEGACY_CATEGORY_ROUTE_GROUPS,
 } from '../src/data/categorySeoRoutes';
 
-const siteOrigin = () => (process.env.PUBLIC_SITE_URL || 'https://sanatpish.com').replace(/\/+$/, '');
+const siteOrigin = () => (process.env.PUBLIC_SITE_URL || SANAT_PISH_CANONICAL_ORIGIN).replace(/\/+$/, '');
 
 /** Register crawlable canonical category URLs, permanent legacy redirects and the category sitemap. */
 export const registerCategorySeoRoutes = (app: Express): void => {
