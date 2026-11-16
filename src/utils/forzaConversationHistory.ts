@@ -21,10 +21,10 @@ export function prepareForzaConversationTurn(
   const safeLimit = Number.isFinite(limit)
     ? Math.max(0, Math.min(40, Math.floor(limit)))
     : FORZA_CONVERSATION_HISTORY_LIMIT;
-  const previousHistory = history
+  const validHistory = history
     .filter((item) => item && (item.role === 'user' || item.role === 'model') &&
-      typeof item.text === 'string' && item.text.trim().length > 0)
-    .slice(-safeLimit)
+      typeof item.text === 'string' && item.text.trim().length > 0);
+  const previousHistory = (safeLimit > 0 ? validHistory.slice(-safeLimit) : [])
     .map((item) => ({ role: item.role, text: item.text }));
   const currentText = String(query || '').trim();
   const nextHistory = currentText
