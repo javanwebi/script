@@ -2112,11 +2112,13 @@ export const AiForzaCallExperience: React.FC<AiForzaCallExperienceProps> = ({ on
         const dibaReady=info.serverSttProvider==='diba'&&
           info.serverSttConfigured===true&&info.serverSttReady===true;
         serverSttConfiguredRef.current=dibaReady;
-        setServerSttLabel(dibaReady
-          ? 'دایبا سرور آماده است'
-          : info.serverSttProvider==='diba'
-            ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
-            : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
+        setServerSttLabel(localSttModelRef.current
+          ? 'دایبا محلی آماده است · تشخیص زنده'
+          : dibaReady
+            ? 'دایبا سرور آماده است'
+            : info.serverSttProvider==='diba'
+              ? 'دایبا در دسترس نیست؛ متن زنده مرورگر'
+              : 'دایبا تنظیم نشده؛ متن زنده مرورگر');
       })
       .catch(()=>{
         if(!controller.signal.aborted){serverSttConfiguredRef.current=false;setServerSttLabel('وضعیت دایبا نامشخص؛ متن زنده مرورگر');}
