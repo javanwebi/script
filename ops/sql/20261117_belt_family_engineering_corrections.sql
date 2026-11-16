@@ -31,6 +31,10 @@ BEGIN
     RAISE EXCEPTION 'Expected 2 SWR AA double-V variants';
   END IF;
   IF (SELECT count(*) FROM public.catalog_variants
+      WHERE upper(coalesce(identity_specs->>'profile',''))='AA') <> 4 THEN
+    RAISE EXCEPTION 'Expected 4 AA double-V variants across SWR and generic families';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_variants
       WHERE upper(coalesce(identity_specs->>'profile','')) IN ('3V','3VX','5V','5VX','8V','8VX')) <> 31 THEN
     RAISE EXCEPTION 'Expected 31 American wedge V-belt variants';
   END IF;
@@ -64,9 +68,10 @@ BEGIN
         'PFAM-تسمه-V-شکل-به--GENERIC--3VX-BANDED-641',
         'PFAM-تسمه-V-شکل-به--DONGIL-C-BANDED-655',
         'PFAM-تسمه-V-شکل-پرو-SWR-8V-140',
-        'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642'
-      )) <> 7 THEN
-    RAISE EXCEPTION 'Expected 7 active family menu assignments for banded and 8V corrections';
+        'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642',
+        'PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105'
+      )) <> 8 THEN
+    RAISE EXCEPTION 'Expected 8 active family menu assignments for banded, 8V and XPZ corrections';
   END IF;
 END $$;
 
@@ -90,8 +95,8 @@ SELECT 'catalog_variants',v.code,to_jsonb(v)
 FROM public.catalog_variants v
 WHERE v.variable_specs->>'beltDivision' IN ('vbelt-crowned-crc','vbelt-banded')
    OR (upper(coalesce(v.brand,''))='SWR'
-       AND upper(coalesce(v.identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC','AA'))
-   OR upper(coalesce(v.identity_specs->>'profile','')) IN ('3V','3VX','5V','5VX','8V','8VX');
+       AND upper(coalesce(v.identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC'))
+   OR upper(coalesce(v.identity_specs->>'profile','')) IN ('AA','3V','3VX','5V','5VX','8V','8VX');
 
 -- Snapshot the 18 pure engineering family records whose labels or approved menu path change.
 INSERT INTO internal.catalog_belt_family_engineering_backup_20261117(table_name,row_key,row_data)
@@ -113,6 +118,7 @@ WHERE f.code IN (
   'PFAM-تسمه-V-شکل-پرو-SWR-XPB-028',
   'PFAM-تسمه-V-شکل-پرو-SWR-XPC-085',
   'PFAM-تسمه-V-شکل-پرو-SWR-AA-652',
+  'PFAM-تسمه-V-شکل-پرو-GENERIC--AA-658',
   'PFAM-تسمه-V-شکل-پرو-SWR-5V-489',
   'PFAM-تسمه-V-شکل-پرو-SWR-8V-140',
   'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642'
@@ -128,7 +134,8 @@ WHERE a.family_code IN (
   'PFAM-تسمه-V-شکل-به--GENERIC--3VX-BANDED-641',
   'PFAM-تسمه-V-شکل-به--DONGIL-C-BANDED-655',
   'PFAM-تسمه-V-شکل-پرو-SWR-8V-140',
-  'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642'
+  'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642',
+  'PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105'
 );
 
 INSERT INTO internal.catalog_belt_family_engineering_backup_20261117(table_name,row_key,row_data)
@@ -141,14 +148,14 @@ WHERE d.sku_code IN (
 
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 290 THEN
-    RAISE EXCEPTION 'Backup failed: expected 288 catalog variant rows';
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_variants') <> 292 THEN
+    RAISE EXCEPTION 'Backup failed: expected 292 catalog variant rows';
   END IF;
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 18 THEN
-    RAISE EXCEPTION 'Backup failed: expected 13 catalog family rows';
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_families') <> 19 THEN
+    RAISE EXCEPTION 'Backup failed: expected 19 catalog family rows';
   END IF;
-  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 7 THEN
-    RAISE EXCEPTION 'Backup failed: expected 7 family menu assignment rows';
+  IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_family_menu_assignments') <> 8 THEN
+    RAISE EXCEPTION 'Backup failed: expected 8 family menu assignment rows';
   END IF;
   IF (SELECT count(*) FROM internal.catalog_belt_family_engineering_backup_20261117 WHERE table_name='catalog_direct_skus') <> 14 THEN
     RAISE EXCEPTION 'Backup failed: expected 14 direct SKU rows';
@@ -426,6 +433,9 @@ SET identity_specs=jsonb_set(
       ),'[]'::jsonb)
       FROM jsonb_array_elements(coalesce(v.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
     ),
+    proposed_category_slug='excel-v2-1-2',
+    proposed_submenu='تسمه اسپشیال',
+    proposed_leaf='SPA , SPB , SPC و دندانه‌دار',
     research_evidence='OFFICIAL_CATALOG',
     technical_review=jsonb_set(
       jsonb_set(
@@ -514,8 +524,7 @@ SET identity_specs=jsonb_set(
       FROM jsonb_array_elements(coalesce(v.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
     ),
     updated_at=now()
-WHERE upper(coalesce(v.brand,''))='SWR'
-  AND upper(coalesce(v.identity_specs->>'profile',''))='AA';
+WHERE upper(coalesce(v.identity_specs->>'profile',''))='AA';
 
 -- 7) Correct family-level names/specifications for the SWR raw-edge XP families.
 UPDATE public.catalog_families f
@@ -599,7 +608,10 @@ SET materials='بدنه لاستیکی تسمه V دوطرفه؛ ترکیب دق
       FROM jsonb_array_elements(coalesce(f.technical_specs,'[]'::jsonb)) WITH ORDINALITY AS x(e,ord)
     ),
     updated_at=now()
-WHERE f.code='PFAM-تسمه-V-شکل-پرو-SWR-AA-652';
+WHERE f.code IN (
+  'PFAM-تسمه-V-شکل-پرو-SWR-AA-652',
+  'PFAM-تسمه-V-شکل-پرو-GENERIC--AA-658'
+);
 
 -- 9) Approved menu paths: 8V belongs in the wedge/special submenu, not the classical leaf.
 UPDATE public.catalog_family_menu_assignments
@@ -611,6 +623,18 @@ WHERE family_code IN (
   'PFAM-تسمه-V-شکل-پرو-SWR-8V-140',
   'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642'
 );
+
+-- XPZ is a verified raw-edge cogged narrow-wedge profile and belongs to the approved cogged leaf.
+UPDATE public.catalog_family_menu_assignments
+SET leaf_name='SPA , SPB , SPC و دندانه‌دار',
+    method='engineering_audited',
+    updated_at=now()
+WHERE family_code='PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105';
+
+UPDATE public.catalog_families
+SET subcategory='SPA , SPB , SPC و دندانه‌دار',
+    updated_at=now()
+WHERE code='PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105';
 
 UPDATE public.catalog_variants v
 SET proposed_category_slug='excel-v2-1-2',
@@ -790,8 +814,24 @@ BEGIN
       WHERE upper(coalesce(brand,''))='SWR'
         AND upper(coalesce(identity_specs->>'profile','')) IN ('XPZ','XPA','XPB','XPC')
         AND identity_specs->>'material'='لاستیک دنده‌ای لبه‌خام (Raw-Edge Cogged Rubber)'
-        AND technical_review->>'status'='catalog-extracted') <> 139 THEN
-    RAISE EXCEPTION 'Postcondition failed: SWR XP raw-edge evidence/material or uncertainty status';
+        AND technical_review->>'status'='catalog-extracted'
+        AND proposed_category_slug='excel-v2-1-2'
+        AND proposed_submenu='تسمه اسپشیال'
+        AND proposed_leaf='SPA , SPB , SPC و دندانه‌دار') <> 139 THEN
+    RAISE EXCEPTION 'Postcondition failed: SWR XP raw-edge evidence/material or approved menu path';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_variants
+      WHERE upper(coalesce(identity_specs->>'profile',''))='AA'
+        AND family_type_id='FT-VBELT-HEXAGONAL'
+        AND identity_specs->>'productType'='تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'
+        AND identity_specs->>'standard'='ISO 5289 / DIN 7722 (Double V / Hexagonal AA / HAA)') <> 4 THEN
+    RAISE EXCEPTION 'Postcondition failed: all AA profiles must be identified as Double-V';
+  END IF;
+  IF (SELECT count(*) FROM public.catalog_family_menu_assignments
+      WHERE family_code='PFAM-تسمه-V-شکل-پرو-SWR-XPZ-105'
+        AND leaf_name='SPA , SPB , SPC و دندانه‌دار'
+        AND method='engineering_audited') <> 1 THEN
+    RAISE EXCEPTION 'Postcondition failed: XPZ must use the approved cogged leaf';
   END IF;
   IF EXISTS (
     SELECT 1 FROM public.catalog_families
