@@ -60,9 +60,13 @@ export function validateFamilyMenuAssignment(
   // Industrial belt families need both a valid Excel path and a matching engineering identity.
   const profileCode = profile.replace(/-banded$/, '').replace(/[^a-z0-9]/g, '');
   const isTiming = matches(identity, /تسمه تایمینگ|timing|synchronous|htd|rpp|at5|at10|at20|\bt5\b/);
-  const isVbelt = matches(identity, /تسمه\s*v|وی.?بلت|v.?belt|v شکل/);
-  const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
   const isPuMaterial = matches(material, /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/);
+  const isWeldablePuVSection =
+    isPuMaterial &&
+    ['a', 'b', 'c'].includes(profileCode) &&
+    matches(identity, /تسمه\s*جوشی.*پروفیل\s*[abc]/);
+  const isVbelt = matches(identity, /تسمه\s*v|وی.?بلت|v.?belt|v شکل/) || isWeldablePuVSection;
+  const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
   const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
   const isWeldingDevice = matches(identity, /دستگاه.*(?:جوش|آپارات).*تسمه|گیره.*آپارات.*تسمه|belt.*weld.*device/);
