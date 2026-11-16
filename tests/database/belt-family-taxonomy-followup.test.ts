@@ -48,8 +48,14 @@ const readReviewedLists = async (migration: string, menuCorrection: string) => {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("('"))
     .map((line) => {
-      const [code, categorySlug, categoryName, submenu, leaf] = splitSqlValues(line);
-      return { code, categorySlug, categoryName, submenu, leaf };
+      const values = splitSqlValues(line);
+      return {
+        code: values[0] as string,
+        categorySlug: values[1] as string,
+        categoryName: values[2] as string,
+        submenu: values[3] as string,
+        leaf: values[4] as string | null,
+      };
     });
 
   const preconditionBlock = migration.split('do $$')[1].split('end $$')[0];
