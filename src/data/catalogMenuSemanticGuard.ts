@@ -61,7 +61,7 @@ export function validateFamilyMenuAssignment(
   const profileCode = profile.replace(/-banded$/, '').replace(/[^a-z0-9]/g, '');
   const isTiming = matches(identity, /تسمه تایمینگ|timing|synchronous|htd|rpp|at5|at10|at20|\bt5\b/);
   const isPuMaterial = matches(material, /پلی.?یورتان|polyurethane|thermoplastic.?pu|\btpu\b|\bpu\b/);
-  const isVbelt = matches(identity, /تسمه\s*v|وی.?بلت|v.?belt|v شکل/);
+  const isVbelt = matches(identity, /تسمه(?:\s+جوشی)?\s*v|وی.?بلت|v.?belt|v شکل/);
   const isPolyV = matches(identity, /چندشیاری|poly.?v|multi.?rib/);
   const isRubberMaterial = matches(material, /لاستیک|الاستومر|rubber|elastomer|nbr|epdm|fkm|viton|neoprene|کلروپرن/);
   const isRidgeTop = matches(identity, /تاج.?دار|گرده.?ماهی|ridge.?top|crowned/);
