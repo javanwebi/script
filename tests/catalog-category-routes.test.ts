@@ -135,13 +135,17 @@ test('production SEO routes issue permanent redirects and expose all approved UR
   assert.ok(address && typeof address === 'object');
   const origin = `http://127.0.0.1:${address.port}`;
   try {
-    const oldId = await fetch(origin + '/category/excel-v2-1-1', { redirect: 'manual' });
+    const oldId = await fetch(origin + '/category/excel-v2-1-1?sub=پلی-یورتان', { redirect: 'manual' });
     assert.equal(oldId.status, 301);
-    assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی'));
+    assert.equal(oldId.headers.get('location'), '/category/' + encodeURIComponent('تسمه-تایمینگ-صنعتی') + '?sub=پلی-یورتان');
 
     const oldParent = await fetch(origin + '/category/' + encodeURIComponent('تسمه-و-انتقال-نیرو'), { redirect: 'manual' });
     assert.equal(oldParent.status, 301);
     assert.equal(oldParent.headers.get('location'), '/categories?group=excel-v2-1');
+
+    const oldEnglishAlias = await fetch(origin + '/category/industrial-belts', { redirect: 'manual' });
+    assert.equal(oldEnglishAlias.status, 301);
+    assert.equal(oldEnglishAlias.headers.get('location'), '/categories?group=excel-v2-1');
 
     const sitemap = await fetch(origin + '/sitemap.xml');
     assert.equal(sitemap.status, 200);
@@ -149,6 +153,7 @@ test('production SEO routes issue permanent redirects and expose all approved UR
     assert.equal((xml.match(/<url>/g) || []).length, 42);
     assert.ok(xml.includes(encodeURIComponent('تسمه-تایمینگ-صنعتی')));
     assert.ok(xml.includes(encodeURIComponent('اسکاج-صنعتی')));
+    assert.ok(!xml.includes('/category/excel-v2-'), 'sitemap must not publish internal category IDs');
 
     const robots = await fetch(origin + '/robots.txt');
     assert.equal(robots.status, 200);
