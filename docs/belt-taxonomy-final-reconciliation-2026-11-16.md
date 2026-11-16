@@ -56,7 +56,7 @@ The production database already contains the PVC conveyor surface split: four di
 
 The follow-on engineering migration is applied after the 2026-11-16 menu reconciliation and is independently snapshotted for rollback:
 
-- 103 crowned CRC/TRC variants are separated from the 121 heat-welded PU round-belt variants. The ridge-top application is documented; the exact CRC/TRC compound, cord, dimensions and formal standard remain explicitly unverified.
+- 103 crowned CRC/TRC variants are assigned the dedicated `conveyor-crowned-crc` division and `FT-BELT-CROWNED-CRC` family type, separate from the 121 heat-welded PU round-belt variants. The ridge-top application is documented; the exact CRC/TRC compound, cord, dimensions and formal standard remain explicitly unverified.
 - 15 banded V-belt variants are assigned the separate Banded / Powerband family type and removed from single-belt leaves.
 - 31 American wedge variants (3V/5V/8V and VX cogged variants) are separated from metric narrow wedge profiles.
 - 139 SWR XPZ/XPA/XPB/XPC variants are identified as raw-edge cogged; series-level catalogue evidence is retained without claiming exact local SKU/length verification. XPZ is assigned to the approved cogged leaf.
