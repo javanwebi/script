@@ -20,7 +20,8 @@ test('audio-thread RMS survives delayed main-thread delivery and bounds queued m
  assert.ok(processor.frames.length<=32);
  processor.port.onmessage();audio(0.01,0.002);
  const gate=new ForzaSpeechAdmission();
- for(const batch of messages)for(const [at,rms] of batch)gate.sample(rms,at*1000,true);
+ for(const batch of messages)for(const [at,rms] of batch)gate.sample(rms,at*1000,false);
+ assert.equal(gate.diagnostics(scope.currentTime*1000).calibrated,true,'ambient floor must be calibrated before speaker playback');
  messages.length=0;
  processor.port.onmessage();audio(0.5,0.06);
  assert.equal(messages.length,1);assert.ok(processor.frames.length<=32);
