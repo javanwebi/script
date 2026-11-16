@@ -364,7 +364,7 @@ test('the 90-type Excel audit matrix reconciles all source family and SKU totals
 
 
 test('familyless industrial belt SKUs are exposed individually without synthetic families and PVC units restore from source backup',()=>{
- const migration=readFileSync('supabase/migrations/20261116145916_belt_orphan_direct_skus_and_restore_pvc_units.sql','utf8');
+ const migration=readFileSync('ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units.sql','utf8');
  const rollback=readFileSync('ops/sql/20261116_belt_orphan_direct_skus_and_restore_pvc_units_rollback.sql','utf8');
  const expected=['10077','10265','10695','32929','34483','34854','38910','41630','58288','58304'];
  for(const code of expected) assert.ok(migration.includes(code),`missing standalone SKU ${code}`);
