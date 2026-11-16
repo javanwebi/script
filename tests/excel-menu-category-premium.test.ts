@@ -10,7 +10,7 @@ const api = source('server/catalogNavigationApi.ts');
 const pulley = source('src/pages/PulleyCatalogPage.tsx');
 
 test('approved Excel taxonomy slugs continue to use the dedicated database-backed category route', () => {
-  assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(slug || ''))"));
+  assert.ok(routes.includes("if (/^excel-v2-[0-9]+-[0-9]+$/.test(canonicalSlug))"));
   assert.match(routes, /return <ExcelMenuCategoryPage \/>/);
   assert.match(page, /fetch\('\/api\/catalog\/menu-category\/' \+ encodeURIComponent\(slug\)/);
 });
