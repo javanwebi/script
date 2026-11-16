@@ -292,11 +292,16 @@ test('Phase 1 Gate 7A: PVC conveyor surface profiles form separate, dimension-in
 test('Phase 1 Gate 7B: PVC conveyor data migration is backed up, reversible and fails closed', () => {
   const migrationPath = path.join(ROOT_DIR, 'ops/sql/20261116_pvc_conveyor_surface_family_split.sql');
   const rollbackPath = path.join(ROOT_DIR, 'ops/sql/20261116_pvc_conveyor_surface_family_split_rollback.sql');
+  const ledgerPath = path.join(ROOT_DIR, 'supabase/migrations/20261116152640_split_pvc_conveyor_surface_families_20261116.sql');
   assert.ok(fs.existsSync(migrationPath), 'PVC conveyor surface migration must exist');
   assert.ok(fs.existsSync(rollbackPath), 'PVC conveyor surface rollback must exist');
+  assert.ok(fs.existsSync(ledgerPath), 'Production migration ledger stub must exist');
 
   const migration = fs.readFileSync(migrationPath, 'utf8');
   const rollback = fs.readFileSync(rollbackPath, 'utf8');
+  const ledger = fs.readFileSync(ledgerPath, 'utf8');
+  assert.match(ledger, /SELECT 1;/);
+  assert.match(ledger, /intentionally kept under ops\/sql/);
   for (const marker of [
     'PVC surface preflight mismatch',
     'catalog_pvc_surface_variants_backup_20261116',
