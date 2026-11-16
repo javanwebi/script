@@ -5,13 +5,13 @@ const { chromium } = require('playwright');
 
 const baseUrl = process.env.BELT_PREVIEW_URL || 'http://127.0.0.1:4173';
 const categories = [
-  { slug: 'excel-v2-1-1', name: 'تسمه تایمینگ' },
-  { slug: 'excel-v2-1-2', name: 'تسمه وی‌بلت (V-Belt)' },
-  { slug: 'excel-v2-1-3', name: 'تسمه جوشی با سایت' },
-  { slug: 'excel-v2-1-4', name: 'تسمه بارکش و تجهیزات جوشی' },
+  { slug: 'excel-v2-1-1', routeSlug: 'تسمه-تایمینگ-صنعتی', name: 'تسمه تایمینگ' },
+  { slug: 'excel-v2-1-2', routeSlug: 'تسمه-وی-بلت-صنعتی', name: 'تسمه وی‌بلت (V-Belt)' },
+  { slug: 'excel-v2-1-3', routeSlug: 'تسمه-جوشی-صنعتی', name: 'تسمه جوشی با سایت' },
+  { slug: 'excel-v2-1-4', routeSlug: 'تسمه-بارکش-صنعتی', name: 'تسمه بارکش و تجهیزات جوشی' },
 ].map(category => ({
   ...category,
-  routeSlug: category.slug,
+  routeSlug: category.routeSlug,
   active: true,
   description: 'کاتالوگ تخصصی ' + category.name,
   image: null,
@@ -84,19 +84,27 @@ async function installRoutes(page) {
         page.setDefaultTimeout(15000);
         page.on('pageerror', error => pageErrors.push(error.message));
         await installRoutes(page);
-        await page.goto(baseUrl + '/category/' + category.slug, { waitUntil: 'domcontentloaded' });
+        await page.goto(baseUrl + '/category/' + encodeURIComponent(category.routeSlug), { waitUntil: 'domcontentloaded' });
         await page.locator('.excel-category-page').waitFor();
         await page.getByRole('heading', { name: category.name }).waitFor({ timeout: 20000 });
-        assert.equal(new URL(page.url()).pathname, '/category/' + category.slug, 'category must retain its unique canonical URL: ' + page.url());
+        const expectedPath = new URL(baseUrl + '/category/' + encodeURIComponent(category.routeSlug)).pathname;
+        assert.equal(new URL(page.url()).pathname, expectedPath, 'category must retain its unique Persian SEO URL: ' + page.url());
         assert.equal(await page.locator('.excel-category-results').count(), 1, 'canonical category must render its own product results region');
         const layout = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth }));
         assert.ok(layout.document <= layout.viewport + 1, 'category page horizontal overflow: ' + JSON.stringify(layout));
         assert.ok(layout.body <= layout.viewport + 1, 'category body horizontal overflow: ' + JSON.stringify(layout));
         if (pageErrors.length) failures.push({ viewport, category: category.slug, pageErrors });
         await page.screenshot({ path: '/tmp/belt-category-' + category.slug + '-' + viewport.width + '.png', fullPage: false, animations: 'disabled' });
-        console.log('BELT_CANONICAL_ROUTE_OK', category.slug, viewport.width + 'px', JSON.stringify(layout));
+        console.log('BELT_SEO_ROUTE_OK', category.routeSlug, viewport.width + 'px', JSON.stringify(layout));
         await page.close();
       }
+      const internalIdPage = await context.newPage();
+      await installRoutes(internalIdPage);
+      await internalIdPage.goto(baseUrl + '/category/' + categories[0].slug, { waitUntil: 'domcontentloaded' });
+      await internalIdPage.waitForURL(url => url.pathname === new URL(baseUrl + '/category/' + encodeURIComponent(categories[0].routeSlug)).pathname, { timeout: 15000 });
+      console.log('BELT_INTERNAL_ID_CANONICALIZED', categories[0].slug, internalIdPage.url());
+      await internalIdPage.close();
+
       const legacyPage = await context.newPage();
       const legacyErrors = [];
       legacyPage.on('pageerror', error => legacyErrors.push(error.message));
