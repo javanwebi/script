@@ -29,6 +29,7 @@ const xpFamilies = [
   'PFAM-تسمه-V-شکل-پرو-SWR-XPC-085',
 ];
 const aaFamily = 'PFAM-تسمه-V-شکل-پرو-SWR-AA-652';
+const genericAaFamily = 'PFAM-تسمه-V-شکل-پرو-GENERIC--AA-658';
 const fiveVFamily = 'PFAM-تسمه-V-شکل-پرو-SWR-5V-489';
 const swrEightVFamily = 'PFAM-تسمه-V-شکل-پرو-SWR-8V-140';
 const optibeltEightVFamily = 'PFAM-تسمه-V-شکل-پرو-OPTIBELT-8V-642';
@@ -58,8 +59,8 @@ const review = (status: string) => JSON.stringify({
   categoryPath: ['old', 'wrong'],
   originalTechnicalType: 'old',
 });
-const identity = (profile: string, material = oldMaterial, construction = 'کورد پلی‌استر قدیمی', standard = 'old standard') =>
-  JSON.stringify({ brand: 'SWR', profile, material, construction, standard, productType: 'تسمه V شکل پروفیل ' + profile });
+const identity = (profile: string, material = oldMaterial, construction = 'کورد پلی‌استر قدیمی', standard = 'old standard', brand = 'SWR') =>
+  JSON.stringify({ brand, profile, material, construction, standard, productType: 'تسمه V شکل پروفیل ' + profile });
 const variable = (beltDivision: string, profile: string) =>
   JSON.stringify({ beltDivision, profile, sidedness: 'single-sided', supplyForm: 'endless-loop' });
 
@@ -132,6 +133,7 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
       await addFamily(xpFamilies[i], profile, 'SWR', oldMaterial, 'DIN 7753-1 / ISO 4184', 'تسمه اسپشیال', 'SPA , SPB , SPC و دندانه‌دار');
     }
     await addFamily(aaFamily, 'AA', 'SWR', oldMaterial, 'old AA standard', null, null, 'UNRESOLVED');
+    await addFamily(genericAaFamily, 'AA', 'GENERIC', oldMaterial, 'old AA standard', null, null, 'UNRESOLVED');
     await addFamily(fiveVFamily, '5V', 'SWR', oldMaterial, 'RMA IP-22 / ISO 4184', 'تسمه اسپشیال', null);
     await addFamily(swrEightVFamily, '8V', 'SWR', oldMaterial, 'RMA IP-22 / ISO 4184', 'کلاسیک و دنده‌دار', 'old leaf');
     await addFamily(optibeltEightVFamily, '8V', 'OPTIBELT', oldMaterial, 'RMA IP-22 / ISO 4184', 'کلاسیک و دنده‌دار', 'old leaf');
@@ -144,6 +146,7 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
       })),
       { family_code: swrEightVFamily, submenu_name: 'کلاسیک و دنده‌دار', leaf_name: 'old leaf' },
       { family_code: optibeltEightVFamily, submenu_name: 'کلاسیک و دنده‌دار', leaf_name: 'old leaf' },
+      { family_code: xpFamilies[0], submenu_name: 'تسمه اسپشیال', leaf_name: null },
     ];
     for (const row of assignments) {
       await db.query(
@@ -168,7 +171,7 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
          values($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12)`,
         [
           row.code, row.family, row.brand,
-          identity(row.profile, material, construction, row.standard ?? 'old standard'),
+          identity(row.profile, material, construction, row.standard ?? 'old standard', row.brand),
           variable(row.division, row.profile), row.familyType, row.category ?? 'excel-v2-1-2',
           row.submenu ?? 'کلاسیک و دنده‌دار', row.leaf === undefined ? 'old leaf' : row.leaf,
           specs([
@@ -221,7 +224,12 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
     }
     for (let i = 0; i < 2; i++) {
       await addVariant({
-        code: 'AA-' + i, family: aaFamily, brand: 'SWR', profile: 'AA',
+        code: 'AA-SWR-' + i, family: aaFamily, brand: 'SWR', profile: 'AA',
+        division: 'vbelt-hexagonal', familyType: 'FT-VBELT-HEXAGONAL',
+        material: oldMaterial, standard: 'old AA standard',
+      });
+      await addVariant({
+        code: 'AA-GENERIC-' + i, family: genericAaFamily, brand: 'GENERIC', profile: 'AA',
         division: 'vbelt-hexagonal', familyType: 'FT-VBELT-HEXAGONAL',
         material: oldMaterial, standard: 'old AA standard',
       });
@@ -300,7 +308,7 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
         (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_family_menu_assignments') assignments,
         (select count(*)::int from internal.catalog_belt_family_engineering_backup_20261117 where table_name='catalog_direct_skus') direct`,
     );
-    assert.deepEqual(backup.rows[0], { variants: 290, families: 18, assignments: 7, direct: 14 });
+    assert.deepEqual(backup.rows[0], { variants: 292, families: 19, assignments: 8, direct: 14 });
 
     const checks = await db.query(
       `select
@@ -312,14 +320,35 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
     );
     assert.deepEqual(checks.rows[0], { crc: 103, welded: 121, banded: 15, wedge: 29, cogged: 2 });
 
+    const aa = await db.query(
+      `select count(*)::int count from public.catalog_variants
+       where upper(identity_specs->>'profile')='AA'
+         and family_type_id='FT-VBELT-HEXAGONAL'
+         and identity_specs->>'productType'='تسمه V دوطرفه شش‌ضلعی پروفیل AA (Double V-Belt)'
+         and identity_specs->>'standard'='ISO 5289 / DIN 7722 (Double V / Hexagonal AA / HAA)'`,
+    );
+    assert.equal(aa.rows[0].count, 4);
+
     const xp = await db.query(
       `select count(*)::int count from public.catalog_variants
        where brand='SWR' and upper(identity_specs->>'profile') in ('XPZ','XPA','XPB','XPC')
          and identity_specs->>'material' like '%Raw-Edge Cogged%'
          and research_evidence='OFFICIAL_CATALOG'
-         and technical_review->>'status'='catalog-extracted'`,
+         and technical_review->>'status'='catalog-extracted'
+         and proposed_category_slug='excel-v2-1-2'
+         and proposed_submenu='تسمه اسپشیال'
+         and proposed_leaf='SPA , SPB , SPC و دندانه‌دار'`,
     );
     assert.equal(xp.rows[0].count, 139);
+
+    const xpzAssignment = await db.query(
+      `select leaf_name,method from public.catalog_family_menu_assignments where family_code=$1`,
+      [xpFamilies[0]],
+    );
+    assert.deepEqual(xpzAssignment.rows[0], {
+      leaf_name: 'SPA , SPB , SPC و دندانه‌دار',
+      method: 'engineering_audited',
+    });
 
     const direct = await db.query(
       `select
@@ -339,6 +368,19 @@ test('belt engineering correction migrates exact rows and rolls back from its pr
       [oldMaterial],
     );
     assert.deepEqual(restored.rows[0], { crc: 103, banded: 15, wedge: 31, xp: 139 });
+
+    const aaRestored = await db.query(
+      `select count(*)::int count from public.catalog_variants
+       where upper(identity_specs->>'profile')='AA' and identity_specs->>'material'=$1`,
+      [oldMaterial],
+    );
+    assert.equal(aaRestored.rows[0].count, 4);
+
+    const xpzRestored = await db.query(
+      `select leaf_name from public.catalog_family_menu_assignments where family_code=$1`,
+      [xpFamilies[0]],
+    );
+    assert.equal(xpzRestored.rows[0].leaf_name, null);
 
     const directRestored = await db.query(
       `select submenu,subcategory from public.catalog_direct_skus where sku_code='39861'`,
