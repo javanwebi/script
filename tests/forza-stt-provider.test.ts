@@ -111,3 +111,15 @@ test('the real single-port VPS runtime provisions and requires ready Diba STT',(
   assert.match(canary,/assert\.equal\(stt\.serverSttProvider, "diba"\)/);
   assert.match(canary,/assert\.equal\(stt\.serverSttReady, true\)/);
 });
+
+
+test('blue-green production deployment requires ready Diba STT before and after traffic switch',()=>{
+  const bluegreen=readFileSync(new URL('../ops/deploy-main-bluegreen-vps.sh',import.meta.url),'utf8');
+  assert.match(bluegreen,/info\.get\('serverSttConfigured'\) is True/);
+  assert.match(bluegreen,/info\.get\('serverSttProvider'\) == 'diba'/);
+  assert.match(bluegreen,/info\.get\('serverSttReady'\) is True/);
+  assert.match(bluegreen,/stt_info\.get\('serverSttConfigured'\) is True/);
+  assert.match(bluegreen,/stt_info\.get\('serverSttProvider'\) == 'diba'/);
+  assert.match(bluegreen,/stt_info\.get\('serverSttReady'\) is True/);
+  assert.doesNotMatch(bluegreen,/serverSttProvider'\) in \('none','gemini'\)/);
+});
