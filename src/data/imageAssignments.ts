@@ -35,7 +35,7 @@ export interface DbImageAuditRow {
 export interface DbDirectSkuImageBinding {
   skuCode: string;
   name?: string;
-  imageUrl: string;
+  imageUrl?: string|null;
   categorySlug?: string;
   categoryName?: string;
   submenu?: string;
@@ -71,7 +71,7 @@ export function getImageAssignmentAudit(
   const directBindings=new Map<string,DbDirectSkuImageBinding[]>();
   for(const direct of directSkus){
     if(direct.active===false)continue;
-    const file=imageFileName(direct.imageUrl);
+    const file=imageFileName(direct.imageUrl||'');
     if(!file)continue;
     const list=directBindings.get(file)||[];
     if(!list.some(existing=>existing.skuCode===direct.skuCode))list.push(direct);
