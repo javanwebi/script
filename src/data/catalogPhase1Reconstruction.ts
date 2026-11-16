@@ -1768,8 +1768,6 @@ export function classifyNonBeltSku(
     }
   }
 
-  const pvcSurface = productType === 'نوار نقاله PVC' ? detectConveyorSurfaceProfile(norm) : null;
-
   // --- DOMAIN 2: GUIDE RAILS, GUIDES & PROFILES (ریل صنعتی، سر ریل، پایه ریل، گاید، پروفیل صنعتی) ---
   else if (
     rawFam.technicalType === 'ریل صنعتی' ||
@@ -3062,6 +3060,8 @@ export function classifyNonBeltSku(
     submenu = UNRESOLVED_MENU_PATH.submenu;
     leaf = UNRESOLVED_MENU_PATH.leaf;
   }
+
+  const pvcSurface = productType === 'نوار نقاله PVC' ? detectConveyorSurfaceProfile(norm) : null;
 
   const proposedCategoryName = categorySlug === 'UNRESOLVED'
     ? UNRESOLVED_MENU_PATH.categoryName
